@@ -67,6 +67,8 @@ Repository = "https://github.com/ecmwf/anemoi-inference/"
 Issues = "https://github.com/ecmwf/anemoi-inference/issues"
 # Changelog = "https://github.com/ecmwf/anemoi-inference/CHANGELOG.md"
 
+[project.scripts]
+anemoi-inference = "anemoi.inference.__main__:main"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
