@@ -39,9 +39,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-dependencies = [
-
-]
+dependencies = ["anemoi-utils"]
 
 [project.optional-dependencies]
 
@@ -50,15 +48,9 @@ docs = [
     # For building the documentation
 ]
 
-all = [
-]
+all = []
 
-dev = [
-    "sphinx",
-    "sphinx_rtd_theme",
-    "nbsphinx",
-    "pandoc",
-]
+dev = ["sphinx", "sphinx_rtd_theme", "nbsphinx", "pandoc"]
 
 [project.urls]
 Homepage = "https://github.com/ecmwf/anemoi-inference/"

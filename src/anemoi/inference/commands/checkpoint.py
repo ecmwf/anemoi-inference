@@ -8,25 +8,20 @@
 # nor does it submit to any jurisdiction.
 #
 
-"""Command place holder. Delete when we have real commands.
 
-"""
-
+from ..checkpoint import Checkpoint
 from . import Command
 
 
-def say_hello(greetings, who):
-    print(greetings, who)
+class CheckpointCmd(Command):
 
-
-class Hello(Command):
+    need_logging = False
 
     def add_arguments(self, command_parser):
-        command_parser.add_argument("--greetings", default="hello")
-        command_parser.add_argument("--who", default="world")
+        command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
-        say_hello(args.greetings, args.who)
+        Checkpoint(args.path).describe()
 
 
-command = Hello
+command = CheckpointCmd
