@@ -44,5 +44,11 @@ class CheckpointCmd(Command):
         print()
         print("imputable variables", c.imputable_variables)
 
+        for v in dir(c):
+            if v.startswith("_"):
+                continue
+
+            print(v, getattr(c, v))
+
 
 command = CheckpointCmd
