@@ -21,7 +21,28 @@ class CheckpointCmd(Command):
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
-        Checkpoint(args.path).describe()
+        from anemoi.utils.text import dotted_line
+
+        c = Checkpoint(args.path)
+        print("num_input_features:", c.num_input_features)
+        print("hour_steps:", c.hour_steps)
+        result = list(range(0, c.multi_step))
+        result = [-s * c.hour_steps for s in result]
+        print(sorted(result))
+        print("multi_step:", c.multi_step)
+        print()
+        print("MARS requests:")
+        print(dotted_line())
+        print("param_sfc:", c.param_sfc)
+        print("param_level_pl:", c.param_level_pl)
+        print("param_level_ml:", c.param_level_ml)
+        print("prognostic_params:", c.prognostic_params)
+        print("diagnostic_params:", c.diagnostic_params)
+        print("constants_from_input:", c.constants_from_input)
+        print("computed_constants:", c.computed_constants)
+        print("computed_forcings:", c.computed_forcings)
+        print()
+        print("imputable variables", c.imputable_variables)
 
 
 command = CheckpointCmd
