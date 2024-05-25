@@ -293,6 +293,10 @@ class Metadata:
 
     ###########################################################################
     @cached_property
+    def precision(self):
+        return self._config_training["precision"]
+
+    @cached_property
     def multi_step(self):
         return self._config_training["multistep_input"]
 

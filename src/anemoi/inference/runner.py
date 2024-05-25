@@ -15,7 +15,20 @@ import torch
 
 from .checkpoint import Checkpoint
 
-LOG = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+
+
+AUTOCAST = {
+    "16": torch.float16,
+    "16-mixed": torch.float16,
+    "32": torch.float32,
+    "b16": torch.bfloat16,
+    "b16-mixed": torch.bfloat16,
+    "bfloat16": torch.bfloat16,
+    "float16": torch.float16,
+    "float32": torch.float32,
+    None: torch.float16,
+}
 
 
 def forcing_and_constants(source, date, param):
@@ -33,40 +46,46 @@ def forcing_and_constants(source, date, param):
     return ds.to_numpy(dtype=np.float32)
 
 
+def ignore(*args, **kwargs):
+    pass
+
+
 class Runner:
 
     def __init__(self, checkpoint):
-
-        if isinstance(checkpoint, str):
-            checkpoint = Checkpoint(self, checkpoint)
-        else:
-            assert isinstance(checkpoint, Checkpoint)
-            self.checkpoint = checkpoint
+        self.checkpoint = Checkpoint(checkpoint)
 
     def run(
         self,
         *,
         input_fields,
         lead_time,
-        start_datetime,
         device,
-        output_callback,
-        autocast=torch.float16,
-        stepper=None,
+        start_datetime=None,
+        output_callback=ignore,
+        autocast=None,
+        progress_callback=ignore,
     ):
+
+        if autocast is None:
+            autocast = self.checkpoint.precision
+
+        autocast = AUTOCAST[autocast]
 
         input_fields = input_fields.sel(**self.checkpoint.select)
         input_fields = input_fields.order_by(**self.checkpoint.order_by)
 
-        gridpoints = len(input_fields[0].grid_points()[0])
+        number_of_grid_points = len(input_fields[0].grid_points()[0])
 
-        LOG.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
+        LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
         input_fields_numpy = input_fields.to_numpy(dtype=np.float32, reshape=False)
+        print(input_fields_numpy.shape)
+
         input_fields_numpy = input_fields_numpy.reshape(
             len(self.lagged),
             len(input_fields) // len(self.lagged),
-            gridpoints,
+            number_of_grid_points,
         )  # nlags, nparams, ngrid
 
         # Used to check if we cover the whole input, with no overlaps
@@ -106,7 +125,7 @@ class Runner:
         if not np.all(check):
             for i, c in enumerate(check):
                 if not c:
-                    LOG.error(
+                    LOGGER.error(
                         "Missing %s %s %s",
                         i,
                         self.checkpoint.model_to_data[i],
@@ -149,7 +168,7 @@ class Runner:
             shape=(
                 len(self.lagged),
                 self.checkpoint.num_input_features,
-                gridpoints,
+                number_of_grid_points,
             ),
             fill_value=np.nan,
             dtype=np.float32,
@@ -163,6 +182,9 @@ class Runner:
         input_tensor_numpy[:, constant_from_input_mask] = input_fields_numpy[
             :, constant_data_from_retrieved_fields_mask
         ]
+
+        if start_datetime is None:
+            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()
 
         constants = forcing_and_constants(
             source=input_fields[:1],
@@ -181,7 +203,7 @@ class Runner:
             )
             input_tensor_numpy[i, computed_forcing_mask] = forcings
 
-        LOG.info("Input tensor shape: %s", input_tensor_numpy.shape)
+        LOGGER.info("Input tensor shape: %s", input_tensor_numpy.shape)
 
         imputable_variables = self.checkpoint.imputable_variables
         can_be_missing = set()
@@ -194,7 +216,7 @@ class Runner:
                 can_be_missing.add(name)
                 if not is_imputable:
                     model_index = self.checkpoint.model_to_data[i]
-                    LOG.error(
+                    LOGGER.error(
                         "No imputation specified for NaNs in %s (%s %s)",
                         name,
                         i,
@@ -228,17 +250,7 @@ class Runner:
         prognostic_output_mask = self.checkpoint.prognostic_output_mask
         diagnostic_output_mask = self.checkpoint.diagnostic_output_mask
 
-        # autocast = {
-        #     "16": torch.float16,
-        #     "32": torch.float32,
-        #     "b16": torch.bfloat16,
-        #     "bfloat16": torch.bfloat16,
-        #     "float16": torch.float16,
-        #     "float32": torch.float32,
-        # }[self.autocast]
-        # device_type = "cuda"
-
-        LOG.info("Using autocast %s", autocast)
+        LOGGER.info("Using autocast %s", autocast)
 
         # Write dynamic fields
         def get_most_recent_datetime(input_fields):
@@ -253,7 +265,7 @@ class Runner:
         precip_template = reference_fields[self.checkpoint.variable_to_index["2t"]]
 
         accumulated_output = np.zeros(
-            shape=(len(diagnostic_output_mask), gridpoints),
+            shape=(len(diagnostic_output_mask), number_of_grid_points),
             dtype=np.float32,
         )
 
@@ -276,105 +288,83 @@ class Runner:
             return wrapper
 
         if True:  # self.add_ensemble_dimension:
-            LOG.warning("🚨" * 80)
-            LOG.warning("Adding ensemble dimension.")
-            LOG.warning("If you are using that flags, your are using unsupported code")
-            LOG.warning("that can be removed any time in the near future")
-            LOG.warning("🚨" * 80)
+            LOGGER.warning("🚨" * 80)
+            LOGGER.warning("Adding ensemble dimension.")
+            LOGGER.warning("If you are using that flags, your are using unsupported code")
+            LOGGER.warning("that can be removed any time in the near future")
+            LOGGER.warning("🚨" * 80)
 
             model.predict_step = add_ensemble_dim(model.predict_step)
 
         prognostic_params = self.checkpoint.prognostic_params
 
         # with self.stepper(self.hour_steps) as stepper:
-        if True:
-            for i in range(lead_time // self.hour_steps):
-                step = (i + 1) * self.hour_steps
 
-                # Predict next state of atmosphere
-                with torch.autocast(device_type=device, dtype=autocast):
-                    y_pred = model.predict_step(input_tensor_torch)
+        for i in range(lead_time // self.hour_steps):
+            step = (i + 1) * self.hour_steps
 
-                # Detach tensor and squeeze
-                output = np.squeeze(y_pred.cpu().numpy())
+            # Predict next state of atmosphere
+            with torch.autocast(device_type=device, dtype=autocast):
+                y_pred = model.predict_step(input_tensor_torch)
 
-                prognostic_fields_numpy = output[:, prognostic_output_mask]
-                if len(diagnostic_output_mask):
-                    diagnostic_fields_numpy = output[:, diagnostic_output_mask]
+            # Detach tensor and squeeze
+            output = np.squeeze(y_pred.cpu().numpy())
 
-                for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
-                    template = reference_fields[m]
-                    assert template.valid_datetime() == most_recent_datetime, (
-                        template.valid_datetime(),
+            prognostic_fields_numpy = output[:, prognostic_output_mask]
+            if len(diagnostic_output_mask):
+                diagnostic_fields_numpy = output[:, diagnostic_output_mask]
+
+            for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
+                template = reference_fields[m]
+                assert template.valid_datetime() == most_recent_datetime, (
+                    template.valid_datetime(),
+                    most_recent_datetime,
+                )
+                output_callback(
+                    prognostic_fields_numpy[:, n],
+                    template=template,
+                    step=step,
+                    check_nans=True,  # param in can_be_missing,
+                )
+
+            # Write diagnostic fields
+            if len(diagnostic_output_mask):
+                for n, param in enumerate(self.checkpoint.diagnostic_params):
+                    accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
+                    assert precip_template.valid_datetime() == most_recent_datetime, (
+                        precip_template.valid_datetime(),
                         most_recent_datetime,
                     )
                     output_callback(
-                        prognostic_fields_numpy[:, n],
-                        template=template,
-                        step=step,
+                        accumulated_output[n],
+                        stepType="accum",
+                        template=precip_template,
+                        startStep=0,
+                        endStep=step,
+                        param=param,
                         check_nans=True,  # param in can_be_missing,
                     )
 
-                # Write diagnostic fields
-                if len(diagnostic_output_mask):
-                    for n, param in enumerate(self.checkpoint.diagnostic_params):
-                        accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                        assert precip_template.valid_datetime() == most_recent_datetime, (
-                            precip_template.valid_datetime(),
-                            most_recent_datetime,
-                        )
-                        output_callback(
-                            accumulated_output[n],
-                            stepType="accum",
-                            template=precip_template,
-                            startStep=0,
-                            endStep=step,
-                            param=param,
-                            check_nans=True,  # param in can_be_missing,
-                        )
+            # Next step
 
-                # Next step
+            prognostic_fields = y_pred[..., prognostic_output_mask]
 
-                prognostic_fields = y_pred[..., prognostic_output_mask]
+            # Compute new forcing
 
-                # Compute new forcing
+            forcing = forcing_and_constants(
+                source=input_fields[:1],
+                param=self.checkpoint.computed_forcings,
+                date=start_datetime + datetime.timedelta(hours=step),
+            )
+            forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
+            forcing = torch.from_numpy(forcing).to(device)
 
-                forcing = forcing_and_constants(
-                    source=input_fields[:1],
-                    param=self.checkpoint.computed_forcings,
-                    date=start_datetime + datetime.timedelta(hours=step),
-                )
-                forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
-                forcing = torch.from_numpy(forcing).to(device)
+            # Update dynamic tensor for next iteration
+            input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
+            input_tensor_torch[:, -1, :, prognostic_input_mask] = prognostic_fields
+            input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
 
-                # Update dynamic tensor for next iteration
-                input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-                input_tensor_torch[:, -1, :, prognostic_input_mask] = prognostic_fields
-                input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
-
-                # stepper(i, step)
-
-    # Below are methods forwarded to the checkpoint
-
-    # @cached_property
-    # def param_sfc(self):
-    #     return self.checkpoint.param_sfc
-
-    # @cached_property
-    # def param_level_pl(self):
-    #     return self.checkpoint.param_level_pl
-
-    # @cached_property
-    # def param_level_ml(self):
-    #     return self.checkpoint.param_level_ml
-
-    # @cached_property
-    # def grid(self):
-    #     return self.checkpoint.grid
-
-    # @cached_property
-    # def area(self):
-    #     return self.checkpoint.area
+            progress_callback(i)
 
     @cached_property
     def hour_steps(self):
@@ -385,7 +375,3 @@ class Runner:
         result = list(range(0, self.checkpoint.multi_step))
         result = [-s * self.hour_steps for s in result]
         return sorted(result)
-
-    # @cached_property
-    # def constant_fields(self):
-    #     return self.checkpoint.constants_from_input
