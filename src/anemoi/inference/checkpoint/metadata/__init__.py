@@ -51,6 +51,9 @@ class Metadata:
     def __init__(self, metadata):
         self._metadata = metadata
 
+    def to_dict(self):
+        return self._metadata
+
     @classmethod
     def from_metadata(cls, metadata):
         if isinstance(metadata["dataset"], list):

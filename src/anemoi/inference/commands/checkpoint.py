@@ -9,6 +9,8 @@
 #
 
 
+import json
+
 from ..checkpoint import Checkpoint
 from . import Command
 
@@ -18,12 +20,18 @@ class CheckpointCmd(Command):
     need_logging = False
 
     def add_arguments(self, command_parser):
+        command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
         from anemoi.utils.text import dotted_line
 
         c = Checkpoint(args.path)
+
+        if args.json:
+            print(json.dumps(c.to_dict(), indent=4, sort_keys=True))
+            return
+
         print("num_input_features:", c.num_input_features)
         print("hour_steps:", c.hour_steps)
         result = list(range(0, c.multi_step))
