@@ -51,6 +51,7 @@ class CheckpointCmd(Command):
         print("computed_forcings:", c.computed_forcings)
         print()
         print("imputable variables", c.imputable_variables)
+        print("precision", c.precision)
 
 
 command = CheckpointCmd
