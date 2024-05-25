@@ -12,6 +12,7 @@ from functools import cached_property
 
 import numpy as np
 import torch
+from anemoi.utils.timer import Timer
 
 from .checkpoint import Checkpoint
 
@@ -224,8 +225,7 @@ class Runner:
                     )
                     raise ValueError(f"Field '{name}' has NaNs and is not marked as imputable")
 
-        # with self.timer(f"Loading {self.checkpoint}"):
-        if True:
+        with Timer(f"Loading {self.checkpoint}"):
             try:
                 model = torch.load(
                     self.checkpoint.path,
@@ -300,7 +300,7 @@ class Runner:
 
         # with self.stepper(self.hour_steps) as stepper:
 
-        for i in range(lead_time // self.hour_steps):
+        for i in progress_callback(range(lead_time // self.hour_steps)):
             step = (i + 1) * self.hour_steps
 
             # Predict next state of atmosphere
@@ -364,7 +364,7 @@ class Runner:
             input_tensor_torch[:, -1, :, prognostic_input_mask] = prognostic_fields
             input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
 
-            progress_callback(i)
+            # progress_callback(i)
 
     @cached_property
     def hour_steps(self):
