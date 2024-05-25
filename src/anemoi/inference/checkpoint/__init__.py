@@ -37,7 +37,7 @@ class Checkpoint:
     @cached_property
     def operational_config(self):
         try:
-            result = self._checkpoint_metadata("operational-config.json")
+            result = load_metadata(self.path, "operational-config.json")
             LOG.info(f"Using operational configuration from checkpoint {self.path}")
             return result
         except ValueError:
