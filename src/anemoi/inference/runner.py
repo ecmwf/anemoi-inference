@@ -375,3 +375,7 @@ class Runner:
         result = list(range(0, self.checkpoint.multi_step))
         result = [-s * self.hour_steps for s in result]
         return sorted(result)
+
+
+class DefaultRunner(Runner):
+    pass
