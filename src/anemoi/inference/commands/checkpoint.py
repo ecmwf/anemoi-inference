@@ -21,34 +21,48 @@ class CheckpointCmd(Command):
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
-        from anemoi.utils.text import dotted_line
 
         c = Checkpoint(args.path)
-        print("num_input_features:", c.num_input_features)
+
+        print("area:", c.area)
+        print("computed_constants:", c.computed_constants)
+        print("computed_constants_mask:", c.computed_constants_mask)
+        print("computed_forcings:", c.computed_forcings)
+        print("computed_forcings_mask:", c.computed_forcings_mask)
+        print("constant_data_from_input_mask:", c.constant_data_from_input_mask)
+        print("constants_from_input:", c.constants_from_input)
+        print("constants_from_input_mask:", c.constants_from_input_mask)
+        print("data_request:", c.data_request)
+        print("data_to_model:", c.data_to_model)
+        print("diagnostic_output_mask:", c.diagnostic_output_mask)
+        print("diagnostic_params:", c.diagnostic_params)
+        print("from_metadata:", c.from_metadata)
+        print("grid:", c.grid)
         print("hour_steps:", c.hour_steps)
+        print("imputable variables:", c.imputable_variables)
+        print("imputable_variables:", c.imputable_variables)
+        print("index_to_variable:", c.index_to_variable)
+        print("model_to_data:", c.model_to_data)
+        print("multi_step:", c.multi_step)
+        print("num_input_features:", c.num_input_features)
+        print("operational_config:", c.operational_config)
+        print("order_by:", c.order_by)
+        print("param_level_ml:", c.param_level_ml)
+        print("param_level_pl:", c.param_level_pl)
+        print("param_sfc:", c.param_sfc)
+        print("prognostic_data_input_mask:", c.prognostic_data_input_mask)
+        print("prognostic_input_mask:", c.prognostic_input_mask)
+        print("prognostic_output_mask:", c.prognostic_output_mask)
+        print("prognostic_params:", c.prognostic_params)
+        print("report_loading_error:", c.report_loading_error)
+        print("rounded_area:", c.rounded_area)
+        print("select:", c.select)
+        print("variable_to_index:", c.variable_to_index)
+        print("variables:", c.variables)
+        print()
         result = list(range(0, c.multi_step))
         result = [-s * c.hour_steps for s in result]
         print(sorted(result))
-        print("multi_step:", c.multi_step)
-        print()
-        print("MARS requests:")
-        print(dotted_line())
-        print("param_sfc:", c.param_sfc)
-        print("param_level_pl:", c.param_level_pl)
-        print("param_level_ml:", c.param_level_ml)
-        print("prognostic_params:", c.prognostic_params)
-        print("diagnostic_params:", c.diagnostic_params)
-        print("constants_from_input:", c.constants_from_input)
-        print("computed_constants:", c.computed_constants)
-        print("computed_forcings:", c.computed_forcings)
-        print()
-        print("imputable variables", c.imputable_variables)
-
-        for v in dir(c):
-            if v.startswith("_"):
-                continue
-
-            print(v, getattr(c, v))
 
 
 command = CheckpointCmd

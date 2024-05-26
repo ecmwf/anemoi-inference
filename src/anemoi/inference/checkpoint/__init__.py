@@ -34,6 +34,9 @@ class Checkpoint:
 
         return getattr(self._metadata, name)
 
+    def _checkpoint_metadata(self, name):
+        return load_metadata(self.path, name)
+
     @cached_property
     def operational_config(self):
         try:
