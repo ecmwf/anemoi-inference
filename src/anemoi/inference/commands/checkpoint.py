@@ -9,6 +9,8 @@
 #
 
 
+import json
+
 from ..checkpoint import Checkpoint
 from . import Command
 
@@ -18,11 +20,15 @@ class CheckpointCmd(Command):
     need_logging = False
 
     def add_arguments(self, command_parser):
+        command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
 
         c = Checkpoint(args.path)
+        if args.json:
+            print(json.dumps(c.to_dict(), indent=4, sort_keys=True))
+            return
 
         print("area:", c.area)
         print("computed_constants:", c.computed_constants)
@@ -39,6 +45,7 @@ class CheckpointCmd(Command):
         print("from_metadata:", c.from_metadata)
         print("grid:", c.grid)
         print("hour_steps:", c.hour_steps)
+        print("imputable variables", c.imputable_variables)
         print("imputable variables:", c.imputable_variables)
         print("imputable_variables:", c.imputable_variables)
         print("index_to_variable:", c.index_to_variable)
@@ -50,6 +57,7 @@ class CheckpointCmd(Command):
         print("param_level_ml:", c.param_level_ml)
         print("param_level_pl:", c.param_level_pl)
         print("param_sfc:", c.param_sfc)
+        print("precision", c.precision)
         print("prognostic_data_input_mask:", c.prognostic_data_input_mask)
         print("prognostic_input_mask:", c.prognostic_input_mask)
         print("prognostic_output_mask:", c.prognostic_output_mask)
@@ -59,10 +67,6 @@ class CheckpointCmd(Command):
         print("select:", c.select)
         print("variable_to_index:", c.variable_to_index)
         print("variables:", c.variables)
-        print()
-        result = list(range(0, c.multi_step))
-        result = [-s * c.hour_steps for s in result]
-        print(sorted(result))
 
 
 command = CheckpointCmd
