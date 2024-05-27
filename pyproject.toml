@@ -39,7 +39,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-dependencies = ["anemoi-utils", "semantic-version"]
+dependencies = [
+    "tomli",            # Only needed before 3.11
+    "anemoi-utils",
+    "semantic-version",
+    "pyyaml",
+]
 
 [project.optional-dependencies]
 

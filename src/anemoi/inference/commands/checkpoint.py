@@ -11,6 +11,8 @@
 
 import json
 
+import yaml
+
 from ..checkpoint import Checkpoint
 from . import Command
 
@@ -21,6 +23,7 @@ class CheckpointCmd(Command):
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
+        command_parser.add_argument("--yaml", action="store_true", help="Output in YAML format")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
@@ -28,6 +31,10 @@ class CheckpointCmd(Command):
         c = Checkpoint(args.path)
         if args.json:
             print(json.dumps(c.to_dict(), indent=4, sort_keys=True))
+            return
+
+        if args.yaml:
+            print(yaml.dump(c.to_dict(), indent=4, sort_keys=True))
             return
 
         print("area:", c.area)
