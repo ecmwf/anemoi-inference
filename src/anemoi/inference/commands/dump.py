@@ -55,7 +55,7 @@ class DumpCmd(Command):
             return
 
         if args.yaml:
-            print(yaml.dump(c.to_dict(), indent=4, sort_keys=True))
+            print(yaml.dump(c.to_dict(), indent=2, sort_keys=True))
             return
 
         _dump(c.to_dict(), [])
