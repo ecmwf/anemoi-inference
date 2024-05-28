@@ -60,6 +60,7 @@ class CheckpointCmd(Command):
         print("select:", c.select)
         print("variable_to_index:", c.variable_to_index)
         print("variables:", c.variables)
+        print("variables_with_nans::", c.variables_with_nans)
 
 
 command = CheckpointCmd
