@@ -32,7 +32,9 @@ class Metadata(Command):
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
         group = command_parser.add_mutually_exclusive_group(required=True)
-        group.add_argument("--edit", action="store_true", help="Edit metadata.")
+        group.add_argument(
+            "--edit", action="store_true", help="Edit the metadata in place, using the specified editor."
+        )
         group.add_argument("--remove", action="store_true", help="Remove metadata.")
         group.add_argument(
             "--dump",
@@ -56,7 +58,11 @@ class Metadata(Command):
 
         command_parser.add_argument("--input", help="The output file name to be used by the ``--load`` option.")
         command_parser.add_argument("--output", help="The output file name to be used by the ``--dump`` option.")
-        command_parser.add_argument("--editor", help="Editor to use.", default=os.environ.get("EDITOR", "vi"))
+        command_parser.add_argument(
+            "--editor",
+            help="Editor to use for the ``--edit`` option. Default to ``$EDITOR`` if defined, else ``vi``.",
+            default=os.environ.get("EDITOR", "vi"),
+        )
         command_parser.add_argument("--json", action="store_true", help="Output in JSON format.")
         command_parser.add_argument("--yaml", action="store_true", help="Output in YAML format.")
 
