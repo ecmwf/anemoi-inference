@@ -41,7 +41,7 @@ classifiers = [
 
 dependencies = [
     "tomli",            # Only needed before 3.11
-    "anemoi-utils>=0.2.0",
+    "anemoi-utils>=0.2.1",
     "semantic-version",
     "pyyaml",
     "torch",

@@ -52,6 +52,7 @@ def ignore(*args, **kwargs):
 
 
 class Runner:
+    """_summary_"""
 
     def __init__(self, checkpoint):
         self.checkpoint = Checkpoint(checkpoint)
@@ -68,7 +69,39 @@ class Runner:
         progress_callback=ignore,
         add_ensemble_dimension=False,
     ):
-        import torch
+        """_summary_
+
+        Parameters
+        ----------
+        input_fields : _type_
+            _description_
+        lead_time : _type_
+            _description_
+        device : _type_
+            _description_
+        start_datetime : _type_, optional
+            _description_, by default None
+        output_callback : _type_, optional
+            _description_, by default ignore
+        autocast : _type_, optional
+            _description_, by default None
+        progress_callback : _type_, optional
+            _description_, by default ignore
+        add_ensemble_dimension : bool, optional
+            _description_, by default False
+
+        Returns
+        -------
+        _type_
+            _description_
+
+        Raises
+        ------
+        RuntimeError
+            _description_
+        ValueError
+            _description_
+        """
 
         if autocast is None:
             autocast = self.checkpoint.precision
@@ -374,4 +407,12 @@ class Runner:
 
 
 class DefaultRunner(Runner):
+    """_summary_
+
+    Parameters
+    ----------
+    Runner : _type_
+        _description_
+    """
+
     pass
