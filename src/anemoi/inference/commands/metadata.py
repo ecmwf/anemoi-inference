@@ -57,24 +57,45 @@ class Metadata(Command):
                 " See the ``--editor`` argument for more information."
             ),
         )
-        group.add_argument("--remove", action="store_true", help="Remove the metadata from the checkpoint.")
 
-        command_parser.add_argument(
-            "--name", default=DEFAULT_NAME, help="Name of metadata record to be used with the actions above."
+        group.add_argument(
+            "--remove",
+            action="store_true",
+            help="Remove the metadata from the checkpoint.",
         )
 
-        command_parser.add_argument("--input", help="The output file name to be used by the ``--load`` option.")
-        command_parser.add_argument("--output", help="The output file name to be used by the ``--dump`` option.")
+        command_parser.add_argument(
+            "--name",
+            default=DEFAULT_NAME,
+            help="Name of metadata record to be used with the actions above.",
+        )
+
+        command_parser.add_argument(
+            "--input",
+            help="The output file name to be used by the ``--load`` option.",
+        )
+
+        command_parser.add_argument(
+            "--output",
+            help="The output file name to be used by the ``--dump`` option.",
+        )
+
         command_parser.add_argument(
             "--editor",
             help="Editor to use for the ``--edit`` option. Default to ``$EDITOR`` if defined, else ``vi``.",
             default=os.environ.get("EDITOR", "vi"),
         )
+
         command_parser.add_argument(
-            "--json", action="store_true", help="Use the JSON format with ``--dump`` and ``--edit``."
+            "--json",
+            action="store_true",
+            help="Use the JSON format with ``--dump`` and ``--edit``.",
         )
+
         command_parser.add_argument(
-            "--yaml", action="store_true", help="Use the YAML format with ``--dump`` and ``--edit``."
+            "--yaml",
+            action="store_true",
+            help="Use the YAML format with ``--dump`` and ``--edit``.",
         )
 
     def run(self, args):
