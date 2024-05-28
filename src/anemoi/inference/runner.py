@@ -68,6 +68,7 @@ class Runner:
         progress_callback=ignore,
         add_ensemble_dimension=False,
     ):
+        import torch
 
         if autocast is None:
             autocast = self.checkpoint.precision
