@@ -23,6 +23,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Metadata(Command):
+    """Edit, remove, dump or load metadata from a checkpoint file."""
 
     def add_arguments(self, command_parser):
         from anemoi.utils.checkpoints import DEFAULT_FOLDER
