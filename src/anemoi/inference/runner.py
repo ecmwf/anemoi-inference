@@ -66,6 +66,7 @@ class Runner:
         output_callback=ignore,
         autocast=None,
         progress_callback=ignore,
+        add_ensemble_dimension=False,
     ):
 
         if autocast is None:
@@ -287,13 +288,7 @@ class Runner:
 
             return wrapper
 
-        if True:  # self.add_ensemble_dimension:
-            LOGGER.warning("🚨" * 80)
-            LOGGER.warning("Adding ensemble dimension.")
-            LOGGER.warning("If you are using that flags, your are using unsupported code")
-            LOGGER.warning("that can be removed any time in the near future")
-            LOGGER.warning("🚨" * 80)
-
+        if add_ensemble_dimension:
             model.predict_step = add_ensemble_dim(model.predict_step)
 
         prognostic_params = self.checkpoint.prognostic_params
