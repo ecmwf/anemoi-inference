@@ -26,7 +26,6 @@ class Metadata(Command):
     """Edit, remove, dump or load metadata from a checkpoint file."""
 
     def add_arguments(self, command_parser):
-        from anemoi.utils.checkpoints import DEFAULT_FOLDER
         from anemoi.utils.checkpoints import DEFAULT_NAME
 
         command_parser.add_argument("path", help="Path to the checkpoint.")
@@ -54,7 +53,6 @@ class Metadata(Command):
         )
 
         command_parser.add_argument("--name", default=DEFAULT_NAME, help="Name of metadata.")
-        command_parser.add_argument("--folder", default=DEFAULT_FOLDER, help="Name of metadata.")
 
         command_parser.add_argument("--input", help="The output file name to be used by the ``--load`` option.")
         command_parser.add_argument("--output", help="The output file name to be used by the ``--dump`` option.")
@@ -159,7 +157,7 @@ class Metadata(Command):
         if has_metadata(args.path, args.name):
             replace_metadata(args.path, metadata)
         else:
-            save_metadata(args.path, metadata, args.name, args.folder)
+            save_metadata(args.path, metadata, args.name)
 
 
 command = Metadata
