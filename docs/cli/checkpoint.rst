@@ -1,5 +1,5 @@
-copy
-====
+checkpoint
+==========
 
 .. argparse::
     :module: anemoi.datasets.__main__

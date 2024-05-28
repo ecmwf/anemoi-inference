@@ -1,5 +1,5 @@
-create
-======
+metadata
+========
 
 Use this command to create a dataset from a recipe file:
 
