@@ -33,14 +33,21 @@ class Metadata(Command):
         group = command_parser.add_mutually_exclusive_group(required=True)
         group.add_argument("--edit", action="store_true", help="Edit metadata.")
         group.add_argument("--remove", action="store_true", help="Remove metadata.")
-        group.add_argument("--dump", action="store_true", help="Get metadata.")
+        group.add_argument(
+            "--dump",
+            action="store_true",
+            help=(
+                "Extract the metadata from the checkpoint and print it to the standard output"
+                " or the file specified by `--output`, in JSON or YAML format."
+            ),
+        )
         group.add_argument("--load", action="store_true", help="Get metadata.")
 
         command_parser.add_argument("--name", default=DEFAULT_NAME, help="Name of metadata.")
         command_parser.add_argument("--folder", default=DEFAULT_FOLDER, help="Name of metadata.")
 
-        command_parser.add_argument("--input")
-        command_parser.add_argument("--output")
+        command_parser.add_argument("--input", help="The output file name to be used by the `--load` option.")
+        command_parser.add_argument("--output", help="The output file name to be used by the `--dump` option.")
         command_parser.add_argument("--editor", help="Editor to use.", default=os.environ.get("EDITOR", "vi"))
         command_parser.add_argument("--json", action="store_true", help="Output in JSON format.")
         command_parser.add_argument("--yaml", action="store_true", help="Output in YAML format.")
