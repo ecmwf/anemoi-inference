@@ -38,16 +38,23 @@ class Metadata(Command):
             action="store_true",
             help=(
                 "Extract the metadata from the checkpoint and print it to the standard output"
-                " or the file specified by `--output`, in JSON or YAML format."
+                " or the file specified by ``--output``, in JSON or YAML format."
             ),
         )
-        group.add_argument("--load", action="store_true", help="Get metadata.")
+        group.add_argument(
+            "--load",
+            action="store_true",
+            help=(
+                "Set the metadata in the checkpoint from the content"
+                " of a file specified by the ``--input`` argument."
+            ),
+        )
 
         command_parser.add_argument("--name", default=DEFAULT_NAME, help="Name of metadata.")
         command_parser.add_argument("--folder", default=DEFAULT_FOLDER, help="Name of metadata.")
 
-        command_parser.add_argument("--input", help="The output file name to be used by the `--load` option.")
-        command_parser.add_argument("--output", help="The output file name to be used by the `--dump` option.")
+        command_parser.add_argument("--input", help="The output file name to be used by the ``--load`` option.")
+        command_parser.add_argument("--output", help="The output file name to be used by the ``--dump`` option.")
         command_parser.add_argument("--editor", help="Editor to use.", default=os.environ.get("EDITOR", "vi"))
         command_parser.add_argument("--json", action="store_true", help="Output in JSON format.")
         command_parser.add_argument("--yaml", action="store_true", help="Output in YAML format.")
