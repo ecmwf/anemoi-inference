@@ -1,10 +1,10 @@
-.. _anemoi-utils:
+.. _anemoi-inference:
 
 .. _index-page:
 
-####################################
- Welcome to Anemoi's documentation!
-####################################
+##############################################
+ Welcome to `anemoi-inference` documentation!
+##############################################
 
 .. warning::
 
