@@ -9,10 +9,6 @@
 #
 
 
-import json
-
-import yaml
-
 from ..checkpoint import Checkpoint
 from . import Command
 
@@ -22,21 +18,11 @@ class CheckpointCmd(Command):
     need_logging = False
 
     def add_arguments(self, command_parser):
-        command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
-        command_parser.add_argument("--yaml", action="store_true", help="Output in YAML format")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
 
         c = Checkpoint(args.path)
-        if args.json:
-            print(json.dumps(c.to_dict(), indent=4, sort_keys=True))
-            return
-
-        if args.yaml:
-            print(yaml.dump(c.to_dict(), indent=4, sort_keys=True))
-            return
-
         print("area:", c.area)
         print("computed_constants:", c.computed_constants)
         print("computed_constants_mask:", c.computed_constants_mask)
