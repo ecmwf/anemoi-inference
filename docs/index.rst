@@ -27,6 +27,30 @@ packages.
 
     installing
 
+Modules
+-------
+
+.. toctree::
+    :maxdepth: 1
+    :glob:
+
+    modules/*
+
+**Command line tool**
+
+- :doc:`cli/introduction`
+- :doc:`cli/checkpoint`
+- :doc:`cli/metadata`
+
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+    :caption: Command line tool
+
+    cli/introduction
+    cli/checkpoint
+    cli/metadata
+
 Anemoi packages
 ---------------
 
