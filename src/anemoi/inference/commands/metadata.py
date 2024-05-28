@@ -31,10 +31,7 @@ class Metadata(Command):
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
         group = command_parser.add_mutually_exclusive_group(required=True)
-        group.add_argument(
-            "--edit", action="store_true", help="Edit the metadata in place, using the specified editor."
-        )
-        group.add_argument("--remove", action="store_true", help="Remove metadata.")
+
         group.add_argument(
             "--dump",
             action="store_true",
@@ -52,7 +49,19 @@ class Metadata(Command):
             ),
         )
 
-        command_parser.add_argument("--name", default=DEFAULT_NAME, help="Name of metadata.")
+        group.add_argument(
+            "--edit",
+            action="store_true",
+            help=(
+                "Edit the metadata in place, using the specified editor."
+                " See the ``--editor`` argument for more information."
+            ),
+        )
+        group.add_argument("--remove", action="store_true", help="Remove the metadata from the checkpoint.")
+
+        command_parser.add_argument(
+            "--name", default=DEFAULT_NAME, help="Name of metadata record to be used with the actions above."
+        )
 
         command_parser.add_argument("--input", help="The output file name to be used by the ``--load`` option.")
         command_parser.add_argument("--output", help="The output file name to be used by the ``--dump`` option.")
@@ -61,8 +70,12 @@ class Metadata(Command):
             help="Editor to use for the ``--edit`` option. Default to ``$EDITOR`` if defined, else ``vi``.",
             default=os.environ.get("EDITOR", "vi"),
         )
-        command_parser.add_argument("--json", action="store_true", help="Output in JSON format.")
-        command_parser.add_argument("--yaml", action="store_true", help="Output in YAML format.")
+        command_parser.add_argument(
+            "--json", action="store_true", help="Use the JSON format with ``--dump`` and ``--edit``."
+        )
+        command_parser.add_argument(
+            "--yaml", action="store_true", help="Use the YAML format with ``--dump`` and ``--edit``."
+        )
 
     def run(self, args):
         if args.edit:
