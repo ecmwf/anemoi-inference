@@ -30,7 +30,7 @@ class Checkpoint:
 
     def __getattr__(self, name):
         if self._metadata is None:
-            self._metadata = Metadata.from_metadata(load_metadata(self.path, "*.json"))
+            self._metadata = Metadata.from_metadata(load_metadata(self.path))
 
         return getattr(self._metadata, name)
 
