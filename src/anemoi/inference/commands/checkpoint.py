@@ -19,27 +19,29 @@ class CheckpointCmd(Command):
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
+        command_parser.add_argument("--dump", action="store_true", help="Print internal information")
 
     def run(self, args):
 
         c = Checkpoint(args.path)
+
+        if args.dump:
+            c.dump()
+            return
+
         print("area:", c.area)
-        print("computed_constants:", c.computed_constants)
         print("computed_constants_mask:", c.computed_constants_mask)
-        print("computed_forcings:", c.computed_forcings)
+        print("computed_constants:", c.computed_constants)
         print("computed_forcings_mask:", c.computed_forcings_mask)
+        print("computed_forcings:", c.computed_forcings)
         print("constant_data_from_input_mask:", c.constant_data_from_input_mask)
-        print("constants_from_input:", c.constants_from_input)
         print("constants_from_input_mask:", c.constants_from_input_mask)
-        print("data_request:", c.data_request)
+        print("constants_from_input:", c.constants_from_input)
         print("data_to_model:", c.data_to_model)
         print("diagnostic_output_mask:", c.diagnostic_output_mask)
         print("diagnostic_params:", c.diagnostic_params)
-        print("from_metadata:", c.from_metadata)
         print("grid:", c.grid)
         print("hour_steps:", c.hour_steps)
-        print("imputable variables", c.imputable_variables)
-        print("imputable variables:", c.imputable_variables)
         print("imputable_variables:", c.imputable_variables)
         print("index_to_variable:", c.index_to_variable)
         print("model_to_data:", c.model_to_data)
@@ -55,12 +57,10 @@ class CheckpointCmd(Command):
         print("prognostic_input_mask:", c.prognostic_input_mask)
         print("prognostic_output_mask:", c.prognostic_output_mask)
         print("prognostic_params:", c.prognostic_params)
-        print("report_loading_error:", c.report_loading_error)
-        print("rounded_area:", c.rounded_area)
         print("select:", c.select)
         print("variable_to_index:", c.variable_to_index)
+        print("variables_with_nans:", c.variables_with_nans)
         print("variables:", c.variables)
-        print("variables_with_nans::", c.variables_with_nans)
 
 
 command = CheckpointCmd

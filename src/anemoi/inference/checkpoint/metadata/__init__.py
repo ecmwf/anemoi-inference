@@ -305,42 +305,7 @@ class Metadata:
 
     @cached_property
     def imputable_variables(self):
-        result = []
-
-        def from_input_imputer(config):
-            for k, v in config.items():
-                if not isinstance(v, list):
-                    v = [v]
-                yield from v
-
-        def from_constant_imputer(config):
-            yield from config.keys()
-
-        def empty(config):
-            return []
-
-        IMPUTERS = {
-            "aifs.preprocessing.imputer.InputImputer": from_input_imputer,
-            "aifs.preprocessing.imputer.ConstantImputer": from_constant_imputer,
-        }
-
-        for k, v in self._config_data.get("processors", {}).items():
-            target = v.get("_target_")
-            if target is None:
-                continue
-
-            if "imputer" in target.lower() and target not in IMPUTERS:
-                LOG.warning("Unknown imputer %s, ignoring", target)
-                continue
-
-            source = IMPUTERS.get(target, empty)
-            result.extend(source(v.get("config", {})))
-
-        result = sorted(set(result))
-        if result:
-            LOG.info("Imputable variables %s", result)
-
-        return result
+        return self.variables_with_nans
 
     def rounded_area(self, area):
         surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360

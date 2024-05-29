@@ -25,6 +25,62 @@ class DataRequest:
     def __repr__(self) -> str:
         return self.__class__.__name__
 
+    def mars_request(self):
+
+        def _as_list(v):
+            if isinstance(v, list):
+                return v
+            return [v]
+
+        def _as_string(r):
+            r = {k: "/".join([str(x) for x in _as_list(v)]) for k, v in r.items() if v}
+            return ",".join([f"{k}={v}" for k, v in r.items()])
+
+        r = dict(grid=self.grid, area=self.area)
+        yield _as_string(r)
+
+        r = dict(param=_as_list(self.param_sfc))
+        yield _as_string(r)
+
+        param, pl = self.param_level_pl
+        if param:
+            r = dict(param=param, level=pl)
+            yield _as_string(r)
+
+        param, ml = self.param_level_ml
+        if param:
+            r = dict(param=param, level=ml)
+            yield _as_string(r)
+
+        nans = self.variables_with_nans
+        if nans:
+            r = dict(with_nans=nans)
+            yield _as_string(r)
+
+    def dump_content(self, indent=0):
+        print()
+        print(" " * indent, "-", self)
+        for n in self.mars_request():
+            print(" " * indent, " ", n)
+
+    @property
+    def param_sfc(self):
+        param_sfc = self.forward.param_sfc
+        param_step_sfc = [p[0] for p in self.forward.param_step_sfc_pairs]
+        return [p for p in param_sfc if p not in param_step_sfc]
+
+    @property
+    def param_level_pl(self):
+        params = set([p[0] for p in self.param_level_pl_pairs])
+        levels = set([p[1] for p in self.param_level_pl_pairs])
+        return sorted(params), sorted(levels)
+
+    @property
+    def param_level_ml(self):
+        params = set([p[0] for p in self.param_level_ml_pairs])
+        levels = set([p[1] for p in self.param_level_ml_pairs])
+        return sorted(params), sorted(levels)
+
 
 class ZarrRequest(DataRequest):
     def __init__(self, metadata):
@@ -44,24 +100,23 @@ class ZarrRequest(DataRequest):
         return self.request["param_level"].get("sfc", [])
 
     @property
-    def param_level_pl(self):
+    def param_level_pl_pairs(self):
         return self.request["param_level"].get("pl", [])
 
     @property
-    def param_level_ml(self):
+    def param_level_ml_pairs(self):
         return self.request["param_level"].get("ml", [])
 
     @property
-    def param_step_sfc(self):
+    def param_step_sfc_pairs(self):
         return self.request["param_step"].get("sfc", [])
 
     @property
     def variables_with_nans(self):
         return sorted(self.attributes.get("variables_with_nans", []))
 
-    def dump(self, indent):
-        print(" " * indent, self)
-        print(" " * indent, self.request)
+    def dump(self, indent=0):
+        self.dump_content(indent)
 
 
 class Forward(DataRequest):
@@ -72,8 +127,8 @@ class Forward(DataRequest):
     def __getattr__(self, name):
         return getattr(self.forward, name)
 
-    def dump(self, indent):
-        print(" " * indent, self)
+    def dump(self, indent=0):
+        self.dump_content(indent)
         self.forward.dump(indent + 2)
 
 
@@ -89,12 +144,9 @@ class StatisticsRequest(Forward):
 class RenameRequest(Forward):
 
     @property
-    def variables(self):
-        raise NotImplementedError()
-
-    @property
     def variables_with_nans(self):
         raise NotImplementedError()
+        return sorted(self.forward.variables_with_nans)
 
 
 class MultiRequest(Forward):
@@ -106,8 +158,8 @@ class MultiRequest(Forward):
     def forward(self):
         return self.datasets[0]
 
-    def dump(self, indent):
-        print(" " * indent, self)
+    def dump(self, indent=0):
+        self.dump_content(indent)
         for dataset in self.datasets:
             dataset.dump(indent + 2)
 
@@ -123,10 +175,10 @@ class JoinRequest(MultiRequest):
         return result
 
     @property
-    def param_level_pl(self):
+    def param_level_pl_pairs(self):
         result = []
         for dataset in self.datasets:
-            for param in dataset.param_level_pl:
+            for param in dataset.param_level_pl_pairs:
                 if param not in result:
                     result.append(param)
         return result
@@ -134,24 +186,20 @@ class JoinRequest(MultiRequest):
     @property
     def param_level_ml(self):
         result = []
-        for dataset in self.datasets:
-            for param in dataset.param_level_ml:
+        for dataset in self.datasets_pairs:
+            for param in dataset.param_level_ml_pairs:
                 if param not in result:
                     result.append(param)
         return result
 
     @property
-    def param_step_sfc(self):
+    def param_step_sfc_pairs(self):
         result = []
         for dataset in self.datasets:
-            for param in dataset.param_step_sfc:
+            for param in dataset.param_step_sfc_pairs:
                 if param not in result:
                     result.append(param)
         return result
-
-    @property
-    def variables(self):
-        raise NotImplementedError()
 
     @property
     def variables_with_nans(self):
@@ -184,20 +232,20 @@ class SelectRequest(Forward):
         return [x for x in self.forward.param_sfc if x in self.variables]
 
     @property
-    def param_level_pl(self):
-        return [x for x in self.forward.param_level_pl if f"{x[0]}_{x[1]}" in self.variables]
+    def param_level_pl_pairs(self):
+        return [x for x in self.forward.param_level_pl_pairs if f"{x[0]}_{x[1]}" in self.variables]
 
     @property
-    def param_level_ml(self):
-        return [x for x in self.forward.param_level_ml if f"{x[0]}_{x[1]}" in self.variables]
+    def param_level_ml_pairs(self):
+        return [x for x in self.forward.param_level_ml_pairs if f"{x[0]}_{x[1]}" in self.variables]
 
     @property
-    def param_step(self):
-        return [x for x in self.forward.param_step if x[0] in self.variables]
+    def param_step_pairs(self):
+        return [x for x in self.forward.param_step_pairs if x[0] in self.variables]
 
     @property
-    def param_step_sfc(self):
-        return [x for x in self.forward.param_step_sfc if x[0] in self.variables]
+    def param_step_sfc_pairs(self):
+        return [x for x in self.forward.param_step_sfc_pairs if x[0] in self.variables]
 
     @property
     def variables_with_nans(self):
@@ -226,48 +274,14 @@ def data_request(specific):
     return globals()[action](specific)
 
 
-class Version_0_2_0(Metadata):
+class Version_0_2_0(Metadata, Forward):
     def __init__(self, metadata):
         super().__init__(metadata)
         specific = metadata["dataset"]["specific"]
-        self.data_request = data_request(specific)
-        self.data_request.dump(0)
-
-    @property
-    def variables(self):
-        return self.data_request.variables
+        self.forward = data_request(specific)
 
     @cached_property
     def area(self):
-        return self.rounded_area(self.data_request.area)
-
-    @property
-    def grid(self):
-        return self.data_request.grid
-
-    @cached_property
-    def variables_with_nans(self):
-        return self.data_request.variables_with_nans
+        return self.rounded_area(self.forward.area)
 
     #########################
-
-    @property
-    def param_sfc(self):
-        param_sfc = self.data_request.param_sfc
-        # Remove diagnostic variables
-        param_step_sfc = [p[0] for p in self.data_request.param_step_sfc]
-        return [p for p in param_sfc if p not in param_step_sfc]
-
-    @property
-    def param_level_pl(self):
-        param_level_pl = self.data_request.param_level_pl
-        params = set([p[0] for p in param_level_pl])
-        levels = set([p[1] for p in param_level_pl])
-        return sorted(params), sorted(levels)
-
-    @property
-    def param_level_ml(self):
-        param_level_ml = self.data_request.param_level_ml
-        params = set([p[0] for p in param_level_ml])
-        levels = set([p[1] for p in param_level_ml])
-        return sorted(params), sorted(levels)
