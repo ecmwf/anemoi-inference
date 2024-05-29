@@ -51,7 +51,6 @@ repos:
     - --exit-non-zero-on-fix
     - --preview
 
-
 - repo: https://github.com/sphinx-contrib/sphinx-lint
   rev: v0.9.1
   hooks:
@@ -69,3 +68,8 @@ repos:
   hooks:
   - id: docconvert
     args: ["numpy"]
+
+- repo: https://github.com/tox-dev/pyproject-fmt
+  rev: "2.0.4"
+  hooks:
+    - id: pyproject-fmt
