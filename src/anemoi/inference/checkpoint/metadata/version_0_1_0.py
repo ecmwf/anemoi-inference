@@ -84,3 +84,6 @@ class Version_0_1_0(Metadata):
                         pl.remove([param, level])
                     if [param, level] in ml:
                         ml.remove([param, level])
+
+    def dump(self, indent=0):
+        print("Version_0_1_0: Not implemented")
