@@ -29,6 +29,8 @@ class CheckpointCmd(Command):
             c.dump()
             return
 
+        c.dump()
+
         print("area:", c.area)
         print("computed_constants_mask:", c.computed_constants_mask)
         print("computed_constants:", c.computed_constants)

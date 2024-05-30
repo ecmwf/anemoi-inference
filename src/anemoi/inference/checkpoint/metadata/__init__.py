@@ -16,10 +16,12 @@ LOG = logging.getLogger(__name__)
 
 
 def from_versions(checkpoint_version, dataset_version):
+    from .version_0_0_0 import Version_0_0_0
     from .version_0_1_0 import Version_0_1_0
     from .version_0_2_0 import Version_0_2_0
 
     VERSIONS = {
+        ("0.0.0", "0.0.0"): Version_0_0_0,
         ("1.0.0", "0.1.0"): Version_0_1_0,
         ("1.0.0", "0.2.0"): Version_0_2_0,
     }
@@ -56,6 +58,9 @@ class Metadata:
 
     @classmethod
     def from_metadata(cls, metadata):
+        if metadata is None:
+            metadata = dict(version="0.0.0", dataset=dict(version="0.0.0"))
+
         if isinstance(metadata["dataset"], list):
             from .patch import list_to_dict
 

@@ -84,6 +84,7 @@ class DataRequest:
 
 class ZarrRequest(DataRequest):
     def __init__(self, metadata):
+        super().__init__(metadata)
         self.attributes = metadata["attrs"]
         self.request = self.attributes["data_request"]
 
@@ -143,10 +144,13 @@ class StatisticsRequest(Forward):
 
 class RenameRequest(Forward):
 
+    # Drop variables
+    # No need to rename anything as self.metadata["variables"] is already up to date
+
     @property
     def variables_with_nans(self):
-        raise NotImplementedError()
-        return sorted(self.forward.variables_with_nans)
+        rename = self.metadata["rename"]
+        return sorted([rename.get(x, x) for x in self.forward.variables_with_nans])
 
 
 class MultiRequest(Forward):
@@ -254,17 +258,12 @@ class SelectRequest(Forward):
 
 class DropRequest(SelectRequest):
 
-    @property
-    def variables(self):
-        raise NotImplementedError()
+    # Drop variables
+    # No need to drop anything as self.metadata["variables"] is already up to date
 
     @property
     def variables_with_nans(self):
-        result = set()
-        for dataset in self.metadata["datasets"]:
-            result.extend(dataset.variables_with_nans)
-
-        return sorted(result)
+        return [x for x in self.forward.variables_with_nans if x in self.variables]
 
 
 def data_request(specific):

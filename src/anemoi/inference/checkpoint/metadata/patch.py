@@ -16,6 +16,11 @@ def drop_fill(metadata):
     return metadata
 
 
+def select_fill(metadata):
+    metadata["variables"] = [x for x in metadata["forward"]["variables"] if x in metadata["select"]]
+    return metadata
+
+
 def rename_fill(metadata, select):
 
     rename = metadata["rename"]
@@ -45,6 +50,15 @@ def patch(a, b):
             {
                 "action": "drop",
                 "drop": a["drop"],
+                "forward": zarr_fill({"action": "zarr", "attrs": b}),
+            }
+        )
+
+    if "select" in a:
+        return select_fill(
+            {
+                "action": "select",
+                "select": a["select"],
                 "forward": zarr_fill({"action": "zarr", "attrs": b}),
             }
         )

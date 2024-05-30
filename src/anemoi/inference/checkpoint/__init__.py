@@ -12,6 +12,7 @@ import os
 import zipfile
 from functools import cached_property
 
+from anemoi.utils.checkpoints import has_metadata
 from anemoi.utils.checkpoints import load_metadata
 
 from .metadata import Metadata
@@ -30,7 +31,12 @@ class Checkpoint:
 
     def __getattr__(self, name):
         if self._metadata is None:
-            self._metadata = Metadata.from_metadata(load_metadata(self.path))
+            try:
+                self._metadata = Metadata.from_metadata(load_metadata(self.path))
+            except ValueError:
+                if has_metadata(self.path):
+                    raise
+                self._metadata = Metadata.from_metadata(None)
 
         return getattr(self._metadata, name)
 
