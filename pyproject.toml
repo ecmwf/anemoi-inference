@@ -10,69 +10,78 @@
 # https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
 
 [build-system]
-requires = ["setuptools>=60", "setuptools-scm>=8.0"]
+requires = [
+  "setuptools>=60",
+  "setuptools-scm>=8",
+]
 
 [project]
-description = "A package to hold various functions to support training of ML models."
 name = "anemoi-inference"
 
-dynamic = ["version"]
+description = "A package to hold various functions to support training of ML models."
+keywords = [
+  "ai",
+  "inference",
+  "tools",
+]
+
 license = { file = "LICENSE" }
+authors = [
+  { name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int" },
+]
+
 requires-python = ">=3.9"
 
-authors = [
-    { name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int" },
-]
-
-keywords = ["tools", "inference", "ai"]
-
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
-    "Operating System :: OS Independent",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
+dynamic = [
+  "version",
+]
 dependencies = [
-    "tomli",            # Only needed before 3.11
-    "anemoi-utils>=0.2.1",
-    "semantic-version",
-    "pyyaml",
-    "torch",
-    "numpy",
+  "anemoi-utils>=0.2.1",
+  "numpy",
+  "pyyaml",
+  "semantic-version",
+  "tomli",               # Only needed before 3.11
+  "torch",
 ]
 
-[project.optional-dependencies]
-
-
-docs = [
-    # For building the documentation
-    "sphinx",
-    "sphinx_rtd_theme",
-    "nbsphinx",
-    "pandoc",
-    "sphinx_argparse",
+optional-dependencies.all = [
+  "anemoi-utils>=0.2.1",
+  "numpy",
+  "pyyaml",
+  "semantic-version",
+  "tomli",
+  "torch",
 ]
-
-all = []
-
-dev = []
-
-[project.urls]
-Homepage = "https://github.com/ecmwf/anemoi-inference/"
-Documentation = "https://anemoi-inference.readthedocs.io/"
-Repository = "https://github.com/ecmwf/anemoi-inference/"
-Issues = "https://github.com/ecmwf/anemoi-inference/issues"
+optional-dependencies.dev = [
+]
+optional-dependencies.docs = [
+  "nbsphinx",
+  "pandoc",
+  # For building the documentation
+  "sphinx",
+  "sphinx-argparse",
+  "sphinx-rtd-theme",
+]
+urls.Documentation = "https://anemoi-inference.readthedocs.io/"
+urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
+urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"
+urls.Repository = "https://github.com/ecmwf/anemoi-inference/"
 # Changelog = "https://github.com/ecmwf/anemoi-inference/CHANGELOG.md"
-
-[project.scripts]
-anemoi-inference = "anemoi.inference.__main__:main"
+scripts.anemoi-inference = "anemoi.inference.__main__:main"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
