@@ -50,20 +50,18 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "anemoi-utils>=0.2.1",
+  "anemoi-utils>=0.3",
   "numpy",
   "pyyaml",
   "semantic-version",
-  "tomli",               # Only needed before 3.11
   "torch",
 ]
 
 optional-dependencies.all = [
-  "anemoi-utils>=0.2.1",
+  "anemoi-utils>=0.3",
   "numpy",
   "pyyaml",
   "semantic-version",
-  "tomli",
   "torch",
 ]
 optional-dependencies.dev = [
@@ -80,7 +78,6 @@ urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
 urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"
 urls.Repository = "https://github.com/ecmwf/anemoi-inference/"
-# Changelog = "https://github.com/ecmwf/anemoi-inference/CHANGELOG.md"
 scripts.anemoi-inference = "anemoi.inference.__main__:main"
 
 [tool.setuptools_scm]
