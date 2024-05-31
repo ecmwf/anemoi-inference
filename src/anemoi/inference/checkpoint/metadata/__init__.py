@@ -224,6 +224,8 @@ class Metadata:
             ]
         )
 
+        print("FORCINGS", self._forcing_params())
+
         constants = set(self._forcing_params()) - set(self.constants_from_input) - set(self.computed_constants)
 
         if constants - known:
