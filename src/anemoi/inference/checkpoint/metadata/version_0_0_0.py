@@ -94,7 +94,7 @@ class Version_0_0_0(Metadata):
         [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000],
     )
 
-    param_level_ml = tuple()
+    param_level_ml = ([], [])
 
     ordering = [
         "q_50",
