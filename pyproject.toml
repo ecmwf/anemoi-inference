@@ -58,11 +58,13 @@ dependencies = [
 ]
 
 optional-dependencies.all = [
+  "ai-models",
   "anemoi-utils>=0.3",
   "numpy",
   "pyyaml",
   "semantic-version",
   "torch",
+  "tqdm",
 ]
 
 optional-dependencies.dev = [
@@ -76,11 +78,18 @@ optional-dependencies.docs = [
   "sphinx-argparse",
   "sphinx-rtd-theme",
 ]
+optional-dependencies.plugin = [
+  "ai-models",
+  "tqdm",
+]
+
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
 urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"
 urls.Repository = "https://github.com/ecmwf/anemoi-inference/"
 scripts.anemoi-inference = "anemoi.inference.__main__:main"
+
+entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
