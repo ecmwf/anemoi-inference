@@ -71,10 +71,11 @@ optional-dependencies.dev = [
   "pre-commit",
 ]
 
+# For building the documentation
 optional-dependencies.docs = [
   "nbsphinx",
   "pandoc",
-  # For building the documentation
+
   "sphinx",
   "sphinx-argparse",
   "sphinx-rtd-theme",
