@@ -12,6 +12,7 @@ import os
 import tqdm
 from ai_models.model import Model
 
+from anemoi.inference.runner import AUTOCAST
 from anemoi.inference.runner import DefaultRunner
 
 LOG = logging.getLogger(__name__)
@@ -19,21 +20,26 @@ LOG = logging.getLogger(__name__)
 
 class AIModelPlugin(Model):
 
+    _expver = "0000"
+
+    @property
+    def expver(self):
+        if self._expver == "0000":
+            LOG.warning(f"'expver' is not available in this model, using '{self._expver}'.")
+        return self._expver
+
+    @expver.setter
+    def expver(self, value):
+        self._expver = value
+
     def parse_model_args(self, args):
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("--checkpoint")
+        parser.add_argument("--checkpoint", required=not hasattr(self, "download_files"))
         parser.add_argument(
             "--autocast",
             type=str,
-            choices=(
-                "16",
-                "32",
-                "float16",
-                "float32",
-                "bfloat16",
-                "b16",
-            ),
+            choices=sorted(AUTOCAST.keys()),
         )
         args = parser.parse_args(args)
 

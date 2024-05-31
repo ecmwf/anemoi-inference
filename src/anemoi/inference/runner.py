@@ -28,7 +28,6 @@ AUTOCAST = {
     "bfloat16": torch.bfloat16,
     "float16": torch.float16,
     "float32": torch.float32,
-    None: torch.float16,
 }
 
 
@@ -105,6 +104,10 @@ class Runner:
 
         if autocast is None:
             autocast = self.checkpoint.precision
+
+        if autocast is None:
+            LOGGER.warning("No autocast given, using float16")
+            autocast = "16"
 
         autocast = AUTOCAST[autocast]
 
