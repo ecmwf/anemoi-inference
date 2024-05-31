@@ -68,6 +68,7 @@ optional-dependencies.all = [
 ]
 
 optional-dependencies.dev = [
+  "pre-commit",
 ]
 
 optional-dependencies.docs = [
