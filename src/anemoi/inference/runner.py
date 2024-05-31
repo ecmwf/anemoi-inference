@@ -66,7 +66,6 @@ class Runner:
         output_callback=ignore,
         autocast=None,
         progress_callback=ignore,
-        add_ensemble_dimension=False,
     ):
         """_summary_
 
@@ -86,8 +85,6 @@ class Runner:
             _description_, by default None
         progress_callback : _type_, optional
             _description_, by default ignore
-        add_ensemble_dimension : bool, optional
-            _description_, by default False
 
         Returns
         -------
@@ -316,17 +313,6 @@ class Runner:
             )
         else:
             output_callback(input_fields)
-
-        def add_ensemble_dim(func):
-            def wrapper(x):
-                x = x.unsqueeze(2)
-                y = func(x)
-                return y.squeeze_(2)
-
-            return wrapper
-
-        if add_ensemble_dimension:
-            model.predict_step = add_ensemble_dim(model.predict_step)
 
         prognostic_params = self.checkpoint.prognostic_params
 

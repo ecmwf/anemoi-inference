@@ -85,5 +85,9 @@ class Version_0_1_0(Metadata):
                     if [param, level] in ml:
                         ml.remove([param, level])
 
+    @property
+    def variables_with_nans(self):
+        return []
+
     def dump(self, indent=0):
         print("Version_0_1_0: Not implemented")

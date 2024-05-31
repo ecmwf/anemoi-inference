@@ -32,6 +32,9 @@ class AIModelPlugin(Model):
     def expver(self, value):
         self._expver = value
 
+    def add_model_args(self, parser):
+        pass
+
     def parse_model_args(self, args):
         parser = argparse.ArgumentParser()
 
@@ -41,6 +44,9 @@ class AIModelPlugin(Model):
             type=str,
             choices=sorted(AUTOCAST.keys()),
         )
+
+        self.add_model_args(parser)
+
         args = parser.parse_args(args)
 
         for k, v in vars(args).items():
@@ -50,6 +56,8 @@ class AIModelPlugin(Model):
             self.runner = DefaultRunner(args.checkpoint)
         else:
             self.runner = DefaultRunner(os.path.join(self.assets, self.download_files[0]))
+
+        return parser
 
     def run(self):
         if self.deterministic:
