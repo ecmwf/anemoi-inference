@@ -20,19 +20,16 @@ LOG = logging.getLogger(__name__)
 
 class AIModelPlugin(Model):
 
-    _expver = "0000"
-
-    @property
-    def expver(self):
-        if self._expver == "0000":
-            LOG.warning(f"'expver' is not available in this model, using '{self._expver}'.")
-        return self._expver
-
-    @expver.setter
-    def expver(self, value):
-        self._expver = value
+    expver = None
 
     def add_model_args(self, parser):
+        """To be implemented in subclasses to add model-specific arguments to the parser.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser
+            An instance of the parser to add arguments to.
+        """
         pass
 
     def parse_model_args(self, args):
