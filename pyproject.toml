@@ -58,7 +58,7 @@ dependencies = [
 ]
 
 optional-dependencies.all = [
-  "ai-models",
+  "ai-models>=0.6.1",
   "anemoi-utils>=0.3",
   "numpy",
   "pyyaml",
@@ -72,7 +72,7 @@ optional-dependencies.dev = [
 ]
 
 optional-dependencies.plugin = [
-  "ai-models",
+  "ai-models>=0.6.1",
   "tqdm",
 ]
 
