@@ -228,6 +228,16 @@ class GridRequest(MultiRequest):
         raise NotImplementedError()
 
 
+class CutoutRequest(MultiRequest):
+    @property
+    def grid(self):
+        raise NotImplementedError()
+
+    @property
+    def area(self):
+        raise NotImplementedError()
+
+
 class SelectRequest(Forward):
     # Select variables
 
