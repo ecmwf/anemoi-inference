@@ -218,24 +218,31 @@ class EnsembleRequest(MultiRequest):
     pass
 
 
-class GridRequest(MultiRequest):
+class MultiGridRequest(MultiRequest):
     @property
     def grid(self):
-        raise NotImplementedError()
+        grids = [dataset.grid for dataset in self.datasets]
+        raise NotImplementedError(";".join(str(g) for g in grids))
 
     @property
     def area(self):
-        raise NotImplementedError()
+        areas = [dataset.area for dataset in self.datasets]
+        raise NotImplementedError(";".join(str(g) for g in areas))
 
 
-class CutoutRequest(MultiRequest):
+class GridRequest(MultiGridRequest):
+    pass
+
+
+class CutoutRequest(MultiGridRequest):
+    pass
+
+
+class ThinningRequest(Forward):
+
     @property
     def grid(self):
-        raise NotImplementedError()
-
-    @property
-    def area(self):
-        raise NotImplementedError()
+        return f"thinning({self.forward.grid})"
 
 
 class SelectRequest(Forward):

@@ -13,7 +13,7 @@ from ..checkpoint import Checkpoint
 from . import Command
 
 
-class CheckpointCmd(Command):
+class InspectCmd(Command):
 
     need_logging = False
 
@@ -65,4 +65,4 @@ class CheckpointCmd(Command):
         print("variables:", c.variables)
 
 
-command = CheckpointCmd
+command = InspectCmd
