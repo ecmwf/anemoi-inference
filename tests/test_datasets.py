@@ -63,6 +63,8 @@ def standard_test(dataset):
     md = Metadata.from_metadata({"version": "1.0.0", "dataset": ds.metadata()})
     md.dump(full=True)
 
+    return ds, md
+
 
 def test_cerra():
     standard_test({"dataset": "cerra-rr-an-oper-0001-mars-5p5km-1984-2008-6h-v1-smhi"})
