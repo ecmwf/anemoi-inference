@@ -315,9 +315,12 @@ class Metadata:
         return self.variables_with_nans
 
     def rounded_area(self, area):
-        surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
-        if surface > 0.98:
-            return [90, 0.0, -90, 360]
+        try:
+            surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+            if surface > 0.98:
+                return [90, 0.0, -90, 360]
+        except TypeError:
+            pass
         return area
 
     def report_loading_error(self):
