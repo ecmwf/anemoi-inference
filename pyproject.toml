@@ -59,8 +59,10 @@ dependencies = [
 
 optional-dependencies.all = [
   "ai-models>=0.6.1",
+  "anemoi-datasets",
   "anemoi-utils>=0.3",
   "numpy",
+  "pytest",
   "pyyaml",
   "semantic-version",
   "torch",
@@ -74,6 +76,11 @@ optional-dependencies.dev = [
 optional-dependencies.plugin = [
   "ai-models>=0.6.1",
   "tqdm",
+]
+
+optional-dependencies.test = [
+  "anemoi-datasets",
+  "pytest",
 ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
