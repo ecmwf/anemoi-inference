@@ -51,6 +51,7 @@ dynamic = [
 ]
 dependencies = [
   "anemoi-utils>=0.3",
+  "anytree",
   "numpy",
   "pyyaml",
   "semantic-version",
@@ -59,18 +60,12 @@ dependencies = [
 
 optional-dependencies.all = [
   "ai-models>=0.6.1",
-  "anemoi-datasets",
-  "anemoi-utils>=0.3",
-  "numpy",
-  "pytest",
-  "pyyaml",
-  "semantic-version",
-  "torch",
   "tqdm",
 ]
 
 optional-dependencies.dev = [
-  "pre-commit",
+  "anemoi-datasets",
+  "pytest",
 ]
 
 optional-dependencies.plugin = [
@@ -78,7 +73,7 @@ optional-dependencies.plugin = [
   "tqdm",
 ]
 
-optional-dependencies.test = [
+optional-dependencies.tests = [
   "anemoi-datasets",
   "pytest",
 ]
