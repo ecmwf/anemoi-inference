@@ -335,15 +335,24 @@ class Metadata:
 
     ###########################################################################
 
-    def digraph(self, label_maker):
+    def digraph(self, label_maker=lambda x: {'label': x['label']}):
+        import json
+
+
         digraph = ["digraph {"]
         digraph.append("node [shape=box];")
         nodes = {}
 
-        self.graph(digraph, nodes,label_maker)
+        self.graph(digraph, nodes, label_maker)
 
         for node, label in nodes.items():
-            digraph.append(f'{node} [label="{label}"];')
+            for k, v in label.items():
+                # Use json.dumps to escape special characters
+                label[k] = json.dumps(v)
+
+            label = " ".join([f'{k}={v}' for k, v in label.items()])
+
+            digraph.append(f'{node} [{label}];')
 
         digraph.append("}")
         return "\n".join(digraph)
