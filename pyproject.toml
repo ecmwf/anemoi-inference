@@ -76,7 +76,7 @@ optional-dependencies.plugin = [
 ]
 
 optional-dependencies.tests = [
-  "anemoi-datasets",
+  "anemoi-datasets[all]",
   "pytest",
 ]
 

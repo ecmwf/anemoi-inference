@@ -63,6 +63,8 @@ def standard_test(dataset):
     md = Metadata.from_metadata({"version": "1.0.0", "dataset": ds.metadata()})
     md.dump()
 
+    md.digraph()
+
     return ds, md
 
 

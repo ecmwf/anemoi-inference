@@ -8,6 +8,8 @@
 
 import logging
 from functools import cached_property
+import os
+import textwrap
 
 from . import Metadata
 
@@ -83,6 +85,13 @@ class DataRequest:
         levels = set([p[1] for p in self.param_level_ml_pairs])
         return sorted(params), sorted(levels)
 
+    def graph(self, digraph, nodes, label_maker):
+        label = label_maker(self.graph_label())
+        nodes[f"N{id(self)}"] = label
+        for kid in self.graph_kids():
+            digraph.append(f"N{id(self)} -> N{id(kid)}")
+            kid.graph(digraph, nodes, label_maker)
+
 
 class ZarrRequest(DataRequest):
     def __init__(self, metadata):
@@ -121,6 +130,12 @@ class ZarrRequest(DataRequest):
     def dump(self, indent=0):
         self.dump_content(indent)
 
+    def graph_label(self):
+        return {'class': 'zarr', 'uuid': self.attributes['uuid']}
+
+    def graph_kids(self):
+        return []
+
 
 class Forward(DataRequest):
     @cached_property
@@ -134,15 +149,23 @@ class Forward(DataRequest):
         self.dump_content(indent)
         self.forward.dump(indent + 2)
 
+    def graph_label(self):
+        raise NotImplementedError(repr(self))
+
+    def graph_kids(self):
+        return [self.forward]
+
 
 class SubsetRequest(Forward):
     # Subset in time
-    pass
+
+    def graph_label(self):
+        return {'class':'subset'}
 
 
 class StatisticsRequest(Forward):
-    pass
-
+    def graph_label(self):
+        return {'class':'statistics'}
 
 class RenameRequest(Forward):
 
@@ -154,6 +177,8 @@ class RenameRequest(Forward):
         rename = self.metadata["rename"]
         return sorted([rename.get(x, x) for x in self.forward.variables_with_nans])
 
+    def graph_label(self):
+        return {'class': 'rename'}
 
 class MultiRequest(Forward):
     def __init__(self, metadata):
@@ -169,6 +194,8 @@ class MultiRequest(Forward):
         for dataset in self.datasets:
             dataset.dump(indent + 2)
 
+    def graph_kids(self):
+        return self.datasets
 
 class JoinRequest(MultiRequest):
     """Join variables"""
@@ -217,15 +244,20 @@ class JoinRequest(MultiRequest):
 
         return sorted(result)
 
+    def graph_label(self):
+        return {'class': 'join'}
 
 class ConcatRequest(MultiRequest):
     # Concat in time
-    pass
 
+
+    def graph_label(self):
+        return {'class': 'concat'}
 
 class EnsembleRequest(MultiRequest):
-    pass
 
+    def graph_label(self):
+        return {'class': 'ensemble'}
 
 class MultiGridRequest(MultiRequest):
     @property
@@ -250,18 +282,23 @@ class GridsRequest(MultiGridRequest):
 
 
 class CutoutRequest(MultiGridRequest):
-    pass
-
+    def graph_label(self):
+        return {'class': 'cutout'}
 
 class ThinningRequest(Forward):
 
     @property
     def grid(self):
         return f"thinning({self.forward.grid})"
-
+    def graph_label(self):
+        return {'class': 'thinning'}
 
 class SelectRequest(Forward):
     # Select variables
+
+    def graph_label(self):
+        return {'class': 'select', 'variables': self.variables}
+
 
     @property
     def param_sfc(self):
@@ -297,6 +334,8 @@ class DropRequest(SelectRequest):
     def variables_with_nans(self):
         return [x for x in self.forward.variables_with_nans if x in self.variables]
 
+    def graph_label(self):
+        return {'class':'drop'}
 
 def data_request(specific):
     action = specific.pop("action")
@@ -314,5 +353,8 @@ class Version_0_2_0(Metadata, Forward):
     @cached_property
     def area(self):
         return self.rounded_area(self.forward.area)
+
+    def graph_label(self):
+        return {'class': 'metadata', "version": "0.2.0"}
 
     #########################

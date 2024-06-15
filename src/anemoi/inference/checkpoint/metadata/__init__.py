@@ -332,3 +332,18 @@ class Metadata:
         provenance_training = self._metadata["provenance_training"]
 
         LOG.error("Training provenance:\n%s", json.dumps(provenance_training, indent=2))
+
+    ###########################################################################
+
+    def digraph(self, label_maker):
+        digraph = ["digraph {"]
+        digraph.append("node [shape=box];")
+        nodes = {}
+
+        self.graph(digraph, nodes,label_maker)
+
+        for node, label in nodes.items():
+            digraph.append(f'{node} [label="{label}"];')
+
+        digraph.append("}")
+        return "\n".join(digraph)
