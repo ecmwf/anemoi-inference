@@ -351,12 +351,12 @@ class Metadata:
         for node, label in nodes.items():
             for k, v in label.items():
 
-                if isinstance(v, str) and v.startswith("<") and v.endswith(">"):
-                    # Skip HTML labels
-                    pass
-                else:
-                    # Use json.dumps to escape special characters
-                    label[k] = json.dumps(v)
+                # if isinstance(v, str) and v.startswith("<") and v.endswith(">"):
+                #     # Keep HTML labels as is
+                #     pass
+                # else:
+                #     # Use json.dumps to escape special characters
+                label[k] = json.dumps(v)
 
             label = " ".join([f"{k}={v}" for k, v in label.items()])
 
