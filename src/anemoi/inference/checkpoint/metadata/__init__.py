@@ -335,9 +335,8 @@ class Metadata:
 
     ###########################################################################
 
-    def digraph(self, label_maker=lambda x: {'label': x['label']}):
+    def digraph(self, label_maker=lambda x: {"label": x["label"]}):
         import json
-
 
         digraph = ["digraph {"]
         digraph.append("node [shape=box];")
@@ -350,9 +349,9 @@ class Metadata:
                 # Use json.dumps to escape special characters
                 label[k] = json.dumps(v)
 
-            label = " ".join([f'{k}={v}' for k, v in label.items()])
+            label = " ".join([f"{k}={v}" for k, v in label.items()])
 
-            digraph.append(f'{node} [{label}];')
+            digraph.append(f"{node} [{label}];")
 
         digraph.append("}")
         return "\n".join(digraph)
