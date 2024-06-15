@@ -78,9 +78,6 @@ def patch(a, b):
 
 def list_to_dict(datasets, config):
 
-    # print(json.dumps(datasets, indent=4))
-    # os._exit(1)
-
     arguments = config["dataloader"]["training"]
     assert "dataset" in arguments
     assert isinstance(arguments["dataset"], list)

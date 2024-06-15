@@ -6,7 +6,6 @@
 # nor does it submit to any jurisdiction.
 
 
-import json
 import logging
 from functools import cached_property
 
@@ -59,21 +58,12 @@ class DataRequest:
             r = dict(with_nans=nans)
             yield _as_string(r)
 
-    def dump_content(self, full, indent):
-
-        if full:
-            print("{", f'"{self.__class__.__name__}"', ":")
-            print(json.dumps(self.metadata, indent=2, default=str))
-            print("}")
-            return
+    def dump_content(self, indent):
 
         print()
         print(" " * indent, "-", self)
-        if full:
-            print(" " * indent, " ", json.dumps(self.metadata, indent=2, default=str))
-        else:
-            for n in self.mars_request():
-                print(" " * indent, " ", n)
+        for n in self.mars_request():
+            print(" " * indent, " ", n)
 
     @property
     def param_sfc(self):
@@ -128,8 +118,8 @@ class ZarrRequest(DataRequest):
     def variables_with_nans(self):
         return sorted(self.attributes.get("variables_with_nans", []))
 
-    def dump(self, full, indent=0):
-        self.dump_content(full, indent)
+    def dump(self, indent=0):
+        self.dump_content(indent)
 
 
 class Forward(DataRequest):
@@ -140,9 +130,9 @@ class Forward(DataRequest):
     def __getattr__(self, name):
         return getattr(self.forward, name)
 
-    def dump(self, full, indent=0):
-        self.dump_content(full, indent)
-        self.forward.dump(indent + 2, full)
+    def dump(self, indent=0):
+        self.dump_content(indent)
+        self.forward.dump(indent + 2)
 
 
 class SubsetRequest(Forward):
@@ -174,8 +164,8 @@ class MultiRequest(Forward):
     def forward(self):
         return self.datasets[0]
 
-    def dump(self, full, indent=0):
-        self.dump_content(full, indent)
+    def dump(self, indent=0):
+        self.dump_content(indent)
         for dataset in self.datasets:
             dataset.dump(indent + 2)
 

@@ -61,7 +61,7 @@ def standard_test(dataset):
 
     ds = open_dataset(**dataset)
     md = Metadata.from_metadata({"version": "1.0.0", "dataset": ds.metadata()})
-    md.dump(full=True)
+    md.dump()
 
     return ds, md
 

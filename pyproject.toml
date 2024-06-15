@@ -64,8 +64,10 @@ optional-dependencies.all = [
 ]
 
 optional-dependencies.dev = [
+  "ai-models>=0.6.1",
   "anemoi-datasets",
   "pytest",
+  "tqdm",
 ]
 
 optional-dependencies.plugin = [

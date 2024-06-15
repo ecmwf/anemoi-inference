@@ -26,10 +26,8 @@ class InspectCmd(Command):
         c = Checkpoint(args.path)
 
         if args.dump:
-            c.dump(full=True)
+            c.dump()
             return
-
-        c.dump(full=False)
 
         def _(f):
             try:
