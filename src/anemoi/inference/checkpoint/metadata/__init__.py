@@ -335,7 +335,7 @@ class Metadata:
 
     ###########################################################################
 
-    def digraph(self, label_maker=lambda x: {"label": x["label"]}):
+    def digraph(self, label_maker=lambda x: dict(label=x.kind)):
         import json
 
         digraph = ["digraph {"]
