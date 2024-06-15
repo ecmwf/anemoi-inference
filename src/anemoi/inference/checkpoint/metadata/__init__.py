@@ -335,6 +335,10 @@ class Metadata:
 
     ###########################################################################
 
+    def graph(self, digraph, nodes, label_maker):
+        for kid in self.graph_kids():
+            kid.graph(digraph, nodes, label_maker)
+
     def digraph(self, label_maker=lambda x: dict(label=x.kind)):
         import json
 
