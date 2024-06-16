@@ -97,5 +97,6 @@ class Version_0_1_0(Metadata):
 
         dataset = self._dataset.copy()
         if "attrs" not in dataset:
-            dataset["attrs"] = dataset.copy()
+            dataset["attrs"] = dict(data_request=dataset.get("data_request", {}))
+
         return [ZarrRequest(dataset)]
