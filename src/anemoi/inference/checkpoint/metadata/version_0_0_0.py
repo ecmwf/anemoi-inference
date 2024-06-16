@@ -228,3 +228,6 @@ class Version_0_0_0(Metadata):
             param_level=self.variables,
             remapping={"param_level": "{param}_{levelist}"},
         )
+
+    def graph_kids(self):
+        return []
