@@ -58,7 +58,7 @@ class Metadata:
 
     @classmethod
     def from_metadata(cls, metadata):
-        if metadata is None:
+        if metadata is None or "dataset" not in metadata:
             metadata = dict(version="0.0.0", dataset=dict(version="0.0.0"))
 
         if isinstance(metadata["dataset"], list):
