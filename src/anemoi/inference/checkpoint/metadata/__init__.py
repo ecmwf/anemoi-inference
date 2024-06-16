@@ -72,7 +72,7 @@ class Metadata:
 
         # When we changed from ecml_tools to anemoi-datasets, we went back in the
         # versionning
-        if metadata["dataset"]["version"] in ("0.1.7", "0.1.8", "0.1.9"):
+        if metadata["dataset"]["version"] in ("0.1.4", "0.1.7", "0.1.8", "0.1.9"):
             metadata["dataset"]["version"] = "0.2.0"
 
         klass = from_versions(metadata["version"], metadata["dataset"]["version"])
