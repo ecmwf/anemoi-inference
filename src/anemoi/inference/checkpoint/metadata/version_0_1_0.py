@@ -91,3 +91,11 @@ class Version_0_1_0(Metadata):
 
     def dump(self, indent=0):
         print("Version_0_1_0: Not implemented")
+
+    def graph_kids(self):
+        from .version_0_2_0 import ZarrRequest
+
+        dataset = self._dataset.copy()
+        if "attrs" not in dataset:
+            dataset["attrs"] = dataset.copy()
+        return [ZarrRequest(dataset)]
