@@ -9,7 +9,6 @@
 import json
 import logging
 import os
-import zipfile
 from functools import cached_property
 
 from anemoi.utils.checkpoints import has_metadata
