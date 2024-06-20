@@ -70,6 +70,8 @@ class AIModelPlugin(Model):
             progress_callback=tqdm.tqdm,
         )
 
+        self.output.finalise()
+
     def _output(self, *args, **kwargs):
         if "step" in kwargs or "endStep" in kwargs:
             return self.write(*args, **kwargs)
