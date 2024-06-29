@@ -89,11 +89,11 @@ class DataRequest:
         levels = set([p[1] for p in self.param_level_ml_pairs])
         return sorted(params), sorted(levels)
 
-    def graph(self, digraph, nodes, node_maker):
-        nodes[f"N{id(self)}"] = node_maker(self)
+    def graph(self, graph):
+        node = graph.node(self)
         for kid in self.graph_kids():
-            digraph.append(f"N{id(self)} -> N{id(kid)}")
-            kid.graph(digraph, nodes, node_maker)
+            graph.add_edge(node, kid.graph(graph))
+        return node
 
 
 class ZarrRequest(DataRequest):
@@ -337,4 +337,6 @@ class Version_0_2_0(Metadata, Forward):
     def area(self):
         return self.rounded_area(self.forward.area)
 
-    #########################
+    def graph(self, graph):
+        # Skip self
+        return self.forward.graph(graph)

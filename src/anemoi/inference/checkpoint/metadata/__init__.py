@@ -334,33 +334,3 @@ class Metadata:
         LOG.error("Training provenance:\n%s", json.dumps(provenance_training, indent=2))
 
     ###########################################################################
-
-    def graph(self, digraph, nodes, label_maker):
-        for kid in self.graph_kids():
-            kid.graph(digraph, nodes, label_maker)
-
-    def digraph(self, label_maker=lambda x: dict(label=x.kind)):
-        import json
-
-        digraph = ["digraph {"]
-        digraph.append("node [shape=box];")
-        nodes = {}
-
-        self.graph(digraph, nodes, label_maker)
-
-        for node, label in nodes.items():
-            for k, v in label.items():
-
-                if isinstance(v, str) and v.startswith("<") and v.endswith(">"):
-                    # Keep HTML labels as i
-                    label[k] = "<" + json.dumps(v[1:-1])[1:-1] + ">"
-                else:
-                    # Use json.dumps to escape special characters
-                    label[k] = json.dumps(v)
-
-            label = " ".join([f"{k}={v}" for k, v in label.items()])
-
-            digraph.append(f"{node} [{label}];")
-
-        digraph.append("}")
-        return "\n".join(digraph)

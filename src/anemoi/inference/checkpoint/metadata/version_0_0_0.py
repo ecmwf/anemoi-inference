@@ -229,5 +229,5 @@ class Version_0_0_0(Metadata):
             remapping={"param_level": "{param}_{levelist}"},
         )
 
-    def graph_kids(self):
-        return []
+    def graph(self, graph):
+        pass
