@@ -66,8 +66,23 @@ optional-dependencies.all = [
 optional-dependencies.dev = [
   "ai-models>=0.6.3",
   "anemoi-datasets[all]",
+  "nbsphinx",
+  "pandoc",
   "pytest",
+  "rstfmt",
+  "sphinx",
+  "sphinx-argparse<0.5",
+  "sphinx-rtd-theme",
   "tqdm",
+]
+
+optional-dependencies.docs = [
+  "nbsphinx",
+  "pandoc",
+  "rstfmt",
+  "sphinx",
+  "sphinx-argparse<0.5",
+  "sphinx-rtd-theme",
 ]
 
 optional-dependencies.plugin = [
