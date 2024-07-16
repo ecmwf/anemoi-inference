@@ -15,7 +15,6 @@ The commands are:
 .. toctree::
     :maxdepth: 1
 
-    checkpoint
     metadata
 
 .. argparse::
