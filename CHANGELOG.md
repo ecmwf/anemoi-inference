@@ -53,7 +53,7 @@ Keep it human-readable, your future self will thank you!
 
 ### Removed
 
-## [0.1.5] Patch, inspect cli tool 
+## [0.1.5] Patch, inspect cli tool
 
 ### Added
 - tests
