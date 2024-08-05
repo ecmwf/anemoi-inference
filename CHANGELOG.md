@@ -18,10 +18,6 @@ Keep it human-readable, your future self will thank you!
 
 ## [0.1.9] Patch, Move output finalise to ai-models
 
-### Added
-
-### Changed
-
 ### Removed
 - output finalise in the plugin
 
@@ -29,10 +25,6 @@ Keep it human-readable, your future self will thank you!
 
 ### Added
 - Support for output finalise in the plugin
-
-### Changed
-
-### Removed
 
 ## [0.1.7] Patch, graph utility
 
@@ -42,16 +34,10 @@ Keep it human-readable, your future self will thank you!
 ### Changed
 - updated dependencies
 
-### Removed
-
 ## [0.1.6] Patch, update dependencies
-
-### Added
 
 ### Changed
 - updated dependencies
-
-### Removed
 
 ## [0.1.5] Patch, inspect cli tool
 
@@ -59,53 +45,25 @@ Keep it human-readable, your future self will thank you!
 - tests
 - inspect cli tool
 
-### Changed
-
-### Removed
-
 ## [0.1.4] Patch, autocast option
 
 ### Added
 - add autocast option
-
-### Changed
-
-### Removed
 
 ## [0.1.3] Patch, support ai-models
 
 ### Added
 - ai-models and AIModelPlugin
 
-### Changed
-
-### Removed
-
 ## [0.1.2] Patch
 
 ### Added
 - dependency group all
 
-### Changed
-
-### Removed
-
-## [0.1.1] Patch
-
-### Added
-
-### Changed
-
-### Removed
-
 ## [0.1.0] Initial Release
 
 ### Added
 Initial Implementation of anemoi-inference
-
-### Changed
-
-### Removed
 
 ## Git Diffs:
 [0.1.9]: https://github.com/ecmwf/anemoi-inference/compare/0.1.8...0.1.9
