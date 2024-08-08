@@ -11,6 +11,7 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
+- added downstream-ci, reathedocs update check and label public pr workflows
 
 ### Changed
 
