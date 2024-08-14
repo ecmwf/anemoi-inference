@@ -11,11 +11,18 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
-- added downstream-ci, reathedocs update check and label public pr workflows
 
 ### Changed
 
 ### Removed
+
+## [0.1.10] Fix missing constants
+
+### Added
+- (GH) Added downstream-ci, reathedocs update check and label public pr workflows
+
+### Changed
+- Fix missing constant_fields property to query constants in the checkpoint
 
 ## [0.1.9] Patch, Move output finalise to ai-models
 
@@ -67,6 +74,7 @@ Keep it human-readable, your future self will thank you!
 Initial Implementation of anemoi-inference
 
 ## Git Diffs:
+[0.1.10]: https://github.com/ecmwf/anemoi-inference/compare/0.1.9...0.1.10
 [0.1.9]: https://github.com/ecmwf/anemoi-inference/compare/0.1.8...0.1.9
 [0.1.8]: https://github.com/ecmwf/anemoi-inference/compare/0.1.7...0.1.8
 [0.1.7]: https://github.com/ecmwf/anemoi-inference/compare/0.1.6...0.1.7
