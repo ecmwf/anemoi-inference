@@ -266,10 +266,7 @@ class Runner:
 
         with Timer(f"Loading {self.checkpoint}"):
             try:
-                model = torch.load(
-                    self.checkpoint.path,
-                    map_location=device,
-                ).to(device)
+                model = torch.load(self.checkpoint.path, map_location=device, weights_only=False).to(device)
             except Exception:
                 self.checkpoint.report_loading_error()
                 raise
