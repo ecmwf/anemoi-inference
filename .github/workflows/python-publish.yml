@@ -4,50 +4,22 @@
 name: Upload Python Package
 
 on:
-
-  push: {}
-  pull_request:
   release:
     types: [created]
 
 jobs:
   quality:
-    name: Code QA
-    runs-on: ubuntu-latest
-    steps:
-    - run: sudo apt-get install -y pandoc # Needed by sphinx for notebooks
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: 3.x
-    - uses: pre-commit/action@v3.0.1
-      env:
-        SKIP: no-commit-to-branch
+    uses: ecmwf-actions/reusable-workflows/.github/workflows/qa-precommit-run.yml@v2
+    with:
+      skip-hooks: "no-commit-to-branch"
 
   checks:
     strategy:
-      fail-fast: false
       matrix:
-        platform: ["ubuntu-latest", "macos-latest"]
-        python-version: ["3.10"]
-
-    name: Python  ${{ matrix.python-version }} on ${{ matrix.platform }}
-    runs-on: ${{ matrix.platform }}
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install
-      run: |
-        pip install -e .[all,tests]
-        pip freeze
-
-    - name: Tests
-      run: pytest
+        python-version: ["3.9", "3.10"]
+    uses: ecmwf-actions/reusable-workflows/.github/workflows/qa-pytest-pyproject.yml@v2
+    with:
+      python-version: ${{ matrix.python-version }}
 
   deploy:
     needs: [checks, quality]
