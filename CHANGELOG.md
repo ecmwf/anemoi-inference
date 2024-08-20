@@ -11,8 +11,10 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
+- ci: changelog release updater
 
 ### Changed
+- ci: updated workflows on PR and releases to use reusable actions
 
 ### Removed
 
