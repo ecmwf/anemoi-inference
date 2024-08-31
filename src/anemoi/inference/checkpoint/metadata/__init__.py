@@ -334,3 +334,12 @@ class Metadata:
         LOG.error("Training provenance:\n%s", json.dumps(provenance_training, indent=2))
 
     ###########################################################################
+
+    @property
+    def predict_step_shape(self):
+        return (
+            1,  # Batch size
+            self.multi_step,  # Lagged time steps
+            self.number_of_grid_points,  # Grid points
+            self.num_input_features,  # Fields
+        )
