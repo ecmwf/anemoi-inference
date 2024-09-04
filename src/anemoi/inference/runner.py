@@ -230,8 +230,6 @@ class Runner:
             start_datetime = start_datetime[
                 "base_time"
             ]  # With earthkit, time is a dictionary with 'base_time' and 'valid_time'
-        else:
-            raise Exception()
 
         constants = forcing_and_constants(
             source=input_fields[:1],
