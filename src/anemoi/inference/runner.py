@@ -224,11 +224,8 @@ class Runner:
         ]
 
         if start_datetime is None:
-            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()
-
-        if isinstance(start_datetime, dict):
-            # With earthkit, time is a dictionary with 'base_time' and 'valid_time'
-            start_datetime = start_datetime["valid_time"]
+            start_datetime_str = input_fields.order_by(valid_datetime="ascending")[-1].metadata("valid_datetime")
+            start_datetime = datetime.datetime.fromisoformat(start_datetime_str)
 
         constants = forcing_and_constants(
             source=input_fields[:1],
