@@ -36,9 +36,9 @@ AUTOCAST = {
 
 
 def forcing_and_constants(source, date, param):
-    import earthkit
+    import earthkit.data as ekd
 
-    ds = earthkit.data.from_source(
+    ds = ekd.from_source(
         "forcings",
         source,
         date=date,
@@ -227,9 +227,8 @@ class Runner:
             start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()
 
         if isinstance(start_datetime, dict):
-            start_datetime = start_datetime[
-                "base_time"
-            ]  # With earthkit, time is a dictionary with 'base_time' and 'valid_time'
+            # With earthkit, time is a dictionary with 'base_time' and 'valid_time'
+            start_datetime = start_datetime["valid_time"]
 
         constants = forcing_and_constants(
             source=input_fields[:1],
