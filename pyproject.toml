@@ -52,6 +52,7 @@ dynamic = [
 dependencies = [
   "anemoi-utils>=0.3",
   "anytree",
+  "earthkit-data>=0.9",
   "numpy",
   "pyyaml",
   "semantic-version",

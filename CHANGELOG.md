@@ -11,10 +11,13 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
+- earthkit-data replaces climetlab
 
 ### Changed
 
 ### Removed
+- climetlab
+
 
 ## [0.1.10] Fix missing constants
 
