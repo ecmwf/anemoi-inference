@@ -36,10 +36,10 @@ AUTOCAST = {
 
 
 def forcing_and_constants(source, date, param):
-    import climetlab as cml
+    import earthkit.data as ekd
 
-    ds = cml.load_source(
-        "constants",
+    ds = ekd.from_source(
+        "forcings",
         source,
         date=date,
         param=param,
@@ -119,12 +119,33 @@ class Runner:
 
         LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
+        if start_datetime is None:
+            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].metadata("valid_datetime")
+
+        num_fields_per_date = len(input_fields) // len(self.lagged)  # assumed
+
+        # Check valid_datetime of input data
+        # The subsequent reshape operation assumes that input_fields are chunkable by datetime
+        for i, lag in enumerate(self.lagged):
+            date = start_datetime + datetime.timedelta(hours=lag)
+            dates_found = set(
+                field.datetime() for field in input_fields[i * num_fields_per_date : (i + 1) * num_fields_per_date]
+            )
+            # All chunks must have the same datetime that must agree with the lag
+            if dates_found != {date}:
+                raise RuntimeError(
+                    "Inconsistent datetimes detected.\n"
+                    f"Datetimes in data: {', '.join(d.isoformat() for d in dates_found)}.\n"
+                    f"Expected datetime: {date.isoformat()} (for lag {lag})"
+                )
+
         input_fields_numpy = input_fields.to_numpy(dtype=np.float32, reshape=False)
+
         print(input_fields_numpy.shape)
 
         input_fields_numpy = input_fields_numpy.reshape(
             len(self.lagged),
-            len(input_fields) // len(self.lagged),
+            num_fields_per_date,
             number_of_grid_points,
         )  # nlags, nparams, ngrid
 
@@ -223,9 +244,6 @@ class Runner:
             :, constant_data_from_retrieved_fields_mask
         ]
 
-        if start_datetime is None:
-            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()
-
         constants = forcing_and_constants(
             source=input_fields[:1],
             param=self.checkpoint.computed_constants,
@@ -290,14 +308,14 @@ class Runner:
 
         # Write dynamic fields
         def get_most_recent_datetime(input_fields):
-            datetimes = [f.valid_datetime() for f in input_fields]
+            datetimes = [f.datetime()["valid_time"] for f in input_fields]
             latest = datetimes[-1]
             for d in datetimes:
                 assert d <= latest, (datetimes, d, latest)
             return latest
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
-        reference_fields = [f for f in input_fields if f.valid_datetime() == most_recent_datetime]
+        reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
         precip_template = reference_fields[self.checkpoint.variable_to_index["2t"]]
 
         accumulated_output = np.zeros(
@@ -335,8 +353,8 @@ class Runner:
 
             for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
                 template = reference_fields[m]
-                assert template.valid_datetime() == most_recent_datetime, (
-                    template.valid_datetime(),
+                assert template.datetime()["valid_time"] == most_recent_datetime, (
+                    template.datetime()["valid_time"],
                     most_recent_datetime,
                 )
                 output_callback(
@@ -350,8 +368,8 @@ class Runner:
             if len(diagnostic_output_mask):
                 for n, param in enumerate(self.checkpoint.diagnostic_params):
                     accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                    assert precip_template.valid_datetime() == most_recent_datetime, (
-                        precip_template.valid_datetime(),
+                    assert precip_template.datetime()["valid_time"] == most_recent_datetime, (
+                        precip_template.datetime()["valid_time"],
                         most_recent_datetime,
                     )
                     output_callback(
