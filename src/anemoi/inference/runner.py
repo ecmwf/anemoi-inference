@@ -119,20 +119,17 @@ class Runner:
 
         LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
-
         if start_datetime is None:
             start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].metadata("valid_datetime")
 
-        num_fields_per_date = len(input_fields) // len(self.lagged) # assumed
+        num_fields_per_date = len(input_fields) // len(self.lagged)  # assumed
 
         # Check valid_datetime of input data
         # The subsequent reshape operation assumes that input_fields are chunkable by datetime
         for i, lag in enumerate(self.lagged):
             date = start_datetime + datetime.timedelta(hours=lag)
             dates_found = set(
-                field.datetime() for field in input_fields[
-                    i*num_fields_per_date:(i+1)*num_fields_per_date
-                ]
+                field.datetime() for field in input_fields[i * num_fields_per_date : (i + 1) * num_fields_per_date]
             )
             # All chunks must have the same datetime that must agree with the lag
             if dates_found != {date}:
