@@ -136,6 +136,15 @@ class ZarrRequest(DataRequest):
     def graph_kids(self):
         return []
 
+    @property
+    def number_of_grid_points(self):
+        if "shape" in self.attributes:
+            return self.attributes["shape"][-1]
+        return {
+            "o96": 40_320,
+            "n320": 542_080,
+        }[self.attributes["resolution"].lower()]
+
 
 class Forward(DataRequest):
     @cached_property

@@ -36,10 +36,10 @@ AUTOCAST = {
 
 
 def forcing_and_constants(source, date, param):
-    import climetlab as cml
+    import earthkit.data as ekd
 
-    ds = cml.load_source(
-        "constants",
+    ds = ekd.from_source(
+        "forcings",
         source,
         date=date,
         param=param,
@@ -119,8 +119,9 @@ class Runner:
 
         LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
+
         if start_datetime is None:
-            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()
+            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].metadata("valid_datetime")
 
         num_fields_per_date = len(input_fields) // len(self.lagged) # assumed
 
@@ -142,6 +143,7 @@ class Runner:
                 )
 
         input_fields_numpy = input_fields.to_numpy(dtype=np.float32, reshape=False)
+
         print(input_fields_numpy.shape)
 
         input_fields_numpy = input_fields_numpy.reshape(
@@ -285,10 +287,7 @@ class Runner:
 
         with Timer(f"Loading {self.checkpoint}"):
             try:
-                model = torch.load(
-                    self.checkpoint.path,
-                    map_location=device,
-                ).to(device)
+                model = torch.load(self.checkpoint.path, map_location=device, weights_only=False).to(device)
             except Exception:
                 self.checkpoint.report_loading_error()
                 raise
@@ -312,14 +311,14 @@ class Runner:
 
         # Write dynamic fields
         def get_most_recent_datetime(input_fields):
-            datetimes = [f.valid_datetime() for f in input_fields]
+            datetimes = [f.datetime()["valid_time"] for f in input_fields]
             latest = datetimes[-1]
             for d in datetimes:
                 assert d <= latest, (datetimes, d, latest)
             return latest
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
-        reference_fields = [f for f in input_fields if f.valid_datetime() == most_recent_datetime]
+        reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
         precip_template = reference_fields[self.checkpoint.variable_to_index["2t"]]
 
         accumulated_output = np.zeros(
@@ -357,8 +356,8 @@ class Runner:
 
             for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
                 template = reference_fields[m]
-                assert template.valid_datetime() == most_recent_datetime, (
-                    template.valid_datetime(),
+                assert template.datetime()["valid_time"] == most_recent_datetime, (
+                    template.datetime()["valid_time"],
                     most_recent_datetime,
                 )
                 output_callback(
@@ -372,8 +371,8 @@ class Runner:
             if len(diagnostic_output_mask):
                 for n, param in enumerate(self.checkpoint.diagnostic_params):
                     accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                    assert precip_template.valid_datetime() == most_recent_datetime, (
-                        precip_template.valid_datetime(),
+                    assert precip_template.datetime()["valid_time"] == most_recent_datetime, (
+                        precip_template.datetime()["valid_time"],
                         most_recent_datetime,
                     )
                     output_callback(

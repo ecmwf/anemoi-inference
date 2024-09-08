@@ -91,6 +91,10 @@ class AIModelPlugin(Model):
         return self.runner.checkpoint.param_level_ml
 
     @property
+    def constant_fields(self):
+        return self.runner.checkpoint.constants_from_input
+
+    @property
     def grid(self):
         return self.runner.checkpoint.grid
 
