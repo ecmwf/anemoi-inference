@@ -120,7 +120,7 @@ class Runner:
         LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
         if start_datetime is None:
-            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].metadata("valid_datetime")
+            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
 
         num_fields_per_date = len(input_fields) // len(self.lagged)  # assumed
 
@@ -129,7 +129,8 @@ class Runner:
         for i, lag in enumerate(self.lagged):
             date = start_datetime + datetime.timedelta(hours=lag)
             dates_found = set(
-                field.datetime() for field in input_fields[i * num_fields_per_date : (i + 1) * num_fields_per_date]
+                field.datetime()["valid_time"]
+                for field in input_fields[i * num_fields_per_date : (i + 1) * num_fields_per_date]
             )
             # All chunks must have the same datetime that must agree with the lag
             if dates_found != {date}:
@@ -139,7 +140,7 @@ class Runner:
                     f"Expected datetime: {date.isoformat()} (for lag {lag})"
                 )
 
-        input_fields_numpy = input_fields.to_numpy(dtype=np.float32, reshape=False)
+        input_fields_numpy = input_fields.to_numpy(dtype=np.float32)
 
         print(input_fields_numpy.shape)
 
