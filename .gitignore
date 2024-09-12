@@ -120,7 +120,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-    .envrc
+.envrc
 .env
 .venv
 env/
