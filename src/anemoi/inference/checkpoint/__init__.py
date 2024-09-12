@@ -118,6 +118,10 @@ class Checkpoint:
                 )
 
         for git_record in train_environment["git_versions"].keys():
+            file_record = train_environment["git_versions"][git_record]["git"]
+            if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
+                continue
+
             if git_record not in inference_environment["git_versions"]:
                 invalid_messages["uncommitted"].append(
                     f"Training environment contained uncommitted change missing in inference environment: {git_record}"
@@ -131,6 +135,10 @@ class Checkpoint:
                 )
 
         for git_record in inference_environment["git_versions"].keys():
+            file_record = inference_environment["git_versions"][git_record]["git"]
+            if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
+                continue
+
             if git_record not in train_environment["git_versions"]:
                 invalid_messages["uncommitted"].append(
                     f"Inference environment contains uncommited changes missing in training: {git_record}"
