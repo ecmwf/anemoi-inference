@@ -146,7 +146,7 @@ class Checkpoint:
 
         if len(invalid_messages) > 0:
             text = "Environment validation failed. The following issues were found:\n" + "\n".join(
-                [f"  {key}:\n    " + "\n    ".join(value) for key, value in invalid_messages.items()]
+                [f"  {key}:\n    " + "\n    ".join(value) for key, value in invalid_messages.items() if len(value) > 0]
             )
             if on_difference == "warn":
                 LOG.warning(text)
