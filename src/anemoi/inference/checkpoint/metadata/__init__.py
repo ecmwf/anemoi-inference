@@ -165,6 +165,11 @@ class Metadata:
         """Part of the metadata refers to the model configuration"""
         return self._metadata["config"]["training"]
 
+    @cached_property
+    def provenance_training(self):
+        """Environmental Configuration when trained"""
+        return dict(self._metadata.get("provenance_training", {}))
+
     ###########################################################################
     def _forcings(self, constants):
         forcing = self._indices["data"]["input"]["forcing"]
