@@ -140,9 +140,7 @@ class Runner:
                     f"Expected datetime: {date.isoformat()} (for lag {lag})"
                 )
 
-        input_fields_numpy = input_fields.to_numpy(dtype=np.float32)
-
-        print(input_fields_numpy.shape)
+        input_fields_numpy = input_fields.to_numpy(dtype=np.float32, flatten=True)
 
         input_fields_numpy = input_fields_numpy.reshape(
             len(self.lagged),
