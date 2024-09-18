@@ -13,6 +13,7 @@ Keep it human-readable, your future self will thank you!
 ### Added
 - ci: changelog release updater
 - earthkit-data replaces climetlab
+- ci-hpc-config
 
 ### Changed
 - ci: updated workflows on PR and releases to use reusable actions
