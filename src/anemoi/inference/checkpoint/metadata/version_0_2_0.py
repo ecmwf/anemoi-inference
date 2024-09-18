@@ -15,6 +15,13 @@ LOG = logging.getLogger(__name__)
 
 
 class DataRequest:
+    """
+    Base class for all data requests.
+
+    Data requests describe operations on the input data that are needed to prepare it for inference.
+    The same operations that were applied to the training dataset should be applied to the input data.
+    """
+
     def __init__(self, metadata):
         self.metadata = metadata
 
@@ -97,6 +104,8 @@ class DataRequest:
 
 
 class ZarrRequest(DataRequest):
+    """Represents a zarr dataset request"""
+
     def __init__(self, metadata):
         super().__init__(metadata)
         self.attributes = metadata["attrs"]
@@ -183,6 +192,8 @@ class RenameRequest(Forward):
 
 
 class MultiRequest(Forward):
+    """Read data from multiple data sources"""
+
     def __init__(self, metadata):
         super().__init__(metadata)
         self.datasets = [data_request(d) for d in metadata["datasets"]]
@@ -337,6 +348,8 @@ def data_request(specific):
 
 
 class Version_0_2_0(Metadata, Forward):
+    """Version 0.2.0 of the metadata format"""
+
     def __init__(self, metadata):
         super().__init__(metadata)
         specific = metadata["dataset"]["specific"]

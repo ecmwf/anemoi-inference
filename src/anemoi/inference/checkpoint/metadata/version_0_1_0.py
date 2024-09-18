@@ -15,6 +15,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Version_0_1_0(Metadata):
+    """Version 0.1.0 of the metadata format."""
+
     def __init__(self, metadata):
         super().__init__(metadata)
         self.patch_metadata()

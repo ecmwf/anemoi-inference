@@ -70,7 +70,7 @@ class Runner:
         output_callback=ignore,
         autocast=None,
         progress_callback=ignore,
-    ):
+    ) -> None:
         """_summary_
 
         Parameters
@@ -89,11 +89,6 @@ class Runner:
             _description_, by default None
         progress_callback : _type_, optional
             _description_, by default ignore
-
-        Returns
-        -------
-        _type_
-            _description_
 
         Raises
         ------
