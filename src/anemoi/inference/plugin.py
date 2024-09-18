@@ -22,7 +22,7 @@ class AIModelPlugin(Model):
 
     expver = None
 
-    def add_model_args(self, parser):
+    def add_model_args(self, parser) -> None:
         """To be implemented in subclasses to add model-specific arguments to the parser.
 
         Parameters
