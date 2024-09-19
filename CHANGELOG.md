@@ -13,7 +13,7 @@ Keep it human-readable, your future self will thank you!
 ### Added
 - ci: changelog release updater
 - earthkit-data replaces climetlab
-- `validate_environment` on Checkpoint
+- `validate_environment` on Checkpoint #13
 - ci-hpc-config
 
 ### Changed
