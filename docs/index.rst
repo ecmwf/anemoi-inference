@@ -43,7 +43,6 @@ of the *Anemoi* packages.
 **Command line tool**
 
 -  :doc:`cli/introduction`
--  :doc:`cli/checkpoint`
 -  :doc:`cli/metadata`
 
 .. toctree::

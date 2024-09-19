@@ -22,7 +22,7 @@ class AIModelPlugin(Model):
 
     expver = None
 
-    def add_model_args(self, parser):
+    def add_model_args(self, parser) -> None:
         """To be implemented in subclasses to add model-specific arguments to the parser.
 
         Parameters
@@ -89,6 +89,10 @@ class AIModelPlugin(Model):
     @property
     def param_level_ml(self):
         return self.runner.checkpoint.param_level_ml
+
+    @property
+    def constant_fields(self):
+        return self.runner.checkpoint.constants_from_input
 
     @property
     def grid(self):

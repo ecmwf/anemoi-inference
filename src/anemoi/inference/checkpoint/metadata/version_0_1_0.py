@@ -15,6 +15,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Version_0_1_0(Metadata):
+    """Version 0.1.0 of the metadata format."""
+
     def __init__(self, metadata):
         super().__init__(metadata)
         self.patch_metadata()
@@ -100,3 +102,13 @@ class Version_0_1_0(Metadata):
             dataset["attrs"] = dataset.copy()
 
         return ZarrRequest(dataset).graph(graph)
+
+    @property
+    def number_of_grid_points(self):
+        from .version_0_2_0 import ZarrRequest
+
+        dataset = self._dataset.copy()
+        if "attrs" not in dataset:
+            dataset["attrs"] = dataset.copy()
+
+        return ZarrRequest(dataset).number_of_grid_points
