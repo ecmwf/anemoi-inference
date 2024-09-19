@@ -6,6 +6,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import json
 import logging
 from functools import cached_property
 
@@ -155,7 +156,12 @@ class Metadata:
         # order = self._dataset["order_by"]
         return dict(
             # valid_datetime="ascending",
-            param_level=self.variables,
+            param_level=sorted(
+                set(self.variables)
+                - set(self.computed_constants)
+                - set(self.computed_forcings)
+                - set(self.diagnostic_params)
+            ),
             # ensemble=self.checkpoint.ordering('ensemble'),
             remapping={"param_level": "{param}_{levelist}"},
         )
@@ -204,7 +210,7 @@ class Metadata:
 
         LOG.debug("computed_constants data_mask: %s", data_mask)
         LOG.debug("computed_constants model_mask: %s", model_mask)
-        LOG.info("Computed constants: %s", names)
+        LOG.debug("Computed constants: %s", names)
 
         return data_mask, model_mask, names
 
@@ -230,8 +236,6 @@ class Metadata:
             ]
         )
 
-        print("FORCINGS", self._forcing_params())
-
         constants = set(self._forcing_params()) - set(self.constants_from_input) - set(self.computed_constants)
 
         if constants - known:
@@ -241,7 +245,7 @@ class Metadata:
 
         LOG.debug("computed_forcing data_mask: %s", data_mask)
         LOG.debug("computed_forcing model_mask: %s", model_mask)
-        LOG.info("Computed forcings: %s", names)
+        # LOG.info("Computed forcings: %s", names)
 
         return data_mask, model_mask, names
 
@@ -265,7 +269,7 @@ class Metadata:
 
         LOG.debug("constants_from_input: %s", data_mask)
         LOG.debug("constants_from_input: %s", model_mask)
-        LOG.info("Constants from input: %s", names)
+        LOG.debug("Constants from input: %s", names)
 
         return data_mask, model_mask, names
 
@@ -306,6 +310,11 @@ class Metadata:
     @cached_property
     def prognostic_params(self):
         return [self.index_to_variable[i] for i in self._indices["data"]["input"]["prognostic"]]
+
+    @cached_property
+    def accumulations_params(self):
+        # We assume that accumulations are the ones that are forecasts
+        return sorted(p[0] for p in self.param_step_sfc_pairs)
 
     ###########################################################################
     @cached_property
@@ -349,3 +358,38 @@ class Metadata:
             self.number_of_grid_points,  # Grid points
             self.num_input_features,  # Fields
         )
+
+    ###########################################################################
+    def summary(self):
+
+        print(f"Prognostics: ({len(self.prognostic_params)})")
+        print(sorted(self.prognostic_params))
+        print()
+
+        print(f"Diagnostics: ({len(self.diagnostic_params)})")
+        print(sorted(self.diagnostic_params))
+        print()
+
+        print(f"Retrieved constants: ({len(self.constants_from_input)})")
+        print(sorted(self.constants_from_input))
+        print()
+
+        print(f"Computed constants: ({len(self.computed_constants)})")
+        print(sorted(self.computed_constants))
+        print()
+
+        print(f"Computed forcings: ({len(self.computed_forcings)})")
+        print(sorted(self.computed_forcings))
+        print()
+
+        print(f"Accumulations: ({len(self.accumulations_params)})")
+        print(sorted(self.accumulations_params))
+        print()
+
+        print("Select:")
+        print(json.dumps(self.select, indent=2))
+        print()
+
+        print("Order by:")
+        print(json.dumps(self.order_by, indent=2))
+        print()
