@@ -10,20 +10,13 @@
 # https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
 
 [build-system]
-requires = [
-  "setuptools>=60",
-  "setuptools-scm>=8",
-]
+requires = [ "setuptools>=60", "setuptools-scm>=8" ]
 
 [project]
 name = "anemoi-inference"
 
 description = "A package to hold various functions to support training of ML models."
-keywords = [
-  "ai",
-  "inference",
-  "tools",
-]
+keywords = [ "ai", "inference", "tools" ]
 
 license = { file = "LICENSE" }
 authors = [
@@ -46,9 +39,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-dynamic = [
-  "version",
-]
+dynamic = [ "version" ]
 dependencies = [
   "anemoi-utils>=0.3",
   "anytree",
@@ -59,23 +50,9 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [
-  "ai-models>=0.6.3",
-  "tqdm",
-]
+optional-dependencies.all = [ "anemoi-inference[plugin]" ]
 
-optional-dependencies.dev = [
-  "ai-models>=0.6.3",
-  "anemoi-datasets[all]",
-  "nbsphinx",
-  "pandoc",
-  "pytest",
-  "rstfmt",
-  "sphinx",
-  "sphinx-argparse<0.5",
-  "sphinx-rtd-theme",
-  "tqdm",
-]
+optional-dependencies.dev = [ "anemoi-datasets[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
   "nbsphinx",
@@ -86,15 +63,9 @@ optional-dependencies.docs = [
   "sphinx-rtd-theme",
 ]
 
-optional-dependencies.plugin = [
-  "ai-models>=0.6.3",
-  "tqdm",
-]
+optional-dependencies.plugin = [ "ai-models>=0.6.3", "tqdm" ]
 
-optional-dependencies.tests = [
-  "anemoi-datasets[all]",
-  "pytest",
-]
+optional-dependencies.tests = [ "anemoi-datasets[all]", "pytest" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"

@@ -50,6 +50,12 @@ def from_versions(checkpoint_version, dataset_version):
 
 
 class Metadata:
+    """Base class with helper funtions to access the metadata in an inference checkpoint.
+
+    Instances are created by the classmethod `from_metadata` which returns the appropriate subclass based on the version of the checkpoint and dataset.
+    Initialised from a dictionary with the metadata key:values, typically from the json contained in the checkpoint zipfile.
+    """
+
     def __init__(self, metadata):
         self._metadata = metadata
 

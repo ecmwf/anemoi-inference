@@ -22,6 +22,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Checkpoint:
+    """Represents an inference checkpoint. Provides dot-notation access to the checkpoint's metadata."""
+
     def __init__(self, path):
         self.path = path
         self._metadata = None

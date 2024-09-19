@@ -14,6 +14,7 @@ Keep it human-readable, your future self will thank you!
 - ci: changelog release updater
 - earthkit-data replaces climetlab
 - `validate_environment` on Checkpoint
+- ci-hpc-config
 
 ### Changed
 - ci: updated workflows on PR and releases to use reusable actions

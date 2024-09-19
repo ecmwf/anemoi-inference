@@ -70,7 +70,7 @@ class Runner:
         output_callback=ignore,
         autocast=None,
         progress_callback=ignore,
-    ):
+    ) -> None:
         """_summary_
 
         Parameters
@@ -89,11 +89,6 @@ class Runner:
             _description_, by default None
         progress_callback : _type_, optional
             _description_, by default ignore
-
-        Returns
-        -------
-        _type_
-            _description_
 
         Raises
         ------
@@ -140,9 +135,7 @@ class Runner:
                     f"Expected datetime: {date.isoformat()} (for lag {lag})"
                 )
 
-        input_fields_numpy = input_fields.to_numpy(dtype=np.float32)
-
-        print(input_fields_numpy.shape)
+        input_fields_numpy = input_fields.to_numpy(dtype=np.float32, flatten=True)
 
         input_fields_numpy = input_fields_numpy.reshape(
             len(self.lagged),
