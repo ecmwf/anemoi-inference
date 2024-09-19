@@ -51,6 +51,7 @@ dynamic = [
 ]
 dependencies = [
   "anemoi-utils>=0.3",
+  "aniso8601",
   "anytree",
   "numpy",
   "pyyaml",
