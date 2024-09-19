@@ -14,6 +14,7 @@ Keep it human-readable, your future self will thank you!
 - ci: changelog release updater
 - earthkit-data replaces climetlab
 - ci-hpc-config
+- Add Condition to store data
 
 ### Changed
 - ci: updated workflows on PR and releases to use reusable actions
