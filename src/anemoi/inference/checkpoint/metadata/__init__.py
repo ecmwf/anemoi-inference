@@ -386,10 +386,10 @@ class Metadata:
         print(sorted(self.accumulations_params))
         print()
 
-        print("Select:")
-        print(json.dumps(self.select, indent=2))
-        print()
+        # print("Select:")
+        # print(json.dumps(self.select, indent=2))
+        # print()
 
-        print("Order by:")
-        print(json.dumps(self.order_by, indent=2))
-        print()
+        # print("Order by:")
+        # print(json.dumps(self.order_by, indent=2))
+        # print()

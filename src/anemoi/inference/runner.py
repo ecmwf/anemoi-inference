@@ -419,6 +419,30 @@ class Runner:
         result = [-s * self.hour_steps for s in result]
         return sorted(result)
 
+    @property
+    def param_sfc(self):
+        param_sfc = self.checkpoint.param_sfc
+
+        # Remove diagnostic params
+
+        param_sfc = [p for p in param_sfc if p not in self.checkpoint.diagnostic_params]
+
+        return param_sfc
+
+    @property
+    def param_level_pl(self):
+
+        # To do remove diagnostic params
+
+        return self.checkpoint.param_level_pl
+
+    @property
+    def param_level_ml(self):
+
+        # To do remove diagnostic params
+
+        return self.checkpoint.param_level_ml
+
 
 class DefaultRunner(Runner):
     """_summary_
