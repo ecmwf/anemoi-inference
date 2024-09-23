@@ -101,12 +101,16 @@ class Checkpoint:
         """
         train_environment = self.provenance_training
         inference_environment = gather_provenance_info(full=False)
-        
+
         # Override module information with more complete inference environment capture
         import pkg_resources
-        module_versions = {pkg.project_name.replace('-','.'): pkg_resources.get_distribution(pkg.project_name).version for pkg in pkg_resources.working_set}
+
+        module_versions = {
+            pkg.project_name.replace("-", "."): pkg_resources.get_distribution(pkg.project_name).version
+            for pkg in pkg_resources.working_set
+        }
         inference_environment["module_versions"] = module_versions
-        
+
         exempt_packages = exempt_packages or []
         exempt_packages.extend(EXEMPT_PACKAGES)
 
@@ -126,12 +130,11 @@ class Checkpoint:
         for module in train_environment["module_versions"].keys():
             if not all_packages and "anemoi" not in module:
                 continue
-            elif module.split('.')[0] in exempt_packages:
+            elif module.split(".")[0] in exempt_packages:
                 continue
             elif module not in inference_environment["module_versions"]:
                 invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
                 continue
-            
 
             train_environment_version = Version(train_environment["module_versions"][module])
             inference_environment_version = Version(inference_environment["module_versions"][module])
@@ -139,7 +142,7 @@ class Checkpoint:
             if train_environment_version < inference_environment_version:
                 invalid_messages["mismatch"].append(
                     f"Version of module {module} in training was lower then in inference: {train_environment['module_versions'][module]} <= {inference_environment['module_versions'][module]}"
-                )            
+                )
             elif train_environment_version > inference_environment_version:
                 invalid_messages["critical mismatch"].append(
                     f"CRITICAL: Version of module {module} was greater in training then in inference: {train_environment['module_versions'][module]} > {inference_environment['module_versions'][module]}"
