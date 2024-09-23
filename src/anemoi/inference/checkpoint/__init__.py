@@ -18,6 +18,7 @@ from anemoi.utils.provenance import gather_provenance_info
 
 from .metadata import Metadata
 from .package_exemptions import EXEMPT_PACKAGES
+from .utils import Version
 
 LOG = logging.getLogger(__name__)
 
@@ -100,6 +101,12 @@ class Checkpoint:
         """
         train_environment = self.provenance_training
         inference_environment = gather_provenance_info(full=False)
+        
+        # Override module information with more complete inference environment capture
+        import pkg_resources
+        module_versions = {pkg.project_name.replace('-','.'): pkg_resources.get_distribution(pkg.project_name).version for pkg in pkg_resources.working_set}
+        inference_environment["module_versions"] = module_versions
+        
         exempt_packages = exempt_packages or []
         exempt_packages.extend(EXEMPT_PACKAGES)
 
@@ -107,6 +114,7 @@ class Checkpoint:
             "python": [],
             "missing": [],
             "mismatch": [],
+            "critical mismatch": [],
             "uncommitted": [],
         }
 
@@ -120,10 +128,21 @@ class Checkpoint:
                 continue
             elif module.split('.')[0] in exempt_packages:
                 continue
+            elif module not in inference_environment["module_versions"]:
                 invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
-            elif train_environment["module_versions"][module] != inference_environment["module_versions"][module]:
+                continue
+            
+
+            train_environment_version = Version(train_environment["module_versions"][module])
+            inference_environment_version = Version(inference_environment["module_versions"][module])
+
+            if train_environment_version < inference_environment_version:
                 invalid_messages["mismatch"].append(
-                    f"Version mismatch for module {module}: {train_environment['module_versions'][module]} != {inference_environment['module_versions'][module]}"
+                    f"Version of module {module} in training was lower then in inference: {train_environment['module_versions'][module]} <= {inference_environment['module_versions'][module]}"
+                )            
+            elif train_environment_version > inference_environment_version:
+                invalid_messages["critical mismatch"].append(
+                    f"CRITICAL: Version of module {module} was greater in training then in inference: {train_environment['module_versions'][module]} > {inference_environment['module_versions'][module]}"
                 )
 
         for git_record in train_environment["git_versions"].keys():
@@ -140,7 +159,7 @@ class Checkpoint:
                 != inference_environment["git_versions"][git_record]["sha1"]
             ):
                 invalid_messages["uncommitted"].append(
-                    f"sha1 mismatch for git record between training and inference {git_record}: {train_environment['git_versions'][git_record]} != {inference_environment['git_versions'][git_record]}"
+                    f"sha1 mismatch for git record between training and inference. {git_record} (training != inference): {train_environment['git_versions'][git_record]} != {inference_environment['git_versions'][git_record]}"
                 )
 
         for git_record in inference_environment["git_versions"].keys():
