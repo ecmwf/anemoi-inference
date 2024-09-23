@@ -8,7 +8,7 @@ from anemoi.inference.condition import Condition
 
 
 @given(shape=npst.array_shapes(min_dims=2), data=st.data())
-def test_code(shape, data):
+def test_from_numpy(shape, data):
     # Test condition creation from numpy arrays
     data_strategy = npst.arrays(
         dtype=np.float32,
