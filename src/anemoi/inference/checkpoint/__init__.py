@@ -17,9 +17,9 @@ from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
 
-from .metadata import Metadata
-from .package_exemptions import EXEMPT_NAMESPACES
-from .package_exemptions import EXEMPT_PACKAGES
+from anemoi.inference.checkpoint.metadata import Metadata
+from anemoi.inference.checkpoint.package_exemptions import EXEMPT_NAMESPACES
+from anemoi.inference.checkpoint.package_exemptions import EXEMPT_PACKAGES
 
 LOG = logging.getLogger(__name__)
 
