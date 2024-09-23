@@ -18,6 +18,7 @@ from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
 
 from .metadata import Metadata
+from .package_exemptions import EXEMPT_NAMESPACES
 from .package_exemptions import EXEMPT_PACKAGES
 
 LOG = logging.getLogger(__name__)
@@ -130,7 +131,7 @@ class Checkpoint:
         for module in train_environment["module_versions"].keys():
             if not all_packages and "anemoi" not in module:
                 continue
-            elif module.split(".")[0] in exempt_packages:
+            elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
                 continue
             elif module not in inference_environment["module_versions"]:
                 invalid_messages["missing"].append(f"Missing module in inference environment: {module}")

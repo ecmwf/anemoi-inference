@@ -1,8 +1,10 @@
+# Complete package name to be exempt
 EXEMPT_PACKAGES = [
-    "anemoi-training",
-    "anemoi-datasets",
+    "anemoi.training",
     "hydra",
     "hydra_plugins",
     "lightning",
-    "pytorch-lightning",
 ]
+
+# Entire namespaces to be exempt
+EXEMPT_NAMESPACES = []
