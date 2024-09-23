@@ -71,7 +71,9 @@ class Checkpoint:
         self,
         all_packages: bool = False,
         on_difference: Literal["warn", "error"] = "warn",
-    ) -> int:
+        *,
+        exempt_packages: list[str] | None = None,
+    ) -> bool:
         """
         Validate environment of the checkpoint against the current environment.
 
@@ -81,11 +83,13 @@ class Checkpoint:
             Check all packages in environment or just `anemoi`'s, by default False
         on_difference : Literal['warn', 'error'], optional
             What to do on difference, by default "warn"
+        exempt_packages : list[str], optional
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
-        int
-            0 if environment is valid, 1 otherwise
+        bool
+            True if environment is valid, False otherwise
 
         Raises
         ------
@@ -159,7 +163,7 @@ class Checkpoint:
                 raise RuntimeError(text)
             else:
                 raise ValueError(f"Invalid value for `on_difference`: {on_difference}")
-            return 1
+            return False
 
         LOG.info(f"Environment validation passed")
-        return 0
+        return True
