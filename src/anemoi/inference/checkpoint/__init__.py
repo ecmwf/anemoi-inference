@@ -17,6 +17,7 @@ from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.provenance import gather_provenance_info
 
 from .metadata import Metadata
+from .package_exemptions import EXEMPT_PACKAGES
 
 LOG = logging.getLogger(__name__)
 
@@ -95,6 +96,8 @@ class Checkpoint:
         """
         train_environment = self.provenance_training
         inference_environment = gather_provenance_info(full=False)
+        exempt_packages = exempt_packages or []
+        exempt_packages.extend(EXEMPT_PACKAGES)
 
         invalid_messages = {
             "python": [],
@@ -111,8 +114,8 @@ class Checkpoint:
         for module in train_environment["module_versions"].keys():
             if not all_packages and "anemoi" not in module:
                 continue
-
-            if module not in inference_environment["module_versions"]:
+            elif module.split('.')[0] in exempt_packages:
+                continue
                 invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
             elif train_environment["module_versions"][module] != inference_environment["module_versions"][module]:
                 invalid_messages["mismatch"].append(
