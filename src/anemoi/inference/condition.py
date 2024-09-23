@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import itertools
 import re
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import Self
 from typing import TypeVar
 
 import numpy as np
@@ -118,7 +119,7 @@ class Condition(dict):
         flatten: str | None = None,
         variable_dim: str = "variable",
         private_info: Any = None,
-    ) -> Self:
+    ) -> Condition:
         """Convert an xarray Dataset or DataArray to a Condition.
 
         Parameters
@@ -135,7 +136,7 @@ class Condition(dict):
 
         Returns
         -------
-        Self
+        Condition
             Condition object
 
         Raises
@@ -205,7 +206,7 @@ class Condition(dict):
         return Condition(variable_dict, private_info=private_info)
 
     @classmethod
-    def from_earthkit(self, fieldlist: "ekd.FieldList", private_info: Any = None, **kwargs) -> Self:
+    def from_earthkit(self, fieldlist: "ekd.FieldList", private_info: Any = None, **kwargs) -> Condition:
         """Convert a FieldList to a Condition.
 
         Parameters
@@ -245,7 +246,7 @@ class Condition(dict):
         *,
         axis: int = 0,
         private_info: Any = None,
-    ) -> Self:
+    ) -> Condition:
         """Convert a numpy array to a Condition.
 
         Parameters
@@ -261,7 +262,7 @@ class Condition(dict):
 
         Returns
         -------
-        Self
+        Condition
             Condition object
 
         Examples
