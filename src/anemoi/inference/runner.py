@@ -310,7 +310,7 @@ class Runner:
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
         reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
-        precip_template = reference_fields[self.checkpoint.variable_to_index["2t"]]
+        precip_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
 
         accumulated_output = np.zeros(
             shape=(len(diagnostic_output_mask), number_of_grid_points),
