@@ -46,6 +46,7 @@ dependencies = [
   "anytree",
   "earthkit-data>=0.9",
   "numpy",
+  "packaging",
   "pyyaml",
   "semantic-version",
   "torch",
