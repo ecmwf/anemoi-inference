@@ -72,7 +72,7 @@ class Checkpoint:
     def validate_environment(
         self,
         all_packages: bool = False,
-        on_difference: Literal["warn", "error"] = "warn",
+        on_difference: Literal["warn", "error", "ignore"] = "warn",
         *,
         exempt_packages: list[str] | None = None,
     ) -> bool:
@@ -83,7 +83,7 @@ class Checkpoint:
         ----------
         all_packages : bool, optional
             Check all packages in environment or just `anemoi`'s, by default False
-        on_difference : Literal['warn', 'error'], optional
+        on_difference : Literal['warn', 'error', 'ignore'], optional
             What to do on difference, by default "warn"
         exempt_packages : list[str], optional
             List of packages to exempt from the check, by default EXEMPT_PACKAGES
@@ -104,12 +104,13 @@ class Checkpoint:
         inference_environment = gather_provenance_info(full=False)
 
         # Override module information with more complete inference environment capture
-        import pkg_resources
+        import importlib.metadata as imp_metadata
 
         module_versions = {
-            pkg.project_name.replace("-", "."): pkg_resources.get_distribution(pkg.project_name).version
-            for pkg in pkg_resources.working_set
+            distribution.metadata["Name"].replace("-", "_"): distribution.metadata["Version"]
+            for distribution in imp_metadata.distributions()
         }
+
         inference_environment["module_versions"] = module_versions
 
         exempt_packages = exempt_packages or []
@@ -129,24 +130,38 @@ class Checkpoint:
             )
 
         for module in train_environment["module_versions"].keys():
+            inference_module_name = module  # Due to package name differences between retrieval methods this may change
+
             if not all_packages and "anemoi" not in module:
                 continue
             elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
                 continue
-            elif module not in inference_environment["module_versions"]:
-                invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
+            elif module.startswith("_"):
                 continue
+            elif module not in inference_environment["module_versions"]:
+                if "." in module and module.replace(".", "_") in inference_environment["module_versions"]:
+                    inference_module_name = module.replace(".", "_")
+                else:
+                    try:
+                        import importlib
+
+                        importlib.import_module(module)
+                        continue
+                    except (ModuleNotFoundError, ImportError):
+                        pass
+                    invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
+                    continue
 
             train_environment_version = Version(train_environment["module_versions"][module])
-            inference_environment_version = Version(inference_environment["module_versions"][module])
+            inference_environment_version = Version(inference_environment["module_versions"][inference_module_name])
 
             if train_environment_version < inference_environment_version:
                 invalid_messages["mismatch"].append(
-                    f"Version of module {module} in training was lower then in inference: {train_environment['module_versions'][module]} <= {inference_environment['module_versions'][module]}"
+                    f"Version of module {module} was lower in training then in inference: {train_environment_version!s} <= {inference_environment_version!s}"
                 )
             elif train_environment_version > inference_environment_version:
                 invalid_messages["critical mismatch"].append(
-                    f"CRITICAL: Version of module {module} was greater in training then in inference: {train_environment['module_versions'][module]} > {inference_environment['module_versions'][module]}"
+                    f"CRITICAL: Version of module {module} was greater in training then in inference: {train_environment_version!s} > {inference_environment_version!s}"
                 )
 
         for git_record in train_environment["git_versions"].keys():
@@ -184,6 +199,8 @@ class Checkpoint:
                 LOG.warning(text)
             elif on_difference == "error":
                 raise RuntimeError(text)
+            elif on_difference == "ignore":
+                pass
             else:
                 raise ValueError(f"Invalid value for `on_difference`: {on_difference}")
             return False
