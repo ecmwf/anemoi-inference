@@ -13,6 +13,7 @@ def test_from_numpy(shape, data):
     data_strategy = npst.arrays(
         dtype=np.float32,
         shape=shape,
+        elements=dict(allow_nan=False, allow_infinity=False),
     )
     data_array = data.draw(data_strategy)
 
