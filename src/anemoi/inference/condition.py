@@ -8,10 +8,10 @@ from typing import Callable
 from typing import TypeVar
 
 import numpy as np
-import xarray as xr
 
 if TYPE_CHECKING:
     import earthkit.data as ekd
+    import xarray as xr
 
 Array = TypeVar("Array")
 
@@ -169,6 +169,7 @@ class Condition(dict):
         >>> Condition.from_xarray(ds, flatten="{variable}_{lat}"))
         Condition(['air_75.0', 'air_72.5', 'air_70.0', 'air_67.5', 'air_65.0', 'air_62.5', 'air_60.0', 'air_57.5', 'air_55.0', 'air_52.5', 'air_50.0', 'air_47.5', 'air_45.0', 'air_42.5', 'air_40.0', 'air_37.5', 'air_35.0', 'air_32.5', 'air_30.0', 'air_27.5', 'air_25.0', 'air_22.5', 'air_20.0', 'air_17.5', 'air_15.0'], private_info = None)
         """
+        import xarray as xr
 
         # Flatten the data if required
         if flatten is not None:
