@@ -4,7 +4,12 @@ EXEMPT_PACKAGES = [
     "hydra",
     "hydra_plugins",
     "lightning",
+    "pytorch_lightning",
+    "lightning_fabric",
+    "lightning_utilities",
 ]
 
 # Entire namespaces to be exempt
-EXEMPT_NAMESPACES = []
+EXEMPT_NAMESPACES = [
+    "hydra_plugins",
+]
