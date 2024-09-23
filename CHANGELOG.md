@@ -15,6 +15,7 @@ Keep it human-readable, your future self will thank you!
 - earthkit-data replaces climetlab
 - `validate_environment` on Checkpoint [#13](https://github.com/ecmwf/anemoi-inference/pull/13)
 - ci-hpc-config
+- Add Condition to store data [#15](https://github.com/ecmwf/anemoi-inference/pull/15)
 
 ### Changed
 - ci: updated workflows on PR and releases to use reusable actions

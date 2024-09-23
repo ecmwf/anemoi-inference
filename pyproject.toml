@@ -67,7 +67,7 @@ optional-dependencies.docs = [
 
 optional-dependencies.plugin = [ "ai-models>=0.6.3", "tqdm" ]
 
-optional-dependencies.tests = [ "anemoi-datasets[all]", "pytest" ]
+optional-dependencies.tests = [ "anemoi-datasets[all]", "hypothesis", "pytest" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
