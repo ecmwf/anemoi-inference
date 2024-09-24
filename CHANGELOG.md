@@ -16,6 +16,7 @@ Keep it human-readable, your future self will thank you!
 - ci-hpc-config
 
 ### Changed
+- Fix: diagnostics bug when fields are non-accumulated, remove diagnostics from mars request [#18](https://github.com/ecmwf/anemoi-inference/pull/18)
 - ci: updated workflows on PR and releases to use reusable actions
 
 ### Removed
