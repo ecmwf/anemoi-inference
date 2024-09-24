@@ -44,7 +44,7 @@ dependencies = [
   "anemoi-utils>=0.3",
   "aniso8601",
   "anytree",
-  "earthkit-data>=0.9",
+  "earthkit-data>=0.10",
   "numpy",
   "pyyaml",
   "semantic-version",
@@ -64,7 +64,7 @@ optional-dependencies.docs = [
   "sphinx-rtd-theme",
 ]
 
-optional-dependencies.plugin = [ "ai-models>=0.6.3", "tqdm" ]
+optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 
 optional-dependencies.tests = [ "anemoi-datasets[all]", "hypothesis", "pytest" ]
 
