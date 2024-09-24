@@ -80,15 +80,15 @@ class AIModelPlugin(Model):
 
     @property
     def param_sfc(self):
-        return self.runner.checkpoint.param_sfc
+        return self.runner.param_sfc
 
     @property
     def param_level_pl(self):
-        return self.runner.checkpoint.param_level_pl
+        return self.runner.param_level_pl
 
     @property
     def param_level_ml(self):
-        return self.runner.checkpoint.param_level_ml
+        return self.runner.param_level_ml
 
     @property
     def constant_fields(self):
