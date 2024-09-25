@@ -13,6 +13,8 @@ Keep it human-readable, your future self will thank you!
 
 ### Changed
 
+- Add cos_solar_zenith_angle to list of known forcings
+
 ### Removed
 
 

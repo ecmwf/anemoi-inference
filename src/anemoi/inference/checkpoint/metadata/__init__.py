@@ -237,7 +237,8 @@ class Metadata:
                 "cos_local_time",
                 "sin_julian_day",
                 "sin_local_time",
-                "insolation",
+                "insolation",  # Those two are aliases
+                "cos_solar_zenith_angle",
             ]
         )
 
