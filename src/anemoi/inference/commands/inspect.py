@@ -14,16 +14,24 @@ from . import Command
 
 
 class InspectCmd(Command):
+    """Inspect the contents of a checkpoint file."""
 
     need_logging = False
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--dump", action="store_true", help="Print internal information")
+        command_parser.add_argument(
+            "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
+        )
 
     def run(self, args):
 
         c = Checkpoint(args.path)
+
+        if args.validate:
+            c.validate_environment()
+            return
 
         if args.dump:
             c.dump()
