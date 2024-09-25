@@ -9,6 +9,14 @@ Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
 ## [Unreleased]
+### Added
+
+### Changed
+
+### Removed
+
+
+## [0.2.0](https://github.com/ecmwf/anemoi-inference/compare/0.1.9...0.2.0) - Use earthkit-data
 
 ### Added
 - ci: changelog release updater
