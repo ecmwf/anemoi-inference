@@ -14,6 +14,7 @@ Keep it human-readable, your future self will thank you!
 - ci: changelog release updater
 - earthkit-data replaces climetlab
 - `validate_environment` on Checkpoint [#13](https://github.com/ecmwf/anemoi-inference/pull/13)
+- Validate the environment against a checkpoint with `anemoi-inference inspect --validate path.ckpt`
 - ci-hpc-config
 - Add Condition to store data [#15](https://github.com/ecmwf/anemoi-inference/pull/15)
 
