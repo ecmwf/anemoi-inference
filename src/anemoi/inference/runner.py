@@ -98,6 +98,8 @@ class Runner:
             _description_
         """
 
+        self.checkpoint.summary()
+
         if autocast is None:
             autocast = self.checkpoint.precision
 
@@ -310,7 +312,7 @@ class Runner:
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
         reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
-        precip_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+        prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
 
         accumulated_output = np.zeros(
             shape=(len(diagnostic_output_mask), number_of_grid_points),
@@ -321,13 +323,14 @@ class Runner:
             output_callback(
                 input_fields,
                 self.checkpoint.diagnostic_params,
-                precip_template,
+                prognostic_template,
                 accumulated_output[0].shape,
             )
         else:
             output_callback(input_fields)
 
         prognostic_params = self.checkpoint.prognostic_params
+        accumulations_params = self.checkpoint.accumulations_params
 
         # with self.stepper(self.hour_steps) as stepper:
 
@@ -362,19 +365,28 @@ class Runner:
             if len(diagnostic_output_mask):
                 for n, param in enumerate(self.checkpoint.diagnostic_params):
                     accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                    assert precip_template.datetime()["valid_time"] == most_recent_datetime, (
-                        precip_template.datetime()["valid_time"],
+                    assert prognostic_template.datetime()["valid_time"] == most_recent_datetime, (
+                        prognostic_template.datetime()["valid_time"],
                         most_recent_datetime,
                     )
-                    output_callback(
-                        accumulated_output[n],
-                        stepType="accum",
-                        template=precip_template,
-                        startStep=0,
-                        endStep=step,
-                        param=param,
-                        check_nans=True,  # param in can_be_missing,
-                    )
+
+                    if param in accumulations_params:
+                        output_callback(
+                            accumulated_output[n],
+                            stepType="accum",
+                            template=prognostic_template,
+                            startStep=0,
+                            endStep=step,
+                            param=param,
+                            check_nans=True,  # param in can_be_missing,
+                        )
+                    else:
+                        output_callback(
+                            diagnostic_fields_numpy[:, n],
+                            template=prognostic_template,
+                            step=step,
+                            check_nans=True,  # param in can_be_missing,
+                        )
 
             # Next step
 
@@ -406,6 +418,30 @@ class Runner:
         result = list(range(0, self.checkpoint.multi_step))
         result = [-s * self.hour_steps for s in result]
         return sorted(result)
+
+    @property
+    def param_sfc(self):
+        param_sfc = self.checkpoint.param_sfc
+
+        # Remove diagnostic params
+
+        param_sfc = [p for p in param_sfc if p not in self.checkpoint.diagnostic_params]
+
+        return param_sfc
+
+    @property
+    def param_level_pl(self):
+
+        # To do remove diagnostic params
+
+        return self.checkpoint.param_level_pl
+
+    @property
+    def param_level_ml(self):
+
+        # To do remove diagnostic params
+
+        return self.checkpoint.param_level_ml
 
 
 class DefaultRunner(Runner):
