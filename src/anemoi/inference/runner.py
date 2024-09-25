@@ -57,8 +57,11 @@ def ignore(*args, **kwargs):
 class Runner:
     """_summary_"""
 
-    def __init__(self, checkpoint):
+    _verbose = True
+
+    def __init__(self, checkpoint, verbose: bool = True):
         self.checkpoint = Checkpoint(checkpoint)
+        self._verbose = verbose
 
     def run(
         self,
@@ -98,7 +101,8 @@ class Runner:
             _description_
         """
 
-        self.checkpoint.summary()
+        if self._verbose:
+            self.checkpoint.summary()
 
         if autocast is None:
             autocast = self.checkpoint.precision
