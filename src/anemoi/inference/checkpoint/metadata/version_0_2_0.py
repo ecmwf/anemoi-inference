@@ -302,6 +302,18 @@ class ThinningRequest(Forward):
         return f"thinning({self.forward.grid})"
 
 
+class InterpolatefrequencyRequest(Forward):
+    pass
+
+
+class RescaleRequest(Forward):
+    pass
+
+
+class ZarrwithmissingdatesRequest(ZarrRequest):
+    pass
+
+
 class SelectRequest(Forward):
     # Select variables
 
