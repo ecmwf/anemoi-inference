@@ -12,6 +12,7 @@ Keep it human-readable, your future self will thank you!
 ### Added
 
 ### Changed
+- use `PS` if `lsm` is not available as prognostic template
 
 ### Removed
 
