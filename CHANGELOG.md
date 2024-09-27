@@ -12,6 +12,7 @@ Keep it human-readable, your future self will thank you!
 ### Added
 
 ### Changed
+- use `PS` if `lsm` is not available as prognostic template
 
 - Add cos_solar_zenith_angle to list of known forcings
 - Add missing classes in checkpoint handling

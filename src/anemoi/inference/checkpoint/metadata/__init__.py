@@ -1,10 +1,10 @@
 # (C) Copyright 2023 European Centre for Medium-Range Weather Forecasts.
+# (C) Copyright 2024 Deutscher Wetterdienst.
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
-# In applying this licence, ECMWF does not waive the privileges and immunities
-# granted to it by virtue of its status as an intergovernmental organisation
-# nor does it submit to any jurisdiction.
-
+# In applying this licence, the above institution do not waive the privileges
+# and immunities granted to it by virtue of its status as an intergovernmental
+# organisation  nor does it submit to any jurisdiction.
 
 import json
 import logging
@@ -114,6 +114,22 @@ class Metadata:
             pass
 
         return int(n[:-1]) * {"h": 1, "d": 24}[n[-1]]
+
+    @cached_property
+    def max_refinement_level_c(self):
+        """Returns refinement level of ICON input dataset, in [0,1,2,3,4,5,6,7].
+        If not defined it returns None.
+        """
+
+        return (
+            self._metadata.get("dataset", {})
+            .get("specific", {})
+            .get("forward", {})
+            .get("forward", {})
+            .get("attrs", {})
+            .get("data_request", {})
+            .get("max_refinement_level_c")
+        )
 
     ###########################################################################
     # Indices

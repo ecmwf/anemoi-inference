@@ -1,9 +1,10 @@
 # (C) Copyright 2024 European Centre for Medium-Range Weather Forecasts.
+# (C) Copyright 2024 Deutscher Wetterdienst.
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
-# In applying this licence, ECMWF does not waive the privileges and immunities
-# granted to it by virtue of its status as an intergovernmental organisation
-# nor does it submit to any jurisdiction.
+# In applying this licence, the above institution do not waive the privileges
+# and immunities granted to it by virtue of its status as an intergovernmental
+# organisation  nor does it submit to any jurisdiction.
 
 
 import datetime
@@ -316,7 +317,10 @@ class Runner:
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
         reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
-        prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+        if "lsm" in self.checkpoint.variable_to_index:
+            prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+        else:
+            prognostic_template = reference_fields[self.checkpoint.variable_to_index["PS"]]
 
         accumulated_output = np.zeros(
             shape=(len(diagnostic_output_mask), number_of_grid_points),
