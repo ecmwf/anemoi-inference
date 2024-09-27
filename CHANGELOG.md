@@ -10,6 +10,7 @@ Keep it human-readable, your future self will thank you!
 
 ## [Unreleased]
 ### Added
+- Fix: Enable inference when no constant forcings are used
 
 ### Changed
 
