@@ -317,7 +317,6 @@ class Runner:
             prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
         else:
             prognostic_template = reference_fields[self.checkpoint.variable_to_index["PS"]]
-        
 
         accumulated_output = np.zeros(
             shape=(len(diagnostic_output_mask), number_of_grid_points),

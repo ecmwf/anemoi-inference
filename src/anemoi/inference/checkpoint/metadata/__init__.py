@@ -118,10 +118,18 @@ class Metadata:
     @cached_property
     def max_refinement_level_c(self):
         """Returns refinement level of ICON input dataset, in [0,1,2,3,4,5,6,7].
-           If not defined it returns None.
+        If not defined it returns None.
         """
 
-        return self._metadata.get("dataset", {}).get("specific", {}).get("forward", {}).get("forward", {}).get("attrs", {}).get("data_request", {}).get("max_refinement_level_c")
+        return (
+            self._metadata.get("dataset", {})
+            .get("specific", {})
+            .get("forward", {})
+            .get("forward", {})
+            .get("attrs", {})
+            .get("data_request", {})
+            .get("max_refinement_level_c")
+        )
 
     ###########################################################################
     # Indices
