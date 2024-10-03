@@ -62,6 +62,42 @@ class State(dict[str, np.ndarray]):
     def __repr__(self):
         return f"State({summarise_list(list(self.keys()), 8)}, private_info = {self.__private_info})"
 
+    def take(self, axis: int, indices: int | slice | tuple[int, ...], *, copy: bool = True) -> State:
+        """Take data from the State with a specific dimension and index.
+
+        Parameters
+        ----------
+        axis : int
+            Dimension to take data from
+        indices : int | slice | tuple[int, ...]
+            Index to take data with
+        copy : bool, optional
+            Whether to copy the data, If False, the data will be taken without copying,
+            by default True
+
+        Returns
+        -------
+        State
+            State object with the dimension and index taken on all keys
+
+        Examples
+        --------
+        >>> data = np.random.rand(3, 2, 4)
+        >>> names = ["a", "b", "c"]
+        >>> state = State.from_numpy(data, names)
+        >>> state.take(0, 0)
+        State(['a', 'b', 'c'], private_info = None)
+        >>> state.take(0, 0).shape
+        {'a': (2, 4), 'b': (2, 4), 'c': (2, 4)}
+        """
+        if copy:
+            return State(
+                {key: value.take(indices, axis) for key, value in self.items()}, private_info=self.__private_info
+            )
+
+        index = [[slice(None)] * axis, indices, [slice(None)] * (len(self[list(self.keys())[0]].shape) - axis - 1)]
+        index = [i for i in index if (isinstance(i, list) and len(i) > 1) or not isinstance(i, list)]
+        return State({key: value.__getitem__(*index) for key, value in self.items()}, private_info=self.__private_info)
 
     def to_array(
         self,
