@@ -15,6 +15,7 @@ Keep it human-readable, your future self will thank you!
 
 - Add cos_solar_zenith_angle to list of known forcings
 - Add missing classes in checkpoint handling
+- Rename Condition to State
 
 ### Removed
 
