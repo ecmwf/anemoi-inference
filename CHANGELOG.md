@@ -14,6 +14,9 @@ Keep it human-readable, your future self will thank you!
 ### Changed
 - use `PS` if `lsm` is not available as prognostic template
 
+- Add cos_solar_zenith_angle to list of known forcings
+- Add missing classes in checkpoint handling
+
 ### Removed
 
 
@@ -93,6 +96,7 @@ Keep it human-readable, your future self will thank you!
 Initial Implementation of anemoi-inference
 
 ## Git Diffs:
+[Unreleased]: https://github.com/ecmwf/anemoi-inference/compare/0.1.10...HEAD
 [0.1.10]: https://github.com/ecmwf/anemoi-inference/compare/0.1.9...0.1.10
 [0.1.9]: https://github.com/ecmwf/anemoi-inference/compare/0.1.8...0.1.9
 [0.1.8]: https://github.com/ecmwf/anemoi-inference/compare/0.1.7...0.1.8
