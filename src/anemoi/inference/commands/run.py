@@ -36,7 +36,11 @@ class RunCmd(Command):
         date = as_datetime(args.date)
         dates = [date + datetime.timedelta(hours=h) for h in runner.lagged]
 
-        requests = runner.checkpoint.mars_requests(dates=dates, expver="0001", use_paramid=args.use_paramid)
+        requests = runner.checkpoint.mars_requests(
+            dates=dates,
+            expver="0001",
+            use_paramid=args.use_paramid,
+        )
 
         input_fields = ekd.from_source("empty")
         for r in requests:
