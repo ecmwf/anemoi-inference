@@ -155,15 +155,14 @@ class ZarrRequest(DataRequest):
             "n320": 542_080,
         }[self.attributes["resolution"].lower()]
 
-    def retrieve_request(self):
+    def retrieve_request(self, use_paramid=False):
+        from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
-        keys = ("type", "stream", "levtype")
+        keys = ("class", "expver", "type", "stream", "levtype")
         pop = (
             "date",
             "time",
-            "class",
-            "expver",
         )
         requests = defaultdict(list)
         for variable, metadata in self.attributes["variables_metadata"].items():
@@ -171,6 +170,9 @@ class ZarrRequest(DataRequest):
             key = tuple(metadata.get(k) for k in keys)
             for k in pop:
                 metadata.pop(k, None)
+
+            if use_paramid and "param" in metadata:
+                metadata["param"] = shortname_to_paramid(metadata["param"])
 
             requests[key].append(metadata)
 
