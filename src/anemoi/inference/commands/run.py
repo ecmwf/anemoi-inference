@@ -10,11 +10,14 @@
 
 
 import datetime
+import logging
 
 from anemoi.utils.dates import as_datetime
 
 from ..runner import DefaultRunner
 from . import Command
+
+LOGGER = logging.getLogger(__name__)
 
 
 class RunCmd(Command):
@@ -51,6 +54,8 @@ class RunCmd(Command):
             r["area"] = runner.checkpoint.area
 
             input_fields += ekd.from_source("mars", r)
+
+        LOGGER.info("Running the model with the following %s fields, for %s dates", len(input_fields), len(dates))
 
         runner.run(input_fields=input_fields, lead_time=240, device="cuda")
 
