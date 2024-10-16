@@ -9,8 +9,11 @@ Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
 ## [Unreleased]
+
 ### Added
 - Fix: Enable inference when no constant forcings are used
+
+- Add anemoi-transform link to documentation
 
 ### Changed
 
