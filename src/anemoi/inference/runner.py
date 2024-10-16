@@ -64,10 +64,21 @@ def _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields):
         def __getattr__(self, name):
             return getattr(self.field, name)
 
-        def metadata(self, *args, **kwargs):
+        def metadata(self, *args, remapping=None, patches=None, **kwargs):
+            if remapping is not None or patches is not None:
+                from earthkit.data.core.order import build_remapping
+
+                remapping = build_remapping(remapping, patches)
+                return remapping(self.metadata)(*args, **kwargs)
+
             if len(args) > 0 and args[0] == "levelist":
-                return None
+                if "default" in kwargs:
+                    return kwargs["default"]
+                raise KeyError("levelist")
             return self.field.metadata(*args, **kwargs)
+
+        def __repr__(self) -> str:
+            return repr(self.field)
 
     fixed = []
     for field in input_fields:
@@ -140,38 +151,11 @@ class Runner:
 
         autocast = AUTOCAST[autocast]
 
-        params_before = set(f.metadata("param") for f in input_fields)
-
         input_fields = _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields)
 
-        before = {id(x): x for x in input_fields}
         LOGGER.info("Selecting fields %s", self.checkpoint.select)
         input_fields = input_fields.sel(**self.checkpoint.select)
         LOGGER.info("Selected fields: %s", len(input_fields))
-
-        params_after = set(f.metadata("param") for f in input_fields)
-
-        after = {}
-        for x in input_fields:
-            if hasattr(x, "field"):
-                after[id(x.field)] = x
-            else:
-                after[id(x)] = x
-
-        LOGGER.info("Input fields before/after %s %s", params_before - params_after, params_after - params_before)
-
-        if len(before) != len(after):
-            LOGGER.error("Input fields before=%s after=%s", len(before), len(after))
-            param_level = self.checkpoint.select["param_level"]
-            for i, f in before.items():
-                if i not in after:
-                    if f.metadata("param") in param_level:
-                        LOGGER.error(
-                            "Field %s %s grib%s missing",
-                            f.metadata("param"),
-                            f.metadata("levelist", default="?"),
-                            f.metadata("edition", default="?"),
-                        )
 
         input_fields = input_fields.order_by(**self.checkpoint.order_by)
 
@@ -222,6 +206,7 @@ class Runner:
         assert not np.any(check[computed_constant_mask]), check
         check[computed_constant_mask] = True
         kinds[computed_constant_mask] = "C"
+        self._report("computed_constant_mask", computed_constant_mask)
 
         # E.g. lsm, orography
         constant_from_input_mask = self.checkpoint.constants_from_input_mask
@@ -229,12 +214,14 @@ class Runner:
         check[constant_from_input_mask] = True
         kinds[constant_from_input_mask] = "K"
         inputs[constant_from_input_mask] = True
+        self._report("constant_from_input_mask", constant_from_input_mask)
 
         # e.g. isolation
         computed_forcing_mask = self.checkpoint.computed_forcings_mask
         assert not np.any(check[computed_forcing_mask]), check
         check[computed_forcing_mask] = True
         kinds[computed_forcing_mask] = "F"
+        self._report("computed_forcing_mask", computed_forcing_mask)
 
         # e.g 2t, 10u, 10v
         prognostic_input_mask = self.checkpoint.prognostic_input_mask
@@ -242,6 +229,7 @@ class Runner:
         check[prognostic_input_mask] = True
         kinds[prognostic_input_mask] = "P"
         inputs[prognostic_input_mask] = True
+        self._report("prognostic_input_mask", prognostic_input_mask)
 
         #
         if not np.all(check):
@@ -282,7 +270,10 @@ class Runner:
                 )
 
         prognostic_data_from_retrieved_fields_mask = np.array(prognostic_data_from_retrieved_fields_mask)
+        self._report("prognostic_data_from_retrieved_fields_mask", prognostic_data_from_retrieved_fields_mask)
+
         constant_data_from_retrieved_fields_mask = np.array(constant_data_from_retrieved_fields_mask)
+        self._report("constant_data_from_retrieved_fields_mask", constant_data_from_retrieved_fields_mask)
 
         # Build the input tensor
 
@@ -305,20 +296,41 @@ class Runner:
             LOGGER.error("prognostic_data_from_retrieved_fields_mask: %s", prognostic_data_from_retrieved_fields_mask)
             raise ValueError("Mismatch in prognostic_input_mask and prognostic_data_from_retrieved_fields_mask")
 
-        if len(prognostic_data_from_retrieved_fields_mask) != input_fields_numpy.shape[1]:
-            LOGGER.error("Mismatch in prognostic_data_from_retrieved_fields_mask and input_fields_numpy")
-            LOGGER.error(
-                "prognostic_data_from_retrieved_fields_mask: %s shape=(variables)",
-                prognostic_data_from_retrieved_fields_mask.shape,
+        if len(prognostic_data_from_retrieved_fields_mask) > input_fields_numpy.shape[1]:
+            self._report_mismatch(
+                "prognostic_data_from_retrieved_fields_mask",
+                prognostic_data_from_retrieved_fields_mask,
+                input_fields,
+                input_fields_numpy,
             )
-            LOGGER.error("input_fields_numpy: %s shape=(dates, variables, grid)", input_fields_numpy.shape)
-            raise ValueError("Mismatch in prognostic_input_mask and input_fields_numpy")
 
         input_tensor_numpy[:, prognostic_input_mask] = input_fields_numpy[:, prognostic_data_from_retrieved_fields_mask]
 
-        input_tensor_numpy[:, constant_from_input_mask] = input_fields_numpy[
-            :, constant_data_from_retrieved_fields_mask
-        ]
+        if len(constant_data_from_retrieved_fields_mask) > input_fields_numpy.shape[1]:
+            self._report_mismatch(
+                "constant_data_from_retrieved_fields_mask",
+                constant_data_from_retrieved_fields_mask,
+                input_fields,
+                input_fields_numpy,
+            )
+
+        if len(constant_from_input_mask) != len(constant_data_from_retrieved_fields_mask):
+            LOGGER.error("Mismatch in constant_from_input_mask and constant_data_from_retrieved_fields_mask")
+            LOGGER.error("constant_from_input_mask: %s", constant_from_input_mask)
+            LOGGER.error("constant_data_from_retrieved_fields_mask: %s", constant_data_from_retrieved_fields_mask)
+            raise ValueError("Mismatch in constant_from_input_mask and constant_data_from_retrieved_fields_mask")
+
+        try:
+            input_tensor_numpy[:, constant_from_input_mask] = input_fields_numpy[
+                :, constant_data_from_retrieved_fields_mask
+            ]
+        except IndexError:
+            self._report_mismatch(
+                "constant_data_from_retrieved_fields_mask",
+                constant_data_from_retrieved_fields_mask,
+                input_fields,
+                input_fields_numpy,
+            )
 
         constants = forcing_and_constants(
             source=input_fields[:1],
@@ -522,6 +534,23 @@ class Runner:
         # To do remove diagnostic params
 
         return self.checkpoint.param_level_ml
+
+    def _report_mismatch(self, name, mask, input_fields, input_fields_numpy):
+        LOGGER.error("Mismatch in %s and input_fields", name)
+        LOGGER.error("%s: %s shape=(variables)", name, mask.shape)
+        LOGGER.error("input_fields_numpy: %s shape=(dates, variables, grid)", input_fields_numpy.shape)
+        LOGGER.error("MASK : %s", [self.checkpoint.variables[_] for _ in mask])
+
+        remapping = self.checkpoint.select["remapping"]
+        names = list(remapping.keys())
+
+        LOGGER.error(
+            "INPUT: %s", [input_fields[i].metadata(*names, remapping=remapping) for i in range(len(input_fields) // 2)]
+        )
+        raise ValueError(f"Mismatch in {name} and input_fields")
+
+    def _report(self, name, mask):
+        LOGGER.info("%s: %s", name, [self.checkpoint.variables[_] for _ in mask])
 
 
 class DefaultRunner(Runner):

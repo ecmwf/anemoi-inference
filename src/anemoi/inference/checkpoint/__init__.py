@@ -210,13 +210,13 @@ class Checkpoint:
         LOG.info(f"Environment validation passed")
         return True
 
-    def mars_requests(self, dates, use_paramid=False, **kwargs):
+    def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
         result = []
 
-        for r in self.retrieve_request(use_paramid=use_paramid):
+        for r in self.retrieve_request(use_grib_paramid=use_grib_paramid):
             for date in dates:
 
                 r = r.copy()

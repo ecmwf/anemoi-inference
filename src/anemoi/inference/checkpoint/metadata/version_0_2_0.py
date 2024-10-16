@@ -155,7 +155,7 @@ class ZarrRequest(DataRequest):
             "n320": 542_080,
         }[self.attributes["resolution"].lower()]
 
-    def retrieve_request(self, use_paramid=False):
+    def retrieve_request(self, use_grib_paramid=False):
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
@@ -171,7 +171,7 @@ class ZarrRequest(DataRequest):
             for k in pop:
                 metadata.pop(k, None)
 
-            if use_paramid and "param" in metadata:
+            if use_grib_paramid and "param" in metadata:
                 metadata["param"] = shortname_to_paramid(metadata["param"])
 
             requests[key].append(metadata)
