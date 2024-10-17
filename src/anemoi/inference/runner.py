@@ -119,7 +119,7 @@ class Runner:
         input_fields = input_fields.sel(**self.checkpoint.select)
         input_fields = input_fields.order_by(**self.checkpoint.order_by)
 
-        number_of_grid_points = len(input_fields[0].grid_points()[0])
+        number_of_grid_points = len(input_fields[0].values)
 
         LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
@@ -243,9 +243,10 @@ class Runner:
 
         input_tensor_numpy[:, prognostic_input_mask] = input_fields_numpy[:, prognostic_data_from_retrieved_fields_mask]
 
-        input_tensor_numpy[:, constant_from_input_mask] = input_fields_numpy[
-            :, constant_data_from_retrieved_fields_mask
-        ]
+        if len(constant_from_input_mask) > 0:
+            input_tensor_numpy[:, constant_from_input_mask] = input_fields_numpy[
+                :, constant_data_from_retrieved_fields_mask
+            ]
 
         constants = forcing_and_constants(
             source=grid_field_list if grid_field_list is not None else input_fields[:1],
@@ -256,13 +257,14 @@ class Runner:
         for i in range(len(self.lagged)):
             input_tensor_numpy[i, computed_constant_mask] = constants
 
-        for i in range(len(self.lagged)):
-            forcings = forcing_and_constants(
-                source=input_fields[:1],
-                param=self.checkpoint.computed_forcings,
-                date=start_datetime + datetime.timedelta(hours=self.lagged[i]),
-            )
-            input_tensor_numpy[i, computed_forcing_mask] = forcings
+        if len(constant_from_input_mask) > 0:
+            for i in range(len(self.lagged)):
+                forcings = forcing_and_constants(
+                    source=input_fields[:1],
+                    param=self.checkpoint.computed_forcings,
+                    date=start_datetime + datetime.timedelta(hours=self.lagged[i]),
+                )
+                input_tensor_numpy[i, computed_forcing_mask] = forcings
 
         LOGGER.info("Input tensor shape: %s", input_tensor_numpy.shape)
 
@@ -412,7 +414,8 @@ class Runner:
             # Update dynamic tensor for next iteration
             input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
             input_tensor_torch[:, -1, :, prognostic_input_mask] = prognostic_fields
-            input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
+            if computed_forcing_mask:
+                input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
 
             # progress_callback(i)
 
