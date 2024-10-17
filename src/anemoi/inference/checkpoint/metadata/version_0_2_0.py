@@ -113,23 +113,23 @@ class ZarrRequest(DataRequest):
 
     @property
     def grid(self):
-        return self.request["grid"]
+        return self.request.get("grid")
 
     @property
     def area(self):
-        return self.request["area"]
+        return self.request.get("area")
 
     @property
     def param_sfc(self):
-        return self.request["param_level"].get("sfc", [])
+        return self.request.get("param_level", {}).get("sfc", [])
 
     @property
     def param_level_pl_pairs(self):
-        return self.request["param_level"].get("pl", [])
+        return self.request.get("param_level", {}).get("pl", [])
 
     @property
     def param_level_ml_pairs(self):
-        return self.request["param_level"].get("ml", [])
+        return self.request.get("param_level", {}).get("ml", [])
 
     @property
     def param_step_sfc_pairs(self):
