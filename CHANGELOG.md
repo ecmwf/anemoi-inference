@@ -16,6 +16,7 @@ Keep it human-readable, your future self will thank you!
 - Add anemoi-transform link to documentation
 
 ### Changed
+- use `PS` if `lsm` is not available as prognostic template (#23)
 
 - Add cos_solar_zenith_angle to list of known forcings
 - Add missing classes in checkpoint handling
