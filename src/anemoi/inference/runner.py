@@ -73,6 +73,7 @@ class Runner:
         output_callback=ignore,
         autocast=None,
         progress_callback=ignore,
+        grid_field_list=None,
     ) -> None:
         """_summary_
 
@@ -92,6 +93,8 @@ class Runner:
             _description_, by default None
         progress_callback : _type_, optional
             _description_, by default ignore
+        grid_field_list: _type_, optional
+            _description_, by default None
 
         Raises
         ------
@@ -245,7 +248,7 @@ class Runner:
         ]
 
         constants = forcing_and_constants(
-            source=input_fields[:1],
+            source=grid_field_list if grid_field_list is not None else input_fields[:1],
             param=self.checkpoint.computed_constants,
             date=start_datetime,
         )
