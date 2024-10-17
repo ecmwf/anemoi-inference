@@ -321,7 +321,13 @@ class Runner:
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
         reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
-        prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+
+        if "lsm" in self.checkpoint.variable_to_index:
+            prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+        else:
+            first = list(self.checkpoint.variable_to_index.keys())
+            LOGGER.warning("No LSM found to use as a GRIB template, using %s", first[0])
+            prognostic_template = reference_fields[0]
 
         accumulated_output = np.zeros(
             shape=(len(diagnostic_output_mask), number_of_grid_points),
