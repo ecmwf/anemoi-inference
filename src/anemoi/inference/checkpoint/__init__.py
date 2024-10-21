@@ -14,10 +14,10 @@ import os
 from functools import cached_property
 from typing import Literal
 
-from anemoi.datasets.create.utils import to_datetime
 from anemoi.utils.checkpoints import has_metadata
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.provenance import gather_provenance_info
+from earthkit.data.utils.dates import to_datetime
 from packaging.version import Version
 
 from anemoi.inference.checkpoint.metadata import Metadata

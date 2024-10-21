@@ -12,7 +12,7 @@
 import datetime
 import logging
 
-from anemoi.utils.dates import as_datetime
+from earthkit.data.utils.dates import to_datetime
 
 from ..runner import DefaultRunner
 from . import Command
@@ -28,7 +28,7 @@ class RunCmd(Command):
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
         command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
-        command_parser.add_argument("--date", help="Date to use for the request.")
+        command_parser.add_argument("--date", help="Date to use for the request.", default=-1)
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
@@ -36,7 +36,7 @@ class RunCmd(Command):
 
         runner = DefaultRunner(args.path)
 
-        date = as_datetime(args.date)
+        date = to_datetime(args.date)
         dates = [date + datetime.timedelta(hours=h) for h in runner.lagged]
 
         print("------------------------------------")
@@ -56,8 +56,11 @@ class RunCmd(Command):
 
         input_fields = ekd.from_source("empty")
         for r in requests:
-            if r["class"] == "rd":
+            if r["class"] in ("rd", "ea"):
                 r["class"] = "od"
+
+            if r["type"] == "fc" and r["stream"] == "oper" and r["time"] in ("0600", "1800"):
+                r["stream"] = "scda"
 
             r["grid"] = runner.checkpoint.grid
             r["area"] = runner.checkpoint.area
@@ -68,10 +71,7 @@ class RunCmd(Command):
 
         LOGGER.info("Running the model with the following %s fields, for %s dates", len(input_fields), len(dates))
 
-        run = runner.make_runner(input_fields=input_fields, lead_time=240, device="cuda")
-        run.run()
-
-        runner.run(input_fields=input_fields, lead_time=244, device="cuda")
+        runner.run(input_fields=input_fields, lead_time=240, device="cuda")
 
 
 command = RunCmd
