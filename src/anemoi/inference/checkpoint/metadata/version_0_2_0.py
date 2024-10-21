@@ -167,6 +167,11 @@ class ZarrRequest(DataRequest):
         requests = defaultdict(list)
         for variable, metadata in self.attributes["variables_metadata"].items():
             metadata = metadata.copy()
+            if "mars" not in metadata:
+                continue
+
+            metadata = metadata["mars"]
+
             key = tuple(metadata.get(k) for k in keys)
             for k in pop:
                 metadata.pop(k, None)

@@ -14,6 +14,7 @@ import os
 from functools import cached_property
 from typing import Literal
 
+from anemoi.datasets.create.utils import to_datetime
 from anemoi.utils.checkpoints import has_metadata
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.provenance import gather_provenance_info
@@ -213,6 +214,8 @@ class Checkpoint:
     def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
+
+        dates = [to_datetime(d) for d in dates]
 
         result = []
 
