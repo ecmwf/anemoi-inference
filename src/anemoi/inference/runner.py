@@ -332,7 +332,6 @@ class Runner:
                 input_fields_numpy,
             )
 
-
         constants = forcing_and_constants(
             source=input_fields[:1],
             param=self.checkpoint.computed_constants,
