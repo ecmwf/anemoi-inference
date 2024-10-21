@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import os
@@ -206,5 +207,30 @@ class Checkpoint:
                 raise ValueError(f"Invalid value for `on_difference`: {on_difference}")
             return False
 
-        LOG.info(f"Environment validation passed")
+        LOG.info("Environment validation passed")
         return True
+
+    def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
+        if not isinstance(dates, (list, tuple)):
+            dates = [dates]
+
+        result = []
+
+        for r in self.retrieve_request(use_grib_paramid=use_grib_paramid):
+            for date in dates:
+
+                r = r.copy()
+
+                base = date
+                step = str(r.get("step", 0)).split("-")[-1]
+                step = int(step)
+                base = base - datetime.timedelta(hours=step)
+
+                r["date"] = base.strftime("%Y-%m-%d")
+                r["time"] = base.strftime("%H%M")
+
+                r.update(kwargs)
+
+                result.append(r)
+
+        return result

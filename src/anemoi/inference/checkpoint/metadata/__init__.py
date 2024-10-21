@@ -345,7 +345,6 @@ class Metadata:
         return area
 
     def report_loading_error(self):
-        import json
 
         if "provenance_training" not in self._metadata:
             return
