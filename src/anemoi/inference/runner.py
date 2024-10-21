@@ -307,6 +307,13 @@ class Runner:
                 input_fields_numpy,
             )
 
+        print(
+            "prognostic_input_mask",
+            input_tensor_numpy.shape,
+            prognostic_input_mask.shape,
+            prognostic_data_from_retrieved_fields_mask.shape,
+        )
+
         input_tensor_numpy[:, prognostic_input_mask] = input_fields_numpy[:, prognostic_data_from_retrieved_fields_mask]
 
         if len(constant_data_from_retrieved_fields_mask) > input_fields_numpy.shape[1]:
@@ -562,6 +569,7 @@ class Runner:
 
     def _report(self, name, mask):
         LOGGER.info("%s: %s", name, [self.checkpoint.variables[_] for _ in mask])
+        LOGGER.info("%s: (%s items)", name, len(mask))
 
 
 class DefaultRunner(Runner):

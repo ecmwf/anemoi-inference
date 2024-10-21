@@ -8,90 +8,32 @@
 
 import json
 import logging
+from collections import defaultdict
 from functools import cached_property
 
 import numpy as np
-import semantic_version
+
+from .patch import PatchMixin
 
 LOG = logging.getLogger(__name__)
 
 
-def from_versions(checkpoint_version, dataset_version):
-    from .version_0_0_0 import Version_0_0_0
-    from .version_0_1_0 import Version_0_1_0
-    from .version_0_2_0 import Version_0_2_0
-
-    VERSIONS = {
-        ("0.0.0", "0.0.0"): Version_0_0_0,
-        ("1.0.0", "0.1.0"): Version_0_1_0,
-        ("1.0.0", "0.2.0"): Version_0_2_0,
-    }
-
-    version = (
-        semantic_version.Version.coerce(checkpoint_version),
-        semantic_version.Version.coerce(dataset_version),
-    )
-
-    LOG.info("Versions: checkpoint=%s dataset=%s", *version)
-
-    versions = {
-        (
-            semantic_version.Version.coerce(k[0]),
-            semantic_version.Version.coerce(k[1]),
-        ): v
-        for k, v in VERSIONS.items()
-    }
-
-    candidate = None
-    for v, klass in sorted(versions.items()):
-        if version >= v:
-            candidate = klass
-
-    return candidate
-
-
-class Metadata:
-    """Base class with helper funtions to access the metadata in an inference checkpoint.
-
-    Instances are created by the classmethod `from_metadata` which returns the appropriate subclass based on the version of the checkpoint and dataset.
-    Initialised from a dictionary with the metadata key:values, typically from the json contained in the checkpoint zipfile.
-    """
+class Metadata(PatchMixin):
+    """An object that holds metadata of a checkpoint."""
 
     def __init__(self, metadata):
         self._metadata = metadata
 
-    def to_dict(self):
-        return self._metadata
+    # def to_dict(self):
+    #     return self._metadata
 
-    @classmethod
-    def from_metadata(cls, metadata):
-        if metadata is None or "dataset" not in metadata:
-            metadata = dict(version="0.0.0", dataset=dict(version="0.0.0"))
-
-        if isinstance(metadata["dataset"], list):
-            from .patch import list_to_dict
-
-            # Backward compatibility
-            metadata["dataset"] = list_to_dict(metadata["dataset"], metadata["config"])
-
-        if "arguments" not in metadata["dataset"]:
-            metadata["dataset"]["version"] = "0.1.0"
-
-        # When we changed from ecml_tools to anemoi-datasets, we went back in the
-        # versionning
-        if metadata["dataset"]["version"] in ("0.1.4", "0.1.7", "0.1.8", "0.1.9"):
-            metadata["dataset"]["version"] = "0.2.0"
-
-        klass = from_versions(metadata["version"], metadata["dataset"]["version"])
-        return klass(metadata)
-
-    def _find(self, *keys, default=None):
-        m = self._metadata
-        for key in keys:
-            m = m.get(key)
-            if m is None:
-                return default
-        return m
+    # def _find(self, *keys, default=None):
+    #     m = self._metadata
+    #     for key in keys:
+    #         m = m.get(key)
+    #         if m is None:
+    #             return default
+    #     return m
 
     # Common properties
 
@@ -204,6 +146,8 @@ class Metadata:
 
     @cached_property
     def _computed_constants(self):
+        print("variables_metadata", self.variables_metadata)
+
         constants = [
             "cos_latitude",
             "cos_longitude",
@@ -366,6 +310,7 @@ class Metadata:
 
     ###########################################################################
     def summary(self):
+        return
 
         print(f"Prognostics: ({len(self.prognostic_params)})")
         print(sorted(self.prognostic_params))
@@ -398,3 +343,48 @@ class Metadata:
         # print("Order by:")
         # print(json.dumps(self.order_by, indent=2))
         # print()
+
+    @property
+    def variables_metadata(self):
+        print(self._metadata["dataset"])
+        return self._metadata["dataset"]["variables_metadata"]
+
+    def retrieve_request(self, use_grib_paramid=False):
+        from anemoi.utils.grib import shortname_to_paramid
+        from earthkit.data.utils.availability import Availability
+
+        keys = ("class", "expver", "type", "stream", "levtype")
+        pop = ("date", "time")
+        requests = defaultdict(list)
+        for variable, metadata in self.variables_metadata.items():
+            metadata = metadata.copy()
+            if "mars" not in metadata:
+                continue
+
+            metadata = metadata["mars"]
+
+            key = tuple(metadata.get(k) for k in keys)
+            for k in pop:
+                metadata.pop(k, None)
+
+            if use_grib_paramid and "param" in metadata:
+                metadata["param"] = shortname_to_paramid(metadata["param"])
+
+            requests[key].append(metadata)
+
+        for reqs in requests.values():
+
+            compressed = Availability(reqs)
+            for r in compressed.iterate():
+                for k, v in r.items():
+                    if isinstance(v, (list, tuple)) and len(v) == 1:
+                        r[k] = v[0]
+                if r:
+                    yield r
+
+    # def patch_metadata(self, metadata, callbacks):
+    #     callbacks.patch_zarr(self.attributes, metadata)
+    #     return metadata
+
+    # def patch_metadata(self, metadata):
+    #     pass

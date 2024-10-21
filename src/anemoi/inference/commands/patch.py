@@ -38,7 +38,7 @@ class PatchCmd(Command):
         # Patch the metadata
         while True:
             previous = deepcopy(metadata)
-            metadata = Metadata.from_metadata(metadata).patch_metadata(metadata, self)
+            metadata = Metadata(metadata).patch_metadata()
             if metadata == previous:
                 break
             LOG.info("Metadata patched")

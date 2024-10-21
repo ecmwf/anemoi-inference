@@ -10,8 +10,6 @@ import logging
 from collections import defaultdict
 from functools import cached_property
 
-from . import Metadata
-
 LOG = logging.getLogger(__name__)
 
 
@@ -381,20 +379,3 @@ def data_request(specific):
             raise ValueError(f"Unknown action: {action}")
 
     return klass(specific)
-
-
-class Version_0_2_0(Metadata, Forward):
-    """Version 0.2.0 of the metadata format"""
-
-    def __init__(self, metadata):
-        super().__init__(metadata)
-        specific = metadata["dataset"]["specific"]
-        self.forward = data_request(specific)
-
-    @cached_property
-    def area(self):
-        return self.rounded_area(self.forward.area)
-
-    def graph(self, graph):
-        # Skip self
-        return self.forward.graph(graph)
