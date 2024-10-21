@@ -11,14 +11,15 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
-- Fix: Enable inference when no constant forcings are used
 
+- Fix: Enable inference when no constant forcings are used
 - Add anemoi-transform link to documentation
 
 ### Changed
 
 - Add cos_solar_zenith_angle to list of known forcings
 - Add missing classes in checkpoint handling
+- Fix pre-commit regex
 
 ### Removed
 
