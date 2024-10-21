@@ -134,7 +134,7 @@ class ZarrRequest(DataRequest):
 
     @property
     def param_step_sfc_pairs(self):
-        return self.request["param_step"].get("sfc", [])
+        return self.request.get("param_step", {}).get("sfc", [])
 
     @property
     def variables_with_nans(self):

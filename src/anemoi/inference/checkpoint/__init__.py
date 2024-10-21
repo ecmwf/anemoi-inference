@@ -207,7 +207,7 @@ class Checkpoint:
                 raise ValueError(f"Invalid value for `on_difference`: {on_difference}")
             return False
 
-        LOG.info(f"Environment validation passed")
+        LOG.info("Environment validation passed")
         return True
 
     def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
