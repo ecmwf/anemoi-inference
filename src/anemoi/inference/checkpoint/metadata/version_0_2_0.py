@@ -154,6 +154,10 @@ class ZarrRequest(DataRequest):
             "n320": 542_080,
         }[self.attributes["resolution"].lower()]
 
+    def patch_metadata(self, metadata, callbacks):
+        callbacks.patch_zarr(self.attributes, metadata)
+        return metadata
+
 
 class Forward(DataRequest):
     @cached_property
@@ -353,7 +357,7 @@ class DropRequest(SelectRequest):
 
 
 def data_request(specific):
-    action = specific.pop("action")
+    action = specific["action"]
     action = action[0].upper() + action[1:].lower() + "Request"
     LOG.debug(f"DataRequest: {action}")
     return globals()[action](specific)

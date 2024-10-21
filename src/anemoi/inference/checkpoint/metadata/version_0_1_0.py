@@ -19,7 +19,7 @@ class Version_0_1_0(Metadata):
 
     def __init__(self, metadata):
         super().__init__(metadata)
-        self.patch_metadata()
+        self._patch_metadata()
 
     @cached_property
     def _dataset(self):
@@ -67,7 +67,7 @@ class Version_0_1_0(Metadata):
 
     ###########################################################################
 
-    def patch_metadata(self):
+    def _patch_metadata(self):
         drop = self._find("config", "dataloader", "training", "drop")
         if drop is not None:
             variables = self._find("dataset", "variables", default=[])
@@ -112,3 +112,6 @@ class Version_0_1_0(Metadata):
             dataset["attrs"] = dataset.copy()
 
         return ZarrRequest(dataset).number_of_grid_points
+
+    def patch_metadata(self, metadata, callbacks):
+        return metadata
