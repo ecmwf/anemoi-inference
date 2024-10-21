@@ -29,8 +29,7 @@ class RequestsCmd(Command):
     def run(self, args):
         c = Checkpoint(args.path)
 
-        for r in c.requests():
-            print(r)
+        print(c.request())
 
 
 command = RequestsCmd
