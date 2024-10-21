@@ -1,3 +1,11 @@
+# (C) Copyright 2024 European Centre for Medium-Range Weather Forecasts.
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+
 from __future__ import annotations
 
 import itertools
@@ -43,24 +51,61 @@ def summarise_list(lst: list, max_length: int) -> str:
     return str(lst)
 
 
-class Condition(dict):
+class State(dict[str, np.ndarray]):
     """A collection of data for inference."""
 
     def __init__(self, data: dict[str, np.ndarray] = None, *, private_info: Any = None, **kwargs):
-        """Create a Condition object.
+        """Create a State object.
 
         Parameters
         ----------
         data : dict[str, np.ndarray]
-            Dictionary of data to store in the Condition
+            Dictionary of data to store in the State
         private_info : Any, optional
-            Private info to pass with the Condition, by default None
+            Private info to pass with the State, by default None
         """
         super().__init__(data or {}, **kwargs)
         self.__private_info = private_info
 
     def __repr__(self):
-        return f"Condition({summarise_list(list(self.keys()), 8)}, private_info = {self.__private_info})"
+        return f"State({summarise_list(list(self.keys()), 8)}, private_info = {self.__private_info})"
+
+    def take(self, axis: int, indices: int | slice | tuple[int, ...], *, copy: bool = True) -> State:
+        """Take data from the State with a specific dimension and index.
+
+        Parameters
+        ----------
+        axis : int
+            Dimension to take data from
+        indices : int | slice | tuple[int, ...]
+            Index to take data with
+        copy : bool, optional
+            Whether to copy the data, If False, the data will be taken without copying,
+            by default True
+
+        Returns
+        -------
+        State
+            State object with the dimension and index taken on all keys
+
+        Examples
+        --------
+        >>> data = np.random.rand(3, 2, 4)
+        >>> names = ["a", "b", "c"]
+        >>> state = State.from_numpy(data, names)
+        >>> state.take(0, 0)
+        State(['a', 'b', 'c'], private_info = None)
+        >>> state.take(0, 0).shape
+        {'a': (2, 4), 'b': (2, 4), 'c': (2, 4)}
+        """
+        if copy:
+            return State(
+                {key: value.take(indices, axis) for key, value in self.items()}, private_info=self.__private_info
+            )
+
+        index = [[slice(None)] * axis, indices, [slice(None)] * (len(self[list(self.keys())[0]].shape) - axis - 1)]
+        index = [i for i in index if (isinstance(i, list) and len(i) > 1) or not isinstance(i, list)]
+        return State({key: value.__getitem__(*index) for key, value in self.items()}, private_info=self.__private_info)
 
     def to_array(
         self,
@@ -70,12 +115,12 @@ class Condition(dict):
         array_function: Callable[[np.array], Array] = np.array,
         **kwargs,
     ) -> Array:
-        """Convert the Condition to an array.
+        """Convert the State to an array.
 
         Parameters
         ----------
         order : list[str]
-            Order to extract the keys from the Condition
+            Order to extract the keys from the State
         stack_function : Callable, optional
             Function to stack arrays with, by default np.stack
         array_function: Callable, optional
@@ -85,30 +130,30 @@ class Condition(dict):
 
         Returns
         -------
-        T
+        Array
             Stacked array
 
         Raises
         ------
         ValueError
-            If any keys in order are not in the Condition
+            If any keys in order are not in the State
 
         Examples
         --------
         >>> import numpy as np
         >>> data = np.random.rand(3, 2, 4)
         >>> names = ["a", "b", "c"]
-        >>> condition = Condition.from_numpy(data, names)
-        >>> condition.to_array(names[::-1]).shape
+        >>> state = State.from_numpy(data, names)
+        >>> state.to_array(names[::-1]).shape
         (3, 2, 4)
         """
         if any(key not in self for key in order):
-            raise ValueError("Some keys in order are not in the Condition", self.keys(), order)
+            raise ValueError("Some keys in order are not in the State", self.keys(), order)
         return stack_function([array_function(self.get(key)) for key in order], **kwargs)
 
     @property
     def shape(self) -> dict[str, tuple[int, ...]]:
-        """Get the shape of the Condition"""
+        """Get the shape of the State"""
         return {key: value.shape for key, value in self.items()}
 
     @classmethod
@@ -119,25 +164,25 @@ class Condition(dict):
         flatten: str | None = None,
         variable_dim: str = "variable",
         private_info: Any = None,
-    ) -> Condition:
-        """Convert an xarray Dataset or DataArray to a Condition.
+    ) -> State:
+        """Convert an xarray Dataset or DataArray to a State.
 
         Parameters
         ----------
         data : xr.Dataset | xr.DataArray
-            xr.Dataset or xr.DataArray object to convert to a Condition
+            xr.Dataset or xr.DataArray object to convert to a State
         flatten : str | None, optional
             F-string dictating how to flatten dimensions, by default None
             E.g. "{variable}_{level}" will create a new key for each level value
         variable_dim : str, optional
             Dimension name for variables if xr.DataArray given, by default "variable"
         private_info : Any, optional
-            Private info to pass to Condition, by default None
+            Private info to pass to State, by default None
 
         Returns
         -------
-        Condition
-            Condition object
+        State
+            State object
 
         Raises
         ------
@@ -164,10 +209,10 @@ class Condition(dict):
             description:  Data is from NMC initialized reanalysis\n(4x/day).  These a...
             platform:     Model
             references:   http://www.esrl.noaa.gov/psd/data/gridded/data.ncep.reanaly...
-        >>> Condition.from_xarray(ds))
-        Condition(['air'], private_info = None)
-        >>> Condition.from_xarray(ds, flatten="{variable}_{lat}"))
-        Condition(['air_75.0', 'air_72.5', 'air_70.0', 'air_67.5', 'air_65.0', 'air_62.5', 'air_60.0', 'air_57.5', 'air_55.0', 'air_52.5', 'air_50.0', 'air_47.5', 'air_45.0', 'air_42.5', 'air_40.0', 'air_37.5', 'air_35.0', 'air_32.5', 'air_30.0', 'air_27.5', 'air_25.0', 'air_22.5', 'air_20.0', 'air_17.5', 'air_15.0'], private_info = None)
+        >>> State.from_xarray(ds))
+        State(['air'], private_info = None)
+        >>> State.from_xarray(ds, flatten="{variable}_{lat}"))
+        State(['air_75.0', 'air_72.5', 'air_70.0', 'air_67.5', 'air_65.0', 'air_62.5', 'air_60.0', 'air_57.5', 'air_55.0', 'air_52.5', 'air_50.0', 'air_47.5', 'air_45.0', 'air_42.5', 'air_40.0', 'air_37.5', 'air_35.0', 'air_32.5', 'air_30.0', 'air_27.5', 'air_25.0', 'air_22.5', 'air_20.0', 'air_17.5', 'air_15.0'], private_info = None)
         """
         import xarray as xr
 
@@ -204,26 +249,26 @@ class Condition(dict):
         variable_dict = {}
         for var in data.coords[variable_dim].values:
             variable_dict[var] = data.sel({variable_dim: var}).values
-        return Condition(variable_dict, private_info=private_info)
+        return State(variable_dict, private_info=private_info)
 
     @classmethod
-    def from_earthkit(self, fieldlist: "ekd.FieldList", private_info: Any = None, **kwargs) -> Condition:
-        """Convert a FieldList to a Condition.
+    def from_earthkit(self, fieldlist: "ekd.FieldList", private_info: Any = None, **kwargs) -> State:
+        """Convert a FieldList to a State.
 
         Parameters
         ----------
         fieldlist : ekd.FieldList
             earthkit data FieldList object
         private_info : Any
-            Private information to store in the Condition object
+            Private information to store in the State object
         **kwargs:
             Additional keyword arguments to pass to the to_xarray method of the FieldList object.
             See /earthkit/data/utils/xarray/engine.py/EarthkitBackendEntrypoint/open_dataset for more information
 
         Returns
         -------
-        Condition
-            Condition object
+        State
+            State object
 
         Examples
         --------
@@ -232,10 +277,10 @@ class Condition(dict):
         >>> fieldlist = ekd.from_source("file", "test6.grib")
         >>> fieldlist
         GRIBReader(test6.grib)
-        >>> Condition.from_earthkit(fieldlist)
-        Condition(['t', 'u', 'v'], private_info = None)
-        >>> Condition.from_earthkit(fieldlist, variable_key="par_lev_type", remapping={"par_lev_type": "{param}_{levelist}"})
-        Condition(['t_1000', 't_850', 'u_1000', 'u_850', 'v_1000', 'v_850'], private_info = None)
+        >>> State.from_earthkit(fieldlist)
+        State(['t', 'u', 'v'], private_info = None)
+        >>> State.from_earthkit(fieldlist, variable_key="par_lev_type", remapping={"par_lev_type": "{param}_{levelist}"})
+        State(['t_1000', 't_850', 'u_1000', 'u_850', 'v_1000', 'v_850'], private_info = None)
         """
         return self.from_xarray(fieldlist.to_xarray(**kwargs), private_info=private_info)
 
@@ -247,41 +292,41 @@ class Condition(dict):
         *,
         axis: int = 0,
         private_info: Any = None,
-    ) -> Condition:
-        """Convert a numpy array to a Condition.
+    ) -> State:
+        """Convert a numpy array to a State.
 
         Parameters
         ----------
         data : np.ndarray
-            Numpy array to convert to a Condition
+            Numpy array to convert to a State
         names : list[str]
             Names upon `axis` to use as keys
         axis : int, optional
             Axis to split data upon, by default 0
         private_info : Any, optional
-            Private information to store in the Condition object, by default None
+            Private information to store in the State object, by default None
 
         Returns
         -------
-        Condition
-            Condition object
+        State
+            State object
 
         Examples
         --------
         >>> import numpy as np
         >>> data = np.random.rand(3, 2, 4)
         >>> names = ["a", "b", "c"]
-        >>> Condition.from_numpy(data, names)
-        Condition(['a', 'b', 'c'], private_info = None)
+        >>> State.from_numpy(data, names)
+        State(['a', 'b', 'c'], private_info = None)
         >>> names = ["a", "b", "c", "d"]
-        >> Condition.from_numpy(data, names, axis=2)
-        Condition(['a', 'b', 'c', 'd'], private_info = None)
+        >> State.from_numpy(data, names, axis=2)
+        State(['a', 'b', 'c', 'd'], private_info = None)
         """
 
         if axis != 0:
             data = np.moveaxis(data, axis, 0)
-        return Condition(dict(zip(names, data)), private_info=private_info)
+        return State(dict(zip(names, data)), private_info=private_info)
 
     def copy(self):
-        """Copy the Condition object."""
-        return Condition(dict(self.items()), private_info=self.__private_info)
+        """Copy the State object."""
+        return State(dict(self.items()), private_info=self.__private_info)

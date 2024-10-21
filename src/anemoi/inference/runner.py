@@ -111,6 +111,7 @@ class Runner:
         output_callback=ignore,
         autocast=None,
         progress_callback=ignore,
+        grid_field_list=None,
     ) -> None:
         """_summary_
 
@@ -130,6 +131,8 @@ class Runner:
             _description_, by default None
         progress_callback : _type_, optional
             _description_, by default ignore
+        grid_field_list: _type_, optional
+            _description_, by default None
 
         Raises
         ------
@@ -332,9 +335,8 @@ class Runner:
                 input_fields_numpy,
             )
 
-
         constants = forcing_and_constants(
-            source=input_fields[:1],
+            source=grid_field_list if grid_field_list is not None else input_fields[:1],
             param=self.checkpoint.computed_constants,
             date=start_datetime,
         )
@@ -406,7 +408,13 @@ class Runner:
 
         most_recent_datetime = get_most_recent_datetime(input_fields)
         reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
-        prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+
+        if "lsm" in self.checkpoint.variable_to_index:
+            prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+        else:
+            first = list(self.checkpoint.variable_to_index.keys())
+            LOGGER.warning("No LSM found to use as a GRIB template, using %s", first[0])
+            prognostic_template = reference_fields[0]
 
         accumulated_output = np.zeros(
             shape=(len(diagnostic_output_mask), number_of_grid_points),
