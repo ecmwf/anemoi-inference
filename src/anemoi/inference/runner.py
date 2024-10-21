@@ -335,7 +335,6 @@ class Runner:
                 input_fields_numpy,
             )
 
-
         constants = forcing_and_constants(
             source=grid_field_list if grid_field_list is not None else input_fields[:1],
             param=self.checkpoint.computed_constants,
