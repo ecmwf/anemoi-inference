@@ -7,6 +7,7 @@
 
 
 import logging
+from collections import defaultdict
 from functools import cached_property
 
 from . import Metadata
@@ -154,6 +155,37 @@ class ZarrRequest(DataRequest):
             "n320": 542_080,
         }[self.attributes["resolution"].lower()]
 
+    def retrieve_request(self, use_grib_paramid=False):
+        from anemoi.utils.grib import shortname_to_paramid
+        from earthkit.data.utils.availability import Availability
+
+        keys = ("class", "expver", "type", "stream", "levtype")
+        pop = (
+            "date",
+            "time",
+        )
+        requests = defaultdict(list)
+        for variable, metadata in self.attributes["variables_metadata"].items():
+            metadata = metadata.copy()
+            key = tuple(metadata.get(k) for k in keys)
+            for k in pop:
+                metadata.pop(k, None)
+
+            if use_grib_paramid and "param" in metadata:
+                metadata["param"] = shortname_to_paramid(metadata["param"])
+
+            requests[key].append(metadata)
+
+        for reqs in requests.values():
+
+            compressed = Availability(reqs)
+            for r in compressed.iterate():
+                for k, v in r.items():
+                    if isinstance(v, (list, tuple)) and len(v) == 1:
+                        r[k] = v[0]
+                if r:
+                    yield r
+
     def patch_metadata(self, metadata, callbacks):
         callbacks.patch_zarr(self.attributes, metadata)
         return metadata
@@ -173,15 +205,6 @@ class Forward(DataRequest):
 
     def graph_kids(self):
         return [self.forward]
-
-
-class SubsetRequest(Forward):
-    # Subset in time
-    pass
-
-
-class StatisticsRequest(Forward):
-    pass
 
 
 class RenameRequest(Forward):
@@ -263,16 +286,6 @@ class JoinRequest(MultiRequest):
         return sorted(result)
 
 
-class ConcatRequest(MultiRequest):
-    # Concat in time
-
-    pass
-
-
-class EnsembleRequest(MultiRequest):
-    pass
-
-
 class MultiGridRequest(MultiRequest):
     @property
     def grid(self):
@@ -284,7 +297,6 @@ class MultiGridRequest(MultiRequest):
     def area(self):
         areas = [dataset.area for dataset in self.datasets]
         return areas[0]
-        raise NotImplementedError(";".join(str(g) for g in areas))
 
     def mars_request(self):
         for d in self.datasets:
@@ -306,15 +318,7 @@ class ThinningRequest(Forward):
         return f"thinning({self.forward.grid})"
 
 
-class InterpolatefrequencyRequest(Forward):
-    pass
-
-
-class RescaleRequest(Forward):
-    pass
-
-
-class ZarrwithmissingdatesRequest(ZarrRequest):
+class ZarrWithMissingDatesRequest(ZarrRequest):
     pass
 
 
@@ -358,9 +362,20 @@ class DropRequest(SelectRequest):
 
 def data_request(specific):
     action = specific["action"]
-    action = action[0].upper() + action[1:].lower() + "Request"
+    action = action.capitalize() + "Request"
     LOG.debug(f"DataRequest: {action}")
-    return globals()[action](specific)
+
+    klass = globals().get(action)
+
+    if klass is None:
+        if "datasets" in specific:
+            klass = MultiRequest
+        elif "forward" in specific:
+            klass = Forward
+        else:
+            raise ValueError(f"Unknown action: {action}")
+
+    return klass(specific)
 
 
 class Version_0_2_0(Metadata, Forward):
