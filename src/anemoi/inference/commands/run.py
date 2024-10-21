@@ -9,7 +9,6 @@
 #
 
 
-import datetime
 import logging
 
 from earthkit.data.utils.dates import to_datetime
@@ -34,19 +33,21 @@ class RunCmd(Command):
     def run(self, args):
         import earthkit.data as ekd
 
+        def _(r):
+            mars = r.copy()
+            for k, v in r.items():
+                if isinstance(v, (list, tuple)):
+                    mars[k] = "/".join(str(x) for x in v)
+                else:
+                    mars[k] = str(v)
+
+            return ",".join(f"{k}={v}" for k, v in mars.items())
+
         runner = DefaultRunner(args.path)
+        runner.checkpoint.metadata.dump_masks()
 
         date = to_datetime(args.date)
-        dates = [date + datetime.timedelta(hours=h) for h in runner.lagged]
-
-        print("------------------------------------")
-        for n in runner.checkpoint.mars_requests(
-            dates=dates[0],
-            expver="0001",
-            use_grib_paramid=False,
-        ):
-            print("MARS", n)
-        print("------------------------------------")
+        dates = [date + h for h in runner.lagged]
 
         requests = runner.checkpoint.mars_requests(
             dates=dates,
@@ -65,7 +66,7 @@ class RunCmd(Command):
             r["grid"] = runner.checkpoint.grid
             r["area"] = runner.checkpoint.area
 
-            print("MARS", r)
+            print("MARS", _(r))
 
             input_fields += ekd.from_source("mars", r)
 

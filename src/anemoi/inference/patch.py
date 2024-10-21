@@ -164,7 +164,11 @@ class PatchMixin:
 
         LOG.info(f"Opening dataset with args {args} and kwargs {kwargs}")
         ds = open_dataset(*args, **kwargs)
-        self._metadata = ds.metadata()
+
+        # Update the metadata
+        for k, v in ds.metadata().items():
+            if k not in dataset:
+                dataset[k] = v
 
     def _patch_variable_metadata_open_dataset_2(self):
         """That version fetches the metadata from the catalogue."""
@@ -221,7 +225,7 @@ class PatchMixin:
             return root
 
         with patch_function(anemoi.datasets.data.stores, "open_zarr", _open_zarr):
-            return self._patch_variable_metadata_open_dataset_1()
+            self._patch_variable_metadata_open_dataset_1()
 
     # def _patch_variable_metadata_rebuild(self):
     #     """

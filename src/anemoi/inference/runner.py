@@ -142,11 +142,13 @@ class Runner:
             _description_
         """
 
+        checkpoint_metadata = self.checkpoint.metadata
+
         if self._verbose:
-            self.checkpoint.summary()
+            checkpoint_metadata.summary()
 
         if autocast is None:
-            autocast = self.checkpoint.precision
+            autocast = checkpoint_metadata.precision
 
         if autocast is None:
             LOGGER.warning("No autocast given, using float16")
@@ -154,20 +156,18 @@ class Runner:
 
         autocast = AUTOCAST[autocast]
 
-        input_fields = _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields)
-
-        LOGGER.info("Selecting fields %s", self.checkpoint.select)
-        input_fields = input_fields.sel(**self.checkpoint.select)
-        LOGGER.info("Selected fields: %s", len(input_fields))
-
-        input_fields = input_fields.order_by(**self.checkpoint.order_by)
-
-        number_of_grid_points = len(input_fields[0].values)
-
-        LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
-
+        # Not sure if the start_datetime is in the data or if it should be passed
         if start_datetime is None:
             start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+
+        dates = [start_datetime + datetime.timedelta(hours=h) for h in self.lagged]
+
+        input_fields = _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields)
+        input_fields = checkpoint_metadata.filter_and_sort(input_fields, dates)
+
+        number_of_grid_points = checkpoint_metadata.number_of_grid_points
+
+        LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
 
         num_fields_per_date = len(input_fields) // len(self.lagged)  # assumed
 
@@ -198,21 +198,21 @@ class Runner:
         LOGGER.info("Input fields shape: %s (dates, variables, grid)", input_fields_numpy.shape)
 
         # Used to check if we cover the whole input, with no overlaps
-        check = np.full(self.checkpoint.num_input_features, fill_value=False, dtype=np.bool_)
+        check = np.full(checkpoint_metadata.num_input_features, fill_value=False, dtype=np.bool_)
 
-        kinds = np.full(self.checkpoint.num_input_features, fill_value="?", dtype=np.character)
+        kinds = np.full(checkpoint_metadata.num_input_features, fill_value="?", dtype=np.character)
 
-        inputs = np.full(self.checkpoint.num_input_features, fill_value=False, dtype=np.bool_)
+        inputs = np.full(checkpoint_metadata.num_input_features, fill_value=False, dtype=np.bool_)
 
         # E.g cos_latitude
-        computed_constant_mask = self.checkpoint.computed_constants_mask
+        computed_constant_mask = checkpoint_metadata.computed_constants_mask
         assert not np.any(check[computed_constant_mask]), check
         check[computed_constant_mask] = True
         kinds[computed_constant_mask] = "C"
         self._report("computed_constant_mask", computed_constant_mask)
 
         # E.g. lsm, orography
-        constant_from_input_mask = self.checkpoint.constants_from_input_mask
+        constant_from_input_mask = checkpoint_metadata.constants_from_input_mask
         assert not np.any(check[constant_from_input_mask]), check
         check[constant_from_input_mask] = True
         kinds[constant_from_input_mask] = "K"
@@ -220,14 +220,14 @@ class Runner:
         self._report("constant_from_input_mask", constant_from_input_mask)
 
         # e.g. isolation
-        computed_forcing_mask = self.checkpoint.computed_forcings_mask
+        computed_forcing_mask = checkpoint_metadata.computed_forcings_mask
         assert not np.any(check[computed_forcing_mask]), check
         check[computed_forcing_mask] = True
         kinds[computed_forcing_mask] = "F"
         self._report("computed_forcing_mask", computed_forcing_mask)
 
         # e.g 2t, 10u, 10v
-        prognostic_input_mask = self.checkpoint.prognostic_input_mask
+        prognostic_input_mask = checkpoint_metadata.prognostic_input_mask
         assert not np.any(check[prognostic_input_mask]), check
         check[prognostic_input_mask] = True
         kinds[prognostic_input_mask] = "P"
@@ -241,8 +241,8 @@ class Runner:
                     LOGGER.error(
                         "Missing %s %s %s",
                         i,
-                        self.checkpoint.model_to_data[i],
-                        self.checkpoint.index_to_variable[self.checkpoint.model_to_data[i]],
+                        checkpoint_metadata.model_to_data[i],
+                        checkpoint_metadata.index_to_variable[checkpoint_metadata.model_to_data[i]],
                     )
             raise RuntimeError("Missing fields")
 
@@ -267,8 +267,8 @@ class Runner:
                         i,
                         kinds[i].decode(),
                         MARS[inputs[i]],
-                        self.checkpoint.model_to_data[i],
-                        self.checkpoint.index_to_variable[self.checkpoint.model_to_data[i]],
+                        checkpoint_metadata.model_to_data[i],
+                        checkpoint_metadata.index_to_variable[checkpoint_metadata.model_to_data[i]],
                     )
                 )
 
@@ -283,7 +283,7 @@ class Runner:
         input_tensor_numpy = np.full(
             shape=(
                 len(self.lagged),
-                self.checkpoint.num_input_features,
+                checkpoint_metadata.num_input_features,
                 number_of_grid_points,
             ),
             fill_value=np.nan,
@@ -344,7 +344,7 @@ class Runner:
 
         constants = forcing_and_constants(
             source=grid_field_list if grid_field_list is not None else input_fields[:1],
-            param=self.checkpoint.computed_constants,
+            param=checkpoint_metadata.computed_constants,
             date=start_datetime,
         )
 
@@ -355,24 +355,24 @@ class Runner:
             for i in range(len(self.lagged)):
                 forcings = forcing_and_constants(
                     source=input_fields[:1],
-                    param=self.checkpoint.computed_forcings,
+                    param=checkpoint_metadata.computed_forcings,
                     date=start_datetime + datetime.timedelta(hours=self.lagged[i]),
                 )
                 input_tensor_numpy[i, computed_forcing_mask] = forcings
 
         LOGGER.info("Input tensor shape: %s", input_tensor_numpy.shape)
 
-        imputable_variables = self.checkpoint.imputable_variables
+        imputable_variables = checkpoint_metadata.imputable_variables
         can_be_missing = set()
         # check for NaNs
         for i in range(input_tensor_numpy.shape[1]):
-            name = self.checkpoint.index_to_variable[self.checkpoint.model_to_data[i]]
+            name = checkpoint_metadata.index_to_variable[checkpoint_metadata.model_to_data[i]]
             has_missing = np.isnan(input_tensor_numpy[:, i, :]).any()
             is_imputable = name in imputable_variables
             if has_missing:
                 can_be_missing.add(name)
                 if not is_imputable:
-                    model_index = self.checkpoint.model_to_data[i]
+                    model_index = checkpoint_metadata.model_to_data[i]
                     LOGGER.error(
                         "No imputation specified for NaNs in %s (%s %s)",
                         name,
@@ -383,9 +383,9 @@ class Runner:
 
         with Timer(f"Loading {self.checkpoint}"):
             try:
-                model = torch.load(self.checkpoint.path, map_location=device, weights_only=False).to(device)
+                model = torch.load(checkpoint_metadata.path, map_location=device, weights_only=False).to(device)
             except Exception:
-                self.checkpoint.report_loading_error()
+                checkpoint_metadata.report_loading_error()
                 raise
 
         model.eval()
@@ -400,8 +400,8 @@ class Runner:
             )[np.newaxis, ...]
         ).to(device)
 
-        prognostic_output_mask = self.checkpoint.prognostic_output_mask
-        diagnostic_output_mask = self.checkpoint.diagnostic_output_mask
+        prognostic_output_mask = checkpoint_metadata.prognostic_output_mask
+        diagnostic_output_mask = checkpoint_metadata.diagnostic_output_mask
 
         LOGGER.info("Using autocast %s", autocast)
 
@@ -416,10 +416,10 @@ class Runner:
         most_recent_datetime = get_most_recent_datetime(input_fields)
         reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
 
-        if "lsm" in self.checkpoint.variable_to_index:
-            prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
+        if "lsm" in checkpoint_metadata.variable_to_index:
+            prognostic_template = reference_fields[checkpoint_metadata.variable_to_index["lsm"]]
         else:
-            first = list(self.checkpoint.variable_to_index.keys())
+            first = list(checkpoint_metadata.variable_to_index.keys())
             LOGGER.warning("No LSM found to use as a GRIB template, using %s", first[0])
             prognostic_template = reference_fields[0]
 
@@ -428,18 +428,18 @@ class Runner:
             dtype=np.float32,
         )
 
-        if self.checkpoint.diagnostic_params:
+        if checkpoint_metadata.diagnostic_params:
             output_callback(
                 input_fields,
-                self.checkpoint.diagnostic_params,
+                checkpoint_metadata.diagnostic_params,
                 prognostic_template,
                 accumulated_output[0].shape,
             )
         else:
             output_callback(input_fields)
 
-        prognostic_params = self.checkpoint.prognostic_params
-        accumulations_params = self.checkpoint.accumulations_params
+        prognostic_params = checkpoint_metadata.prognostic_params
+        accumulations_params = checkpoint_metadata.accumulations_params
 
         # with self.stepper(self.hour_steps) as stepper:
 
@@ -472,7 +472,7 @@ class Runner:
 
             # Write diagnostic fields
             if len(diagnostic_output_mask):
-                for n, param in enumerate(self.checkpoint.diagnostic_params):
+                for n, param in enumerate(checkpoint_metadata.diagnostic_params):
                     accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
                     assert prognostic_template.datetime()["valid_time"] == most_recent_datetime, (
                         prognostic_template.datetime()["valid_time"],
@@ -505,7 +505,7 @@ class Runner:
 
             forcing = forcing_and_constants(
                 source=input_fields[:1],
-                param=self.checkpoint.computed_forcings,
+                param=checkpoint_metadata.computed_forcings,
                 date=start_datetime + datetime.timedelta(hours=step),
             )
             forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
@@ -521,54 +521,30 @@ class Runner:
 
     @cached_property
     def hour_steps(self):
-        return self.checkpoint.hour_steps
+        return self.checkpoint.metadata.hour_steps
 
     @cached_property
     def lagged(self):
-        result = list(range(0, self.checkpoint.multi_step))
+        result = list(range(0, self.checkpoint.metadata.multi_step))
         result = [-s * self.hour_steps for s in result]
         return sorted(result)
-
-    @property
-    def param_sfc(self):
-        param_sfc = self.checkpoint.param_sfc
-
-        # Remove diagnostic params
-
-        param_sfc = [p for p in param_sfc if p not in self.checkpoint.diagnostic_params]
-
-        return param_sfc
-
-    @property
-    def param_level_pl(self):
-
-        # To do remove diagnostic params
-
-        return self.checkpoint.param_level_pl
-
-    @property
-    def param_level_ml(self):
-
-        # To do remove diagnostic params
-
-        return self.checkpoint.param_level_ml
 
     def _report_mismatch(self, name, mask, input_fields, input_fields_numpy):
         LOGGER.error("Mismatch in %s and input_fields", name)
         LOGGER.error("%s: %s shape=(variables)", name, mask.shape)
         LOGGER.error("input_fields_numpy: %s shape=(dates, variables, grid)", input_fields_numpy.shape)
-        LOGGER.error("MASK : %s", [self.checkpoint.variables[_] for _ in mask])
+        LOGGER.error("MASK : %s", [self.checkpoint.metadata.variables[_] for _ in mask])
 
-        remapping = self.checkpoint.select["remapping"]
-        names = list(remapping.keys())
+        # remapping = self.checkpoint.metadata.select["remapping"]
+        # names = list(remapping.keys())
 
-        LOGGER.error(
-            "INPUT: %s", [input_fields[i].metadata(*names, remapping=remapping) for i in range(len(input_fields) // 2)]
-        )
+        # LOGGER.error(
+        #     "INPUT: %s", [input_fields[i].metadata(*names, remapping=remapping) for i in range(len(input_fields) // 2)]
+        # )
         raise ValueError(f"Mismatch in {name} and input_fields")
 
     def _report(self, name, mask):
-        LOGGER.info("%s: %s", name, [self.checkpoint.variables[_] for _ in mask])
+        LOGGER.info("%s: %s", name, [self.checkpoint.metadata.variables[_] for _ in mask])
         LOGGER.info("%s: (%s items)", name, len(mask))
 
 

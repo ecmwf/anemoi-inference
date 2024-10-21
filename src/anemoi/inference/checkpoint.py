@@ -16,9 +16,7 @@ from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.provenance import gather_provenance_info as gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.checkpoint.metadata import Metadata
-from anemoi.inference.checkpoint.package_exemptions import EXEMPT_NAMESPACES as EXEMPT_NAMESPACES
-from anemoi.inference.checkpoint.package_exemptions import EXEMPT_PACKAGES as EXEMPT_PACKAGES
+from anemoi.inference.metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
@@ -48,6 +46,33 @@ class Checkpoint:
     def retrieve_request(self, *args, **kwargs):
         return self.metadata.retrieve_request(*args, **kwargs)
 
+    @property
+    def grid(self):
+        return self.metadata.grid
+
+    @property
+    def area(self):
+        return self.metadata.rounded_area(self.metadata.area)
+
+    @property
+    def precision(self):
+        return self.metadata.precision
+
+    # @property
+    # def select(self):
+    #     return self.metadata.select
+
+    # @property
+    # def order_by(self):
+    #     return self.metadata.order_by
+
+    @property
+    def number_of_grid_points(self):
+        return self.metadata.number_of_grid_points
+
+    def filter_and_sort(self, data, dates):
+        return self.metadata.filter_and_sort(data, dates)
+
     def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
@@ -74,3 +99,6 @@ class Checkpoint:
                 result.append(r)
 
         return result
+
+    def summary(self):
+        pass
