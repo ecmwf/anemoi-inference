@@ -9,13 +9,20 @@ Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
 ## [Unreleased]
+
 ### Added
+
+- Fix: Enable inference when no constant forcings are used
+- Add anemoi-transform link to documentation
+- Add support for unstructured grids
 
 ### Changed
 - use `PS` if `lsm` is not available as prognostic template (#23)
 
 - Add cos_solar_zenith_angle to list of known forcings
 - Add missing classes in checkpoint handling
+- Rename Condition to State [#24](https://github.com/ecmwf/anemoi-inference/pull/24)
+- Fix pre-commit regex
 
 ### Removed
 
