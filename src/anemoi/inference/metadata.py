@@ -13,64 +13,124 @@ from functools import cached_property
 
 import numpy as np
 from anemoi.transform.variables import Variable
+from anemoi.utils.config import DotDict
 from anemoi.utils.config import find
 from anemoi.utils.dates import frequency_to_timedelta
 from anemoi.utils.humanize import plural
+from anemoi.utils.text import blue
+from anemoi.utils.text import red
 from earthkit.data.indexing.fieldlist import FieldArray
 
+from .legacy import LegacyMixin
 from .patch import PatchMixin
 
 LOG = logging.getLogger(__name__)
 
 
-class Metadata(PatchMixin):
+def compress_list(values):
+    if len(values) < 4:
+        return values
+
+    ranges = [(values[0], values[1], values[1] - values[0])]
+    for i in range(2, len(values)):
+        if values[i] - values[i - 1] == ranges[-1][-1]:
+            ranges[-1] = (ranges[-1][0], values[i], ranges[-1][-1])
+        elif i < len(values) - 1:
+            ranges.append((values[i], values[i + 1], values[i + 1] - values[i]))
+        else:
+            ranges.append((values[i], values[i], 0))
+
+    result = []
+
+    for start, end, diff in ranges:
+        if diff == 0:
+            result.append(start)
+        elif diff == 1:
+            if start + 1 == end:
+                result.append(start)
+                result.append(end)
+            else:
+                result.append(f"{start}-{end}")
+        else:
+            for n in range(start, end + 1, diff):
+                result.append(n)
+
+    result = ", ".join(str(i) for i in result)
+    return f"[{result}]"
+
+
+class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
     def __init__(self, metadata):
-        self._metadata = metadata
+        self._metadata = DotDict(metadata)
+        self._masks = {}
+        self._variable_mappings = None
 
-    def dump_masks(self):
-
-        descriptions = {
-            # 'data.input.full': "All variables used in training",
-            # 'data.input.prognostic': "Variables used in training as prognostic",
-        }
-
-        MAX = 20
-        variables = self.variables
+    def variable_mappings(self, name):
+        # Each `indices` have their own mapping between indices and variables
+        # We only know the `data` mapping
+        # The others can be computed from the data mapping
 
         def _make_variables_mapping(name):
-            data = self._indices["data"]["input"]["full"]
+            data = self._indices.data.input.full
             other = self._indices[name]["input"]["full"]
             assert len(data) == len(other)
             return {j: i for i, j in zip(data, other)}
 
-        variables_mappings = {"data": {i: i for i in range(len(variables))}}
+        if self._variable_mappings is None:
 
+            self._variable_mappings = {"data": {i: i for i in range(len(self.variables))}}
+
+            for k1 in self._indices.keys():
+                if k1 != "data":
+                    self._variable_mappings[k1] = _make_variables_mapping(k1)
+                    # self._variable_mappings[k1] = {i: i for i in range(len(self.variables))}
+
+        return self._variable_mappings[name]
+
+    def init_masks(self, print=print):
+
+        variables = self.variables
+
+        def _print(name, values, highlight=set()):
+            print(f"✅ {name} ({plural(len(values), 'value')})")
+            size = 0
+            for j, i in enumerate(variables):
+                if j == 0 or size > 100:
+                    print()
+                    print(".... ", end="")
+                    size = 0
+                if highlight:
+                    if i in highlight:
+                        print(blue(i), end=" ")
+                    else:
+                        print(red(i), end=" ")
+                else:
+                    print(i, end=" ")
+                size += len(i) + 1
+
+            print()
+
+        print()
+        _print("variables", self.variables)
         print()
 
         for k1, v1 in self._indices.items():
 
-            if k1 not in variables_mappings:
-                variables_mappings[k1] = _make_variables_mapping(k1)
-
-            mapping = variables_mappings[k1]
+            mapping = self.variable_mappings(k1)
 
             for k2, v2 in v1.items():
                 for k3, v3 in v2.items():
                     name = ".".join([k1, k2, k3])
-                    print(f"✅ {name} ({plural(len(v3), 'value')}) - {descriptions.get(name,'no description')}")
-                    size = 0
-                    for j, i in enumerate(v3):
-                        if j == 0 or size > 100:
-                            print()
-                            print(".... ", end="")
-                            size = 0
-                        print(variables[mapping[i]], end=" ")
-                        size += len(variables[mapping[i]]) + 1
-
-                    print()
-                    print("....", v3[:MAX], "..." if len(v3) > MAX else "")
+                    try:
+                        _print(name, v3, set(variables[mapping[i]] for i in v3))
+                    except KeyError:
+                        print(f"❌ {name} ({plural(len(v3), 'value')})")
+                        for i in v3:
+                            print("....", i, mapping.get(i, "???"))
+                        print()
+                    print(str(compress_list(v3)))
                     print()
 
     @property
@@ -113,49 +173,56 @@ class Metadata(PatchMixin):
     @cached_property
     def hour_steps(self):
         return frequency_to_timedelta(self._config_data["frequency"])
-        n = self._config_data.get("timestep", self._config_data["frequency"])
-        try:
-            return int(n)
-        except ValueError:
-            pass
-
-        return int(n[:-1]) * {"h": 1, "d": 24}[n[-1]]
 
     @cached_property
     def typed_variables(self):
-        """
-        Returns a dictionary of strongly typed variables
-        """
-        return {k: Variable.from_dict(k, v) for k, v in self.variables_metadata.items()}
+        """Returns a strongly typed variables"""
+        return {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
     ###########################################################################
     # Indices
 
     @cached_property
     def _indices(self):
-        return self._metadata["data_indices"]
+        return DotDict(self._metadata["data_indices"])
 
     @cached_property
     def num_input_features(self):
-        return len(self._indices["model"]["input"]["full"])
+        return len(self._indices.model.input.full)
 
     @cached_property
     def data_to_model(self):
-        data = self._indices["data"]["input"]["full"]
-        model = self._indices["model"]["input"]["full"]
+        data = self._indices.data.input.full
+        model = self._indices.model.input.full
         assert len(data) == len(model)
         return {i: j for i, j in zip(data, model)}
 
     @cached_property
     def model_to_data(self):
-        data = self._indices["data"]["input"]["full"]
-        model = self._indices["model"]["input"]["full"]
+        data = self._indices.data.input.full
+        model = self._indices.model.input.full
         assert len(data) == len(model)
         return {j: i for i, j in zip(data, model)}
 
     @property
     def variables(self):
-        return self._metadata["dataset"]["variables"]
+        return self._metadata.dataset.variables
+
+    @property
+    def model_variables(self):
+        data = self._indices.data.input.full
+        model = self._indices.model.input.full
+        print(data, model)
+
+    @property
+    def variable_to_input_tensor_index(self):
+        data_to_model = self.data_to_model
+        return {v: data_to_model.get(i) for i, v in enumerate(self.variables)}
+
+    @property
+    def model_input_variables(self):
+        data_to_model = self.data_to_model
+        return [self.index_to_variable[data_to_model[i]] for i in self._indices.model.input.full]
 
     ###########################################################################
     @property
@@ -179,17 +246,17 @@ class Metadata(PatchMixin):
 
         data = FieldArray([f.copy(name=_name) for f in data])
 
-        variable_from_input = []
-        for v in self.variables:
-            if typed_variables[v].is_from_input:
-                variable_from_input.append(v)
+        variable_from_input = [
+            v.name for v in typed_variables.values() if v.is_from_input and v.name not in self.diagnostic_params
+        ]
 
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        data = data.sel(name=variable_from_input, valid_datetime=valid_datetime).order_by("valid_datetime", "name")
+        data = data.sel(name=variable_from_input, valid_datetime=valid_datetime).order_by("name", "valid_datetime")
 
         expected = len(variable_from_input) * len(dates)
+
         if len(data) != expected:
             nvars = plural(len(variable_from_input), "variable")
             ndates = plural(len(dates), "date")
@@ -203,9 +270,12 @@ class Metadata(PatchMixin):
 
         return data
 
-    @property
+    @cached_property
     def number_of_grid_points(self):
-        return self._metadata["dataset"]["shape"][-1]
+        try:
+            return self._metadata.dataset.shape[-1]
+        except AttributeError:
+            return self._legacy_number_of_grid_points()
 
     ###########################################################################
     @cached_property
@@ -243,104 +313,37 @@ class Metadata(PatchMixin):
 
     ###########################################################################
 
-    @cached_property
-    def _computed_constants(self):
-        # print("variables_metadata", self.variables_metadata)
-
-        constants = [
-            "cos_latitude",
-            "cos_longitude",
-            "sin_latitude",
-            "sin_longitude",
-        ]
-
-        data_mask, model_mask, names = self._forcings(constants)
-
-        LOG.debug("computed_constants data_mask: %s", data_mask)
-        LOG.debug("computed_constants model_mask: %s", model_mask)
-        LOG.debug("Computed constants: %s", names)
-
-        return data_mask, model_mask, names
-
-    @property
-    def computed_constants(self):
-        return self._computed_constants[2]
-
     @property
     def computed_constants_mask(self):
-        return self._computed_constants[1]
+        """Not time dependent
+        Example: cos_latitude, cos_longitude, ...
+        """
+        forcing = self._indices.data.input.forcing
+        typed_variables = self.typed_variables
+
+        return [i for i in forcing if typed_variables[i].is_computed_forcing and typed_variables[i].is_constant_in_time]
 
     ###########################################################################
-
-    @cached_property
-    def _computed_forcings(self):
-        known = set(
-            [
-                "cos_julian_day",
-                "cos_local_time",
-                "sin_julian_day",
-                "sin_local_time",
-                "insolation",  # Those two are aliases
-                "cos_solar_zenith_angle",
-            ]
-        )
-
-        constants = set(self._forcing_params()) - set(self.constants_from_input) - set(self.computed_constants)
-
-        if constants - known:
-            LOG.warning(f"Unknown computed forcing {constants - known}")
-
-        data_mask, model_mask, names = self._forcings(constants)
-
-        LOG.debug("computed_forcing data_mask: %s", data_mask)
-        LOG.debug("computed_forcing model_mask: %s", model_mask)
-        # LOG.info("Computed forcings: %s", names)
-
-        return data_mask, model_mask, names
-
-    @property
-    def computed_forcings(self):
-        return self._computed_forcings[2]
 
     @property
     def computed_forcings_mask(self):
-        return self._computed_forcings[1]
+        """Time dependent
+        Example: isolation, ...
+        """
+        forcing = self._indices.data.input.forcing
+        typed_variables = self.typed_variables
+
+        return [
+            i for i in forcing if typed_variables[i].is_computed_forcing and not typed_variables[i].is_constant_in_time
+        ]
 
     ###########################################################################
 
-    @cached_property
-    def _input_variables_indices(self):
-        result = {}
-        for i, name in enumerate(self.variables):
-            if self.typed_variables[name].is_from_input:
-                result[name] = i
-        return result
-
-    @cached_property
-    def _input_constants_indices(self):
-        result = {}
-        for i, name in enumerate(self.variables):
-            if self.typed_variables[name].is_from_input:
-                result[name] = i
-        return result
-
-    @cached_property
-    def _constants_from_input(self):
-        pass
-
-        # return data_mask, model_mask, names
-
-    @property
-    def constants_from_input(self):
-        return self._constants_from_input[2]
-
     @property
     def constants_from_input_mask(self):
-        return self._constants_from_input[1]
-
-    @property
-    def constant_data_from_input_mask(self):
-        return self._constants_from_input[0]
+        forcing = self._indices.data.input.full
+        typed_variables = self.typed_variables
+        return [i for i in forcing if typed_variables[i].is_constant_in_time and typed_variables[i].is_from_input]
 
     ###########################################################################
 
@@ -419,10 +422,12 @@ class Metadata(PatchMixin):
     def summary(self):
         return
 
-    @property
+    @cached_property
     def variables_metadata(self):
-        # print(self._metadata["dataset"])
-        return self._metadata["dataset"]["variables_metadata"]
+        try:
+            return self._metadata.dataset.variables_metadata
+        except AttributeError:
+            return self._legacy_variables_metadata()
 
     def retrieve_request(self, use_grib_paramid=False):
         from anemoi.utils.grib import shortname_to_paramid
@@ -432,11 +437,14 @@ class Metadata(PatchMixin):
         pop = ("date", "time")
         requests = defaultdict(list)
         for variable, metadata in self.variables_metadata.items():
-            metadata = metadata.copy()
+
             if "mars" not in metadata:
                 continue
 
-            metadata = metadata["mars"]
+            if variable in self.diagnostic_params:
+                continue
+
+            metadata = metadata["mars"].copy()
 
             key = tuple(metadata.get(k) for k in keys)
             for k in pop:

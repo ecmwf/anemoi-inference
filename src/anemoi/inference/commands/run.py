@@ -44,7 +44,7 @@ class RunCmd(Command):
             return ",".join(f"{k}={v}" for k, v in mars.items())
 
         runner = DefaultRunner(args.path)
-        runner.checkpoint.metadata.dump_masks()
+        runner.checkpoint.metadata.init_masks()
 
         date = to_datetime(args.date)
         dates = [date + h for h in runner.lagged]
@@ -57,10 +57,10 @@ class RunCmd(Command):
 
         input_fields = ekd.from_source("empty")
         for r in requests:
-            if r["class"] in ("rd", "ea"):
+            if r.get("class") in ("rd", "ea"):
                 r["class"] = "od"
 
-            if r["type"] == "fc" and r["stream"] == "oper" and r["time"] in ("0600", "1800"):
+            if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
                 r["stream"] = "scda"
 
             r["grid"] = runner.checkpoint.grid
@@ -72,7 +72,7 @@ class RunCmd(Command):
 
         LOGGER.info("Running the model with the following %s fields, for %s dates", len(input_fields), len(dates))
 
-        runner.run(input_fields=input_fields, lead_time=240, device="cuda")
+        runner.run(input_state=input_fields, lead_time=240, device="cuda")
 
 
 command = RunCmd
