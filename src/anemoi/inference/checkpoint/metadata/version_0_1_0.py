@@ -23,9 +23,7 @@ class Version_0_1_0(Metadata):
 
     @cached_property
     def _dataset(self):
-        """
-        Part of the metadata that refers to the zarr dataset
-        """
+        """Part of the metadata that refers to the zarr dataset."""
         return self._metadata["dataset"]
 
     @cached_property

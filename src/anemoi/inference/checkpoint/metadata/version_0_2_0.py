@@ -16,8 +16,7 @@ LOG = logging.getLogger(__name__)
 
 
 class DataRequest:
-    """
-    Base class for all data requests.
+    """Base class for all data requests.
 
     Data requests describe operations on the input data that are needed to prepare it for inference.
     The same operations that were applied to the training dataset should be applied to the input data.
