@@ -60,6 +60,18 @@ class AIModelPlugin(Model):
         if self.deterministic:
             self.torch_deterministic_mode()
 
+        import xarray as xr
+        from anemoi.transform.grids import UnstructuredGridFieldList
+
+        ds = xr.open_dataset(
+            "/hpc/uwork/tgoecke/Projects/AICON/aicon-graph/swift.dkrz.de/cicd_data_aicon_graph/icon_grid_0026_R03B07_G.nc"
+        )
+        # self.runner.checkpoint.max_refinement_level_c is automatically loaded via self.runner.checkpoint._metadata.max_refinement_level_c
+        grid = UnstructuredGridFieldList.from_values(
+            ds.clat[ds.refinement_level_c <= self.runner.checkpoint.max_refinement_level_c].values,
+            ds.clon[ds.refinement_level_c <= self.runner.checkpoint.max_refinement_level_c].values,
+        )
+
         self.runner.run(
             input_fields=self.all_fields,
             lead_time=self.lead_time,
@@ -68,6 +80,7 @@ class AIModelPlugin(Model):
             output_callback=self._output,
             autocast=self.autocast,
             progress_callback=tqdm.tqdm,
+            grid_field_list=grid,
         )
 
     def _output(self, *args, **kwargs):
