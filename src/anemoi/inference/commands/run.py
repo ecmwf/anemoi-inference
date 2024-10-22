@@ -33,6 +33,15 @@ class RunCmd(Command):
     def run(self, args):
         import earthkit.data as ekd
 
+        def rounded_area(area):
+            try:
+                surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+                if surface > 0.98:
+                    return [90, 0.0, -90, 360]
+            except TypeError:
+                pass
+            return area
+
         def _(r):
             mars = r.copy()
             for k, v in r.items():
@@ -44,7 +53,6 @@ class RunCmd(Command):
             return ",".join(f"{k}={v}" for k, v in mars.items())
 
         runner = DefaultRunner(args.path)
-        runner.checkpoint.metadata.init_masks()
 
         date = to_datetime(args.date)
         dates = [date + h for h in runner.lagged]
@@ -64,7 +72,7 @@ class RunCmd(Command):
                 r["stream"] = "scda"
 
             r["grid"] = runner.checkpoint.grid
-            r["area"] = runner.checkpoint.area
+            r["area"] = rounded_area(runner.checkpoint.area)
 
             print("MARS", _(r))
 

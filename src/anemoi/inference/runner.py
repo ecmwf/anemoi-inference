@@ -7,11 +7,17 @@
 
 
 import logging
+import warnings
 from collections import defaultdict
 from functools import cached_property
 
 import numpy as np
 import torch
+from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
+from anemoi.utils.dates import frequency_to_timedelta
+from anemoi.utils.humanize import plural
+from anemoi.utils.timer import Timer
+from earthkit.data.indexing.fieldlist import FieldArray
 
 from .checkpoint import Checkpoint
 
@@ -34,8 +40,10 @@ AUTOCAST = {
 }
 
 
-def forcing_and_constants(source, date, param):
+def forcing_and_constants(*, latitudes, longitudes, date, param):
     import earthkit.data as ekd
+
+    source = UnstructuredGridFieldList.from_values(latitudes=latitudes, longitudes=longitudes)
 
     ds = ekd.from_source(
         "forcings",
@@ -44,9 +52,9 @@ def forcing_and_constants(source, date, param):
         param=param,
     )
 
-    assert len(ds) == len(param), (len(ds), len(param), date)
+    assert len(ds) == len(param) * len(date), (len(ds), len(param), date)
 
-    return ds.to_numpy(dtype=np.float32)
+    return ds
 
 
 def ignore(*args, **kwargs):
@@ -119,6 +127,10 @@ class Runner:
         input_tensor = self.prepare_input_tensor(input_state)
         print(input_tensor.shape)
 
+        self.forecast(
+            lead_time, device, input_tensor, input_state, autocast=autocast, progress_callback=progress_callback
+        )
+
     def prepare_input_state(self, input_fields, start_datetime, dtype=np.float32, flatten=True):
         """Convert an earthkit FieldArray to a dictionary of numpy arrays."""
 
@@ -137,11 +149,17 @@ class Runner:
         fields = input_state["fields"] = dict()
 
         input_fields = _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields)
-        input_fields = checkpoint_metadata.filter_and_sort(input_fields, dates)
+        input_fields = self.filter_and_sort(input_fields, dates)
 
         check = defaultdict(set)
 
+        first = True
         for field in input_fields:
+
+            if first:
+                first = False
+                input_state["latitudes"], input_state["longitudes"] = field.grid_points()
+
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
                 fields[name] = np.full(
@@ -175,9 +193,15 @@ class Runner:
 
         input_fields = input_state["fields"]
         dates = input_state["dates"]
+        latitudes = input_state["latitudes"]
+        longitudes = input_state["longitudes"]
 
         input_tensor_numpy = np.full(
-            shape=(len(dates), checkpoint_metadata.num_input_features, checkpoint_metadata.number_of_grid_points),
+            shape=(
+                len(dates),
+                checkpoint_metadata.number_of_input_features,
+                checkpoint_metadata.number_of_grid_points,
+            ),
             fill_value=np.nan,
             dtype=dtype,
         )
@@ -198,16 +222,32 @@ class Runner:
 
             input_tensor_numpy[:, i] = field
 
-        missing = set(range(checkpoint_metadata.num_input_features)) - check
+        # Add computed forcing variables
+
+        # TODO: extend the state instead
+        model_computed_variables = checkpoint_metadata.model_computed_variables
+        if model_computed_variables:
+            fields = forcing_and_constants(
+                latitudes=latitudes, longitudes=longitudes, date=dates, param=model_computed_variables
+            )
+            for var, field in zip(model_computed_variables, fields):
+                i = variable_to_input_tensor_index[var]
+                if i in check:
+                    raise ValueError(f"Duplicate variable {var}/i={i}")
+                check.add(i)
+                input_tensor_numpy[:, i] = field.to_numpy(dtype=dtype, flatten=True)
+
+        missing = set(range(checkpoint_metadata.number_of_input_features)) - check
+
         if missing:
-            LOG.error("Missing variables %s", [checkpoint_metadata.model_input_variables[i] for i in missing])
+            index_to_variable = checkpoint_metadata.model_index_to_variable
+            LOG.error("Missing variables %s", [index_to_variable[i] for i in missing])
 
             assert not missing, missing
 
         return input_tensor_numpy
 
-    """
-    def forecast(self):
+    def forecast(self, lead_time, device, input_tensor_numpy, input_state, autocast=None, progress_callback=ignore):
         checkpoint_metadata = self.checkpoint.metadata
         if autocast is None:
             autocast = checkpoint_metadata.precision
@@ -219,7 +259,7 @@ class Runner:
         autocast = AUTOCAST[autocast]
         with Timer(f"Loading {self.checkpoint}"):
             try:
-                model = torch.load(checkpoint_metadata.path, map_location=device, weights_only=False).to(device)
+                model = torch.load(self.checkpoint.path, map_location=device, weights_only=False).to(device)
             except Exception:
                 checkpoint_metadata.report_loading_error()
                 raise
@@ -236,135 +276,73 @@ class Runner:
             )[np.newaxis, ...]
         ).to(device)
 
-        prognostic_output_mask = checkpoint_metadata.prognostic_output_mask
-        diagnostic_output_mask = checkpoint_metadata.diagnostic_output_mask
-
         LOG.info("Using autocast %s", autocast)
 
-        # Write dynamic fields
-        def get_most_recent_datetime(input_fields):
-            datetimes = [f.datetime()["valid_time"] for f in input_fields]
-            latest = datetimes[-1]
-            for d in datetimes:
-                assert d <= latest, (datetimes, d, latest)
-            return latest
+        lead_time = frequency_to_timedelta(lead_time)
+        steps = lead_time // self.frequency
 
-        most_recent_datetime = get_most_recent_datetime(input_fields)
-        reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
+        LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.frequency, steps)
 
-        if "lsm" in checkpoint_metadata.variable_to_index:
-            prognostic_template = reference_fields[checkpoint_metadata.variable_to_index["lsm"]]
-        else:
-            first = list(checkpoint_metadata.variable_to_index.keys())
-            LOG.warning("No LSM found to use as a GRIB template, using %s", first[0])
-            prognostic_template = reference_fields[0]
+        # output_tensor_index_to_variable = checkpoint_metadata.output_tensor_index_to_variable
+        # prognostic_output_mask = checkpoint_metadata.prognostic_output_mask
+        # prognostic_input_mask = checkpoint_metadata.prognostic_input_mask
+        # computed_forcing_mask = checkpoint_metadata.computed_forcing_mask
 
-        accumulated_output = np.zeros(
-            shape=(len(diagnostic_output_mask), number_of_grid_points),
-            dtype=np.float32,
+        result = input_state.copy()
+        result["fields"] = dict()
+        print(result.keys())
+
+        start_datetime = (
+            max(input_state["dates"]) if isinstance(input_state["dates"], (list, tuple)) else input_state["dates"]
         )
 
-        if checkpoint_metadata.diagnostic_params:
-            output_callback(
-                input_fields,
-                checkpoint_metadata.diagnostic_params,
-                prognostic_template,
-                accumulated_output[0].shape,
-            )
-        else:
-            output_callback(input_fields)
+        for i in range(steps):
+            step = (i + 1) * self.frequency
+            date = start_datetime + step
+            LOG.info("Forecasting step %s (%s)", step, date)
 
-        prognostic_params = checkpoint_metadata.prognostic_params
-        accumulations_params = checkpoint_metadata.accumulations_params
-
-        # with self.stepper(self.hour_steps) as stepper:
-
-        for i in progress_callback(range(lead_time // self.hour_steps)):
-            step = (i + 1) * self.hour_steps
+            result["dates"] = [date]
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=device, dtype=autocast):
                 y_pred = model.predict_step(input_tensor_torch)
 
-            # Detach tensor and squeeze
-            output = np.squeeze(y_pred.cpu().numpy())
+            # Detach tensor and squeeze (should we detach here?)
+            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
-            prognostic_fields_numpy = output[:, prognostic_output_mask]
-            if len(diagnostic_output_mask):
-                diagnostic_fields_numpy = output[:, diagnostic_output_mask]
+            for i in range(output.shape[1]):
+                result["fields"][checkpoint_metadata.output_tensor_index_to_variable[i]] = output[:, i]
 
-            for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
-                template = reference_fields[m]
-                assert template.datetime()["valid_time"] == most_recent_datetime, (
-                    template.datetime()["valid_time"],
-                    most_recent_datetime,
-                )
-                output_callback(
-                    prognostic_fields_numpy[:, n],
-                    template=template,
-                    step=step,
-                    check_nans=True,  # param in can_be_missing,
-                )
-
-            # Write diagnostic fields
-            if len(diagnostic_output_mask):
-                for n, param in enumerate(checkpoint_metadata.diagnostic_params):
-                    accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                    assert prognostic_template.datetime()["valid_time"] == most_recent_datetime, (
-                        prognostic_template.datetime()["valid_time"],
-                        most_recent_datetime,
-                    )
-
-                    if param in accumulations_params:
-                        output_callback(
-                            accumulated_output[n],
-                            stepType="accum",
-                            template=prognostic_template,
-                            startStep=0,
-                            endStep=step,
-                            param=param,
-                            check_nans=True,  # param in can_be_missing,
-                        )
-                    else:
-                        output_callback(
-                            diagnostic_fields_numpy[:, n],
-                            template=prognostic_template,
-                            step=step,
-                            check_nans=True,  # param in can_be_missing,
-                        )
-
-            # Next step
-
-            prognostic_fields = y_pred[..., prognostic_output_mask]
+            prognostic_fields = y_pred[..., checkpoint_metadata.prognostic_output_mask]
 
             # Compute new forcing
 
-            forcing = forcing_and_constants(
-                source=input_fields[:1],
-                param=checkpoint_metadata.computed_forcings,
-                date=start_datetime + datetime.timedelta(hours=step),
-            )
-            forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
-            forcing = torch.from_numpy(forcing).to(device)
-
             # Update dynamic tensor for next iteration
             input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-            input_tensor_torch[:, -1, :, prognostic_input_mask] = prognostic_fields
-            if computed_forcing_mask:
-                input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
+            input_tensor_torch[:, -1, :, checkpoint_metadata.prognostic_input_mask] = prognostic_fields
+
+            # if checkpoint_metadata.computed_forcing_mask:
+
+            #     forcing = forcing_and_constants(
+            #         latitudes=input_state["latitudes"],
+            #         longitudes=input_state["longitudes"],
+            #         param=checkpoint_metadata.computed_time_dependent_forcings,
+            #         date=date,
+            #     )
+            #     forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
+            #     forcing = torch.from_numpy(forcing).to(device)
+            #     input_tensor_torch[:, -1, :, checkpoint_metadata.computed_forcing_mask] = forcing
 
             # progress_callback(i)
 
-    """
-
     @cached_property
-    def hour_steps(self):
-        return self.checkpoint.metadata.hour_steps
+    def frequency(self):
+        return self.checkpoint.metadata.frequency
 
     @cached_property
     def lagged(self):
-        result = list(range(0, self.checkpoint.metadata.multi_step))
-        result = [-s * self.hour_steps for s in result]
+        result = list(range(0, self.checkpoint.metadata.multi_step_input))
+        result = [-s * self.frequency for s in result]
         return sorted(result)
 
     def _report_mismatch(self, name, mask, input_fields, input_fields_numpy):
@@ -384,6 +362,43 @@ class Runner:
     def _report(self, name, mask):
         LOG.info("%s: %s", name, [self.checkpoint.metadata.variables[_] for _ in mask])
         LOG.info("%s: (%s items)", name, len(mask))
+
+    def filter_and_sort(self, data, dates):
+        typed_variables = self.checkpoint.typed_variables
+        diagnostic_variables = self.checkpoint.diagnostic_variables
+
+        def _name(field, key, original_metadata):
+            warnings.warn("TEMPORARY CODE: Use the remapping in the metadata")
+            param, levelist = original_metadata.get("param"), original_metadata.get("levelist")
+            if levelist is None:
+                return param
+            return f"{param}_{levelist}"
+
+        data = FieldArray([f.copy(name=_name) for f in data])
+
+        variable_from_input = [
+            v.name for v in typed_variables.values() if v.is_from_input and v.name not in diagnostic_variables
+        ]
+
+        valid_datetime = [_.isoformat() for _ in dates]
+        LOG.info("Selecting fields %s %s", len(data), valid_datetime)
+
+        data = data.sel(name=variable_from_input, valid_datetime=valid_datetime).order_by("name", "valid_datetime")
+
+        expected = len(variable_from_input) * len(dates)
+
+        if len(data) != expected:
+            nvars = plural(len(variable_from_input), "variable")
+            ndates = plural(len(dates), "date")
+            nfields = plural(expected, "field")
+            msg = f"Expected ({nvars}) x ({ndates}) = {nfields}, got {len(data)}"
+            LOG.error("%s", msg)
+            # TODO: print a report
+            raise ValueError(msg)
+
+        assert len(data) == len(variable_from_input) * len(dates)
+
+        return data
 
 
 class DefaultRunner(Runner):

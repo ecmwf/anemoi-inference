@@ -6,6 +6,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from collections import defaultdict
 
 LOG = logging.getLogger(__name__)
 
@@ -49,20 +50,26 @@ class LegacyMixin:
                 except ValueError:
                     pass
 
-            if variable in ("z", "lsm", "sdor", "slor"):
+            if variable in (
+                "z",
+                "lsm",
+                "sdor",
+                "slor",
+                "cl",
+                "cvh",
+                "cvl",
+                "slt",
+                "tvh",
+                "tvl",
+            ):
                 mars = dict(param=variable, levtype="sfc")
                 result[variable] = dict(mars=mars, constant_in_time=True)
                 continue
 
-            if variable in ("cp", "tp"):
+            if variable in ("cp", "tp", "sf", "ro", "ssrd", "strd"):
                 mars = dict(param=variable, levtype="sfc", type="fc", stream="oper")
                 result[variable] = dict(mars=mars, process="accumulation", period=(0, 6))
 
-                continue
-
-            if variable in ("sp", "msl", "10u", "10v", "2t", "2d", "skt", "tcw"):
-                mars = dict(param=variable, levtype="sfc")
-                result[variable] = dict(mars=mars)
                 continue
 
             unkowns.append(variable)
@@ -80,3 +87,25 @@ class LegacyMixin:
         POINTS = {"o96": 40_320, "n320": 542_080}
 
         return POINTS[self.grid.lower()]
+
+    def _legacy_data_request(self):
+        from anemoi.utils.config import find
+
+        LOG.warning("Using legacy `data_request`, please try to patch your weights.")
+
+        result = find(self._metadata["dataset"], "data_request")
+        if len(result) == 0:
+            raise ValueError("No data_request found in metadata")
+
+        if len(result) > 1:
+            check = ("grid", "area")
+            checks = defaultdict(set)
+            for r in result:
+                for c in check:
+                    checks[c].add(str(r.get(c)))
+
+            for c in check:
+                if len(checks[c]) > 1:
+                    LOG.warning("%s is ambigous: %s", c, checks[c])
+
+        return result[0]

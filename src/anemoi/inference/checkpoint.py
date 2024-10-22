@@ -39,8 +39,8 @@ class Checkpoint:
         return self.metadata.multi_step
 
     @property
-    def hour_steps(self):
-        return self.metadata.hour_steps
+    def frequency(self):
+        return self.metadata.frequency
 
     @property
     def retrieve_request(self, *args, **kwargs):
@@ -52,23 +52,23 @@ class Checkpoint:
 
     @property
     def area(self):
-        return self.metadata.rounded_area(self.metadata.area)
+        return self.metadata.area
 
     @property
     def precision(self):
         return self.metadata.precision
 
-    # @property
-    # def select(self):
-    #     return self.metadata.select
-
-    # @property
-    # def order_by(self):
-    #     return self.metadata.order_by
-
     @property
     def number_of_grid_points(self):
         return self.metadata.number_of_grid_points
+
+    @property
+    def typed_variables(self):
+        return self.metadata.typed_variables
+
+    @property
+    def diagnostic_variables(self):
+        return self.metadata.diagnostic_variables
 
     def filter_and_sort(self, data, dates):
         return self.metadata.filter_and_sort(data, dates)
