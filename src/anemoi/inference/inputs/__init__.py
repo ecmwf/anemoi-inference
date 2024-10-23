@@ -6,11 +6,20 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
+import logging
+from abc import ABC
+from abc import abstractmethod
+
+LOG = logging.getLogger(__name__)
 
 
-class Input:
+class Input(ABC):
     """_summary_"""
 
     def __init__(self, checkpoint, verbose=True):
         self.checkpoint = checkpoint
         self._verbose = verbose
+
+    @abstractmethod
+    def create_input_state(self, *, date=None):
+        pass

@@ -15,4 +15,10 @@ LOG = logging.getLogger(__name__)
 
 
 class GribInput(EkdInput):
-    pass
+    """
+    Handles grib
+    """
+
+    def __init__(self, checkpoint, *, use_grib_paramid=False, verbose=True):
+        super().__init__(checkpoint, verbose=verbose)
+        self.use_grib_paramid = use_grib_paramid

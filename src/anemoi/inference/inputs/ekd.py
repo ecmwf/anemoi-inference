@@ -29,7 +29,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def create_input_state(self, input_fields, date=None, dtype=np.float32, flatten=True):
+    def _create_input_state(self, input_fields, date=None, dtype=np.float32, flatten=True):
 
         input_state = dict()
 
@@ -43,7 +43,7 @@ class EkdInput(Input):
         input_state["date"] = date
         fields = input_state["fields"] = dict()
 
-        input_fields = self.filter_and_sort(input_fields, dates)
+        input_fields = self._filter_and_sort(input_fields, dates)
 
         check = defaultdict(set)
 
@@ -91,7 +91,7 @@ class EkdInput(Input):
 
         return input_state
 
-    def filter_and_sort(self, data, dates):
+    def _filter_and_sort(self, data, dates):
         typed_variables = self.checkpoint.typed_variables
         diagnostic_variables = self.checkpoint.diagnostic_variables
 

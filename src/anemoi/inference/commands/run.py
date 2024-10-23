@@ -12,8 +12,9 @@ import logging
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
+from earthkit.data.utils.dates import to_timedelta
 
-from ..inputs.grib import GribInput
+from ..inputs.mars import MarsInput
 from ..precisions import PRECISIONS
 from ..runners.cli import CLIRunner
 from . import Command
@@ -65,8 +66,9 @@ class RunCmd(Command):
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
         command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
-        command_parser.add_argument("--date", help="Date to use for the request.", default=-1)
+        command_parser.add_argument("--date", help="Date to use for the request.")
         command_parser.add_argument("--device", help="Device to use for the inference.", default="cuda")
+        command_parser.add_argument("--lead-time", help="Lead time as a timedelta string.", default="10d")
         command_parser.add_argument(
             "--precision", help="Precision to use for the inference.", choices=sorted(PRECISIONS.keys())
         )
@@ -74,15 +76,16 @@ class RunCmd(Command):
 
     def run(self, args):
 
-        args.date = to_datetime(args.date)
+        if args.date is not None:
+            args.date = to_datetime(args.date)
+
+        args.lead_time = to_timedelta(args.lead_time)
 
         runner = CLIRunner(args.path, device=args.device, precision=args.precision)
 
-        input_fields = runner.retrieve_input_fields(args.date, args.use_grib_paramid)
+        input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
 
-        input = GribInput(runner.checkpoint)
-
-        input_state = input.create_input_state(input_fields)
+        input_state = input.create_input_state(date=args.date)
 
         _dump(input_state)
 
