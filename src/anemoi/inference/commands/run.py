@@ -11,9 +11,10 @@ import datetime
 import logging
 
 import numpy as np
-from earthkit.data.utils.dates import to_datetime
-from earthkit.data.utils.dates import to_timedelta
+from anemoi.utils.dates import as_datetime
+from anemoi.utils.dates import as_timedelta
 
+from ..inputs.gribfile import GribFileInput
 from ..inputs.mars import MarsInput
 from ..precisions import PRECISIONS
 from ..runners.cli import CLIRunner
@@ -72,18 +73,22 @@ class RunCmd(Command):
         command_parser.add_argument(
             "--precision", help="Precision to use for the inference.", choices=sorted(PRECISIONS.keys())
         )
+        command_parser.add_argument("--input", help="GRIB file to use as input.")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
 
         if args.date is not None:
-            args.date = to_datetime(args.date)
+            args.date = as_datetime(args.date)
 
-        args.lead_time = to_timedelta(args.lead_time)
+        args.lead_time = as_timedelta(args.lead_time)
 
         runner = CLIRunner(args.path, device=args.device, precision=args.precision)
 
-        input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
+        if args.input is not None:
+            input = GribFileInput(args.input, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
+        else:
+            input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
 
         input_state = input.create_input_state(date=args.date)
 
