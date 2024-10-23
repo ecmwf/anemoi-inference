@@ -11,9 +11,7 @@ import datetime
 import logging
 from functools import cached_property
 
-from anemoi.utils.checkpoints import has_metadata as has_metadata
 from anemoi.utils.checkpoints import load_metadata
-from anemoi.utils.provenance import gather_provenance_info as gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.metadata import Metadata
@@ -22,7 +20,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Checkpoint:
-    """Represents an inference checkpoint. Provides dot-notation access to the checkpoint's metadata."""
+    """Represents an inference checkpoint."""
 
     def __init__(self, path):
         self.path = path
@@ -31,47 +29,80 @@ class Checkpoint:
         return self.path
 
     @cached_property
-    def metadata(self):
+    def _metadata(self):
         return Metadata(load_metadata(self.path))
 
-    @property
-    def multi_step(self):
-        return self.metadata.multi_step
+    ###########################################################################
+    # Forwards used by the runner
+    # We do not want to expose the metadata object directly
+    # We do not use `getattr` to avoid exposing all methods and make debugging
+    # easier
+    ###########################################################################
 
     @property
     def frequency(self):
-        return self.metadata.frequency
-
-    @property
-    def retrieve_request(self, *args, **kwargs):
-        return self.metadata.retrieve_request(*args, **kwargs)
-
-    @property
-    def grid(self):
-        return self.metadata.grid
-
-    @property
-    def area(self):
-        return self.metadata.area
+        return self._metadata.frequency
 
     @property
     def precision(self):
-        return self.metadata.precision
+        return self._metadata.precision
 
     @property
     def number_of_grid_points(self):
-        return self.metadata.number_of_grid_points
+        return self._metadata.number_of_grid_points
+
+    @property
+    def number_of_input_features(self):
+        return self._metadata.number_of_input_features
+
+    @property
+    def variable_to_input_tensor_index(self):
+        return self._metadata.variable_to_input_tensor_index
+
+    @property
+    def model_computed_variables(self):
+        return self._metadata.model_computed_variables
 
     @property
     def typed_variables(self):
-        return self.metadata.typed_variables
+        return self._metadata.typed_variables
 
     @property
     def diagnostic_variables(self):
-        return self.metadata.diagnostic_variables
+        return self._metadata.diagnostic_variables
 
-    def filter_and_sort(self, data, dates):
-        return self.metadata.filter_and_sort(data, dates)
+    @property
+    def prognostic_output_mask(self):
+        return self._metadata.prognostic_output_mask
+
+    @property
+    def prognostic_input_mask(self):
+        return self._metadata.prognostic_input_mask
+
+    @property
+    def output_tensor_index_to_variable(self):
+        return self._metadata.output_tensor_index_to_variable
+
+    ###########################################################################
+
+    @cached_property
+    def lagged(self):
+        """Return the list of timedelta for the lagged input fields."""
+        result = list(range(0, self._metadata.multi_step_input))
+        result = [-s * self._metadata.frequency for s in result]
+        return sorted(result)
+
+    ###########################################################################
+    # Data retrieval
+    ###########################################################################
+
+    @property
+    def grid(self):
+        return self._metadata.grid
+
+    @property
+    def area(self):
+        return self._metadata.area
 
     def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
         if not isinstance(dates, (list, tuple)):
@@ -81,7 +112,7 @@ class Checkpoint:
 
         result = []
 
-        for r in self.metadata.retrieve_request(use_grib_paramid=use_grib_paramid):
+        for r in self._metadata.mars_requests(use_grib_paramid=use_grib_paramid, **kwargs):
             for date in dates:
 
                 r = r.copy()
@@ -99,6 +130,3 @@ class Checkpoint:
                 result.append(r)
 
         return result
-
-    def summary(self):
-        pass

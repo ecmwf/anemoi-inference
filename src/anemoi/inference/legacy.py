@@ -6,18 +6,26 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import warnings
 from collections import defaultdict
 
 LOG = logging.getLogger(__name__)
+
+
+def warn(func):
+    def wrapper(*args, **kwargs):
+        warnings.warn(f"Using legacy {func.__name__}, please try to patch your weights.")
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 class LegacyMixin:
 
     # `self` is a `Metadata` object
 
+    @warn
     def _legacy_variables_metadata(self):
-
-        LOG.warning("Using legacy `variables_metadata`, please try to patch your weights.")
 
         # Assumes ECMWF data from MARS
         result = {}
@@ -77,21 +85,20 @@ class LegacyMixin:
             result[variable] = dict(mars=mars)
 
         if unkowns:
-            LOG.warning(f"Unknown variables: {unkowns}, assuming an/sfc")
+            warnings.warn(f"Unknown variables: {unkowns}, assuming an/sfc")
 
         return result
 
+    @warn
     def _legacy_number_of_grid_points(self):
-        LOG.warning("Using legacy `number_of_grid_points`, please try to patch your weights.")
 
         POINTS = {"o96": 40_320, "n320": 542_080}
 
         return POINTS[self.grid.lower()]
 
+    @warn
     def _legacy_data_request(self):
         from anemoi.utils.config import find
-
-        LOG.warning("Using legacy `data_request`, please try to patch your weights.")
 
         result = find(self._metadata["dataset"], "data_request")
         if len(result) == 0:
@@ -106,6 +113,6 @@ class LegacyMixin:
 
             for c in check:
                 if len(checks[c]) > 1:
-                    LOG.warning("%s is ambigous: %s", c, checks[c])
+                    warnings.warn("%s is ambigous: %s", c, checks[c])
 
         return result[0]

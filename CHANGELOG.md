@@ -22,6 +22,7 @@ Keep it human-readable, your future self will thank you!
 - Add missing classes in checkpoint handling
 - Rename Condition to State [#24](https://github.com/ecmwf/anemoi-inference/pull/24)
 - Fix pre-commit regex
+- Complete refactoring
 
 ### Removed
 

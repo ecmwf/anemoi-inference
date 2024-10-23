@@ -9,7 +9,6 @@
 import logging
 import warnings
 from collections import defaultdict
-from functools import cached_property
 
 import numpy as np
 import torch
@@ -18,6 +17,7 @@ from anemoi.utils.dates import frequency_to_timedelta
 from anemoi.utils.humanize import plural
 from anemoi.utils.timer import Timer
 from earthkit.data.indexing.fieldlist import FieldArray
+from earthkit.data.utils.dates import to_datetime
 
 from .checkpoint import Checkpoint
 
@@ -40,7 +40,7 @@ AUTOCAST = {
 }
 
 
-def forcing_and_constants(*, latitudes, longitudes, date, param):
+def forcing_and_constants(*, latitudes, longitudes, dates, variables):
     import earthkit.data as ekd
 
     source = UnstructuredGridFieldList.from_values(latitudes=latitudes, longitudes=longitudes)
@@ -48,16 +48,16 @@ def forcing_and_constants(*, latitudes, longitudes, date, param):
     ds = ekd.from_source(
         "forcings",
         source,
-        date=date,
-        param=param,
+        date=dates,
+        param=variables,
     )
 
-    assert len(ds) == len(param) * len(date), (len(ds), len(param), date)
+    assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
 
     return ds
 
 
-def ignore(*args, **kwargs):
+def xxxx_ignore(*args, **kwargs):
     pass
 
 
@@ -65,13 +65,13 @@ def _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields):
     from earthkit.data.indexing.fieldlist import FieldArray
 
     class BugFix:
-        def __init__(self, field):
+        def xxxx__init__(self, field):
             self.field = field
 
-        def __getattr__(self, name):
+        def xxxx__getattr__(self, name):
             return getattr(self.field, name)
 
-        def metadata(self, *args, remapping=None, patches=None, **kwargs):
+        def xxxxmetadata(self, *args, remapping=None, patches=None, **kwargs):
             if remapping is not None or patches is not None:
                 from earthkit.data.core.order import build_remapping
 
@@ -84,7 +84,7 @@ def _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields):
                 raise KeyError("levelist")
             return self.field.metadata(*args, **kwargs)
 
-        def __repr__(self) -> str:
+        def xxxx__repr__(self) -> str:
             return repr(self.field)
 
     fixed = []
@@ -104,37 +104,19 @@ class Runner:
 
     _verbose = True
 
-    def __init__(self, checkpoint, verbose: bool = True):
+    def __init__(self, checkpoint, *, device: str, precision: str = None, verbose: bool = True):
         self.checkpoint = Checkpoint(checkpoint)
         self._verbose = verbose
+        self.device = device
+        self.precision = precision
 
-    def run(
-        self,
-        *,
-        input_state,
-        lead_time,
-        device,
-        start_datetime=None,
-        output_callback=ignore,
-        autocast=None,
-        progress_callback=ignore,
-        grid_field_list=None,
-    ) -> None:
+    def run(self, *, input_state, lead_time):
 
-        if not isinstance(input_state, dict):
-            input_state = self.prepare_input_state(input_state, start_datetime)
-
+        input_state = self.prepare_input_state(input_state)
         input_tensor = self.prepare_input_tensor(input_state)
-        print(input_tensor.shape)
+        yield from self.forecast(lead_time, input_tensor, input_state)
 
-        self.forecast(
-            lead_time, device, input_tensor, input_state, autocast=autocast, progress_callback=progress_callback
-        )
-
-    def prepare_input_state(self, input_fields, start_datetime, dtype=np.float32, flatten=True):
-        """Convert an earthkit FieldArray to a dictionary of numpy arrays."""
-
-        checkpoint_metadata = self.checkpoint.metadata
+    def prepare_input_state(self, input_fields, start_datetime=None, dtype=np.float32, flatten=True):
 
         input_state = dict()
 
@@ -142,7 +124,7 @@ class Runner:
             start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
             LOG.info("start_datetime not provided, using %s as start_datetime", start_datetime.isoformat())
 
-        dates = [start_datetime + h for h in self.lagged]
+        dates = [start_datetime + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         input_state["dates"] = dates
@@ -163,7 +145,7 @@ class Runner:
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
                 fields[name] = np.full(
-                    shape=(len(dates), checkpoint_metadata.number_of_grid_points),
+                    shape=(len(dates), self.checkpoint.number_of_grid_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -189,7 +171,6 @@ class Runner:
         return input_state
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
-        checkpoint_metadata = self.checkpoint.metadata
 
         input_fields = input_state["fields"]
         dates = input_state["dates"]
@@ -199,8 +180,8 @@ class Runner:
         input_tensor_numpy = np.full(
             shape=(
                 len(dates),
-                checkpoint_metadata.number_of_input_features,
-                checkpoint_metadata.number_of_grid_points,
+                self.checkpoint.number_of_input_features,
+                self.checkpoint.number_of_grid_points,
             ),
             fill_value=np.nan,
             dtype=dtype,
@@ -208,7 +189,7 @@ class Runner:
 
         LOG.info("Preparing input tensor with shape %s", input_tensor_numpy.shape)
 
-        variable_to_input_tensor_index = checkpoint_metadata.variable_to_input_tensor_index
+        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
 
         check = set()
 
@@ -225,10 +206,10 @@ class Runner:
         # Add computed forcing variables
 
         # TODO: extend the state instead
-        model_computed_variables = checkpoint_metadata.model_computed_variables
+        model_computed_variables = self.checkpoint.model_computed_variables
         if model_computed_variables:
             fields = forcing_and_constants(
-                latitudes=latitudes, longitudes=longitudes, date=dates, param=model_computed_variables
+                latitudes=latitudes, longitudes=longitudes, dates=dates, variables=model_computed_variables
             )
             for var, field in zip(model_computed_variables, fields):
                 i = variable_to_input_tensor_index[var]
@@ -237,20 +218,22 @@ class Runner:
                 check.add(i)
                 input_tensor_numpy[:, i] = field.to_numpy(dtype=dtype, flatten=True)
 
-        missing = set(range(checkpoint_metadata.number_of_input_features)) - check
+        missing = set(range(self.checkpoint.number_of_input_features)) - check
 
         if missing:
-            index_to_variable = checkpoint_metadata.model_index_to_variable
+            index_to_variable = self.checkpoint.model_index_to_variable
             LOG.error("Missing variables %s", [index_to_variable[i] for i in missing])
 
             assert not missing, missing
 
         return input_tensor_numpy
 
-    def forecast(self, lead_time, device, input_tensor_numpy, input_state, autocast=None, progress_callback=ignore):
-        checkpoint_metadata = self.checkpoint.metadata
+    def forecast(self, lead_time, input_tensor_numpy, input_state):
+
+        autocast = self.precision
+
         if autocast is None:
-            autocast = checkpoint_metadata.precision
+            autocast = self.checkpoint.precision
 
         if autocast is None:
             LOG.warning("No autocast given, using float16")
@@ -259,9 +242,9 @@ class Runner:
         autocast = AUTOCAST[autocast]
         with Timer(f"Loading {self.checkpoint}"):
             try:
-                model = torch.load(self.checkpoint.path, map_location=device, weights_only=False).to(device)
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except Exception:
-                checkpoint_metadata.report_loading_error()
+                self.checkpoint.report_loading_error()
                 raise
 
         model.eval()
@@ -274,19 +257,19 @@ class Runner:
                 -2,
                 -1,
             )[np.newaxis, ...]
-        ).to(device)
+        ).to(self.device)
 
         LOG.info("Using autocast %s", autocast)
 
         lead_time = frequency_to_timedelta(lead_time)
-        steps = lead_time // self.frequency
+        steps = lead_time // self.checkpoint.frequency
 
-        LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.frequency, steps)
+        LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.checkpoint.frequency, steps)
 
-        # output_tensor_index_to_variable = checkpoint_metadata.output_tensor_index_to_variable
-        # prognostic_output_mask = checkpoint_metadata.prognostic_output_mask
-        # prognostic_input_mask = checkpoint_metadata.prognostic_input_mask
-        # computed_forcing_mask = checkpoint_metadata.computed_forcing_mask
+        # output_tensor_index_to_variable = self.checkpoint.output_tensor_index_to_variable
+        # prognostic_output_mask = self.checkpoint.prognostic_output_mask
+        # prognostic_input_mask = self.checkpoint.prognostic_input_mask
+        # computed_forcing_mask = self.checkpoint.computed_forcing_mask
 
         result = input_state.copy()
         result["fields"] = dict()
@@ -297,71 +280,45 @@ class Runner:
         )
 
         for i in range(steps):
-            step = (i + 1) * self.frequency
+            step = (i + 1) * self.checkpoint.frequency
             date = start_datetime + step
             LOG.info("Forecasting step %s (%s)", step, date)
 
             result["dates"] = [date]
 
             # Predict next state of atmosphere
-            with torch.autocast(device_type=device, dtype=autocast):
+            with torch.autocast(device_type=self.device, dtype=autocast):
                 y_pred = model.predict_step(input_tensor_torch)
 
             # Detach tensor and squeeze (should we detach here?)
             output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             for i in range(output.shape[1]):
-                result["fields"][checkpoint_metadata.output_tensor_index_to_variable[i]] = output[:, i]
+                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
-            prognostic_fields = y_pred[..., checkpoint_metadata.prognostic_output_mask]
+            yield result
+
+            prognostic_fields = y_pred[..., self.checkpoint.prognostic_output_mask]
 
             # Compute new forcing
 
             # Update dynamic tensor for next iteration
             input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-            input_tensor_torch[:, -1, :, checkpoint_metadata.prognostic_input_mask] = prognostic_fields
+            input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = prognostic_fields
 
-            # if checkpoint_metadata.computed_forcing_mask:
+            # if self.checkpoint.computed_forcing_mask:
 
             #     forcing = forcing_and_constants(
             #         latitudes=input_state["latitudes"],
             #         longitudes=input_state["longitudes"],
-            #         param=checkpoint_metadata.computed_time_dependent_forcings,
+            #         param=self.checkpoint.computed_time_dependent_forcings,
             #         date=date,
             #     )
             #     forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
             #     forcing = torch.from_numpy(forcing).to(device)
-            #     input_tensor_torch[:, -1, :, checkpoint_metadata.computed_forcing_mask] = forcing
+            #     input_tensor_torch[:, -1, :, self.checkpoint.computed_forcing_mask] = forcing
 
             # progress_callback(i)
-
-    @cached_property
-    def frequency(self):
-        return self.checkpoint.metadata.frequency
-
-    @cached_property
-    def lagged(self):
-        result = list(range(0, self.checkpoint.metadata.multi_step_input))
-        result = [-s * self.frequency for s in result]
-        return sorted(result)
-
-    def _report_mismatch(self, name, mask, input_fields, input_fields_numpy):
-        LOG.error("Mismatch in %s and input_fields", name)
-        LOG.error("%s: %s shape=(variables)", name, mask.shape)
-        LOG.error("input_fields_numpy: %s shape=(dates, variables, grid)", input_fields_numpy.shape)
-        LOG.error("MASK : %s", [self.checkpoint.metadata.variables[_] for _ in mask])
-
-        # remapping = self.checkpoint.metadata.select["remapping"]
-        # names = list(remapping.keys())
-
-        # LOGGER.error(
-        #     "INPUT: %s", [input_fields[i].metadata(*names, remapping=remapping) for i in range(len(input_fields) // 2)]
-        # )
-        raise ValueError(f"Mismatch in {name} and input_fields")
-
-    def _report(self, name, mask):
-        LOG.info("%s: %s", name, [self.checkpoint.metadata.variables[_] for _ in mask])
-        LOG.info("%s: (%s items)", name, len(mask))
 
     def filter_and_sort(self, data, dates):
         typed_variables = self.checkpoint.typed_variables
@@ -410,4 +367,50 @@ class DefaultRunner(Runner):
         _description_
     """
 
-    pass
+    def input_fields(self, date=-1, use_grib_paramid=False):
+        import earthkit.data as ekd
+
+        def rounded_area(area):
+            try:
+                surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+                if surface > 0.98:
+                    return [90, 0.0, -90, 360]
+            except TypeError:
+                pass
+            return area
+
+        def _(r):
+            mars = r.copy()
+            for k, v in r.items():
+                if isinstance(v, (list, tuple)):
+                    mars[k] = "/".join(str(x) for x in v)
+                else:
+                    mars[k] = str(v)
+
+            return ",".join(f"{k}={v}" for k, v in mars.items())
+
+        date = to_datetime(date)
+        dates = [date + h for h in self.checkpoint.lagged]
+
+        requests = self.checkpoint.mars_requests(
+            dates=dates,
+            expver="0001",
+            use_grib_paramid=use_grib_paramid,
+        )
+
+        input_fields = ekd.from_source("empty")
+        for r in requests:
+            if r.get("class") in ("rd", "ea"):
+                r["class"] = "od"
+
+            if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
+                r["stream"] = "scda"
+
+            r["grid"] = self.checkpoint.grid
+            r["area"] = rounded_area(self.checkpoint.area)
+
+            print("MARS", _(r))
+
+            input_fields += ekd.from_source("mars", r)
+
+        return input_fields

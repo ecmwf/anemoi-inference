@@ -21,38 +21,6 @@ from .patch import PatchMixin
 LOG = logging.getLogger(__name__)
 
 
-def _compress_list(values):
-    if len(values) < 4:
-        return values
-
-    ranges = [(values[0], values[1], values[1] - values[0])]
-    for i in range(2, len(values)):
-        if values[i] - values[i - 1] == ranges[-1][-1]:
-            ranges[-1] = (ranges[-1][0], values[i], ranges[-1][-1])
-        elif i < len(values) - 1:
-            ranges.append((values[i], values[i + 1], values[i + 1] - values[i]))
-        else:
-            ranges.append((values[i], values[i], 0))
-
-    result = []
-
-    for start, end, diff in ranges:
-        if diff == 0:
-            result.append(start)
-        elif diff == 1:
-            if start + 1 == end:
-                result.append(start)
-                result.append(end)
-            else:
-                result.append(f"{start}-{end}")
-        else:
-            for n in range(start, end + 1, diff):
-                result.append(n)
-
-    result = ", ".join(str(i) for i in result)
-    return f"[{result}]"
-
-
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
@@ -126,11 +94,11 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def prognostic_output_mask(self):
-        return np.array(self._indices["model"]["output"]["prognostic"])
+        return np.array(self._indices.model.output.prognostic)
 
     @cached_property
     def prognostic_input_mask(self):
-        return np.array(self._indices["model"]["input"]["prognostic"])
+        return np.array(self._indices.model.input.prognostic)
 
     ###########################################################################
     # Variables
@@ -184,7 +152,9 @@ class Metadata(PatchMixin, LegacyMixin):
     def area(self):
         return self._data_request.get("area")
 
-    def retrieve_request(self, use_grib_paramid=False):
+    def mars_requests(self, use_grib_paramid=False, **kwargs):
+        """Return a list of MARS requests for the variables in the dataset"""
+
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
@@ -201,16 +171,17 @@ class Metadata(PatchMixin, LegacyMixin):
             if variable in self.diagnostic_variables:
                 continue
 
-            metadata = metadata["mars"].copy()
+            mars = metadata["mars"].copy()
+            mars.update(kwargs)  # We do it here so that the Availability can use that information
 
-            key = tuple(metadata.get(k) for k in keys)
+            key = tuple(mars.get(k) for k in keys)
             for k in pop:
                 metadata.pop(k, None)
 
             if use_grib_paramid and "param" in metadata:
-                metadata["param"] = shortname_to_paramid(metadata["param"])
+                mars["param"] = shortname_to_paramid(metadata["param"])
 
-            requests[key].append(metadata)
+            requests[key].append(mars)
 
         for reqs in requests.values():
 
@@ -221,21 +192,3 @@ class Metadata(PatchMixin, LegacyMixin):
                         r[k] = v[0]
                 if r:
                     yield r
-
-    # ###########################################################################
-    # # Check if needed
-    # ###########################################################################
-    # @cached_property
-    # def model_index_to_variable(self):
-
-    #     data = self._indices.data.input.full
-    #     model = self._indices.model.input.full
-    #     assert len(data) == len(model)
-
-    #     variables = self.variables
-
-    #     return {i: variables[j] for i, j in zip(model, data)}
-
-    # @cached_property
-    # def model_output_diagnostic(self):
-    #     return self._indices.model.output.diagnostic
