@@ -23,6 +23,7 @@ Keep it human-readable, your future self will thank you!
 - Rename Condition to State [#24](https://github.com/ecmwf/anemoi-inference/pull/24)
 - Fix pre-commit regex
 - ci: extend python versions to include 3.11 and 3.12 [#31] (https://github.com/ecmwf/anemoi-inference/pull/31)
+- Update copyright notice
 
 ### Removed
 
