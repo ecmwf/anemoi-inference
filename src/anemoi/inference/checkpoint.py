@@ -5,8 +5,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from __future__ import annotations
-
 import datetime
 import logging
 from functools import cached_property
@@ -14,7 +12,7 @@ from functools import cached_property
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.metadata import Metadata
+from .metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
