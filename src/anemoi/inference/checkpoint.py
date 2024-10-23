@@ -86,6 +86,10 @@ class Checkpoint:
     def computed_time_dependent_forcings(self):
         return self._metadata.computed_time_dependent_forcings
 
+    @property
+    def accumulations(self):
+        return self._metadata.accumulations
+
     ###########################################################################
 
     @cached_property

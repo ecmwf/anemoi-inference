@@ -25,21 +25,58 @@ from .precisions import PRECISIONS
 LOG = logging.getLogger(__name__)
 
 
+class Noop:
+
+    def __call__(self, source):
+        yield from source
+
+
+class Accumulator:
+    """Accumulate fields from zero and return the accumulated fields"""
+
+    def __init__(self, accumulations):
+        self.accumulations = accumulations
+        LOG.info("Accumulating fields %s", self.accumulations)
+
+        self.accumulators = {}
+
+    def __call__(self, source):
+        for state in source:
+            for accumulation in self.accumulations:
+                if accumulation in state["fields"]:
+                    self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
+                self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
+                state["fields"][accumulation] = self.accumulators[accumulation]
+
+            yield state
+
+
 class Runner:
     """_summary_"""
 
     _verbose = True
 
-    def __init__(self, checkpoint, *, device: str, precision: str = None, verbose: bool = True):
+    def __init__(self, checkpoint, *, accumulations=True, device: str, precision: str = None, verbose: bool = True):
         self.checkpoint = Checkpoint(checkpoint, verbose=verbose)
         self._verbose = verbose
         self.device = device
         self.precision = precision
 
+        # This could also be passed as an argument
+
+        self.postprocess = Noop()
+
+        if accumulations is True:
+            # Get accumulations from the checkpoint
+            accumulations = self.checkpoint.accumulations
+
+        if accumulations:
+            self.postprocess = Accumulator(accumulations)
+
     def run(self, *, input_state, lead_time):
 
         input_tensor = self.prepare_input_tensor(input_state)
-        yield from self.forecast(lead_time, input_tensor, input_state)
+        yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
 
     def create_input_state(self, input_fields, date=None, dtype=np.float32, flatten=True):
 
@@ -75,7 +112,14 @@ class Runner:
                 )
 
             date_idx = date_to_index[valid_datetime]
-            fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
+
+            try:
+                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
+            except ValueError:
+                LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
+                LOG.error("dates %s", dates)
+                LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
+                raise
 
             if date_idx in check[name]:
                 LOG.error("Duplicate dates for %s: %s", name, date_idx)

@@ -160,6 +160,11 @@ class Metadata(PatchMixin, LegacyMixin):
         """Returns a strongly typed variables"""
         return {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
+    @cached_property
+    def accumulations(self):
+        """Return the indices of the variables that are accumulations"""
+        return [v.name for v in self.typed_variables.values() if v.is_accumulation]
+
     ###########################################################################
     # Data retrieval
     ###########################################################################
