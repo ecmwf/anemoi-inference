@@ -25,30 +25,13 @@ from .precisions import PRECISIONS
 LOG = logging.getLogger(__name__)
 
 
-def forcing_and_constants(*, latitudes, longitudes, dates, variables):
-    import earthkit.data as ekd
-
-    source = UnstructuredGridFieldList.from_values(latitudes=latitudes, longitudes=longitudes)
-
-    ds = ekd.from_source(
-        "forcings",
-        source,
-        date=dates,
-        param=variables,
-    )
-
-    assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
-
-    return ds
-
-
 class Runner:
     """_summary_"""
 
     _verbose = True
 
     def __init__(self, checkpoint, *, device: str, precision: str = None, verbose: bool = True):
-        self.checkpoint = Checkpoint(checkpoint)
+        self.checkpoint = Checkpoint(checkpoint, verbose=verbose)
         self._verbose = verbose
         self.device = device
         self.precision = precision
@@ -121,7 +104,7 @@ class Runner:
         # We allow user provided fields to be used as forcings
         variables = [v for v in self.checkpoint.model_computed_variables if v not in fields]
 
-        forcings = forcing_and_constants(
+        forcings = self.compute_forcings(
             latitudes=latitudes,
             longitudes=longitudes,
             dates=dates,
@@ -257,7 +240,7 @@ class Runner:
 
             if len(forcing_mask) > 0:
 
-                forcing = forcing_and_constants(
+                forcing = self.compute_forcings(
                     latitudes=input_state["latitudes"],
                     longitudes=input_state["longitudes"],
                     variables=forcing_variables,
@@ -316,3 +299,14 @@ class Runner:
         assert len(data) == len(variable_from_input) * len(dates)
 
         return data
+
+    def compute_forcings(self, *, latitudes, longitudes, dates, variables):
+        import earthkit.data as ekd
+
+        source = UnstructuredGridFieldList.from_values(latitudes=latitudes, longitudes=longitudes)
+
+        ds = ekd.from_source("forcings", source, date=dates, param=variables)
+
+        assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
+
+        return ds
