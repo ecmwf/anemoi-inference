@@ -13,19 +13,17 @@ from abc import abstractmethod
 LOG = logging.getLogger(__name__)
 
 
-class Input(ABC):
+class Output(ABC):
     """_summary_"""
 
-    def __init__(self, checkpoint, verbose=True):
+    def __init__(self, checkpoint, *, verbose=True):
         self.checkpoint = checkpoint
         self._verbose = verbose
 
     @abstractmethod
-    def create_input_state(self, *, date=None):
+    def write_initial_state(self, state):
         pass
 
-    def set_private_attributes(self, state):
-        """Provide a way to a subclass to set private attributes in the state
-        dictionary, that may be needed but the output object.
-        """
+    @abstractmethod
+    def write_state(self, state):
         pass

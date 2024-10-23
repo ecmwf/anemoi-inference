@@ -7,56 +7,20 @@
 # nor does it submit to any jurisdiction.
 #
 
-import datetime
 import logging
 
-import numpy as np
 from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import as_timedelta
 
 from ..inputs.gribfile import GribFileInput
 from ..inputs.mars import MarsInput
+from ..outputs.gribfile import GribFileOutput
+from ..outputs.printer import PrinterOutput
 from ..precisions import PRECISIONS
 from ..runners.cli import CLIRunner
 from . import Command
 
 LOGGER = logging.getLogger(__name__)
-
-
-def _dump(state):
-    print()
-    print("😀", end=" ")
-    for key, value in state.items():
-
-        if isinstance(value, datetime.datetime):
-            print(f"{key}={value.isoformat()}", end=" ")
-
-        if isinstance(value, (str, float, int, bool, type(None))):
-            print(f"{key}={value}", end=" ")
-
-        if isinstance(value, np.ndarray):
-            print(f"{key}={value.shape}", end=" ")
-
-    fields = state.get("fields", {})
-
-    print(f"fields={len(fields)}")
-    print()
-
-    names = list(fields.keys())
-    n = 4
-
-    idx = list(range(0, len(names), len(names) // n))
-    idx.append(len(names) - 1)
-    idx = sorted(set(idx))
-
-    for i in idx:
-        name = names[i]
-        field = fields[name]
-        min_value = f"min={np.amin(field):g}"
-        max_value = f"max={np.amax(field):g}"
-        print(f"    {name:8s} shape={field.shape} {min_value:18s} {max_value:18s}")
-
-    print()
 
 
 class RunCmd(Command):
@@ -74,6 +38,8 @@ class RunCmd(Command):
             "--precision", help="Precision to use for the inference.", choices=sorted(PRECISIONS.keys())
         )
         command_parser.add_argument("--input", help="GRIB file to use as input.")
+        command_parser.add_argument("--output", help="GRIB file to use as output.")
+
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
@@ -90,12 +56,17 @@ class RunCmd(Command):
         else:
             input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
 
+        if args.output is not None:
+            output = GribFileOutput(args.output, runner.checkpoint)
+        else:
+            output = PrinterOutput(runner.checkpoint)
+
         input_state = input.create_input_state(date=args.date)
 
-        _dump(input_state)
+        output.write_initial_state(input_state)
 
         for state in runner.run(input_state=input_state, lead_time=240):
-            _dump(state)
+            output.write_state(state)
 
 
 command = RunCmd

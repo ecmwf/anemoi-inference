@@ -40,6 +40,7 @@ class EkdInput(Input):
         dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
+        input_state["reference_date"] = date
         input_state["date"] = date
         fields = input_state["fields"] = dict()
 
@@ -88,6 +89,8 @@ class EkdInput(Input):
                 raise ValueError(f"Missing dates for {name}")
 
         # self.add_initial_forcings_to_input_state(input_state)
+
+        self.set_private_attributes(input_state)
 
         return input_state
 

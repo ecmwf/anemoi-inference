@@ -9,23 +9,22 @@
 
 import logging
 
-from .ekd import EkdInput
+import earthkit.data as ekd
+
+from .grib import GribOutput
 
 LOG = logging.getLogger(__name__)
 
 
-class GribInput(EkdInput):
+class GribFileOutput(GribOutput):
     """
-    Handles grib
+    Handles grib files
     """
 
-    def __init__(self, checkpoint, *, use_grib_paramid=False, verbose=True):
+    def __init__(self, path, checkpoint, *, verbose=True, **kwargs):
         super().__init__(checkpoint, verbose=verbose)
-        self.use_grib_paramid = use_grib_paramid
-        self.grib_templates_for_output = None
+        self.path = path
+        self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
 
-    def set_private_attributes(self, state):
-        """Pass grib templates to the output object"""
-
-        if self.grib_templates_for_output is not None:
-            state["_grib_templates_for_output"] = self.grib_templates_for_output
+    def write_message(self, message, *args, **kwargs):
+        self.output.write(message, *args, **kwargs)
