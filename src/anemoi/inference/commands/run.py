@@ -9,6 +9,8 @@
 
 import logging
 
+from earthkit.data.utils.dates import to_datetime
+
 from ..precisions import PRECISIONS
 from ..runners.default import DefaultRunner
 from . import Command
@@ -33,9 +35,12 @@ class RunCmd(Command):
 
     def run(self, args):
 
+        args.date = to_datetime(args.date)
+
         runner = DefaultRunner(args.path, device=args.device, precision=args.precision)
         input_fields = runner.input_fields(args.date, args.use_grib_paramid)
-        for state in runner.run(input_state=input_fields, lead_time=240):
+
+        for _ in runner.run(input_state=input_fields, lead_time=240):
             pass
 
 

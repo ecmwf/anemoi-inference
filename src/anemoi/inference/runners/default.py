@@ -8,23 +8,14 @@
 
 import logging
 
-from earthkit.data.utils.dates import to_datetime
-
 from ..runner import Runner
 
 LOG = logging.getLogger(__name__)
 
 
 class DefaultRunner(Runner):
-    """_summary_
 
-    Parameters
-    ----------
-    Runner : _type_
-        _description_
-    """
-
-    def input_fields(self, date=-1, use_grib_paramid=False):
+    def input_fields(self, date, use_grib_paramid=False):
         import earthkit.data as ekd
 
         def rounded_area(area):
@@ -46,7 +37,6 @@ class DefaultRunner(Runner):
 
             return ",".join(f"{k}={v}" for k, v in mars.items())
 
-        date = to_datetime(date)
         dates = [date + h for h in self.checkpoint.lagged]
 
         requests = self.checkpoint.mars_requests(

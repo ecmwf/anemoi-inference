@@ -41,44 +41,6 @@ def forcing_and_constants(*, latitudes, longitudes, dates, variables):
     return ds
 
 
-def _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields):
-    from earthkit.data.indexing.fieldlist import FieldArray
-
-    class BugFix:
-        def xxxx__init__(self, field):
-            self.field = field
-
-        def xxxx__getattr__(self, name):
-            return getattr(self.field, name)
-
-        def xxxxmetadata(self, *args, remapping=None, patches=None, **kwargs):
-            if remapping is not None or patches is not None:
-                from earthkit.data.core.order import build_remapping
-
-                remapping = build_remapping(remapping, patches)
-                return remapping(self.metadata)(*args, **kwargs)
-
-            if len(args) > 0 and args[0] == "levelist":
-                if "default" in kwargs:
-                    return kwargs["default"]
-                raise KeyError("levelist")
-            return self.field.metadata(*args, **kwargs)
-
-        def xxxx__repr__(self) -> str:
-            return repr(self.field)
-
-    fixed = []
-    for field in input_fields:
-        if field.metadata("levtype") in ("sfc", "o2d") and field.metadata("edition") == 2:
-            if field.metadata("levelist", default=None) is not None:
-                # LOGGER.warning("Fixing eccodes bug for levtype=sfc and grib2 %s", field)
-                fixed.append(BugFix(field))
-        else:
-            fixed.append(field)
-
-    return FieldArray(fixed)
-
-
 class Runner:
     """_summary_"""
 
@@ -110,7 +72,6 @@ class Runner:
         input_state["dates"] = dates
         fields = input_state["fields"] = dict()
 
-        input_fields = _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields)
         input_fields = self.filter_and_sort(input_fields, dates)
 
         check = defaultdict(set)
@@ -150,12 +111,32 @@ class Runner:
 
         return input_state
 
+    def add_initial_forcings_to_input_state(self, input_state):
+        latitudes = input_state["latitudes"]
+        longitudes = input_state["longitudes"]
+        dates = input_state["dates"]
+        fields = input_state["fields"]
+
+        # We allow user provided fields to be used as forcings
+        variables = [v for v in self.checkpoint.model_computed_variables if v not in fields]
+
+        forcings = forcing_and_constants(
+            latitudes=latitudes,
+            longitudes=longitudes,
+            dates=dates,
+            variables=variables,
+        )
+
+        for name, forcing in zip(variables, forcings):
+            fields[name] = forcing.to_numpy(dtype=np.float32, flatten=True)
+
     def prepare_input_tensor(self, input_state, dtype=np.float32):
+
+        # Add initial forcings to input state if needed
+        self.add_initial_forcings_to_input_state(input_state)
 
         input_fields = input_state["fields"]
         dates = input_state["dates"]
-        latitudes = input_state["latitudes"]
-        longitudes = input_state["longitudes"]
 
         input_tensor_numpy = np.full(
             shape=(
@@ -179,32 +160,15 @@ class Runner:
             if i in check:
                 raise ValueError(f"Duplicate variable {var}/i={i}")
 
-            check.add(i)
-
             input_tensor_numpy[:, i] = field
-
-        # Add computed forcing variables
-
-        # TODO: extend the state instead
-        model_computed_variables = self.checkpoint.model_computed_variables
-        if model_computed_variables:
-            fields = forcing_and_constants(
-                latitudes=latitudes, longitudes=longitudes, dates=dates, variables=model_computed_variables
-            )
-            for var, field in zip(model_computed_variables, fields):
-                i = variable_to_input_tensor_index[var]
-                if i in check:
-                    raise ValueError(f"Duplicate variable {var}/i={i}")
-                check.add(i)
-                input_tensor_numpy[:, i] = field.to_numpy(dtype=dtype, flatten=True)
+            check.add(i)
 
         missing = set(range(self.checkpoint.number_of_input_features)) - check
 
         if missing:
             index_to_variable = self.checkpoint.model_index_to_variable
             LOG.error("Missing variables %s", [index_to_variable[i] for i in missing])
-
-            assert not missing, missing
+            raise ValueError(f"Missing variables {missing}")
 
         return input_tensor_numpy
 
@@ -245,11 +209,6 @@ class Runner:
         steps = lead_time // self.checkpoint.frequency
 
         LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.checkpoint.frequency, steps)
-
-        # output_tensor_index_to_variable = self.checkpoint.output_tensor_index_to_variable
-        # prognostic_output_mask = self.checkpoint.prognostic_output_mask
-        # prognostic_input_mask = self.checkpoint.prognostic_input_mask
-        # computed_forcing_mask = self.checkpoint.computed_forcing_mask
 
         result = input_state.copy()
         result["fields"] = dict()
@@ -306,9 +265,19 @@ class Runner:
 
         def _name(field, key, original_metadata):
             warnings.warn("TEMPORARY CODE: Use the remapping in the metadata")
-            param, levelist = original_metadata.get("param"), original_metadata.get("levelist")
+            param, levelist, levtype = (
+                original_metadata.get("param"),
+                original_metadata.get("levelist"),
+                original_metadata.get("levtype"),
+            )
+
+            # Bug in eccodes that returns levelist for single level fields in GRIB2
+            if levtype in ("sfc", "o2d"):
+                levelist = None
+
             if levelist is None:
                 return param
+
             return f"{param}_{levelist}"
 
         data = FieldArray([f.copy(name=_name) for f in data])
