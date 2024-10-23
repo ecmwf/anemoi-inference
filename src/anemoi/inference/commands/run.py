@@ -39,8 +39,9 @@ class RunCmd(Command):
 
         runner = DefaultRunner(args.path, device=args.device, precision=args.precision)
         input_fields = runner.input_fields(args.date, args.use_grib_paramid)
+        input_state = runner.input_state(input_fields)
 
-        for _ in runner.run(input_state=input_fields, lead_time=240):
+        for _ in runner.run(input_state=input_state, lead_time=240):
             pass
 
 

@@ -38,11 +38,10 @@ class Runner:
 
     def run(self, *, input_state, lead_time):
 
-        input_state = self.prepare_input_state(input_state)
         input_tensor = self.prepare_input_tensor(input_state)
         yield from self.forecast(lead_time, input_tensor, input_state)
 
-    def prepare_input_state(self, input_fields, start_datetime=None, dtype=np.float32, flatten=True):
+    def input_state(self, input_fields, start_datetime=None, dtype=np.float32, flatten=True):
 
         input_state = dict()
 
