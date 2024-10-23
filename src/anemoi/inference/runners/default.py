@@ -15,7 +15,7 @@ LOG = logging.getLogger(__name__)
 
 class DefaultRunner(Runner):
 
-    def input_fields(self, date, use_grib_paramid=False):
+    def retrieve_input_fields(self, date, use_grib_paramid=False):
         import earthkit.data as ekd
 
         def rounded_area(area):

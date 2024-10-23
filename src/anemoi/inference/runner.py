@@ -41,7 +41,7 @@ class Runner:
         input_tensor = self.prepare_input_tensor(input_state)
         yield from self.forecast(lead_time, input_tensor, input_state)
 
-    def input_state(self, input_fields, start_datetime=None, dtype=np.float32, flatten=True):
+    def create_input_state(self, input_fields, start_datetime=None, dtype=np.float32, flatten=True):
 
         input_state = dict()
 
@@ -91,6 +91,8 @@ class Runner:
                 LOG.error("Expected %s", list(date_to_index.keys()))
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
+
+        # self.add_initial_forcings_to_input_state(input_state)
 
         return input_state
 
