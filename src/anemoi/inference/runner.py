@@ -17,27 +17,11 @@ from anemoi.utils.dates import frequency_to_timedelta
 from anemoi.utils.humanize import plural
 from anemoi.utils.timer import Timer
 from earthkit.data.indexing.fieldlist import FieldArray
-from earthkit.data.utils.dates import to_datetime
 
 from .checkpoint import Checkpoint
+from .precisions import PRECISIONS
 
 LOG = logging.getLogger(__name__)
-
-
-AUTOCAST = {
-    "16-mixed": torch.float16,
-    "16": torch.float16,
-    "32": torch.float32,
-    "b16-mixed": torch.bfloat16,
-    "b16": torch.bfloat16,
-    "bf16-mixed": torch.bfloat16,
-    "bf16": torch.bfloat16,
-    "bfloat16": torch.bfloat16,
-    "f16": torch.float16,
-    "f32": torch.float32,
-    "float16": torch.float16,
-    "float32": torch.float32,
-}
 
 
 def forcing_and_constants(*, latitudes, longitudes, dates, variables):
@@ -55,10 +39,6 @@ def forcing_and_constants(*, latitudes, longitudes, dates, variables):
     assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
 
     return ds
-
-
-def xxxx_ignore(*args, **kwargs):
-    pass
 
 
 def _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields):
@@ -239,7 +219,7 @@ class Runner:
             LOG.warning("No autocast given, using float16")
             autocast = "16"
 
-        autocast = AUTOCAST[autocast]
+        autocast = PRECISIONS.get(autocast, autocast)
         with Timer(f"Loading {self.checkpoint}"):
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
@@ -356,61 +336,3 @@ class Runner:
         assert len(data) == len(variable_from_input) * len(dates)
 
         return data
-
-
-class DefaultRunner(Runner):
-    """_summary_
-
-    Parameters
-    ----------
-    Runner : _type_
-        _description_
-    """
-
-    def input_fields(self, date=-1, use_grib_paramid=False):
-        import earthkit.data as ekd
-
-        def rounded_area(area):
-            try:
-                surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
-                if surface > 0.98:
-                    return [90, 0.0, -90, 360]
-            except TypeError:
-                pass
-            return area
-
-        def _(r):
-            mars = r.copy()
-            for k, v in r.items():
-                if isinstance(v, (list, tuple)):
-                    mars[k] = "/".join(str(x) for x in v)
-                else:
-                    mars[k] = str(v)
-
-            return ",".join(f"{k}={v}" for k, v in mars.items())
-
-        date = to_datetime(date)
-        dates = [date + h for h in self.checkpoint.lagged]
-
-        requests = self.checkpoint.mars_requests(
-            dates=dates,
-            expver="0001",
-            use_grib_paramid=use_grib_paramid,
-        )
-
-        input_fields = ekd.from_source("empty")
-        for r in requests:
-            if r.get("class") in ("rd", "ea"):
-                r["class"] = "od"
-
-            if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
-                r["stream"] = "scda"
-
-            r["grid"] = self.checkpoint.grid
-            r["area"] = rounded_area(self.checkpoint.area)
-
-            print("MARS", _(r))
-
-            input_fields += ekd.from_source("mars", r)
-
-        return input_fields

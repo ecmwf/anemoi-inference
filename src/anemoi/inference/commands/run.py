@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # (C) Copyright 2024 ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,11 +7,10 @@
 # nor does it submit to any jurisdiction.
 #
 
-
 import logging
 
-from ..runner import AUTOCAST
-from ..runner import DefaultRunner
+from ..precisions import PRECISIONS
+from ..runners.default import DefaultRunner
 from . import Command
 
 LOGGER = logging.getLogger(__name__)
@@ -29,7 +27,7 @@ class RunCmd(Command):
         command_parser.add_argument("--date", help="Date to use for the request.", default=-1)
         command_parser.add_argument("--device", help="Device to use for the inference.", default="cuda")
         command_parser.add_argument(
-            "--precision", help="Precision to use for the inference.", choices=sorted(AUTOCAST.keys())
+            "--precision", help="Precision to use for the inference.", choices=sorted(PRECISIONS.keys())
         )
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
