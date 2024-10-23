@@ -80,6 +80,11 @@ class LegacyMixin:
 
                 continue
 
+            if variable in ("sp", "msl", "10u", "10v", "2t", "2d", "skt", "tcw"):
+                mars = dict(param=variable, levtype="sfc")
+                result[variable] = dict(mars=mars)
+                continue
+
             unkowns.append(variable)
             mars = dict(param=variable, levtype="sfc")
             result[variable] = dict(mars=mars)

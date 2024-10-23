@@ -182,23 +182,9 @@ class Runner:
 
         variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
 
-        check = set()
-
         for var, field in input_fields.items():
             i = variable_to_input_tensor_index[var]
-
-            if i in check:
-                raise ValueError(f"Duplicate variable {var}/i={i}")
-
             input_tensor_numpy[:, i] = field
-            check.add(i)
-
-        missing = set(range(self.checkpoint.number_of_input_features)) - check
-
-        if missing:
-            index_to_variable = self.checkpoint.model_index_to_variable
-            LOG.error("Missing variables %s", [index_to_variable[i] for i in missing])
-            raise ValueError(f"Missing variables {missing}")
 
         return input_tensor_numpy
 

@@ -14,7 +14,7 @@ import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
 from ..precisions import PRECISIONS
-from ..runners.default import DefaultRunner
+from ..runners.cli import CLIRunner
 from . import Command
 
 LOGGER = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ class RunCmd(Command):
 
         args.date = to_datetime(args.date)
 
-        runner = DefaultRunner(args.path, device=args.device, precision=args.precision)
+        runner = CLIRunner(args.path, device=args.device, precision=args.precision)
         input_fields = runner.retrieve_input_fields(args.date, args.use_grib_paramid)
         input_state = runner.create_input_state(input_fields)
 
