@@ -100,6 +100,33 @@ class Metadata(PatchMixin, LegacyMixin):
     def prognostic_input_mask(self):
         return np.array(self._indices.model.input.prognostic)
 
+    @cached_property
+    def computed_time_dependent_forcings(self):
+        """
+        Return the indices and names of the computed forcings that are not constant in time
+        """
+
+        # Mapping between model and data indices
+        mapping = self._make_indices_mapping(
+            self._indices.model.input.full,
+            self._indices.data.input.full,
+        )
+
+        # Mapping between model indices and variable names
+        forcings_variables = {self.variables[mapping[i]]: i for i in self._indices.model.input.forcing}
+        typed_variables = self.typed_variables
+
+        # Filter out the computed forcings that are not constant in time
+        indices = []
+        variables = []
+        for name, idx in sorted(forcings_variables.items(), key=lambda x: x[1]):
+            v = typed_variables[name]
+            if v.is_computed_forcing and not v.is_constant_in_time:
+                indices.append(idx)
+                variables.append(name)
+
+        return np.array(indices), variables
+
     ###########################################################################
     # Variables
     ###########################################################################

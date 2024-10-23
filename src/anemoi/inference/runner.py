@@ -9,6 +9,7 @@
 import logging
 import warnings
 from collections import defaultdict
+from functools import cached_property
 
 import numpy as np
 import torch
@@ -172,8 +173,8 @@ class Runner:
 
         return input_tensor_numpy
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
-
+    @cached_property
+    def autocast(self):
         autocast = self.precision
 
         if autocast is None:
@@ -183,15 +184,19 @@ class Runner:
             LOG.warning("No autocast given, using float16")
             autocast = "16"
 
-        autocast = PRECISIONS.get(autocast, autocast)
+        return PRECISIONS.get(autocast, autocast)
+
+    @cached_property
+    def model(self):
         with Timer(f"Loading {self.checkpoint}"):
             try:
-                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+                return torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except Exception:
                 self.checkpoint.report_loading_error()
                 raise
 
-        model.eval()
+    def forecast(self, lead_time, input_tensor_numpy, input_state):
+        self.model.eval()
 
         torch.set_grad_enabled(False)
 
@@ -203,7 +208,7 @@ class Runner:
             )[np.newaxis, ...]
         ).to(self.device)
 
-        LOG.info("Using autocast %s", autocast)
+        LOG.info("Using autocast %s", self.autocast)
 
         lead_time = frequency_to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.frequency
@@ -226,38 +231,44 @@ class Runner:
             result["dates"] = [date]
 
             # Predict next state of atmosphere
-            with torch.autocast(device_type=self.device, dtype=autocast):
-                y_pred = model.predict_step(input_tensor_torch)
+            with torch.autocast(device_type=self.device, dtype=self.autocast):
+                y_pred = self.model.predict_step(input_tensor_torch)
 
             # Detach tensor and squeeze (should we detach here?)
             output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
+            # Update state
             for i in range(output.shape[1]):
                 result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             yield result
 
+            # Update  tensor for next iteration
+
+            # Copy prognostic fields to input tensor
+
             prognostic_fields = y_pred[..., self.checkpoint.prognostic_output_mask]
-
-            # Compute new forcing
-
-            # Update dynamic tensor for next iteration
             input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
             input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = prognostic_fields
 
-            # if self.checkpoint.computed_forcing_mask:
+            # Compute new forcings if needed
 
-            #     forcing = forcing_and_constants(
-            #         latitudes=input_state["latitudes"],
-            #         longitudes=input_state["longitudes"],
-            #         param=self.checkpoint.computed_time_dependent_forcings,
-            #         date=date,
-            #     )
-            #     forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
-            #     forcing = torch.from_numpy(forcing).to(device)
-            #     input_tensor_torch[:, -1, :, self.checkpoint.computed_forcing_mask] = forcing
+            forcing_mask, forcing_variables = self.checkpoint.computed_time_dependent_forcings
 
-            # progress_callback(i)
+            if len(forcing_mask) > 0:
+
+                forcing = forcing_and_constants(
+                    latitudes=input_state["latitudes"],
+                    longitudes=input_state["longitudes"],
+                    variables=forcing_variables,
+                    dates=[date],
+                )
+
+                forcing = forcing.to_numpy(dtype=np.float32, flatten=True)
+
+                forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
+                forcing = torch.from_numpy(forcing).to(self.device)
+                input_tensor_torch[:, -1, :, forcing_mask] = forcing
 
     def filter_and_sort(self, data, dates):
         typed_variables = self.checkpoint.typed_variables

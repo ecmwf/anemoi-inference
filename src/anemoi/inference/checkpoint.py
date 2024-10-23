@@ -81,6 +81,10 @@ class Checkpoint:
     def output_tensor_index_to_variable(self):
         return self._metadata.output_tensor_index_to_variable
 
+    @property
+    def computed_time_dependent_forcings(self):
+        return self._metadata.computed_time_dependent_forcings
+
     ###########################################################################
 
     @cached_property
