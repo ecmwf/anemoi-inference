@@ -78,8 +78,7 @@ class Checkpoint:
         *,
         exempt_packages: list[str] | None = None,
     ) -> bool:
-        """
-        Validate environment of the checkpoint against the current environment.
+        """Validate environment of the checkpoint against the current environment.
 
         Parameters
         ----------

@@ -14,8 +14,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Version_0_0_0(Metadata):
-    """
-    Reference for very old checkpoints
+    """Reference for very old checkpoints
     Will not work and need to be updated
     """
 
