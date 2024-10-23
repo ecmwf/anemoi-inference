@@ -90,6 +90,14 @@ class Checkpoint:
     def accumulations(self):
         return self._metadata.accumulations
 
+    def default_namer(self, *args, **kwargs):
+        """
+        Return a callable that can be used to name fields.
+        In that case, return the namer that was used to create the
+        training dataset.
+        """
+        return self._metadata.default_namer(*args, **kwargs)
+
     ###########################################################################
 
     @cached_property

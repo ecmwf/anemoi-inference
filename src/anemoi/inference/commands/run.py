@@ -13,6 +13,7 @@ import logging
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
+from ..inputs.grib import GribInput
 from ..precisions import PRECISIONS
 from ..runners.cli import CLIRunner
 from . import Command
@@ -76,8 +77,12 @@ class RunCmd(Command):
         args.date = to_datetime(args.date)
 
         runner = CLIRunner(args.path, device=args.device, precision=args.precision)
+
         input_fields = runner.retrieve_input_fields(args.date, args.use_grib_paramid)
-        input_state = runner.create_input_state(input_fields)
+
+        input = GribInput(runner.checkpoint)
+
+        input_state = input.create_input_state(input_fields)
 
         _dump(input_state)
 

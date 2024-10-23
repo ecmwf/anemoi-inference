@@ -7,6 +7,7 @@
 
 
 import logging
+import warnings
 from collections import defaultdict
 from functools import cached_property
 
@@ -164,6 +165,39 @@ class Metadata(PatchMixin, LegacyMixin):
     def accumulations(self):
         """Return the indices of the variables that are accumulations"""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
+
+    ###########################################################################
+    # Default namer
+    ###########################################################################
+
+    def default_namer(self, *args, **kwargs):
+        """
+        Return a callable that can be used to name earthkit-data fields.
+        In that case, return the namer that was used to create the
+        training dataset.
+        """
+
+        assert len(args) == 0, args
+        assert len(kwargs) == 0, kwargs
+
+        def namer(field, metadata):
+            warnings.warn("TEMPORARY CODE: Use the remapping in the metadata")
+            param, levelist, levtype = (
+                metadata.get("param"),
+                metadata.get("levelist"),
+                metadata.get("levtype"),
+            )
+
+            # Bug in eccodes that returns levelist for single level fields in GRIB2
+            if levtype in ("sfc", "o2d"):
+                levelist = None
+
+            if levelist is None:
+                return param
+
+            return f"{param}_{levelist}"
+
+        return namer
 
     ###########################################################################
     # Data retrieval

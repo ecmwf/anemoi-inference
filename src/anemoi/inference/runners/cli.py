@@ -14,9 +14,7 @@ LOG = logging.getLogger(__name__)
 
 
 class CLIRunner(Runner):
-    """
-    Running the model from the command line using `anemoi-inference run checkpoint.ckpt`.
-    """
+    """Running the model from the command line using `anemoi-inference run checkpoint.ckpt`."""
 
     def retrieve_input_fields(self, date, use_grib_paramid=False):
         import earthkit.data as ekd
