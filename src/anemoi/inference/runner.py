@@ -41,18 +41,18 @@ class Runner:
         input_tensor = self.prepare_input_tensor(input_state)
         yield from self.forecast(lead_time, input_tensor, input_state)
 
-    def create_input_state(self, input_fields, start_datetime=None, dtype=np.float32, flatten=True):
+    def create_input_state(self, input_fields, date=None, dtype=np.float32, flatten=True):
 
         input_state = dict()
 
-        if start_datetime is None:
-            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
-            LOG.info("start_datetime not provided, using %s as start_datetime", start_datetime.isoformat())
+        if date is None:
+            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+            LOG.info("start_datetime not provided, using %s as start_datetime", date.isoformat())
 
-        dates = [start_datetime + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
-        input_state["dates"] = dates
+        input_state["date"] = date
         fields = input_state["fields"] = dict()
 
         input_fields = self.filter_and_sort(input_fields, dates)
@@ -99,8 +99,10 @@ class Runner:
     def add_initial_forcings_to_input_state(self, input_state):
         latitudes = input_state["latitudes"]
         longitudes = input_state["longitudes"]
-        dates = input_state["dates"]
+        date = input_state["date"]
         fields = input_state["fields"]
+
+        dates = [date + h for h in self.checkpoint.lagged]
 
         # We allow user provided fields to be used as forcings
         variables = [v for v in self.checkpoint.model_computed_variables if v not in fields]
@@ -121,11 +123,10 @@ class Runner:
         self.add_initial_forcings_to_input_state(input_state)
 
         input_fields = input_state["fields"]
-        dates = input_state["dates"]
 
         input_tensor_numpy = np.full(
             shape=(
-                len(dates),
+                len(self.checkpoint.lagged),
                 self.checkpoint.number_of_input_features,
                 self.checkpoint.number_of_grid_points,
             ),
@@ -201,18 +202,15 @@ class Runner:
 
         result = input_state.copy()
         result["fields"] = dict()
-        print(result.keys())
 
-        start_datetime = (
-            max(input_state["dates"]) if isinstance(input_state["dates"], (list, tuple)) else input_state["dates"]
-        )
+        start = input_state["date"]
 
         for i in range(steps):
             step = (i + 1) * self.checkpoint.frequency
-            date = start_datetime + step
+            date = start + step
             LOG.info("Forecasting step %s (%s)", step, date)
 
-            result["dates"] = [date]
+            result["date"] = date
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
