@@ -7,6 +7,7 @@
 
 
 import logging
+import os
 import warnings
 from collections import defaultdict
 from functools import cached_property
@@ -129,6 +130,11 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return np.array(indices), variables
 
+    # @cached_property
+    # def input_computed_forcing_variables(self):
+    #     forcings = self._config_data.forcing
+    #     return [_ for _ in forcings if self.typed_variables[_].is_computed_forcing]
+
     ###########################################################################
     # Variables
     ###########################################################################
@@ -142,7 +148,9 @@ class Metadata(PatchMixin, LegacyMixin):
     def variables_metadata(self):
         """Return the variables and their metadata as found in the training dataset"""
         try:
-            return self._metadata.dataset.variables_metadata
+            result = self._metadata.dataset.variables_metadata
+            self._legacy_check_variables_metadata(result)
+            return result
         except AttributeError:
             return self._legacy_variables_metadata()
 
@@ -159,7 +167,17 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def typed_variables(self):
         """Returns a strongly typed variables"""
-        return {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
+        result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
+
+        if "cos_latitude" in result:
+            assert result["cos_latitude"].is_computed_forcing
+            assert result["cos_latitude"].is_constant_in_time
+
+        if "cos_julian_day" in result:
+            assert result["cos_julian_day"].is_computed_forcing
+            assert not result["cos_julian_day"].is_constant_in_time
+
+        return result
 
     @cached_property
     def accumulations(self):
@@ -286,3 +304,15 @@ class Metadata(PatchMixin, LegacyMixin):
 
         LOG.warning("If you are running from a git repository, the versions reported above may not be accurate.")
         LOG.warning("The versions are only updated after a `pip install -e .`")
+
+    ###########################################################################
+    def open_dataset_args_kwargs(self):
+        def _(x):
+            if isinstance(x, dict):
+                return {k: _(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [_(v) for v in x]
+            if isinstance(x, str):
+                return os.path.splitext(os.path.basename(x))[0]
+
+        return _(self._metadata.dataset.arguments.args), _(self._metadata.dataset.arguments.kwargs)

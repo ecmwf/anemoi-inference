@@ -33,7 +33,7 @@ class LegacyMixin:
         for variable in self.variables:
             if variable in (
                 "insolation",
-                "cos_of_solar_zenith_angle",
+                "cos_solar_zenith_angle",
                 "cos_julian_day",
                 "sin_julian_day",
                 "cos_local_time",
@@ -93,6 +93,41 @@ class LegacyMixin:
             warnings.warn(f"Unknown variables: {unkowns}, assuming an/sfc")
 
         return result
+
+    def _legacy_check_variables_metadata(self, variables):
+        first = True
+        for variable, metadata in variables.items():
+            if "mars" not in metadata:
+                if "param" in metadata:
+                    if first:
+                        LOG.warning("Old metadata format detected. Please update your weights.")
+                        first = False
+                    metadata["mars"] = metadata.copy()
+
+            if variable in (
+                "insolation",
+                "cos_solar_zenith_angle",
+                "cos_julian_day",
+                "sin_julian_day",
+                "cos_local_time",
+                "sin_local_time",
+            ):
+                ok = metadata.get("computed_forcing") is True and metadata.get("constant_in_time") is False
+                if not ok:
+                    if first:
+                        LOG.warning("Old metadata format detected. Please update your weights.")
+                        first = False
+                    metadata["computed_forcing"] = True
+                    metadata["constant_in_time"] = False
+
+            if variable in ("cos_latitude", "cos_longitude", "sin_latitude", "sin_longitude"):
+                ok = metadata.get("computed_forcing") is True and metadata.get("constant_in_time") is True
+                if not ok:
+                    if first:
+                        LOG.warning("Old metadata format detected. Please update your weights.")
+                        first = False
+                    metadata["computed_forcing"] = True
+                    metadata["constant_in_time"] = True
 
     @warn
     def _legacy_number_of_grid_points(self):

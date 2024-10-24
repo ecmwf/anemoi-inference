@@ -101,6 +101,9 @@ class Checkpoint:
     def report_error(self):
         self._metadata.report_error()
 
+    def open_dataset_args_kwargs(self):
+        return self._metadata.open_dataset_args_kwargs()
+
     ###########################################################################
 
     @cached_property
@@ -127,6 +130,8 @@ class Checkpoint:
             dates = [dates]
 
         dates = [to_datetime(d) for d in dates]
+
+        assert dates, "No dates provided"
 
         result = []
 

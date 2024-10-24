@@ -26,9 +26,11 @@ class GribOutput(Output):
         self.typed_variables = self.checkpoint.typed_variables
 
     def write_initial_state(self, state):
-        pass
+        state.setdefault("reference_date", state["date"])
 
     def write_state(self, state):
+        state.setdefault("reference_date", state["date"])
+
         reference_date = state["reference_date"]
         date = state["date"]
 
@@ -47,17 +49,15 @@ class GribOutput(Output):
             if variable.is_accumulation:
                 continue
 
-            keys = variable.grib_keys
-
+            keys = {}
             keys.update(
-                type="fc",
                 date=reference_date.strftime("%Y-%m-%d"),
-                time=reference_date.strftime("%H%M"),
+                time=reference_date.hour,
                 step=(date - reference_date).total_seconds() // 3600,
-                expver="anem",
+                typeOfProcessedData=1,  # Forecast
             )
 
-            keys["class"] = "ml"
+            # keys["class"] = "ml"
 
             self.write_message(value, template=templates[name], **keys)
 

@@ -16,6 +16,7 @@ from anemoi.utils.dates import frequency_to_timedelta
 from anemoi.utils.timer import Timer
 
 from .checkpoint import Checkpoint
+from .forcings import ComputedForcings
 from .precisions import PRECISIONS
 
 LOG = logging.getLogger(__name__)
@@ -69,6 +70,12 @@ class Runner:
         if accumulations:
             self.postprocess = Accumulator(accumulations)
 
+        self.dynamic_forcings = []
+
+        forcing_mask, forcing_variables = self.checkpoint.computed_time_dependent_forcings
+        if len(forcing_mask) > 0:
+            self.dynamic_forcings.append(ComputedForcings(self, forcing_variables))
+
     def run(self, *, input_state, lead_time):
         lead_time = frequency_to_timedelta(lead_time)
 
@@ -76,7 +83,7 @@ class Runner:
 
         try:
             yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
-        except TypeError:
+        except (TypeError, ModuleNotFoundError):
             self.checkpoint.report_error()
             raise
 
@@ -90,6 +97,9 @@ class Runner:
 
         # We allow user provided fields to be used as forcings
         variables = [v for v in self.checkpoint.model_computed_variables if v not in fields]
+
+        LOG.info("Computing initial forcings %s", variables)
+        LOG.info("Computing initial forcings %s", self.checkpoint._metadata.input_computed_forcing_variables)
 
         forcings = self.compute_forcings(
             latitudes=latitudes,
@@ -122,9 +132,18 @@ class Runner:
 
         variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
 
+        check = set()
         for var, field in input_fields.items():
             i = variable_to_input_tensor_index[var]
+            if i in check:
+                raise ValueError(f"Duplicate variable {var}/{i} in input fields")
             input_tensor_numpy[:, i] = field
+            check.add(i)
+
+        if len(check) != self.checkpoint.number_of_input_features:
+            missing = set(range(self.checkpoint.number_of_input_features)) - check
+            mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
+            raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
 
         return input_tensor_numpy
 
@@ -144,11 +163,7 @@ class Runner:
     @cached_property
     def model(self):
         with Timer(f"Loading {self.checkpoint}"):
-            try:
-                return torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
-            except Exception:
-                self.checkpoint.report_loading_error()
-                raise
+            return torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()

@@ -10,8 +10,9 @@
 import logging
 
 from anemoi.utils.dates import as_datetime
-from anemoi.utils.dates import as_timedelta
+from anemoi.utils.dates import frequency_to_timedelta as as_timedelta
 
+from ..inputs.dataset import DatasetInput
 from ..inputs.gribfile import GribFileInput
 from ..inputs.icon import IconInput
 from ..inputs.mars import MarsInput
@@ -40,6 +41,7 @@ class RunCmd(Command):
         )
         command_parser.add_argument("--input", help="GRIB file to use as input.")
         command_parser.add_argument("--output", help="GRIB file to use as output.")
+        command_parser.add_argument("--dataset", help="Use anemoi-dataset as input.", action="store_true")
 
         command_parser.add_argument(
             "--icon-grid", help="NetCDF containing the ICON grid (e.g. icon_grid_0026_R03B07_G.nc)."
@@ -62,6 +64,8 @@ class RunCmd(Command):
             input = IconInput(args.input, args.icon_grid, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
         elif args.input is not None:
             input = GribFileInput(args.input, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
+        elif args.dataset:
+            input = DatasetInput(runner.checkpoint)
         else:
             input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
 

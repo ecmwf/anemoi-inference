@@ -24,8 +24,12 @@ class Input(ABC):
     def create_input_state(self, *, date=None):
         pass
 
-    def set_private_attributes(self, state, *args, **kwargs):
+    def set_private_attributes(self, state, value):
         """Provide a way to a subclass to set private attributes in the state
         dictionary, that may be needed but the output object.
         """
         pass
+
+    def input_variables(self):
+        """Return the list of input variables"""
+        return list(self.checkpoint.variable_to_input_tensor_index.keys())

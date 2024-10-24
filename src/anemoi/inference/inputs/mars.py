@@ -61,6 +61,9 @@ class MarsInput(GribInput):
             use_grib_paramid=self.use_grib_paramid,
         )
 
+        if not requests:
+            raise ValueError("No MARS requests found in the checkpoint")
+
         input_fields = ekd.from_source("empty")
         for r in requests:
             if r.get("class") in ("rd", "ea"):

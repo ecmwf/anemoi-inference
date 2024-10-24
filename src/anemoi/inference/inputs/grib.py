@@ -23,7 +23,7 @@ class GribInput(EkdInput):
         super().__init__(checkpoint, verbose=verbose)
         self.use_grib_paramid = use_grib_paramid
 
-    def set_private_attributes(self, state, input_fields, *args, **kwargs):
+    def set_private_attributes(self, state, input_fields):
         # For now we just pass all the fields
         # Later, we can select a relevant subset (e.g. only one
         # level), to save memory
