@@ -99,7 +99,7 @@ class Runner:
         variables = [v for v in self.checkpoint.model_computed_variables if v not in fields]
 
         LOG.info("Computing initial forcings %s", variables)
-        LOG.info("Computing initial forcings %s", self.checkpoint._metadata.input_computed_forcing_variables)
+        # LOG.info("Computing initial forcings %s", self.checkpoint._metadata.input_computed_forcing_variables)
 
         forcings = self.compute_forcings(
             latitudes=latitudes,
