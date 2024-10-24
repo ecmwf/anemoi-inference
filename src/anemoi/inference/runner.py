@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
-from anemoi.utils.timer import Timer
+from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .forcings import ComputedForcings
@@ -55,6 +55,8 @@ class Runner:
 
     def run(self, *, input_state, lead_time):
 
+        # timers = Timers()
+
         lead_time = to_timedelta(lead_time)
 
         input_tensor = self.prepare_input_tensor(input_state)
@@ -64,6 +66,8 @@ class Runner:
         except (TypeError, ModuleNotFoundError):
             self.checkpoint.report_error()
             raise
+
+        # timers.report()
 
     def add_initial_forcings_to_input_state(self, input_state):
         latitudes = input_state["latitudes"]
