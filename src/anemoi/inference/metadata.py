@@ -9,7 +9,6 @@
 import logging
 import os
 import warnings
-from collections import defaultdict
 from functools import cached_property
 
 import numpy as np
@@ -17,6 +16,8 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
+from .forcings import ComputedForcings
+from .forcings import CoupledForcingsFromMars
 from .legacy import LegacyMixin
 from .patch import PatchMixin
 
@@ -242,18 +243,15 @@ class Metadata(PatchMixin, LegacyMixin):
     def area(self):
         return self._data_request.get("area")
 
-    def mars_requests(self, use_grib_paramid=False, **kwargs):
+    def mars_requests(self, *, use_grib_paramid=False, variables=all):
         """Return a list of MARS requests for the variables in the dataset"""
 
         from anemoi.utils.grib import shortname_to_paramid
-        from earthkit.data.utils.availability import Availability
-
-        keys = ("class", "expver", "type", "stream", "levtype")
-        pop = ("date", "time")
-
-        requests = defaultdict(list)
 
         for variable, metadata in self.variables_metadata.items():
+
+            if variables is not all and variable not in variables:
+                continue
 
             if "mars" not in metadata:
                 continue
@@ -262,26 +260,14 @@ class Metadata(PatchMixin, LegacyMixin):
                 continue
 
             mars = metadata["mars"].copy()
-            mars.update(kwargs)  # We do it here so that the Availability can use that information
 
-            key = tuple(mars.get(k) for k in keys)
-            for k in pop:
-                metadata.pop(k, None)
+            for k in ("date", "time"):
+                mars.pop(k, None)
 
             if use_grib_paramid and "param" in mars:
                 mars["param"] = shortname_to_paramid(mars["param"])
 
-            requests[key].append(mars)
-
-        for reqs in requests.values():
-
-            compressed = Availability(reqs)
-            for r in compressed.iterate():
-                for k, v in r.items():
-                    if isinstance(v, (list, tuple)) and len(v) == 1:
-                        r[k] = v[0]
-                if r:
-                    yield r
+            yield mars
 
     ###########################################################################
     # Error reporting
@@ -321,3 +307,41 @@ class Metadata(PatchMixin, LegacyMixin):
                 return os.path.splitext(os.path.basename(x))[0]
 
         return _(self._metadata.dataset.arguments.args), _(self._metadata.dataset.arguments.kwargs)
+
+    ###########################################################################
+    # Not sure this belongs here
+    # We need factories
+    ###########################################################################
+
+    def dynamic_forcings_sources(self, runner):
+
+        result = []
+
+        # This will manage the dynamic forcings that are computed
+        forcing_mask, forcing_variables = self.computed_time_dependent_forcings
+        if len(forcing_mask) > 0:
+            result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
+
+        remaining = (
+            set(self._metadata.config.data.forcing)
+            - set(self.model_computed_variables)
+            - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
+        )
+        if not remaining:
+            return result
+
+        LOG.info("Remaining forcings: %s", remaining)
+
+        # We need the mask of the remaining variable in the model.input space
+
+        mapping = self._make_indices_mapping(
+            self._indices.data.input.full,
+            self._indices.model.input.full,
+        )
+
+        remaining_mask = [mapping[self.variables.index(name)] for name in remaining]
+        LOG.info("Will get the following from MARS for now: %s", remaining_mask)
+
+        result.append(CoupledForcingsFromMars(runner, remaining, remaining_mask))
+
+        return result

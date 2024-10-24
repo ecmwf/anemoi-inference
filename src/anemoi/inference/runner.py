@@ -16,7 +16,6 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
-from .forcings import ComputedForcings
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
@@ -29,11 +28,21 @@ class Runner:
 
     _verbose = True
 
-    def __init__(self, checkpoint, *, accumulations=True, device: str, precision: str = None, verbose: bool = True):
+    def __init__(
+        self,
+        checkpoint,
+        *,
+        accumulations=True,
+        device: str,
+        precision: str = None,
+        report_error=False,
+        verbose: bool = True,
+    ):
         self.checkpoint = Checkpoint(checkpoint, verbose=verbose)
         self._verbose = verbose
         self.device = device
         self.precision = precision
+        self.report_error = report_error
 
         # This could also be passed as an argument
 
@@ -46,12 +55,7 @@ class Runner:
         if accumulations:
             self.postprocess = Accumulator(accumulations)
 
-        self.dynamic_forcings_sources = []
-
-        # This will manage the dynamic forcings that are computed
-        forcing_mask, forcing_variables = self.checkpoint.computed_time_dependent_forcings
-        if len(forcing_mask) > 0:
-            self.dynamic_forcings_sources.append(ComputedForcings(self, forcing_variables, forcing_mask))
+        self.dynamic_forcings_sources = self.checkpoint.dynamic_forcings_sources(self)
 
     def run(self, *, input_state, lead_time):
 
@@ -64,7 +68,8 @@ class Runner:
         try:
             yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
         except (TypeError, ModuleNotFoundError):
-            self.checkpoint.report_error()
+            if self.report_error:
+                self.checkpoint.report_error()
             raise
 
         # timers.report()

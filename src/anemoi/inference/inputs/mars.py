@@ -15,6 +15,50 @@ from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
+# This should be a anemoi.transform.source.mars
+
+
+def retrieve(requests, grid, area, **kwargs):
+    import earthkit.data as ekd
+
+    def rounded_area(area):
+        try:
+            surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+            if surface > 0.98:
+                return [90, 0.0, -90, 360]
+        except TypeError:
+            pass
+        return area
+
+    def _(r):
+        mars = r.copy()
+        for k, v in r.items():
+            if isinstance(v, (list, tuple)):
+                mars[k] = "/".join(str(x) for x in v)
+            else:
+                mars[k] = str(v)
+
+        return ",".join(f"{k}={v}" for k, v in mars.items())
+
+    result = ekd.from_source("empty")
+    for r in requests:
+        if r.get("class") in ("rd", "ea"):
+            r["class"] = "od"
+
+        if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
+            r["stream"] = "scda"
+
+        r["grid"] = grid
+        r["area"] = rounded_area(area)
+
+        r.update(kwargs)
+
+        print("MARS", _(r))
+
+        result += ekd.from_source("mars", r)
+
+    return result
+
 
 class MarsInput(GribInput):
     """Get input fields from MARS"""
@@ -32,26 +76,6 @@ class MarsInput(GribInput):
         return self._create_input_state(self._retrieve(date))
 
     def _retrieve(self, date):
-        import earthkit.data as ekd
-
-        def rounded_area(area):
-            try:
-                surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
-                if surface > 0.98:
-                    return [90, 0.0, -90, 360]
-            except TypeError:
-                pass
-            return area
-
-        def _(r):
-            mars = r.copy()
-            for k, v in r.items():
-                if isinstance(v, (list, tuple)):
-                    mars[k] = "/".join(str(x) for x in v)
-                else:
-                    mars[k] = str(v)
-
-            return ",".join(f"{k}={v}" for k, v in mars.items())
 
         dates = [date + h for h in self.checkpoint.lagged]
 
@@ -61,24 +85,4 @@ class MarsInput(GribInput):
             use_grib_paramid=self.use_grib_paramid,
         )
 
-        if not requests:
-            raise ValueError("No MARS requests found in the checkpoint")
-
-        input_fields = ekd.from_source("empty")
-        for r in requests:
-            if r.get("class") in ("rd", "ea"):
-                r["class"] = "od"
-
-            if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
-                r["stream"] = "scda"
-
-            r["grid"] = self.checkpoint.grid
-            r["area"] = rounded_area(self.checkpoint.area)
-
-            r.update(self.kwargs)
-
-            print("MARS", _(r))
-
-            input_fields += ekd.from_source("mars", r)
-
-        return input_fields
+        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, **self.kwargs)

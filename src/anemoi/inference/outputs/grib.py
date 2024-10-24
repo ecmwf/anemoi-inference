@@ -8,6 +8,7 @@
 #
 
 import logging
+import warnings
 from abc import abstractmethod
 
 from . import Output
@@ -47,6 +48,7 @@ class GribOutput(Output):
         for name, value in state["fields"].items():
             variable = self.typed_variables[name]
             if variable.is_accumulation:
+                warnings.warn("TEMPORARY CODE: accumaulations are not supported yet")
                 continue
 
             keys = {}

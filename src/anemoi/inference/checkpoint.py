@@ -7,6 +7,7 @@
 
 import datetime
 import logging
+from collections import defaultdict
 from functools import cached_property
 
 from anemoi.utils.checkpoints import load_metadata
@@ -83,10 +84,6 @@ class Checkpoint:
         return self._metadata.output_tensor_index_to_variable
 
     @property
-    def computed_time_dependent_forcings(self):
-        return self._metadata.computed_time_dependent_forcings
-
-    @property
     def accumulations(self):
         return self._metadata.accumulations
 
@@ -103,6 +100,9 @@ class Checkpoint:
 
     def open_dataset_args_kwargs(self):
         return self._metadata.open_dataset_args_kwargs()
+
+    def dynamic_forcings_sources(self, runner):
+        return self._metadata.dynamic_forcings_sources(runner)
 
     ###########################################################################
 
@@ -125,7 +125,9 @@ class Checkpoint:
     def area(self):
         return self._metadata.area
 
-    def mars_requests(self, dates, use_grib_paramid=False, **kwargs):
+    def mars_requests(self, dates, use_grib_paramid=False, variables=all, **kwargs):
+        from earthkit.data.utils.availability import Availability
+
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
@@ -135,7 +137,15 @@ class Checkpoint:
 
         result = []
 
-        for r in self._metadata.mars_requests(use_grib_paramid=use_grib_paramid, **kwargs):
+        DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
+        DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
+
+        # The split oper/scda is a bit special
+        KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
+
+        requests = defaultdict(list)
+
+        for r in self._metadata.mars_requests(use_grib_paramid=use_grib_paramid, variables=variables):
             for date in dates:
 
                 r = r.copy()
@@ -148,8 +158,24 @@ class Checkpoint:
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
 
-                r.update(kwargs)
+                r.update(kwargs)  # We do it here so that the Availability can use that information
 
-                result.append(r)
+                keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                key = tuple(r.get(k) for k in keys)
+
+                # Special case because of oper/scda
+
+                requests[key].append(r)
+
+        result = []
+        for reqs in requests.values():
+
+            compressed = Availability(reqs)
+            for r in compressed.iterate():
+                for k, v in r.items():
+                    if isinstance(v, (list, tuple)) and len(v) == 1:
+                        r[k] = v[0]
+                if r:
+                    result.append(r)
 
         return result

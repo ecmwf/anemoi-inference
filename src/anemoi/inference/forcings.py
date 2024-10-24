@@ -7,6 +7,7 @@
 
 
 import logging
+import warnings
 from abc import ABC
 from abc import abstractmethod
 
@@ -46,3 +47,33 @@ class ComputedForcings(Forcings):
         )
 
         return forcing.to_numpy(dtype=np.float32, flatten=True)
+
+
+# TODO: Create a class `CoupledForcingsFromInput`
+# That takes an Input object as a source
+# CoupledForcingsFromInput(Mars)
+
+
+class CoupledForcingsFromMars(Forcings):
+    """Load forcings from Mars."""
+
+    def __init__(self, runner, variables, mask, *, verbose: bool = True):
+        super().__init__(runner, verbose=verbose)
+        self.variables = variables
+        self.mask = mask
+        self.grid = runner.checkpoint.grid
+        self.area = runner.checkpoint.area
+        self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
+
+    def load_forcings(self, state, date):
+        from .inputs.mars import retrieve
+
+        requests = self.runner.checkpoint.mars_requests(
+            date, use_grib_paramid=self.use_grib_paramid, variables=self.variables
+        )
+
+        fields = retrieve(requests=requests, grid=self.grid, area=self.area)
+
+        warnings.warn("TEMPORARY CODE: Fields need to be sorted by name")
+
+        return fields.to_numpy(dtype=np.float32, flatten=True)
