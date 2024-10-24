@@ -15,7 +15,7 @@ from functools import cached_property
 import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
-from anemoi.utils.dates import frequency_to_timedelta
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
@@ -42,7 +42,7 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def frequency(self):
         """Model time stepping frequency"""
-        return frequency_to_timedelta(self._config_data.frequency)
+        return to_timedelta(self._config_data.frequency)
 
     @cached_property
     def precision(self):

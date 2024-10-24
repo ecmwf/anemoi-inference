@@ -12,41 +12,16 @@ from functools import cached_property
 import numpy as np
 import torch
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
-from anemoi.utils.dates import frequency_to_timedelta
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 
 from .checkpoint import Checkpoint
 from .forcings import ComputedForcings
+from .postprocess import Accumulator
+from .postprocess import Noop
 from .precisions import PRECISIONS
 
 LOG = logging.getLogger(__name__)
-
-
-class Noop:
-
-    def __call__(self, source):
-        yield from source
-
-
-class Accumulator:
-    """Accumulate fields from zero and return the accumulated fields"""
-
-    def __init__(self, accumulations):
-        self.accumulations = accumulations
-        LOG.info("Accumulating fields %s", self.accumulations)
-
-        self.accumulators = {}
-
-    def __call__(self, source):
-        for state in source:
-            for accumulation in self.accumulations:
-                if accumulation in state["fields"]:
-                    if accumulation not in self.accumulators:
-                        self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
-                    self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
-                    state["fields"][accumulation] = self.accumulators[accumulation]
-
-            yield state
 
 
 class Runner:
@@ -79,7 +54,8 @@ class Runner:
             self.dynamic_forcings_sources.append(ComputedForcings(self, forcing_variables, forcing_mask))
 
     def run(self, *, input_state, lead_time):
-        lead_time = frequency_to_timedelta(lead_time)
+
+        lead_time = to_timedelta(lead_time)
 
         input_tensor = self.prepare_input_tensor(input_state)
 
@@ -177,7 +153,7 @@ class Runner:
 
         LOG.info("Using autocast %s", self.autocast)
 
-        lead_time = frequency_to_timedelta(lead_time)
+        lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.frequency
 
         LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.checkpoint.frequency, steps)
@@ -198,7 +174,6 @@ class Runner:
             if typed_variables[variable].is_constant_in_time:
                 reset[i] = True
 
-        print(reset)
         check = reset.copy()
 
         for i in range(steps):
@@ -229,6 +204,7 @@ class Runner:
             self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
 
             if not check.all():
+                # Not all variables have been updated
                 missing = []
                 variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
                 mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
@@ -236,7 +212,7 @@ class Runner:
                     if not check[i]:
                         missing.append(mapping[i])
 
-                raise ValueError(f"Missing variables in input tensor: {missing}")
+                raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
