@@ -24,7 +24,7 @@ class Input(ABC):
     def create_input_state(self, *, date=None):
         pass
 
-    def set_private_attributes(self, state):
+    def set_private_attributes(self, state, *args, **kwargs):
         """Provide a way to a subclass to set private attributes in the state
         dictionary, that may be needed but the output object.
         """

@@ -22,10 +22,10 @@ class GribInput(EkdInput):
     def __init__(self, checkpoint, *, use_grib_paramid=False, verbose=True):
         super().__init__(checkpoint, verbose=verbose)
         self.use_grib_paramid = use_grib_paramid
-        self.grib_templates_for_output = None
 
-    def set_private_attributes(self, state):
-        """Pass grib templates to the output object"""
+    def set_private_attributes(self, state, input_fields, *args, **kwargs):
+        # For now we just pass all the fields
+        # Later, we can select a relevant subset (e.g. only one
+        # level), to save memory
 
-        if self.grib_templates_for_output is not None:
-            state["_grib_templates_for_output"] = self.grib_templates_for_output
+        state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}

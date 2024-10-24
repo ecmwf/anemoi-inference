@@ -73,7 +73,12 @@ class Runner:
         lead_time = frequency_to_timedelta(lead_time)
 
         input_tensor = self.prepare_input_tensor(input_state)
-        yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
+
+        try:
+            yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
+        except TypeError:
+            self.checkpoint.report_error()
+            raise
 
     def add_initial_forcings_to_input_state(self, input_state):
         latitudes = input_state["latitudes"]

@@ -13,6 +13,7 @@ from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import as_timedelta
 
 from ..inputs.gribfile import GribFileInput
+from ..inputs.icon import IconInput
 from ..inputs.mars import MarsInput
 from ..outputs.gribfile import GribFileOutput
 from ..outputs.printer import PrinterOutput
@@ -40,6 +41,10 @@ class RunCmd(Command):
         command_parser.add_argument("--input", help="GRIB file to use as input.")
         command_parser.add_argument("--output", help="GRIB file to use as output.")
 
+        command_parser.add_argument(
+            "--icon-grid", help="NetCDF containing the ICON grid (e.g. icon_grid_0026_R03B07_G.nc)."
+        )
+
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
@@ -51,7 +56,11 @@ class RunCmd(Command):
 
         runner = CLIRunner(args.path, device=args.device, precision=args.precision)
 
-        if args.input is not None:
+        if args.icon_grid is not None:
+            if args.input is None:
+                raise ValueError("You must provide an input file to use the ICON plugin")
+            input = IconInput(args.input, args.icon_grid, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
+        elif args.input is not None:
             input = GribFileInput(args.input, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
         else:
             input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)

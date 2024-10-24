@@ -98,6 +98,9 @@ class Checkpoint:
         """
         return self._metadata.default_namer(*args, **kwargs)
 
+    def report_error(self):
+        self._metadata.report_error()
+
     ###########################################################################
 
     @cached_property

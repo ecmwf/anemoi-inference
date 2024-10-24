@@ -29,30 +29,30 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _create_input_state(self, input_fields, date=None, dtype=np.float32, flatten=True):
-
-        input_state = dict()
+    def _create_input_state(
+        self, input_fields, date=None, latitudes=None, longitudes=None, dtype=np.float32, flatten=True
+    ):
 
         if date is None:
             date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
-            LOG.info("start_datetime not provided, using %s as start_datetime", date.isoformat())
+            LOG.info(
+                "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
+            )
 
         dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
-        input_state["reference_date"] = date
-        input_state["date"] = date
-        fields = input_state["fields"] = dict()
+        input_state = dict(reference_date=date, date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
+
+        fields = input_state["fields"]
 
         input_fields = self._filter_and_sort(input_fields, dates)
 
         check = defaultdict(set)
 
-        first = True
         for field in input_fields:
 
-            if first:
-                first = False
+            if input_state["latitudes"] is None:
                 input_state["latitudes"], input_state["longitudes"] = field.grid_points()
 
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
@@ -88,9 +88,10 @@ class EkdInput(Input):
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
 
-        # self.add_initial_forcings_to_input_state(input_state)
-
-        self.set_private_attributes(input_state)
+        # This is our chance to communicate output object
+        # This is useful for GRIB that requires a template field
+        # to be used as output
+        self.set_private_attributes(input_state, input_fields)
 
         return input_state
 

@@ -259,3 +259,30 @@ class Metadata(PatchMixin, LegacyMixin):
                         r[k] = v[0]
                 if r:
                     yield r
+
+    ###########################################################################
+    # Error reporting
+    ###########################################################################
+
+    def report_error(self):
+        from anemoi.utils.provenance import gather_provenance_info
+
+        provenance = self._metadata.provenance_training
+
+        def _print(title, provenance):
+            LOG.info("")
+            LOG.info("%s:", title)
+            for package, git in sorted(provenance.get("git_versions", {}).items()):
+                if package.startswith("anemoi."):
+                    sha1 = git.get("git", {}).get("sha1", "unknown")
+                    LOG.info(f"   {package:20}: {sha1}")
+
+            for package, version in sorted(provenance.get("module_versions", {}).items()):
+                if package.startswith("anemoi."):
+                    LOG.info(f"   {package:20}: {version}")
+
+        _print("Environment used during training", provenance)
+        _print("This environment", gather_provenance_info())
+
+        LOG.warning("If you are running from a git repository, the versions reported above may not be accurate.")
+        LOG.warning("The versions are only updated after a `pip install -e .`")

@@ -32,12 +32,23 @@ class GribOutput(Output):
         reference_date = state["reference_date"]
         date = state["date"]
 
+        if "_grib_templates_for_output" not in state:
+            # We can currently only write grib output if we have a grib input
+            raise ValueError(
+                "GRIB output requires '_grib_templates_for_output' in state, with is provided by the GribInput class."
+            )
+
+        templates = state["_grib_templates_for_output"]
+
+        print(sorted(templates.keys()))
+
         for name, value in state["fields"].items():
             variable = self.typed_variables[name]
             if variable.is_accumulation:
                 continue
 
             keys = variable.grib_keys
+
             keys.update(
                 type="fc",
                 date=reference_date.strftime("%Y-%m-%d"),
@@ -48,7 +59,7 @@ class GribOutput(Output):
 
             keys["class"] = "ml"
 
-            self.write_message(value, **keys)
+            self.write_message(value, template=templates[name], **keys)
 
     @abstractmethod
     def write_message(self, message, *args, **kwargs):

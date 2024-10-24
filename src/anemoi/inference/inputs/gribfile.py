@@ -26,7 +26,4 @@ class GribFileInput(GribInput):
         self.path = path
 
     def create_input_state(self, *, date):
-        if date is None:
-            LOG.warning("MarsInput: `date` parameter not provided, will use the most recent date in the file")
-
-        return self._create_input_state(ekd.from_source("file", self.path))
+        return self._create_input_state(ekd.from_source("file", self.path), date=date)
