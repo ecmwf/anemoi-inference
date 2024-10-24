@@ -150,9 +150,14 @@ class Metadata(PatchMixin, LegacyMixin):
         try:
             result = self._metadata.dataset.variables_metadata
             self._legacy_check_variables_metadata(result)
-            return result
         except AttributeError:
             return self._legacy_variables_metadata()
+
+        if "constant_fields" in self._metadata.dataset:
+            for name in self._metadata.dataset.constant_fields:
+                result[name]["constant_in_time"] = True
+
+        return result
 
     @cached_property
     def diagnostic_variables(self):
@@ -263,8 +268,8 @@ class Metadata(PatchMixin, LegacyMixin):
             for k in pop:
                 metadata.pop(k, None)
 
-            if use_grib_paramid and "param" in metadata:
-                mars["param"] = shortname_to_paramid(metadata["param"])
+            if use_grib_paramid and "param" in mars:
+                mars["param"] = shortname_to_paramid(mars["param"])
 
             requests[key].append(mars)
 

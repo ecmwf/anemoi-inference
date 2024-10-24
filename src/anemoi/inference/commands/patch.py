@@ -30,7 +30,7 @@ class PatchCmd(Command):
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import replace_metadata
 
-        from anemoi.inference.checkpoint.metadata import Metadata
+        from anemoi.inference.metadata import Metadata
 
         original_metadata = load_metadata(args.path)
         metadata = deepcopy(original_metadata)

@@ -41,9 +41,10 @@ class Accumulator:
         for state in source:
             for accumulation in self.accumulations:
                 if accumulation in state["fields"]:
-                    self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
-                self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
-                state["fields"][accumulation] = self.accumulators[accumulation]
+                    if accumulation not in self.accumulators:
+                        self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
+                    self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
+                    state["fields"][accumulation] = self.accumulators[accumulation]
 
             yield state
 
@@ -70,11 +71,12 @@ class Runner:
         if accumulations:
             self.postprocess = Accumulator(accumulations)
 
-        self.dynamic_forcings = []
+        self.dynamic_forcings_sources = []
 
+        # This will manage the dynamic forcings that are computed
         forcing_mask, forcing_variables = self.checkpoint.computed_time_dependent_forcings
         if len(forcing_mask) > 0:
-            self.dynamic_forcings.append(ComputedForcings(self, forcing_variables))
+            self.dynamic_forcings_sources.append(ComputedForcings(self, forcing_variables, forcing_mask))
 
     def run(self, *, input_state, lead_time):
         lead_time = frequency_to_timedelta(lead_time)
@@ -170,13 +172,8 @@ class Runner:
 
         torch.set_grad_enabled(False)
 
-        input_tensor_torch = torch.from_numpy(
-            np.swapaxes(
-                input_tensor_numpy,
-                -2,
-                -1,
-            )[np.newaxis, ...]
-        ).to(self.device)
+        # Create pytorch input tensor
+        input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
         LOG.info("Using autocast %s", self.autocast)
 
@@ -185,10 +182,24 @@ class Runner:
 
         LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.checkpoint.frequency, steps)
 
-        result = input_state.copy()
+        result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
 
         start = input_state["date"]
+
+        # The variable `check` is used to keep track of which variables have been updated
+        # In the input tensor. `reset` is used to reset `check` to False except
+        # when the values are of the constant in time variables
+
+        reset = np.full((input_tensor_torch.shape[-1],), False)
+        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+        typed_variables = self.checkpoint.typed_variables
+        for variable, i in variable_to_input_tensor_index.items():
+            if typed_variables[variable].is_constant_in_time:
+                reset[i] = True
+
+        print(reset)
+        check = reset.copy()
 
         for i in range(steps):
             step = (i + 1) * self.checkpoint.frequency
@@ -212,30 +223,55 @@ class Runner:
 
             # Update  tensor for next iteration
 
-            # Copy prognostic fields to input tensor
+            check[:] = reset
 
-            prognostic_fields = y_pred[..., self.checkpoint.prognostic_output_mask]
-            input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-            input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = prognostic_fields
+            self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+            self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
 
-            # Compute new forcings if needed
+            if not check.all():
+                missing = []
+                variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                for i in range(check.shape[-1]):
+                    if not check[i]:
+                        missing.append(mapping[i])
 
-            forcing_mask, forcing_variables = self.checkpoint.computed_time_dependent_forcings
+                raise ValueError(f"Missing variables in input tensor: {missing}")
 
-            if len(forcing_mask) > 0:
+    def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
-                forcing = self.compute_forcings(
-                    latitudes=input_state["latitudes"],
-                    longitudes=input_state["longitudes"],
-                    variables=forcing_variables,
-                    dates=[date],
-                )
+        # input_tensor_torch is shape: (batch, lagged, variables, values)
+        # batch is always 1
 
-                forcing = forcing.to_numpy(dtype=np.float32, flatten=True)
+        prognostic_output_mask = self.checkpoint.prognostic_output_mask
+        prognostic_input_mask = self.checkpoint.prognostic_input_mask
 
-                forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
-                forcing = torch.from_numpy(forcing).to(self.device)
-                input_tensor_torch[:, -1, :, forcing_mask] = forcing
+        # Copy prognostic fields to input tensor
+        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the lagged dimension
+        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
+            prognostic_fields  # Add new values to last 'lagged' row
+        )
+
+        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
+        check[prognostic_input_mask] = True
+
+    def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+
+        # input_tensor_torch is shape: (batch, lagged, variables, values)
+        # batch is always 1
+
+        for source in self.dynamic_forcings_sources:
+            forcings = source.load_forcings(state, date)  # shape: (variables, values)
+
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+
+            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+
+            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'lagged' row
+
+            assert not check[source.mask].any()  # Make sure we are not overwriting some values
+            check[source.mask] = True
 
     def compute_forcings(self, *, latitudes, longitudes, dates, variables):
         import earthkit.data as ekd
