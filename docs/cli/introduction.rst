@@ -15,7 +15,12 @@ The commands are:
 .. toctree::
     :maxdepth: 1
 
+    run
     metadata
+    inspect
+    patch
+    requests
+
 
 .. argparse::
     :module: anemoi.inference.__main__

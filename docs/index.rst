@@ -30,6 +30,21 @@ of the *Anemoi* packages.
 
    installing
 
+**Tree levels of APIs**
+
+-  :doc:`apis/level1`
+-  :doc:`apis/level2`
+-  :doc:`apis/level3`
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: APIs
+
+   apis/level1
+   apis/level2
+   apis/level3
+
 *********
  Modules
 *********
