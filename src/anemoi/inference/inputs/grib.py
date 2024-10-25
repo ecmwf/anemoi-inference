@@ -28,4 +28,8 @@ class GribInput(EkdInput):
         # Later, we can select a relevant subset (e.g. only one
         # level), to save memory
 
+        # By sorting, we will have the most recent field last
+        # no we can also use that list to write step 0
+        input_fields = input_fields.order_by("valid_datetime")
+
         state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}

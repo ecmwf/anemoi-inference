@@ -28,11 +28,15 @@ class GribOutput(Output):
         self.allow_nans = allow_nans
 
     def write_initial_state(self, state):
-        state.setdefault("reference_date", state["date"])
-        warnings.warn("🚧 TEMPORARY CODE 🚧: write_initial_state not yet implemented")
+        # We trust the GribInput class to provide the templates
+        # matching the input state
+
+        templates = state["_grib_templates_for_output"]
+
+        for name in state["fields"]:
+            self.write_message(None, template=templates[name])
 
     def write_state(self, state):
-        state.setdefault("reference_date", state["date"])
 
         reference_date = state["reference_date"]
         date = state["date"]
