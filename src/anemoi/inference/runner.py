@@ -6,6 +6,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 import logging
 from functools import cached_property
 
@@ -36,6 +37,7 @@ class Runner:
         device: str,
         precision: str = None,
         report_error=False,
+        allow_nans=None,  # can be True of False
         verbose: bool = True,
     ):
         self.checkpoint = Checkpoint(checkpoint, verbose=verbose)
@@ -43,6 +45,7 @@ class Runner:
         self.device = device
         self.precision = precision
         self.report_error = report_error
+        self.allow_nans = allow_nans
 
         # This could also be passed as an argument
 
@@ -58,6 +61,8 @@ class Runner:
         self.dynamic_forcings_sources = self.checkpoint.dynamic_forcings_sources(self)
 
     def run(self, *, input_state, lead_time):
+
+        input_state = self.validate_input_state(input_state)
 
         # timers = Timers()
 
@@ -268,3 +273,71 @@ class Runner:
         assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
 
         return ds
+
+    def validate_input_state(self, input_state):
+
+        if not isinstance(input_state, dict):
+            raise ValueError("Input state must be a dictionnary")
+
+        EXPECT = dict(date=datetime.datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
+
+        for key, klass in EXPECT.item():
+            if key not in input_state:
+                raise ValueError(f"Input state must contain a `{key}` enytry")
+
+            if not isinstance(input_state[key], klass):
+                raise ValueError(
+                    f"Input state entry `{key}` is type {type(input_state[key])}, expected {klass} instead"
+                )
+
+        # Detach from the user's input so we can modify it
+        input_state = input_state.copy()
+        fields = input_state["fields"] = input_state["fields"].copy()
+
+        for latlon in ("latitudes", "longitudes"):
+            if len(input_state[latlon]) != 1:
+                raise ValueError(f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}")
+
+        nlat = len(input_state["latitudes"])
+        nlon = len(input_state["longitudes"])
+        if nlat != nlon:
+            raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
+
+        number_of_grid_points = nlat
+
+        multi_step = len(self.checkpoint.lagged)
+
+        expected_shape = (multi_step, number_of_grid_points)
+
+        # Check field
+        with_nans = []
+
+        for name, field in list(fields.items()):
+
+            # Allow for 1D fields if multi_step is 1
+            if len(field.shape) == 1:
+                field = fields[name] = field.reshape(1, field.shape[0])
+
+            if field.shape != expected_shape:
+                raise ValueError(f"Field `name` has the wrong shape. Expected {expected_shape}, got {field.shape}")
+
+            if not np.isinf(field).any():
+                raise ValueError(f"Field `{name}` contains infinities")
+
+            if np.isnan(field).any():
+                with_nans.append(name)
+
+        if with_nans:
+            msg = f"NaNs found in the following variables: {sorted(with_nans)}"
+            if self.allow_nans is None:
+                LOG.warning(msg)
+                self.allow_nans = True
+
+            if not self.allow_nans:
+                raise ValueError(msg)
+
+        # Needed for some output object, such as GribOutput, to compute `step`
+
+        input_state["reference_date"] = input_state["date"]
+
+        return input_state
