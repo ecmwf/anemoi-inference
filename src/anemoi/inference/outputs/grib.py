@@ -21,13 +21,15 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, checkpoint, *, verbose=True):
+    def __init__(self, checkpoint, *, allow_nans=False, verbose=True):
         super().__init__(checkpoint, verbose=verbose)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
+        self.allow_nans = allow_nans
 
     def write_initial_state(self, state):
         state.setdefault("reference_date", state["date"])
+        warnings.warn("🚧 TEMPORARY CODE 🚧: write_initial_state not yet implemented")
 
     def write_state(self, state):
         state.setdefault("reference_date", state["date"])
@@ -48,7 +50,7 @@ class GribOutput(Output):
         for name, value in state["fields"].items():
             variable = self.typed_variables[name]
             if variable.is_accumulation:
-                warnings.warn("TEMPORARY CODE: accumaulations are not supported yet")
+                warnings.warn("🚧 TEMPORARY CODE 🚧: accumaulations are not supported yet")
                 continue
 
             keys = {}

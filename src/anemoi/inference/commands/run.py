@@ -47,6 +47,8 @@ class RunCmd(Command):
             "--icon-grid", help="NetCDF containing the ICON grid (e.g. icon_grid_0026_R03B07_G.nc)."
         )
 
+        command_parser.add_argument("--allow-nans", help="Allow NaNs in the output.", action="store_true")
+
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):
@@ -56,7 +58,7 @@ class RunCmd(Command):
 
         args.lead_time = as_timedelta(args.lead_time)
 
-        runner = CLIRunner(args.path, device=args.device, precision=args.precision)
+        runner = CLIRunner(args.path, device=args.device, precision=args.precision, allow_nans=args.allow_nans)
 
         if args.icon_grid is not None:
             if args.input is None:
@@ -70,7 +72,7 @@ class RunCmd(Command):
             input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
 
         if args.output is not None:
-            output = GribFileOutput(args.output, runner.checkpoint)
+            output = GribFileOutput(args.output, runner.checkpoint, allow_nans=args.allow_nans)
         else:
             output = PrinterOutput(runner.checkpoint)
 

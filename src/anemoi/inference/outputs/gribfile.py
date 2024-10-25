@@ -10,6 +10,7 @@
 import logging
 
 import earthkit.data as ekd
+import numpy as np
 
 from .grib import GribOutput
 
@@ -21,10 +22,16 @@ class GribFileOutput(GribOutput):
     Handles grib files
     """
 
-    def __init__(self, path, checkpoint, *, verbose=True, **kwargs):
-        super().__init__(checkpoint, verbose=verbose)
+    def __init__(self, path, checkpoint, *, allow_nans=False, verbose=True, **kwargs):
+        super().__init__(checkpoint, allow_nans=allow_nans, verbose=verbose)
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
 
     def write_message(self, message, *args, **kwargs):
-        self.output.write(message, *args, **kwargs)
+        try:
+            self.output.write(message, *args, check_nans=self.allow_nans, **kwargs)
+        except Exception as e:
+            LOG.error("Error writing message to %s: %s", self.path, e)
+            if np.isnan(message.data).any():
+                LOG.error("Message contains NaNs (%s)", kwargs)
+            raise e

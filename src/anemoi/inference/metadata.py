@@ -205,7 +205,7 @@ class Metadata(PatchMixin, LegacyMixin):
         assert len(kwargs) == 0, kwargs
 
         def namer(field, metadata):
-            warnings.warn("TEMPORARY CODE: Use the remapping in the metadata")
+            warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
                 metadata.get("param"),
                 metadata.get("levelist"),

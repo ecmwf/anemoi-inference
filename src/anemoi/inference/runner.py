@@ -281,7 +281,7 @@ class Runner:
 
         EXPECT = dict(date=datetime.datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
 
-        for key, klass in EXPECT.item():
+        for key, klass in EXPECT.items():
             if key not in input_state:
                 raise ValueError(f"Input state must contain a `{key}` enytry")
 
@@ -295,7 +295,7 @@ class Runner:
         fields = input_state["fields"] = input_state["fields"].copy()
 
         for latlon in ("latitudes", "longitudes"):
-            if len(input_state[latlon]) != 1:
+            if len(input_state[latlon].shape) != 1:
                 raise ValueError(f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}")
 
         nlat = len(input_state["latitudes"])
@@ -321,7 +321,7 @@ class Runner:
             if field.shape != expected_shape:
                 raise ValueError(f"Field `name` has the wrong shape. Expected {expected_shape}, got {field.shape}")
 
-            if not np.isinf(field).any():
+            if np.isinf(field).any():
                 raise ValueError(f"Field `{name}` contains infinities")
 
             if np.isnan(field).any():
