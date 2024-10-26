@@ -215,6 +215,9 @@ class Runner:
             check[:] = reset
 
             self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+
+            del y_pred  # Recover memory
+
             self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
 
             if not check.all():

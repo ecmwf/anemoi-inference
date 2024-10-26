@@ -12,7 +12,7 @@ You then create a Runner object and call the `run` method, which will
 yield the state at each time step. Below is a simple code example to
 illustrate this:
 
-.. literalinclude:: code/state.py
+.. literalinclude:: code/level1.py
    :language: python
 
 The field names are the one that where provided when running the

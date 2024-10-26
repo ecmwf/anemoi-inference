@@ -59,6 +59,7 @@ class GribOutput(Output):
 
             keys = {}
             keys.update(
+                edition=2,
                 date=reference_date.strftime("%Y-%m-%d"),
                 time=reference_date.hour,
                 step=(date - reference_date).total_seconds() // 3600,
