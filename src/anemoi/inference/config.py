@@ -27,15 +27,25 @@ class Configuration(BaseModel):
 
     If not provided, the date will depend on the selected Input object ."""
 
-    device: str = "cuda"
     lead_time: str | int | datetime.timedelta = "10d"
-    precision: str | None = None
-    """The precision in which the model should run. If not provided, the model will use the precision used during training."""
-    allow_nans: bool | None = None
-    """"""
-    icon_grid: str | None = None
+
     input: str | None = None
     output: str | None = None
+
+    device: str = "cuda"
+
+    precision: str | None = None
+    """The precision in which the model should run. If not provided, the model will use the precision used during training."""
+
+    allow_nans: bool | None = None
+    """
+    - If None (default), the model will check for NaNs in the input. If NaNs are found, the model issue a warning and `allow_nans` to True.
+    - If False, the model will raise an exception if NaNs are found in the input and output.
+    - If True, the model will allow NaNs in the input and output.
+    """
+
+    icon_grid: str | None = None
+
     write_initial_state: bool = True
     use_grib_paramid: bool = False
     dataset: bool = False
