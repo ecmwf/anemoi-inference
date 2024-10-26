@@ -1,1 +1,1 @@
-anememoi-inference aifs.yaml
+anememoi-inference run aifs.yaml
