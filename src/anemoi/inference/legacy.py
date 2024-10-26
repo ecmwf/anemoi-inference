@@ -153,6 +153,6 @@ class LegacyMixin:
 
             for c in check:
                 if len(checks[c]) > 1:
-                    warnings.warn("%s is ambigous: %s", c, checks[c])
+                    warnings.warn(f"{c} is ambigous: {checks[c]}")
 
         return result[0]

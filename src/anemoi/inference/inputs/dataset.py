@@ -54,13 +54,7 @@ class DatasetInput(Input):
         fields = input_state["fields"]
 
         dataset_dates = self.ds.dates
-
-        print("dataset_dates", dataset_dates[0])
-        accuracy = dataset_dates[0].dtype.name.split("[")[-1][:-1]
-        print("accuracy", accuracy)
-
-        date = np.datetime64(date, accuracy)
-        print("date", date.dtype, date)
+        date = np.datetime64(date)
 
         # TODO: use the fact that the dates are sorted
 
