@@ -1,1 +1,1 @@
-anememoi-inference aifs.yaml date=2020-01-01
+anememoi-inference run aifs.yaml date=2020-01-01
