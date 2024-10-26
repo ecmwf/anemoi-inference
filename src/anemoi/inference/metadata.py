@@ -307,7 +307,11 @@ class Metadata(PatchMixin, LegacyMixin):
             if isinstance(x, str):
                 return os.path.splitext(os.path.basename(x))[0]
 
-        return _(self._metadata.dataset.arguments.args), _(self._metadata.dataset.arguments.kwargs)
+        # TODO: check why self._metadata.dataset.arguments has some None values
+
+        return (), self._metadata.config.dataloader.dataset
+
+        # return _(self._metadata.dataset.arguments.args), _(self._metadata.dataset.arguments.kwargs)
 
     ###########################################################################
     # Not sure this belongs here
