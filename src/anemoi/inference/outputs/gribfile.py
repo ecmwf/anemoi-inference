@@ -22,8 +22,8 @@ class GribFileOutput(GribOutput):
     Handles grib files
     """
 
-    def __init__(self, path, checkpoint, *, allow_nans=False, verbose=True, **kwargs):
-        super().__init__(checkpoint, allow_nans=allow_nans, verbose=verbose)
+    def __init__(self, path, checkpoint, *, allow_nans=False, **kwargs):
+        super().__init__(checkpoint, allow_nans=allow_nans)
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
 

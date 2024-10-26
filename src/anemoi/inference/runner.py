@@ -40,8 +40,8 @@ class Runner:
         allow_nans=None,  # can be True of False
         verbose: bool = True,
     ):
-        self.checkpoint = Checkpoint(checkpoint, verbose=verbose)
-        self._verbose = verbose
+        self.checkpoint = Checkpoint(checkpoint)
+
         self.device = device
         self.precision = precision
         self.report_error = report_error

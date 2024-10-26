@@ -47,6 +47,7 @@ dependencies = [
   "anytree",
   "earthkit-data>=0.10",
   "numpy",
+  "omegaconf",
   "packaging",
   "pyyaml",
   "semantic-version",

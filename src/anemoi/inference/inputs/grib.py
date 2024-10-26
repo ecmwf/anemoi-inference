@@ -19,8 +19,8 @@ class GribInput(EkdInput):
     Handles grib
     """
 
-    def __init__(self, checkpoint, *, use_grib_paramid=False, verbose=True):
-        super().__init__(checkpoint, verbose=verbose)
+    def __init__(self, checkpoint, *, use_grib_paramid=False):
+        super().__init__(checkpoint)
         self.use_grib_paramid = use_grib_paramid
 
     def set_private_attributes(self, state, input_fields):

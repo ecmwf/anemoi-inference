@@ -19,9 +19,8 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
-    def __init__(self, runner, *, verbose: bool = True):
+    def __init__(self, runner):
         self.runner = runner
-        self._verbose = verbose
 
     @abstractmethod
     def load_forcings(self, state, date):
@@ -31,8 +30,8 @@ class Forcings(ABC):
 class ComputedForcings(Forcings):
     """Compute forcings like `cos_julian_day` or `insolation`."""
 
-    def __init__(self, runner, variables, mask, *, verbose: bool = True):
-        super().__init__(runner, verbose=verbose)
+    def __init__(self, runner, variables, mask):
+        super().__init__(runner)
         self.variables = variables
         self.mask = mask
 
@@ -57,8 +56,8 @@ class ComputedForcings(Forcings):
 class CoupledForcingsFromMars(Forcings):
     """Load forcings from Mars."""
 
-    def __init__(self, runner, variables, mask, *, verbose: bool = True):
-        super().__init__(runner, verbose=verbose)
+    def __init__(self, runner, variables, mask):
+        super().__init__(runner)
         self.variables = variables
         self.mask = mask
         self.grid = runner.checkpoint.grid

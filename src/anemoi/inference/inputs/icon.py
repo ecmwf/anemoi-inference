@@ -22,8 +22,8 @@ class IconInput(GribInput):
     WARNING: this code will become a pugin in the future
     """
 
-    def __init__(self, path, icon_grid, checkpoint, *, use_grib_paramid=False, verbose=True):
-        super().__init__(checkpoint, use_grib_paramid=use_grib_paramid, verbose=verbose)
+    def __init__(self, runner, path, icon_grid, *, use_grib_paramid=False):
+        super().__init__(runner, use_grib_paramid=use_grib_paramid)
         self.path = path
         self.icon_grid = icon_grid
 

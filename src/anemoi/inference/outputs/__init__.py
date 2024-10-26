@@ -16,9 +16,9 @@ LOG = logging.getLogger(__name__)
 class Output(ABC):
     """_summary_"""
 
-    def __init__(self, checkpoint, *, verbose=True):
-        self.checkpoint = checkpoint
-        self._verbose = verbose
+    def __init__(self, runner):
+        self.runner = runner
+        self.checkpoint = runner.checkpoint
 
     @abstractmethod
     def write_initial_state(self, state):

@@ -10,6 +10,7 @@
 import logging
 
 import numpy as np
+from earthkit.data.utils.dates import to_datetime
 
 from . import Input
 
@@ -21,11 +22,11 @@ class DatasetInput(Input):
     Handles anemoi dataset as input
     """
 
-    def __init__(self, checkpoint, /, verbose=True, *args, **kwargs):
+    def __init__(self, runner, /, *args, **kwargs):
 
         from anemoi.datasets import open_dataset
 
-        super().__init__(checkpoint, verbose)
+        super().__init__(runner)
 
         if not args and not kwargs:
             args, kwargs = self.checkpoint.open_dataset_args_kwargs()
@@ -41,6 +42,8 @@ class DatasetInput(Input):
         if date is None:
             raise ValueError("`date` must be provided")
 
+        date = to_datetime(date)
+
         input_state = dict(
             date=date,
             latitudes=self.ds.latitudes,
@@ -50,9 +53,14 @@ class DatasetInput(Input):
 
         fields = input_state["fields"]
 
-        date = np.datetime64(date)
-
         dataset_dates = self.ds.dates
+
+        print("dataset_dates", dataset_dates[0])
+        accuracy = dataset_dates[0].dtype.name.split("[")[-1][:-1]
+        print("accuracy", accuracy)
+
+        date = np.datetime64(date, accuracy)
+        print("date", date.dtype, date)
 
         # TODO: use the fact that the dates are sorted
 

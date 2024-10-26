@@ -47,17 +47,6 @@ of the *Anemoi* packages.
    apis/level2
    apis/level3
 
-*********
- Modules
-*********
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-   :caption: Modules
-
-   modules/*
-
 ********************
  Command line tools
 ********************
@@ -74,6 +63,17 @@ of the *Anemoi* packages.
    cli/introduction
    cli/run
    cli/metadata
+
+*********
+ Modules
+*********
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+   :caption: Modules
+
+   modules/*
 
 *****************
  Anemoi packages

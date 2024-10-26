@@ -27,9 +27,8 @@ LOG = logging.getLogger(__name__)
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
-    def __init__(self, metadata, verbose=False):
+    def __init__(self, metadata):
         self._metadata = DotDict(metadata)
-        self._verbose = verbose
 
         # shortcuts
         self._indices = self._metadata.data_indices

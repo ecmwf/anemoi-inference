@@ -53,7 +53,7 @@ def retrieve(requests, grid, area, **kwargs):
 
         r.update(kwargs)
 
-        print("MARS", _(r))
+        LOG.debug("%s", _(r))
 
         result += ekd.from_source("mars", r)
 
@@ -63,15 +63,17 @@ def retrieve(requests, grid, area, **kwargs):
 class MarsInput(GribInput):
     """Get input fields from MARS"""
 
-    def __init__(self, checkpoint, *, use_grib_paramid=False, verbose=True, **kwargs):
-        super().__init__(checkpoint, verbose=verbose)
+    def __init__(self, checkpoint, *, use_grib_paramid=False, **kwargs):
+        super().__init__(checkpoint)
         self.use_grib_paramid = use_grib_paramid
         self.kwargs = kwargs
 
     def create_input_state(self, *, date):
         if date is None:
-            date = to_datetime(-1)
+            date = -1
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
+
+        date = to_datetime(date)
 
         return self._create_input_state(self._retrieve(date))
 

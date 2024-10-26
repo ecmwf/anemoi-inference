@@ -21,16 +21,15 @@ LOG = logging.getLogger(__name__)
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path, verbose=False):
+    def __init__(self, path):
         self.path = path
-        self._verbose = verbose
 
     def __repr__(self):
         return self.path
 
     @cached_property
     def _metadata(self):
-        return Metadata(load_metadata(self.path), verbose=self._verbose)
+        return Metadata(load_metadata(self.path))
 
     ###########################################################################
     # Forwards used by the runner

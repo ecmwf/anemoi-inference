@@ -8,9 +8,9 @@
 #
 
 import logging
+import os
 
-from anemoi.utils.dates import as_datetime
-from anemoi.utils.dates import frequency_to_timedelta as as_timedelta
+from omegaconf import OmegaConf
 
 from ..inputs.dataset import DatasetInput
 from ..inputs.gribfile import GribFileInput
@@ -18,11 +18,28 @@ from ..inputs.icon import IconInput
 from ..inputs.mars import MarsInput
 from ..outputs.gribfile import GribFileOutput
 from ..outputs.printer import PrinterOutput
-from ..precisions import PRECISIONS
 from ..runners.cli import CLIRunner
 from . import Command
 
-LOGGER = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
+
+DEFAULTS = OmegaConf.create(
+    {
+        "checkpoint": "???",
+        "date": None,
+        "device": "cuda",
+        "lead_time": "10d",
+        "precision": None,
+        "allow_nans": False,
+        "icon_grid": None,
+        "input": None,
+        "output": None,
+        "write_initial_state": True,
+        "use_grib_paramid": False,
+        "dataset": None,
+        "env": {},
+    }
+)
 
 
 class RunCmd(Command):
@@ -31,57 +48,56 @@ class RunCmd(Command):
     need_logging = False
 
     def add_arguments(self, command_parser):
-        command_parser.description = self.__doc__
-        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
-        command_parser.add_argument("--date", help="Date to use for the request.")
-        command_parser.add_argument("--device", help="Device to use for the inference.", default="cuda")
-        command_parser.add_argument("--lead-time", help="Lead time as a timedelta string.", default="10d")
-        command_parser.add_argument(
-            "--precision", help="Precision to use for the inference.", choices=sorted(PRECISIONS.keys())
-        )
-        command_parser.add_argument("--input", help="GRIB file to use as input.")
-        command_parser.add_argument("--output", help="GRIB file to use as output.")
-        command_parser.add_argument("--dataset", help="Use anemoi-dataset as input.", action="store_true")
-
-        command_parser.add_argument(
-            "--icon-grid", help="NetCDF containing the ICON grid (e.g. icon_grid_0026_R03B07_G.nc)."
-        )
-
-        command_parser.add_argument("--allow-nans", help="Allow NaNs in the output.", action="store_true")
-
-        command_parser.add_argument("path", help="Path to the checkpoint.")
+        command_parser.add_argument("config", help="Path to config file.")
+        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
 
-        if args.date is not None:
-            args.date = as_datetime(args.date)
+        config = OmegaConf.merge(
+            DEFAULTS,
+            OmegaConf.load(args.config),
+            OmegaConf.from_dotlist(args.overrides),
+        )
+        LOG.info("Configuration:\n\n%s", OmegaConf.to_yaml(config))
 
-        args.lead_time = as_timedelta(args.lead_time)
+        for key, value in config.env.items():
+            os.environ[key] = str(value)
 
-        runner = CLIRunner(args.path, device=args.device, precision=args.precision, allow_nans=args.allow_nans)
+        # TODO: Call `Runner.from_config(...)` instead
+        runner = CLIRunner(
+            config.checkpoint, device=config.device, precision=config.precision, allow_nans=config.allow_nans
+        )
 
-        if args.icon_grid is not None:
-            if args.input is None:
-                raise ValueError("You must provide an input file to use the ICON plugin")
-            input = IconInput(args.input, args.icon_grid, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
-        elif args.input is not None:
-            input = GribFileInput(args.input, runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
-        elif args.dataset:
-            input = DatasetInput(runner.checkpoint)
-        else:
-            input = MarsInput(runner.checkpoint, use_grib_paramid=args.use_grib_paramid)
+        input, output = self.make_input_output(runner, config)
 
-        if args.output is not None:
-            output = GribFileOutput(args.output, runner.checkpoint, allow_nans=args.allow_nans)
-        else:
-            output = PrinterOutput(runner.checkpoint)
+        input_state = input.create_input_state(date=config.date)
 
-        input_state = input.create_input_state(date=args.date)
-
-        output.write_initial_state(input_state)
+        if config.write_initial_state:
+            output.write_initial_state(input_state)
 
         for state in runner.run(input_state=input_state, lead_time=240):
             output.write_state(state)
+
+    def make_input_output(self, runner, config):
+        # TODO: Use factories
+
+        if config.icon_grid is not None:
+            if config.input is None:
+                raise ValueError("You must provide an input file to use the ICON plugin")
+            input = IconInput(runner, config.input, config.icon_grid, use_grib_paramid=config.use_grib_paramid)
+        elif config.input is not None:
+            input = GribFileInput(runner, config.input, runner, use_grib_paramid=config.use_grib_paramid)
+        elif config.dataset:
+            input = DatasetInput(runner)
+        else:
+            input = MarsInput(runner, use_grib_paramid=config.use_grib_paramid)
+
+        if config.output is not None:
+            output = GribFileOutput(config.output, runner, allow_nans=config.allow_nans)
+        else:
+            output = PrinterOutput(runner)
+
+        return input, output
 
 
 command = RunCmd

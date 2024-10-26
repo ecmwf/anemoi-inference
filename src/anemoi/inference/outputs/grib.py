@@ -21,15 +21,20 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, checkpoint, *, allow_nans=False, verbose=True):
-        super().__init__(checkpoint, verbose=verbose)
+    def __init__(self, runner, *, allow_nans=False):
+        super().__init__(runner)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.allow_nans = allow_nans
+        self.quiet = set()
 
     def write_initial_state(self, state):
         # We trust the GribInput class to provide the templates
         # matching the input state
+
+        if "_grib_templates_for_output" not in state:
+            # We can currently only write grib output if we have a grib input
+            raise ValueError("GRIB output only works if the input is GRIB (for now).")
 
         templates = state["_grib_templates_for_output"]
 
@@ -42,22 +47,33 @@ class GribOutput(Output):
         date = state["date"]
 
         if "_grib_templates_for_output" not in state:
-            # We can currently only write grib output if we have a grib input
-            raise ValueError(
-                "GRIB output requires '_grib_templates_for_output' in state, with is provided by the GribInput class."
-            )
+            if "_grib_templates_for_output" not in self.quiet:
+                self.quiet.add("_grib_templates_for_output")
+                LOG.warning("Input is not GRIB.")
 
-        templates = state["_grib_templates_for_output"]
-
-        print(sorted(templates.keys()))
+        templates = state.get("_grib_templates_for_output", {})
 
         for name, value in state["fields"].items():
             variable = self.typed_variables[name]
             if variable.is_accumulation:
-                warnings.warn("🚧 TEMPORARY CODE 🚧: accumaulations are not supported yet")
+                warnings.warn("🚧 TEMPORARY CODE 🚧: accumulations are not supported yet")
                 continue
 
             keys = {}
+
+            template = templates.get(name)
+            if template is None:
+                if name not in self.quiet:
+
+                    LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
+                grib_keys = variable.grib_keys.copy()
+                for key in ("class", "type", "stream", "expver", "date", "time", "step"):
+                    grib_keys.pop(key, None)
+                if name not in self.quiet:
+                    LOG.warning("Using %s", grib_keys)
+                    self.quiet.add(name)
+                keys.update(grib_keys)
+
             keys.update(
                 edition=2,
                 date=reference_date.strftime("%Y-%m-%d"),
@@ -66,9 +82,13 @@ class GribOutput(Output):
                 typeOfProcessedData=1,  # Forecast
             )
 
-            # keys["class"] = "ml"
-
-            self.write_message(value, template=templates[name], **keys)
+            try:
+                self.write_message(value, template=template, **keys)
+            except Exception as e:
+                LOG.error("Error writing field %s", name)
+                LOG.error("Keys: %s", keys)
+                LOG.error("Template: %s", template)
+                raise e
 
     @abstractmethod
     def write_message(self, message, *args, **kwargs):
