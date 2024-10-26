@@ -6,12 +6,15 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
+from __future__ import annotations
 
+import json
 import logging
 import os
 
 from omegaconf import OmegaConf
 
+from ..config import Configuration
 from ..inputs.dataset import DatasetInput
 from ..inputs.gribfile import GribFileInput
 from ..inputs.icon import IconInput
@@ -22,24 +25,6 @@ from ..runners.cli import CLIRunner
 from . import Command
 
 LOG = logging.getLogger(__name__)
-
-DEFAULTS = OmegaConf.create(
-    {
-        "checkpoint": "???",
-        "date": None,
-        "device": "cuda",
-        "lead_time": "10d",
-        "precision": None,
-        "allow_nans": False,
-        "icon_grid": None,
-        "input": None,
-        "output": None,
-        "write_initial_state": True,
-        "use_grib_paramid": False,
-        "dataset": None,
-        "env": {},
-    }
-)
 
 
 class RunCmd(Command):
@@ -54,11 +39,16 @@ class RunCmd(Command):
     def run(self, args):
 
         config = OmegaConf.merge(
-            DEFAULTS,
+            OmegaConf.create(Configuration().dict()),  # Load default configuration
             OmegaConf.load(args.config),
             OmegaConf.from_dotlist(args.overrides),
         )
-        LOG.info("Configuration:\n\n%s", OmegaConf.to_yaml(config))
+
+        # Validate the configuration
+
+        config = Configuration(**config)
+
+        LOG.info("Configuration:\n\n%s", json.dumps(config.dict(), indent=4))
 
         for key, value in config.env.items():
             os.environ[key] = str(value)

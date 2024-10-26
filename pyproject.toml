@@ -49,6 +49,7 @@ dependencies = [
   "numpy",
   "omegaconf",
   "packaging",
+  "pydantic",
   "pyyaml",
   "semantic-version",
   "torch",
@@ -59,6 +60,7 @@ optional-dependencies.all = [ "anemoi-inference[plugin]" ]
 optional-dependencies.dev = [ "anemoi-datasets[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
+  "autodoc-pydantic",
   "nbsphinx",
   "pandoc",
   "rstfmt",

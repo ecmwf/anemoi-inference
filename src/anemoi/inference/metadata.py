@@ -245,6 +245,8 @@ class Metadata(PatchMixin, LegacyMixin):
     def mars_requests(self, *, use_grib_paramid=False, variables=all):
         """Return a list of MARS requests for the variables in the dataset"""
 
+        assert use_grib_paramid
+
         from anemoi.utils.grib import shortname_to_paramid
 
         for variable, metadata in self.variables_metadata.items():

@@ -43,3 +43,6 @@ checkpoint that was trained with one the ICON grid:
 
    This is still work in progress, and content of the YAML configuration
    files will change and the examples above may not work in the future.
+
+
+.. autopydantic_model:: target.usage_model.ExampleSettings
