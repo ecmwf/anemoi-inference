@@ -12,7 +12,7 @@ import json
 import logging
 import os
 
-from omegaconf import OmegaConf
+import yaml
 
 from ..config import Configuration
 from ..inputs.dataset import DatasetInput
@@ -40,24 +40,29 @@ class RunCmd(Command):
 
         # We use OmegaConf to merge the configuration files and the command line overrides
 
-        config = OmegaConf.merge(
-            OmegaConf.create(Configuration().model_dump()),  # Load default configuration
-            OmegaConf.load(args.config),
-            OmegaConf.from_dotlist(args.overrides),
-        )
+        with open(args.config) as f:
+            config = yaml.safe_load(f)
 
-        # Validate the configuration
+        for override in args.overrides:
+            key, value = override.split("=")
+            keys = key.split(".")
+            for key in keys[:-1]:
+                config = config.setdefault(key, {})
+            config[keys[-1]] = value
 
         config = Configuration(**config)
 
-        LOG.info("Configuration:\n\n%s", json.dumps(config.model_dump(), indent=4))
+        LOG.info("Configuration:\n\n%s", json.dumps(config.model_dump(), indent=4, default=str))
 
         for key, value in config.env.items():
             os.environ[key] = str(value)
 
         # TODO: Call `Runner.from_config(...)` instead
         runner = CLIRunner(
-            config.checkpoint, device=config.device, precision=config.precision, allow_nans=config.allow_nans
+            config.checkpoint,
+            device=config.device,
+            precision=config.precision,
+            allow_nans=config.allow_nans,
         )
 
         input, output = self.make_input_output(runner, config)
