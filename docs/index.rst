@@ -58,6 +58,7 @@ of the *Anemoi* packages.
 **Command line tool**
 
 -  :doc:`cli/introduction`
+-  :doc:`cli/run`
 -  :doc:`cli/metadata`
 
 .. toctree::
@@ -66,7 +67,7 @@ of the *Anemoi* packages.
    :caption: Command line tool
 
    cli/introduction
-   cli/checkpoint
+   cli/run
    cli/metadata
 
 *****************
