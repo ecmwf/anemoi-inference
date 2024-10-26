@@ -1,0 +1,1 @@
+anememoi-inference aifs.yaml

@@ -6,10 +6,3 @@
 
 .. literalinclude:: code/level2.py
    :language: python
-
--  Runner
--  Input
--  Output
--  Postprocessor
--  Checkpoint
--  Metadata
