@@ -15,9 +15,12 @@ from pydantic import BaseModel
 
 LOG = logging.getLogger(__name__)
 
+
 class Configuration(BaseModel):
 
-    checkpoint: str = "???"
+    checkpoint: str  # = "???"
+    """A path to the checkpoint file."""
+
     date: str | int | None = None
     device: str = "cuda"
     lead_time: str | int = "10d"

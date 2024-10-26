@@ -75,6 +75,17 @@ of the *Anemoi* packages.
 
    modules/*
 
+*********
+ Schemas
+*********
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+   :caption: Schemas
+
+   schemas/*
+
 *****************
  Anemoi packages
 *****************

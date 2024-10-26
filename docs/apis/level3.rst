@@ -39,10 +39,9 @@ checkpoint that was trained with one the ICON grid:
 .. literalinclude:: code/level3_3.yaml
    :language: yaml
 
+See :ref:`run-config` for more details on the configuration file.
+
 .. warning::
 
    This is still work in progress, and content of the YAML configuration
    files will change and the examples above may not work in the future.
-
-
-.. autopydantic_model:: target.usage_model.ExampleSettings
