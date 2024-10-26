@@ -38,8 +38,10 @@ class RunCmd(Command):
 
     def run(self, args):
 
+        # We use OmegaConf to merge the configuration files and the command line overrides
+
         config = OmegaConf.merge(
-            OmegaConf.create(Configuration().dict()),  # Load default configuration
+            OmegaConf.create(Configuration().model_dump()),  # Load default configuration
             OmegaConf.load(args.config),
             OmegaConf.from_dotlist(args.overrides),
         )
@@ -48,7 +50,7 @@ class RunCmd(Command):
 
         config = Configuration(**config)
 
-        LOG.info("Configuration:\n\n%s", json.dumps(config.dict(), indent=4))
+        LOG.info("Configuration:\n\n%s", json.dumps(config.model_dump(), indent=4))
 
         for key, value in config.env.items():
             os.environ[key] = str(value)

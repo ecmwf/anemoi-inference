@@ -8,6 +8,7 @@
 #
 from __future__ import annotations
 
+import datetime
 import logging
 from typing import Dict
 
@@ -19,9 +20,11 @@ LOG = logging.getLogger(__name__)
 class Configuration(BaseModel):
 
     checkpoint: str  # = "???"
-    """A path to the checkpoint file."""
+    """A path an Anemoi checkpoint file."""
 
-    date: str | int | None = None
+    date: str | int | datetime.datetime | None = None
+    """The starting date for the forecast."""
+
     device: str = "cuda"
     lead_time: str | int = "10d"
     precision: str | None = None
