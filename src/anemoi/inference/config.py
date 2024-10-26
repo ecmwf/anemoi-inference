@@ -23,12 +23,16 @@ class Configuration(BaseModel):
     """A path an Anemoi checkpoint file."""
 
     date: str | int | datetime.datetime | None = None
-    """The starting date for the forecast."""
+    """The starting date for the forecast.
+
+    If not provided, the date will depend on the selected Input object ."""
 
     device: str = "cuda"
-    lead_time: str | int = "10d"
+    lead_time: str | int | datetime.timedelta = "10d"
     precision: str | None = None
-    allow_nans: bool = False
+    """The precision in which the model should run. If not provided, the model will use the precision used during training."""
+    allow_nans: bool | None = None
+    """"""
     icon_grid: str | None = None
     input: str | None = None
     output: str | None = None
@@ -36,3 +40,6 @@ class Configuration(BaseModel):
     use_grib_paramid: bool = False
     dataset: bool = False
     env: Dict[str, str] = {}
+    """Environment variables to set before running the model. This may be useful to control some packages
+    such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
+    is already loaded when the runner is configured."""
