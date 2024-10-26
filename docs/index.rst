@@ -30,7 +30,9 @@ of the *Anemoi* packages.
 
    installing
 
-**Tree levels of APIs**
+*********************
+ Tree levels of APIs
+*********************
 
 -  :doc:`apis/level1`
 -  :doc:`apis/level2`
@@ -52,10 +54,13 @@ of the *Anemoi* packages.
 .. toctree::
    :maxdepth: 1
    :glob:
+   :caption: Modules
 
    modules/*
 
-**Command line tool**
+********************
+ Command line tools
+********************
 
 -  :doc:`cli/introduction`
 -  :doc:`cli/run`
