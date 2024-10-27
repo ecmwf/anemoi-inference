@@ -12,7 +12,7 @@ You then create a Runner object and call the `run` method, which will
 yield the state at each time step. Below is a simple code example to
 illustrate this:
 
-.. literalinclude:: code/level1.py
+.. literalinclude:: code/level1_1.py
    :language: python
 
 The field names are the one that where provided when running the
@@ -49,3 +49,14 @@ As it iterates, the model will produce new states with the same format.
 The ``date`` will represent the forecasted date, and the fields would
 have the forecasted values as NumPy array. These arrays will be of one
 dimensions (the number of grid points), even if the model is multi-step.
+
+*************
+ Checkpoints
+*************
+
+Some newer Anemoi checkpoints have the `latitudes` and `longitudes` used
+during training saved into the checkpoint. The example code above can be
+simplified as follows:
+
+.. literalinclude:: code/level1_2_.py
+   :language: python
