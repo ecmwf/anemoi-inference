@@ -55,9 +55,9 @@ dimensions (the number of grid points), even if the model is multi-step.
 *************
 
 Some newer version of :ref:`anemoi-training
-<anemoi-training:index-page>` will store `latitudes` and `longitudes`
-used during training into the checkpoint. The example code above can be
-simplified as follows:
+<anemoi-training:index-page>` will store the `latitudes` and
+`longitudes` used during training into the checkpoint. The example code
+above can be simplified as follows:
 
 .. literalinclude:: code/level1_2_.py
    :language: python
