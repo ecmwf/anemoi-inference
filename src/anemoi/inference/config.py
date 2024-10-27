@@ -19,20 +19,23 @@ LOG = logging.getLogger(__name__)
 
 class Configuration(BaseModel):
 
-    checkpoint: str  # = "???"
+    checkpoint: str
     """A path an Anemoi checkpoint file."""
 
     date: str | int | datetime.datetime | None = None
-    """The starting date for the forecast.
-
-    If not provided, the date will depend on the selected Input object ."""
+    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`.
+    """
 
     lead_time: str | int | datetime.timedelta = "10d"
+    """The lead time for the forecast. This can be a string, an integer or a timedelta object.
+    If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
+    """
 
     input: str | None = None
     output: str | None = None
 
     device: str = "cuda"
+    """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
 
     precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
@@ -47,8 +50,14 @@ class Configuration(BaseModel):
     icon_grid: str | None = None
 
     write_initial_state: bool = True
+    """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
+    written."""
+
     use_grib_paramid: bool = False
-    dataset: bool = False
+    """If True, the MARS input will use the GRIB parameter ID instead of the parameter name when issuing requests to MARS."""
+
+    dataset: bool | Dict = False
+
     env: Dict[str, str] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended

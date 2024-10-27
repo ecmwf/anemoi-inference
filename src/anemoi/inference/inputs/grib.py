@@ -16,7 +16,7 @@ LOG = logging.getLogger(__name__)
 
 class GribInput(EkdInput):
     """
-    Handles grib
+    Handles GRIB input fields.
     """
 
     def __init__(self, checkpoint, *, use_grib_paramid=False):
