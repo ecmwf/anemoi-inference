@@ -95,6 +95,11 @@ class LegacyMixin:
         return result
 
     def _legacy_check_variables_metadata(self, variables):
+
+        if variables == {}:
+            variables.update(self._legacy_variables_metadata())
+            return
+
         first = True
         for variable, metadata in variables.items():
             if "mars" not in metadata:

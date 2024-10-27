@@ -27,8 +27,9 @@ LOG = logging.getLogger(__name__)
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
-    def __init__(self, metadata):
+    def __init__(self, metadata, supporting_arrays={}):
         self._metadata = DotDict(metadata)
+        self._supporting_arrays = supporting_arrays
 
         # shortcuts
         self._indices = self._metadata.data_indices
@@ -245,8 +246,6 @@ class Metadata(PatchMixin, LegacyMixin):
     def mars_requests(self, *, use_grib_paramid=False, variables=all):
         """Return a list of MARS requests for the variables in the dataset"""
 
-        assert use_grib_paramid
-
         from anemoi.utils.grib import shortname_to_paramid
 
         for variable, metadata in self.variables_metadata.items():
@@ -350,3 +349,15 @@ class Metadata(PatchMixin, LegacyMixin):
         result.append(CoupledForcingsFromMars(runner, remaining, remaining_mask))
 
         return result
+
+    ###########################################################################
+    # Supporting arrays
+    ###########################################################################
+
+    @property
+    def latitudes(self):
+        return self._supporting_arrays.get("latitudes")
+
+    @property
+    def longitudes(self):
+        return self._supporting_arrays.get("longitudes")

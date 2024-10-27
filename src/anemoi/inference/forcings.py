@@ -36,7 +36,7 @@ class ComputedForcings(Forcings):
         self.mask = mask
 
     def load_forcings(self, state, date):
-        LOG.info("Adding dynamic forcings %s", self.variables)
+        LOG.debug("Adding dynamic forcings %s", self.variables)
 
         forcing = self.runner.compute_forcings(
             latitudes=state["latitudes"],

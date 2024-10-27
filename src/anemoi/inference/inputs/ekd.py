@@ -33,6 +33,23 @@ class EkdInput(Input):
         self, input_fields, date=None, latitudes=None, longitudes=None, dtype=np.float32, flatten=True
     ):
 
+        # Newer checkpoints may have latitudes and longitudes
+        if latitudes is None:
+            latitudes = self.checkpoint.latitudes
+            if latitudes is not None:
+                LOG.info(
+                    "%s: using `latitudes` found in the checkpoint.",
+                    self.__class__.__name__,
+                )
+
+        if longitudes is None:
+            longitudes = self.checkpoint.longitudes
+            if longitudes is not None:
+                LOG.info(
+                    "%s: using `longitudes` found in the checkpoint.git c",
+                    self.__class__.__name__,
+                )
+
         if date is None:
             date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
             LOG.info(
@@ -54,6 +71,10 @@ class EkdInput(Input):
 
             if input_state["latitudes"] is None:
                 input_state["latitudes"], input_state["longitudes"] = field.grid_points()
+                LOG.info(
+                    "%s: using `latitudes` and `longitudes` from the first input field",
+                    self.__class__.__name__,
+                )
 
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:

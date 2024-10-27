@@ -29,7 +29,11 @@ class Checkpoint:
 
     @cached_property
     def _metadata(self):
-        return Metadata(load_metadata(self.path))
+        try:
+            return Metadata(*load_metadata(self.path, supporting_arrays=True))
+        except Exception as e:
+            LOG.warning("Version for not support `supporting_arrays` (%s)", e)
+            return Metadata(load_metadata(self.path))
 
     ###########################################################################
     # Forwards used by the runner
@@ -85,6 +89,14 @@ class Checkpoint:
     @property
     def accumulations(self):
         return self._metadata.accumulations
+
+    @property
+    def latitudes(self):
+        return self._metadata.latitudes
+
+    @property
+    def longitudes(self):
+        return self._metadata.longitudes
 
     def default_namer(self, *args, **kwargs):
         """
@@ -178,3 +190,11 @@ class Checkpoint:
                     result.append(r)
 
         return result
+
+    ###########################################################################
+    # supporting arrays
+    ###########################################################################
+
+    @cached_property
+    def _supporting_arrays(self):
+        return self._metadata.supporting_arrays

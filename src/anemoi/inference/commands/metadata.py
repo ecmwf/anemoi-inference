@@ -64,6 +64,12 @@ class Metadata(Command):
             help="Remove the metadata from the checkpoint.",
         )
 
+        group.add_argument(
+            "--supporting-arrays",
+            action="store_true",
+            help="Print the supporting arrays.",
+        )
+
         command_parser.add_argument(
             "--name",
             default=DEFAULT_NAME,
@@ -110,6 +116,9 @@ class Metadata(Command):
 
         if args.load:
             return self.load(args)
+
+        if args.supporting_arrays:
+            return self.supporting_arrays(args)
 
     def edit(self, args):
 
@@ -192,6 +201,14 @@ class Metadata(Command):
             replace_metadata(args.path, metadata)
         else:
             save_metadata(args.path, metadata, args.name)
+
+    def supporting_arrays(self, args):
+        from anemoi.utils.checkpoints import load_metadata
+
+        _, supporting_arrays = load_metadata(args.path, supporting_arrays=True)
+
+        for name, array in supporting_arrays.items():
+            print(f"{name}: shape={array.shape} dtype={array.dtype}")
 
 
 command = Metadata

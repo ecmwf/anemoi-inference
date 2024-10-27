@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 class Configuration(BaseModel):
 
-    checkpoint: str  # = "???"
+    checkpoint: str
     """A path an Anemoi checkpoint file."""
 
     date: str | int | datetime.datetime | None = None

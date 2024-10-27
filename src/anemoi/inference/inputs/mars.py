@@ -67,7 +67,6 @@ class MarsInput(GribInput):
         super().__init__(runner)
         self.use_grib_paramid = use_grib_paramid
         self.kwargs = kwargs
-        assert use_grib_paramid
 
     def create_input_state(self, *, date):
         if date is None:
