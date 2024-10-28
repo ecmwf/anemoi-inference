@@ -18,6 +18,27 @@ LOG = logging.getLogger(__name__)
 # This should be a anemoi.transform.source.mars
 
 
+def _grid_is_valid(grid):
+    if grid is None:
+        return False
+    return True
+
+
+def _area_is_valid(area):
+
+    if area is None:
+        return False
+
+    if len(area) != 4:
+        return False
+
+    try:
+        [float(x) for x in area]
+        return True
+    except TypeError:
+        return False
+
+
 def retrieve(requests, grid, area, **kwargs):
     import earthkit.data as ekd
 
@@ -40,6 +61,13 @@ def retrieve(requests, grid, area, **kwargs):
 
         return ",".join(f"{k}={v}" for k, v in mars.items())
 
+    pproc = dict()
+    if _grid_is_valid(grid):
+        pproc["grid"] = grid
+
+    if _area_is_valid(area):
+        pproc["area"] = rounded_area(area)
+
     result = ekd.from_source("empty")
     for r in requests:
         if r.get("class") in ("rd", "ea"):
@@ -48,9 +76,7 @@ def retrieve(requests, grid, area, **kwargs):
         if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
             r["stream"] = "scda"
 
-        r["grid"] = grid
-        r["area"] = rounded_area(area)
-
+        r.update(pproc)
         r.update(kwargs)
 
         LOG.debug("%s", _(r))
@@ -81,6 +107,6 @@ class MarsInput(GribInput):
 
         dates = [date + h for h in self.checkpoint.lagged]
 
-        requests = self.checkpoint.mars_requests(dates=dates, expver="0001", use_grib_paramid=self.use_grib_paramid)
+        requests = self.checkpoint.mars_requests(dates=dates, use_grib_paramid=self.use_grib_paramid)
 
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, **self.kwargs)
+        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)

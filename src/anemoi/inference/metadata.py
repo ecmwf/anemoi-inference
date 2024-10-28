@@ -31,10 +31,17 @@ class Metadata(PatchMixin, LegacyMixin):
         self._metadata = DotDict(metadata)
         self._supporting_arrays = supporting_arrays
 
-        # shortcuts
-        self._indices = self._metadata.data_indices
-        self._config_data = self._metadata.config.data
-        self._config_training = self._metadata.config.training
+    @property
+    def _indices(self):
+        return self._metadata.data_indices
+
+    @property
+    def _config_data(self):
+        return self._metadata.config.data
+
+    @property
+    def _config_training(self):
+        return self._metadata.config.training
 
     ###########################################################################
     # Inference
@@ -190,6 +197,21 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the indices of the variables that are accumulations"""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
+    def name_fields(self, fields, namer=None):
+        from earthkit.data.indexing.fieldlist import FieldArray
+
+        if namer is None:
+            namer = self.default_namer()
+
+        def _name(field, _, original_metadata):
+            return namer(field, original_metadata)
+
+        return FieldArray([f.copy(name=_name) for f in fields])
+
+    def sort_by_name(self, fields, namer=None, *args, **kwargs):
+        fields = self.name_fields(fields, namer=namer)
+        return fields.order_by("name", *args, **kwargs)
+
     ###########################################################################
     # Default namer
     ###########################################################################
@@ -343,8 +365,12 @@ class Metadata(PatchMixin, LegacyMixin):
             self._indices.model.input.full,
         )
 
-        remaining_mask = [mapping[self.variables.index(name)] for name in remaining]
-        LOG.info("Will get the following from MARS for now: %s", remaining_mask)
+        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
+
+        LOG.info("Will get the following from MARS for now: %s", remaining)
+
+        remaining_mask = [i for i, _ in remaining]
+        remaining = [name for _, name in remaining]
 
         result.append(CoupledForcingsFromMars(runner, remaining, remaining_mask))
 
@@ -361,3 +387,33 @@ class Metadata(PatchMixin, LegacyMixin):
     @property
     def longitudes(self):
         return self._supporting_arrays.get("longitudes")
+
+    def sources(self, path):
+        import zipfile
+
+        from anemoi.utils.checkpoints import load_supporting_arrays
+
+        sources = []
+
+        with zipfile.ZipFile(path, "r") as zipf:
+            for i, source in enumerate(self._metadata.dataset.get("sources", [])):
+                entries = {
+                    name: self._metadata.supporting_arrays_paths[name] for name in source.get("supporting_arrays", [])
+                }
+                arrays = load_supporting_arrays(zipf, entries)
+
+                name = source.get("name")
+                if name is None:
+                    name = f"source{i}"
+
+                sources.append(SourceMetadata(name, source, supporting_arrays=arrays))
+
+        return sources
+
+
+class SourceMetadata(Metadata):
+    """An object that holds metadata of a source."""
+
+    def __init__(self, name, metadata, supporting_arrays={}):
+        super().__init__(metadata, supporting_arrays)
+        self.name = name

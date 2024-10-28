@@ -17,6 +17,19 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
+def _same_supporting_arrays(a, b):
+    import numpy as np
+
+    if set(a) != set(b):
+        return False
+
+    for k, v in a.items():
+        if np.any(v != b[k]):
+            return False
+
+    return True
+
+
 class PatchCmd(Command):
     """Patch a checkpoint file."""
 
@@ -28,24 +41,28 @@ class PatchCmd(Command):
 
     def run(self, args):
         from anemoi.utils.checkpoints import load_metadata
+        from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata
 
         from anemoi.inference.metadata import Metadata
 
-        original_metadata = load_metadata(args.path)
+        root = metadata_root(args.path)
+
+        original_metadata, supporting_arrays = load_metadata(args.path, supporting_arrays=True)
         metadata = deepcopy(original_metadata)
 
         # Patch the metadata
         while True:
             previous = deepcopy(metadata)
-            metadata = Metadata(metadata).patch_metadata()
+            metadata, supporting_arrays = Metadata(metadata).patch_metadata(supporting_arrays, root)
             if metadata == previous:
                 break
             LOG.info("Metadata patched")
 
         if metadata != original_metadata:
             LOG.info("Patching metadata")
-            replace_metadata(args.path, metadata)
+            assert "sources" in metadata["dataset"]
+            replace_metadata(args.path, metadata, supporting_arrays)
 
     def _find(self, where, what, matches=None):
         if matches is None:

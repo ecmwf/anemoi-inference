@@ -45,8 +45,8 @@ def print_state(state, print=print):
     for i in idx:
         name = names[i]
         field = fields[name]
-        min_value = f"min={np.amin(field):g}"
-        max_value = f"max={np.amax(field):g}"
+        min_value = f"min={np.nanmin(field):g}"
+        max_value = f"max={np.nanmax(field):g}"
         print(f"    {name:8s} shape={field.shape} {min_value:18s} {max_value:18s}")
 
     print()

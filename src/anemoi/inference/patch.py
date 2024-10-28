@@ -8,6 +8,7 @@
 import logging
 import os
 from contextlib import contextmanager
+from functools import cached_property
 
 from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -29,13 +30,19 @@ class PatchMixin:
 
     # `self` is a `Metadata` object
 
-    def patch_metadata(self):
+    def patch_metadata(self, supporting_arrays, root):
         dataset = self._metadata["dataset"]
 
-        if "variable_metadata" not in dataset:
+        if (
+            "variable_metadata" not in dataset
+            or "supporting_arrays_paths" not in dataset
+            or "sources" not in dataset
+            or not not self._supporting_arrays
+        ):
             self._patch_variable_metadata()
+            self._supporting_arrays = self._patch_supporting_arrays(supporting_arrays, root)
 
-        return self._metadata
+        return self._metadata, self._supporting_arrays
 
     def _patch_variable_metadata(self):
 
@@ -49,14 +56,11 @@ class PatchMixin:
         except Exception:
             LOG.exception("_patch_variable_metadata_open_dataset_2 failed")
 
-    def _patch_variable_metadata_open_dataset_1(self):
-        """Try to open the dataset(s) and re-fetch metadata.
-        In the checkpoint we keep track of the arguments used to open the dataset.
-        We assume that the datasets are reachable via the content of
+    @cached_property
+    def _from_zarr(self):
+        """We assume that the datasets are reachable via the content of
         ~/.config/anemoi/settings.toml
         """
-
-        # First attempt, try to open the dataset
         from anemoi.datasets import open_dataset
 
         dataset = self._metadata["dataset"]
@@ -79,9 +83,20 @@ class PatchMixin:
 
         LOG.info(f"Opening dataset with args {args} and kwargs {kwargs}")
         ds = open_dataset(*args, **kwargs)
+        return ds.metadata(), ds.supporting_arrays()
+
+    def _patch_variable_metadata_open_dataset_1(self):
+        """Try to open the dataset(s) and re-fetch metadata.
+        In the checkpoint we keep track of the arguments used to open the dataset.
+        """
+
+        # First attempt, try to open the dataset
+
+        dataset = self._metadata["dataset"]
+        metadata, _ = self._from_zarr
 
         # Update the metadata
-        for k, v in ds.metadata().items():
+        for k, v in metadata.items():
             if k not in dataset:
                 dataset[k] = v
 
@@ -141,3 +156,28 @@ class PatchMixin:
 
         with patch_function(anemoi.datasets.data.stores, "open_zarr", _open_zarr):
             self._patch_variable_metadata_open_dataset_1()
+
+    def _patch_supporting_arrays(self, supporting_arrays, root):
+
+        metadata, supporting_arrays = self._from_zarr
+
+        # assert False, metadata['sources']
+
+        LOG.info("Supporting arrays: '%s'", metadata["supporting_arrays"])
+        LOG.info("Supporting arrays: '%s'", supporting_arrays)
+
+        supporting_arrays_paths = {
+            key: dict(
+                path=f"{root}/{key}.numpy",
+                shape=value.shape,
+                dtype=str(value.dtype),
+            )
+            for key, value in supporting_arrays.items()
+        }
+
+        for k, v in supporting_arrays_paths.items():
+            LOG.info("Saving supporting array `%s` to %s (shape=%s, dtype=%s)", k, v["path"], v["shape"], v["dtype"])
+
+        self._metadata["supporting_arrays_paths"] = supporting_arrays_paths
+
+        return supporting_arrays

@@ -7,7 +7,6 @@
 
 
 import logging
-import warnings
 from abc import ABC
 from abc import abstractmethod
 
@@ -21,6 +20,7 @@ class Forcings(ABC):
 
     def __init__(self, runner):
         self.runner = runner
+        self.checkpoint = runner.checkpoint
 
     @abstractmethod
     def load_forcings(self, state, date):
@@ -68,11 +68,19 @@ class CoupledForcingsFromMars(Forcings):
         from .inputs.mars import retrieve
 
         requests = self.runner.checkpoint.mars_requests(
-            date, use_grib_paramid=self.use_grib_paramid, variables=self.variables
+            date,
+            use_grib_paramid=self.use_grib_paramid,
+            variables=self.variables,
         )
 
         fields = retrieve(requests=requests, grid=self.grid, area=self.area)
 
-        warnings.warn("🚧 TEMPORARY CODE 🚧: Fields need to be sorted by name")
+        fields = self.checkpoint.name_fields(fields).order_by(name=self.variables)
+
+        p = -1
+        for f, v, m in zip(fields, self.variables, self.mask):
+            assert f.metadata("name") == v, (f.metadata("name"), v)
+            assert m > p, (m, p)
+            p = m
 
         return fields.to_numpy(dtype=np.float32, flatten=True)

@@ -65,6 +65,9 @@ class RunCmd(Command):
             allow_nans=config.allow_nans,
         )
 
+        if len(runner.checkpoint.sources) > 1:
+            raise ValueError(f"Only one source is supported {runner.checkpoint.sources}")
+
         input, output = self.make_input_output(runner, config)
 
         input_state = input.create_input_state(date=config.date)
@@ -72,7 +75,7 @@ class RunCmd(Command):
         if config.write_initial_state:
             output.write_initial_state(input_state)
 
-        for state in runner.run(input_state=input_state, lead_time=240):
+        for state in runner.run(input_state=input_state, lead_time=config.lead_time):
             output.write_state(state)
 
     def make_input_output(self, runner, config):

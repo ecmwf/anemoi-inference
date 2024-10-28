@@ -25,7 +25,7 @@ class Checkpoint:
         self.path = path
 
     def __repr__(self):
-        return self.path
+        return f"Checkpoint({self.path})"
 
     @cached_property
     def _metadata(self):
@@ -98,6 +98,10 @@ class Checkpoint:
     def longitudes(self):
         return self._metadata.longitudes
 
+    @cached_property
+    def sources(self):
+        return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
+
     def default_namer(self, *args, **kwargs):
         """
         Return a callable that can be used to name fields.
@@ -114,6 +118,12 @@ class Checkpoint:
 
     def dynamic_forcings_sources(self, runner):
         return self._metadata.dynamic_forcings_sources(runner)
+
+    def name_fields(self, fields, namer=None):
+        return self._metadata.name_fields(fields, namer=namer)
+
+    def sort_by_name(self, fields, namer=None, *args, **kwargs):
+        return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
 
     ###########################################################################
 
@@ -198,3 +208,19 @@ class Checkpoint:
     @cached_property
     def _supporting_arrays(self):
         return self._metadata.supporting_arrays
+
+    @property
+    def name(self):
+        return self._metadata.name
+
+
+class SourceCheckpoint(Checkpoint):
+    """A checkpoint that represents a source."""
+
+    def __init__(self, owner, metadata):
+        super().__init__(owner.path)
+        self._owner = owner
+        self._metadata = metadata
+
+    def __repr__(self):
+        return f"Source({self.name}@{self.path})"

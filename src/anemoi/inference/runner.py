@@ -254,7 +254,7 @@ class Runner:
         # input_tensor_torch is shape: (batch, lagged, variables, values)
         # batch is always 1
 
-        for source in self.dynamic_forcings_sources_that_bring_new_fields:
+        for source in self.dynamic_forcings_sources:
             forcings = source.load_forcings(state, date)  # shape: (variables, values)
 
             forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
@@ -265,9 +265,6 @@ class Runner:
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
-
-        for source in self.dynamic_forcings_sources_that_modify_grids:
-            pass
 
     def compute_forcings(self, *, latitudes, longitudes, dates, variables):
         import earthkit.data as ekd
