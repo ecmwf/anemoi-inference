@@ -56,7 +56,7 @@ class Configuration(BaseModel):
     use_grib_paramid: bool = False
     """If True, the MARS input will use the GRIB parameter ID instead of the parameter name when issuing requests to MARS."""
 
-    dataset: bool | Dict = False
+    dataset: bool | Dict | str = False
 
     env: Dict[str, str] = {}
     """Environment variables to set before running the model. This may be useful to control some packages

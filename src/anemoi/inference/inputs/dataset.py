@@ -8,6 +8,7 @@
 #
 
 import logging
+import os
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
@@ -36,7 +37,10 @@ class DatasetInput(Input):
             LOG.warning("No arguments provided to open_dataset, using the default arguments:")
             LOG.warning("open_dataset(*%s, **%s)", args, kwargs)
 
-        self.ds = open_dataset(*args, **kwargs)
+        if isinstance(kwargs, str):
+            self.ds = open_dataset(os.path.splitext(os.path.basename(kwargs))[0])
+        else:
+            self.ds = open_dataset(*args, **kwargs)
 
     def create_input_state(self, *, date=None):
         if date is None:
