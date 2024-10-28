@@ -15,6 +15,7 @@ Keep it human-readable, your future self will thank you!
 - Fix: Enable inference when no constant forcings are used
 - Add anemoi-transform link to documentation
 - Add support for unstructured grids
+- Add CONTRIBUTORS.md file (#36)
 
 ### Changed
 
