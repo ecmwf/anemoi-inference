@@ -34,6 +34,12 @@ class Configuration(BaseModel):
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
 
+    verbosity: int = 0
+    """The verbosity level of the runner. This can be 0 (default), 1 or 2."""
+
+    report_error: bool = False
+    """If True, the runner list the training versions of the packages in case of error."""
+
     input: str | None = None
     output: str | None = None
 

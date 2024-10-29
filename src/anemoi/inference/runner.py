@@ -46,9 +46,7 @@ class Kind:
 
 
 class Runner(Context):
-    """_summary_"""
-
-    _verbose = True
+    """A runner is responsible for running a model."""
 
     def __init__(
         self,
@@ -59,7 +57,7 @@ class Runner(Context):
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
-        verbosity=1,
+        verbosity=0,
     ):
         self._checkpoint = Checkpoint(checkpoint)
 
@@ -67,6 +65,7 @@ class Runner(Context):
         self.precision = precision
         self.report_error = report_error
         self.allow_nans = allow_nans
+        self.verbosity = verbosity
 
         # This could also be passed as an argument
 
@@ -86,7 +85,8 @@ class Runner(Context):
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
-        self.checkpoint.print_indices()
+        if self.verbosity > 1:
+            self.checkpoint.print_indices()
 
         LOG.info("Using %s runner", self.__class__.__name__)
 
@@ -154,7 +154,7 @@ class Runner(Context):
 
         input_tensor_numpy = np.full(
             shape=(
-                len(self.checkpoint.lagged),
+                self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
                 self.checkpoint.number_of_grid_points,
             ),
@@ -235,7 +235,9 @@ class Runner(Context):
                 reset[i] = True
 
         check = reset.copy()
-        self._print_input_tensor("First input tensor", input_tensor_torch)
+
+        if self.verbosity > 0:
+            self._print_input_tensor("First input tensor", input_tensor_torch)
 
         for s in range(steps):
             step = (s + 1) * self.checkpoint.frequency
@@ -255,7 +257,7 @@ class Runner(Context):
             for i in range(output.shape[1]):
                 result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
-            if s == 0:
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
 
             yield result
@@ -281,12 +283,12 @@ class Runner(Context):
 
                 raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
-            if s == 0:
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
-        # input_tensor_torch is shape: (batch, lagged, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
         # batch is always 1
 
         prognostic_output_mask = self.checkpoint.prognostic_output_mask
@@ -294,9 +296,9 @@ class Runner(Context):
 
         # Copy prognostic fields to input tensor
         prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the lagged dimension
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
         input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
-            prognostic_fields  # Add new values to last 'lagged' row
+            prognostic_fields  # Add new values to last 'multi_step_input' row
         )
 
         assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
@@ -307,7 +309,7 @@ class Runner(Context):
 
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
-        # input_tensor_torch is shape: (batch, lagged, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
         # batch is always 1
 
         for source in self.dynamic_forcings_sources:
@@ -317,7 +319,7 @@ class Runner(Context):
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'lagged' row
+            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
@@ -367,7 +369,7 @@ class Runner(Context):
 
         number_of_grid_points = nlat
 
-        multi_step = len(self.checkpoint.lagged)
+        multi_step = self.checkpoint.multi_step_input
 
         expected_shape = (multi_step, number_of_grid_points)
 
@@ -406,8 +408,12 @@ class Runner(Context):
 
     def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
 
+        assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
+        assert tensor_numpy.shape[0] == self.checkpoint.multi_step, tensor_numpy.shape
+        assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
+
         t = []
-        for k, v in enumerate(tensor_by_name):
+        for k, v in enumerate(sorted(tensor_by_name)):
             data = tensor_numpy[-1, k]
 
             nans = "-"
@@ -431,7 +437,7 @@ class Runner(Context):
 
     def _print_input_tensor(self, title, input_tensor_torch):
 
-        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, lagged, values, variables)
+        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
 
         assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
         assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
@@ -440,7 +446,7 @@ class Runner(Context):
         input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
 
         print(input_tensor_numpy.shape)
-        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (lagged, variables, values)
+        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
 

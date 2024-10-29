@@ -132,10 +132,14 @@ class Checkpoint:
 
     @cached_property
     def lagged(self):
-        """Return the list of timedelta for the lagged input fields."""
+        """Return the list of timedelta for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
         result = [-s * self._metadata.frequency for s in result]
         return sorted(result)
+
+    @property
+    def multi_step_input(self):
+        return self._metadata.multi_step_input
 
     ###########################################################################
     # Data retrieval

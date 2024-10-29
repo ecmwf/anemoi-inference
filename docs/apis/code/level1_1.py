@@ -13,7 +13,7 @@ date = datetime.datetime(2024, 10, 25)
 # Assuming that the initial conditions requires two
 # dates, e.g. T0 and T-6
 
-lagged = 2
+multi_step_input = 2
 
 # Define the grid
 
@@ -30,9 +30,9 @@ input_state = {
     "latitudes": latitudes,
     "longitudes": longitudes,
     "fields": {
-        "2t": np.random.rand(lagged, number_of_points),
-        "msl": np.random.rand(lagged, number_of_points),
-        "z_500": np.random.rand(lagged, number_of_points),
+        "2t": np.random.rand(multi_step_input, number_of_points),
+        "msl": np.random.rand(multi_step_input, number_of_points),
+        "z_500": np.random.rand(multi_step_input, number_of_points),
         ...: ...,
     },
 }

@@ -64,6 +64,8 @@ class RunCmd(Command):
             device=config.device,
             precision=config.precision,
             allow_nans=config.allow_nans,
+            verbosity=config.verbosity,
+            report_error=config.report_error,
         )
 
         input, output = self.make_input_output(runner, config)
