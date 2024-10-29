@@ -183,8 +183,6 @@ class Runner(Context):
             mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
             raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
 
-        self._print_input_tensor("First input tensor", input_tensor_numpy)
-
         return input_tensor_numpy
 
     @cached_property
@@ -237,6 +235,7 @@ class Runner(Context):
                 reset[i] = True
 
         check = reset.copy()
+        self._print_input_tensor("First input tensor", input_tensor_torch)
 
         for s in range(steps):
             step = (s + 1) * self.checkpoint.frequency
@@ -430,14 +429,18 @@ class Runner(Context):
         )
         LOG.info("")
 
-    def _print_input_tensor(self, title, input_tensor_numpy):
+    def _print_input_tensor(self, title, input_tensor_torch):
 
-        if isinstance(input_tensor_numpy, torch.Tensor):
-            input_tensor_numpy = input_tensor_numpy.cpu().numpy()
+        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, lagged, values, variables)
 
-        if len(input_tensor_numpy.shape) == 4:
-            # Drop the batch dimension
-            input_tensor_numpy = input_tensor_numpy[0]
+        assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
+        assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
+
+        print(input_tensor_numpy.shape)
+        input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
+
+        print(input_tensor_numpy.shape)
+        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (lagged, variables, values)
 
         self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
 
