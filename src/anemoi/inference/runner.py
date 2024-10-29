@@ -85,7 +85,7 @@ class Runner(Context):
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
-        if self.verbosity > 1:
+        if self.verbosity > 2:
             self.checkpoint.print_indices()
 
         LOG.info("Using %s runner", self.__class__.__name__)
@@ -409,7 +409,7 @@ class Runner(Context):
     def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
 
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] == self.checkpoint.multi_step, tensor_numpy.shape
+        assert tensor_numpy.shape[0] == self.checkpoint.multi_step_input, tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
 
         t = []
@@ -460,7 +460,11 @@ class Runner(Context):
                 else:
                     self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
 
-        if isinstance(output_tensor_numpy, torch.Tensor):
-            output_tensor_numpy = output_tensor_numpy.cpu().numpy()
+        # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
+
+        if len(output_tensor_numpy.shape) == 2:
+            output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
+
+        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
