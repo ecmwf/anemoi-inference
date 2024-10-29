@@ -266,11 +266,11 @@ class Runner(Context):
 
             check[:] = reset
 
-            self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+            input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
             del y_pred  # Recover memory
 
-            self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
 
             if not check.all():
                 # Not all variables have been updated
@@ -307,6 +307,8 @@ class Runner(Context):
         for n in prognostic_input_mask:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
 
+        return input_tensor_torch
+
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
         # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
@@ -326,6 +328,8 @@ class Runner(Context):
 
             for n in source.mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+
+        return input_tensor_torch
 
     def compute_forcings(self, *, latitudes, longitudes, dates, variables):
         import earthkit.data as ekd
@@ -442,15 +446,17 @@ class Runner(Context):
         assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
         assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
 
-        print(input_tensor_numpy.shape)
         input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
-
-        print(input_tensor_numpy.shape)
         input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
 
     def _print_output_tensor(self, title, output_tensor_numpy):
+
+        LOG.info(
+            "%s",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
+        )
 
         if not self._output_tensor_by_name:
             for i in range(output_tensor_numpy.shape[1]):
