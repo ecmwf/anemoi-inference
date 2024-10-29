@@ -21,6 +21,7 @@ class Forcings(ABC):
     def __init__(self, runner):
         self.runner = runner
         self.checkpoint = runner.checkpoint
+        self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
     def load_forcings(self, state, date):
@@ -34,6 +35,7 @@ class ComputedForcings(Forcings):
         super().__init__(runner)
         self.variables = variables
         self.mask = mask
+        self.kinds = dict(computed=True)  # Used for debugging
 
     def load_forcings(self, state, date):
         LOG.debug("Adding dynamic forcings %s", self.variables)
@@ -63,6 +65,7 @@ class CoupledForcingsFromMars(Forcings):
         self.grid = runner.checkpoint.grid
         self.area = runner.checkpoint.area
         self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
+        self.kinds = dict(retrieved=True)  # Used for debugging
 
     def load_forcings(self, state, date):
         from .inputs.mars import retrieve
@@ -73,7 +76,7 @@ class CoupledForcingsFromMars(Forcings):
             variables=self.variables,
         )
 
-        fields = retrieve(requests=requests, grid=self.grid, area=self.area)
+        fields = retrieve(requests=requests, grid=self.grid, area=self.area, expver=1)
 
         fields = self.checkpoint.name_fields(fields).order_by(name=self.variables)
 

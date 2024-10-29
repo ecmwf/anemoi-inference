@@ -125,6 +125,9 @@ class Checkpoint:
     def sort_by_name(self, fields, namer=None, *args, **kwargs):
         return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
 
+    def print_indices(self):
+        return self._metadata.print_indices()
+
     ###########################################################################
 
     @cached_property

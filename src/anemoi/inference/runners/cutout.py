@@ -23,8 +23,9 @@ class CutoutInput(Input):
         self.globe = globe
 
     def create_input_state(self, *, date=None):
-        state1 = self.lam.create_input_state(date=date)
+
         state2 = self.globe.create_input_state(date=date)
+        state1 = self.lam.create_input_state(date=date)
         assert False, (state1, state2)
 
 

@@ -24,11 +24,17 @@ from .patch import PatchMixin
 LOG = logging.getLogger(__name__)
 
 
+class frozendict(dict):
+    def __setitem__(self, key, value):
+        raise TypeError("frozendict is immutable")
+
+
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
     def __init__(self, metadata, supporting_arrays={}):
         self._metadata = DotDict(metadata)
+        assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
 
     @property
@@ -42,6 +48,37 @@ class Metadata(PatchMixin, LegacyMixin):
     @property
     def _config_training(self):
         return self._metadata.config.training
+
+    ###########################################################################
+    # Debugging
+    ###########################################################################
+
+    def _print_indices(self, title, indices, naming, skip=set()):
+        LOG.info("")
+        LOG.info("%s:", title)
+
+        for k, v in sorted(indices.items()):
+            if k in skip:
+                continue
+            for name, idx in sorted(v.items()):
+                entry = f"{k}.{name}"
+                if entry in skip:
+                    continue
+
+                LOG.info("   %s:", f"{k}.{name}")
+                for n in idx:
+                    LOG.info(f"     {n:3d} - %s", naming[k].get(n, "?"))
+                if not idx:
+                    LOG.info("     <empty>")
+
+    def print_indices(self):
+
+        v = {i: v for i, v in enumerate(self.variables)}
+        r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
+        s = self.output_tensor_index_to_variable
+
+        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"])
+        self._print_indices("Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]))
 
     ###########################################################################
     # Inference
@@ -59,7 +96,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     def _make_indices_mapping(self, indices_from, indices_to):
         assert len(indices_from) == len(indices_to)
-        return {i: j for i, j in zip(indices_from, indices_to)}
+        return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
     @property
     def variable_to_input_tensor_index(self):
@@ -68,7 +105,18 @@ class Metadata(PatchMixin, LegacyMixin):
             self._indices.data.input.full,
             self._indices.model.input.full,
         )
-        return {v: mapping[i] for i, v in enumerate(self.variables) if i in mapping}
+
+        # LOG.info("Variable to input tensor index:")
+        # for k,v in mapping.items():
+        #     LOG.info('   %s => %s', k, v)
+
+        # for i, v in enumerate(self.variables):
+        #     if i not in mapping:
+        #         LOG.info(f"   {v} => <not used>")
+        #     else:
+        #         LOG.info(f"   {v} => {mapping[i]} ({i})")
+
+        return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
 
     @cached_property
     def output_tensor_index_to_variable(self):
@@ -77,7 +125,7 @@ class Metadata(PatchMixin, LegacyMixin):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        return {k: self.variables[v] for k, v in mapping.items()}
+        return frozendict({k: self.variables[v] for k, v in mapping.items()})
 
     @cached_property
     def number_of_grid_points(self):
@@ -96,7 +144,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def model_computed_variables(self):
         """The initial conditions variables that need to be computed and not retrieved"""
         typed_variables = self.typed_variables
-        return [name for name, v in typed_variables.items() if v.is_computed_forcing]
+        return tuple(name for name, v in typed_variables.items() if v.is_computed_forcing)
 
     @cached_property
     def multi_step_input(self):
@@ -113,9 +161,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def computed_time_dependent_forcings(self):
-        """
-        Return the indices and names of the computed forcings that are not constant in time
-        """
+        """Return the indices and names of the computed forcings that are not constant in time"""
 
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -150,7 +196,7 @@ class Metadata(PatchMixin, LegacyMixin):
     @property
     def variables(self):
         """Return the variables as found in the training dataset"""
-        return self._metadata.dataset.variables
+        return tuple(self._metadata.dataset.variables)
 
     @cached_property
     def variables_metadata(self):
@@ -175,7 +221,7 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def index_to_variable(self):
         """Return a mapping from index to variable name"""
-        return {i: v for i, v in enumerate(self.variables)}
+        return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
     def typed_variables(self):
@@ -217,8 +263,7 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     def default_namer(self, *args, **kwargs):
-        """
-        Return a callable that can be used to name earthkit-data fields.
+        """Return a callable that can be used to name earthkit-data fields.
         In that case, return the namer that was used to create the
         training dataset.
         """

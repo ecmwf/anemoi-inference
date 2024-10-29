@@ -42,12 +42,14 @@ def print_state(state, print=print):
     idx.append(len(names) - 1)
     idx = sorted(set(idx))
 
+    length = max(len(name) for name in names)
+
     for i in idx:
         name = names[i]
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
         max_value = f"max={np.nanmax(field):g}"
-        print(f"    {name:8s} shape={field.shape} {min_value:18s} {max_value:18s}")
+        print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
 
     print()
 

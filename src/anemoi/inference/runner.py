@@ -14,6 +14,7 @@ import numpy as np
 import torch
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
@@ -23,6 +24,25 @@ from .postprocess import Noop
 from .precisions import PRECISIONS
 
 LOG = logging.getLogger(__name__)
+
+
+class Kind:
+    """Used for debugging purposes"""
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __repr__(self):
+        result = []
+
+        for k, v in self.kwargs.items():
+            if v:
+                result.append(k)
+
+        if not result:
+            return "?"
+
+        return ", ".join(result)
 
 
 class Runner(Context):
@@ -39,6 +59,7 @@ class Runner(Context):
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
+        verbosity=1,
     ):
         self._checkpoint = Checkpoint(checkpoint)
 
@@ -59,6 +80,13 @@ class Runner(Context):
             self.postprocess = Accumulator(accumulations)
 
         self.dynamic_forcings_sources = self.checkpoint.dynamic_forcings_sources(self)
+        self._input_kinds = {}
+        self._input_tensor_by_name = []
+
+        self._output_kinds = {}
+        self._output_tensor_by_name = []
+
+        self.checkpoint.print_indices()
 
         LOG.info("Using %s runner", self.__class__.__name__)
 
@@ -106,10 +134,18 @@ class Runner(Context):
             variables=variables,
         )
 
+        typed_variables = self.checkpoint.typed_variables
+
         for name, forcing in zip(variables, forcings):
             fields[name] = forcing.to_numpy(dtype=np.float32, flatten=True)
+            self._input_kinds[name] = Kind(computed=True, constant=typed_variables[name].is_constant_in_time)
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
+
+        typed_variables = self.checkpoint.typed_variables
+
+        for name in input_state["fields"]:
+            self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
         self.add_initial_forcings_to_input_state(input_state)
@@ -126,6 +162,8 @@ class Runner(Context):
             dtype=dtype,
         )
 
+        self._input_tensor_by_name = [None] * self.checkpoint.number_of_input_features
+
         LOG.info("Preparing input tensor with shape %s", input_tensor_numpy.shape)
 
         variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
@@ -138,10 +176,14 @@ class Runner(Context):
             input_tensor_numpy[:, i] = field
             check.add(i)
 
+            self._input_tensor_by_name[i] = var
+
         if len(check) != self.checkpoint.number_of_input_features:
             missing = set(range(self.checkpoint.number_of_input_features)) - check
             mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
             raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
+
+        self._print_input_tensor("First input tensor", input_tensor_numpy)
 
         return input_tensor_numpy
 
@@ -196,8 +238,8 @@ class Runner(Context):
 
         check = reset.copy()
 
-        for i in range(steps):
-            step = (i + 1) * self.checkpoint.frequency
+        for s in range(steps):
+            step = (s + 1) * self.checkpoint.frequency
             date = start + step
             LOG.info("Forecasting step %s (%s)", step, date)
 
@@ -213,6 +255,9 @@ class Runner(Context):
             # Update state
             for i in range(output.shape[1]):
                 result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+
+            if s == 0:
+                self._print_output_tensor("Output tensor", output)
 
             yield result
 
@@ -237,6 +282,9 @@ class Runner(Context):
 
                 raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
+            if s == 0:
+                self._print_input_tensor("Next input tensor", input_tensor_torch)
+
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
         # input_tensor_torch is shape: (batch, lagged, variables, values)
@@ -255,6 +303,9 @@ class Runner(Context):
         assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
         check[prognostic_input_mask] = True
 
+        for n in prognostic_input_mask:
+            self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
         # input_tensor_torch is shape: (batch, lagged, variables, values)
@@ -271,6 +322,9 @@ class Runner(Context):
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
+
+            for n in source.mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
 
     def compute_forcings(self, *, latitudes, longitudes, dates, variables):
         import earthkit.data as ekd
@@ -350,3 +404,54 @@ class Runner(Context):
         input_state["reference_date"] = input_state["date"]
 
         return input_state
+
+    def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
+
+        t = []
+        for k, v in enumerate(tensor_by_name):
+            data = tensor_numpy[-1, k]
+
+            nans = "-"
+
+            if np.isnan(data).any():
+                nan_count = np.isnan(data).sum()
+
+                ratio = nan_count / data.size
+                nans = f"{ratio:.0%}"
+
+            if np.isinf(data).any():
+                nans = "∞"
+
+            t.append((k, v, np.nanmin(data), np.nanmax(data), nans, kinds.get(v, Kind())))
+
+        LOG.info("")
+        LOG.info(
+            "%s:\n\n%s\n", title, table(t, header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"], align="><<<|<")
+        )
+        LOG.info("")
+
+    def _print_input_tensor(self, title, input_tensor_numpy):
+
+        if isinstance(input_tensor_numpy, torch.Tensor):
+            input_tensor_numpy = input_tensor_numpy.cpu().numpy()
+
+        if len(input_tensor_numpy.shape) == 4:
+            # Drop the batch dimension
+            input_tensor_numpy = input_tensor_numpy[0]
+
+        self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
+
+    def _print_output_tensor(self, title, output_tensor_numpy):
+
+        if not self._output_tensor_by_name:
+            for i in range(output_tensor_numpy.shape[1]):
+                self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
+                if i in self.checkpoint.prognostic_output_mask:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+                else:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
+
+        if isinstance(output_tensor_numpy, torch.Tensor):
+            output_tensor_numpy = output_tensor_numpy.cpu().numpy()
+
+        self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
