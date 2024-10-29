@@ -14,4 +14,14 @@ LOG = logging.getLogger(__name__)
 
 
 class DefaultRunner(Runner):
-    pass
+    """Default runner for single source."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if len(self.checkpoint.sources) > 1:
+            raise ValueError(f"Only one source is supported {self.checkpoint.sources}. Select another runner.")
+
+    def mars_input(self, **kwargs):
+        from ..inputs.mars import MarsInput
+
+        return MarsInput(self, **kwargs)

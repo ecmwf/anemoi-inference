@@ -19,8 +19,8 @@ class GribInput(EkdInput):
     Handles GRIB input fields.
     """
 
-    def __init__(self, runner, *, use_grib_paramid=False):
-        super().__init__(runner)
+    def __init__(self, context, *, use_grib_paramid=False):
+        super().__init__(context)
         self.use_grib_paramid = use_grib_paramid
 
     def set_private_attributes(self, state, input_fields):

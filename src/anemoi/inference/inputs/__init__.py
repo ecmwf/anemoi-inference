@@ -16,9 +16,9 @@ LOG = logging.getLogger(__name__)
 class Input(ABC):
     """_summary_"""
 
-    def __init__(self, runner):
-        self.runner = runner
-        self.checkpoint = runner.checkpoint
+    def __init__(self, context):
+        self.context = context
+        self.checkpoint = context.checkpoint
 
     @abstractmethod
     def create_input_state(self, *, date=None):

@@ -17,6 +17,7 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
+from .context import Context
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
@@ -24,7 +25,7 @@ from .precisions import PRECISIONS
 LOG = logging.getLogger(__name__)
 
 
-class Runner:
+class Runner(Context):
     """_summary_"""
 
     _verbose = True
@@ -38,9 +39,8 @@ class Runner:
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
-        verbose: bool = True,
     ):
-        self.checkpoint = Checkpoint(checkpoint)
+        self._checkpoint = Checkpoint(checkpoint)
 
         self.device = device
         self.precision = precision
@@ -59,6 +59,12 @@ class Runner:
             self.postprocess = Accumulator(accumulations)
 
         self.dynamic_forcings_sources = self.checkpoint.dynamic_forcings_sources(self)
+
+        LOG.info("Using %s runner", self.__class__.__name__)
+
+    @property
+    def checkpoint(self):
+        return self._checkpoint
 
     def run(self, *, input_state, lead_time):
 

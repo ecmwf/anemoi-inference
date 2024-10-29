@@ -406,14 +406,40 @@ class Metadata(PatchMixin, LegacyMixin):
                 if name is None:
                     name = f"source{i}"
 
-                sources.append(SourceMetadata(name, source, supporting_arrays=arrays))
+                sources.append(
+                    SourceMetadata(
+                        self,
+                        name,
+                        dict(dataset=source),
+                        supporting_arrays=arrays,
+                    )
+                )
 
         return sources
 
 
 class SourceMetadata(Metadata):
-    """An object that holds metadata of a source."""
+    """An object that holds metadata of a source. It is only the `dataset` and `supporting_arrays` parts of the metadata.
+    The rest is forwarded to the parent metadata object.
+    """
 
-    def __init__(self, name, metadata, supporting_arrays={}):
+    def __init__(self, parent, name, metadata, supporting_arrays={}):
         super().__init__(metadata, supporting_arrays)
+        self.parent = parent
         self.name = name
+
+    ###########################################################################
+    # Forward to parent metadata
+    ###########################################################################
+
+    @property
+    def _config_training(self):
+        return self.parent._config_training
+
+    @property
+    def _config_data(self):
+        return self.parent._config_data
+
+    @property
+    def _indices(self):
+        return self.parent._indices

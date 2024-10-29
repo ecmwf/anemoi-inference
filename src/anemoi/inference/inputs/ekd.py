@@ -24,8 +24,8 @@ class EkdInput(Input):
     Handles earthkit-data FieldList as input
     """
 
-    def __init__(self, runner, *, namer=None):
-        super().__init__(runner)
+    def __init__(self, context, *, namer=None):
+        super().__init__(context)
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 

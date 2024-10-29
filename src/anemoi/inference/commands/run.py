@@ -18,10 +18,10 @@ from ..config import Configuration
 from ..inputs.dataset import DatasetInput
 from ..inputs.gribfile import GribFileInput
 from ..inputs.icon import IconInput
-from ..inputs.mars import MarsInput
 from ..outputs.gribfile import GribFileOutput
 from ..outputs.printer import PrinterOutput
-from ..runners.cli import CLIRunner
+from ..runners.cutout import CutoutRunner
+from ..runners.default import DefaultRunner
 from . import Command
 
 LOG = logging.getLogger(__name__)
@@ -58,15 +58,13 @@ class RunCmd(Command):
             os.environ[key] = str(value)
 
         # TODO: Call `Runner.from_config(...)` instead
-        runner = CLIRunner(
+        RUNNER = CutoutRunner if config.runner == "cutout" else DefaultRunner
+        runner = RUNNER(
             config.checkpoint,
             device=config.device,
             precision=config.precision,
             allow_nans=config.allow_nans,
         )
-
-        if len(runner.checkpoint.sources) > 1:
-            raise ValueError(f"Only one source is supported {runner.checkpoint.sources}")
 
         input, output = self.make_input_output(runner, config)
 
@@ -78,24 +76,24 @@ class RunCmd(Command):
         for state in runner.run(input_state=input_state, lead_time=config.lead_time):
             output.write_state(state)
 
-    def make_input_output(self, runner, config):
+    def make_input_output(self, context, config):
         # TODO: Use factories
 
         if config.icon_grid is not None:
             if config.input is None:
                 raise ValueError("You must provide an input file to use the ICON plugin")
-            input = IconInput(runner, config.input, config.icon_grid, use_grib_paramid=config.use_grib_paramid)
+            input = IconInput(context, config.input, config.icon_grid, use_grib_paramid=config.use_grib_paramid)
         elif config.input is not None:
-            input = GribFileInput(runner, config.input, runner, use_grib_paramid=config.use_grib_paramid)
+            input = GribFileInput(context, config.input, context, use_grib_paramid=config.use_grib_paramid)
         elif config.dataset:
-            input = DatasetInput(runner)
+            input = DatasetInput(context)
         else:
-            input = MarsInput(runner, use_grib_paramid=config.use_grib_paramid)
+            input = context.mars_input(use_grib_paramid=config.use_grib_paramid)
 
         if config.output is not None:
-            output = GribFileOutput(config.output, runner, allow_nans=config.allow_nans)
+            output = GribFileOutput(context, config.output, allow_nans=config.allow_nans)
         else:
-            output = PrinterOutput(runner)
+            output = PrinterOutput(context)
 
         return input, output
 

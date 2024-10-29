@@ -21,7 +21,15 @@ LOG = logging.getLogger(__name__)
 def _grid_is_valid(grid):
     if grid is None:
         return False
-    return True
+
+    if isinstance(grid, str):
+        return True
+
+    try:
+        [float(x) for x in grid]
+        return True
+    except TypeError:
+        return False
 
 
 def _area_is_valid(area):
@@ -89,8 +97,8 @@ def retrieve(requests, grid, area, **kwargs):
 class MarsInput(GribInput):
     """Get input fields from MARS"""
 
-    def __init__(self, runner, *, use_grib_paramid=False, **kwargs):
-        super().__init__(runner)
+    def __init__(self, context, *, use_grib_paramid=False, **kwargs):
+        super().__init__(context)
         self.use_grib_paramid = use_grib_paramid
         self.kwargs = kwargs
 

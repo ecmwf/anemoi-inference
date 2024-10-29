@@ -21,8 +21,8 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, runner, *, allow_nans=False):
-        super().__init__(runner)
+    def __init__(self, context, *, allow_nans=False):
+        super().__init__(context)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.allow_nans = allow_nans

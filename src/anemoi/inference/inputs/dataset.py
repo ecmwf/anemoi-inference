@@ -23,11 +23,11 @@ class DatasetInput(Input):
     Handles anemoi dataset as input
     """
 
-    def __init__(self, runner, /, *args, **kwargs):
+    def __init__(self, context, /, *args, **kwargs):
 
         from anemoi.datasets import open_dataset
 
-        super().__init__(runner)
+        super().__init__(context)
 
         if not args and not kwargs:
             args, kwargs = self.checkpoint.open_dataset_args_kwargs()
