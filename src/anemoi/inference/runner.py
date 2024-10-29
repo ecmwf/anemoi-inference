@@ -409,11 +409,11 @@ class Runner(Context):
     def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
 
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] == self.checkpoint.multi_step_input, tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
 
         t = []
-        for k, v in enumerate(sorted(tensor_by_name)):
+        for k, v in enumerate(tensor_by_name):
             data = tensor_numpy[-1, k]
 
             nans = "-"
