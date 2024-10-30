@@ -87,7 +87,7 @@ class RunCmd(Command):
                 raise ValueError("You must provide an input file to use the ICON plugin")
             input = IconInput(context, config.input, config.icon_grid, use_grib_paramid=config.use_grib_paramid)
         elif config.input is not None:
-            input = GribFileInput(context, config.input, context, use_grib_paramid=config.use_grib_paramid)
+            input = GribFileInput(context, config.input, use_grib_paramid=config.use_grib_paramid)
         elif config.dataset:
             input = DatasetInput(context)
         else:
