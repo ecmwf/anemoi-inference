@@ -9,7 +9,6 @@
 
 
 import logging
-import os
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
