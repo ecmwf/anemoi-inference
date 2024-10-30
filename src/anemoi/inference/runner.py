@@ -92,6 +92,9 @@ class Runner(Context):
 
         LOG.info("Using %s runner", self.__class__.__name__)
 
+        if self.verbosity > 1:
+            self.checkpoint.print_variable_categories()
+
     @property
     def checkpoint(self):
         return self._checkpoint
