@@ -603,4 +603,3 @@ class SourceMetadata(Metadata):
         return self.parent._indices
 
     ###########################################################################
-    # print(json.dumps(self.checkpoint.variable_categories(), indent=4))

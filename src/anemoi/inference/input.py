@@ -10,14 +10,10 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 
-from anemoi.utils.registry import Registry
-
-registry = Registry(__name__)
-
 LOG = logging.getLogger(__name__)
 
 
-class Output(ABC):
+class Input(ABC):
     """_summary_"""
 
     def __init__(self, context):
@@ -25,9 +21,16 @@ class Output(ABC):
         self.checkpoint = context.checkpoint
 
     @abstractmethod
-    def write_initial_state(self, state):
+    def create_input_state(self, *, date=None):
+        """Create the input state dictionary."""
         pass
 
-    @abstractmethod
-    def write_state(self, state):
+    def input_variables(self):
+        """Return the list of input variables"""
+        return list(self.checkpoint.variable_to_input_tensor_index.keys())
+
+    def set_private_attributes(self, state, value):
+        """Provide a way to a subclass to set private attributes in the state
+        dictionary, that may be needed but the output object.
+        """
         pass
