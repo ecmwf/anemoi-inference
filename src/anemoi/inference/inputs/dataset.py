@@ -16,7 +16,6 @@ from earthkit.data.utils.dates import to_datetime
 
 from . import Input
 
-
 LOG = logging.getLogger(__name__)
 
 
