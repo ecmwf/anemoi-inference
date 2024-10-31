@@ -458,23 +458,6 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    # def forcings_variables(self, constant_in_time_ok=False):
-
-    #     result = (
-    #         set(self._metadata.config.data.forcing)
-    #         - set(self.model_computed_variables)
-    #         - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
-    #     )
-
-    #     # We need the mask of the remaining variable in the model.input space
-
-    #     mapping = self._make_indices_mapping(
-    #         self._indices.data.input.full,
-    #         self._indices.model.input.full,
-    #     )
-
-    #     return sorted((mapping[self.variables.index(name)], name) for name in remaining)
-
     def constant_forcings_inputs(self, runner):
         result = []
 

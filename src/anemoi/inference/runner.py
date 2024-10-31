@@ -130,7 +130,7 @@ class Runner(Context):
         # TODO: Check for user provided forcings
 
         for source in self.constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s", source)
+            LOG.info("Constant forcings input: %s (%s)", source, dates)
             arrays = source.load_forcings(input_state, dates)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -138,7 +138,7 @@ class Runner(Context):
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
 
         for source in self.dynamic_forcings_inputs:
-            LOG.info("Constant forcings input: %s", source)
+            LOG.info("Constant forcings input: %s (%s)", source, dates)
             arrays = source.load_forcings(input_state, dates)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
