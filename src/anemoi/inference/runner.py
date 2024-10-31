@@ -219,9 +219,9 @@ class Runner(Context):
         LOG.info("Using autocast %s", self.autocast)
 
         lead_time = to_timedelta(lead_time)
-        steps = lead_time // self.checkpoint.frequency
+        steps = lead_time // self.checkpoint.timestep
 
-        LOG.info("Lead time: %s, frequency: %s Forecasting %s steps", lead_time, self.checkpoint.frequency, steps)
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
@@ -245,7 +245,7 @@ class Runner(Context):
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
         for s in range(steps):
-            step = (s + 1) * self.checkpoint.frequency
+            step = (s + 1) * self.checkpoint.timestep
             date = start + step
             LOG.info("Forecasting step %s (%s)", step, date)
 

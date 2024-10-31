@@ -88,9 +88,11 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @cached_property
-    def frequency(self):
-        """Model time stepping frequency"""
-        return to_timedelta(self._config_data.frequency)
+    def timestep(self):
+        """Model time stepping timestep"""
+        # frequency = to_timedelta(self._config_data.frequency)
+        timestep = to_timedelta(self._config_data.timestep)
+        return timestep
 
     @cached_property
     def precision(self):
