@@ -108,16 +108,6 @@ class Metadata(PatchMixin, LegacyMixin):
             self._indices.model.input.full,
         )
 
-        # LOG.info("Variable to input tensor index:")
-        # for k,v in mapping.items():
-        #     LOG.info('   %s => %s', k, v)
-
-        # for i, v in enumerate(self.variables):
-        #     if i not in mapping:
-        #         LOG.info(f"   {v} => <not used>")
-        #     else:
-        #         LOG.info(f"   {v} => {mapping[i]} ({i})")
-
         return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
 
     @cached_property
@@ -185,11 +175,6 @@ class Metadata(PatchMixin, LegacyMixin):
                 variables.append(name)
 
         return np.array(indices), variables
-
-    # @cached_property
-    # def input_computed_forcing_variables(self):
-    #     forcings = self._config_data.forcing
-    #     return [_ for _ in forcings if self.typed_variables[_].is_computed_forcing]
 
     ###########################################################################
     # Variables
@@ -317,6 +302,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         from anemoi.utils.grib import shortname_to_paramid
 
+        variable_categories = self.variable_categories()
+
         for variable, metadata in self.variables_metadata.items():
 
             if variables is not all and variable not in variables:
@@ -325,7 +312,13 @@ class Metadata(PatchMixin, LegacyMixin):
             if "mars" not in metadata:
                 continue
 
-            if variable in self.diagnostic_variables:
+            if "forcing" in variable_categories[variable]:
+                continue
+
+            if "computed" in variable_categories[variable]:
+                continue
+
+            if "diagnostic" in variable_categories[variable]:
                 continue
 
             mars = metadata["mars"].copy()

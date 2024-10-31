@@ -138,12 +138,36 @@ class EkdInput(Input):
         expected = len(variable_from_input) * len(dates)
 
         if len(data) != expected:
+
+            from anemoi.utils.text import table
+
             nvars = plural(len(variable_from_input), "variable")
             ndates = plural(len(dates), "date")
             nfields = plural(expected, "field")
             msg = f"Expected ({nvars}) x ({ndates}) = {nfields}, got {len(data)}"
             LOG.error("%s", msg)
-            # TODO: print a report
+
+            cols = {}
+            rows = {}
+            t = []
+            for i, d in enumerate(sorted(dates)):
+                cols[d.isoformat()] = i + 1
+
+            for i in range(len(variable_from_input)):
+                name = variable_from_input[i]
+                while len(t) <= i:
+                    t.append([name] + (["❌"] * len(cols)))
+
+                t[i][0] = name
+                rows[name] = i
+
+            for field in data:
+                name, date = field.metadata("name"), field.metadata("valid_datetime")
+
+                t[rows[name]][cols[date]] = "✅"
+
+            print(table(t, ["name"] + [_.isoformat() for _ in sorted(dates)], "<||"))
+
             raise ValueError(msg)
 
         assert len(data) == len(variable_from_input) * len(dates)
