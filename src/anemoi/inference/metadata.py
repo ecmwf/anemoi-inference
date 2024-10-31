@@ -11,6 +11,7 @@
 import logging
 import os
 import warnings
+from collections import defaultdict
 from functools import cached_property
 
 import numpy as np
@@ -87,9 +88,11 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @cached_property
-    def frequency(self):
-        """Model time stepping frequency"""
-        return to_timedelta(self._config_data.frequency)
+    def timestep(self):
+        """Model time stepping timestep"""
+        # frequency = to_timedelta(self._config_data.frequency)
+        timestep = to_timedelta(self._config_data.timestep)
+        return timestep
 
     @cached_property
     def precision(self):
@@ -379,6 +382,60 @@ class Metadata(PatchMixin, LegacyMixin):
     # We need factories
     ###########################################################################
 
+    def variable_categories(self):
+        result = defaultdict(set)
+        typed_variables = self.typed_variables
+
+        variables_in_data_space = self.variables
+        variables_in_model_space = self.output_tensor_index_to_variable
+
+        for name in self._metadata.config.data.forcing:
+            result[name].add("forcing")
+
+        for idx in self._indices.data.input.diagnostic:
+            name = variables_in_data_space[idx]
+            result[name].add("diagnostic")
+
+        # assert self._indices.model.input.prognostic == self._indices.model.output.prognostic
+        for idx in self._indices.model.output.prognostic:
+            name = variables_in_model_space[idx]
+            result[name].add("prognostic")
+
+        for name, v in typed_variables.items():
+            if v.is_accumulation:
+                result[name].add("accumulation")
+
+            if v.is_constant_in_time:
+                result[name].add("constant")
+
+            if v.is_computed_forcing:
+                result[name].add("computed")
+
+        for name in self.variables:
+            if name not in result:
+                raise ValueError(f"Variable {name} has no category")
+
+            result[name] = sorted(result[name])
+
+        return result
+
+    # def forcings_variables(self, constant_in_time_ok=False):
+
+    #     result = (
+    #         set(self._metadata.config.data.forcing)
+    #         - set(self.model_computed_variables)
+    #         - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
+    #     )
+
+    #     # We need the mask of the remaining variable in the model.input space
+
+    #     mapping = self._make_indices_mapping(
+    #         self._indices.data.input.full,
+    #         self._indices.model.input.full,
+    #     )
+
+    #     return sorted((mapping[self.variables.index(name)], name) for name in remaining)
+
     def dynamic_forcings_sources(self, runner):
 
         result = []
@@ -457,6 +514,11 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return sources
 
+    def print_variable_categories(self):
+        length = max(len(name) for name in self.variables)
+        for name, categories in sorted(self.variable_categories().items()):
+            LOG.info(f"   {name:{length}} => {', '.join(categories)}")
+
 
 class SourceMetadata(Metadata):
     """An object that holds metadata of a source. It is only the `dataset` and `supporting_arrays` parts of the metadata.
@@ -483,3 +545,6 @@ class SourceMetadata(Metadata):
     @property
     def _indices(self):
         return self.parent._indices
+
+    ###########################################################################
+    # print(json.dumps(self.checkpoint.variable_categories(), indent=4))

@@ -39,7 +39,10 @@ class DatasetInput(Input):
             LOG.warning("open_dataset(*%s, **%s)", args, kwargs)
 
         if isinstance(kwargs, str):
-            self.ds = open_dataset(os.path.splitext(os.path.basename(kwargs))[0])
+            try:
+                self.ds = open_dataset(os.path.splitext(os.path.basename(kwargs))[0])
+            except ValueError:
+                self.ds = open_dataset(kwargs)
         else:
             self.ds = open_dataset(*args, **kwargs)
 

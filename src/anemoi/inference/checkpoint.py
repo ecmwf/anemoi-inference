@@ -45,9 +45,13 @@ class Checkpoint:
     # easier
     ###########################################################################
 
+    # @property
+    # def frequency(self):
+    #     return self._metadata.frequency
+
     @property
-    def frequency(self):
-        return self._metadata.frequency
+    def timestep(self):
+        return self._metadata.timestep
 
     @property
     def precision(self):
@@ -131,18 +135,24 @@ class Checkpoint:
     def print_indices(self):
         return self._metadata.print_indices()
 
+    def variable_categories(self):
+        return self._metadata.variable_categories()
+
     ###########################################################################
 
     @cached_property
     def lagged(self):
         """Return the list of timedelta for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
-        result = [-s * self._metadata.frequency for s in result]
+        result = [-s * self._metadata.timestep for s in result]
         return sorted(result)
 
     @property
     def multi_step_input(self):
         return self._metadata.multi_step_input
+
+    def print_variable_categories(self):
+        return self._metadata.print_variable_categories()
 
     ###########################################################################
     # Data retrieval
