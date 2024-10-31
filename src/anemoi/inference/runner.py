@@ -80,7 +80,9 @@ class Runner(Context):
         if accumulations:
             self.postprocess = Accumulator(accumulations)
 
-        self.dynamic_forcings_sources = self.checkpoint.dynamic_forcings_sources(self)
+        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self)
+        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self)
+
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -100,7 +102,6 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
-
         input_state = self.validate_input_state(input_state)
 
         # timers = Timers()
@@ -119,31 +120,30 @@ class Runner(Context):
         # timers.report()
 
     def add_initial_forcings_to_input_state(self, input_state):
-        latitudes = input_state["latitudes"]
-        longitudes = input_state["longitudes"]
+        # latitudes = input_state["latitudes"]
+        # longitudes = input_state["longitudes"]
         date = input_state["date"]
         fields = input_state["fields"]
 
         dates = [date + h for h in self.checkpoint.lagged]
 
-        # We allow user provided fields to be used as forcings
-        variables = [v for v in self.checkpoint.model_computed_variables if v not in fields]
+        # TODO: Check for user provided forcings
 
-        LOG.info("Computing initial forcings %s", variables)
-        # LOG.info("Computing initial forcings %s", self.checkpoint._metadata.input_computed_forcing_variables)
+        for source in self.constant_forcings_inputs:
+            LOG.info("Constant forcings input: %s", source)
+            arrays = source.load_forcings(input_state, dates)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
 
-        forcings = self.compute_forcings(
-            latitudes=latitudes,
-            longitudes=longitudes,
-            dates=dates,
-            variables=variables,
-        )
-
-        typed_variables = self.checkpoint.typed_variables
-
-        for name, forcing in zip(variables, forcings):
-            fields[name] = forcing.to_numpy(dtype=np.float32, flatten=True)
-            self._input_kinds[name] = Kind(computed=True, constant=typed_variables[name].is_constant_in_time)
+        for source in self.dynamic_forcings_inputs:
+            LOG.info("Constant forcings input: %s", source)
+            arrays = source.load_forcings(input_state, dates)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -319,8 +319,8 @@ class Runner(Context):
         # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
         # batch is always 1
 
-        for source in self.dynamic_forcings_sources:
-            forcings = source.load_forcings(state, date)  # shape: (variables, values)
+        for source in self.dynamic_forcings_inputs:
+            forcings = source.load_forcings(state, [date])  # shape: (variables, values)
 
             forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
 

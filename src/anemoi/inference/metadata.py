@@ -179,6 +179,31 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return np.array(indices), variables
 
+    @cached_property
+    def computed_constant_forcings(self):
+        """Return the indices and names of the computed forcings that are  constant in time"""
+
+        # Mapping between model and data indices
+        mapping = self._make_indices_mapping(
+            self._indices.model.input.full,
+            self._indices.data.input.full,
+        )
+
+        # Mapping between model indices and variable names
+        forcings_variables = {self.variables[mapping[i]]: i for i in self._indices.model.input.forcing}
+        typed_variables = self.typed_variables
+
+        # Filter out the computed forcings that are not constant in time
+        indices = []
+        variables = []
+        for name, idx in sorted(forcings_variables.items(), key=lambda x: x[1]):
+            v = typed_variables[name]
+            if v.is_computed_forcing and v.is_constant_in_time:
+                indices.append(idx)
+                variables.append(name)
+
+        return np.array(indices), variables
+
     ###########################################################################
     # Variables
     ###########################################################################
@@ -300,17 +325,11 @@ class Metadata(PatchMixin, LegacyMixin):
     def area(self):
         return self._data_request.get("area")
 
-    def mars_requests(self, *, use_grib_paramid=False, variables=all):
-        """Return a list of MARS requests for the variables in the dataset"""
-
-        from anemoi.utils.grib import shortname_to_paramid
-
+    @property
+    def variables_from_input(self):
         variable_categories = self.variable_categories()
-
+        result = []
         for variable, metadata in self.variables_metadata.items():
-
-            if variables is not all and variable not in variables:
-                continue
 
             if "mars" not in metadata:
                 continue
@@ -324,7 +343,27 @@ class Metadata(PatchMixin, LegacyMixin):
             if "diagnostic" in variable_categories[variable]:
                 continue
 
-            mars = metadata["mars"].copy()
+            result.append(variable)
+
+        return result
+
+    def mars_requests(self, *, variables, use_grib_paramid=False):
+        """Return a list of MARS requests for the variables in the dataset"""
+
+        from anemoi.utils.grib import shortname_to_paramid
+
+        if len(variables) == 0:
+            raise ValueError("No variables requested")
+
+        for variable in variables:
+
+            if variable not in self.variables_metadata:
+                raise ValueError(f"Variable {variable} not found in the metadata")
+
+            if "mars" not in self.variables_metadata[variable]:
+                raise ValueError(f"Variable {variable} has no MARS metadata")
+
+            mars = self.variables_metadata[variable]["mars"].copy()
 
             for k in ("date", "time"):
                 mars.pop(k, None)
@@ -436,7 +475,41 @@ class Metadata(PatchMixin, LegacyMixin):
 
     #     return sorted((mapping[self.variables.index(name)], name) for name in remaining)
 
-    def dynamic_forcings_sources(self, runner):
+    def constant_forcings_inputs(self, runner):
+        result = []
+
+        # This will manage the dynamic forcings that are computed
+        forcing_mask, forcing_variables = self.computed_constant_forcings
+        if len(forcing_mask) > 0:
+            result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
+
+        remaining = (
+            set(self._metadata.config.data.forcing) - set(self.model_computed_variables) - set(forcing_variables)
+        )
+        if not remaining:
+            return result
+
+        LOG.info("Remaining forcings: %s", remaining)
+
+        # We need the mask of the remaining variable in the model.input space
+
+        mapping = self._make_indices_mapping(
+            self._indices.data.input.full,
+            self._indices.model.input.full,
+        )
+
+        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
+
+        LOG.info("Will get the following from MARS for now: %s", remaining)
+
+        remaining_mask = [i for i, _ in remaining]
+        remaining = [name for _, name in remaining]
+
+        result.append(CoupledForcingsFromMars(runner, remaining, remaining_mask))
+
+        return result
+
+    def dynamic_forcings_inputs(self, runner):
 
         result = []
 

@@ -123,8 +123,11 @@ class Checkpoint:
     def open_dataset_args_kwargs(self):
         return self._metadata.open_dataset_args_kwargs()
 
-    def dynamic_forcings_sources(self, runner):
-        return self._metadata.dynamic_forcings_sources(runner)
+    def constant_forcings_inputs(self, runner):
+        return self._metadata.constant_forcings_inputs(runner)
+
+    def dynamic_forcings_inputs(self, runner):
+        return self._metadata.dynamic_forcings_inputs(runner)
 
     def name_fields(self, fields, namer=None):
         return self._metadata.name_fields(fields, namer=namer)
@@ -157,6 +160,9 @@ class Checkpoint:
     ###########################################################################
     # Data retrieval
     ###########################################################################
+    @property
+    def variables_from_input(self):
+        return self._metadata.variables_from_input
 
     @property
     def grid(self):
@@ -166,8 +172,10 @@ class Checkpoint:
     def area(self):
         return self._metadata.area
 
-    def mars_requests(self, dates, use_grib_paramid=False, variables=all, **kwargs):
+    def mars_requests(self, *, variables, dates, use_grib_paramid=False, **kwargs):
         from earthkit.data.utils.availability import Availability
+
+        assert variables, "No variables provided"
 
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
@@ -186,7 +194,7 @@ class Checkpoint:
 
         requests = defaultdict(list)
 
-        for r in self._metadata.mars_requests(use_grib_paramid=use_grib_paramid, variables=variables):
+        for r in self._metadata.mars_requests(variables=variables, use_grib_paramid=use_grib_paramid):
             for date in dates:
 
                 r = r.copy()

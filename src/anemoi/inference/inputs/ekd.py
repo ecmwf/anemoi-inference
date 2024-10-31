@@ -12,9 +12,9 @@ import logging
 from collections import defaultdict
 
 import numpy as np
-from anemoi.utils.humanize import plural
 from earthkit.data.indexing.fieldlist import FieldArray
 
+from ..checks import check_data
 from . import Input
 
 LOG = logging.getLogger(__name__)
@@ -31,8 +31,19 @@ class EkdInput(Input):
         assert callable(self._namer), type(self._namer)
 
     def _create_input_state(
-        self, input_fields, date=None, latitudes=None, longitudes=None, dtype=np.float32, flatten=True
+        self,
+        input_fields,
+        *,
+        variables,
+        date=None,
+        latitudes=None,
+        longitudes=None,
+        dtype=np.float32,
+        flatten=True,
     ):
+
+        if len(input_fields) == 0:
+            raise ValueError("No input fields provided")
 
         # Newer checkpoints may have latitudes and longitudes
         if latitudes is None:
@@ -64,7 +75,7 @@ class EkdInput(Input):
 
         fields = input_state["fields"]
 
-        input_fields = self._filter_and_sort(input_fields, dates)
+        input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates)
 
         check = defaultdict(set)
 
@@ -117,59 +128,18 @@ class EkdInput(Input):
 
         return input_state
 
-    def _filter_and_sort(self, data, dates):
-        typed_variables = self.checkpoint.typed_variables
-        diagnostic_variables = self.checkpoint.diagnostic_variables
+    def _filter_and_sort(self, data, *, variables, dates):
 
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.copy(name=_name) for f in data])
 
-        variable_from_input = [
-            v.name for v in typed_variables.values() if v.is_from_input and v.name not in diagnostic_variables
-        ]
-
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        data = data.sel(name=variable_from_input, valid_datetime=valid_datetime).order_by("name", "valid_datetime")
+        data = data.sel(name=variables, valid_datetime=valid_datetime).order_by("name", "valid_datetime")
 
-        expected = len(variable_from_input) * len(dates)
-
-        if len(data) != expected:
-
-            from anemoi.utils.text import table
-
-            nvars = plural(len(variable_from_input), "variable")
-            ndates = plural(len(dates), "date")
-            nfields = plural(expected, "field")
-            msg = f"Expected ({nvars}) x ({ndates}) = {nfields}, got {len(data)}"
-            LOG.error("%s", msg)
-
-            cols = {}
-            rows = {}
-            t = []
-            for i, d in enumerate(sorted(dates)):
-                cols[d.isoformat()] = i + 1
-
-            for i in range(len(variable_from_input)):
-                name = variable_from_input[i]
-                while len(t) <= i:
-                    t.append([name] + (["❌"] * len(cols)))
-
-                t[i][0] = name
-                rows[name] = i
-
-            for field in data:
-                name, date = field.metadata("name"), field.metadata("valid_datetime")
-
-                t[rows[name]][cols[date]] = "✅"
-
-            print(table(t, ["name"] + [_.isoformat() for _ in sorted(dates)], "<||"))
-
-            raise ValueError(msg)
-
-        assert len(data) == len(variable_from_input) * len(dates)
+        check_data(data, variables, dates)
 
         return data

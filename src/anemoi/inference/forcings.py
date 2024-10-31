@@ -39,14 +39,17 @@ class ComputedForcings(Forcings):
         self.mask = mask
         self.kinds = dict(computed=True)  # Used for debugging
 
-    def load_forcings(self, state, date):
+    def load_forcings(self, state, dates):
         LOG.debug("Adding dynamic forcings %s", self.variables)
+
+        if not isinstance(dates, (list, tuple)):
+            dates = [dates]
 
         forcing = self.runner.compute_forcings(
             latitudes=state["latitudes"],
             longitudes=state["longitudes"],
             variables=self.variables,
-            dates=[date],
+            dates=dates,
         )
 
         return forcing.to_numpy(dtype=np.float32, flatten=True)
@@ -69,23 +72,33 @@ class CoupledForcingsFromMars(Forcings):
         self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
         self.kinds = dict(retrieved=True)  # Used for debugging
 
-    def load_forcings(self, state, date):
+    def load_forcings(self, state, dates):
         from .inputs.mars import retrieve
 
         requests = self.runner.checkpoint.mars_requests(
-            date,
-            use_grib_paramid=self.use_grib_paramid,
             variables=self.variables,
+            dates=dates,
+            use_grib_paramid=self.use_grib_paramid,
         )
+
+        if not requests:
+            raise ValueError("No requests for %s (%s)" % (self.variables, dates))
+
+        for r in requests:
+            LOG.info("Request: %s", r)
 
         fields = retrieve(requests=requests, grid=self.grid, area=self.area, expver=1)
 
-        fields = self.checkpoint.name_fields(fields).order_by(name=self.variables)
+        if not fields:
+            raise ValueError("No fields retrieved for {self.variables} ({dates})")
 
-        p = -1
-        for f, v, m in zip(fields, self.variables, self.mask):
-            assert f.metadata("name") == v, (f.metadata("name"), v)
-            assert m > p, (m, p)
-            p = m
+        fields = self.checkpoint.name_fields(fields).order_by(name=self.variables, valid_datetime="ascending")
+
+        # p = -1
+        # for f, v, m in zip(fields, self.variables, self.mask):
+        #     print(f, f.metadata("name"), v)
+        #     assert f.metadata("name") == v, (f.metadata("name"), v)
+        #     assert m > p, (m, p)
+        #     p = m
 
         return fields.to_numpy(dtype=np.float32, flatten=True)
