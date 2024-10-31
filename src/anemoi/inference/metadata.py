@@ -46,11 +46,15 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def _config_data(self):
-        return self._metadata.config.data
+        return self._config.data
 
     @property
     def _config_training(self):
-        return self._metadata.config.training
+        return self._config.training
+
+    @property
+    def _config(self):
+        return self._metadata.config
 
     ###########################################################################
     # Debugging
@@ -412,7 +416,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         # TODO: check why self._metadata.dataset.arguments has some None values
 
-        return (), self._metadata.config.dataloader.dataset
+        return (), self._config.dataloader.dataset
 
         # return _(self._metadata.dataset.arguments.args), _(self._metadata.dataset.arguments.kwargs)
 
@@ -428,7 +432,7 @@ class Metadata(PatchMixin, LegacyMixin):
         variables_in_data_space = self.variables
         variables_in_model_space = self.output_tensor_index_to_variable
 
-        for name in self._metadata.config.data.forcing:
+        for name in self._config.data.forcing:
             result[name].add("forcing")
 
         for idx in self._indices.data.input.diagnostic:
@@ -466,9 +470,7 @@ class Metadata(PatchMixin, LegacyMixin):
         if len(forcing_mask) > 0:
             result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
 
-        remaining = (
-            set(self._metadata.config.data.forcing) - set(self.model_computed_variables) - set(forcing_variables)
-        )
+        remaining = set(self._config.data.forcing) - set(self.model_computed_variables) - set(forcing_variables)
         if not remaining:
             return result
 
@@ -502,7 +504,7 @@ class Metadata(PatchMixin, LegacyMixin):
             result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
 
         remaining = (
-            set(self._metadata.config.data.forcing)
+            set(self._config.data.forcing)
             - set(self.model_computed_variables)
             - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
         )
@@ -601,5 +603,9 @@ class SourceMetadata(Metadata):
     @property
     def _indices(self):
         return self.parent._indices
+
+    @property
+    def _config(self):
+        return self.parent._config
 
     ###########################################################################
