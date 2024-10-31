@@ -9,11 +9,13 @@
 
 
 import logging
+import os
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
 from . import Input
+
 
 LOG = logging.getLogger(__name__)
 
@@ -38,7 +40,10 @@ class DatasetInput(Input):
             LOG.warning("open_dataset(*%s, **%s)", args, kwargs)
 
         if isinstance(kwargs, str):
-            self.ds = open_dataset(kwargs)
+            try:
+                self.ds = open_dataset(os.path.splitext(os.path.basename(kwargs))[0])
+            except ValueError:
+                self.ds = open_dataset(kwargs)
         else:
             self.ds = open_dataset(*args, **kwargs)
 
