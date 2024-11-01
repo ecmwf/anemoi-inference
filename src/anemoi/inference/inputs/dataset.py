@@ -67,13 +67,9 @@ class DatasetInput(Input):
         for d in [date + np.timedelta64(h) for h in self.checkpoint.lagged]:
             (i,) = np.where(dataset_dates == d)
             if len(i) == 0:
-<<<<<<< Updated upstream
                 raise ValueError(
                     f"Date {d} not found in the dataset, available dates: {dataset_dates[0]}...{dataset_dates[-1]} by {self.ds.frequency}"
                 )
-=======
-                raise ValueError(f"Date {d} not found in the dataset, available dates: {dataset_dates[0]}...{dataset_dates[-1]} by {self.ds.frequency}")
->>>>>>> Stashed changes
             assert len(i) == 1, f"Multiple dates found for {d}"
             idx.append(int(i[0]))
 

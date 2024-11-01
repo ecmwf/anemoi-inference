@@ -21,6 +21,8 @@ from ..inputs.gribfile import GribFileInput
 from ..inputs.icon import IconInput
 from ..outputs.gribfile import GribFileOutput
 from ..outputs.printer import PrinterOutput
+from ..outputs.raw import RawOutput
+from ..runner import runner_registry
 from . import Command
 
 LOG = logging.getLogger(__name__)
