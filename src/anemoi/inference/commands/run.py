@@ -21,6 +21,7 @@ from ..inputs.gribfile import GribFileInput
 from ..inputs.icon import IconInput
 from ..outputs.gribfile import GribFileOutput
 from ..outputs.printer import PrinterOutput
+from ..outputs.raw import RawOutput
 from ..runners.cutout import CutoutRunner
 from ..runners.default import DefaultRunner
 from . import Command
@@ -94,7 +95,12 @@ class RunCmd(Command):
             input = context.mars_input(use_grib_paramid=config.use_grib_paramid)
 
         if config.output is not None:
-            output = GribFileOutput(context, config.output, allow_nans=config.allow_nans)
+            if config.output_type == "grib":
+                output = GribFileOutput(context, config.output, allow_nans=config.allow_nans)
+            elif config.output_type == "raw":
+                output = RawOutput(config.output)
+            else:
+                raise ValueError("You must set output_typ to either 'grib' or 'raw'. Other formats not yet supported.")
         else:
             output = PrinterOutput(context)
 
