@@ -19,7 +19,7 @@ from .grib import GribOutput
 LOG = logging.getLogger(__name__)
 
 
-@output_registry.register("gribfile")
+@output_registry.register("grib_file")
 class GribFileOutput(GribOutput):
     """
     Handles grib files

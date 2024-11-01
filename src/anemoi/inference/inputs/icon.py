@@ -12,27 +12,29 @@ import logging
 
 import earthkit.data as ekd
 
+from . import input_registry
 from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
 
+@input_registry.register("icon_grib_file")
 class IconInput(GribInput):
     """
     Handles grib files from ICON
     WARNING: this code will become a pugin in the future
     """
 
-    def __init__(self, context, path, icon_grid, *, use_grib_paramid=False):
+    def __init__(self, context, path, grid, *, use_grib_paramid=False):
         super().__init__(context, use_grib_paramid=use_grib_paramid)
         self.path = path
-        self.icon_grid = icon_grid
+        self.grid = grid
 
     def create_input_state(self, *, date):
         import xarray as xr
 
-        LOG.info(f"Reading ICON grid from {self.icon_grid}")
-        ds = xr.open_dataset(self.icon_grid)
+        LOG.info(f"Reading ICON grid from {self.grid}")
+        ds = xr.open_dataset(self.grid)
         latitudes = ds.clat[ds.refinement_level_c <= 3].values
         longitudes = ds.clon[ds.refinement_level_c <= 3].values
 
@@ -40,6 +42,7 @@ class IconInput(GribInput):
 
         return self._create_input_state(
             ekd.from_source("file", self.path),
+            variables=None,
             date=date,
             latitudes=latitudes,
             longitudes=longitudes,

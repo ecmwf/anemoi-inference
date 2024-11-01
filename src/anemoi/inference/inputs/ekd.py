@@ -49,13 +49,16 @@ class EkdInput(Input):
         self,
         input_fields,
         *,
-        variables,
+        variables=None,
         date=None,
         latitudes=None,
         longitudes=None,
         dtype=np.float32,
         flatten=True,
     ):
+
+        if variables is None:
+            variables = [k for k, v in self.checkpoint.typed_variables.items() if not v.is_computed_forcing]
 
         if len(input_fields) == 0:
             raise ValueError("No input fields provided")

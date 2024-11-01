@@ -12,11 +12,13 @@ import logging
 
 import earthkit.data as ekd
 
+from . import input_registry
 from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
 
+@input_registry.register("grib_file")
 class GribFileInput(GribInput):
     """
     Handles grib files
@@ -27,4 +29,4 @@ class GribFileInput(GribInput):
         self.path = path
 
     def create_input_state(self, *, date):
-        return self._create_input_state(ekd.from_source("file", self.path), date=date)
+        return self._create_input_state(ekd.from_source("file", self.path), variable=None, date=date)

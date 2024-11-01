@@ -12,6 +12,7 @@ import logging
 
 from earthkit.data.utils.dates import to_datetime
 
+from . import input_registry
 from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ def retrieve(requests, grid, area, **kwargs):
     return result
 
 
+@input_registry.register("mars")
 class MarsInput(GribInput):
     """Get input fields from MARS"""
 
@@ -111,7 +113,11 @@ class MarsInput(GribInput):
 
         date = to_datetime(date)
 
-        return self._create_input_state(self._retrieve(date), variables=self.variables)
+        return self._create_input_state(
+            self._retrieve(date),
+            variables=self.variables,
+            date=date,
+        )
 
     def _retrieve(self, date):
 

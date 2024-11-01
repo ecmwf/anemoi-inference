@@ -68,7 +68,7 @@ class Configuration(BaseModel):
 
     dataset: bool | Dict | str = False
 
-    env: Dict[str, str] = {}
+    env: Dict[str, str | int] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured."""
