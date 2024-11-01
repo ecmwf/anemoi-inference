@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import datetime
 import logging
 import os
 
@@ -18,9 +17,9 @@ from . import Output
 LOG = logging.getLogger(__name__)
 
 
-
 class RawOutput(Output):
     """_summary_"""
+
     def __init__(self, path):
         self.path = path
 
@@ -30,9 +29,7 @@ class RawOutput(Output):
     def write_state(self, state):
         os.makedirs(self.path, exist_ok=True)
         fn_state = f"{self.path}/{state['date'].strftime("%Y%m%d_%H")}"
-        restate = {f"field_{key}" : val for key, val in state['fields'].items() }
-        restate['longitudes'] = state['longitudes']
-        restate['latitudes'] = state['latitudes']
-        np.savez_compressed(fn_state,**restate)
-
-        
+        restate = {f"field_{key}": val for key, val in state["fields"].items()}
+        restate["longitudes"] = state["longitudes"]
+        restate["latitudes"] = state["latitudes"]
+        np.savez_compressed(fn_state, **restate)
