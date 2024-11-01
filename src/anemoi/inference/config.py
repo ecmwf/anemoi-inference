@@ -44,6 +44,8 @@ class Configuration(BaseModel):
     input: str | None = None
     output: str | None = None
 
+    output_type: str = 'grib'
+
     device: str = "cuda"
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
 
