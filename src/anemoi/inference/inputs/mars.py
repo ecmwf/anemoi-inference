@@ -108,7 +108,7 @@ class MarsInput(GribInput):
 
     def create_input_state(self, *, date):
         if date is None:
-            date = -1
+            date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
 
         date = to_datetime(date)
