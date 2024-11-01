@@ -11,7 +11,7 @@
 import logging
 
 from ..context import Context
-from ..inputs import Input
+from ..input import Input
 from ..runner import Runner
 from . import runner_registry
 

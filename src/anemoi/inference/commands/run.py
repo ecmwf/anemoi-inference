@@ -16,13 +16,9 @@ import os
 import yaml
 
 from ..config import Configuration
-from ..inputs.dataset import DatasetInput
-from ..inputs.gribfile import GribFileInput
-from ..inputs.icon import IconInput
-from ..outputs.gribfile import GribFileOutput
-from ..outputs.printer import PrinterOutput
-from ..outputs.raw import RawOutput
-from ..runner import runner_registry
+from ..inputs import input_registry
+from ..outputs import output_registry
+from ..runners import runner_registry
 from . import Command
 
 LOG = logging.getLogger(__name__)
@@ -83,26 +79,19 @@ class RunCmd(Command):
     def make_input_output(self, context, config):
         # TODO: Use factories
 
-        if config.icon_grid is not None:
-            if config.input is None:
-                raise ValueError("You must provide an input file to use the ICON plugin")
-            input = IconInput(context, config.input, config.icon_grid, use_grib_paramid=config.use_grib_paramid)
-        elif config.input is not None:
-            input = GribFileInput(context, config.input, use_grib_paramid=config.use_grib_paramid)
-        elif config.dataset:
-            input = DatasetInput(context)
-        else:
-            input = context.mars_input(use_grib_paramid=config.use_grib_paramid)
+        input = config.input
+        if isinstance(input, str):
+            input = {"kind": input}
 
-        if config.output is not None:
-            if config.output_type == "grib":
-                output = GribFileOutput(context, config.output, allow_nans=config.allow_nans)
-            elif config.output_type == "raw":
-                output = RawOutput(config.output)
-            else:
-                raise ValueError("You must set output_typ to either 'grib' or 'raw'. Other formats not yet supported.")
-        else:
-            output = PrinterOutput(context)
+        kind = input.pop("kind", "mars")
+        input = input_registry.create(kind, context, **input)
+
+        output = config.output
+        if isinstance(output, str):
+            output = {"kind": output}
+
+        kind = output.pop("kind", "printer")
+        output = output_registry.create(kind, context, **output)
 
         return input, output
 

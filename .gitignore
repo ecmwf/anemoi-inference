@@ -188,6 +188,6 @@ _build/
 _version.py
 *.ckpt
 *.tmp
-outputs/
+/outputs/
 # Top level files only
 /*.yaml

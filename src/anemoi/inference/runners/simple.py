@@ -16,9 +16,9 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-@runner_registry.register("default")
-class DefaultRunner(Runner):
-    """Default runner for single source."""
+@runner_registry.register("simple")
+class SimpleRunner(Runner):
+    """Use that runner when using the low level API."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

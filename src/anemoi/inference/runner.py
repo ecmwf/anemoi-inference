@@ -80,9 +80,6 @@ class Runner(Context):
         if accumulations:
             self.postprocess = Accumulator(accumulations)
 
-        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self)
-        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self)
-
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -102,7 +99,9 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
-        input_state = self.validate_input_state(input_state)
+
+        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
+        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
 
         # timers = Timers()
 
@@ -120,8 +119,7 @@ class Runner(Context):
         # timers.report()
 
     def add_initial_forcings_to_input_state(self, input_state):
-        # latitudes = input_state["latitudes"]
-        # longitudes = input_state["longitudes"]
+        # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
 
@@ -130,7 +128,7 @@ class Runner(Context):
         # TODO: Check for user provided forcings
 
         for source in self.constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s (%s)", source, dates)
+            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings(input_state, dates)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -138,7 +136,7 @@ class Runner(Context):
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
 
         for source in self.dynamic_forcings_inputs:
-            LOG.info("Constant forcings input: %s (%s)", source, dates)
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings(input_state, dates)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -154,6 +152,8 @@ class Runner(Context):
 
         # Add initial forcings to input state if needed
         self.add_initial_forcings_to_input_state(input_state)
+
+        input_state = self.validate_input_state(input_state)
 
         input_fields = input_state["fields"]
 
@@ -320,7 +320,9 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings(state, [date])  # shape: (variables, values)
+            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+
+            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
             forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
 
@@ -338,6 +340,7 @@ class Runner(Context):
 
     def compute_forcings(self, *, latitudes, longitudes, dates, variables):
         import earthkit.data as ekd
+        from earthkit.data.indexing.fieldlist import FieldArray
 
         source = UnstructuredGridFieldList.from_values(latitudes=latitudes, longitudes=longitudes)
 
@@ -345,7 +348,12 @@ class Runner(Context):
 
         assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
 
-        return ds
+        def rename(f, _, metadata):
+            return metadata["param"]
+
+        ds = FieldArray([f.copy(name=rename) for f in ds])
+
+        return ds.order_by(name=variables, valid_datetime="ascending")
 
     def validate_input_state(self, input_state):
 
@@ -366,6 +374,7 @@ class Runner(Context):
         # Detach from the user's input so we can modify it
         input_state = input_state.copy()
         fields = input_state["fields"] = input_state["fields"].copy()
+        number_of_grid_points = self.checkpoint.number_of_grid_points
 
         for latlon in ("latitudes", "longitudes"):
             if len(input_state[latlon].shape) != 1:
@@ -376,11 +385,14 @@ class Runner(Context):
         if nlat != nlon:
             raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
 
-        number_of_grid_points = nlat
+        if nlat != number_of_grid_points:
+            raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
 
         multi_step = self.checkpoint.multi_step_input
 
         expected_shape = (multi_step, number_of_grid_points)
+
+        LOG.info("Expected shape for each input fields: %s", expected_shape)
 
         # Check field
         with_nans = []
@@ -392,7 +404,7 @@ class Runner(Context):
                 field = fields[name] = field.reshape(1, field.shape[0])
 
             if field.shape != expected_shape:
-                raise ValueError(f"Field `name` has the wrong shape. Expected {expected_shape}, got {field.shape}")
+                raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
 
             if np.isinf(field).any():
                 raise ValueError(f"Field `{name}` contains infinities")

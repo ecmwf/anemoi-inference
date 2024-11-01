@@ -443,7 +443,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def open_dataset_args_kwargs(self, *, keep_paths):
+    def open_dataset_args_kwargs(self, *, use_original_paths):
 
         # Rebuild the full paths
         # Some older checkpoints may not have the full paths
@@ -469,7 +469,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         args, kwargs = _fix([self._metadata.dataset.arguments.args, self._metadata.dataset.arguments.kwargs])
 
-        if keep_paths:
+        if use_original_paths:
             return args, kwargs
 
         return _remove_full_paths(args), _remove_full_paths(kwargs)
@@ -516,15 +516,39 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def constant_forcings_inputs(self, runner):
+    def constant_forcings_inputs(self, runner, input_state):
+        # TODO: this does not belong here
+
         result = []
+
+        provided_variables = set(input_state["fields"].keys())
 
         # This will manage the dynamic forcings that are computed
         forcing_mask, forcing_variables = self.computed_constant_forcings
+
+        # Ingore provided variables
+        new_forcing_mask = []
+        new_forcing_variables = []
+
+        for i, name in zip(forcing_mask, forcing_variables):
+            if name not in provided_variables:
+                new_forcing_mask.append(i)
+                new_forcing_variables.append(name)
+
+        LOG.info("Computed constant forcings: before %s, after %s", forcing_variables, new_forcing_variables)
+
+        forcing_mask = np.array(new_forcing_mask)
+        forcing_variables = new_forcing_variables
+
         if len(forcing_mask) > 0:
             result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
 
-        remaining = set(self._config.data.forcing) - set(self.model_computed_variables) - set(forcing_variables)
+        remaining = (
+            set(self._config.data.forcing)
+            - set(self.model_computed_variables)
+            - set(forcing_variables)
+            - provided_variables
+        )
         if not remaining:
             return result
 
@@ -548,7 +572,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def dynamic_forcings_inputs(self, runner):
+    def dynamic_forcings_inputs(self, runner, input_state):
 
         result = []
 
@@ -597,7 +621,16 @@ class Metadata(PatchMixin, LegacyMixin):
     def longitudes(self):
         return self._supporting_arrays.get("longitudes")
 
+    @property
+    def grid_points_mask(self):
+        # TODO
+        return None
+
     def sources(self, path):
+
+        if "sources" not in self._metadata.dataset:
+            return []
+
         import zipfile
 
         from anemoi.utils.checkpoints import load_supporting_arrays
@@ -689,7 +722,7 @@ class SourceMetadata(Metadata):
                 return v
         return None
 
-    def open_dataset_args_kwargs(self, *, keep_paths):
+    def open_dataset_args_kwargs(self, *, use_original_paths):
 
         args = []
         kwargs = {}
@@ -724,7 +757,7 @@ class SourceMetadata(Metadata):
 
         args = [_guess(self._metadata, {})]
 
-        if keep_paths:
+        if use_original_paths:
             return args, kwargs
 
         return _remove_full_paths(args), _remove_full_paths(kwargs)

@@ -2,7 +2,7 @@ import datetime
 
 from anemoi.inference.inputs.gribfile import GribFileInput
 from anemoi.inference.outputs.gribfile import GribFileOutput
-from anemoi.inference.runner import DefaultRunner
+from anemoi.inference.runners import DefaultRunner
 
 # Create a runner with the checkpoint file
 runner = DefaultRunner("checkpoint.ckpt")

@@ -12,15 +12,18 @@ import os
 
 import numpy as np
 
-from . import Output
+from ..output import Output
+from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
 
+@output_registry.register("raw")
 class RawOutput(Output):
     """_summary_"""
 
-    def __init__(self, path):
+    def __init__(self, context, path):
+        super().__init__(context)
         self.path = path
 
     def write_initial_state(self, state):

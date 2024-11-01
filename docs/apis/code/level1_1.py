@@ -2,10 +2,10 @@ import datetime
 
 import numpy as np
 
-from anemoi.inference.runner import DefaultRunner
+from anemoi.inference.runners.simple import SimpleRunner
 
 # Create a runner with the checkpoint file
-runner = DefaultRunner("checkpoint.ckpt")
+runner = SimpleRunner("checkpoint.ckpt")
 
 # Select a starting date
 date = datetime.datetime(2024, 10, 25)

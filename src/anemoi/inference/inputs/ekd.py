@@ -15,7 +15,7 @@ import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
 
 from ..checks import check_data
-from . import Input
+from ..input import Input
 
 LOG = logging.getLogger(__name__)
 

@@ -13,33 +13,38 @@ import logging
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
-from . import Input
+from ..input import Input
+from . import input_registry
 
 LOG = logging.getLogger(__name__)
 
 
+@input_registry.register("dataset")
 class DatasetInput(Input):
     """
     Handles anemoi dataset as input
     """
 
-    def __init__(self, context, /, *args, keep_paths=True, **kwargs):
+    def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
 
         from anemoi.datasets import open_dataset
 
         super().__init__(context)
 
-        # TODO: pass `keep_paths` as an argument
-
-        keep_paths = False
-
         if not args and not kwargs:
-            args, kwargs = self.checkpoint.open_dataset_args_kwargs(keep_paths=keep_paths)
+            args, kwargs = self.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
             # TODO: remove start/end from the arguments
 
             LOG.warning("No arguments provided to open_dataset, using the default arguments:")
-            LOG.warning("open_dataset(*%s, **%s)", args, kwargs)
+
+            cmd = "open_dataset("
+            for arg in args:
+                cmd += f"{arg}, "
+            for key, value in kwargs.items():
+                cmd += f"{key}={value}, "
+
+            LOG.warning("%s", cmd)
 
         self.ds = open_dataset(*args, **kwargs)
 

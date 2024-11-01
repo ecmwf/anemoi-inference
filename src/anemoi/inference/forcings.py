@@ -29,6 +29,9 @@ class Forcings(ABC):
     def load_forcings(self, state, date):
         pass
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+
 
 class ComputedForcings(Forcings):
     """Compute forcings like `cos_julian_day` or `insolation`."""
@@ -52,7 +55,9 @@ class ComputedForcings(Forcings):
             dates=dates,
         )
 
-        return forcing.to_numpy(dtype=np.float32, flatten=True)
+        # Forcing are sorted by `compute_forcings`  in the order (varaible, date)
+
+        return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
 
 # TODO: Create a class `CoupledForcingsFromInput`
@@ -94,11 +99,4 @@ class CoupledForcingsFromMars(Forcings):
 
         fields = self.checkpoint.name_fields(fields).order_by(name=self.variables, valid_datetime="ascending")
 
-        # p = -1
-        # for f, v, m in zip(fields, self.variables, self.mask):
-        #     print(f, f.metadata("name"), v)
-        #     assert f.metadata("name") == v, (f.metadata("name"), v)
-        #     assert m > p, (m, p)
-        #     p = m
-
-        return fields.to_numpy(dtype=np.float32, flatten=True)
+        return fields.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)

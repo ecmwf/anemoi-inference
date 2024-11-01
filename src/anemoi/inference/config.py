@@ -41,10 +41,8 @@ class Configuration(BaseModel):
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error."""
 
-    input: str | None = None
-    output: str | None = None
-
-    output_type: str = "grib"
+    input: str | Dict | None = "mars"
+    output: str | Dict | None = "printer"
 
     device: str = "cuda"
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
