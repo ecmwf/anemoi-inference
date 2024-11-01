@@ -12,7 +12,7 @@ import logging
 import warnings
 from abc import abstractmethod
 
-from . import Output
+from ..output import Output
 
 LOG = logging.getLogger(__name__)
 

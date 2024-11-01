@@ -28,7 +28,7 @@ class RawOutput(Output):
 
     def write_state(self, state):
         os.makedirs(self.path, exist_ok=True)
-        fn_state = f"{self.path}/{state['date'].strftime("%Y%m%d_%H")}"
+        fn_state = f"{self.path}/{state['date'].strftime('%Y%m%d_%H')}"
         restate = {f"field_{key}": val for key, val in state["fields"].items()}
         restate["longitudes"] = state["longitudes"]
         restate["latitudes"] = state["latitudes"]

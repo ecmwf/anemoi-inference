@@ -9,7 +9,6 @@
 
 
 import logging
-import os
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
@@ -24,27 +23,25 @@ class DatasetInput(Input):
     Handles anemoi dataset as input
     """
 
-    def __init__(self, context, /, *args, **kwargs):
+    def __init__(self, context, /, *args, keep_paths=True, **kwargs):
 
         from anemoi.datasets import open_dataset
 
         super().__init__(context)
 
+        # TODO: pass `keep_paths` as an argument
+
+        keep_paths = False
+
         if not args and not kwargs:
-            args, kwargs = self.checkpoint.open_dataset_args_kwargs()
+            args, kwargs = self.checkpoint.open_dataset_args_kwargs(keep_paths=keep_paths)
 
             # TODO: remove start/end from the arguments
 
             LOG.warning("No arguments provided to open_dataset, using the default arguments:")
             LOG.warning("open_dataset(*%s, **%s)", args, kwargs)
 
-        if isinstance(kwargs, str):
-            try:
-                self.ds = open_dataset(os.path.splitext(os.path.basename(kwargs))[0])
-            except ValueError:
-                self.ds = open_dataset(kwargs)
-        else:
-            self.ds = open_dataset(*args, **kwargs)
+        self.ds = open_dataset(*args, **kwargs)
 
     def create_input_state(self, *, date=None):
         if date is None:
@@ -70,7 +67,9 @@ class DatasetInput(Input):
         for d in [date + np.timedelta64(h) for h in self.checkpoint.lagged]:
             (i,) = np.where(dataset_dates == d)
             if len(i) == 0:
-                raise ValueError(f"Date {d} not found in the dataset")
+                raise ValueError(
+                    f"Date {d} not found in the dataset, available dates: {dataset_dates[0]}...{dataset_dates[-1]} by {self.ds.frequency}"
+                )
             assert len(i) == 1, f"Multiple dates found for {d}"
             idx.append(int(i[0]))
 

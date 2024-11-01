@@ -22,8 +22,7 @@ from ..inputs.icon import IconInput
 from ..outputs.gribfile import GribFileOutput
 from ..outputs.printer import PrinterOutput
 from ..outputs.raw import RawOutput
-from ..runners.cutout import CutoutRunner
-from ..runners.default import DefaultRunner
+from ..runners import runner_registry
 from . import Command
 
 LOG = logging.getLogger(__name__)
@@ -59,9 +58,10 @@ class RunCmd(Command):
         for key, value in config.env.items():
             os.environ[key] = str(value)
 
-        # TODO: Call `Runner.from_config(...)` instead
-        RUNNER = CutoutRunner if config.runner == "cutout" else DefaultRunner
-        runner = RUNNER(
+        # TODO: Call `Runner.from_config(...)` instead ???
+
+        runner = runner_registry.create(
+            config.runner,
             config.checkpoint,
             device=config.device,
             precision=config.precision,

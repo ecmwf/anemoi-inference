@@ -27,6 +27,16 @@ from .patch import PatchMixin
 LOG = logging.getLogger(__name__)
 
 
+def _remove_full_paths(x):
+    if isinstance(x, dict):
+        return {k: _remove_full_paths(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_remove_full_paths(v) for v in x]
+    if isinstance(x, str):
+        return os.path.splitext(os.path.basename(x))[0]
+    return x
+
+
 class frozendict(dict):
     def __setitem__(self, key, value):
         raise TypeError("frozendict is immutable")
@@ -405,20 +415,64 @@ class Metadata(PatchMixin, LegacyMixin):
         LOG.warning("The versions are only updated after a `pip install -e .`")
 
     ###########################################################################
-    def open_dataset_args_kwargs(self):
-        def _(x):
-            if isinstance(x, dict):
-                return {k: _(v) for k, v in x.items()}
+
+    def _get_datasets_full_paths(self):
+        """This is a temporary method to get the full paths of the datasets used in the training.
+        we need to review what goes in the dataset metadata
+        """
+
+        result = []
+
+        def _find(x):
+
             if isinstance(x, list):
-                return [_(v) for v in x]
+                for y in x:
+                    if isinstance(y, str):
+                        result.append(y)
+                    else:
+                        _find(y)
+
+            if isinstance(x, dict):
+                if "dataset" in x:
+                    result.append(x["dataset"])
+
+                for k, v in x.items():
+                    _find(v)
+
+        _find(self._config.dataloader.training.dataset)
+
+        return result
+
+    def open_dataset_args_kwargs(self, *, keep_paths):
+
+        # Rebuild the full paths
+        # Some older checkpoints may not have the full paths
+
+        full_paths = self._get_datasets_full_paths()
+        mapping = {}
+
+        for path in full_paths:
+            mapping[os.path.basename(path)] = path
+            mapping[os.path.splitext(os.path.basename(path))[0]] = path
+
+        def _fix(x):
+            if isinstance(x, list):
+                return [_fix(a) for a in x]
+
+            if isinstance(x, dict):
+                return {k: _fix(v) for k, v in x.items()}
+
             if isinstance(x, str):
-                return os.path.splitext(os.path.basename(x))[0]
+                return mapping.get(x, x)
 
-        # TODO: check why self._metadata.dataset.arguments has some None values
+            return x
 
-        return (), self._config.dataloader.dataset
+        args, kwargs = _fix([self._metadata.dataset.arguments.args, self._metadata.dataset.arguments.kwargs])
 
-        # return _(self._metadata.dataset.arguments.args), _(self._metadata.dataset.arguments.kwargs)
+        if keep_paths:
+            return args, kwargs
+
+        return _remove_full_paths(args), _remove_full_paths(kwargs)
 
     ###########################################################################
     # Not sure this belongs here
@@ -548,6 +602,37 @@ class Metadata(PatchMixin, LegacyMixin):
 
         from anemoi.utils.checkpoints import load_supporting_arrays
 
+        ###########################################################################
+        # With older metadata, the zarr path are not stored in the metadata
+        # we need to fix that
+        ###########################################################################
+
+        full_paths = self._get_datasets_full_paths()
+        print(full_paths)
+        n = 0
+
+        def _fix(x):
+            nonlocal n
+
+            if isinstance(x, list):
+                [_fix(a) for a in x]
+
+            if isinstance(x, dict):
+                if x.get("action", "").startswith("zarr"):
+                    print(n, x)
+                    path = full_paths[n]
+                    n += 1
+                    x["path"] = path
+
+                {k: _fix(v) for k, v in x.items()}
+
+        _fix(self._metadata.dataset.sources)
+
+        if n != len(full_paths):
+            raise ValueError("Not all paths were fixed")
+
+        ###########################################################################
+
         sources = []
 
         with zipfile.ZipFile(path, "r") as zipf:
@@ -587,6 +672,62 @@ class SourceMetadata(Metadata):
         super().__init__(metadata, supporting_arrays)
         self.parent = parent
         self.name = name
+
+    @property
+    def latitudes(self):
+        return self._supporting_arrays.get(f"{self.name}/latitudes")
+
+    @property
+    def longitudes(self):
+        return self._supporting_arrays.get(f"{self.name}/longitudes")
+
+    @property
+    def grid_points_mask(self):
+        for k, v in self._supporting_arrays.items():
+            # TODO: This is a bit of a hack
+            if k.startswith(f"{self.name}/") and "mask" in k:
+                return v
+        return None
+
+    def open_dataset_args_kwargs(self, *, keep_paths):
+
+        args = []
+        kwargs = {}
+
+        def _guess(x, result, depth=0):
+            # This is not correct, the information availble in the metadata is not enough
+            # to reconstruct the open_dataset arguments
+            if "dataset" in x:
+                _guess(x["dataset"], result, depth + 1)
+                return result
+
+            if "specific" in x:
+                _guess(x["specific"], result, depth + 1)
+                return result
+
+            if "action" in x:
+
+                action = x["action"]
+
+                if action.startswith("zarr"):
+                    result["dataset"] = x["path"]
+                    return result
+
+                if "forward" in x:
+                    _guess(x["forward"], result, depth + 1)
+                    result.update(x.get("reason", {}))
+                    return result
+
+                raise NotImplementedError(action)
+
+            raise NotImplementedError(x)
+
+        args = [_guess(self._metadata, {})]
+
+        if keep_paths:
+            return args, kwargs
+
+        return _remove_full_paths(args), _remove_full_paths(kwargs)
 
     ###########################################################################
     # Forward to parent metadata

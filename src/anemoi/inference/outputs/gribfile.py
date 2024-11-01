@@ -13,11 +13,13 @@ import logging
 import earthkit.data as ekd
 import numpy as np
 
+from . import output_registry
 from .grib import GribOutput
 
 LOG = logging.getLogger(__name__)
 
 
+@output_registry.register("gribfile")
 class GribFileOutput(GribOutput):
     """
     Handles grib files

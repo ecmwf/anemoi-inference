@@ -99,11 +99,19 @@ class Checkpoint:
 
     @property
     def latitudes(self):
-        return self._metadata.latitudes
+        result = self._metadata.latitudes
+        assert result is not None, self._metadata
+        return result
 
     @property
     def longitudes(self):
-        return self._metadata.longitudes
+        result = self._metadata.longitudes
+        assert result is not None, self._metadata
+        return result
+
+    @property
+    def grid_points_mask(self):
+        return self._metadata.grid_points_mask
 
     @cached_property
     def sources(self):
@@ -120,8 +128,8 @@ class Checkpoint:
     def report_error(self):
         self._metadata.report_error()
 
-    def open_dataset_args_kwargs(self):
-        return self._metadata.open_dataset_args_kwargs()
+    def open_dataset_args_kwargs(self, *, keep_paths):
+        return self._metadata.open_dataset_args_kwargs(keep_paths=keep_paths)
 
     def constant_forcings_inputs(self, runner):
         return self._metadata.constant_forcings_inputs(runner)

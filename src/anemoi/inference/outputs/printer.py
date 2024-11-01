@@ -12,7 +12,8 @@ import logging
 
 import numpy as np
 
-from . import Output
+from ..output import Output
+from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ def print_state(state, print=print):
     print()
 
 
+@output_registry.register("printer")
 class PrinterOutput(Output):
     """_summary_"""
 

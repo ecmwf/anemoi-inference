@@ -8,4 +8,4 @@
 
 from anemoi.utils.registry import Registry
 
-registry = Registry(__name__)
+runner_registry = Registry(__name__)

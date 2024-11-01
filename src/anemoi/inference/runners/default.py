@@ -11,10 +11,12 @@
 import logging
 
 from ..runner import Runner
+from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
 
+@runner_registry.register("default")
 class DefaultRunner(Runner):
     """Default runner for single source."""
 

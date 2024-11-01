@@ -13,6 +13,7 @@ import logging
 from ..context import Context
 from ..inputs import Input
 from ..runner import Runner
+from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
@@ -21,13 +22,15 @@ class CutoutInput(Input):
     """An Input object that combines two inputs."""
 
     def __init__(self, context, lam, globe):
+        super().__init__(context)
         self.lam = lam
         self.globe = globe
 
     def create_input_state(self, *, date=None):
 
-        state2 = self.globe.create_input_state(date=date)
         state1 = self.lam.create_input_state(date=date)
+        state2 = self.globe.create_input_state(date=date)
+
         assert False, (state1, state2)
 
 
@@ -42,6 +45,7 @@ class CutoutContext(Context):
         return self._checkpoint
 
 
+@runner_registry.register("cutout")
 class CutoutRunner(Runner):
     """A Runner that for LAMs."""
 
@@ -56,8 +60,8 @@ class CutoutRunner(Runner):
         self.lam, self.globe = sources
 
     def mars_input(self, **kwargs):
-        from ..inputs.mars import MarsInput
+        from ..inputs.dataset import DatasetInput
 
-        mars1 = MarsInput(CutoutContext(self.lam), **kwargs)
-        mars2 = MarsInput(CutoutContext(self.globe), **kwargs)
+        mars1 = DatasetInput(CutoutContext(self.lam))
+        mars2 = DatasetInput(CutoutContext(self.globe))
         return CutoutInput(self, mars1, mars2)

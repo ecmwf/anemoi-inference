@@ -6,28 +6,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
-import logging
-from abc import ABC
-from abc import abstractmethod
 
 from anemoi.utils.registry import Registry
 
-registry = Registry(__name__)
-
-LOG = logging.getLogger(__name__)
-
-
-class Output(ABC):
-    """_summary_"""
-
-    def __init__(self, context):
-        self.context = context
-        self.checkpoint = context.checkpoint
-
-    @abstractmethod
-    def write_initial_state(self, state):
-        pass
-
-    @abstractmethod
-    def write_state(self, state):
-        pass
+output_registry = Registry(__name__)

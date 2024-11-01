@@ -20,10 +20,25 @@ from . import Input
 LOG = logging.getLogger(__name__)
 
 
+class NoMask:
+    """No mask to apply"""
+
+    def apply(self, field):
+        return field
+
+
+class ApplyMask:
+    """Apply a mask to a field"""
+
+    def __init__(self, mask):
+        self.mask = mask
+
+    def apply(self, field):
+        return field[self.mask]
+
+
 class EkdInput(Input):
-    """
-    Handles earthkit-data FieldList as input
-    """
+    """Handles earthkit-data FieldList as input"""
 
     def __init__(self, context, *, namer=None):
         super().__init__(context)
@@ -58,7 +73,7 @@ class EkdInput(Input):
             longitudes = self.checkpoint.longitudes
             if longitudes is not None:
                 LOG.info(
-                    "%s: using `longitudes` found in the checkpoint.git c",
+                    "%s: using `longitudes` found in the checkpoint.git.",
                     self.__class__.__name__,
                 )
 
@@ -76,6 +91,8 @@ class EkdInput(Input):
         fields = input_state["fields"]
 
         input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates)
+        mask = self.checkpoint.grid_points_mask
+        mask = ApplyMask(mask) if mask is not None else NoMask()
 
         check = defaultdict(set)
 
@@ -99,7 +116,7 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
+                fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
             except ValueError:
                 LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
                 LOG.error("dates %s", dates)
