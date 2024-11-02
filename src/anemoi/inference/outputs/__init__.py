@@ -15,8 +15,8 @@ output_registry = Registry(__name__)
 def create_output(context, config):
 
     if isinstance(config, str):
-        config = {"kind": config}
+        config = {"_type": config}
 
     config = config.copy()
 
-    return output_registry.create(config.pop("kind"), context, **config)
+    return output_registry.create(config.pop("_type"), context, **config)
