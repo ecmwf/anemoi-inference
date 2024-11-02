@@ -11,6 +11,7 @@
 import logging
 
 import earthkit.data as ekd
+import numpy as np
 
 from . import input_registry
 from .grib import GribInput
@@ -35,8 +36,11 @@ class IconInput(GribInput):
 
         LOG.info(f"Reading ICON grid from {self.grid}")
         ds = xr.open_dataset(self.grid)
-        latitudes = ds.clat[ds.refinement_level_c <= 3].values
-        longitudes = ds.clon[ds.refinement_level_c <= 3].values
+        latitudes = np.rad2deg(ds.clat[ds.refinement_level_c <= 3].values)
+        longitudes = np.rad2deg(ds.clon[ds.refinement_level_c <= 3].values)
+
+        LOG.info(f"latitudes {np.min(latitudes)} {np.max(latitudes)}")
+        LOG.info(f"longitudes {np.min(longitudes)} {np.max(longitudes)}")
 
         LOG.info("Done")
 
