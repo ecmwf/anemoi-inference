@@ -48,11 +48,7 @@ class NetCDFOutput(Output):
         self.time_dim = self.ncfile.createDimension("time", self.context.lead_time // self.context.time_step)
         self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
-        hours = self.context.lead_time / self.context.time_step
-        # If the number of hours is not an integer, the units below must be changed
-        assert int(hours) == hours, hours
-
-        self.time_var.units = "hours since {0}".format(self.context.reference_date)
+        self.time_var.units = "seconds since {0}".format(self.context.reference_date)
         self.time_var.long_name = "time"
         self.time_var.calendar = "gregorian"
 
@@ -99,10 +95,7 @@ class NetCDFOutput(Output):
         self._init(state)
 
         step = state["date"] - self.context.reference_date
-        step = step.total_seconds() / 3600
-        assert int(step) == step, step
-
-        self.time_var[self.n] = step
+        self.time_var[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
             self.vars[name][self.n] = value
