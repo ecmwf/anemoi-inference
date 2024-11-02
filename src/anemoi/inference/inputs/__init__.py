@@ -13,10 +13,4 @@ input_registry = Registry(__name__)
 
 
 def create_input(context, config):
-
-    if isinstance(config, str):
-        config = {"_type": config}
-
-    config = config.copy()
-
-    return input_registry.create(config.pop("_type"), context, **config)
+    return input_registry.from_config(config, context)

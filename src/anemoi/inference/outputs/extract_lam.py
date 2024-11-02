@@ -9,6 +9,8 @@
 
 import logging
 
+import numpy as np
+
 from ..output import Output
 from . import create_output
 from . import output_registry
@@ -22,8 +24,15 @@ class ExtractLamOutput(Output):
 
     def __init__(self, context, output, points="cutout_mask"):
         super().__init__(context)
-        self.points = points if isinstance(points, int) else len(self.checkpoint.load_supporting_array(points))
+        if isinstance(points, str):
+            mask = self.checkpoint.load_supporting_array(points)
+            points = -np.sum(mask)  # This is the global, we want the lam
+
+        self.points = points
         self.output = create_output(context, output)
+
+    def __repr__(self):
+        return f"ExtractLamOutput({self.points}, {self.output})"
 
     def write_initial_state(self, state):
         self.output.write_initial_state(self._apply_mask(state))
@@ -32,6 +41,11 @@ class ExtractLamOutput(Output):
         self.output.write_state(self._apply_mask(state))
 
     def _apply_mask(self, state):
+
+        if self.points < 0:
+            # This is the global, we want the lam
+            self.points = state["latitudes"].size + self.points
+
         state = state.copy()
         state["fields"] = state["fields"].copy()
         state["latitudes"] = state["latitudes"][: self.points]

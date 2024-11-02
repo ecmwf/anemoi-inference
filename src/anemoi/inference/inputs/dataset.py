@@ -9,6 +9,7 @@
 
 
 import logging
+from functools import cached_property
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
@@ -26,9 +27,6 @@ class DatasetInput(Input):
     """
 
     def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
-
-        from anemoi.datasets import open_dataset
-
         super().__init__(context)
 
         if not args and not kwargs:
@@ -46,7 +44,16 @@ class DatasetInput(Input):
 
             LOG.warning("%s", cmd)
 
-        self.ds = open_dataset(*args, **kwargs)
+        self.args, self.kwargs = args, kwargs
+
+    @cached_property
+    def ds(self):
+        from anemoi.datasets import open_dataset
+
+        return open_dataset(*self.args, **self.kwargs)
+
+    def __repr__(self):
+        return f"DatasetInput({self.args}, {self.kwargs})"
 
     def create_input_state(self, *, date=None):
         if date is None:

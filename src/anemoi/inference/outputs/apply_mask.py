@@ -25,6 +25,9 @@ class ApplyMaskOutput(Output):
         self.mask = self.checkpoint.load_supporting_array(mask)
         self.output = create_output(context, output)
 
+    def __repr__(self):
+        return f"ApplyMaskOutput({self.mask}, {self.output})"
+
     def write_initial_state(self, state):
         self.output.write_initial_state(self._apply_mask(state))
 

@@ -71,6 +71,9 @@ class RunCmd(Command):
         input = create_input(runner, config.input)
         output = create_output(runner, config.output)
 
+        LOG.info("Input: %s", input)
+        LOG.info("Output: %s", output)
+
         input_state = input.create_input_state(date=config.date)
 
         if config.write_initial_state:

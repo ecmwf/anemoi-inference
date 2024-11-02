@@ -12,10 +12,4 @@ runner_registry = Registry(__name__)
 
 
 def create_runner(context, config):
-
-    if isinstance(config, str):
-        config = {"_type": config}
-
-    config = config.copy()
-
-    return runner_registry.create(config.pop("_type"), context, **config)
+    return runner_registry.from_config(config, context)

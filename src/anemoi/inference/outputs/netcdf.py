@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import os
 
 import numpy as np
 
@@ -27,6 +28,9 @@ class NetCDFOutput(Output):
         self.ncfile = None
         self.float_size = "f4"
 
+    def __repr__(self):
+        return f"NetCDFOutput({self.path})"
+
     def __del__(self):
         if self.ncfile is not None:
             self.ncfile.close()
@@ -36,6 +40,10 @@ class NetCDFOutput(Output):
 
         if self.ncfile is not None:
             return self.ncfile
+
+        # If the file exists, we may get a 'Permission denied' error
+        if os.path.exists(self.path):
+            os.remove(self.path)
 
         self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 

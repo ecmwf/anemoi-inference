@@ -26,6 +26,9 @@ class RawOutput(Output):
         super().__init__(context)
         self.path = path
 
+    def __repr__(self):
+        return f"RawOutput({self.path})"
+
     def write_initial_state(self, state):
         self.write_state(state)
 

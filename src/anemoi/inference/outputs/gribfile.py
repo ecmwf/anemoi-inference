@@ -30,6 +30,9 @@ class GribFileOutput(GribOutput):
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
 
+    def __repr__(self):
+        return f"GribFileOutput({self.path})"
+
     def write_message(self, message, *args, **kwargs):
         try:
             self.output.write(message, *args, check_nans=self.allow_nans, **kwargs)

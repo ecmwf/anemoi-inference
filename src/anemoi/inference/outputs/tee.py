@@ -20,9 +20,11 @@ LOG = logging.getLogger(__name__)
 class TeeOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, outputs, *args, **kwargs):
+    def __init__(self, context, *args, outputs=None, **kwargs):
         super().__init__(context)
-        assert isinstance(outputs, list)
+        if outputs is None:
+            outputs = args
+        assert isinstance(outputs, (list, tuple)), outputs
         self.outputs = [create_output(context, output) for output in outputs]
 
     def write_initial_state(self, state):
@@ -36,3 +38,6 @@ class TeeOutput(Output):
     def close(self):
         for output in self.outputs:
             output.close()
+
+    def __repr__(self):
+        return f"TeeOutput({self.outputs})"
