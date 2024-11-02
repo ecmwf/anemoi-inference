@@ -44,8 +44,12 @@ class GribOutput(Output):
 
     def write_state(self, state):
 
-        reference_date = state["reference_date"]
+        reference_date = self.context.reference_date
         date = state["date"]
+
+        step = date - reference_date
+        step = step.total_seconds() / 3600
+        assert int(step) == step, step
 
         if "_grib_templates_for_output" not in state:
             if "_grib_templates_for_output" not in self.quiet:
@@ -79,7 +83,7 @@ class GribOutput(Output):
                 edition=2,
                 date=reference_date.strftime("%Y-%m-%d"),
                 time=reference_date.hour,
-                step=(date - reference_date).total_seconds() // 3600,
+                step=step,
                 typeOfProcessedData=1,  # Forecast
             )
 

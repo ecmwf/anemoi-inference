@@ -89,7 +89,7 @@ class EkdInput(Input):
         dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
-        input_state = dict(reference_date=date, date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
+        input_state = dict(date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
 
         fields = input_state["fields"]
 

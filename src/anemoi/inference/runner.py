@@ -429,10 +429,6 @@ class Runner(Context):
             if not self.allow_nans:
                 raise ValueError(msg)
 
-        # Needed for some output object, such as GribOutput, to compute `step`
-
-        input_state["reference_date"] = input_state["date"]
-
         return input_state
 
     def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
