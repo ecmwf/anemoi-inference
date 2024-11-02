@@ -39,8 +39,8 @@ class IconInput(GribInput):
         latitudes = np.rad2deg(ds.clat[ds.refinement_level_c <= 3].values)
         longitudes = np.rad2deg(ds.clon[ds.refinement_level_c <= 3].values)
 
-        LOG.info(f"latitudes {np.min(latitudes)} {np.max(latitudes)}")
-        LOG.info(f"longitudes {np.min(longitudes)} {np.max(longitudes)}")
+        LOG.info(f"Latitudes {np.min(latitudes)} {np.max(latitudes)}")
+        LOG.info(f"Longitudes {np.min(longitudes)} {np.max(longitudes)}")
 
         LOG.info("Done")
 

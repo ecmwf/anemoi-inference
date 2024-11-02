@@ -24,3 +24,6 @@ class Output(ABC):
     @abstractmethod
     def write_state(self, state):
         pass
+
+    def close(self):
+        pass

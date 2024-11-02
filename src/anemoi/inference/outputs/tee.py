@@ -10,6 +10,7 @@
 import logging
 
 from ..output import Output
+from . import create_output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -22,12 +23,7 @@ class TeeOutput(Output):
     def __init__(self, context, outputs, *args, **kwargs):
         super().__init__(context)
         assert isinstance(outputs, list)
-        self.outputs = []
-        for output in outputs:
-            LOG.info(f"Creating output {output}")
-            if isinstance(output, str):
-                output = {"kind": output}
-            self.outputs.append(output_registry.create(output.pop("kind"), context, **output))
+        self.outputs = [create_output(context, output) for output in outputs]
 
     def write_initial_state(self, state):
         for output in self.outputs:
@@ -36,3 +32,7 @@ class TeeOutput(Output):
     def write_state(self, state):
         for output in self.outputs:
             output.write_state(state)
+
+    def close(self):
+        for output in self.outputs:
+            output.close()

@@ -45,10 +45,6 @@ class Checkpoint:
     # easier
     ###########################################################################
 
-    # @property
-    # def frequency(self):
-    #     return self._metadata.frequency
-
     @property
     def timestep(self):
         return self._metadata.timestep
@@ -144,6 +140,9 @@ class Checkpoint:
 
     def variable_categories(self):
         return self._metadata.variable_categories()
+
+    def load_supporting_array(self, name):
+        return self._metadata.load_supporting_array(name)
 
     ###########################################################################
 

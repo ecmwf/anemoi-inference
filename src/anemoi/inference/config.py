@@ -57,16 +57,9 @@ class Configuration(BaseModel):
     - If True, the model will allow NaNs in the input and output.
     """
 
-    icon_grid: str | None = None
-
     write_initial_state: bool = True
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written."""
-
-    use_grib_paramid: bool = False
-    """If True, the MARS input will use the GRIB parameter ID instead of the parameter name when issuing requests to MARS."""
-
-    dataset: bool | Dict | str = False
 
     env: Dict[str, str | int] = {}
     """Environment variables to set before running the model. This may be useful to control some packages

@@ -10,3 +10,13 @@
 from anemoi.utils.registry import Registry
 
 input_registry = Registry(__name__)
+
+
+def create_input(context, config):
+
+    if isinstance(config, str):
+        config = {"kind": config}
+
+    config = config.copy()
+
+    return input_registry.create(config.pop("kind"), context, **config)

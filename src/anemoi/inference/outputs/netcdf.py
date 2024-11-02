@@ -47,6 +47,11 @@ class NetCDFOutput(Output):
 
         self.time_dim = self.ncfile.createDimension("time", self.context.lead_time // self.context.time_step)
         self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
+
+        hours = self.context.lead_time / self.context.time_step
+        # If the number of hours is not an integer, the units below must be changed
+        assert int(hours) == hours, hours
+
         self.time_var.units = "hours since {0}".format(self.context.reference_date)
         self.time_var.long_name = "time"
         self.time_var.calendar = "gregorian"
@@ -57,17 +62,28 @@ class NetCDFOutput(Output):
         self.latitude_var.long_name = "latitude"
 
         longitudes = state["longitudes"]
-        self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
+        self.longitude_var = self.ncfile.createVariable(
+            "longitude",
+            self.float_size,
+            ("values",),
+            **compression,
+        )
         self.longitude_var.units = "degrees_east"
         self.longitude_var.long_name = "longitude"
 
         self.vars = {}
         for name in state["fields"].keys():
             chunksizes = (1, values)
+
             while np.prod(chunksizes) > 1000000:
                 chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
+
             self.vars[name] = self.ncfile.createVariable(
-                name, self.float_size, ("time", "values"), chunksizes=chunksizes, **compression
+                name,
+                self.float_size,
+                ("time", "values"),
+                chunksizes=chunksizes,
+                **compression,
             )
 
         self.latitude_var[:] = latitudes
@@ -92,3 +108,8 @@ class NetCDFOutput(Output):
             self.vars[name][self.n] = value
 
         self.n += 1
+
+    def close(self):
+        if self.ncfile is not None:
+            self.ncfile.close()
+            self.ncfile = None

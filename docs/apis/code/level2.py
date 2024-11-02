@@ -22,3 +22,6 @@ output.write_initial_state(input_state)
 
 for state in runner.run(input_state=input_state, lead_time=240):
     output.write_state(state)
+
+# Close the output file
+output.close()

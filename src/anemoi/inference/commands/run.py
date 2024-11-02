@@ -16,8 +16,8 @@ import os
 import yaml
 
 from ..config import Configuration
-from ..inputs import input_registry
-from ..outputs import output_registry
+from ..inputs import create_input
+from ..outputs import create_output
 from ..runners import runner_registry
 from . import Command
 
@@ -68,7 +68,8 @@ class RunCmd(Command):
             report_error=config.report_error,
         )
 
-        input, output = self.make_input_output(runner, config)
+        input = create_input(runner, config.input)
+        output = create_output(runner, config.output)
 
         input_state = input.create_input_state(date=config.date)
 
@@ -78,24 +79,7 @@ class RunCmd(Command):
         for state in runner.run(input_state=input_state, lead_time=config.lead_time):
             output.write_state(state)
 
-    def make_input_output(self, context, config):
-        # TODO: Use factories
-
-        input = config.input
-        if isinstance(input, str):
-            input = {"kind": input}
-
-        kind = input.pop("kind", "mars")
-        input = input_registry.create(kind, context, **input)
-
-        output = config.output
-        if isinstance(output, str):
-            output = {"kind": output}
-
-        kind = output.pop("kind", "printer")
-        output = output_registry.create(kind, context, **output)
-
-        return input, output
+        output.close()
 
 
 command = RunCmd

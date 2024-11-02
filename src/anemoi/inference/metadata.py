@@ -613,6 +613,15 @@ class Metadata(PatchMixin, LegacyMixin):
     # Supporting arrays
     ###########################################################################
 
+    def load_supporting_array(self, name):
+        if name not in self._supporting_arrays:
+            LOG.error("No supporting array named `%s` found.", name)
+            LOG.error("Supporting arrays found:")
+            for names in self._supporting_arrays.keys():
+                LOG.error("  %s", names)
+            raise ValueError(f"Supporting array `{name}` not found")
+        return self._supporting_arrays[name]
+
     @property
     def latitudes(self):
         return self._supporting_arrays.get("latitudes")
