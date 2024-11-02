@@ -191,3 +191,5 @@ _version.py
 /outputs/
 # Top level files only
 /*.yaml
+*.gif
+*.zarr/
