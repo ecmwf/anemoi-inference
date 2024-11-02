@@ -58,10 +58,3 @@ class CutoutRunner(Runner):
             raise ValueError(f"CutoutRunner expects two source, found {len(sources)}.")
 
         self.lam, self.globe = sources
-
-    def mars_input(self, **kwargs):
-        from ..inputs.dataset import DatasetInput
-
-        mars1 = DatasetInput(CutoutContext(self.lam))
-        mars2 = DatasetInput(CutoutContext(self.globe))
-        return CutoutInput(self, mars1, mars2)

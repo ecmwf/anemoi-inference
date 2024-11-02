@@ -18,7 +18,7 @@ from .grib import GribInput
 LOG = logging.getLogger(__name__)
 
 
-@input_registry.register("grib_file")
+@input_registry.register("grib")
 class GribFileInput(GribInput):
     """
     Handles grib files

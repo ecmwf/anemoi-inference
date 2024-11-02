@@ -107,6 +107,10 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
+        # This may be used but Ouput objects to compute the step
+        self.lead_time = lead_time
+        self.time_step = self.checkpoint.timestep
+
         input_tensor = self.prepare_input_tensor(input_state)
 
         try:
@@ -124,6 +128,10 @@ class Runner(Context):
         fields = input_state["fields"]
 
         dates = [date + h for h in self.checkpoint.lagged]
+
+        # For output object. Should be moved elsewhere
+        self.reference_date = dates[-1]
+        self.initial_dates = dates
 
         # TODO: Check for user provided forcings
 

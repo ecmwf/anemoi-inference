@@ -35,11 +35,12 @@ class RunCmd(Command):
 
     def run(self, args):
 
-        # We use OmegaConf to merge the configuration files and the command line overrides
+        # Load the configuration
 
         with open(args.config) as f:
             config = yaml.safe_load(f)
 
+        # Apply overrides
         for override in args.overrides:
             key, value = override.split("=")
             keys = key.split(".")
@@ -47,6 +48,7 @@ class RunCmd(Command):
                 config = config.setdefault(key, {})
             config[keys[-1]] = value
 
+        # Load the configuration
         config = Configuration(**config)
 
         LOG.info("Configuration:\n\n%s", json.dumps(config.model_dump(), indent=4, default=str))
