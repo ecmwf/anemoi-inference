@@ -30,7 +30,7 @@ html_logo = "_static/logo.png"
 
 project = "Anemoi Inference"
 
-author = "ECMWF"
+author = "Anemoi contributors"
 
 year = datetime.datetime.now().year
 if year == 2024:
@@ -38,7 +38,7 @@ if year == 2024:
 else:
     years = "2024-%s" % (year,)
 
-copyright = "%s, ECMWF" % (years,)
+copyright = "%s, Anemoi contributors" % (years,)
 
 
 try:
