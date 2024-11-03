@@ -12,6 +12,10 @@ from abc import abstractmethod
 
 LOG = logging.getLogger(__name__)
 
+# TODO: only one method is need: `load_data`.
+# The other methods can be implemenneted concreetly
+# using the `load_data` method.
+
 
 class Input(ABC):
     """_summary_"""
@@ -30,7 +34,7 @@ class Input(ABC):
 
     @abstractmethod
     def load_forcings(self, *, variables, dates):
-        """Create the input state dictionary."""
+        """Load forcings (constant and dynamic)."""
         pass
 
     def input_variables(self):

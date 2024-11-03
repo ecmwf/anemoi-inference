@@ -576,7 +576,7 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining = [name for _, name in remaining]
 
         result.append(
-            context.create_constant_computed_forcings(
+            context.create_constant_coupled_forcings(
                 remaining,
                 remaining_mask,
             )
