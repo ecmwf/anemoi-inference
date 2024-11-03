@@ -20,9 +20,9 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
-    def __init__(self, runner):
-        self.runner = runner
-        self.checkpoint = runner.checkpoint
+    def __init__(self, context):
+        self.context = context
+        self.checkpoint = context.checkpoint
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
@@ -36,8 +36,8 @@ class Forcings(ABC):
 class ComputedForcings(Forcings):
     """Compute forcings like `cos_julian_day` or `insolation`."""
 
-    def __init__(self, runner, variables, mask):
-        super().__init__(runner)
+    def __init__(self, context, variables, mask):
+        super().__init__(context)
         self.variables = variables
         self.mask = mask
         self.kinds = dict(computed=True)  # Used for debugging
@@ -48,7 +48,7 @@ class ComputedForcings(Forcings):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        forcing = self.runner.compute_forcings(
+        forcing = self.context.compute_forcings(
             latitudes=state["latitudes"],
             longitudes=state["longitudes"],
             variables=self.variables,
@@ -60,27 +60,22 @@ class ComputedForcings(Forcings):
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
 
-# TODO: Create a class `CoupledForcingsFromInput`
-# That takes an Input object as a source
-# CoupledForcingsFromInput(Mars)
+class CoupledForcings(Forcings):
+    """Retrieve forcings from the input."""
 
-
-class CoupledForcingsFromMars(Forcings):
-    """Load forcings from Mars."""
-
-    def __init__(self, runner, variables, mask):
-        super().__init__(runner)
+    def __init__(self, context, input, variables, mask):
+        super().__init__(context)
         self.variables = variables
         self.mask = mask
-        self.grid = runner.checkpoint.grid
-        self.area = runner.checkpoint.area
+        self.grid = context.checkpoint.grid
+        self.area = context.checkpoint.area
         self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def load_forcings(self, state, dates):
         from .inputs.mars import retrieve
 
-        requests = self.runner.checkpoint.mars_requests(
+        requests = self.context.checkpoint.mars_requests(
             variables=self.variables,
             dates=dates,
             use_grib_paramid=self.use_grib_paramid,

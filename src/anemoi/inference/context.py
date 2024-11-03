@@ -24,3 +24,29 @@ class Context(ABC):
     def checkpoint(self):
         """Returns the checkpoint used for the inference."""
         pass
+
+    ##################################################################
+    # The methods below are not marked as abstract because they are
+    # not required to be implemented by subclasses. However, they are
+    # expected to be implemented by subclasses when relevant.
+    # For example, when running the `SimpleRunner`, the user is
+    # expected to provide the forcings directly as input to the runner.
+    ##################################################################
+
+    def create_input(self):
+        raise NotImplementedError()
+
+    def create_output(self):
+        raise NotImplementedError()
+
+    def create_constant_computed_forcings(self, variables, mask):
+        raise NotImplementedError()
+
+    def create_constant_coupled_forcings(self, variables, mask):
+        raise NotImplementedError()
+
+    def create_dynamic_computed_forcings(self, variables, mask):
+        raise NotImplementedError()
+
+    def create_dynamic_coupled_forcings(self, variables, mask):
+        raise NotImplementedError()

@@ -19,8 +19,6 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
-from .forcings import ComputedForcings
-from .forcings import CoupledForcingsFromMars
 from .legacy import LegacyMixin
 from .patch import PatchMixin
 
@@ -516,7 +514,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def constant_forcings_inputs(self, runner, input_state):
+    def constant_forcings_inputs(self, context, input_state):
         # TODO: this does not belong here
 
         result = []
@@ -535,13 +533,22 @@ class Metadata(PatchMixin, LegacyMixin):
                 new_forcing_mask.append(i)
                 new_forcing_variables.append(name)
 
-        LOG.info("Computed constant forcings: before %s, after %s", forcing_variables, new_forcing_variables)
+        LOG.info(
+            "Computed constant forcings: before %s, after %s",
+            forcing_variables,
+            new_forcing_variables,
+        )
 
         forcing_mask = np.array(new_forcing_mask)
         forcing_variables = new_forcing_variables
 
         if len(forcing_mask) > 0:
-            result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
+            result.append(
+                context.create_constant_computed_forcings(
+                    forcing_variables,
+                    forcing_mask,
+                )
+            )
 
         remaining = (
             set(self._config.data.forcing)
@@ -568,18 +575,28 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
 
-        result.append(CoupledForcingsFromMars(runner, remaining, remaining_mask))
+        result.append(
+            context.create_constant_computed_forcings(
+                remaining,
+                remaining_mask,
+            )
+        )
 
         return result
 
-    def dynamic_forcings_inputs(self, runner, input_state):
+    def dynamic_forcings_inputs(self, context, input_state):
 
         result = []
 
         # This will manage the dynamic forcings that are computed
         forcing_mask, forcing_variables = self.computed_time_dependent_forcings
         if len(forcing_mask) > 0:
-            result.append(ComputedForcings(runner, forcing_variables, forcing_mask))
+            result.append(
+                context.create_dynamic_computed_forcings(
+                    forcing_variables,
+                    forcing_mask,
+                )
+            )
 
         remaining = (
             set(self._config.data.forcing)
@@ -605,7 +622,12 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
 
-        result.append(CoupledForcingsFromMars(runner, remaining, remaining_mask))
+        result.append(
+            context.create_dynamic_coupled_forcings(
+                remaining,
+                remaining_mask,
+            )
+        )
 
         return result
 

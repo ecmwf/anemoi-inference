@@ -9,16 +9,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 
 import yaml
 
 from ..config import Configuration
-from ..inputs import create_input
-from ..outputs import create_output
-from ..runners import runner_registry
+from ..runners.default import DefaultRunner
 from . import Command
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +30,7 @@ class RunCmd(Command):
         command_parser.add_argument("config", help="Path to config file.")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
-    def run(self, args):
+    def get_config(self, args):
 
         # Load the configuration
 
@@ -51,28 +48,21 @@ class RunCmd(Command):
         # Load the configuration
         config = Configuration(**config)
 
-        LOG.info("Configuration:\n\n%s", json.dumps(config.model_dump(), indent=4, default=str))
-
+        # Set environment variables found in the configuration
+        # as soon as possible
         for key, value in config.env.items():
             os.environ[key] = str(value)
 
-        # TODO: Call `Runner.from_config(...)` instead ???
+        return config
 
-        runner = runner_registry.create(
-            config.runner,
-            config.checkpoint,
-            device=config.device,
-            precision=config.precision,
-            allow_nans=config.allow_nans,
-            verbosity=config.verbosity,
-            report_error=config.report_error,
-        )
+    def run(self, args):
 
-        input = create_input(runner, config.input)
-        output = create_output(runner, config.output)
+        config = self.get_config(args)
 
-        LOG.info("Input: %s", input)
-        LOG.info("Output: %s", output)
+        runner = DefaultRunner(config)
+
+        input = runner.create_input()
+        output = runner.create_output()
 
         input_state = input.create_input_state(date=config.date)
 
