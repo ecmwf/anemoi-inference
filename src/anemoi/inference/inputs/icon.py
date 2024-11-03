@@ -51,3 +51,6 @@ class IconInput(GribInput):
             latitudes=latitudes,
             longitudes=longitudes,
         )
+
+    def load_forcings(self, *, variables, dates):
+        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)

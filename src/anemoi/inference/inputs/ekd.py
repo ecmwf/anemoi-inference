@@ -163,3 +163,7 @@ class EkdInput(Input):
         check_data(data, variables, dates)
 
         return data
+
+    def _load_forcings(self, fields, variables, dates):
+        data = self._filter_and_sort(fields, variables=variables, dates=dates)
+        return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)

@@ -44,6 +44,10 @@ class PlotOutput(Output):
         self.template = template
         self.dpi = dpi
 
+        if self.variables is not all:
+            if not isinstance(self.variables, (list, tuple)):
+                self.variables = [self.variables]
+
     def write_initial_state(self, state):
         self.write_state(state)
 

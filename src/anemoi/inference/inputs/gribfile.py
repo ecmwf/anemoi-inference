@@ -30,3 +30,6 @@ class GribFileInput(GribInput):
 
     def create_input_state(self, *, date):
         return self._create_input_state(ekd.from_source("file", self.path), variable=None, date=date)
+
+    def load_forcings(self, *, variables, dates):
+        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)

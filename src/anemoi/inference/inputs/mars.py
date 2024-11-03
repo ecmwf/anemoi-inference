@@ -114,22 +114,26 @@ class MarsInput(GribInput):
         date = to_datetime(date)
 
         return self._create_input_state(
-            self._retrieve(date),
+            self._retrieve(
+                self.variables,
+                [date + h for h in self.checkpoint.lagged],
+            ),
             variables=self.variables,
             date=date,
         )
 
-    def _retrieve(self, date):
-
-        dates = [date + h for h in self.checkpoint.lagged]
+    def _retrieve(self, variables, dates):
 
         requests = self.checkpoint.mars_requests(
-            variables=self.variables,
+            variables=variables,
             dates=dates,
             use_grib_paramid=self.use_grib_paramid,
         )
 
         if not requests:
-            raise ValueError("No requests for %s (%s)" % (self.variables, dates))
+            raise ValueError("No requests for %s (%s)" % (variables, dates))
 
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
+
+    def load_forcings(self, variables, dates):
+        return self._load_forcings(self._retrieve(variables, dates), variables, dates)
