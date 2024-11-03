@@ -14,7 +14,6 @@ from functools import cached_property
 
 import numpy as np
 import torch
-from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
@@ -345,23 +344,6 @@ class Runner(Context):
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
 
         return input_tensor_torch
-
-    def compute_forcings(self, *, latitudes, longitudes, dates, variables):
-        import earthkit.data as ekd
-        from earthkit.data.indexing.fieldlist import FieldArray
-
-        source = UnstructuredGridFieldList.from_values(latitudes=latitudes, longitudes=longitudes)
-
-        ds = ekd.from_source("forcings", source, date=dates, param=variables)
-
-        assert len(ds) == len(variables) * len(dates), (len(ds), len(variables), dates)
-
-        def rename(f, _, metadata):
-            return metadata["param"]
-
-        ds = FieldArray([f.copy(name=rename) for f in ds])
-
-        return ds.order_by(name=variables, valid_datetime="ascending")
 
     def validate_input_state(self, input_state):
 

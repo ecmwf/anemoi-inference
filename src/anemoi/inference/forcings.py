@@ -12,7 +12,10 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 
+import earthkit.data as ekd
 import numpy as np
+from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
+from earthkit.data.indexing.fieldlist import FieldArray
 
 LOG = logging.getLogger(__name__)
 
@@ -46,17 +49,27 @@ class ComputedForcings(Forcings):
         return f"{self.__class__.__name__}({self.variables})"
 
     def load_forcings(self, state, dates):
+
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        forcing = self.context.compute_forcings(
+        source = UnstructuredGridFieldList.from_values(
             latitudes=state["latitudes"],
             longitudes=state["longitudes"],
-            variables=self.variables,
-            dates=dates,
         )
+
+        ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
+
+        assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
+
+        def rename(f, _, metadata):
+            return metadata["param"]
+
+        ds = FieldArray([f.copy(name=rename) for f in ds])
+
+        forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
 
         # Forcing are sorted by `compute_forcings`  in the order (varaible, date)
 
