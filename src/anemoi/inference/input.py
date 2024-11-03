@@ -28,6 +28,11 @@ class Input(ABC):
         """Create the input state dictionary."""
         pass
 
+    @abstractmethod
+    def load_forcings(self, *, variables, dates):
+        """Create the input state dictionary."""
+        pass
+
     def input_variables(self):
         """Return the list of input variables"""
         return list(self.checkpoint.variable_to_input_tensor_index.keys())

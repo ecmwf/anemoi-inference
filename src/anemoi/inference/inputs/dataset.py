@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 @input_registry.register("dataset")
 class DatasetInput(Input):
     """
-    Handles anemoi dataset as input
+    Handles `anemoi-datasets` dataset as input
     """
 
     def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
@@ -70,13 +70,40 @@ class DatasetInput(Input):
 
         fields = input_state["fields"]
 
-        dataset_dates = self.ds.dates
         date = np.datetime64(date)
+        data = self._load_dates([date + np.timedelta64(h) for h in self.checkpoint.lagged])
+
+        if data.shape[2] != 1:
+            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
+
+        requested_variables = set(self.input_variables())
+        for i, variable in enumerate(self.ds.variables):
+            if variable not in requested_variables:
+                continue
+            # Squeeze the data to remove the ensemble dimension
+            fields[variable] = np.squeeze(data[:, i], axis=1)
+
+        return input_state
+
+    def load_forcings(self, *, variables, dates):
+        data = self._load_dates(dates)  # (date, variables, ensemble, values)
+
+        requested_variables = np.array([self.ds.name_to_index[v] for v in variables])
+        data = data[:, requested_variables]
+        # Squeeze the data to remove the ensemble dimension
+        data = np.squeeze(data, axis=2)
+        # Reorder the dimensions to (variable, date, values)
+        data = np.swapaxes(data, 0, 1)
+        return data
+
+    def _load_dates(self, dates):
 
         # TODO: use the fact that the dates are sorted
 
+        dataset_dates = self.ds.dates
+
         idx = []
-        for d in [date + np.timedelta64(h) for h in self.checkpoint.lagged]:
+        for d in dates:
             (i,) = np.where(dataset_dates == d)
             if len(i) == 0:
                 raise ValueError(
@@ -90,19 +117,8 @@ class DatasetInput(Input):
         else:
             diff = idx[1] - idx[0]
             if not all(i == diff for i in np.diff(idx)):
+                # TODO: remove that restriction
                 raise ValueError("Dates do not have the same frequency")
             s = slice(idx[0], idx[-1] + 1, diff)
 
-        data = self.ds[s]
-
-        if data.shape[2] != 1:
-            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
-
-        requested_variables = set(self.input_variables())
-        for i, variable in enumerate(self.ds.variables):
-            if variable not in requested_variables:
-                continue
-            # Squeeze the data to remove the ensemble dimension
-            fields[variable] = np.squeeze(data[:, i], axis=1)
-
-        return input_state
+        return self.ds[s]

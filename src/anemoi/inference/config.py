@@ -44,7 +44,8 @@ class Configuration(BaseModel):
     input: str | Dict | None = "mars"
     output: str | Dict | None = "printer"
 
-    forcings: Dict[str, Dict] = {"input": "mars"}
+    forcings: Dict[str, Dict] | None = None
+    """Where to find the forcings."""
 
     device: str = "cuda"
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""

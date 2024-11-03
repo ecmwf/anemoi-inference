@@ -71,12 +71,18 @@ class DefaultRunner(Runner):
 
     # Coupled forcings
     # TODO: Connect them to the Input if needed
+    # Here, by default, we may use the same input "class" as the input
+    # not the same instance. This means that we may call mars several times
 
     def create_constant_coupled_forcings(self, variables, mask):
 
-        input = self.config.forcings.input
-        if "constant" in input:
-            input = input.constant
+        if self.config.forcings is None:
+            # Use the same as the input
+            input = self.config.input
+        else:
+            input = self.config.forcings.input
+            if "constant" in input:
+                input = input.constant
 
         input = create_input(self, input)
         result = CoupledForcings(self, input, variables, mask)
@@ -85,9 +91,13 @@ class DefaultRunner(Runner):
 
     def create_dynamic_coupled_forcings(self, variables, mask):
 
-        input = self.config.forcings.input
-        if "dynamic" in input:
-            input = input.dynamic
+        if self.config.forcings is None:
+            # Use the same as the input
+            input = self.config.input
+        else:
+            input = self.config.forcings.input
+            if "dynamic" in input:
+                input = input.dynamic
 
         input = create_input(self, input)
         result = CoupledForcings(self, input, variables, mask)

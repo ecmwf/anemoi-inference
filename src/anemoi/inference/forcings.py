@@ -42,6 +42,9 @@ class ComputedForcings(Forcings):
         self.mask = mask
         self.kinds = dict(computed=True)  # Used for debugging
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.variables})"
+
     def load_forcings(self, state, dates):
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
@@ -67,31 +70,43 @@ class CoupledForcings(Forcings):
         super().__init__(context)
         self.variables = variables
         self.mask = mask
-        self.grid = context.checkpoint.grid
-        self.area = context.checkpoint.area
-        self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
+        self.input = input
+        # self.grid = context.checkpoint.grid
+        # self.area = context.checkpoint.area
+        # self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
         self.kinds = dict(retrieved=True)  # Used for debugging
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.variables})"
+
     def load_forcings(self, state, dates):
-        from .inputs.mars import retrieve
+        data = self.input.load_forcings(variables=self.variables, dates=dates)
 
-        requests = self.context.checkpoint.mars_requests(
-            variables=self.variables,
-            dates=dates,
-            use_grib_paramid=self.use_grib_paramid,
-        )
+        expected_shape = (len(self.variables), len(dates), state["latitudes"].size)
+        assert data.shape == expected_shape, (data.shape, expected_shape)
 
-        if not requests:
-            raise ValueError("No requests for %s (%s)" % (self.variables, dates))
+        return data
 
-        for r in requests:
-            LOG.info("Request: %s", r)
+        # assert False, "Not implemented yet"
+        # from .inputs.mars import retrieve
 
-        fields = retrieve(requests=requests, grid=self.grid, area=self.area, expver=1)
+        # requests = self.context.checkpoint.mars_requests(
+        #     variables=self.variables,
+        #     dates=dates,
+        #     use_grib_paramid=self.use_grib_paramid,
+        # )
 
-        if not fields:
-            raise ValueError("No fields retrieved for {self.variables} ({dates})")
+        # if not requests:
+        #     raise ValueError("No requests for %s (%s)" % (self.variables, dates))
 
-        fields = self.checkpoint.name_fields(fields).order_by(name=self.variables, valid_datetime="ascending")
+        # for r in requests:
+        #     LOG.info("Request: %s", r)
 
-        return fields.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
+        # fields = retrieve(requests=requests, grid=self.grid, area=self.area, expver=1)
+
+        # if not fields:
+        #     raise ValueError("No fields retrieved for {self.variables} ({dates})")
+
+        # fields = self.checkpoint.name_fields(fields).order_by(name=self.variables, valid_datetime="ascending")
+
+        # return fields.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
