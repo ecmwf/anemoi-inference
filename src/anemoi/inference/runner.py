@@ -345,7 +345,7 @@ class Runner(Context):
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
 
         return input_tensor_torch
-    
+
     def add_boundary_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
         # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
@@ -360,14 +360,11 @@ class Runner(Context):
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            forcings[lam_mask,:] = input_tensor_torch[0, -1, lam_mask, source.mask] # preserve lam region
+            forcings[lam_mask, :] = input_tensor_torch[0, -1, lam_mask, source.mask]  # preserve lam region
 
-            input_tensor_torch[:, -1, :, source.mask] = forcings # Copy forcings to last 'multi_step_input' row
+            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
         # TO DO: add some consistency checks as above
-
-            
-
 
         return input_tensor_torch
 

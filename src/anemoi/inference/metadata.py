@@ -59,7 +59,7 @@ class Metadata(PatchMixin, LegacyMixin):
     @property
     def _config_training(self):
         return self._config.training
-    
+
     @property
     def _config_model(self):
         return self._config.model
@@ -248,7 +248,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def diagnostic_variables(self):
         """Variables that are marked as diagnostic"""
         return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
-    
+
     @cached_property
     def prognostic_variables(self):
         """Variables that are marked as prognostic"""
@@ -640,13 +640,13 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     def boundary_forcings_inputs(self, context, input_state):
-        
+
         result = []
-        
+
         output_mask = self._config_model.get("output_mask", None)
         if output_mask is not None:
             LOG.info("Getting boundary forcings.")
-            lam_mask=self.load_supporting_array(f"{output_mask}_mask")
+            lam_mask = self.load_supporting_array(f"{output_mask}_mask")
             result.append(
                 context.create_dynamic_coupled_forcings(
                     self.prognostic_variables,
@@ -654,8 +654,6 @@ class Metadata(PatchMixin, LegacyMixin):
                 )
             )
         return (result, lam_mask)
-
-
 
     ###########################################################################
     # Supporting arrays
