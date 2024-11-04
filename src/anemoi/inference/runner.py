@@ -284,8 +284,9 @@ class Runner(Context):
             del y_pred  # Recover memory
 
             input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
-
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
+            )
 
             if not check.all():
                 # Not all variables have been updated
