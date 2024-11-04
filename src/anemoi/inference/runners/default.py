@@ -103,3 +103,18 @@ class DefaultRunner(Runner):
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return result
+
+    def create_dynamic_coupled_forcings(self, variables, mask):
+
+        if self.config.forcings is None:
+            # Use the same as the input
+            input = self.config.input
+        else:
+            input = self.config.forcings.input
+            if "dynamic" in input:
+                input = input.dynamic
+
+        input = create_input(self, input)
+        result = CoupledForcings(self, input, variables, mask)
+        LOG.info("Dynamic coupled forcing: %s", result)
+        return result
