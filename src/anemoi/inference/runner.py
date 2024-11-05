@@ -365,7 +365,9 @@ class Runner(Context):
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            input_tensor_torch[:, -1, boundary_mask, source.mask] = forcings[...,boundary_mask,source.mask]  # Copy forcings to last 'multi_step_input' row
+            input_tensor_torch[:, -1, boundary_mask, source.mask] = forcings[
+                ..., boundary_mask, source.mask
+            ]  # Copy forcings to last 'multi_step_input' row
 
         # TO DO: add some consistency checks as above
 

@@ -646,7 +646,7 @@ class Metadata(PatchMixin, LegacyMixin):
         output_mask = self._config_model.get("output_mask", None)
         if output_mask is not None:
             LOG.info("Getting boundary forcings.")
-            boundary_mask = ~ self.load_supporting_array(f"{output_mask}_mask")
+            boundary_mask = ~self.load_supporting_array(f"{output_mask}_mask")
             result.append(
                 context.create_dynamic_coupled_forcings(
                     self.prognostic_variables,
