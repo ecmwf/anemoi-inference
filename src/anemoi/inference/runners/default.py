@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from ..forcings import ComputedForcings
 from ..forcings import CoupledForcings
+from ..forcings import BoundaryForcings
 from ..inputs import create_input
 from ..outputs import create_output
 from ..runner import Runner
@@ -102,4 +103,17 @@ class DefaultRunner(Runner):
         input = create_input(self, input)
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
+        return result
+
+    def create_boundary_forcings(self, variables, mask):
+
+        if self.config.forcings is None:
+            # Use the same as the input
+            input = self.config.input
+        else:
+            input = self.config.forcings.input
+
+        input = create_input(self, input)
+        result = BoundaryForcings(self, input, variables, mask)
+        LOG.info("Boundary forcing: %s", result)
         return result

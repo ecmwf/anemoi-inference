@@ -331,8 +331,6 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            print(state)
-            print(date)
             forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
@@ -355,22 +353,18 @@ class Runner(Context):
 
         # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
         # batch is always 1
-        sources, boundary_mask = self.boundary_forcings_inputs
+        sources = self.boundary_forcings_inputs
         for source in sources:
             forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
             forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
-
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-
-            input_tensor_torch[:, -1, boundary_mask, source.mask] = forcings[
-                ..., boundary_mask, source.mask
-            ]  # Copy forcings to last 'multi_step_input' row
+            total_mask=np.ix_([0],[-1],source.spatial_mask,source.variables_mask)
+            input_tensor_torch[total_mask] = forcings # Copy forcings to last 'multi_step_input' row
 
         # TO DO: add some consistency checks as above
-
         return input_tensor_torch
 
     def validate_input_state(self, input_state):
