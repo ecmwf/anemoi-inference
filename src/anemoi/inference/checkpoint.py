@@ -163,9 +163,9 @@ class Checkpoint:
     ###########################################################################
     # Data retrieval
     ###########################################################################
-    @property
-    def variables_from_input(self):
-        return self._metadata.variables_from_input
+
+    def variables_from_input(self, *, include_forcings):
+        return self._metadata.variables_from_input(include_forcings=include_forcings)
 
     @property
     def grid(self):
@@ -174,6 +174,9 @@ class Checkpoint:
     @property
     def area(self):
         return self._metadata.area
+
+    def mars_by_levtype(self, levtype):
+        return self._metadata.mars_by_levtype(levtype)
 
     def mars_requests(self, *, variables, dates, use_grib_paramid=False, **kwargs):
         from earthkit.data.utils.availability import Availability

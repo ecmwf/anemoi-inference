@@ -52,10 +52,11 @@ class LegacyMixin:
             param_level = variable.split("_")
             if len(param_level) == 2:
                 # Assumes levtype=pl for now
+                levtype = "pl"
 
                 try:
                     levelist = int(param_level[1])
-                    mars = dict(param=param_level[0], levelist=levelist)
+                    mars = dict(param=param_level[0], levelist=levelist, levtype=levtype)
                     result[variable] = dict(mars=mars)
                     continue
                 except ValueError:

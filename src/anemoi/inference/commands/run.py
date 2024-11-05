@@ -39,11 +39,12 @@ class RunCmd(Command):
 
         # Apply overrides
         for override in args.overrides:
+            path = config
             key, value = override.split("=")
             keys = key.split(".")
             for key in keys[:-1]:
-                config = config.setdefault(key, {})
-            config[keys[-1]] = value
+                path = path.setdefault(key, {})
+            path[keys[-1]] = value
 
         # Load the configuration
         config = Configuration(**config)

@@ -40,13 +40,13 @@ class Context(ABC):
         raise NotImplementedError()
 
     def create_constant_computed_forcings(self, variables, mask):
-        raise NotImplementedError()
+        raise NotImplementedError(f"{self.__class__.__name__}.create_constant_computed_forcings")
 
     def create_constant_coupled_forcings(self, variables, mask):
-        raise NotImplementedError()
+        raise NotImplementedError(f"{self.__class__.__name__}.create_constant_coupled_forcings")
 
     def create_dynamic_computed_forcings(self, variables, mask):
-        raise NotImplementedError()
+        raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_computed_forcings")
 
     def create_dynamic_coupled_forcings(self, variables, mask):
-        raise NotImplementedError()
+        raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")

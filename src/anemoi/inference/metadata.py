@@ -337,8 +337,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def area(self):
         return self._data_request.get("area")
 
-    @property
-    def variables_from_input(self):
+    def variables_from_input(self, *, include_forcings):
         variable_categories = self.variable_categories()
         result = []
         for variable, metadata in self.variables_metadata.items():
@@ -347,7 +346,8 @@ class Metadata(PatchMixin, LegacyMixin):
                 continue
 
             if "forcing" in variable_categories[variable]:
-                continue
+                if not include_forcings:
+                    continue
 
             if "computed" in variable_categories[variable]:
                 continue
@@ -358,6 +358,31 @@ class Metadata(PatchMixin, LegacyMixin):
             result.append(variable)
 
         return result
+
+    def mars_by_levtype(self, levtype):
+        variable_categories = self.variable_categories()
+
+        params = set()
+        levels = set()
+
+        for variable in self.variables_from_input(include_forcings=True):
+
+            if "diagnostic" in variable_categories[variable]:
+                continue
+
+            metadata = self.variables_metadata[variable]
+
+            mars = metadata["mars"]
+            if mars.get("levtype") != levtype:
+                continue
+
+            if "param" in mars:
+                params.add(mars["param"])
+
+            if "levelist" in mars:
+                levels.add(mars["levelist"])
+
+        return params, levels
 
     def mars_requests(self, *, variables, use_grib_paramid=False):
         """Return a list of MARS requests for the variables in the dataset"""

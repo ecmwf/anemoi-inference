@@ -58,7 +58,7 @@ class EkdInput(Input):
     ):
 
         if variables is None:
-            variables = [k for k, v in self.checkpoint.typed_variables.items() if not v.is_computed_forcing]
+            variables = self.checkpoint.variables_from_input(include_forcings=True)
 
         if len(input_fields) == 0:
             raise ValueError("No input fields provided")
