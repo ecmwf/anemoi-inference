@@ -61,6 +61,10 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._config.training
 
     @property
+    def _config_model(self):
+        return self._config.model
+
+    @property
     def _config(self):
         return self._metadata.config
 
@@ -244,6 +248,11 @@ class Metadata(PatchMixin, LegacyMixin):
     def diagnostic_variables(self):
         """Variables that are marked as diagnostic"""
         return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
+
+    @cached_property
+    def prognostic_variables(self):
+        """Variables that are marked as prognostic"""
+        return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]
 
     @cached_property
     def index_to_variable(self):
@@ -653,7 +662,21 @@ class Metadata(PatchMixin, LegacyMixin):
                 remaining_mask,
             )
         )
+        return result
 
+    def boundary_forcings_inputs(self, context, input_state):
+
+        result = []
+
+        output_mask = self._config_model.get("output_mask", None)
+        if output_mask is not None:
+            assert output_mask == "cutout", "Currently only cutout as output mask supported."
+            result.append(
+                context.create_boundary_forcings(
+                    self.prognostic_variables,
+                    self.prognostic_input_mask,
+                )
+            )
         return result
 
     ###########################################################################
