@@ -304,7 +304,7 @@ class Runner(Context):
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
-        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
         prognostic_output_mask = self.checkpoint.prognostic_output_mask
@@ -327,7 +327,7 @@ class Runner(Context):
 
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
-        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
@@ -351,7 +351,7 @@ class Runner(Context):
 
     def add_boundary_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
-        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
