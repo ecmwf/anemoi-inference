@@ -100,9 +100,7 @@ class AIModelPlugin(Model):
             self.torch_deterministic_mode()
 
         input = FieldListInput(self.runner, input_fields=self.all_fields)
-        output = CallbackOutput(
-            self.runner, write=self.write, write_input_fields=self.write_input_fields, allow_nans=True
-        )
+        output = CallbackOutput(self.runner, write=self.write, allow_nans=True)
 
         input_state = input.create_input_state(date=self.start_datetime)
 
