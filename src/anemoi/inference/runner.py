@@ -361,8 +361,8 @@ class Runner(Context):
 
             forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-            total_mask=np.ix_([0],[-1],source.spatial_mask,source.variables_mask)
-            input_tensor_torch[total_mask] = forcings # Copy forcings to last 'multi_step_input' row
+            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
+            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
         # TO DO: add some consistency checks as above
         return input_tensor_torch

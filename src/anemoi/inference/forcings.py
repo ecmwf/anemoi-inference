@@ -15,8 +15,9 @@ from abc import abstractmethod
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
-from anemoi.inference.inputs.dataset import DatasetInput
 from earthkit.data.indexing.fieldlist import FieldArray
+
+from anemoi.inference.inputs.dataset import DatasetInput
 
 LOG = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ class CoupledForcings(Forcings):
 
         # return fields.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
+
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
@@ -132,10 +134,10 @@ class BoundaryForcings(Forcings):
         super().__init__(context)
         self.variables = variables
         self.variables_mask = variables_mask
-        assert isinstance(input,DatasetInput), "Currently only boundary forcings from dataset supported."
+        assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
         num_lam, num_other = input.ds.grids
-        self.spatial_mask=np.array([False] * num_lam + [True] * num_other, dtype=bool)
+        self.spatial_mask = np.array([False] * num_lam + [True] * num_other, dtype=bool)
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def __repr__(self):
@@ -143,7 +145,7 @@ class BoundaryForcings(Forcings):
 
     def load_forcings(self, state, dates):
         data = self.input.load_forcings(variables=self.variables, dates=dates)
-        data=data[...,self.spatial_mask]
+        data = data[..., self.spatial_mask]
 
         expected_shape = (len(self.variables), len(dates), state["latitudes"][self.spatial_mask].size)
         assert data.shape == expected_shape, (data.shape, expected_shape)

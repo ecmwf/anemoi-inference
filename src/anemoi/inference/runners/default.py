@@ -13,9 +13,9 @@ import logging
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
+from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
 from ..forcings import CoupledForcings
-from ..forcings import BoundaryForcings
 from ..inputs import create_input
 from ..outputs import create_output
 from ..runner import Runner

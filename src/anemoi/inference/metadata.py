@@ -645,7 +645,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         output_mask = self._config_model.get("output_mask", None)
         if output_mask is not None:
-            assert output_mask == 'cutout', 'Currently only cutout as output mask supported.'
+            assert output_mask == "cutout", "Currently only cutout as output mask supported."
             result.append(
                 context.create_boundary_forcings(
                     self.prognostic_variables,
