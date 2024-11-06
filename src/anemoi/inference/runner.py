@@ -101,6 +101,7 @@ class Runner(Context):
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
+        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
 
         # timers = Timers()
 
@@ -283,6 +284,9 @@ class Runner(Context):
             del y_pred  # Recover memory
 
             input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
+            )
 
             if not check.all():
                 # Not all variables have been updated
@@ -300,7 +304,7 @@ class Runner(Context):
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
-        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
         prognostic_output_mask = self.checkpoint.prognostic_output_mask
@@ -323,7 +327,7 @@ class Runner(Context):
 
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
-        # input_tensor_torch is shape: (batch, multi_step_input, variables, values)
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
@@ -343,6 +347,24 @@ class Runner(Context):
             for n in source.mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
 
+        return input_tensor_torch
+
+    def add_boundary_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
+        # batch is always 1
+        sources = self.boundary_forcings_inputs
+        for source in sources:
+            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+
+            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
+            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+
+        # TO DO: add some consistency checks as above
         return input_tensor_torch
 
     def validate_input_state(self, input_state):

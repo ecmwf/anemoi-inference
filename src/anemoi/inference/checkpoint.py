@@ -129,6 +129,9 @@ class Checkpoint:
     def dynamic_forcings_inputs(self, runner, input_state):
         return self._metadata.dynamic_forcings_inputs(runner, input_state)
 
+    def boundary_forcings_inputs(self, runner, input_state):
+        return self._metadata.boundary_forcings_inputs(runner, input_state)
+
     def name_fields(self, fields, namer=None):
         return self._metadata.name_fields(fields, namer=namer)
 
