@@ -9,7 +9,6 @@
 
 
 import logging
-import warnings
 from abc import abstractmethod
 
 from ..output import Output
@@ -50,6 +49,7 @@ class GribOutput(Output):
         step = date - reference_date
         step = step.total_seconds() / 3600
         assert int(step) == step, step
+        step = int(step)
 
         if "_grib_templates_for_output" not in state:
             if "_grib_templates_for_output" not in self.quiet:
@@ -59,24 +59,45 @@ class GribOutput(Output):
         templates = state.get("_grib_templates_for_output", {})
 
         for name, value in state["fields"].items():
+            keys = {}
+
             variable = self.typed_variables[name]
             if variable.is_accumulation:
-                warnings.warn("🚧 TEMPORARY CODE 🚧: accumulations are not supported yet")
-                continue
+                keys["stepType"] = "accum"
+                keys["startStep"] = 0
+                keys["endStep"] = step
+                keys["typeOfStatisticalProcessing"] = 1
 
-            keys = {}
+            def _clostest_template(name):
+                best = None, None
+                best_similarity = 0
+                md1 = self.typed_variables[name]
+                for name2, template in templates.items():
+                    md2 = self.typed_variables[name2]
+                    similarity = md1.similarity(md2)
+                    if similarity > best_similarity:
+                        best = template, name2
+                        best_similarity = similarity
+                return best
 
             template = templates.get(name)
             if template is None:
                 if name not in self.quiet:
-
                     LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
+
                 grib_keys = variable.grib_keys.copy()
                 for key in ("class", "type", "stream", "expver", "date", "time", "step"):
                     grib_keys.pop(key, None)
+
+                template, name2 = _clostest_template(name)
+
                 if name not in self.quiet:
-                    LOG.warning("Using %s", grib_keys)
+                    if name2 is not None:
+                        LOG.warning("Using template for `%s` with keys %s", name2, grib_keys)
+                    else:
+                        LOG.warning("Using %s", grib_keys)
                     self.quiet.add(name)
+
                 keys.update(grib_keys)
 
             keys.update(
@@ -86,6 +107,9 @@ class GribOutput(Output):
                 step=step,
                 typeOfProcessedData=1,  # Forecast
             )
+
+            if keys.get("levtype") != "sfc":
+                continue
 
             try:
                 self.write_message(value, template=template, **keys)

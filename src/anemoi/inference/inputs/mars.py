@@ -104,7 +104,7 @@ class MarsInput(GribInput):
         super().__init__(context)
         self.use_grib_paramid = use_grib_paramid
         self.kwargs = kwargs
-        self.variables = self.checkpoint.variables_from_input
+        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
     def create_input_state(self, *, date):
         if date is None:
