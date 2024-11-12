@@ -59,9 +59,7 @@ class PlotOutput(Output):
 
         os.makedirs(self.path, exist_ok=True)
 
-        longitudes = state["longitudes"]
-        latitudes = state["latitudes"]
-        triangulation = tri.Triangulation(fix(longitudes), latitudes)
+        last_missing = None
 
         for name, values in state["fields"].items():
 
@@ -74,6 +72,15 @@ class PlotOutput(Output):
             _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
             ax.coastlines()
             ax.add_feature(cfeature.BORDERS, linestyle=":")
+
+            missing_values = np.isnan(values)
+
+            values = values[~missing_values]
+            if last_missing is None or np.any(last_missing != missing_values):
+                longitudes = state["longitudes"][~missing_values]
+                latitudes = state["latitudes"][~missing_values]
+                triangulation = tri.Triangulation(fix(longitudes), latitudes)
+                last_missing = missing_values
 
             _ = ax.tricontourf(triangulation, values, levels=10, transform=ccrs.PlateCarree())
 
