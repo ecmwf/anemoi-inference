@@ -46,8 +46,8 @@ class FieldListInput(GribInput):
 class CallbackOutput(GribOutput):
     """Call ai-models write method"""
 
-    def __init__(self, context, *, write, allow_nans=False):
-        super().__init__(context, allow_nans=allow_nans)
+    def __init__(self, context, *, write, allow_nans=False, encoding=None):
+        super().__init__(context, allow_nans=allow_nans, encoding=encoding)
         self.write = write
 
     def write_message(self, message, *args, **kwargs):

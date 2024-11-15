@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import json
 import logging
 from abc import abstractmethod
 
@@ -21,12 +22,14 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, context, *, allow_nans=False):
+    def __init__(self, context, *, allow_nans=False, encoding=None):
         super().__init__(context)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.allow_nans = allow_nans
         self.quiet = set()
+        self.encoding = encoding if encoding is not None else {}
+        self.edition = self.encoding.get("edition")
 
     def write_initial_state(self, state):
         # We trust the GribInput class to provide the templates
@@ -63,10 +66,7 @@ class GribOutput(Output):
 
             variable = self.typed_variables[name]
             if variable.is_accumulation:
-                keys["stepType"] = "accum"
-                keys["startStep"] = 0
-                keys["endStep"] = step
-                keys["typeOfStatisticalProcessing"] = 1
+                self.set_accumulation(keys, 0, step)
 
             def _clostest_template(name):
                 best = None, None
@@ -101,15 +101,19 @@ class GribOutput(Output):
                 keys.update(grib_keys)
 
             keys.update(
-                edition=2,
                 date=reference_date.strftime("%Y-%m-%d"),
                 time=reference_date.hour,
                 step=step,
-                typeOfProcessedData=1,  # Forecast
             )
 
-            if keys.get("levtype") != "sfc":
-                continue
+            self.set_forecast(keys, reference_date, step)
+            self.set_other_keys(keys, variable)
+
+            if self.edition is not None:
+                keys["edition"] = self.edition
+
+            if LOG.isEnabledFor(logging.DEBUG):
+                LOG.debug("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             try:
                 self.write_message(value, template=template, **keys)
@@ -122,3 +126,34 @@ class GribOutput(Output):
     @abstractmethod
     def write_message(self, message, *args, **kwargs):
         pass
+
+    def set_forecast(self, keys, reference_date, step):
+        keys["date"] = reference_date.strftime("%Y-%m-%d")
+        keys["time"] = reference_date.hour
+        keys["step"] = step
+        keys["type"] = "fc"
+
+        if self.edition == 2:
+            keys["typeOfProcessedData"] = 1
+
+        grib_keys = self.encoding.get("forecast", {})
+        keys.update(grib_keys)
+
+    def set_accumulation(self, keys, start, end):
+        keys["startStep"] = start
+        keys["endStep"] = end
+        keys["stepType"] = "accum"
+
+        if self.edition == 2:
+            keys["typeOfStatisticalProcessing"] = 1
+
+        grib_keys = self.encoding.get("accumulation", {})
+        keys.update(grib_keys)
+
+    def set_other_keys(self, keys, variable):
+        grib_keys = self.encoding.get("defaults", {})
+        keys.update(grib_keys)
+
+        per_variable = self.encoding.get("per_variable", {})
+        per_variable = per_variable.get(variable.name, {})
+        keys.update(per_variable)
