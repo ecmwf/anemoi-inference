@@ -119,8 +119,8 @@ class GribOutput(Output):
                 self.write_message(value, template=template, **keys)
             except Exception as e:
                 LOG.error("Error writing field %s", name)
-                LOG.error("Keys: %s", keys)
                 LOG.error("Template: %s", template)
+                LOG.error("Keys:\n%s", json.dumps(keys, indent=4))
                 raise e
 
     @abstractmethod
@@ -151,7 +151,7 @@ class GribOutput(Output):
         keys.update(grib_keys)
 
     def set_other_keys(self, keys, variable):
-        grib_keys = self.encoding.get("defaults", {})
+        grib_keys = {k: v for k, v in self.encoding.items() if not isinstance(v, (dict, list))}
         keys.update(grib_keys)
 
         per_variable = self.encoding.get("per_variable", {})
