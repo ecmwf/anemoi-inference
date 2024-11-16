@@ -17,10 +17,18 @@ from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
-# This should be a anemoi.transform.source.mars
+
+def rounded_area(area):
+    try:
+        surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+        if surface > 0.98:
+            return [90, 0.0, -90, 360]
+    except TypeError:
+        pass
+    return area
 
 
-def _grid_is_valid(grid):
+def grid_is_valid(grid):
     if grid is None:
         return False
 
@@ -34,7 +42,7 @@ def _grid_is_valid(grid):
         return False
 
 
-def _area_is_valid(area):
+def area_is_valid(area):
 
     if area is None:
         return False
@@ -49,17 +57,19 @@ def _area_is_valid(area):
         return False
 
 
+def postproc(grid, area):
+    pproc = dict()
+    if grid_is_valid(grid):
+        pproc["grid"] = grid
+
+    if area_is_valid(area):
+        pproc["area"] = rounded_area(area)
+
+    return pproc
+
+
 def retrieve(requests, grid, area, **kwargs):
     import earthkit.data as ekd
-
-    def rounded_area(area):
-        try:
-            surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
-            if surface > 0.98:
-                return [90, 0.0, -90, 360]
-        except TypeError:
-            pass
-        return area
 
     def _(r):
         mars = r.copy()
@@ -71,12 +81,7 @@ def retrieve(requests, grid, area, **kwargs):
 
         return ",".join(f"{k}={v}" for k, v in mars.items())
 
-    pproc = dict()
-    if _grid_is_valid(grid):
-        pproc["grid"] = grid
-
-    if _area_is_valid(area):
-        pproc["area"] = rounded_area(area)
+    pproc = postproc(grid, area)
 
     result = ekd.from_source("empty")
     for r in requests:

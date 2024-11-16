@@ -14,6 +14,7 @@ from earthkit.data.utils.dates import to_datetime
 
 from ..config import Configuration
 from ..config import load_config
+from ..inputs.mars import postproc
 from ..runners.default import DefaultRunner
 from . import Command
 
@@ -47,8 +48,10 @@ class RetrieveCmd(Command):
 
         runner = DefaultRunner(config)
         variables = runner.checkpoint.variables_from_input(include_forcings=True)
+        area = runner.checkpoint.area
+        grid = runner.checkpoint.grid
 
-        extra = dict(area=runner.checkpoint.area, grid=runner.checkpoint.grid)
+        extra = postproc(grid, area)
 
         for r in args.extra or []:
             k, v = r.split("=")
