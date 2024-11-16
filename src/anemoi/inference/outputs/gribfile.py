@@ -128,7 +128,6 @@ class GribFileOutput(GribOutput):
             return
 
         path = self.archive_requests["path"]
-        json_output = self.archive_requests.get("json", False)
         extra = self.archive_requests.get("extra", {})
 
         with open(self.archive_requests["path"], "w") as f:
@@ -137,17 +136,9 @@ class GribFileOutput(GribOutput):
             for path, archive in self.archiving.items():
                 assert path is not None, "Path is None"
                 request = dict(expect=archive.expect)
-                request["source"] = f'"{path}"'
+                request["source"] = path
                 request.update(archive.request)
                 request.update(extra)
                 requests.append(request)
 
-            if json_output:
-                json.dump(requests, f, indent=4)
-            else:
-                for request in requests:
-                    print("archive", file=f)
-                    for k, v in request.items():
-                        if isinstance(v, (list, tuple)):
-                            v = "/".join([str(x) for x in v])
-                        print(f",{k}={v}", file=f)
+            json.dump(requests, f, indent=4)
