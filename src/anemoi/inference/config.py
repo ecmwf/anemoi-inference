@@ -69,7 +69,7 @@ class Configuration(BaseModel):
     is already loaded when the runner is configured."""
 
 
-def load_config(path, overrides):
+def load_config(path, overrides, Configuration=Configuration):
 
     # Load the configuration
 

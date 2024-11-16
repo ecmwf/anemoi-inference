@@ -12,9 +12,19 @@ import json
 
 from earthkit.data.utils.dates import to_datetime
 
+from ..config import Configuration
 from ..config import load_config
 from ..runners.default import DefaultRunner
 from . import Command
+
+
+class PrepmlConfig(Configuration):
+
+    name: str = "anemoi"
+    """Name of the configuration."""
+
+    use_grib_paramid: bool = False
+    """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
 
 class RetrieveCmd(Command):
@@ -25,29 +35,24 @@ class RetrieveCmd(Command):
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
-        command_parser.add_argument("--json", action="store_true", help="Output as JSON")
         command_parser.add_argument("--date", type=str, help="Date")
         command_parser.add_argument("--time", type=str, help="Time")
         command_parser.add_argument("--output", type=str, help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
-        command_parser.add_argument(
-            "--requests-extra", action="append", help="Additional request values. Can be repeated"
-        )
+        command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
 
     def run(self, args):
 
-        config = load_config(args.config, [])
-
-        use_grib_paramid = False  # config.get('use_grib_paramid', False)
+        config = load_config(args.config, [], Configuration=PrepmlConfig)
 
         runner = DefaultRunner(config)
         variables = runner.checkpoint.variables_from_input(include_forcings=True)
 
-        requests_extra = dict(area=runner.checkpoint.area, grid=runner.checkpoint.grid)
+        extra = dict(area=runner.checkpoint.area, grid=runner.checkpoint.grid)
 
-        for r in args.requests_extra or []:
+        for r in args.extra or []:
             k, v = r.split("=")
-            requests_extra[k] = v
+            extra[k] = v
 
         if args.staging_dates:
             dates = []
@@ -64,26 +69,14 @@ class RetrieveCmd(Command):
         for r in runner.checkpoint.mars_requests(
             dates=dates,
             variables=variables,
-            use_grib_paramid=use_grib_paramid,
+            use_grib_paramid=config.use_grib_paramid,
         ):
             r = r.copy()
-            r.update(requests_extra)
+            r.update(extra)
             requests.append(r)
 
-        if args.json:
-            with open(args.output, "w") as f:
-                json.dump(requests, f, indent=4)
-            return
-
         with open(args.output, "w") as f:
-            for r in requests:
-                req = ["retrieve,target=input.grib"]
-                for k, v in r.items():
-                    if isinstance(v, (list, tuple)):
-                        v = "/".join([str(x) for x in v])
-                    req.append(f"{k}={v}")
-                r = ",".join(req)
-                print(r, file=f)
+            json.dump(requests, f, indent=4)
 
 
 command = RetrieveCmd
