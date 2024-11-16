@@ -47,8 +47,9 @@ def check_data(data: Any, variables: List[str], dates: List[datetime.datetime]) 
 
         for field in data:
             name, date = field.metadata("name"), field.metadata("valid_datetime")
-
-            t[rows[name]][cols[date]] = "✅"
+            if t[rows[name]][cols[date]] == "❌":
+                t[rows[name]][cols[date]] = ""
+            t[rows[name]][cols[date]] += "✅"
 
         print(table(t, ["name"] + [_.isoformat() for _ in sorted(dates)], "<||"))
 

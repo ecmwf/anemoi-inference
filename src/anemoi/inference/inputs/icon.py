@@ -26,18 +26,19 @@ class IconInput(GribInput):
     WARNING: this code will become a pugin in the future
     """
 
-    def __init__(self, context, path, grid, *, use_grib_paramid=False):
-        super().__init__(context, use_grib_paramid=use_grib_paramid)
+    def __init__(self, context, path, grid, *, refinement_level_c, use_grib_paramid=False, namer=None):
+        super().__init__(context, use_grib_paramid=use_grib_paramid, namer=namer)
         self.path = path
         self.grid = grid
+        self.refinement_level_c = refinement_level_c
 
     def create_input_state(self, *, date):
         import xarray as xr
 
         LOG.info(f"Reading ICON grid from {self.grid}")
         ds = xr.open_dataset(self.grid)
-        latitudes = np.rad2deg(ds.clat[ds.refinement_level_c <= 3].values)
-        longitudes = np.rad2deg(ds.clon[ds.refinement_level_c <= 3].values)
+        latitudes = np.rad2deg(ds.clat[ds.refinement_level_c <= self.refinement_level_c].values)
+        longitudes = np.rad2deg(ds.clon[ds.refinement_level_c <= self.refinement_level_c].values)
 
         LOG.info(f"Latitudes {np.min(latitudes)} {np.max(latitudes)}")
         LOG.info(f"Longitudes {np.min(longitudes)} {np.max(longitudes)}")

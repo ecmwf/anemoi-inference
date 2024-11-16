@@ -9,6 +9,7 @@
 
 
 import logging
+import re
 from collections import defaultdict
 
 import numpy as np
@@ -37,11 +38,43 @@ class ApplyMask:
         return field[self.mask]
 
 
+class RulesNamer:
+    """A namer that uses rules to generate names"""
+
+    def __init__(self, rules, default_namer):
+        self.rules = rules
+        self.default_namer = default_namer
+
+    def __call__(self, field, original_metadata):
+        for rule in self.rules:
+            assert len(rule) == 2, rule
+            ok = True
+            for k, v in rule[0].items():
+                if original_metadata.get(k) != v:
+                    ok = False
+            if ok:
+                return self.substitute(rule[1], field, original_metadata)
+
+        return self.default_namer(field, original_metadata)
+
+    def substitute(self, template, field, original_metadata):
+        matches = re.findall(r"\{(.+?)\}", template)
+        matches = {m: original_metadata.get(m) for m in matches}
+        return template.format(**matches)
+
+
 class EkdInput(Input):
     """Handles earthkit-data FieldList as input"""
 
     def __init__(self, context, *, namer=None):
         super().__init__(context)
+
+        if isinstance(namer, dict):
+            # TODO: a factory for namers
+            assert "rules" in namer, namer
+            assert len(namer) == 1, namer
+            namer = RulesNamer(namer["rules"], self.checkpoint.default_namer())
+
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
