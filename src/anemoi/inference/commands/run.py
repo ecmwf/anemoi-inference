@@ -10,11 +10,8 @@
 from __future__ import annotations
 
 import logging
-import os
 
-import yaml
-
-from ..config import Configuration
+from ..config import load_config
 from ..runners.default import DefaultRunner
 from . import Command
 
@@ -30,35 +27,9 @@ class RunCmd(Command):
         command_parser.add_argument("config", help="Path to config file.")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
-    def get_config(self, args):
-
-        # Load the configuration
-
-        with open(args.config) as f:
-            config = yaml.safe_load(f)
-
-        # Apply overrides
-        for override in args.overrides:
-            path = config
-            key, value = override.split("=")
-            keys = key.split(".")
-            for key in keys[:-1]:
-                path = path.setdefault(key, {})
-            path[keys[-1]] = value
-
-        # Load the configuration
-        config = Configuration(**config)
-
-        # Set environment variables found in the configuration
-        # as soon as possible
-        for key, value in config.env.items():
-            os.environ[key] = str(value)
-
-        return config
-
     def run(self, args):
 
-        config = self.get_config(args)
+        config = load_config(args.config, args.overrides)
 
         runner = DefaultRunner(config)
 

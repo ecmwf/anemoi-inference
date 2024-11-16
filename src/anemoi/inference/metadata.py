@@ -368,6 +368,17 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
+    def mars_input_requests(self):
+        variable_categories = self.variable_categories()
+        for variable in self.variables_from_input(include_forcings=True):
+
+            if "diagnostic" in variable_categories[variable]:
+                continue
+
+            metadata = self.variables_metadata[variable]
+
+            yield metadata["mars"].copy()
+
     def mars_by_levtype(self, levtype):
         variable_categories = self.variable_categories()
 

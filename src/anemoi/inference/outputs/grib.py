@@ -42,7 +42,12 @@ class GribOutput(Output):
         templates = state["_grib_templates_for_output"]
 
         for name in state["fields"]:
-            self.write_message(None, template=templates[name])
+            variable = self.typed_variables[name]
+            assert not variable.is_accumulation, variable
+            keys = {}
+            self.set_forecast(keys, None, 0)
+            self.set_other_keys(keys, variable)
+            self.write_message(None, template=templates[name], **keys)
 
     def write_state(self, state):
 
@@ -65,8 +70,6 @@ class GribOutput(Output):
             keys = {}
 
             variable = self.typed_variables[name]
-            if variable.is_accumulation:
-                self.set_accumulation(keys, 0, step)
 
             def _clostest_template(name):
                 best = None, None
@@ -108,6 +111,8 @@ class GribOutput(Output):
 
             self.set_forecast(keys, reference_date, step)
             self.set_other_keys(keys, variable)
+            if variable.is_accumulation:
+                self.set_accumulation(keys, 0, step, template=template)
 
             if self.edition is not None:
                 keys["edition"] = self.edition
@@ -128,8 +133,10 @@ class GribOutput(Output):
         pass
 
     def set_forecast(self, keys, reference_date, step):
-        keys["date"] = reference_date.strftime("%Y-%m-%d")
-        keys["time"] = reference_date.hour
+        if reference_date is not None:
+            keys["date"] = reference_date.strftime("%Y-%m-%d")
+            keys["time"] = reference_date.hour
+
         keys["step"] = step
         keys["type"] = "fc"
 
@@ -139,13 +146,34 @@ class GribOutput(Output):
         grib_keys = self.encoding.get("forecast", {})
         keys.update(grib_keys)
 
-    def set_accumulation(self, keys, start, end):
-        keys["startStep"] = start
-        keys["endStep"] = end
-        keys["stepType"] = "accum"
+    def set_accumulation(self, keys, start, end, template):
 
-        if self.edition == 2:
+        edition = self.edition
+        if edition is None and template is not None:
+            edition = template.metadata("edition")
+            centre = template.metadata("centre")
+
+        if edition == 2:
             keys["typeOfStatisticalProcessing"] = 1
+            keys["startStep"] = start
+            keys["endStep"] = end
+            keys["stepType"] = "accum"
+            keys["step"] = end
+        elif edition == 1:
+            # This is ecmwf specific :-(
+            if centre == "ecmf":
+                keys["timeRangeIndicator"] = 1
+                keys["step"] = end
+            else:
+                keys["timeRangeIndicator"] = 4
+                keys["startStep"] = start
+                keys["endStep"] = end
+                keys["stepType"] = "accum"
+        else:
+            # We don't know the edition
+            keys["startStep"] = start
+            keys["endStep"] = end
+            keys["stepType"] = "accum"
 
         grib_keys = self.encoding.get("accumulation", {})
         keys.update(grib_keys)

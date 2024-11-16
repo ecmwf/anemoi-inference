@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 from typing import Dict
 
+import yaml
 from pydantic import BaseModel
 
 LOG = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ class Configuration(BaseModel):
     - If True, the model will allow NaNs in the input and output.
     """
 
-    write_initial_state: bool = True
+    write_initial_state: bool = False
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written."""
 
@@ -65,3 +67,30 @@ class Configuration(BaseModel):
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured."""
+
+
+def load_config(path, overrides):
+
+    # Load the configuration
+
+    with open(path) as f:
+        config = yaml.safe_load(f)
+
+    # Apply overrides
+    for override in overrides:
+        path = config
+        key, value = override.split("=")
+        keys = key.split(".")
+        for key in keys[:-1]:
+            path = path.setdefault(key, {})
+        path[keys[-1]] = value
+
+    # Load the configuration
+    config = Configuration(**config)
+
+    # Set environment variables found in the configuration
+    # as soon as possible
+    for key, value in config.env.items():
+        os.environ[key] = str(value)
+
+    return config
