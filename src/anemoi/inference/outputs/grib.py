@@ -77,6 +77,7 @@ class GribOutput(Output):
             keys = {}
 
             variable = self.typed_variables[name]
+            param = variable.grib_keys.get("param", variable)
 
             def _clostest_template(name):
                 best = None, None
@@ -114,6 +115,7 @@ class GribOutput(Output):
                 date=reference_date.strftime("%Y-%m-%d"),
                 time=reference_date.hour,
                 step=step,
+                param=param,
             )
 
             self.set_forecast(keys, reference_date, step)
