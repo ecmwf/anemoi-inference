@@ -22,11 +22,10 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, context, *, allow_nans=False, encoding=None, templates=None):
+    def __init__(self, context, *, encoding=None, templates=None):
         super().__init__(context)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
-        self.allow_nans = allow_nans
         self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
         self.edition = self.encoding.get("edition")
@@ -210,8 +209,6 @@ class GribOutput(Output):
 
         mars = MarsInput(self.context)
         param = mars.retrieve(variables=[name], dates=[state["date"]])
-
-        self.allow_nans = True
 
         self._template_cache[name] = param[0]
 

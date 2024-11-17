@@ -50,14 +50,13 @@ class GribFileOutput(GribOutput):
         context,
         *,
         path,
-        allow_nans=False,
         encoding=None,
         archive_requests=None,
         check_encoding=False,
         templates=None,
         **kwargs,
     ):
-        super().__init__(context, allow_nans=allow_nans, encoding=encoding, templates=templates)
+        super().__init__(context, encoding=encoding, templates=templates)
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
         self.archiving = defaultdict(ArchiveCollector)
@@ -73,7 +72,7 @@ class GribFileOutput(GribOutput):
                 self.output.write(
                     message,
                     template=template,
-                    check_nans=self.allow_nans,
+                    check_nans=self.context.allow_nans,
                     **keys,
                 ),
                 template,
@@ -86,7 +85,7 @@ class GribFileOutput(GribOutput):
             LOG.error("eccodes: %s", eccodes.__version__)
             LOG.error("Exception: %s", e)
             if message is not None and np.isnan(message.data).any():
-                LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.allow_nans)
+                LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
     def collect_archive_requests(self, written, template, **keys):
