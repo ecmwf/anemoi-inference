@@ -17,6 +17,18 @@ any parameters.
 
 ``printer`` is the default output if no output is specified.
 
+Example of output:
+
+.. code:: console
+
+   😀 date=2022-09-11T00:00:00 latitudes=(40320,) longitudes=(40320,) fields=88
+
+    q_50   shape=(40320,) min=7.90953e-07    max=3.18848e-06
+    t_700  shape=(40320,) min=219.916        max=289.703
+    v_300  shape=(40320,) min=-39.5658       max=58.6892
+    z_100  shape=(40320,) min=139951         max=164233
+    tp     shape=(40320,) min=0              max=0.897616
+
 ******
  grib
 ******
