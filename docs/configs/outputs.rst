@@ -28,14 +28,26 @@ For more options, see :ref:`grib-output`.
  netcdf
 ********
 
+.. literalinclude:: outputs_3.yaml
+   :language: yaml
+
 ******
  plot
 ******
+
+.. literalinclude:: outputs_4.yaml
+   :language: yaml
 
 *****
  raw
 *****
 
+.. literalinclude:: outputs_5.yaml
+   :language: yaml
+
 *****
  tee
 *****
+
+.. literalinclude:: outputs_6.yaml
+   :language: yaml

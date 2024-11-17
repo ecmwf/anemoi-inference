@@ -44,7 +44,8 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 .. literalinclude:: inputs_4.yaml
    :language: yaml
 
-For more options, see :ref:`grib-input`.
+..
+   For more options, see :ref:`grib-input`.
 
 ******
  icon
@@ -56,7 +57,17 @@ is
 .. literalinclude:: inputs_5.yaml
    :language: yaml
 
-For more options, see :ref:`icon-input`.
+The ``grid`` entry refers to a NetCDF file that contains the definition
+of the ICON grid in radians. The ``refinement_level_c`` parameter is
+used to specify the refinement level of the ICON grid.
+
+.. note::
+
+   Once the grids are stored by in the checkpoint `Anemoi`, the ``icon``
+   input will become obsolete.
+
+..
+   For more options, see :ref:`icon-input`.
 
 ******
  mars
@@ -66,6 +77,12 @@ You can also specify the input as ``mars`` to read the data from ECMWF's
 MARS archive. This requires the `ecmwf-api-client` package to be
 installed, and the user to have an ECMWF account.
 
-.. code:: yaml
+.. literalinclude:: inputs_6.yaml
+   :language: yaml
 
-   input: mars
+You can also specify some of the MARS keywords as options. The default
+is to retrieve the data from the operational analysis (``class=od``).
+You can change that to use ERA5 reanalysis data (``class=ea``).
+
+.. literalinclude:: inputs_7.yaml
+   :language: yaml

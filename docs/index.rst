@@ -73,18 +73,34 @@ of the *Anemoi* packages.
    configs/inputs
    configs/outputs
 
-.. toctree::
+..
+   .. toctree::
+
+..
    :maxdepth: 1
+
+..
    :glob:
+
+..
    :caption: Modules
 
+..
    modules/*
 
-.. toctree::
+..
+   .. toctree::
+
+..
    :maxdepth: 1
+
+..
    :glob:
+
+..
    :caption: Schemas
 
+..
    schemas/*
 
 *****************
