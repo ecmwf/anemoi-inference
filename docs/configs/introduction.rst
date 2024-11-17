@@ -2,16 +2,15 @@
  Introduction
 ##############
 
-This document provides an overview of the configuration options
-available to control ``anemoi-inference run``.
+This document provides an overview of the configuration to provide to
+the :ref:`anemoi-inference run <run-cli>` command line tool.
 
-The configuration file is a YAML file that specifies the configuration
-options.
-
-The configuration is composed of :ref:`top level <top-level>` options
-which are usially simple values such as strings, number or booleans. The
-configuration also provide ways to specify which internal classes to use
-for the inputs and outputs, and how to configure them.
+The configuration file is a YAML file that specifies various options. It
+is composed of :ref:`top level <top-level>` options which are usially
+simple values such as strings, number or booleans. The configuration
+also provide ways to specify which internal classes to use for the
+:ref:`inputs <inputs>` and :ref:`outputs <outputs>`, and how to
+configure them.
 
 In that case, the configuration as the format as show below. The key
 ``kind`` corresponds to and underlying Python class that will be used to
