@@ -29,7 +29,6 @@ class DatasetInput(Input):
     def __init__(self, context, args, kwargs):
         super().__init__(context)
         self.args, self.kwargs = args, kwargs
-        assert context.verbosity > 0
         if context.verbosity > 0:
             LOG.info(
                 "Opening dataset with\nargs=%s\nkwargs=%s", json.dumps(args, indent=4), json.dumps(kwargs, indent=4)

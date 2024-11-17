@@ -33,7 +33,7 @@ class GribOutput(Output):
         self.encoding = encoding if encoding is not None else {}
         self.edition = self.encoding.get("edition")
         self.templates = templates
-        self._template_cache = {}
+        self._template_cache = None
         self._template_source = None
         self._template_date = None
         self._template_reuse = None
