@@ -1,0 +1,3 @@
+input:
+  test:
+    use_original_paths: false
