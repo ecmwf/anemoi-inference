@@ -46,8 +46,8 @@ class FieldListInput(GribInput):
 class CallbackOutput(GribOutput):
     """Call ai-models write method"""
 
-    def __init__(self, context, *, write, allow_nans=False, encoding=None):
-        super().__init__(context, allow_nans=allow_nans, encoding=encoding)
+    def __init__(self, context, *, write, encoding=None):
+        super().__init__(context, encoding=encoding)
         self.write = write
 
     def write_message(self, message, *args, **kwargs):
@@ -100,7 +100,7 @@ class AIModelPlugin(Model):
             self.torch_deterministic_mode()
 
         input = FieldListInput(self.runner, input_fields=self.all_fields)
-        output = CallbackOutput(self.runner, write=self.write, allow_nans=True)
+        output = CallbackOutput(self.runner, write=self.write)
 
         input_state = input.create_input_state(date=self.start_datetime)
 

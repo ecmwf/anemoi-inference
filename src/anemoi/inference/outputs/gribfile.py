@@ -87,7 +87,7 @@ class GribFileOutput(GribOutput):
             LOG.error("eccodes: %s", eccodes.__version__)
             LOG.error("Exception: %s", e)
             if message is not None and np.isnan(message.data).any():
-                LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.allow_nans)
+                LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
     def collect_archive_requests(self, written, template, **keys):

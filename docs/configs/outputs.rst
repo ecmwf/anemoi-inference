@@ -51,3 +51,15 @@ For more options, see :ref:`grib-output`.
 
 .. literalinclude:: outputs_6.yaml
    :language: yaml
+
+************
+ apply_mask
+************
+
+.. literalinclude:: outputs_7.yaml
+
+*************
+ extract_lam
+*************
+
+.. literalinclude:: outputs_8.yaml
