@@ -486,7 +486,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def open_dataset_args_kwargs(self, *, use_original_paths):
+    def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
 
         # Rebuild the full paths
         # Some older checkpoints may not have the full paths
@@ -510,7 +510,12 @@ class Metadata(PatchMixin, LegacyMixin):
 
             return x
 
-        args, kwargs = _fix([self._metadata.dataset.arguments.args, self._metadata.dataset.arguments.kwargs])
+        if from_dataloader is not None:
+            args, kwargs = [], self._metadata.config.dataloader[from_dataloader]
+        else:
+            args, kwargs = self._metadata.dataset.arguments.args, self._metadata.dataset.arguments.kwargs
+
+        args, kwargs = _fix([args, kwargs])
 
         if use_original_paths:
             return args, kwargs
@@ -811,46 +816,6 @@ class SourceMetadata(Metadata):
             if k.startswith(f"{self.name}/") and "mask" in k:
                 return v
         return None
-
-    def open_dataset_args_kwargs(self, *, use_original_paths):
-
-        args = []
-        kwargs = {}
-
-        def _guess(x, result, depth=0):
-            # This is not correct, the information availble in the metadata is not enough
-            # to reconstruct the open_dataset arguments
-            if "dataset" in x:
-                _guess(x["dataset"], result, depth + 1)
-                return result
-
-            if "specific" in x:
-                _guess(x["specific"], result, depth + 1)
-                return result
-
-            if "action" in x:
-
-                action = x["action"]
-
-                if action.startswith("zarr"):
-                    result["dataset"] = x["path"]
-                    return result
-
-                if "forward" in x:
-                    _guess(x["forward"], result, depth + 1)
-                    result.update(x.get("reason", {}))
-                    return result
-
-                raise NotImplementedError(action)
-
-            raise NotImplementedError(x)
-
-        args = [_guess(self._metadata, {})]
-
-        if use_original_paths:
-            return args, kwargs
-
-        return _remove_full_paths(args), _remove_full_paths(kwargs)
 
     ###########################################################################
     # Forward to parent metadata

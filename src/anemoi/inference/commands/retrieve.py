@@ -12,20 +12,10 @@ import json
 
 from earthkit.data.utils.dates import to_datetime
 
-from ..config import Configuration
 from ..config import load_config
 from ..inputs.mars import postproc
 from ..runners.default import DefaultRunner
 from . import Command
-
-
-class PrepmlConfig(Configuration):
-
-    name: str = "anemoi"
-    """Name of the configuration."""
-
-    use_grib_paramid: bool = False
-    """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
 
 class RetrieveCmd(Command):
@@ -37,16 +27,19 @@ class RetrieveCmd(Command):
         command_parser.description = self.__doc__
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
         command_parser.add_argument("--date", type=str, help="Date")
-        command_parser.add_argument("--time", type=str, help="Time")
         command_parser.add_argument("--output", type=str, help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
+        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
 
-        config = load_config(args.config, [], Configuration=PrepmlConfig)
+        config = load_config(args.config, args.overrides)
 
         runner = DefaultRunner(config)
+
+        # TODO: Move this to the runner
+
         variables = runner.checkpoint.variables_from_input(include_forcings=True)
         area = runner.checkpoint.area
         grid = runner.checkpoint.grid

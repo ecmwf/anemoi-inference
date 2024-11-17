@@ -19,6 +19,10 @@ LOG = logging.getLogger(__name__)
 class Context(ABC):
     """Represents the context of the inference."""
 
+    allow_nans = (None,)  # can be True of False
+    use_grib_paramid = False
+    verbosity = 0
+
     @property
     @abstractmethod
     def checkpoint(self):

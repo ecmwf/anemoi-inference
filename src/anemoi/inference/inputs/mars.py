@@ -105,9 +105,8 @@ def retrieve(requests, grid, area, **kwargs):
 class MarsInput(GribInput):
     """Get input fields from MARS"""
 
-    def __init__(self, context, *, use_grib_paramid=False, **kwargs):
+    def __init__(self, context, **kwargs):
         super().__init__(context)
-        self.use_grib_paramid = use_grib_paramid
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
@@ -119,7 +118,7 @@ class MarsInput(GribInput):
         date = to_datetime(date)
 
         return self._create_input_state(
-            self._retrieve(
+            self.retrieve(
                 self.variables,
                 [date + h for h in self.checkpoint.lagged],
             ),
@@ -127,12 +126,12 @@ class MarsInput(GribInput):
             date=date,
         )
 
-    def _retrieve(self, variables, dates):
+    def retrieve(self, variables, dates):
 
         requests = self.checkpoint.mars_requests(
             variables=variables,
             dates=dates,
-            use_grib_paramid=self.use_grib_paramid,
+            use_grib_paramid=self.context.use_grib_paramid,
         )
 
         if not requests:
@@ -141,4 +140,4 @@ class MarsInput(GribInput):
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
 
     def load_forcings(self, variables, dates):
-        return self._load_forcings(self._retrieve(variables, dates), variables, dates)
+        return self._load_forcings(self.retrieve(variables, dates), variables, dates)

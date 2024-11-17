@@ -22,6 +22,9 @@ LOG = logging.getLogger(__name__)
 
 class Configuration(BaseModel):
 
+    class Config:
+        extra = "forbid"
+
     checkpoint: str
     """A path an Anemoi checkpoint file."""
 
@@ -33,6 +36,9 @@ class Configuration(BaseModel):
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
+
+    name: str | None = None
+    """Used by prepml."""
 
     verbosity: int = 0
     """The verbosity level of the runner. This can be 0 (default), 1, 2 or 3."""
@@ -58,6 +64,9 @@ class Configuration(BaseModel):
     - If False, the model will raise an exception if NaNs are found in the input and output.
     - If True, the model will allow NaNs in the input and output.
     """
+
+    use_grib_paramid: bool = False
+    """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
     write_initial_state: bool = False
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are

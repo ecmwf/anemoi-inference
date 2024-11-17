@@ -26,8 +26,8 @@ class IconInput(GribInput):
     WARNING: this code will become a pugin in the future
     """
 
-    def __init__(self, context, path, grid, *, use_grib_paramid=False):
-        super().__init__(context, use_grib_paramid=use_grib_paramid)
+    def __init__(self, context, path, grid):
+        super().__init__(context)
         self.path = path
         self.grid = grid
 

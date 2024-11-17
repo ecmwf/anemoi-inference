@@ -47,6 +47,7 @@ class DefaultRunner(Runner):
             allow_nans=config.allow_nans,
             verbosity=config.verbosity,
             report_error=config.report_error,
+            use_grib_paramid=config.use_grib_paramid,
         )
 
     def create_input(self):
