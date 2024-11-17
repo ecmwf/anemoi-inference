@@ -64,9 +64,14 @@ of the *Anemoi* packages.
    cli/run
    cli/metadata
 
-*********
- Modules
-*********
+.. toctree::
+   :maxdepth: 1
+   :caption: Configurations
+
+   configs/introduction
+   configs/top-level
+   configs/inputs
+   configs/outputs
 
 .. toctree::
    :maxdepth: 1
@@ -74,10 +79,6 @@ of the *Anemoi* packages.
    :caption: Modules
 
    modules/*
-
-*********
- Schemas
-*********
 
 .. toctree::
    :maxdepth: 1
