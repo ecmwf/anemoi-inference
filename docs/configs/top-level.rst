@@ -48,6 +48,13 @@ and output. It set to ``null`` (default), the value is set internally to
 ``false``. You can override this behaviour by setting it to ``true`` or
 ``false`` in the configuration file.
 
+********************
+ Inputs and outputs
+********************
+
+The entries for the inputs and outputs are specified in the :ref:`inputs
+<inputs>` and :ref:`inputs <outputs>` sections of the documentation.
+
 ***********
  Debugging
 ***********
