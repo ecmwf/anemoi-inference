@@ -39,7 +39,7 @@ A boolean to check that the GRIB messages have been encoded correctly.
 ***********
 
 If the input is not a GRIB file, the output can use an ``input`` source
-to find similat fields to act as a template for encoding the GRIB.
+to find similar fields to act as a template for encoding the GRIB.
 
 -  ``source``: An input source to use as template for encoding the GRIB.
 
