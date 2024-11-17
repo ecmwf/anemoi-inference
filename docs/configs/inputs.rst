@@ -4,6 +4,11 @@
  Inputs
 ########
 
+The input methods listed below are used to fecth the initial conditions
+of a model run. They will also be the source of forcings during the
+model run, unless a ``forcing`` entry is specified in the configuration
+(to be documented).
+
 **********
  Datasets
 **********
