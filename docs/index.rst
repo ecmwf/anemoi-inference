@@ -72,6 +72,7 @@ of the *Anemoi* packages.
    configs/top-level
    configs/inputs
    configs/outputs
+   configs/forcings
 
 ..
    .. toctree::
