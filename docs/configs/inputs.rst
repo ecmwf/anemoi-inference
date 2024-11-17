@@ -47,6 +47,18 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 For more options, see :ref:`grib-input`.
 
 ******
+ icon
+******
+
+The ``icon`` input is a class dedicated to reading ICON GRIB files. It
+is
+
+.. literalinclude:: inputs_5.yaml
+   :language: yaml
+
+For more options, see :ref:`icon-input`.
+
+******
  mars
 ******
 
