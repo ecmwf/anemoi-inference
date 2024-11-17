@@ -12,6 +12,7 @@ import logging
 
 import earthkit.data as ekd
 
+from ..decorators import main_argument
 from . import input_registry
 from .grib import GribInput
 
@@ -19,6 +20,7 @@ LOG = logging.getLogger(__name__)
 
 
 @input_registry.register("grib")
+@main_argument("path")
 class GribFileInput(GribInput):
     """
     Handles grib files

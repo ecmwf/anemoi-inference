@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 class ExtractLamOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, output, points="cutout_mask"):
+    def __init__(self, context, *, output, points="cutout_mask"):
         super().__init__(context)
         if isinstance(points, str):
             mask = self.checkpoint.load_supporting_array(points)
