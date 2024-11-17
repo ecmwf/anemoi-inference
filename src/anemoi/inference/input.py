@@ -46,3 +46,7 @@ class Input(ABC):
         dictionary, that may be needed but the output object.
         """
         pass
+
+    def retrieve(self, variables, dates):
+        """Retrieve some data. Used for retrieving GRIB templates."""
+        raise NotImplementedError(f"{self.__class__.__name__}.retrieve() not implemented")

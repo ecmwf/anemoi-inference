@@ -12,6 +12,9 @@ import json
 import logging
 from abc import abstractmethod
 
+from earthkit.data.utils.dates import to_datetime
+
+from ..inputs import create_input
 from ..output import Output
 
 LOG = logging.getLogger(__name__)
@@ -32,6 +35,8 @@ class GribOutput(Output):
         self.templates = templates
         self._template_cache = {}
         self._template_source = None
+        self._template_date = None
+        self._template_reuse = None
 
     def write_initial_state(self, state):
         # We trust the GribInput class to provide the templates
@@ -205,11 +210,27 @@ class GribOutput(Output):
         if None in self._template_cache:
             return self._template_cache[None]
 
-        from ..inputs.mars import MarsInput
+        if not self.templates:
+            return None
 
-        mars = MarsInput(self.context)
-        param = mars.retrieve(variables=[name], dates=[state["date"]])
+        if self._template_source is None:
+            if "source" not in self.templates:
+                raise ValueError("No `source` given in `templates`")
 
-        self._template_cache[name] = param[0]
+            self._template_source = create_input(self.context, self.templates["source"])
+            LOG.info("Loading templates from %s", self._template_source)
 
-        return param[0]
+            if "date" in self.templates:
+                self._template_date = to_datetime(self.templates["date"])
+
+            self._template_reuse = self.templates.get("reuse", False)
+
+        date = self._template_date if self._template_date is not None else state["date"]
+        field = self._template_source.retrieve(variables=[name], dates=[date])[0]
+
+        if self._template_reuse:
+            self._template_cache[None] = field
+        else:
+            self._template_cache[name] = field
+
+        return field
