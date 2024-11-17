@@ -26,6 +26,16 @@ The `grib` output writes the output to a GRIB file.
 .. literalinclude:: outputs_2.yaml
    :language: yaml
 
+The path to the output file is actually a template.
+
+.. code:: yaml
+
+   path: "output-{date}-{time}-{step}.grib"
+
+For each field, the output path will be constructed by substituting the
+string between curly braces with the corresponding value, based on the
+GRIB's eccodes keys.
+
 It relies heavily on having a GRIB input, but will nevertheless attempt
 to encode the data as GRIB messages when this is not the case. For more
 information, see :ref:`grib-output`.
