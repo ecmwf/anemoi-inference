@@ -1,3 +1,2 @@
 input:
-  grib:
-    path: /path/to/grib/file.grib
+  grib: /path/to/grib/file.grib

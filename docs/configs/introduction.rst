@@ -32,3 +32,9 @@ a few fields at each forecasting time step.
 
 .. literalinclude:: introduction_3.yaml
    :language: yaml
+
+When a class has a single argument you can ommite the key and directly
+provide the value. The previous example can be simplified as:
+
+.. literalinclude:: introduction_4.yaml
+   :language: yaml

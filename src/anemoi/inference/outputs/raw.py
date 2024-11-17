@@ -12,6 +12,7 @@ import os
 
 import numpy as np
 
+from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
 
@@ -19,6 +20,7 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("raw")
+@main_argument("path")
 class RawOutput(Output):
     """_summary_"""
 

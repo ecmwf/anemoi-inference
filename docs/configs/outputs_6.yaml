@@ -1,0 +1,5 @@
+output:
+  tee:
+  - netcdf: /path/to/netcdf/file.nc
+  - grib: /path/to/grib/file.grib
+  - printer
