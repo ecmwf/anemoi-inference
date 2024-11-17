@@ -135,22 +135,38 @@ class DatasetInputArgsKwargs(DatasetInput):
         super().__init__(context, args, kwargs)
 
 
-@input_registry.register("dataloader")
-class DatasetInputDataloader(DatasetInput):
+class DataloaderInput(DatasetInput):
     """Handles `anemoi-datasets` dataset as input"""
 
-    def __init__(self, context, /, name=None, *args, use_original_paths=True, **kwargs):
-        if name is None and len(args) == 0:
-            raise ValueError("`name` must be provided")
-        if name is not None and len(args) > 0:
-            raise ValueError("`name` and `args` cannot be provided at the same time")
-        if name is None and len(args) > 1:
-            raise ValueError("Only one positional argument is allowed when `name` is not provided")
-        assert not kwargs, kwargs
+    def __init__(self, context, /, name, use_original_paths=True, **kwargs):
 
-        name = name or args[0]
         args, kwargs = context.checkpoint.open_dataset_args_kwargs(
-            use_original_paths=use_original_paths, from_dataloader=name
+            use_original_paths=use_original_paths,
+            from_dataloader=name,
         )
 
         super().__init__(context, args, kwargs)
+
+
+@input_registry.register("test")
+class TestInput(DataloaderInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, use_original_paths=True, **kwargs):
+        super().__init__(context, name="test", use_original_paths=use_original_paths, **kwargs)
+
+
+@input_registry.register("validation")
+class ValidationInput(DataloaderInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, use_original_paths=True, **kwargs):
+        super().__init__(context, name="validation", use_original_paths=use_original_paths, **kwargs)
+
+
+@input_registry.register("training")
+class TrainingInput(DataloaderInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, use_original_paths=True, **kwargs):
+        super().__init__(context, name="training", use_original_paths=use_original_paths, **kwargs)
