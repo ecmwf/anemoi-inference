@@ -26,8 +26,8 @@ class GribFileInput(GribInput):
     Handles grib files
     """
 
-    def __init__(self, context, path):
-        super().__init__(context)
+    def __init__(self, context, path, *, namer=None, **kwargs):
+        super().__init__(context, namer=namer, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date):

@@ -44,27 +44,28 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 .. literalinclude:: inputs_4.yaml
    :language: yaml
 
-..
-   For more options, see :ref:`grib-input`.
+For more options, see :ref:`grib-input`.
 
-******
- icon
-******
+****************
+ icon_grib_file
+****************
 
-The ``icon`` input is a class dedicated to reading ICON GRIB files. It
-is
+The ``icon_grib_file`` input is a class dedicated to reading ICON GRIB
+files. It is
 
 .. literalinclude:: inputs_5.yaml
    :language: yaml
 
 The ``grid`` entry refers to a NetCDF file that contains the definition
 of the ICON grid in radians. The ``refinement_level_c`` parameter is
-used to specify the refinement level of the ICON grid.
+used to specify the refinement level of the ICON grid. The
+``icon_grib_file`` input also accepts the ``namer`` parameter of the
+GRIB input.
 
 .. note::
 
-   Once the grids are stored by in the checkpoint `Anemoi`, the ``icon``
-   input will become obsolete.
+   Once the grids are stored by in the checkpoint `Anemoi`, the
+   ``icon_grib_file`` input will become obsolete.
 
 ..
    For more options, see :ref:`icon-input`.
@@ -86,3 +87,6 @@ You can change that to use ERA5 reanalysis data (``class=ea``).
 
 .. literalinclude:: inputs_7.yaml
    :language: yaml
+
+The ``mars`` input also accepts the ``namer`` parameter of the GRIB
+input.

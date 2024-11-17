@@ -105,8 +105,8 @@ def retrieve(requests, grid, area, **kwargs):
 class MarsInput(GribInput):
     """Get input fields from MARS"""
 
-    def __init__(self, context, **kwargs):
-        super().__init__(context)
+    def __init__(self, context, *, namer=None, **kwargs):
+        super().__init__(context, namer=namer, **kwargs)
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
