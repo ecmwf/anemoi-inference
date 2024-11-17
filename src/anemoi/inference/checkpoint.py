@@ -120,8 +120,11 @@ class Checkpoint:
     def report_error(self):
         self._metadata.report_error()
 
-    def open_dataset_args_kwargs(self, *, use_original_paths):
-        return self._metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+    def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
+        return self._metadata.open_dataset_args_kwargs(
+            use_original_paths=use_original_paths,
+            from_dataloader=from_dataloader,
+        )
 
     def constant_forcings_inputs(self, runner, input_state):
         return self._metadata.constant_forcings_inputs(runner, input_state)

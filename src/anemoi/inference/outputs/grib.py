@@ -22,7 +22,7 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, context, *, allow_nans=False, encoding=None):
+    def __init__(self, context, *, allow_nans=False, encoding=None, templates=None):
         super().__init__(context)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
@@ -30,19 +30,29 @@ class GribOutput(Output):
         self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
         self.edition = self.encoding.get("edition")
+        self.templates = templates
+        self._template_cache = {}
+        self._template_source = None
 
     def write_initial_state(self, state):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
-        if "_grib_templates_for_output" not in state:
-            # We can currently only write grib output if we have a grib input
-            raise ValueError("GRIB output only works if the input is GRIB (for now).")
-
-        templates = state["_grib_templates_for_output"]
-
         for name in state["fields"]:
-            self.write_message(None, template=templates[name])
+
+            template = self.template(state, name)
+            if template is None:
+                # We can currently only write grib output if we have a grib input
+                raise ValueError(
+                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_state` to `false`."
+                )
+
+            variable = self.typed_variables[name]
+            assert not variable.is_accumulation, variable
+            keys = {}
+            self.set_forecast(keys, None, 0)
+            self.set_other_keys(keys, variable)
+            self.write_message(None, template=template, **keys)
 
     def write_state(self, state):
 
@@ -59,20 +69,16 @@ class GribOutput(Output):
                 self.quiet.add("_grib_templates_for_output")
                 LOG.warning("Input is not GRIB.")
 
-        templates = state.get("_grib_templates_for_output", {})
-
         for name, value in state["fields"].items():
             keys = {}
 
             variable = self.typed_variables[name]
-            if variable.is_accumulation:
-                self.set_accumulation(keys, 0, step)
 
             def _clostest_template(name):
                 best = None, None
                 best_similarity = 0
                 md1 = self.typed_variables[name]
-                for name2, template in templates.items():
+                for name2, template in self.template(state, None).items():
                     md2 = self.typed_variables[name2]
                     similarity = md1.similarity(md2)
                     if similarity > best_similarity:
@@ -80,7 +86,7 @@ class GribOutput(Output):
                         best_similarity = similarity
                 return best
 
-            template = templates.get(name)
+            template = self.template(state, name)
             if template is None:
                 if name not in self.quiet:
                     LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
@@ -108,6 +114,8 @@ class GribOutput(Output):
 
             self.set_forecast(keys, reference_date, step)
             self.set_other_keys(keys, variable)
+            if variable.is_accumulation:
+                self.set_accumulation(keys, 0, step, template=template)
 
             if self.edition is not None:
                 keys["edition"] = self.edition
@@ -117,19 +125,21 @@ class GribOutput(Output):
 
             try:
                 self.write_message(value, template=template, **keys)
-            except Exception as e:
+            except Exception:
                 LOG.error("Error writing field %s", name)
                 LOG.error("Template: %s", template)
                 LOG.error("Keys:\n%s", json.dumps(keys, indent=4))
-                raise e
+                raise
 
     @abstractmethod
     def write_message(self, message, *args, **kwargs):
         pass
 
     def set_forecast(self, keys, reference_date, step):
-        keys["date"] = reference_date.strftime("%Y-%m-%d")
-        keys["time"] = reference_date.hour
+        if reference_date is not None:
+            keys["date"] = reference_date.strftime("%Y-%m-%d")
+            keys["time"] = reference_date.hour
+
         keys["step"] = step
         keys["type"] = "fc"
 
@@ -139,13 +149,34 @@ class GribOutput(Output):
         grib_keys = self.encoding.get("forecast", {})
         keys.update(grib_keys)
 
-    def set_accumulation(self, keys, start, end):
-        keys["startStep"] = start
-        keys["endStep"] = end
-        keys["stepType"] = "accum"
+    def set_accumulation(self, keys, start, end, template):
 
-        if self.edition == 2:
+        edition = self.edition
+        if edition is None and template is not None:
+            edition = template.metadata("edition")
+            centre = template.metadata("centre")
+
+        if edition == 2:
             keys["typeOfStatisticalProcessing"] = 1
+            keys["startStep"] = start
+            keys["endStep"] = end
+            keys["stepType"] = "accum"
+            keys["step"] = end
+        elif edition == 1:
+            # This is ecmwf specific :-(
+            if centre == "ecmf":
+                keys["timeRangeIndicator"] = 1
+                keys["step"] = end
+            else:
+                keys["timeRangeIndicator"] = 4
+                keys["startStep"] = start
+                keys["endStep"] = end
+                keys["stepType"] = "accum"
+        else:
+            # We don't know the edition
+            keys["startStep"] = start
+            keys["endStep"] = end
+            keys["stepType"] = "accum"
 
         grib_keys = self.encoding.get("accumulation", {})
         keys.update(grib_keys)
@@ -157,3 +188,31 @@ class GribOutput(Output):
         per_variable = self.encoding.get("per_variable", {})
         per_variable = per_variable.get(variable.name, {})
         keys.update(per_variable)
+
+    def template(self, state, name):
+
+        if self._template_cache is None:
+            self._template_cache = {}
+            if "_grib_templates_for_output" in state:
+                self._template_cache.update(state.get("_grib_templates_for_output", {}))
+
+        if name is None:
+            return self._template_cache
+
+        if name in self._template_cache:
+            return self._template_cache[name]
+
+        # Catch all template
+        if None in self._template_cache:
+            return self._template_cache[None]
+
+        from ..inputs.mars import MarsInput
+
+        mars = MarsInput(self.context)
+        param = mars.retrieve(variables=[name], dates=[state["date"]])
+
+        self.allow_nans = True
+
+        self._template_cache[name] = param[0]
+
+        return param[0]

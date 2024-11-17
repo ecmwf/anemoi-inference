@@ -17,10 +17,18 @@ from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
-# This should be a anemoi.transform.source.mars
+
+def rounded_area(area):
+    try:
+        surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+        if surface > 0.98:
+            return [90, 0.0, -90, 360]
+    except TypeError:
+        pass
+    return area
 
 
-def _grid_is_valid(grid):
+def grid_is_valid(grid):
     if grid is None:
         return False
 
@@ -34,7 +42,7 @@ def _grid_is_valid(grid):
         return False
 
 
-def _area_is_valid(area):
+def area_is_valid(area):
 
     if area is None:
         return False
@@ -49,17 +57,19 @@ def _area_is_valid(area):
         return False
 
 
+def postproc(grid, area):
+    pproc = dict()
+    if grid_is_valid(grid):
+        pproc["grid"] = grid
+
+    if area_is_valid(area):
+        pproc["area"] = rounded_area(area)
+
+    return pproc
+
+
 def retrieve(requests, grid, area, **kwargs):
     import earthkit.data as ekd
-
-    def rounded_area(area):
-        try:
-            surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
-            if surface > 0.98:
-                return [90, 0.0, -90, 360]
-        except TypeError:
-            pass
-        return area
 
     def _(r):
         mars = r.copy()
@@ -71,12 +81,7 @@ def retrieve(requests, grid, area, **kwargs):
 
         return ",".join(f"{k}={v}" for k, v in mars.items())
 
-    pproc = dict()
-    if _grid_is_valid(grid):
-        pproc["grid"] = grid
-
-    if _area_is_valid(area):
-        pproc["area"] = rounded_area(area)
+    pproc = postproc(grid, area)
 
     result = ekd.from_source("empty")
     for r in requests:
@@ -100,9 +105,8 @@ def retrieve(requests, grid, area, **kwargs):
 class MarsInput(GribInput):
     """Get input fields from MARS"""
 
-    def __init__(self, context, *, use_grib_paramid=False, **kwargs):
+    def __init__(self, context, **kwargs):
         super().__init__(context)
-        self.use_grib_paramid = use_grib_paramid
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
@@ -114,7 +118,7 @@ class MarsInput(GribInput):
         date = to_datetime(date)
 
         return self._create_input_state(
-            self._retrieve(
+            self.retrieve(
                 self.variables,
                 [date + h for h in self.checkpoint.lagged],
             ),
@@ -122,12 +126,12 @@ class MarsInput(GribInput):
             date=date,
         )
 
-    def _retrieve(self, variables, dates):
+    def retrieve(self, variables, dates):
 
         requests = self.checkpoint.mars_requests(
             variables=variables,
             dates=dates,
-            use_grib_paramid=self.use_grib_paramid,
+            use_grib_paramid=self.context.use_grib_paramid,
         )
 
         if not requests:
@@ -136,4 +140,4 @@ class MarsInput(GribInput):
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
 
     def load_forcings(self, variables, dates):
-        return self._load_forcings(self._retrieve(variables, dates), variables, dates)
+        return self._load_forcings(self.retrieve(variables, dates), variables, dates)

@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import json
 import logging
 from functools import cached_property
 
@@ -20,31 +21,19 @@ from . import input_registry
 LOG = logging.getLogger(__name__)
 
 
-@input_registry.register("dataset")
 class DatasetInput(Input):
     """
     Handles `anemoi-datasets` dataset as input
     """
 
-    def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
+    def __init__(self, context, args, kwargs):
         super().__init__(context)
-
-        if not args and not kwargs:
-            args, kwargs = self.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
-
-            # TODO: remove start/end from the arguments
-
-            LOG.warning("No arguments provided to open_dataset, using the default arguments:")
-
-            cmd = "open_dataset("
-            for arg in args:
-                cmd += f"{arg}, "
-            for key, value in kwargs.items():
-                cmd += f"{key}={value}, "
-
-            LOG.warning("%s", cmd)
-
         self.args, self.kwargs = args, kwargs
+        assert context.verbosity > 0
+        if context.verbosity > 0:
+            LOG.info(
+                "Opening dataset with\nargs=%s\nkwargs=%s", json.dumps(args, indent=4), json.dumps(kwargs, indent=4)
+            )
 
     @cached_property
     def ds(self):
@@ -122,3 +111,62 @@ class DatasetInput(Input):
             s = slice(idx[0], idx[-1] + 1, diff)
 
         return self.ds[s]
+
+
+@input_registry.register("dataset")
+class DatasetInputArgsKwargs(DatasetInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
+        if not args and not kwargs:
+            args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+
+            # TODO: remove start/end from the arguments
+
+            LOG.warning("No arguments provided to open_dataset, using the default arguments:")
+
+            cmd = "open_dataset("
+            for arg in args:
+                cmd += f"{arg}, "
+            for key, value in kwargs.items():
+                cmd += f"{key}={value}, "
+
+            LOG.warning("%s", cmd)
+        super().__init__(context, args, kwargs)
+
+
+class DataloaderInput(DatasetInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, name, use_original_paths=True, **kwargs):
+
+        args, kwargs = context.checkpoint.open_dataset_args_kwargs(
+            use_original_paths=use_original_paths,
+            from_dataloader=name,
+        )
+
+        super().__init__(context, args, kwargs)
+
+
+@input_registry.register("test")
+class TestInput(DataloaderInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, use_original_paths=True, **kwargs):
+        super().__init__(context, name="test", use_original_paths=use_original_paths, **kwargs)
+
+
+@input_registry.register("validation")
+class ValidationInput(DataloaderInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, use_original_paths=True, **kwargs):
+        super().__init__(context, name="validation", use_original_paths=use_original_paths, **kwargs)
+
+
+@input_registry.register("training")
+class TrainingInput(DataloaderInput):
+    """Handles `anemoi-datasets` dataset as input"""
+
+    def __init__(self, context, /, use_original_paths=True, **kwargs):
+        super().__init__(context, name="training", use_original_paths=use_original_paths, **kwargs)

@@ -58,6 +58,7 @@ class Runner(Context):
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
+        use_grib_paramid=False,
         verbosity=0,
     ):
         self._checkpoint = Checkpoint(checkpoint)
@@ -65,8 +66,11 @@ class Runner(Context):
         self.device = device
         self.precision = precision
         self.report_error = report_error
-        self.allow_nans = allow_nans
+
+        # Override the default values set in `Context`
         self.verbosity = verbosity
+        self.allow_nans = allow_nans
+        self.use_grib_paramid = use_grib_paramid
 
         # This could also be passed as an argument
 
