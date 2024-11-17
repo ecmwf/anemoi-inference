@@ -19,16 +19,15 @@ entries given during training as ``dataloader.test``,
 ``test`` is the default input if no input is specified.
 
 If the training happened on a different computer and the datasets files
-are not available on the current computer, you can specify the path to
-the dataset See `anemoi-datasets's` :ref:`anemoi-datasets:configuration`
-for more information on how to provide a lookup path to the datasets. To
-enable this, you have set the ``use_original_paths`` option to
-``false``.
+are not available on the current computer, you can use
+`anemoi-datasets's` :ref:`anemoi-datasets:configuration` to define a
+search path to the datasets. To enable this, you have set the
+``use_original_paths`` option to ``false``.
 
 .. literalinclude:: inputs_2.yaml
    :language: yaml
 
-You can also specify a full dataset specification as follows:
+You can also provide a full dataset specification as follows:
 
 .. literalinclude:: inputs_3.yaml
    :language: yaml
@@ -44,6 +43,8 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 
 .. literalinclude:: inputs_4.yaml
    :language: yaml
+
+For more options, see :ref:`grib-input`.
 
 ******
  mars
