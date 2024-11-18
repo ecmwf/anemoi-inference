@@ -1,4 +1,3 @@
-intput: test
+input: test
 
-forcings:
-  input: mars
+forcings: mars

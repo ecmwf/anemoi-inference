@@ -97,7 +97,7 @@ class DefaultRunner(Runner):
             # Use the same as the input
             input = self.config.input
         else:
-            input = self.config.forcings.input
+            input = self.config.forcings
             if "dynamic" in input:
                 input = input.dynamic
 
