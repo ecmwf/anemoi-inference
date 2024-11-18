@@ -1,1 +1,3 @@
-input: kind
+input:
+  grib:
+    path: /path/to/grib/file.grib
