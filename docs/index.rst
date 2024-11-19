@@ -22,12 +22,14 @@ models from existing recipes but with their own data.
 This package provides a series of utility functions for used by the rest
 of the *Anemoi* packages.
 
+-  :doc:`overview`
 -  :doc:`installing`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
+   overview
    installing
 
 *********************
@@ -73,36 +75,6 @@ of the *Anemoi* packages.
    configs/inputs
    configs/outputs
    configs/forcings
-
-..
-   .. toctree::
-
-..
-   :maxdepth: 1
-
-..
-   :glob:
-
-..
-   :caption: Modules
-
-..
-   modules/*
-
-..
-   .. toctree::
-
-..
-   :maxdepth: 1
-
-..
-   :glob:
-
-..
-   :caption: Schemas
-
-..
-   schemas/*
 
 *****************
  Anemoi packages
