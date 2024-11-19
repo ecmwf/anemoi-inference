@@ -14,6 +14,7 @@ from collections import defaultdict
 
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
+from earthkit.data.utils.dates import to_datetime
 
 from ..checks import check_data
 from ..input import Input
@@ -119,6 +120,7 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
+        date = to_datetime(date)
         dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
