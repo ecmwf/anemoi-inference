@@ -106,9 +106,10 @@ class MarsInput(GribInput):
     """Get input fields from MARS"""
 
     def __init__(self, context, *, namer=None, **kwargs):
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, namer=namer)
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
+        self.kwargs = kwargs
 
     def create_input_state(self, *, date):
         if date is None:
