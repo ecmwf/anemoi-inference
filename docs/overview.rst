@@ -9,6 +9,6 @@
 .. figure:: schemas/overview.png
    :alt: Overview
    :align: center
-   :target: javascript:void(window.open('path/to/your/image.png'))
+   :target: javascript:void(window.open('/_images/overview.png'))
 
    Flow of data in inference.
