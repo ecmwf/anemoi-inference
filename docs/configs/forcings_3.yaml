@@ -1,0 +1,3 @@
+forcing:
+  constant:
+    grib: constant.grib
