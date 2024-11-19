@@ -667,7 +667,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
 
-        LOG.info("Will get the following from MARS for now: %s", remaining)
+        LOG.info("Will get the following from `forcings.dynamic`: %s", remaining)
 
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
