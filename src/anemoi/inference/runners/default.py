@@ -76,45 +76,35 @@ class DefaultRunner(Runner):
     # Here, by default, we may use the same input "class" as the input
     # not the same instance. This means that we may call mars several times
 
-    def create_constant_coupled_forcings(self, variables, mask):
-
+    def _input_forcings(self, name):
         if self.config.forcings is None:
             # Use the same as the input
-            input = self.config.input
-        else:
-            input = self.config.forcings.input
-            if "constant" in input:
-                input = input.constant
+            return self.config.input
 
-        input = create_input(self, input)
+        if name in self.config.forcings:
+            return self.config.forcings[name]
+
+        if "input" in self.config.forcings:
+            return self.config.forcings.input
+
+        return self.config.forcings
+
+    def create_constant_coupled_forcings(self, variables, mask):
+        input = create_input(self, self._input_forcings("constant"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
         return result
 
     def create_dynamic_coupled_forcings(self, variables, mask):
 
-        if self.config.forcings is None:
-            # Use the same as the input
-            input = self.config.input
-        else:
-            input = self.config.forcings
-            if "dynamic" in input:
-                input = input.dynamic
-
-        input = create_input(self, input)
+        input = create_input(self, self._input_forcings("dynamic"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return result
 
     def create_boundary_forcings(self, variables, mask):
 
-        if self.config.forcings is None:
-            # Use the same as the input
-            input = self.config.input
-        else:
-            input = self.config.forcings.input
-
-        input = create_input(self, input)
+        input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return result
