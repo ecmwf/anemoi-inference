@@ -57,8 +57,6 @@ class RetrieveCmd(Command):
                     dates.append(to_datetime(line.strip()))
         else:
             date = to_datetime(args.date)
-            assert len(args.time) == 4
-            date = date.replace(hour=int(args.time[:2]), minute=int(args.time[2:]))
             dates = [date + h for h in runner.checkpoint.lagged]
 
         requests = []
