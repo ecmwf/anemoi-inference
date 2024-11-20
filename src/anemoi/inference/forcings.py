@@ -69,7 +69,7 @@ class ComputedForcings(Forcings):
         def rename(f, _, metadata):
             return metadata["param"]
 
-        ds = FieldArray([f.copy(name=rename) for f in ds])
+        ds = FieldArray([f.clone(name=rename) for f in ds])
 
         forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
 

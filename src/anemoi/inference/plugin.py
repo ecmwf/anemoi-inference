@@ -119,7 +119,6 @@ class AIModelPlugin(Model):
 
     @property
     def param_level_pl(self):
-        print("❌❌❌❌❌❌❌❌❌❌❌ param_level", self.runner.param_level_pl)
         return self.runner.param_level_pl
 
     @property

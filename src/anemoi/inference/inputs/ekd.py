@@ -188,7 +188,7 @@ class EkdInput(Input):
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
 
-        data = FieldArray([f.copy(name=_name) for f in data])
+        data = FieldArray([f.clone(name=_name) for f in data])
 
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)

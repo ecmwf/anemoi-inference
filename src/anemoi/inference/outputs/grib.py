@@ -166,9 +166,10 @@ class GribOutput(Output):
 
         if edition == 2:
             keys["typeOfStatisticalProcessing"] = 1
+            keys["productDefinitionTemplateNumber"] = 8  # 11 for ensembles
             keys["startStep"] = start
             keys["endStep"] = end
-            keys["stepType"] = "accum"
+            # keys["stepType"] = "accum"
             keys["step"] = end
         elif edition == 1:
             # This is ecmwf specific :-(
