@@ -52,7 +52,9 @@ class GribOutput(Output):
                 )
 
             variable = self.typed_variables[name]
-            assert not variable.is_accumulation, variable
+            if variable.is_accumulation:
+                LOG.warning("Found accumulated variable `%s` is initial state.", name)
+
             keys = {}
             self.set_forecast(keys, None, 0)
             self.set_other_keys(keys, variable)
