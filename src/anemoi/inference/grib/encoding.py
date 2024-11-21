@@ -75,6 +75,7 @@ def grib_keys(
             result["stepType"] = "accum"
 
         if edition == 2:
+            result["typeOfStatisticalProcessing"] = 1
             result["productDefinitionTemplateNumber"] = 8
             if result.get("type") in ("pf", "cf"):
                 result["productDefinitionTemplateNumber"] = 11
