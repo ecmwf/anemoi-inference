@@ -36,7 +36,7 @@ def grib_keys(
         # centre = template.metadata("centre")
 
     if edition is None:
-        edition = 2
+        edition = 1
 
     result["edition"] = edition
 
