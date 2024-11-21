@@ -493,9 +493,6 @@ class Runner:
                         )
 
             # Next step
-
-            prognostic_fields = y_pred[..., prognostic_output_mask]
-
             # Compute new forcing
 
             forcing = forcing_and_constants(
@@ -508,7 +505,7 @@ class Runner:
 
             # Update dynamic tensor for next iteration
             input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-            input_tensor_torch[:, -1, :, prognostic_input_mask] = prognostic_fields
+            input_tensor_torch[:, -1, :, prognostic_input_mask] = y_pred[..., prognostic_output_mask]
             if computed_forcing_mask:
                 input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
 
