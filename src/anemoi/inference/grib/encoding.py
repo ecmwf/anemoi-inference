@@ -13,6 +13,11 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
+GRIB1_ONLY = []
+
+GRIB2_ONLY = ["typeOfGeneratingProcess"]
+
+
 def _param(param):
     try:
         int(param)
@@ -37,6 +42,14 @@ def grib_keys(
 
     if edition is None:
         edition = 1
+
+    if edition == 1:
+        for k in GRIB2_ONLY:
+            result.pop(k, None)
+
+    if edition == 2:
+        for k in GRIB1_ONLY:
+            result.pop(k, None)
 
     result["edition"] = edition
 
