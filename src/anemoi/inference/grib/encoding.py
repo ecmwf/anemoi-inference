@@ -12,11 +12,6 @@ import logging
 
 LOG = logging.getLogger(__name__)
 
-EXTRA = {
-    "100u": dict(typeOfFirstFixedSurface=103, scaledValueOfFirstFixedSurface=100, scaleFactorOfFirstFixedSurface=0),
-    "100v": dict(typeOfFirstFixedSurface=103, scaledValueOfFirstFixedSurface=100, scaleFactorOfFirstFixedSurface=0),
-}
-
 
 def _param(param):
     try:
@@ -30,7 +25,9 @@ def _param(param):
             return "shortName"
 
 
-def grib_keys(*, values, template, accumulation, param, date, time, step, type, stream, keys):
+def grib_keys(
+    *, values, template, accumulation, param, date, time, step, type, stream, keys, grib1_keys={}, grib2_keys={}
+):
     result = keys.copy()
 
     edition = keys.get("edition")
@@ -39,15 +36,18 @@ def grib_keys(*, values, template, accumulation, param, date, time, step, type, 
         # centre = template.metadata("centre")
 
     if edition is None:
-        edition = 1  # For now
+        edition = 2
 
     result["edition"] = edition
 
     if param is not None:
         result.setdefault(_param(param), param)
 
+        if edition == 1:
+            result.update(grib1_keys.get(param, {}))
+
         if edition == 2:
-            result.update(EXTRA.get(param, {}))
+            result.update(grib2_keys.get(param, {}))
 
     if type is not None:
         result.setdefault("type", type)
@@ -70,7 +70,6 @@ def grib_keys(*, values, template, accumulation, param, date, time, step, type, 
         if edition == 1:
             result["step"] = step
         else:
-            assert False, edition
             result["startStep"] = 0
             result["endStep"] = step
             result["stepType"] = "accum"

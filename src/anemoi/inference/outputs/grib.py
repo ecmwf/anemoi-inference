@@ -26,13 +26,15 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, context, *, encoding=None, templates=None):
+    def __init__(self, context, *, encoding=None, templates=None, grib1_keys=None, grib2_keys=None):
         super().__init__(context)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
         self.templates = templates
+        self.grib1_keys = grib1_keys if grib1_keys is not None else {}
+        self.grib2_keys = grib2_keys if grib2_keys is not None else {}
         self._template_cache = None
         self._template_source = None
         self._template_date = None
@@ -70,6 +72,8 @@ class GribOutput(Output):
                 type="fc",
                 stream="oper",
                 keys=self.encoding,
+                grib1_keys=self.grib1_keys,
+                grib2_keys=self.grib2_keys,
             )
 
             # LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
@@ -123,6 +127,8 @@ class GribOutput(Output):
                 stream="oper",
                 accumulation=variable.is_accumulation,
                 keys=keys,
+                grib1_keys=self.grib1_keys,
+                grib2_keys=self.grib2_keys,
             )
 
             if LOG.isEnabledFor(logging.DEBUG):
