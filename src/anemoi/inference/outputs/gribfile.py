@@ -55,7 +55,7 @@ class GribFileOutput(GribOutput):
         path,
         encoding=None,
         archive_requests=None,
-        check_encoding=False,
+        check_encoding=True,
         templates=None,
         **kwargs,
     ):

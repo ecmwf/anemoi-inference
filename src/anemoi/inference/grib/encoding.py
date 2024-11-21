@@ -12,20 +12,42 @@ import logging
 
 LOG = logging.getLogger(__name__)
 
+EXTRA = {
+    "100u": dict(typeOfFirstFixedSurface=103, scaledValueOfFirstFixedSurface=100, scaleFactorOfFirstFixedSurface=0),
+    "100v": dict(typeOfFirstFixedSurface=103, scaledValueOfFirstFixedSurface=100, scaleFactorOfFirstFixedSurface=0),
+}
+
+
+def _param(param):
+    try:
+        int(param)
+        return "paramId"
+    except ValueError:
+        try:
+            float(param)
+            return "param"
+        except ValueError:
+            return "shortName"
+
 
 def grib_keys(*, values, template, accumulation, param, date, time, step, type, stream, keys):
     result = keys.copy()
 
     edition = keys.get("edition")
-    assert edition == 2
     if edition is None and template is not None:
         edition = template.metadata("edition")
         # centre = template.metadata("centre")
 
-    result["edition"] = edition if edition is not None else 2
+    if edition is None:
+        edition = 1  # For now
+
+    result["edition"] = edition
 
     if param is not None:
-        result.setdefault("param", param)
+        result.setdefault(_param(param), param)
+
+        if edition == 2:
+            result.update(EXTRA.get(param, {}))
 
     if type is not None:
         result.setdefault("type", type)
@@ -45,9 +67,13 @@ def grib_keys(*, values, template, accumulation, param, date, time, step, type, 
     # 11: time processed, ensemble
 
     if accumulation:
-        result["startStep"] = 0
-        result["endStep"] = step
-        result["stepType"] = "accum"
+        if edition == 1:
+            result["step"] = step
+        else:
+            assert False, edition
+            result["startStep"] = 0
+            result["endStep"] = step
+            result["stepType"] = "accum"
 
         if edition == 2:
             result["productDefinitionTemplateNumber"] = 8
@@ -91,7 +117,10 @@ def check_encoding(handle, keys):
             if v < 100:
                 v *= 100
 
-        w = handle.get(k)
+        if isinstance(v, int):
+            w = handle.get_long(k)
+        else:
+            w = handle.get(k)
 
         if not same(w, v, k):
             mismatches[k] = (w, v)
