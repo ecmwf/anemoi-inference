@@ -55,10 +55,13 @@ class GribOutput(Output):
             if variable.is_accumulation:
                 LOG.warning("Found accumulated variable `%s` is initial state.", name)
 
-            values = state["fields"][-1]
+            # assert False,
+            # values = state["fields"][name]
+            # assert False, values.shape
+            values = None
             keys = grib_keys(
                 values=values,
-                tempate=template,
+                template=template,
                 accumulation=variable.is_accumulation,
                 param=None,
                 date=None,
@@ -69,7 +72,7 @@ class GribOutput(Output):
                 keys=self.encoding,
             )
 
-            LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
+            # LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             self.write_message(values, template=template, **keys)
 
@@ -99,12 +102,15 @@ class GribOutput(Output):
             if template is None:
                 if name not in self.quiet:
                     LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
+                    self.quiet.add(name)
 
                 variable_keys = variable.grib_keys.copy()
                 for key in ("class", "type", "stream", "expver", "date", "time", "step"):
                     variable_keys.pop(key, None)
 
                 keys.update(variable_keys)
+
+            keys.update(self.encoding)
 
             keys = grib_keys(
                 values=value,
@@ -119,8 +125,8 @@ class GribOutput(Output):
                 keys=keys,
             )
 
-            # if LOG.isEnabledFor(logging.DEBUG):
-            LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
+            if LOG.isEnabledFor(logging.DEBUG):
+                LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             try:
                 self.write_message(value, template=template, **keys)

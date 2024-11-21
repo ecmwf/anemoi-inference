@@ -17,6 +17,7 @@ def grib_keys(*, values, template, accumulation, param, date, time, step, type, 
     result = keys.copy()
 
     edition = keys.get("edition")
+    assert edition == 2
     if edition is None and template is not None:
         edition = template.metadata("edition")
         # centre = template.metadata("centre")
