@@ -14,6 +14,7 @@ from abc import abstractmethod
 
 from earthkit.data.utils.dates import to_datetime
 
+from ..grib.encoding import grib_keys
 from ..inputs import create_input
 from ..output import Output
 
@@ -31,7 +32,6 @@ class GribOutput(Output):
         self.typed_variables = self.checkpoint.typed_variables
         self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
-        self.edition = self.encoding.get("edition")
         self.templates = templates
         self._template_cache = None
         self._template_source = None
@@ -55,10 +55,23 @@ class GribOutput(Output):
             if variable.is_accumulation:
                 LOG.warning("Found accumulated variable `%s` is initial state.", name)
 
-            keys = {}
-            self.set_forecast(keys, None, 0)
-            self.set_other_keys(keys, variable)
-            self.write_message(None, template=template, **keys)
+            values = state["fields"][-1]
+            keys = grib_keys(
+                values=values,
+                tempate=template,
+                accumulation=variable.is_accumulation,
+                param=None,
+                date=None,
+                time=None,
+                step=0,
+                type="fc",
+                stream="oper",
+                keys=self.encoding,
+            )
+
+            LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
+
+            self.write_message(values, template=template, **keys)
 
     def write_state(self, state):
 
@@ -81,55 +94,33 @@ class GribOutput(Output):
             variable = self.typed_variables[name]
             param = variable.grib_keys.get("param", variable)
 
-            def _clostest_template(name):
-                best = None, None
-                best_similarity = 0
-                md1 = self.typed_variables[name]
-                for name2, template in self.template(state, None).items():
-                    md2 = self.typed_variables[name2]
-                    similarity = md1.similarity(md2)
-                    if similarity > best_similarity:
-                        best = template, name2
-                        best_similarity = similarity
-                return best
-
             template = self.template(state, name)
+
             if template is None:
                 if name not in self.quiet:
                     LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
 
-                grib_keys = variable.grib_keys.copy()
+                variable_keys = variable.grib_keys.copy()
                 for key in ("class", "type", "stream", "expver", "date", "time", "step"):
-                    grib_keys.pop(key, None)
+                    variable_keys.pop(key, None)
 
-                template, name2 = _clostest_template(name)
+                keys.update(variable_keys)
 
-                if name not in self.quiet:
-                    if name2 is not None:
-                        LOG.warning("Using template for `%s` with keys %s", name2, grib_keys)
-                    else:
-                        LOG.warning("Using %s", grib_keys)
-                    self.quiet.add(name)
-
-                keys.update(grib_keys)
-
-            keys.update(
+            keys = grib_keys(
+                values=value,
+                template=template,
                 date=reference_date.strftime("%Y-%m-%d"),
                 time=reference_date.hour,
                 step=step,
                 param=param,
+                type="fc",
+                stream="oper",
+                accumulation=variable.is_accumulation,
+                keys=keys,
             )
 
-            self.set_forecast(keys, reference_date, step)
-            self.set_other_keys(keys, variable)
-            if variable.is_accumulation:
-                self.set_accumulation(keys, 0, step, template=template)
-
-            if self.edition is not None:
-                keys["edition"] = self.edition
-
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
+            # if LOG.isEnabledFor(logging.DEBUG):
+            LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             try:
                 self.write_message(value, template=template, **keys)
@@ -142,61 +133,6 @@ class GribOutput(Output):
     @abstractmethod
     def write_message(self, message, *args, **kwargs):
         pass
-
-    def set_forecast(self, keys, reference_date, step):
-        if reference_date is not None:
-            keys["date"] = reference_date.strftime("%Y-%m-%d")
-            keys["time"] = reference_date.hour
-
-        keys["step"] = step
-        keys["type"] = "fc"
-
-        if self.edition == 2:
-            keys["typeOfProcessedData"] = 1
-
-        grib_keys = self.encoding.get("forecast", {})
-        keys.update(grib_keys)
-
-    def set_accumulation(self, keys, start, end, template):
-
-        edition = self.edition
-        if edition is None and template is not None:
-            edition = template.metadata("edition")
-            centre = template.metadata("centre")
-
-        if edition == 2:
-            keys["typeOfStatisticalProcessing"] = 1
-            keys["productDefinitionTemplateNumber"] = 8  # 11 for ensembles
-            keys["startStep"] = start
-            keys["endStep"] = end
-            # keys["stepType"] = "accum"
-            keys["step"] = end
-        elif edition == 1:
-            # This is ecmwf specific :-(
-            if centre == "ecmf":
-                keys["timeRangeIndicator"] = 1
-                keys["step"] = end
-            else:
-                keys["timeRangeIndicator"] = 4
-                keys["startStep"] = start
-                keys["endStep"] = end
-                keys["stepType"] = "accum"
-        else:
-            # We don't know the edition
-            keys["startStep"] = start
-            keys["endStep"] = end
-            keys["stepType"] = "accum"
-
-        grib_keys = self.encoding.get("accumulation", {})
-        keys.update(grib_keys)
-
-    def set_other_keys(self, keys, variable):
-        grib_keys = {k: v for k, v in self.encoding.items() if not isinstance(v, (dict, list))}
-        keys.update(grib_keys)
-
-        per_variable = self.encoding.get("per_variable", {})
-        per_variable = per_variable.get(variable.name, {})
-        keys.update(per_variable)
 
     def template(self, state, name):
 
@@ -231,7 +167,7 @@ class GribOutput(Output):
             self._template_reuse = self.templates.get("reuse", False)
 
         date = self._template_date if self._template_date is not None else state["date"]
-        field = self._template_source.retrieve(variables=[name], dates=[date])[0]
+        field = self._template_source.template(variable=name, date=date, edition=self.edition)
 
         if self._template_reuse:
             self._template_cache[None] = field

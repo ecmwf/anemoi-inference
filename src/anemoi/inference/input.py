@@ -47,6 +47,6 @@ class Input(ABC):
         """
         pass
 
-    def retrieve(self, variables, dates):
-        """Retrieve some data. Used for retrieving GRIB templates."""
-        raise NotImplementedError(f"{self.__class__.__name__}.retrieve() not implemented")
+    def template(self, variables, dates, **kwargs):
+        """Used for fetching GRIB templates."""
+        raise NotImplementedError(f"{self.__class__.__name__}.template() not implemented")

@@ -16,6 +16,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from ..decorators import main_argument
+from ..grib.encoding import check_encoding
 from . import output_registry
 from .grib import GribOutput
 
@@ -100,7 +101,7 @@ class GribFileOutput(GribOutput):
         mars = handle.as_namespace("mars")
 
         if self.check_encoding:
-            self._check_encoding(handle, keys)
+            check_encoding(handle, keys)
 
         if self.archive_requests:
             self.archiving[path].add(mars)
@@ -145,39 +146,3 @@ class GribFileOutput(GribOutput):
                 requests.append(request)
 
             json.dump(requests, f, indent=4)
-
-    def _check_encoding(self, handle, keys):
-
-        def same(w, v, k):
-            if type(v) is type(w):
-                return v == w
-            return str(w) == str(v)
-
-        mismatches = {}
-        for k, v in keys.items():
-            if k == "param":
-                try:
-                    int(v)
-                    k = "paramId"
-                except ValueError:
-                    try:
-                        float(v)
-                        k = "param"
-                    except ValueError:
-                        k = "shortName"
-
-            if k == "date":
-                v = int(str(v).replace("-", ""))
-
-            if k == "time":
-                v = int(v)
-                if v < 100:
-                    v *= 100
-
-            w = handle.get(k)
-
-            if not same(w, v, k):
-                mismatches[k] = (w, v)
-
-        if mismatches:
-            raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")

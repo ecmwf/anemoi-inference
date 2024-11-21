@@ -196,10 +196,10 @@ class Metadata(Command):
         else:
             raise ValueError(f"Unknown file extension {ext}. Please specify --json or --yaml")
 
-        if has_metadata(args.path, args.name):
+        if has_metadata(args.path, name=args.name):
             replace_metadata(args.path, metadata)
         else:
-            save_metadata(args.path, metadata, args.name)
+            save_metadata(args.path, metadata, name=args.name)
 
     def supporting_arrays(self, args):
         from anemoi.utils.checkpoints import load_metadata

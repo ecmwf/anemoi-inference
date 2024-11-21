@@ -60,6 +60,7 @@ class Runner(Context):
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
         verbosity=0,
+        inference_options=None,
     ):
         self._checkpoint = Checkpoint(checkpoint)
 
@@ -119,7 +120,7 @@ class Runner(Context):
 
         try:
             yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
-        except (TypeError, ModuleNotFoundError):
+        except (TypeError, ModuleNotFoundError, AttributeError):
             if self.report_error:
                 self.checkpoint.report_error()
             raise
@@ -218,7 +219,9 @@ class Runner(Context):
     @cached_property
     def model(self):
         with Timer(f"Loading {self.checkpoint}"):
-            return torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            # model.set_inference_options(**self.inference_options)
+            return model
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
