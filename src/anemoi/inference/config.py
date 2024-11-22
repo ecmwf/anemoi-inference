@@ -77,6 +77,9 @@ class Configuration(BaseModel):
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured."""
 
+    development_hacks: dict = {}
+    """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
+
 
 def load_config(path, overrides, Configuration=Configuration):
 

@@ -10,6 +10,7 @@
 
 import datetime
 import logging
+import warnings
 from functools import cached_property
 
 import numpy as np
@@ -61,6 +62,7 @@ class Runner(Context):
         use_grib_paramid=False,
         verbosity=0,
         inference_options=None,
+        development_hacks={},  # For testing purposes, don't use in production
     ):
         self._checkpoint = Checkpoint(checkpoint)
 
@@ -72,6 +74,8 @@ class Runner(Context):
         self.verbosity = verbosity
         self.allow_nans = allow_nans
         self.use_grib_paramid = use_grib_paramid
+        self.development_hacks = development_hacks
+        self.hacks = bool(development_hacks)
 
         # This could also be passed as an argument
 
@@ -334,6 +338,11 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+
+        if self.hacks:
+            if "dynamic_forcings_date" in self.development_hacks:
+                date = self.development_hacks["dynamic_forcings_date"]
+                warnings.warn(f"🧑‍💻 Using `dynamic_forcings_date` hack: {date} 🧑‍💻")
 
         # TODO: check if there were not already loaded as part of the input state
 

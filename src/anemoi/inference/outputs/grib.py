@@ -39,6 +39,7 @@ class GribOutput(Output):
         self._template_source = None
         self._template_date = None
         self._template_reuse = None
+        self.use_closest_template = False  # Off for now
 
     def write_initial_state(self, state):
         # We trust the GribInput class to provide the templates
@@ -73,6 +74,7 @@ class GribOutput(Output):
                 keys=self.encoding,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
+                quiet=self.quiet,
             )
 
             # LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
@@ -127,6 +129,7 @@ class GribOutput(Output):
                 keys=keys,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
+                quiet=self.quiet,
             )
 
             if LOG.isEnabledFor(logging.DEBUG):
@@ -161,7 +164,7 @@ class GribOutput(Output):
         if None in self._template_cache:
             return self._template_cache[None]
 
-        if False:  #
+        if self.use_closest_template:  #
             template, name2 = self._clostest_template(self._template_cache, name)
 
             if name not in self.quiet:
@@ -187,8 +190,13 @@ class GribOutput(Output):
 
             self._template_reuse = self.templates.get("reuse", False)
 
+        LOG.info("Loading template for %s from %s", name, self._template_source)
+
         date = self._template_date if self._template_date is not None else state["date"]
-        field = self._template_source.template(variable=name, date=date, edition=self.edition)
+        field = self._template_source.template(variable=name, date=date)
+
+        if field is None:
+            LOG.warning("No template found for `%s`", name)
 
         if self._template_reuse:
             self._template_cache[None] = field

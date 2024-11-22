@@ -48,6 +48,7 @@ class DefaultRunner(Runner):
             verbosity=config.verbosity,
             report_error=config.report_error,
             use_grib_paramid=config.use_grib_paramid,
+            development_hacks=config.development_hacks,
         )
 
     def create_input(self):

@@ -47,6 +47,6 @@ class Input(ABC):
         """
         pass
 
-    def template(self, variables, dates, **kwargs):
+    def template(self, variable, date, **kwargs):
         """Used for fetching GRIB templates."""
         raise NotImplementedError(f"{self.__class__.__name__}.template() not implemented")

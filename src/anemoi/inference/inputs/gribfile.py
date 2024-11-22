@@ -35,3 +35,10 @@ class GribFileInput(GribInput):
 
     def load_forcings(self, *, variables, dates):
         return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)
+
+    def template(self, variable, date, **kwargs):
+        fields = ekd.from_source("file", self.path)
+        data = self._find_variable(fields, variable)
+        if len(data) == 0:
+            return None
+        return data[0]

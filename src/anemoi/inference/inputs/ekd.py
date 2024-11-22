@@ -201,6 +201,13 @@ class EkdInput(Input):
 
         return data
 
+    def _find_variable(self, data, name, **kwargs):
+        def _name(field, _, original_metadata):
+            return self._namer(field, original_metadata)
+
+        data = FieldArray([f.clone(name=_name) for f in data])
+        return data.sel(name=name, **kwargs)
+
     def _load_forcings(self, fields, variables, dates):
         data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
         return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)

@@ -22,6 +22,7 @@ class Context(ABC):
     allow_nans = (None,)  # can be True of False
     use_grib_paramid = False
     verbosity = 0
+    development_hacks = {}  # For testing purposes, don't use in production
 
     @property
     @abstractmethod

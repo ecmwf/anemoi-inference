@@ -41,6 +41,7 @@ def grib_keys(
     step,
     type,
     keys,
+    quiet,
     grib1_keys={},
     grib2_keys={},
 ):
@@ -50,6 +51,18 @@ def grib_keys(
     if edition is None and template is not None:
         edition = template.metadata("edition")
         # centre = template.metadata("centre")
+        if edition == 2:
+            productDefinitionTemplateNumber = template.metadata("productDefinitionTemplateNumber")
+            if productDefinitionTemplateNumber in (8, 11) and not accumulation:
+                if f"{param}-accumulation" not in quiet:
+                    LOG.warning(
+                        "%s: Template %s is accumulation but `accumulation` was not specified",
+                        param,
+                        productDefinitionTemplateNumber,
+                    )
+                    LOG.warning("%s: Setting `accumulation` to `True`", param)
+                    quiet.add(f"{param}-accumulation")
+                accumulation = True
 
     if edition is None:
         edition = 1
