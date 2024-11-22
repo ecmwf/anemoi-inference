@@ -101,3 +101,4 @@ class PlotOutput(Output):
             fname = os.path.join(self.path, fname)
 
             plt.savefig(fname, dpi=self.dpi, bbox_inches="tight")
+            plt.close()
