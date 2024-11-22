@@ -70,7 +70,6 @@ class GribOutput(Output):
                 time=None,
                 step=0,
                 type="fc",
-                stream="oper",
                 keys=self.encoding,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
@@ -124,7 +123,6 @@ class GribOutput(Output):
                 step=step,
                 param=param,
                 type="fc",
-                stream="oper",
                 accumulation=variable.is_accumulation,
                 keys=keys,
                 grib1_keys=self.grib1_keys,
@@ -163,6 +161,17 @@ class GribOutput(Output):
         if None in self._template_cache:
             return self._template_cache[None]
 
+        if False:  #
+            template, name2 = self._clostest_template(self._template_cache, name)
+
+            if name not in self.quiet:
+                if name2 is not None:
+                    LOG.warning("Using template for `%s`", name2)
+                self.quiet.add(name)
+
+                self._template_cache[name] = template
+                return template
+
         if not self.templates:
             return None
 
@@ -187,3 +196,15 @@ class GribOutput(Output):
             self._template_cache[name] = field
 
         return field
+
+    def _clostest_template(self, templates, name):
+        best = None, None
+        best_similarity = 0
+        md1 = self.typed_variables[name]
+        for name2, template in templates.items():
+            md2 = self.typed_variables[name2]
+            similarity = md1.similarity(md2)
+            if similarity > best_similarity:
+                best = template, name2
+                best_similarity = similarity
+        return best

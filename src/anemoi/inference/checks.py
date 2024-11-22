@@ -18,12 +18,14 @@ from anemoi.utils.humanize import plural
 LOG = logging.getLogger(__name__)
 
 
-def check_data(data: Any, variables: List[str], dates: List[datetime.datetime]) -> None:
+def check_data(title: str, data: Any, variables: List[str], dates: List[datetime.datetime]) -> None:
     expected = len(variables) * len(dates)
 
     if len(data) != expected:
 
         from anemoi.utils.text import table
+
+        LOG.error("Data check failed for %s", title)
 
         nvars = plural(len(variables), "variable")
         ndates = plural(len(dates), "date")

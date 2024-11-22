@@ -164,6 +164,7 @@ class Runner(Context):
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
+
         self.add_initial_forcings_to_input_state(input_state)
 
         input_state = self.validate_input_state(input_state)
@@ -333,6 +334,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+
+        # TODO: check if there were not already loaded as part of the input state
 
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1

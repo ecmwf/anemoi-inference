@@ -31,7 +31,18 @@ def _param(param):
 
 
 def grib_keys(
-    *, values, template, accumulation, param, date, time, step, type, stream, keys, grib1_keys={}, grib2_keys={}
+    *,
+    values,
+    template,
+    accumulation,
+    param,
+    date,
+    time,
+    step,
+    type,
+    keys,
+    grib1_keys={},
+    grib2_keys={},
 ):
     result = keys.copy()
 
@@ -63,10 +74,10 @@ def grib_keys(
             result.update(grib2_keys.get(param, {}))
 
     if type is not None:
-        result.setdefault("type", type)
+        result.setdefault("dataType", type)
 
-    if stream is not None:
-        result.setdefault("stream", stream)
+    # if stream is not None:
+    #     result.setdefault("stream", stream)
 
     if date is not None:
         result["date"] = date

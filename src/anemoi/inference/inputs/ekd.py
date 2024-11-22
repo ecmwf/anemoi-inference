@@ -128,7 +128,7 @@ class EkdInput(Input):
 
         fields = input_state["fields"]
 
-        input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates)
+        input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates, title="Create input state")
         mask = self.checkpoint.grid_points_mask
         mask = ApplyMask(mask) if mask is not None else NoMask()
 
@@ -183,7 +183,7 @@ class EkdInput(Input):
 
         return input_state
 
-    def _filter_and_sort(self, data, *, variables, dates):
+    def _filter_and_sort(self, data, *, variables, dates, title):
 
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
@@ -193,12 +193,14 @@ class EkdInput(Input):
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        data = data.sel(name=variables, valid_datetime=valid_datetime).order_by("name", "valid_datetime")
+        data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
+            name=variables, valid_datetime="ascending"
+        )
 
-        check_data(data, variables, dates)
+        check_data(title, data, variables, dates)
 
         return data
 
     def _load_forcings(self, fields, variables, dates):
-        data = self._filter_and_sort(fields, variables=variables, dates=dates)
+        data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
         return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
