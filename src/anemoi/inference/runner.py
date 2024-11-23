@@ -10,566 +10,511 @@
 
 import datetime
 import logging
+import warnings
 from functools import cached_property
 
 import numpy as np
 import torch
-from anemoi.utils.timer import Timer
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.text import table
+from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
+from .context import Context
+from .postprocess import Accumulator
+from .postprocess import Noop
+from .precisions import PRECISIONS
 
-LOGGER = logging.getLogger(__name__)
-
-
-AUTOCAST = {
-    "16-mixed": torch.float16,
-    "16": torch.float16,
-    "32": torch.float32,
-    "b16-mixed": torch.bfloat16,
-    "b16": torch.bfloat16,
-    "bf16-mixed": torch.bfloat16,
-    "bf16": torch.bfloat16,
-    "bfloat16": torch.bfloat16,
-    "f16": torch.float16,
-    "f32": torch.float32,
-    "float16": torch.float16,
-    "float32": torch.float32,
-}
+LOG = logging.getLogger(__name__)
 
 
-def forcing_and_constants(source, date, param):
-    import earthkit.data as ekd
+class Kind:
+    """Used for debugging purposes"""
 
-    ds = ekd.from_source(
-        "forcings",
-        source,
-        date=date,
-        param=param,
-    )
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
-    assert len(ds) == len(param), (len(ds), len(param), date)
+    def __repr__(self):
+        result = []
 
-    return ds.to_numpy(dtype=np.float32)
+        for k, v in self.kwargs.items():
+            if v:
+                result.append(k)
 
+        if not result:
+            return "?"
 
-def ignore(*args, **kwargs):
-    pass
-
-
-def _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields):
-    from earthkit.data.indexing.fieldlist import FieldArray
-
-    class BugFix:
-        def __init__(self, field):
-            self.field = field
-
-        def __getattr__(self, name):
-            return getattr(self.field, name)
-
-        def metadata(self, *args, remapping=None, patches=None, **kwargs):
-            if remapping is not None or patches is not None:
-                from earthkit.data.core.order import build_remapping
-
-                remapping = build_remapping(remapping, patches)
-                return remapping(self.metadata)(*args, **kwargs)
-
-            if len(args) > 0 and args[0] == "levelist":
-                if "default" in kwargs:
-                    return kwargs["default"]
-                raise KeyError("levelist")
-            return self.field.metadata(*args, **kwargs)
-
-        def __repr__(self) -> str:
-            return repr(self.field)
-
-    fixed = []
-    for field in input_fields:
-        if field.metadata("levtype") in ("sfc", "o2d") and field.metadata("edition") == 2:
-            if field.metadata("levelist", default=None) is not None:
-                # LOGGER.warning("Fixing eccodes bug for levtype=sfc and grib2 %s", field)
-                fixed.append(BugFix(field))
-        else:
-            fixed.append(field)
-
-    return FieldArray(fixed)
+        return ", ".join(result)
 
 
-class Runner:
-    """_summary_"""
+class Runner(Context):
+    """A runner is responsible for running a model."""
 
-    _verbose = True
-
-    def __init__(self, checkpoint, verbose: bool = True):
-        self.checkpoint = Checkpoint(checkpoint)
-        self._verbose = verbose
-
-    def run(
+    def __init__(
         self,
+        checkpoint,
         *,
-        input_fields,
-        lead_time,
-        device,
-        start_datetime=None,
-        output_callback=ignore,
-        autocast=None,
-        progress_callback=ignore,
-        grid_field_list=None,
-    ) -> None:
-        """_summary_
+        accumulations=True,
+        device: str,
+        precision: str = None,
+        report_error=False,
+        allow_nans=None,  # can be True of False
+        use_grib_paramid=False,
+        verbosity=0,
+        inference_options=None,
+        development_hacks={},  # For testing purposes, don't use in production
+    ):
+        self._checkpoint = Checkpoint(checkpoint)
 
-        Parameters
-        ----------
-        input_fields : _type_
-            _description_
-        lead_time : _type_
-            _description_
-        device : _type_
-            _description_
-        start_datetime : _type_, optional
-            _description_, by default None
-        output_callback : _type_, optional
-            _description_, by default ignore
-        autocast : _type_, optional
-            _description_, by default None
-        progress_callback : _type_, optional
-            _description_, by default ignore
-        grid_field_list: _type_, optional
-            _description_, by default None
+        self.device = device
+        self.precision = precision
+        self.report_error = report_error
 
-        Raises
-        ------
-        RuntimeError
-            _description_
-        ValueError
-            _description_
-        """
+        # Override the default values set in `Context`
+        self.verbosity = verbosity
+        self.allow_nans = allow_nans
+        self.use_grib_paramid = use_grib_paramid
+        self.development_hacks = development_hacks
+        self.hacks = bool(development_hacks)
 
-        if self._verbose:
-            self.checkpoint.summary()
+        # This could also be passed as an argument
+
+        self.postprocess = Noop()
+
+        if accumulations is True:
+            # Get accumulations from the checkpoint
+            accumulations = self.checkpoint.accumulations
+
+        if accumulations:
+            self.postprocess = Accumulator(accumulations)
+
+        self._input_kinds = {}
+        self._input_tensor_by_name = []
+
+        self._output_kinds = {}
+        self._output_tensor_by_name = []
+
+        if self.verbosity > 2:
+            self.checkpoint.print_indices()
+
+        LOG.info("Using %s runner", self.__class__.__name__)
+
+        if self.verbosity > 1:
+            self.checkpoint.print_variable_categories()
+
+    @property
+    def checkpoint(self):
+        return self._checkpoint
+
+    def run(self, *, input_state, lead_time):
+
+        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
+        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
+        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
+
+        # timers = Timers()
+
+        lead_time = to_timedelta(lead_time)
+
+        # This may be used but Ouput objects to compute the step
+        self.lead_time = lead_time
+        self.time_step = self.checkpoint.timestep
+
+        input_tensor = self.prepare_input_tensor(input_state)
+
+        try:
+            yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
+        except (TypeError, ModuleNotFoundError, AttributeError):
+            if self.report_error:
+                self.checkpoint.report_error()
+            raise
+
+        # timers.report()
+
+    def add_initial_forcings_to_input_state(self, input_state):
+        # Should that be alreay a list of dates
+        date = input_state["date"]
+        fields = input_state["fields"]
+
+        dates = [date + h for h in self.checkpoint.lagged]
+
+        # For output object. Should be moved elsewhere
+        self.reference_date = dates[-1]
+        self.initial_dates = dates
+
+        # TODO: Check for user provided forcings
+
+        for source in self.constant_forcings_inputs:
+            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings(input_state, dates)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+
+        for source in self.dynamic_forcings_inputs:
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings(input_state, dates)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+
+    def prepare_input_tensor(self, input_state, dtype=np.float32):
+
+        typed_variables = self.checkpoint.typed_variables
+
+        for name in input_state["fields"]:
+            self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
+
+        # Add initial forcings to input state if needed
+
+        self.add_initial_forcings_to_input_state(input_state)
+
+        input_state = self.validate_input_state(input_state)
+
+        input_fields = input_state["fields"]
+
+        input_tensor_numpy = np.full(
+            shape=(
+                self.checkpoint.multi_step_input,
+                self.checkpoint.number_of_input_features,
+                self.checkpoint.number_of_grid_points,
+            ),
+            fill_value=np.nan,
+            dtype=dtype,
+        )
+
+        self._input_tensor_by_name = [None] * self.checkpoint.number_of_input_features
+
+        LOG.info("Preparing input tensor with shape %s", input_tensor_numpy.shape)
+
+        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+
+        check = set()
+        for var, field in input_fields.items():
+            i = variable_to_input_tensor_index[var]
+            if i in check:
+                raise ValueError(f"Duplicate variable {var}/{i} in input fields")
+            input_tensor_numpy[:, i] = field
+            check.add(i)
+
+            self._input_tensor_by_name[i] = var
+
+        if len(check) != self.checkpoint.number_of_input_features:
+            missing = set(range(self.checkpoint.number_of_input_features)) - check
+            mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
+            raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
+
+        return input_tensor_numpy
+
+    @cached_property
+    def autocast(self):
+        autocast = self.precision
 
         if autocast is None:
             autocast = self.checkpoint.precision
 
         if autocast is None:
-            LOGGER.warning("No autocast given, using float16")
+            LOG.warning("No autocast given, using float16")
             autocast = "16"
 
-        autocast = AUTOCAST[autocast]
+        return PRECISIONS.get(autocast, autocast)
 
-        input_fields = _fix_eccodes_bug_for_levtype_sfc_and_grib2(input_fields)
-
-        LOGGER.info("Selecting fields %s", self.checkpoint.select)
-        input_fields = input_fields.sel(**self.checkpoint.select)
-        LOGGER.info("Selected fields: %s", len(input_fields))
-
-        input_fields = input_fields.order_by(**self.checkpoint.order_by)
-
-        number_of_grid_points = len(input_fields[0].values)
-
-        LOGGER.info("Loading input: %d fields (lagged=%d)", len(input_fields), len(self.lagged))
-
-        if start_datetime is None:
-            start_datetime = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
-
-        num_fields_per_date = len(input_fields) // len(self.lagged)  # assumed
-
-        # Check valid_datetime of input data
-        # The subsequent reshape operation assumes that input_fields are chunkable by datetime
-        for i, lag in enumerate(self.lagged):
-            date = start_datetime + datetime.timedelta(hours=lag)
-            dates_found = set(
-                field.datetime()["valid_time"]
-                for field in input_fields[i * num_fields_per_date : (i + 1) * num_fields_per_date]
-            )
-            # All chunks must have the same datetime that must agree with the lag
-            if dates_found != {date}:
-                raise RuntimeError(
-                    "Inconsistent datetimes detected.\n"
-                    f"Datetimes in data: {', '.join(d.isoformat() for d in dates_found)}.\n"
-                    f"Expected datetime: {date.isoformat()} (for lag {lag})"
-                )
-
-        input_fields_numpy = input_fields.to_numpy(dtype=np.float32, flatten=True)
-
-        input_fields_numpy = input_fields_numpy.reshape(
-            len(self.lagged),
-            num_fields_per_date,
-            number_of_grid_points,
-        )  # nlags, nparams, ngrid
-
-        LOGGER.info("Input fields shape: %s (dates, variables, grid)", input_fields_numpy.shape)
-
-        # Used to check if we cover the whole input, with no overlaps
-        check = np.full(self.checkpoint.num_input_features, fill_value=False, dtype=np.bool_)
-
-        kinds = np.full(self.checkpoint.num_input_features, fill_value="?", dtype=np.character)
-
-        inputs = np.full(self.checkpoint.num_input_features, fill_value=False, dtype=np.bool_)
-
-        # E.g cos_latitude
-        computed_constant_mask = self.checkpoint.computed_constants_mask
-        assert not np.any(check[computed_constant_mask]), check
-        check[computed_constant_mask] = True
-        kinds[computed_constant_mask] = "C"
-        self._report("computed_constant_mask", computed_constant_mask)
-
-        # E.g. lsm, orography
-        constant_from_input_mask = self.checkpoint.constants_from_input_mask
-        assert not np.any(check[constant_from_input_mask]), check
-        check[constant_from_input_mask] = True
-        kinds[constant_from_input_mask] = "K"
-        inputs[constant_from_input_mask] = True
-        self._report("constant_from_input_mask", constant_from_input_mask)
-
-        # e.g. isolation
-        computed_forcing_mask = self.checkpoint.computed_forcings_mask
-        assert not np.any(check[computed_forcing_mask]), check
-        check[computed_forcing_mask] = True
-        kinds[computed_forcing_mask] = "F"
-        self._report("computed_forcing_mask", computed_forcing_mask)
-
-        # e.g 2t, 10u, 10v
-        prognostic_input_mask = self.checkpoint.prognostic_input_mask
-        assert not np.any(check[prognostic_input_mask]), check
-        check[prognostic_input_mask] = True
-        kinds[prognostic_input_mask] = "P"
-        inputs[prognostic_input_mask] = True
-        self._report("prognostic_input_mask", prognostic_input_mask)
-
-        #
-        if not np.all(check):
-            for i, c in enumerate(check):
-                if not c:
-                    LOGGER.error(
-                        "Missing %s %s %s",
-                        i,
-                        self.checkpoint.model_to_data[i],
-                        self.checkpoint.index_to_variable[self.checkpoint.model_to_data[i]],
-                    )
-            raise RuntimeError("Missing fields")
-
-        prognostic_data_from_retrieved_fields_mask = []
-        constant_data_from_retrieved_fields_mask = []
-
-        MARS = {False: " ", True: "X"}
-
-        retrieved_fields_index = 0
-        for i, c in enumerate(check):
-            if inputs[i]:
-                assert kinds[i].decode() in ("P", "K")
-                if kinds[i].decode() == "P":
-                    prognostic_data_from_retrieved_fields_mask.append(retrieved_fields_index)
-                else:
-                    constant_data_from_retrieved_fields_mask.append(retrieved_fields_index)
-                retrieved_fields_index += 1
-
-            if hasattr(self, "verbose") and self.verbose:
-                print(
-                    "{:4d} {:1s} {} {:4d} {:10s}".format(
-                        i,
-                        kinds[i].decode(),
-                        MARS[inputs[i]],
-                        self.checkpoint.model_to_data[i],
-                        self.checkpoint.index_to_variable[self.checkpoint.model_to_data[i]],
-                    )
-                )
-
-        prognostic_data_from_retrieved_fields_mask = np.array(prognostic_data_from_retrieved_fields_mask)
-        self._report("prognostic_data_from_retrieved_fields_mask", prognostic_data_from_retrieved_fields_mask)
-
-        constant_data_from_retrieved_fields_mask = np.array(constant_data_from_retrieved_fields_mask)
-        self._report("constant_data_from_retrieved_fields_mask", constant_data_from_retrieved_fields_mask)
-
-        # Build the input tensor
-
-        input_tensor_numpy = np.full(
-            shape=(
-                len(self.lagged),
-                self.checkpoint.num_input_features,
-                number_of_grid_points,
-            ),
-            fill_value=np.nan,
-            dtype=np.float32,
-        )  # nlags, nparams, ngrid
-
-        # Check that the computed constant mask and the constant from input mask are disjoint
-        # assert np.amax(prognostic_input_mask) < np.amin(constant_from_input_mask)
-
-        if len(prognostic_input_mask) != len(prognostic_data_from_retrieved_fields_mask):
-            LOGGER.error("Mismatch in prognostic_input_mask and prognostic_data_from_retrieved_fields_mask")
-            LOGGER.error("prognostic_input_mask: %s", prognostic_input_mask)
-            LOGGER.error("prognostic_data_from_retrieved_fields_mask: %s", prognostic_data_from_retrieved_fields_mask)
-            raise ValueError("Mismatch in prognostic_input_mask and prognostic_data_from_retrieved_fields_mask")
-
-        if len(prognostic_data_from_retrieved_fields_mask) > input_fields_numpy.shape[1]:
-            self._report_mismatch(
-                "prognostic_data_from_retrieved_fields_mask",
-                prognostic_data_from_retrieved_fields_mask,
-                input_fields,
-                input_fields_numpy,
-            )
-
-        input_tensor_numpy[:, prognostic_input_mask] = input_fields_numpy[:, prognostic_data_from_retrieved_fields_mask]
-
-        if len(constant_data_from_retrieved_fields_mask) > input_fields_numpy.shape[1]:
-            self._report_mismatch(
-                "constant_data_from_retrieved_fields_mask",
-                constant_data_from_retrieved_fields_mask,
-                input_fields,
-                input_fields_numpy,
-            )
-
-        if len(constant_from_input_mask) != len(constant_data_from_retrieved_fields_mask):
-            LOGGER.error("Mismatch in constant_from_input_mask and constant_data_from_retrieved_fields_mask")
-            LOGGER.error("constant_from_input_mask: %s", constant_from_input_mask)
-            LOGGER.error("constant_data_from_retrieved_fields_mask: %s", constant_data_from_retrieved_fields_mask)
-            raise ValueError("Mismatch in constant_from_input_mask and constant_data_from_retrieved_fields_mask")
-
-        try:
-            input_tensor_numpy[:, constant_from_input_mask] = input_fields_numpy[
-                :, constant_data_from_retrieved_fields_mask
-            ]
-        except IndexError:
-            self._report_mismatch(
-                "constant_data_from_retrieved_fields_mask",
-                constant_data_from_retrieved_fields_mask,
-                input_fields,
-                input_fields_numpy,
-            )
-
-        constants = forcing_and_constants(
-            source=grid_field_list if grid_field_list is not None else input_fields[:1],
-            param=self.checkpoint.computed_constants,
-            date=start_datetime,
-        )
-
-        for i in range(len(self.lagged)):
-            input_tensor_numpy[i, computed_constant_mask] = constants
-
-        if len(constant_from_input_mask) > 0:
-            for i in range(len(self.lagged)):
-                forcings = forcing_and_constants(
-                    source=input_fields[:1],
-                    param=self.checkpoint.computed_forcings,
-                    date=start_datetime + datetime.timedelta(hours=self.lagged[i]),
-                )
-                input_tensor_numpy[i, computed_forcing_mask] = forcings
-
-        LOGGER.info("Input tensor shape: %s", input_tensor_numpy.shape)
-
-        imputable_variables = self.checkpoint.imputable_variables
-        can_be_missing = set()
-        # check for NaNs
-        for i in range(input_tensor_numpy.shape[1]):
-            name = self.checkpoint.index_to_variable[self.checkpoint.model_to_data[i]]
-            has_missing = np.isnan(input_tensor_numpy[:, i, :]).any()
-            is_imputable = name in imputable_variables
-            if has_missing:
-                can_be_missing.add(name)
-                if not is_imputable:
-                    model_index = self.checkpoint.model_to_data[i]
-                    LOGGER.error(
-                        "No imputation specified for NaNs in %s (%s %s)",
-                        name,
-                        i,
-                        model_index,
-                    )
-                    raise ValueError(f"Field '{name}' has NaNs and is not marked as imputable")
-
+    @cached_property
+    def model(self):
         with Timer(f"Loading {self.checkpoint}"):
-            try:
-                model = torch.load(self.checkpoint.path, map_location=device, weights_only=False).to(device)
-            except Exception:
-                self.checkpoint.report_loading_error()
-                raise
+            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            # model.set_inference_options(**self.inference_options)
+            return model
 
-        model.eval()
+    def forecast(self, lead_time, input_tensor_numpy, input_state):
+        self.model.eval()
 
         torch.set_grad_enabled(False)
 
-        input_tensor_torch = torch.from_numpy(
-            np.swapaxes(
-                input_tensor_numpy,
-                -2,
-                -1,
-            )[np.newaxis, ...]
-        ).to(device)
+        # Create pytorch input tensor
+        input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
-        prognostic_output_mask = self.checkpoint.prognostic_output_mask
-        diagnostic_output_mask = self.checkpoint.diagnostic_output_mask
+        LOG.info("Using autocast %s", self.autocast)
 
-        LOGGER.info("Using autocast %s", autocast)
+        lead_time = to_timedelta(lead_time)
+        steps = lead_time // self.checkpoint.timestep
 
-        # Write dynamic fields
-        def get_most_recent_datetime(input_fields):
-            datetimes = [f.datetime()["valid_time"] for f in input_fields]
-            latest = datetimes[-1]
-            for d in datetimes:
-                assert d <= latest, (datetimes, d, latest)
-            return latest
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
-        most_recent_datetime = get_most_recent_datetime(input_fields)
-        reference_fields = [f for f in input_fields if f.datetime()["valid_time"] == most_recent_datetime]
+        result = input_state.copy()  # We should not modify the input state
+        result["fields"] = dict()
 
-        if "lsm" in self.checkpoint.variable_to_index:
-            prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
-        else:
-            first = list(self.checkpoint.variable_to_index.keys())
-            LOGGER.warning("No LSM found to use as a GRIB template, using %s", first[0])
-            prognostic_template = reference_fields[0]
+        start = input_state["date"]
 
-        accumulated_output = np.zeros(
-            shape=(len(diagnostic_output_mask), number_of_grid_points),
-            dtype=np.float32,
-        )
+        # The variable `check` is used to keep track of which variables have been updated
+        # In the input tensor. `reset` is used to reset `check` to False except
+        # when the values are of the constant in time variables
 
-        if self.checkpoint.diagnostic_params:
-            output_callback(
-                input_fields,
-                self.checkpoint.diagnostic_params,
-                prognostic_template,
-                accumulated_output[0].shape,
-            )
-        else:
-            output_callback(input_fields)
+        reset = np.full((input_tensor_torch.shape[-1],), False)
+        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+        typed_variables = self.checkpoint.typed_variables
+        for variable, i in variable_to_input_tensor_index.items():
+            if typed_variables[variable].is_constant_in_time:
+                reset[i] = True
 
-        prognostic_params = self.checkpoint.prognostic_params
-        accumulations_params = self.checkpoint.accumulations_params
+        check = reset.copy()
 
-        # with self.stepper(self.hour_steps) as stepper:
+        if self.verbosity > 0:
+            self._print_input_tensor("First input tensor", input_tensor_torch)
 
-        for i in progress_callback(range(lead_time // self.hour_steps)):
-            step = (i + 1) * self.hour_steps
+        for s in range(steps):
+            step = (s + 1) * self.checkpoint.timestep
+            date = start + step
+            LOG.info("Forecasting step %s (%s)", step, date)
+
+            result["date"] = date
 
             # Predict next state of atmosphere
-            with torch.autocast(device_type=device, dtype=autocast):
-                y_pred = model.predict_step(input_tensor_torch)
+            with torch.autocast(device_type=self.device, dtype=self.autocast):
+                y_pred = self.model.predict_step(input_tensor_torch)
 
-            # Detach tensor and squeeze
-            output = np.squeeze(y_pred.cpu().numpy())
+            # Detach tensor and squeeze (should we detach here?)
+            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
-            prognostic_fields_numpy = output[:, prognostic_output_mask]
-            if len(diagnostic_output_mask):
-                diagnostic_fields_numpy = output[:, diagnostic_output_mask]
+            # Update state
+            for i in range(output.shape[1]):
+                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
-            for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
-                template = reference_fields[m]
-                assert template.datetime()["valid_time"] == most_recent_datetime, (
-                    template.datetime()["valid_time"],
-                    most_recent_datetime,
-                )
-                output_callback(
-                    prognostic_fields_numpy[:, n],
-                    template=template,
-                    step=step,
-                    check_nans=True,  # param in can_be_missing,
-                )
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                self._print_output_tensor("Output tensor", output)
 
-            # Write diagnostic fields
-            if len(diagnostic_output_mask):
-                for n, param in enumerate(self.checkpoint.diagnostic_params):
-                    accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                    assert prognostic_template.datetime()["valid_time"] == most_recent_datetime, (
-                        prognostic_template.datetime()["valid_time"],
-                        most_recent_datetime,
-                    )
+            yield result
 
-                    if param in accumulations_params:
-                        output_callback(
-                            accumulated_output[n],
-                            stepType="accum",
-                            template=prognostic_template,
-                            startStep=0,
-                            endStep=step,
-                            param=param,
-                            check_nans=True,  # param in can_be_missing,
-                        )
-                    else:
-                        output_callback(
-                            diagnostic_fields_numpy[:, n],
-                            template=prognostic_template,
-                            step=step,
-                            check_nans=True,  # param in can_be_missing,
-                        )
+            # Update  tensor for next iteration
 
-            # Next step
-            # Compute new forcing
+            check[:] = reset
 
-            forcing = forcing_and_constants(
-                source=input_fields[:1],
-                param=self.checkpoint.computed_forcings,
-                date=start_datetime + datetime.timedelta(hours=step),
+            input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+
+            del y_pred  # Recover memory
+
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
             )
-            forcing = np.swapaxes(forcing[np.newaxis, np.newaxis, ...], -2, -1)
-            forcing = torch.from_numpy(forcing).to(device)
 
-            # Update dynamic tensor for next iteration
-            input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-            input_tensor_torch[:, -1, :, prognostic_input_mask] = y_pred[..., prognostic_output_mask]
-            if computed_forcing_mask:
-                input_tensor_torch[:, -1, :, computed_forcing_mask] = forcing
+            if not check.all():
+                # Not all variables have been updated
+                missing = []
+                variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                for i in range(check.shape[-1]):
+                    if not check[i]:
+                        missing.append(mapping[i])
 
-            # progress_callback(i)
+                raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
-    @cached_property
-    def hour_steps(self):
-        return self.checkpoint.hour_steps
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                self._print_input_tensor("Next input tensor", input_tensor_torch)
 
-    @cached_property
-    def lagged(self):
-        result = list(range(0, self.checkpoint.multi_step))
-        result = [-s * self.hour_steps for s in result]
-        return sorted(result)
+    def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
-    @property
-    def param_sfc(self):
-        param_sfc = self.checkpoint.param_sfc
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
+        # batch is always 1
 
-        # Remove diagnostic params
+        prognostic_output_mask = self.checkpoint.prognostic_output_mask
+        prognostic_input_mask = self.checkpoint.prognostic_input_mask
 
-        param_sfc = [p for p in param_sfc if p not in self.checkpoint.diagnostic_params]
-
-        return param_sfc
-
-    @property
-    def param_level_pl(self):
-
-        # To do remove diagnostic params
-
-        return self.checkpoint.param_level_pl
-
-    @property
-    def param_level_ml(self):
-
-        # To do remove diagnostic params
-
-        return self.checkpoint.param_level_ml
-
-    def _report_mismatch(self, name, mask, input_fields, input_fields_numpy):
-        LOGGER.error("Mismatch in %s and input_fields", name)
-        LOGGER.error("%s: %s shape=(variables)", name, mask.shape)
-        LOGGER.error("input_fields_numpy: %s shape=(dates, variables, grid)", input_fields_numpy.shape)
-        LOGGER.error("MASK : %s", [self.checkpoint.variables[_] for _ in mask])
-
-        remapping = self.checkpoint.select["remapping"]
-        names = list(remapping.keys())
-
-        LOGGER.error(
-            "INPUT: %s", [input_fields[i].metadata(*names, remapping=remapping) for i in range(len(input_fields) // 2)]
+        # Copy prognostic fields to input tensor
+        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
+        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
+            prognostic_fields  # Add new values to last 'multi_step_input' row
         )
-        raise ValueError(f"Mismatch in {name} and input_fields")
 
-    def _report(self, name, mask):
-        LOGGER.info("%s: %s", name, [self.checkpoint.variables[_] for _ in mask])
+        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
+        check[prognostic_input_mask] = True
 
+        for n in prognostic_input_mask:
+            self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
 
-class DefaultRunner(Runner):
-    """_summary_
+        return input_tensor_torch
 
-    Parameters
-    ----------
-    Runner : _type_
-        _description_
-    """
+    def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
 
-    pass
+        if self.hacks:
+            if "dynamic_forcings_date" in self.development_hacks:
+                date = self.development_hacks["dynamic_forcings_date"]
+                warnings.warn(f"🧑‍💻 Using `dynamic_forcings_date` hack: {date} 🧑‍💻")
+
+        # TODO: check if there were not already loaded as part of the input state
+
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
+        # batch is always 1
+
+        for source in self.dynamic_forcings_inputs:
+            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+
+            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+
+            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+
+            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
+
+            assert not check[source.mask].any()  # Make sure we are not overwriting some values
+            check[source.mask] = True
+
+            for n in source.mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+
+        return input_tensor_torch
+
+    def add_boundary_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
+        # batch is always 1
+        sources = self.boundary_forcings_inputs
+        for source in sources:
+            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+
+            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
+            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+
+        # TO DO: add some consistency checks as above
+        return input_tensor_torch
+
+    def validate_input_state(self, input_state):
+
+        if not isinstance(input_state, dict):
+            raise ValueError("Input state must be a dictionnary")
+
+        EXPECT = dict(date=datetime.datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
+
+        for key, klass in EXPECT.items():
+            if key not in input_state:
+                raise ValueError(f"Input state must contain a `{key}` enytry")
+
+            if not isinstance(input_state[key], klass):
+                raise ValueError(
+                    f"Input state entry `{key}` is type {type(input_state[key])}, expected {klass} instead"
+                )
+
+        # Detach from the user's input so we can modify it
+        input_state = input_state.copy()
+        fields = input_state["fields"] = input_state["fields"].copy()
+        number_of_grid_points = self.checkpoint.number_of_grid_points
+
+        for latlon in ("latitudes", "longitudes"):
+            if len(input_state[latlon].shape) != 1:
+                raise ValueError(f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}")
+
+        nlat = len(input_state["latitudes"])
+        nlon = len(input_state["longitudes"])
+        if nlat != nlon:
+            raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
+
+        if nlat != number_of_grid_points:
+            raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
+
+        multi_step = self.checkpoint.multi_step_input
+
+        expected_shape = (multi_step, number_of_grid_points)
+
+        LOG.info("Expected shape for each input fields: %s", expected_shape)
+
+        # Check field
+        with_nans = []
+
+        for name, field in list(fields.items()):
+
+            # Allow for 1D fields if multi_step is 1
+            if len(field.shape) == 1:
+                field = fields[name] = field.reshape(1, field.shape[0])
+
+            if field.shape != expected_shape:
+                raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
+
+            if np.isinf(field).any():
+                raise ValueError(f"Field `{name}` contains infinities")
+
+            if np.isnan(field).any():
+                with_nans.append(name)
+
+        if with_nans:
+            msg = f"NaNs found in the following variables: {sorted(with_nans)}"
+            if self.allow_nans is None:
+                LOG.warning(msg)
+                self.allow_nans = True
+
+            if not self.allow_nans:
+                raise ValueError(msg)
+
+        return input_state
+
+    def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
+
+        assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
+        assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
+
+        t = []
+        for k, v in enumerate(tensor_by_name):
+            data = tensor_numpy[-1, k]
+
+            nans = "-"
+
+            if np.isnan(data).any():
+                nan_count = np.isnan(data).sum()
+
+                ratio = nan_count / data.size
+                nans = f"{ratio:.0%}"
+
+            if np.isinf(data).any():
+                nans = "∞"
+
+            t.append((k, v, np.nanmin(data), np.nanmax(data), nans, kinds.get(v, Kind())))
+
+        LOG.info("")
+        LOG.info(
+            "%s:\n\n%s\n", title, table(t, header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"], align="><<<|<")
+        )
+        LOG.info("")
+
+    def _print_input_tensor(self, title, input_tensor_torch):
+
+        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
+
+        assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
+        assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
+
+        input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
+        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+
+        self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
+
+    def _print_output_tensor(self, title, output_tensor_numpy):
+
+        LOG.info(
+            "%s",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
+        )
+
+        if not self._output_tensor_by_name:
+            for i in range(output_tensor_numpy.shape[1]):
+                self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
+                if i in self.checkpoint.prognostic_output_mask:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+                else:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
+
+        # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
+
+        if len(output_tensor_numpy.shape) == 2:
+            output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
+
+        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+
+        self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)

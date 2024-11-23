@@ -1,0 +1,5 @@
+input:
+  icon_grib_file:
+    path: /path/to/grib/file.grib
+    grid: icon_grid_0026_R03B07_G.nc
+    refinement_level_c: 5

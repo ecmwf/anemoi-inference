@@ -7,16 +7,15 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from __future__ import annotations
 
-import datetime
 import logging
 
-from anemoi.utils.dates import as_datetime
-
-from ..runner import DefaultRunner
+from ..config import load_config
+from ..runners.default import DefaultRunner
 from . import Command
 
-LOGGER = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class RunCmd(Command):
@@ -25,52 +24,27 @@ class RunCmd(Command):
     need_logging = False
 
     def add_arguments(self, command_parser):
-        command_parser.description = self.__doc__
-        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
-        command_parser.add_argument("--date", help="Date to use for the request.")
-        command_parser.add_argument("path", help="Path to the checkpoint.")
+        command_parser.add_argument("config", help="Path to config file.")
+        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
-        import earthkit.data as ekd
 
-        runner = DefaultRunner(args.path)
+        config = load_config(args.config, args.overrides)
 
-        date = as_datetime(args.date)
-        dates = [date + datetime.timedelta(hours=h) for h in runner.lagged]
+        runner = DefaultRunner(config)
 
-        print("------------------------------------")
-        for n in runner.checkpoint.mars_requests(
-            dates=dates[0],
-            expver="0001",
-            use_grib_paramid=False,
-        ):
-            print("MARS", n)
-        print("------------------------------------")
+        input = runner.create_input()
+        output = runner.create_output()
 
-        requests = runner.checkpoint.mars_requests(
-            dates=dates,
-            expver="0001",
-            use_grib_paramid=args.use_grib_paramid,
-        )
+        input_state = input.create_input_state(date=config.date)
 
-        input_fields = ekd.from_source("empty")
-        for r in requests:
-            if r["class"] == "rd":
-                r["class"] = "od"
+        if config.write_initial_state:
+            output.write_initial_state(input_state)
 
-            r["grid"] = runner.checkpoint.grid
-            r["area"] = runner.checkpoint.area
+        for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+            output.write_state(state)
 
-            print("MARS", r)
-
-            input_fields += ekd.from_source("mars", r)
-
-        LOGGER.info("Running the model with the following %s fields, for %s dates", len(input_fields), len(dates))
-
-        run = runner.make_runner(input_fields=input_fields, lead_time=240, device="cuda")
-        run.run()
-
-        runner.run(input_fields=input_fields, lead_time=244, device="cuda")
+        output.close()
 
 
 command = RunCmd

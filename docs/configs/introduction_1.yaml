@@ -1,0 +1,4 @@
+input:
+  mars:
+    class: ea
+    stream: oper

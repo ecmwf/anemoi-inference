@@ -30,7 +30,7 @@ html_logo = "_static/logo.png"
 
 project = "Anemoi Inference"
 
-author = "ECMWF"
+author = "Anemoi contributors"
 
 year = datetime.datetime.now().year
 if year == 2024:
@@ -38,7 +38,7 @@ if year == 2024:
 else:
     years = "2024-%s" % (year,)
 
-copyright = "%s, ECMWF" % (years,)
+copyright = "%s, Anemoi contributors" % (years,)
 
 
 try:
@@ -63,6 +63,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinxarg.ext",
+    "sphinxcontrib.autodoc_pydantic",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -120,6 +121,12 @@ intersphinx_mapping = {
 #
 html_theme = "sphinx_rtd_theme"
 
+# Make the page width match the browser width
+html_theme_options = {
+    "body_max_width": "none",
+}
+
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
@@ -130,3 +137,10 @@ html_css_files = ["style.css"]
 todo_include_todos = not read_the_docs_build
 
 autodoc_member_order = "bysource"  # Keep file order
+
+
+# https://autodoc-pydantic.readthedocs.io/en/stable/users/configuration.html
+
+autodoc_pydantic_model_show_json = True
+autodoc_pydantic_model_show_field_summary = False
+autodoc_pydantic_model_member_order = "bysource"

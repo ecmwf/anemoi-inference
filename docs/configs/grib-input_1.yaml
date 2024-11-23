@@ -1,0 +1,14 @@
+grib:
+  path: /path/to/grib/file.grib
+  namer:
+    rules:
+    - - shortName: T_SO
+      - '{shortName}_{level}'
+    - - shortName: SMI
+      - '{shortName}_{level}'
+    - - { shortName: PS, dataType: fc }
+      - ignore
+    - - { shortName: Z0, dataType: fc }
+      - ignore
+    - - { shortName: FR_LAND, dataType: fc }
+      - ignore

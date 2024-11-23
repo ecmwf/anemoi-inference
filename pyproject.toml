@@ -42,13 +42,15 @@ classifiers = [
 
 dynamic = [ "version" ]
 dependencies = [
-  "anemoi-transform>=0.0.4",
-  "anemoi-utils>=0.3",
+  "anemoi-transform>=0.1",
+  "anemoi-utils[text]>=0.4.9",
   "aniso8601",
   "anytree",
-  "earthkit-data>=0.10",
+  "earthkit-data>=0.11.1",
+  "eccodes>=2.38.3",
   "numpy",
   "packaging",
+  "pydantic",
   "pyyaml",
   "semantic-version",
   "torch",
@@ -59,6 +61,7 @@ optional-dependencies.all = [ "anemoi-inference[plugin]" ]
 optional-dependencies.dev = [ "anemoi-datasets[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
+  "autodoc-pydantic",
   "nbsphinx",
   "pandoc",
   "rstfmt",

@@ -1,0 +1,4 @@
+input:
+  grib: /path/to/grib/file.grib
+
+output: printer
