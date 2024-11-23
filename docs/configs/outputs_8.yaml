@@ -1,0 +1,12 @@
+output:
+  extract_lam:
+    output:
+      tee:
+      - netcdf:
+          path: lam.nc
+      - plot:
+          path: lam-plots
+          variables:
+          - 2t
+          - z_500
+          - t_850

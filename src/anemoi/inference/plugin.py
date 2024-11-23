@@ -11,14 +11,47 @@
 import argparse
 import logging
 import os
+from functools import cached_property
 
-import tqdm
 from ai_models.model import Model
 
-from anemoi.inference.runner import AUTOCAST
-from anemoi.inference.runner import DefaultRunner
+from anemoi.inference.inputs.grib import GribInput
+from anemoi.inference.outputs.grib import GribOutput
+from anemoi.inference.runner import PRECISIONS as AUTOCAST
+from anemoi.inference.runners.plugin import PluginRunner
 
 LOG = logging.getLogger(__name__)
+
+
+class FieldListInput(GribInput):
+    """
+    Handles earchkit-data fieldlists input fields.
+    """
+
+    def __init__(self, context, *, input_fields):
+        super().__init__(context)
+        self.input_fields = input_fields
+
+    def create_input_state(self, *, date):
+        return self._create_input_state(self.input_fields, variables=None, date=date)
+
+    def load_forcings(self, *, variables, dates):
+        return self._load_forcings(self.input_fields, variables=variables, dates=dates)
+
+    def set_private_attributes(self, state, input_fields):
+        input_fields = input_fields.order_by("valid_datetime")
+        state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
+
+
+class CallbackOutput(GribOutput):
+    """Call ai-models write method"""
+
+    def __init__(self, context, *, write, encoding=None):
+        super().__init__(context, encoding=encoding, templates={"source": "templates"})
+        self.write = write
+
+    def write_message(self, message, *args, **kwargs):
+        self.write(message, *args, **kwargs)
 
 
 class AIModelPlugin(Model):
@@ -48,36 +81,35 @@ class AIModelPlugin(Model):
         self.add_model_args(parser)
 
         args = parser.parse_args(args)
+        args._checkpoint = args.checkpoint
+
+        if args._checkpoint is None:
+            args._checkpoint = os.path.join(self.assets, self.download_files[0])
 
         for k, v in vars(args).items():
             setattr(self, k, v)
 
-        if args.checkpoint:
-            self.runner = DefaultRunner(args.checkpoint)
-        else:
-            self.runner = DefaultRunner(os.path.join(self.assets, self.download_files[0]))
-
         return parser
+
+    @cached_property
+    def runner(self):
+        return PluginRunner(self._checkpoint, device=self.device)
 
     def run(self):
         if self.deterministic:
             self.torch_deterministic_mode()
 
-        self.runner.run(
-            input_fields=self.all_fields,
-            lead_time=self.lead_time,
-            start_datetime=self.start_datetime,
-            device=self.device,
-            output_callback=self._output,
-            autocast=self.autocast,
-            progress_callback=tqdm.tqdm,
-        )
+        input = FieldListInput(self.runner, input_fields=self.all_fields)
+        output = CallbackOutput(self.runner, write=self.write)
 
-    def _output(self, *args, **kwargs):
-        if "step" in kwargs or "endStep" in kwargs:
-            return self.write(*args, **kwargs)
+        input_state = input.create_input_state(date=self.start_datetime)
 
-        return self.write_input_fields(*args, **kwargs)
+        output.write_initial_state(input_state)
+
+        for state in self.runner.run(input_state=input_state, lead_time=self.lead_time):
+            output.write_state(state)
+
+        output.close()
 
     # Below are methods forwarded to the checkpoint
 

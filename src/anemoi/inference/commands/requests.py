@@ -29,7 +29,7 @@ class RequestCmd(Command):
 
         c = Checkpoint(args.path)
 
-        for r in c.mars_requests(use_grib_paramid=args.use_grib_paramid):
+        for r in c.mars_requests(dates=[-1], use_grib_paramid=args.use_grib_paramid):
             if args.mars:
                 req = ["retrieve,target=data"]
                 for k, v in r.items():

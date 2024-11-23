@@ -22,27 +22,39 @@ models from existing recipes but with their own data.
 This package provides a series of utility functions for used by the rest
 of the *Anemoi* packages.
 
+-  :doc:`overview`
 -  :doc:`installing`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
+   overview
    installing
 
-*********
- Modules
-*********
+*********************
+ Tree levels of APIs
+*********************
+
+-  :doc:`apis/level1`
+-  :doc:`apis/level2`
+-  :doc:`apis/level3`
 
 .. toctree::
    :maxdepth: 1
-   :glob:
+   :hidden:
+   :caption: APIs
 
-   modules/*
+   apis/level1
+   apis/level2
+   apis/level3
 
-**Command line tool**
+********************
+ Command line tools
+********************
 
 -  :doc:`cli/introduction`
+-  :doc:`cli/run`
 -  :doc:`cli/metadata`
 
 .. toctree::
@@ -51,8 +63,18 @@ of the *Anemoi* packages.
    :caption: Command line tool
 
    cli/introduction
-   cli/checkpoint
+   cli/run
    cli/metadata
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Configurations
+
+   configs/introduction
+   configs/top-level
+   configs/inputs
+   configs/outputs
+   configs/forcings
 
 *****************
  Anemoi packages

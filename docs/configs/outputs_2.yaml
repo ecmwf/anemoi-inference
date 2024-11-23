@@ -1,0 +1,2 @@
+output:
+  grib: /path/to/grib/file.grib

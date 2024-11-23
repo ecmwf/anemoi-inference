@@ -23,6 +23,7 @@ Keep it human-readable, your future self will thank you!
 - Add missing classes in checkpoint handling
 - Rename Condition to State [#24](https://github.com/ecmwf/anemoi-inference/pull/24)
 - Fix pre-commit regex
+- Complete refactoring
 - ci: extend python versions to include 3.11 and 3.12 [#31] (https://github.com/ecmwf/anemoi-inference/pull/31)
 - Update copyright notice
 - Fix `__version__` import in init
@@ -43,6 +44,7 @@ Keep it human-readable, your future self will thank you!
 ### Changed
 - Fix: diagnostics bug when fields are non-accumulated, remove diagnostics from mars request [#18](https://github.com/ecmwf/anemoi-inference/pull/18)
 - ci: updated workflows on PR and releases to use reusable actions
+- removed a variable 'prognostic\_fields' to save GPU memory
 
 ### Removed
 - climetlab

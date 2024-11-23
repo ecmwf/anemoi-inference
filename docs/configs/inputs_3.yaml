@@ -1,0 +1,7 @@
+input:
+  dataset:
+    join:
+    - dataset: dataset-1
+      select: [ 2t, tp ]
+    - dataset: dataset-2
+      drop: [ 2t, tp ]
