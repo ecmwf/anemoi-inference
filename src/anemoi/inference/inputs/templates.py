@@ -17,15 +17,16 @@ from . import input_registry
 
 LOG = logging.getLogger(__name__)
 
+# 1 - Get a GRIB with mars
+# 2 - grib_set -d 0 data.grib out.grib
+# 4 - python -c 'import base64, sys;print(base64.b64encode(open(sys.argv[1], "rb").read()))' out.grib
+
+# tp in grib2, 0.25/0.25 grid
 TEMPLATE = """
-R1JJQv//AAIAAAAAAAAA3AAAABUBAGIAABsBAQfoCRYGAAAAAQAAABECAAEAAQAJBAIwMDAxAAAA
-SAMAAA/XoAAAAAAG////////////////////AAAFoAAAAtEAAAAA/////wVdSoAAAAAAMIVdSoAV
-cVlwAAPQkAAD0JAAAAAAOgQAAAAIAcEC//8AAAABAAAAAAH//////////////wfoCRYGAAABAAAA
-AAECAQAAAAD/AAAAAAAAABUFAA/XoAAAAAAAAIAKAAAAAAAAAAYG/wAAAAUHNzc3N0dSSUL//wAC
-AAAAAAAAANwAAAAVAQBiAAAbAQEH6AkWDAAAAAEAAAARAgABAAEACQQBMDAwMQAAAEgDAAAP16AA
-AAAABv///////////////////wAABaAAAALRAAAAAP////8FXUqAAAAAADCFXUqAFXFZcAAD0JAA
-A9CQAAAAADoEAAAACAHBAv//AAAAAQAAAAAB//////////////8H6AkWDAAAAQAAAAABAgEAAAAA
-/wAAAAAAAAAVBQAP16AAAAAAAACACgAAAAAAAAAGBv8AAAAFBzc3Nzc=
+R1JJQv//AAIAAAAAAAAA4AAAABUBAGIAACEBAQfoCxcGAAAAAQAAABECAAEAAQAJBAIwMDAxAAAASAMAAA/Xo
+AAAAAAG////////////////////AAAFoAAAAtEAAAAA/////wVdSoAAAAAAMBVxWXAKtsRwAAPQkAAD0JAAAA
+AAOgQAAAAIAcEC/54AAAABAAAAAAH//////////////wfoCxcMAAABAAAAAAECAQAAAAYNAAABwgAAABkFAA/
+XoAAqAAAAAIATAAAAAA4gAIAAAAAGBv8AAAAFBzc3Nzc=
 """
 
 
@@ -39,7 +40,7 @@ class TemplatesInput(Input):
     def create_input_state(self, *, date):
         raise NotImplementedError("TemplatesInput.create_input_state() not implemented")
 
-    def template(self, variable, date, edition, **kwargs):
+    def template(self, variable, date, **kwargs):
 
         # import eccodes
         typed = self.context.checkpoint.typed_variables[variable]
