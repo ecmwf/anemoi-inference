@@ -21,9 +21,9 @@ from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
-from .postprocess import Accumulator
-from .postprocess import Noop
 from .precisions import PRECISIONS
+from .processors import Accumulator
+from .processors import Chain
 
 LOG = logging.getLogger(__name__)
 
@@ -63,6 +63,8 @@ class Runner(Context):
         verbosity=0,
         inference_options=None,
         development_hacks={},  # For testing purposes, don't use in production
+        pre_processors=None,
+        post_processors=None,
     ):
         self._checkpoint = Checkpoint(checkpoint)
 
@@ -79,14 +81,15 @@ class Runner(Context):
 
         # This could also be passed as an argument
 
-        self.postprocess = Noop()
+        self.preprocess = Chain("pre-processors", pre_processors)
+        self.postprocess = Chain("post-processors", post_processors)
 
         if accumulations is True:
             # Get accumulations from the checkpoint
             accumulations = self.checkpoint.accumulations
 
         if accumulations:
-            self.postprocess = Accumulator(accumulations)
+            self.postprocess.append(Accumulator(accumulations))
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
@@ -107,6 +110,12 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
+
+        # Shallow copy to avoid modifying the user's input state
+        input_state = input_state.copy()
+        input_state["fields"] = input_state["fields"].copy()
+
+        input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)

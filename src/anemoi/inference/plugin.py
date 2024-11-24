@@ -93,7 +93,12 @@ class AIModelPlugin(Model):
 
     @cached_property
     def runner(self):
-        return PluginRunner(self._checkpoint, device=self.device)
+        return PluginRunner(
+            self._checkpoint,
+            device=self.device,
+            pre_processors=self.pre_processors(),
+            post_processors=self.post_processors(),
+        )
 
     def run(self):
         if self.deterministic:
@@ -110,6 +115,14 @@ class AIModelPlugin(Model):
             output.write_state(state)
 
         output.close()
+
+    def pre_processors(self):
+        # To override in subclasses
+        return []
+
+    def post_processors(self):
+        # To override in subclasses
+        return []
 
     # Below are methods forwarded to the checkpoint
 
