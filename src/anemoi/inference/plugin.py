@@ -93,19 +93,18 @@ class AIModelPlugin(Model):
 
     @cached_property
     def runner(self):
-        return PluginRunner(
-            self._checkpoint,
-            device=self.device,
-            pre_processors=self.pre_processors(),
-            post_processors=self.post_processors(),
-        )
+        return PluginRunner(self._checkpoint, device=self.device)
 
     def run(self):
+
         if self.deterministic:
             self.torch_deterministic_mode()
 
-        input = FieldListInput(self.runner, input_fields=self.all_fields)
-        output = CallbackOutput(self.runner, write=self.write)
+        input_kwargs = self.input.anemoi_plugin_input_kwargs()
+        output_kwargs = self.input.anemoi_plugin_input_kwargs()
+
+        input = FieldListInput(self.runner, input_fields=self.all_fields, **input_kwargs)
+        output = CallbackOutput(self.runner, write=self.write, **output_kwargs)
 
         input_state = input.create_input_state(date=self.start_datetime)
 
@@ -115,14 +114,6 @@ class AIModelPlugin(Model):
             output.write_state(state)
 
         output.close()
-
-    def pre_processors(self):
-        # To override in subclasses
-        return []
-
-    def post_processors(self):
-        # To override in subclasses
-        return []
 
     # Below are methods forwarded to the checkpoint
 
