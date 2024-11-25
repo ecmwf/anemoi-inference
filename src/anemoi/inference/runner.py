@@ -55,7 +55,7 @@ class Runner(Context):
         checkpoint,
         *,
         accumulations=True,
-        device: str,
+        device: str = "cuda",
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
@@ -116,7 +116,7 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
-        # This may be used but Ouput objects to compute the step
+        # This may be used but Output objects to compute the step
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
 
