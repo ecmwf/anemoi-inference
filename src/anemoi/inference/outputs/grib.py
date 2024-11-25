@@ -123,7 +123,6 @@ class GribOutput(Output):
                 time=reference_date.hour,
                 step=step,
                 param=param,
-                type=self.encoding.get("type", "fc"),
                 accumulation=variable.is_accumulation,
                 keys=keys,
                 grib1_keys=self.grib1_keys,
