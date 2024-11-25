@@ -14,7 +14,11 @@ from functools import cached_property
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from anemoi.utils.timer import Timer
+
+
+import os
 
 from .checkpoint import Checkpoint
 
@@ -375,6 +379,28 @@ class Runner:
                         model_index,
                     )
                     raise ValueError(f"Field '{name}' has NaNs and is not marked as imputable")
+                
+                
+        global_rank = int(os.environ["SLURM_PROCID"])  # Get rank of the current process, equivalent to dist.get_rank()
+        LOGGER.info("Global rank: %d", global_rank)
+        world_size = int(os.environ["SLURM_NTASKS"])  # Total number of processes
+        LOGGER.info("World size: %d", world_size)
+        dist.init_process_group(
+              backend="nccl",
+              init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
+              timeout=datetime.timedelta(minutes=3),
+              world_size=world_size,
+              rank=global_rank,
+            )
+        
+        local_rank = int(os.environ.get("SLURM_LOCALID", 0))
+        LOGGER.info("Global rank %d has also local rank: %d ...", global_rank, local_rank)
+        
+        # Ensure each process only uses one GPU
+        torch.cuda.set_device(local_rank)
+        
+        model_comm_group_ranks = np.arange(world_size, dtype=int)
+        model_comm_group  = torch.distributed.new_group(model_comm_group_ranks)
 
         with Timer(f"Loading {self.checkpoint}"):
             try:
@@ -443,7 +469,8 @@ class Runner:
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=device, dtype=autocast):
-                y_pred = model.predict_step(input_tensor_torch)
+                #y_pred = model.predict_step(input_tensor_torch, model_comm_group)
+                y_pred = model.forward(input_tensor_torch.unsqueeze(2), model_comm_group)
 
             # Detach tensor and squeeze
             output = np.squeeze(y_pred.cpu().numpy())
