@@ -721,6 +721,10 @@ class Metadata(PatchMixin, LegacyMixin):
         # TODO
         return None
 
+    def provenance_training(self):
+        """Environmental Configuration when trained"""
+        return dict(self._metadata.get("provenance_training", {}))
+
     def sources(self, path):
 
         if "sources" not in self._metadata.dataset:

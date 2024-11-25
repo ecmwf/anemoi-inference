@@ -253,6 +253,13 @@ class Checkpoint:
     def name(self):
         return self._metadata.name
 
+    ###########################################################################
+    # Misc
+    ###########################################################################
+
+    def provenance_training(self):
+        return self._metadata.provenance_training()
+
 
 class SourceCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""
