@@ -382,9 +382,9 @@ class Runner:
                 
                 
         global_rank = int(os.environ["SLURM_PROCID"])  # Get rank of the current process, equivalent to dist.get_rank()
-        LOGGER.info("Global rank: %d", global_rank)
         world_size = int(os.environ["SLURM_NTASKS"])  # Total number of processes
-        LOGGER.info("World size: %d", world_size)
+        if global_rank == 0:
+            LOGGER.info("World size: %d", world_size)
         dist.init_process_group(
               backend="nccl",
               init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
@@ -392,9 +392,6 @@ class Runner:
               world_size=world_size,
               rank=global_rank,
             )
-        
-        local_rank = int(os.environ.get("SLURM_LOCALID", 0))
-        LOGGER.info("Global rank %d has also local rank: %d ...", global_rank, local_rank)
         
         # Ensure each process only uses one GPU
         torch.cuda.set_device(local_rank)
@@ -424,7 +421,8 @@ class Runner:
         prognostic_output_mask = self.checkpoint.prognostic_output_mask
         diagnostic_output_mask = self.checkpoint.diagnostic_output_mask
 
-        LOGGER.info("Using autocast %s", autocast)
+        if global_rank == 0:
+            LOGGER.info("Using autocast %s", autocast)
 
         # Write dynamic fields
         def get_most_recent_datetime(input_fields):
@@ -441,7 +439,8 @@ class Runner:
             prognostic_template = reference_fields[self.checkpoint.variable_to_index["lsm"]]
         else:
             first = list(self.checkpoint.variable_to_index.keys())
-            LOGGER.warning("No LSM found to use as a GRIB template, using %s", first[0])
+            if global_rank == 0:
+                LOGGER.warning("No LSM found to use as a GRIB template, using %s", first[0])
             prognostic_template = reference_fields[0]
 
         accumulated_output = np.zeros(
