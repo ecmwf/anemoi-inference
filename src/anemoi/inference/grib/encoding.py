@@ -39,7 +39,6 @@ def grib_keys(
     date,
     time,
     step,
-    type,
     keys,
     quiet,
     grib1_keys={},
@@ -86,7 +85,11 @@ def grib_keys(
         if edition == 2:
             result.update(grib2_keys.get(param, {}))
 
+    result.setdefault("type", "fc")
+    type = result.get("type")
+
     if type is not None:
+        # For organisations that do not use type
         result.setdefault("dataType", type)
 
     # if stream is not None:
@@ -160,7 +163,7 @@ def check_encoding(handle, keys):
             w = handle.get(k)
 
         if not same(w, v, k):
-            mismatches[k] = (w, v)
+            mismatches[k] = 'Expected "{}" but got "{}"'.format(v, w)
 
     if mismatches:
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
