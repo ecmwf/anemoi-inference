@@ -16,6 +16,7 @@ Keep it human-readable, your future self will thank you!
 - Add anemoi-transform link to documentation
 - Add support for unstructured grids
 - Add CONTRIBUTORS.md file (#36)
+- Added ability to run inference over multiple GPUs [#55](https://github.com/ecmwf/anemoi-inference/pull/55)
 
 ### Changed
 
