@@ -17,7 +17,7 @@ import torch
 import torch.distributed as dist
 from anemoi.utils.timer import Timer
 
-
+import random
 import os
 
 from .checkpoint import Checkpoint
@@ -381,14 +381,17 @@ class Runner:
                     raise ValueError(f"Field '{name}' has NaNs and is not marked as imputable")
                 
                 
-        global_rank = int(os.environ["SLURM_PROCID"])  # Get rank of the current process, equivalent to dist.get_rank()
-        world_size = int(os.environ["SLURM_NTASKS"])  # Total number of processes
+        global_rank = int(os.getenv("SLURM_PROCID", 0))  # Get rank of the current process, equivalent to dist.get_rank()
+        world_size = int(os.getenv("SLURM_NTASKS", 1))  # Total number of processes
+        local_rank = int(os.getenv("SLURM_LOCALID", 0)) # Get GPU num of current process
         if global_rank == 0:
             LOGGER.info("World size: %d", world_size)
+        addr=os.getenv("MASTER_ADDR", 'localhost') #localhost should be sufficient to run on a single node
+        port=os.getenv("MASTER_PORT", 10000 + random.randint(0,10000)) #random port between 10,000 and 20,000
         dist.init_process_group(
               backend="nccl",
-              init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
-              timeout=datetime.timedelta(minutes=3),
+              init_method=f'tcp://{addr}:{port}',
+              timeout=datetime.timedelta(minutes=1),
               world_size=world_size,
               rank=global_rank,
             )
@@ -471,52 +474,53 @@ class Runner:
                 #y_pred = model.predict_step(input_tensor_torch, model_comm_group)
                 y_pred = model.forward(input_tensor_torch.unsqueeze(2), model_comm_group)
 
-            # Detach tensor and squeeze
-            output = np.squeeze(y_pred.cpu().numpy())
+            if global_rank == 0:
+                # Detach tensor and squeeze
+                output = np.squeeze(y_pred.cpu().numpy())
 
-            prognostic_fields_numpy = output[:, prognostic_output_mask]
-            if len(diagnostic_output_mask):
-                diagnostic_fields_numpy = output[:, diagnostic_output_mask]
+                prognostic_fields_numpy = output[:, prognostic_output_mask]
+                if len(diagnostic_output_mask):
+                    diagnostic_fields_numpy = output[:, diagnostic_output_mask]
 
-            for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
-                template = reference_fields[m]
-                assert template.datetime()["valid_time"] == most_recent_datetime, (
-                    template.datetime()["valid_time"],
-                    most_recent_datetime,
-                )
-                output_callback(
-                    prognostic_fields_numpy[:, n],
-                    template=template,
-                    step=step,
-                    check_nans=True,  # param in can_be_missing,
-                )
-
-            # Write diagnostic fields
-            if len(diagnostic_output_mask):
-                for n, param in enumerate(self.checkpoint.diagnostic_params):
-                    accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
-                    assert prognostic_template.datetime()["valid_time"] == most_recent_datetime, (
-                        prognostic_template.datetime()["valid_time"],
+                for n, (m, param) in enumerate(zip(prognostic_data_from_retrieved_fields_mask, prognostic_params)):
+                    template = reference_fields[m]
+                    assert template.datetime()["valid_time"] == most_recent_datetime, (
+                        template.datetime()["valid_time"],
                         most_recent_datetime,
                     )
+                    output_callback(
+                        prognostic_fields_numpy[:, n],
+                        template=template,
+                        step=step,
+                        check_nans=True,  # param in can_be_missing,
+                    )
 
-                    if param in accumulations_params:
-                        output_callback(
-                            accumulated_output[n],
-                            stepType="accum",
-                            template=prognostic_template,
-                            startStep=0,
-                            endStep=step,
-                            param=param,
-                            check_nans=True,  # param in can_be_missing,
+                # Write diagnostic fields
+                if len(diagnostic_output_mask):
+                    for n, param in enumerate(self.checkpoint.diagnostic_params):
+                        accumulated_output[n] += np.maximum(0, diagnostic_fields_numpy[:, n])
+                        assert prognostic_template.datetime()["valid_time"] == most_recent_datetime, (
+                            prognostic_template.datetime()["valid_time"],
+                            most_recent_datetime,
                         )
-                    else:
-                        output_callback(
-                            diagnostic_fields_numpy[:, n],
-                            template=prognostic_template,
-                            step=step,
-                            check_nans=True,  # param in can_be_missing,
-                        )
+
+                        if param in accumulations_params:
+                            output_callback(
+                                accumulated_output[n],
+                                stepType="accum",
+                                template=prognostic_template,
+                                startStep=0,
+                                endStep=step,
+                                param=param,
+                                check_nans=True,  # param in can_be_missing,
+                            )
+                        else:
+                            output_callback(
+                                diagnostic_fields_numpy[:, n],
+                                template=prognostic_template,
+                                step=step,
+                                check_nans=True,  # param in can_be_missing,
+                            )
 
             # Next step
             # Compute new forcing
