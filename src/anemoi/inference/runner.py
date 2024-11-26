@@ -10,15 +10,14 @@
 
 import datetime
 import logging
+import os
+import random
 from functools import cached_property
 
 import numpy as np
 import torch
 import torch.distributed as dist
 from anemoi.utils.timer import Timer
-
-import random
-import os
 
 from .checkpoint import Checkpoint
 
@@ -379,28 +378,32 @@ class Runner:
                         model_index,
                     )
                     raise ValueError(f"Field '{name}' has NaNs and is not marked as imputable")
-                
-                
-        global_rank = int(os.getenv("SLURM_PROCID", 0))  # Get rank of the current process, equivalent to dist.get_rank()
+
+        global_rank = int(
+            os.getenv("SLURM_PROCID", 0)
+        )  # Get rank of the current process, equivalent to dist.get_rank()
         world_size = int(os.getenv("SLURM_NTASKS", 1))  # Total number of processes
-        local_rank = int(os.getenv("SLURM_LOCALID", 0)) # Get GPU num of current process
+        local_rank = int(os.getenv("SLURM_LOCALID", 0))  # Get GPU num of current process
         if global_rank == 0:
             LOGGER.info("World size: %d", world_size)
-        addr=os.getenv("MASTER_ADDR", 'localhost') #localhost should be sufficient to run on a single node
-        port=os.getenv("MASTER_PORT", 10000 + random.randint(0,10000)) #random port between 10,000 and 20,000
+        addr = os.getenv("MASTER_ADDR", "localhost")  # localhost should be sufficient to run on a single node
+        port = os.getenv("MASTER_PORT", 10000 + random.randint(0, 10000))  # random port between 10,000 and 20,000
         dist.init_process_group(
-              backend="nccl",
-              init_method=f'tcp://{addr}:{port}',
-              timeout=datetime.timedelta(minutes=1),
-              world_size=world_size,
-              rank=global_rank,
-            )
-        
+            backend="nccl",
+            init_method=f"tcp://{addr}:{port}",
+            timeout=datetime.timedelta(minutes=1),
+            world_size=world_size,
+            rank=global_rank,
+        )
+
         # Ensure each process only uses one GPU
         torch.cuda.set_device(local_rank)
-        
-        model_comm_group_ranks = np.arange(world_size, dtype=int)
-        model_comm_group  = torch.distributed.new_group(model_comm_group_ranks)
+
+        if world_size > 1:
+            model_comm_group_ranks = np.arange(world_size, dtype=int)
+            model_comm_group = torch.distributed.new_group(model_comm_group_ranks)
+        else:
+            model_comm_group = None
 
         with Timer(f"Loading {self.checkpoint}"):
             try:
@@ -471,7 +474,7 @@ class Runner:
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=device, dtype=autocast):
-                #y_pred = model.predict_step(input_tensor_torch, model_comm_group)
+                # y_pred = model.predict_step(input_tensor_torch, model_comm_group)
                 y_pred = model.forward(input_tensor_torch.unsqueeze(2), model_comm_group)
 
             if global_rank == 0:
