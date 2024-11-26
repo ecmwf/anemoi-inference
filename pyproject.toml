@@ -56,7 +56,7 @@ dependencies = [
 
 optional-dependencies.all = [ "anemoi-inference[plugin]" ]
 
-optional-dependencies.dev = [ "anemoi-datasets[all,docs,plugin,tests]" ]
+optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
   "autodoc-pydantic",
