@@ -27,6 +27,7 @@ Keep it human-readable, your future self will thank you!
 - ci: extend python versions to include 3.11 and 3.12 [#31] (https://github.com/ecmwf/anemoi-inference/pull/31)
 - Update copyright notice
 - Fix `__version__` import in init
+- use earthkit-data 0.11.2
 
 ### Removed
 
