@@ -20,28 +20,11 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
-from packaging.version import Version
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
 
 LOG = logging.getLogger(__name__)
-
-# Complete package name to be exempt
-EXEMPT_PACKAGES = [
-    "anemoi.training",
-    "hydra",
-    "hydra_plugins",
-    "lightning",
-    "pytorch_lightning",
-    "lightning_fabric",
-    "lightning_utilities",
-]
-
-# Entire namespaces to be exempt
-EXEMPT_NAMESPACES = [
-    "hydra_plugins",
-]
 
 
 def _remove_full_paths(x):
@@ -454,7 +437,6 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     def report_error(self):
-        from anemoi.utils.provenance import gather_provenance_info
 
         provenance = self._metadata.provenance_training
 
@@ -507,113 +489,11 @@ class Metadata(PatchMixin, LegacyMixin):
         ValueError
             If `on_difference` is not 'warn' or 'error'
         """
-        train_environment = self.provenance_training()
-        inference_environment = gather_provenance_info(full=False)
+        from anemoi.inference.provenance import validate_environment
 
-        # Override module information with more complete inference environment capture
-        import importlib.metadata as imp_metadata
-
-        module_versions = {
-            distribution.metadata["Name"].replace("-", "_"): distribution.metadata["Version"]
-            for distribution in imp_metadata.distributions()
-        }
-
-        inference_environment["module_versions"] = module_versions
-
-        exempt_packages = exempt_packages or []
-        exempt_packages.extend(EXEMPT_PACKAGES)
-
-        invalid_messages = {
-            "python": [],
-            "missing": [],
-            "mismatch": [],
-            "critical mismatch": [],
-            "uncommitted": [],
-        }
-
-        if train_environment["python"] != inference_environment["python"]:
-            invalid_messages["python"].append(
-                f"Python version mismatch: {train_environment['python']} != {inference_environment['python']}"
-            )
-
-        for module in train_environment["module_versions"].keys():
-            inference_module_name = module  # Due to package name differences between retrieval methods this may change
-
-            if not all_packages and "anemoi" not in module:
-                continue
-            elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
-                continue
-            elif module.startswith("_"):
-                continue
-            elif module not in inference_environment["module_versions"]:
-                if "." in module and module.replace(".", "_") in inference_environment["module_versions"]:
-                    inference_module_name = module.replace(".", "_")
-                else:
-                    try:
-                        import importlib
-
-                        importlib.import_module(module)
-                        continue
-                    except (ModuleNotFoundError, ImportError):
-                        pass
-                    invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
-                    continue
-
-            train_environment_version = Version(train_environment["module_versions"][module])
-            inference_environment_version = Version(inference_environment["module_versions"][inference_module_name])
-
-            if train_environment_version < inference_environment_version:
-                invalid_messages["mismatch"].append(
-                    f"Version of module {module} was lower in training then in inference: {train_environment_version!s} <= {inference_environment_version!s}"
-                )
-            elif train_environment_version > inference_environment_version:
-                invalid_messages["critical mismatch"].append(
-                    f"CRITICAL: Version of module {module} was greater in training then in inference: {train_environment_version!s} > {inference_environment_version!s}"
-                )
-
-        for git_record in train_environment["git_versions"].keys():
-            file_record = train_environment["git_versions"][git_record]["git"]
-            if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
-                continue
-
-            if git_record not in inference_environment["git_versions"]:
-                invalid_messages["uncommitted"].append(
-                    f"Training environment contained uncommitted change missing in inference environment: {git_record}"
-                )
-            elif (
-                train_environment["git_versions"][git_record]["sha1"]
-                != inference_environment["git_versions"][git_record]["sha1"]
-            ):
-                invalid_messages["uncommitted"].append(
-                    f"sha1 mismatch for git record between training and inference. {git_record} (training != inference): {train_environment['git_versions'][git_record]} != {inference_environment['git_versions'][git_record]}"
-                )
-
-        for git_record in inference_environment["git_versions"].keys():
-            file_record = inference_environment["git_versions"][git_record]["git"]
-            if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
-                continue
-
-            if git_record not in train_environment["git_versions"]:
-                invalid_messages["uncommitted"].append(
-                    f"Inference environment contains uncommited changes missing in training: {git_record}"
-                )
-
-        if len(invalid_messages) > 0:
-            text = "Environment validation failed. The following issues were found:\n" + "\n".join(
-                [f"  {key}:\n    " + "\n    ".join(value) for key, value in invalid_messages.items() if len(value) > 0]
-            )
-            if on_difference == "warn":
-                LOG.warning(text)
-            elif on_difference == "error":
-                raise RuntimeError(text)
-            elif on_difference == "ignore":
-                pass
-            else:
-                raise ValueError(f"Invalid value for `on_difference`: {on_difference}")
-            return False
-
-        LOG.info("Environment validation passed")
-        return True
+        return validate_environment(
+            self, all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+        )
 
     ###########################################################################
 
