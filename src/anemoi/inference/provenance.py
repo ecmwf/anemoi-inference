@@ -78,7 +78,7 @@ def validate_environment(
     import importlib.metadata as imp_metadata
 
     module_versions = {
-        distribution.metadata["Name"].replace("-", "_"): distribution.metadata["Version"]
+        distribution.metadata.get("Name", "").replace("-", "_"): distribution.metadata["Version"]
         for distribution in imp_metadata.distributions()
     }
 
