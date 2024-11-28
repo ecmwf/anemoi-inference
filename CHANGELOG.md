@@ -11,7 +11,7 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
-- Add initial state output in netcdf format 
+- Add initial state output in netcdf format
 - Fix: Enable inference when no constant forcings are used
 - Add anemoi-transform link to documentation
 - Add support for unstructured grids
