@@ -78,6 +78,10 @@ class Checkpoint:
         return self._metadata.diagnostic_variables
 
     @property
+    def prognostic_variables(self):
+        return self._metadata.prognostic_variables
+
+    @property
     def prognostic_output_mask(self):
         return self._metadata.prognostic_output_mask
 
