@@ -64,7 +64,7 @@ class NetCDFOutput(Output):
         self.time_dim = self.ncfile.createDimension("time", time)
         self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
-        self.time_var.units = "seconds since {0}".format(self.context.reference_date)
+        self.time_var.units = "seconds since {0}".format(self.reference_date)
         self.time_var.long_name = "time"
         self.time_var.calendar = "gregorian"
 

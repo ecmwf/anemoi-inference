@@ -8,7 +8,7 @@
 #
 from abc import ABC
 from abc import abstractmethod
-
+import copy
 
 class Output(ABC):
     """_summary_"""

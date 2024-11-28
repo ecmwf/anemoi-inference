@@ -24,9 +24,14 @@ LOG = logging.getLogger(__name__)
 class RawOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, path):
+    def __init__(self, context, path,
+                 template="{date}.npz",
+                 strftime="%Y%m%d%H%M%S",
+                 ):
         super().__init__(context)
         self.path = path
+        self.template=template
+        self.strftime=strftime
 
     def __repr__(self):
         return f"RawOutput({self.path})"
