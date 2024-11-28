@@ -36,6 +36,10 @@ def _remove_full_paths(x):
 
 
 class frozendict(dict):
+    def __deepcopy__(self, memo):
+        # As this is a frozendict, we can return the same object
+        return self
+
     def __setitem__(self, key, value):
         raise TypeError("frozendict is immutable")
 
