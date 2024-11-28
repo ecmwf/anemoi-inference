@@ -6,9 +6,10 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
+import copy
 from abc import ABC
 from abc import abstractmethod
-import copy
+
 
 class Output(ABC):
     """_summary_"""
@@ -29,10 +30,10 @@ class Output(ABC):
         pass
 
     def reduce(self, state):
-        """Creates new state which is projection of original state on the last step in the multi-steps dimension. """
+        """Creates new state which is projection of original state on the last step in the multi-steps dimension."""
         reduced_state = copy.deepcopy(state)
-        for field, values in state['fields'].items():
-            reduced_state['fields'][field] = values[-1,:]
+        for field, values in state["fields"].items():
+            reduced_state["fields"][field] = values[-1, :]
         return reduced_state
 
     def close(self):
