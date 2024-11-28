@@ -10,10 +10,28 @@
 
 import logging
 
+from ..forcings import ComputedForcings
+from ..forcings import Forcings
 from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
+
+# This is because forcings are assumed to already be in the
+# state dictionary, so we don't need to load them from anywhere.
+
+
+class NoForcings(Forcings):
+    """No forcings."""
+
+    def __init__(self, context, variables, mask):
+        super().__init__(context)
+        self.variables = variables
+        self.mask = mask
+        self.kinds = dict(unknown=True)
+
+    def load_forcings(self, state, date):
+        pass
 
 
 @runner_registry.register("simple")
@@ -22,3 +40,16 @@ class SimpleRunner(Runner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def create_constant_computed_forcings(self, variables, mask):
+        result = ComputedForcings(self, variables, mask)
+        LOG.info("Constant computed forcing: %s", result)
+        return result
+
+    def create_dynamic_computed_forcings(self, variables, mask):
+        result = ComputedForcings(self, variables, mask)
+        LOG.info("Dynamic computed forcing: %s", result)
+        return result
+
+    def create_constant_coupled_forcings(self, variables, mask):
+        return None

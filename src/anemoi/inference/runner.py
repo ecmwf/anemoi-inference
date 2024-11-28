@@ -145,6 +145,9 @@ class Runner(Context):
         # TODO: Check for user provided forcings
 
         for source in self.constant_forcings_inputs:
+            if source is None:
+                # When the constants are already in the input state
+                continue
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings(input_state, dates)
             for name, forcing in zip(source.variables, arrays):
