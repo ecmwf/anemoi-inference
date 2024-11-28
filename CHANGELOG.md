@@ -11,14 +11,15 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
-
+- Add initial state output in netcdf format 
 - Fix: Enable inference when no constant forcings are used
 - Add anemoi-transform link to documentation
 - Add support for unstructured grids
 - Add CONTRIBUTORS.md file (#36)
 
 ### Changed
-
+- Raw output of initial state contains only values at initial time
+- Changed default naming of raw output
 - Add cos_solar_zenith_angle to list of known forcings
 - Add missing classes in checkpoint handling
 - Rename Condition to State [#24](https://github.com/ecmwf/anemoi-inference/pull/24)
