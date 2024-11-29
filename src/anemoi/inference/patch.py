@@ -33,7 +33,7 @@ class PatchMixin:
 
     # `self` is a `Metadata` object
 
-    def patch_metadata(self, supporting_arrays, root):
+    def patch_metadata(self, supporting_arrays, root, force=False):
         dataset = self._metadata["dataset"]
 
         if (
@@ -41,6 +41,7 @@ class PatchMixin:
             or "supporting_arrays_paths" not in dataset
             or "sources" not in dataset
             or not not self._supporting_arrays
+            or force
         ):
             self._patch_variable_metadata()
             self._supporting_arrays = self._patch_supporting_arrays(supporting_arrays, root)
@@ -100,7 +101,8 @@ class PatchMixin:
 
         # Update the metadata
         for k, v in metadata.items():
-            if k not in dataset:
+            if k not in dataset or not dataset[k]:
+                LOG.info("Updating metadata key `%s` with value `%s`", k, v)
                 dataset[k] = v
 
     def _patch_variable_metadata_open_dataset_2(self):

@@ -25,6 +25,7 @@ class PatchCmd(Command):
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
+        command_parser.add_argument("--force", action="store_true", help="Force the patching.")
 
     def run(self, args):
         from anemoi.utils.checkpoints import load_metadata
@@ -41,7 +42,7 @@ class PatchCmd(Command):
         # Patch the metadata
         while True:
             previous = deepcopy(metadata)
-            metadata, supporting_arrays = Metadata(metadata).patch_metadata(supporting_arrays, root)
+            metadata, supporting_arrays = Metadata(metadata).patch_metadata(supporting_arrays, root, force=args.force)
             if metadata == previous:
                 break
             LOG.info("Metadata patched")
@@ -50,74 +51,6 @@ class PatchCmd(Command):
             LOG.info("Patching metadata")
             assert "sources" in metadata["dataset"]
             replace_metadata(args.path, metadata, supporting_arrays)
-
-    def _find(self, where, what, matches=None):
-        if matches is None:
-            matches = []
-
-        if isinstance(where, dict):
-            for key, value in where.items():
-                if value == what:
-                    matches.append(value)
-                else:
-                    self._find(value, what, matches)
-
-        elif isinstance(where, list):
-            for item in where:
-                self._find(item, what, matches)
-
-        return matches
-
-    def patch_zarr(self, zarr_attributes, metadata):
-
-        matches = self._find(metadata, zarr_attributes)
-        assert len(matches) > 0
-
-        # If we have multiple matches, we will
-        # handle them in the next iteration
-        zarr_attributes = matches[0]
-
-        uuid = zarr_attributes["uuid"]
-
-        for key in ("constants", "variables_metadata"):
-
-            entry = self._fetch(uuid)
-            if key in entry["metadata"]:
-                zarr_attributes[key] = entry["metadata"][key]
-            else:
-                LOG.warning(f"No '{key}' found for dataset '{uuid}'")
-
-        return metadata
-
-    def _fetch(self, uuid):
-        from anemoi.registry import Dataset
-        from anemoi.registry.entry.dataset import DatasetCatalogueEntryList
-
-        if uuid in self._cache:
-            return self._cache[uuid]
-
-        LOG.info(f"Fetching metadata for dataset uuid {uuid}")
-
-        match = None
-        for e in DatasetCatalogueEntryList().get(params={"uuid": uuid}):
-            if match:
-                raise ValueError(f"Multiple entries found for uuid {uuid}")
-            match = e
-
-        if match is None:
-            raise ValueError(f"No entry found for uuid {uuid}")
-
-        name = match["name"]
-        LOG.info(f"Dataset is '{name}'")
-        LOG.info(f"https://anemoi.ecmwf.int/datasets/{name}")
-        entry = Dataset(name)
-
-        self._cache[uuid] = entry.record
-        return self._cache[uuid]
-
-    def _uuid_to_name(self, uuid):
-        entry = self._fetch(uuid)
-        return entry["name"]
 
 
 command = PatchCmd
