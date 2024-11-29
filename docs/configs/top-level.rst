@@ -57,7 +57,7 @@ write_initial_state:
 
 The ``write_initial_state`` option specifies whether to write the
 initial state to the output (i.e. "step zero" of the forecast). Default
-is ``true``.
+is ``false``.
 
 allow_nans:
 ===========
