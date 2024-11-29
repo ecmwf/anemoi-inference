@@ -30,6 +30,7 @@ Keep it human-readable, your future self will thank you!
 - Update copyright notice
 - Fix `__version__` import in init
 - use earthkit-data 0.11.2
+- Fix SimpleRunner
 
 ### Removed
 
