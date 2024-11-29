@@ -31,7 +31,7 @@ class Output(ABC):
     def reduce(self, state):
         """Creates new state which is projection of original state on the last step in the multi-steps dimension."""
         reduced_state = state.copy()
-        reduced_state['fields'] = {}
+        reduced_state["fields"] = {}
         for field, values in state["fields"].items():
             reduced_state["fields"][field] = values[-1, :]
         return reduced_state
