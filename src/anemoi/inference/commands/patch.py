@@ -16,19 +16,6 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
-def _same_supporting_arrays(a, b):
-    import numpy as np
-
-    if set(a) != set(b):
-        return False
-
-    for k, v in a.items():
-        if np.any(v != b[k]):
-            return False
-
-    return True
-
-
 class PatchCmd(Command):
     """Patch a checkpoint file."""
 
@@ -37,6 +24,7 @@ class PatchCmd(Command):
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
+        command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
 
     def run(self, args):
         from anemoi.utils.checkpoints import load_metadata

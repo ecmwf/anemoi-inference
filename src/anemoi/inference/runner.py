@@ -165,6 +165,15 @@ class Runner(Context):
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
+        if "latitudes" not in input_state:
+            input_state["latitudes"] = self.checkpoint.latitudes
+
+        if "longitudes" not in input_state:
+            input_state["longitudes"] = self.checkpoint.longitudes
+
+        if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
+            raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
+
         typed_variables = self.checkpoint.typed_variables
 
         for name in input_state["fields"]:
