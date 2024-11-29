@@ -145,9 +145,6 @@ class Runner(Context):
         # TODO: Check for user provided forcings
 
         for source in self.constant_forcings_inputs:
-            if source is None:
-                # When the constants are already in the input state
-                continue
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings(input_state, dates)
             for name, forcing in zip(source.variables, arrays):
@@ -362,6 +359,7 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
+
             forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension

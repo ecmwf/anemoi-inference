@@ -629,12 +629,11 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
 
-        result.append(
-            context.create_constant_coupled_forcings(
-                remaining,
-                remaining_mask,
-            )
-        )
+        forcing = context.create_constant_coupled_forcings(remaining, remaining_mask)
+
+        if forcing is not None:
+            # SimpleRunner does not support dynamic forcings
+            result.append(forcing)
 
         return result
 
@@ -676,12 +675,12 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
 
-        result.append(
-            context.create_dynamic_coupled_forcings(
-                remaining,
-                remaining_mask,
-            )
-        )
+        forcing = context.create_dynamic_coupled_forcings(remaining, remaining_mask)
+
+        if forcing is not None:
+            # SimpleRunner does not support dynamic forcings
+            result.append(forcing)
+
         return result
 
     def boundary_forcings_inputs(self, context, input_state):
