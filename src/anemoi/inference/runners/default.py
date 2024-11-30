@@ -65,12 +65,12 @@ class DefaultRunner(Runner):
     def create_constant_computed_forcings(self, variables, mask):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
-        return result
+        return [result]
 
     def create_dynamic_computed_forcings(self, variables, mask):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
-        return result
+        return [result]
 
     # Coupled forcings
     # TODO: Connect them to the Input if needed
@@ -94,18 +94,16 @@ class DefaultRunner(Runner):
         input = create_input(self, self._input_forcings("constant"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
-        return result
+        return [result]
 
     def create_dynamic_coupled_forcings(self, variables, mask):
-
         input = create_input(self, self._input_forcings("dynamic"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
-        return result
+        return [result]
 
     def create_boundary_forcings(self, variables, mask):
-
         input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
-        return result
+        return [result]
