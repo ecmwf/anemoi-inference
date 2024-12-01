@@ -27,9 +27,9 @@ class TaskWrapper:
         self.error = None
         self.name = task.name
 
-    def run(self, transport, wrapper):
+    def run(self, transport):
         try:
-            wrapper.task.run(transport)
+            self.task.run(transport)
         except Exception as e:
             LOG.exception(e)
             self.error = e
@@ -48,11 +48,11 @@ class ThreadsTransport(Transport):
         self.lock = threading.Lock()
         self.backlogs = {name: {} for name in tasks}
 
-    def start(self, tasks):
-        self.tasks = {name: TaskWrapper(task) for name, task in tasks.items()}
+    def start(self):
+        self.wrapped_tasks = {name: TaskWrapper(task) for name, task in self.tasks.items()}
 
-        for name, task in self.tasks.items():
-            self.threads[name] = threading.Thread(target=task.run, args=(self, task))
+        for name, wrapped_task in self.wrapped_tasks.items():
+            self.threads[name] = threading.Thread(target=wrapped_task.run, args=(self,))
             self.threads[name].start()
 
     def wait(self):
@@ -60,14 +60,14 @@ class ThreadsTransport(Transport):
             thread.join()
             LOG.info(f"Thread `{name}` finished")
 
-        for name, task in self.tasks.items():
-            if task.error:
-                raise task.error
+        for name, wrapped_task in self.wrapped_tasks.items():
+            if wrapped_task.error:
+                raise wrapped_task.error
 
     def send(self, sender, tensor, target, tag):
         assert sender.name != target.name, f"Cannot send to self {sender}"
         LOG.info(f"{sender}: sending to {target} {tag}")
-        self.tasks[target.name].queue.put((sender.name, tensor, tag))
+        self.wrapped_tasks[target.name].queue.put((sender.name, tensor, tag))
         LOG.info(f"{sender}: sent to {target} {tag}")
 
     def receive(self, receiver, tensor, source, tag):
@@ -82,7 +82,7 @@ class ThreadsTransport(Transport):
             return
 
         while True:
-            (sender, data, tag) = self.tasks[receiver.name].queue.get()
+            (sender, data, tag) = self.wrapped_tasks[receiver.name].queue.get()
             if sender != source.name or tag != tag:
                 with self.lock:
                     self.backlogs[receiver.name][(sender, tag)] = data

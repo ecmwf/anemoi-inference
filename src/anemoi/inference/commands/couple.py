@@ -38,7 +38,7 @@ class CoupleCmd(Command):
         transport = create_transport(config["transport"], config["couplings"], tasks)
         LOG.info("Transport: %s", transport)
 
-        transport.start(tasks)
+        transport.start()
         transport.wait()
 
 
