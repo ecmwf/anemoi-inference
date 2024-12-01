@@ -20,39 +20,6 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
-class Coupling:
-    """_summary_"""
-
-    def __init__(self, source, sidx, target, tidx):
-        self.source = source
-        self.sidx = sidx
-        self.target = target
-        self.tidx = tidx
-
-    def __str__(self):
-        return f"{self.source}:{self.sidx}->{self.target}:{self.tidx}"
-
-
-class CouplingSend(Coupling):
-    """_summary_"""
-
-    def apply(self, task, transport, tensor, tag):
-        # print(f"{RANK}: sending {self} {tag}")
-        # COMM.Send(tensor[self.sidx], dest=self.target.rank, tag=tag)
-        # print(f"{RANK}: sent from {self}  {tag}")
-        transport.send(task, tensor[self.sidx], self.target, tag)
-
-
-class CouplingRecv(Coupling):
-    """_summary_"""
-
-    def apply(self, task, transport, tensor, tag):
-        # print(f"{RANK}: receiving {self}  {tag}")
-        # COMM.Recv(tensor[self.tidx], source=self.source.rank, tag=tag)
-        # print(f"{RANK}: received {self}  {tag}")
-        transport.receive(task, tensor[self.tidx], self.source, tag)
-
-
 class CoupleCmd(Command):
     """Inspect the contents of a checkpoint file."""
 
@@ -68,31 +35,7 @@ class CoupleCmd(Command):
         for task in tasks.values():
             LOG.info("Task: %s", task)
 
-        couplings = []
-        for coupling in config["couplings"]:
-            source, target = coupling.split("->")
-            source, sidx = source.strip().split(":")
-            target, tidx = target.strip().split(":")
-
-            couplings.append(
-                CouplingSend(
-                    tasks[source],
-                    int(sidx),
-                    tasks[target],
-                    int(tidx),
-                )
-            )
-
-            couplings.append(
-                CouplingRecv(
-                    tasks[source],
-                    int(sidx),
-                    tasks[target],
-                    int(tidx),
-                )
-            )
-
-        transport = create_transport(config["transport"], couplings)
+        transport = create_transport(config["transport"], config["couplings"], tasks)
         LOG.info("Transport: %s", transport)
 
         transport.start(tasks)

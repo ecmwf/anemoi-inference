@@ -25,6 +25,7 @@ class TaskWrapper:
         self.task = task
         self.queue = queue.Queue()
         self.error = None
+        self.name = task.name
 
     def run(self, transport, wrapper):
         try:
@@ -33,13 +34,16 @@ class TaskWrapper:
             LOG.exception(e)
             self.error = e
 
+    def __repr__(self) -> str:
+        return repr(self.task)
+
 
 @transport_registry.register("threads")
 class ThreadsTransport(Transport):
     """_summary_"""
 
-    def __init__(self, couplings, *args, **kwargs):
-        super().__init__(couplings)
+    def __init__(self, couplings, tasks, *args, **kwargs):
+        super().__init__(couplings, tasks)
         self.threads = {}
         self.backlog = {}
 
@@ -66,11 +70,13 @@ class ThreadsTransport(Transport):
                 raise task.error
 
     def send(self, sender, tensor, target, tag):
+        assert sender.name != target.name, f"Cannot send to self {sender}"
         LOG.info(f"{sender}: sending to {target} {tag}")
         self.tasks[target.name].queue.put((sender.name, tensor, tag))
         LOG.info(f"{sender}: sent to {target} {tag}")
 
     def receive(self, receiver, tensor, source, tag):
+        assert receiver.name != source.name, f"Cannot receive from self {receiver}"
         LOG.info(f"{receiver}: receiving from {source} {tag}")
         # Check in backlog
 

@@ -25,7 +25,10 @@ class DebugTask(Task):
 
     def run(self, transport):
         LOG.info("Running task %s", self.name)
-        couplings = transport.couplings(self.name)
+        couplings = transport.couplings(self)
+
+        for c in couplings:
+            LOG.info("%s: coupling: %s", self, c)
 
         tensor = np.zeros(shape=(10, 10))
         for i in range(10):
