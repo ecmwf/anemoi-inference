@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 
 from ..config import load_config
-from ..runners.simple import SimpleRunner
+from ..runners.default import DefaultRunner
 from . import Command
 
 LOG = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class RunCmd(Command):
 
         config = load_config(args.config, args.overrides)
 
-        runner = SimpleRunner(config)
+        runner = DefaultRunner(config)
 
         input = runner.create_input()
         output = runner.create_output()

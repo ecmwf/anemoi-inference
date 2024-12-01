@@ -35,7 +35,7 @@ class Checkpoint:
         try:
             return Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
-            LOG.warning("Version for not support `supporting_arrays` (%s)", e)
+            LOG.warning("Version does not support `supporting_arrays` (%s)", e)
             return Metadata(load_metadata(self.path))
 
     ###########################################################################
