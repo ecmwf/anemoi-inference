@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 
 from ..config import load_config
-from ..runners.default import DefaultRunner
+from ..runners.simple import SimpleRunner
 from . import Command
 
 LOG = logging.getLogger(__name__)
@@ -20,8 +20,6 @@ LOG = logging.getLogger(__name__)
 
 class RunCmd(Command):
     """Inspect the contents of a checkpoint file."""
-
-    need_logging = False
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("config", help="Path to config file.")
@@ -31,7 +29,7 @@ class RunCmd(Command):
 
         config = load_config(args.config, args.overrides)
 
-        runner = DefaultRunner(config)
+        runner = SimpleRunner(config)
 
         input = runner.create_input()
         output = runner.create_output()

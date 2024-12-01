@@ -39,7 +39,7 @@ class MultiInput(Input):
                 self.inputs[v] = input
 
     def __repr__(self):
-        return f"MultiInput({self.context.checkpoint.grid})"
+        return f"MultiInput({self._input_per_id.values()})"
 
     def create_input_state(self, *, date):
         raise NotImplementedError("MultiInput.create_input_state() not implemented")

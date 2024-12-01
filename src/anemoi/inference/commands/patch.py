@@ -32,7 +32,6 @@ def _same_supporting_arrays(a, b):
 class PatchCmd(Command):
     """Patch a checkpoint file."""
 
-    need_logging = True
     _cache = {}
 
     def add_arguments(self, command_parser):

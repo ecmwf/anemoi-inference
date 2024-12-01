@@ -21,8 +21,6 @@ from . import Command
 class RetrieveCmd(Command):
     """Used by prepml."""
 
-    need_logging = False
-
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
