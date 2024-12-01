@@ -41,8 +41,7 @@ class CoupledInput:
         self.couplings = couplings
 
     def load_forcings(self, variables, dates):
-        # self.transport.receive(self.task, data)
-        pass
+        return self.transport.rpc(self.task, "load_forcings", variables, dates)
 
 
 @task_registry.register("runner")

@@ -20,10 +20,10 @@ LOG = logging.getLogger(__name__)
 class MPITransport(Transport):
     """_summary_"""
 
-    def __init__(self, couplings, tasks, *args, **kwargs):
+    def __init__(self, couplings, rpcs, tasks, *args, **kwargs):
         from mpi4py import MPI
 
-        super().__init__(couplings, tasks)
+        super().__init__(couplings, rpcs, tasks)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
@@ -44,13 +44,13 @@ class MPITransport(Transport):
     def wait(self):
         self.comm.barrier()
 
-    def send(self, sender, tensor, target, tag):
+    def send_array(self, sender, tensor, target, tag):
         assert sender.name != target.name, f"Cannot send to self {sender}"
         LOG.info(f"{sender}: sending to {target} {tag}")
         self.comm.Send(tensor, dest=self.ranks[target.name], tag=tag)
         LOG.info(f"{sender}: sent to {target} {tag}")
 
-    def receive(self, receiver, tensor, source, tag):
+    def receive_array(self, receiver, tensor, source, tag):
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
         LOG.info(f"{receiver}: receiving from {source} {tag}")
         self.comm.Recv(tensor, source=self.ranks[source.name], tag=tag)

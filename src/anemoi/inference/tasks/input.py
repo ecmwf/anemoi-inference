@@ -20,5 +20,17 @@ LOG = logging.getLogger(__name__)
 class InputTask(Task):
     """_summary_"""
 
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self, name, **kwargs):
+        super().__init__(name)
+        self.kwargs = kwargs
+
+    def run(self, transport):
+        transport.dispatch(
+            self,
+            {
+                "load_forcings": self.load_forcings,
+            },
+        )
+
+    def load_forcings(self, variables, dates):
+        assert False, (variables, dates)

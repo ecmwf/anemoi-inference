@@ -29,21 +29,22 @@ class CouplingSend(Coupling):
     """_summary_"""
 
     def apply(self, task, transport, tensor, tag):
-        transport.send(task, tensor[self.sidx], self.target, tag)
+        transport.send_array(task, tensor[self.sidx], self.target, tag)
 
 
 class CouplingRecv(Coupling):
     """_summary_"""
 
     def apply(self, task, transport, tensor, tag):
-        transport.receive(task, tensor[self.tidx], self.source, tag)
+        transport.receive_array(task, tensor[self.tidx], self.source, tag)
 
 
 class Transport(ABC):
     """_summary_"""
 
-    def __init__(self, couplings, tasks):
+    def __init__(self, couplings, rpcs, tasks):
         self._couplings = couplings
+        self.rpcs = rpcs
         self.tasks = tasks
 
     def __repr__(self) -> str:
@@ -79,11 +80,11 @@ class Transport(ABC):
         return couplings
 
     # @abstractmethod
-    # def send(self, data, destination):
+    # def send_array(self, data, destination):
     #     """_summary_"""
     #     pass
 
     # @abstractmethod
-    # def receive(self, source):
+    # def receive_array(self, source):
     #     """_summary_"""
     #     pass

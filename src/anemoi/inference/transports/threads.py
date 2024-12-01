@@ -42,8 +42,8 @@ class TaskWrapper:
 class ThreadsTransport(Transport):
     """_summary_"""
 
-    def __init__(self, couplings, tasks, *args, **kwargs):
-        super().__init__(couplings, tasks)
+    def __init__(self, couplings, rpcs, tasks, *args, **kwargs):
+        super().__init__(couplings, rpcs, tasks)
         self.threads = {}
         self.lock = threading.Lock()
         self.backlogs = {name: {} for name in tasks}
@@ -64,13 +64,13 @@ class ThreadsTransport(Transport):
             if wrapped_task.error:
                 raise wrapped_task.error
 
-    def send(self, sender, tensor, target, tag):
+    def send_array(self, sender, tensor, target, tag):
         assert sender.name != target.name, f"Cannot send to self {sender}"
         LOG.info(f"{sender}: sending to {target} {tag}")
         self.wrapped_tasks[target.name].queue.put((sender.name, tensor, tag))
         LOG.info(f"{sender}: sent to {target} {tag}")
 
-    def receive(self, receiver, tensor, source, tag):
+    def receive_array(self, receiver, tensor, source, tag):
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
         LOG.info(f"{receiver}: receiving from {source} {tag} (backlog: {len(self.backlogs[receiver.name])})")
 

@@ -12,5 +12,5 @@ from anemoi.utils.registry import Registry
 transport_registry = Registry(__name__)
 
 
-def create_transport(config, couplings, tasks):
-    return transport_registry.from_config(config, couplings, tasks)
+def create_transport(config, couplings, rpcs, tasks):
+    return transport_registry.from_config(config, couplings, rpcs, tasks)
