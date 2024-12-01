@@ -73,9 +73,7 @@ class ProcessesTransport(Transport):
 
     def send(self, sender, tensor, target, tag):
         assert sender.name != target.name, f"Cannot send to self {sender}"
-        # Find the pipe
         _, write_fd = self.pipes[(sender.name, target.name)]
-        # Write the data
 
         header = np.array([tag, tensor.size * tensor.itemsize], dtype=np.uint64)
 
@@ -85,8 +83,9 @@ class ProcessesTransport(Transport):
     def receive(self, receiver, tensor, source, tag):
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
         tag = np.uint64(tag)
-        # Find
+
         read_fd, _ = self.pipes[(source.name, receiver.name)]
+
         # Read the data
         header = os.read(read_fd, np.dtype(np.uint64).itemsize * 2)
         header = np.frombuffer(header, dtype=np.uint64)
