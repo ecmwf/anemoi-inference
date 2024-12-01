@@ -23,7 +23,7 @@ class TaskWrapper:
 
     def __init__(self, task):
         self.task = task
-        self.queue = queue.Queue()
+        self.queue = queue.Queue(maxsize=1)
         self.error = None
         self.name = task.name
 
@@ -45,19 +45,14 @@ class ThreadsTransport(Transport):
     def __init__(self, couplings, tasks, *args, **kwargs):
         super().__init__(couplings, tasks)
         self.threads = {}
-        self.backlog = {}
+        self.lock = threading.Lock()
+        self.backlogs = {name: {} for name in tasks}
 
     def start(self, tasks):
         self.tasks = {name: TaskWrapper(task) for name, task in tasks.items()}
 
         for name, task in self.tasks.items():
-            self.threads[name] = threading.Thread(
-                target=task.run,
-                args=(
-                    self,
-                    task,
-                ),
-            )
+            self.threads[name] = threading.Thread(target=task.run, args=(self, task))
             self.threads[name].start()
 
     def wait(self):
@@ -77,18 +72,20 @@ class ThreadsTransport(Transport):
 
     def receive(self, receiver, tensor, source, tag):
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
-        LOG.info(f"{receiver}: receiving from {source} {tag}")
-        # Check in backlog
+        LOG.info(f"{receiver}: receiving from {source} {tag} (backlog: {len(self.backlogs[receiver.name])})")
 
-        if (source.name, tag) in self.backlog:
-            tensor[:] = self.backlog.pop((source.name, tag))
+        if (source.name, tag) in self.backlogs[receiver.name]:
+            with self.lock:
+                data = self.backlogs[receiver.name].pop((source.name, tag))
+            tensor[:] = data
             LOG.info(f"{receiver}: received from {source} {tag} (from backlog)")
             return
 
         while True:
             (sender, data, tag) = self.tasks[receiver.name].queue.get()
             if sender != source.name or tag != tag:
-                self.backlog[(sender, tag)] = data
+                with self.lock:
+                    self.backlogs[receiver.name][(sender, tag)] = data
                 continue
 
             tensor[:] = data
