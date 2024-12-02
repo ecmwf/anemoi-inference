@@ -68,7 +68,7 @@ class Configuration(BaseModel):
     use_grib_paramid: bool = False
     """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
-    write_initial_state: bool = False
+    write_initial_state: bool = True
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written."""
 
