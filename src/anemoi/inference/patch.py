@@ -101,7 +101,7 @@ class PatchMixin:
 
         # Update the metadata
         for k, v in metadata.items():
-            if k not in dataset or not dataset[k]:
+            if k not in dataset:
                 LOG.info("Updating metadata key `%s` with value `%s`", k, v)
                 dataset[k] = v
 
