@@ -100,6 +100,7 @@ class ProcessesTransport(Transport):
         header = np.frombuffer(header, dtype=np.uint64)
         assert tag == header[0]
         size = header[1]
+        LOG.info(f"{receiver}: receiving from {source} {tag} {size} {tensor.size * tensor.itemsize} {tensor.shape}")
         tensor[:] = np.ndarray(buffer=os.read(read_fd, size), dtype=tensor.dtype, shape=tensor.shape)
         LOG.info(f"{receiver}: received from {source} {tag}")
 

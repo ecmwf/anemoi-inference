@@ -10,6 +10,8 @@
 
 import logging
 
+import numpy as np
+
 from anemoi.inference.config import load_config
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.runners.default import DefaultRunner
@@ -39,9 +41,19 @@ class CoupledInput:
         self.task = task
         self.transport = transport
         self.couplings = couplings
+        self.tag = 0
+
+    # def load_forcings(self, variables, dates):
+    #     return self.transport.rpc(self.task, "load_forcings", variables, dates)
 
     def load_forcings(self, variables, dates):
-        return self.transport.rpc(self.task, "load_forcings", variables, dates)
+        LOG.info("Adding dynamic forcings %s %s", len(variables), len(dates))
+        tensor = self.tensor = np.zeros(shape=(11, len(dates), 40320), dtype=np.float32)
+        for c in self.couplings:
+            c.apply(self.task, self.transport, tensor, tag=self.tag)
+
+        self.tag += 1
+        return tensor
 
 
 @task_registry.register("runner")

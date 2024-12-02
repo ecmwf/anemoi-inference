@@ -86,18 +86,19 @@ def retrieve(requests, grid, area, **kwargs):
     result = ekd.from_source("empty")
     for r in requests:
 
+        r.update(pproc)
+        r.update(kwargs)
+
         if (
-            r.get("class") == "od"
+            r.get("class", "od") == "od"
             and r.get("type") == "fc"
             and r.get("stream") == "oper"
             and r["time"] in ("0600", "1800")
         ):
+
             r["stream"] = "scda"
 
-        r.update(pproc)
-        r.update(kwargs)
-
-        LOG.debug("%s", _(r))
+        LOG.info("MarsInput: REQUEST  %r", r)
 
         result += ekd.from_source("mars", r)
 

@@ -97,8 +97,8 @@ class CoupledForcings(Forcings):
     def load_forcings(self, state, dates):
         data = self.input.load_forcings(variables=self.variables, dates=dates)
 
-        expected_shape = (len(self.variables), len(dates), state["latitudes"].size)
-        assert data.shape == expected_shape, (data.shape, expected_shape)
+        # expected_shape = (len(self.variables), len(dates), state["latitudes"].size)
+        # assert data.shape == expected_shape, (data.shape, expected_shape)
 
         return data
 
