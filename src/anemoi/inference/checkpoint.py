@@ -124,6 +124,11 @@ class Checkpoint:
     def report_error(self):
         self._metadata.report_error()
 
+    def validate_environment(self, *, all_packages, on_difference, exempt_packages):
+        return self._metadata.validate_environment(
+            all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+        )
+
     def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
         return self._metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
