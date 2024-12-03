@@ -16,6 +16,7 @@ Keep it human-readable, your future self will thank you!
 - Add anemoi-transform link to documentation
 - Add support for unstructured grids
 - Add CONTRIBUTORS.md file (#36)
+- Add sanetise command
 
 ### Changed
 - Change `write_initial_state` default value to `true`

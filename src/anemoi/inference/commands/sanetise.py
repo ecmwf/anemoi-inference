@@ -16,41 +16,27 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
-class PatchCmd(Command):
-    """Patch a checkpoint file."""
-
-    need_logging = True
-    _cache = {}
+class SanatiseCmd(Command):
+    """Sanetise a checkpoint file."""
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
-        command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
-        command_parser.add_argument("--force", action="store_true", help="Force the patching.")
 
     def run(self, args):
         from anemoi.utils.checkpoints import load_metadata
-        from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata
-
-        from anemoi.inference.metadata import Metadata
-
-        root = metadata_root(args.path)
+        from anemoi.utils.sanitise import sanitise
 
         original_metadata, supporting_arrays = load_metadata(args.path, supporting_arrays=True)
         metadata = deepcopy(original_metadata)
-
-        # Patch the metadata
-        while True:
-            previous = deepcopy(metadata)
-            metadata, supporting_arrays = Metadata(metadata).patch_metadata(supporting_arrays, root, force=args.force)
-            if metadata == previous:
-                break
-            LOG.info("Metadata patched")
+        metadata = sanitise(metadata)
 
         if metadata != original_metadata:
             LOG.info("Patching metadata")
             assert "sources" in metadata["dataset"]
             replace_metadata(args.path, metadata, supporting_arrays)
+        else:
+            LOG.info("Metadata is already sanitised")
 
 
-command = PatchCmd
+command = SanatiseCmd
