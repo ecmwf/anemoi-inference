@@ -13,6 +13,7 @@ import os
 import warnings
 from collections import defaultdict
 from functools import cached_property
+from types import MappingProxyType as frozendict
 from typing import Literal
 
 import numpy as np
@@ -35,15 +36,6 @@ def _remove_full_paths(x):
     if isinstance(x, str):
         return os.path.splitext(os.path.basename(x))[0]
     return x
-
-
-class frozendict(dict):
-    def __deepcopy__(self, memo):
-        # As this is a frozendict, we can return the same object
-        return self
-
-    def __setitem__(self, key, value):
-        raise TypeError("frozendict is immutable")
 
 
 class Metadata(PatchMixin, LegacyMixin):
