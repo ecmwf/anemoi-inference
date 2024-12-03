@@ -41,7 +41,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>=0.1",
-  "anemoi-utils[text]>=0.4.9",
+  "anemoi-utils[text,provenance]>=0.4.9",
   "aniso8601",
   "anytree",
   "earthkit-data>=0.11.2",

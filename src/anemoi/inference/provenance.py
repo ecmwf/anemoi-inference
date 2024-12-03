@@ -39,7 +39,7 @@ LOG = logging.getLogger(__name__)
 
 
 def validate_environment(
-    metadata: Metadata,
+    metadata: "Metadata",
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore"] = "warn",

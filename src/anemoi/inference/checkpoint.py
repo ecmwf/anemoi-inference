@@ -124,7 +124,13 @@ class Checkpoint:
     def report_error(self):
         self._metadata.report_error()
 
-    def validate_environment(self, *, all_packages, on_difference, exempt_packages):
+    def validate_environment(
+        self,
+        *,
+        all_packages: bool = False,
+        on_difference: str = "warn",
+        exempt_packages: list[str] | None = None,
+    ) -> bool:
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
