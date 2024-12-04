@@ -296,6 +296,10 @@ class Runner(Context):
 
             yield result
 
+            # No need to prepare next input tensor if we are at the last step
+            if s == steps - 1:
+                continue
+
             # Update  tensor for next iteration
 
             check[:] = reset
