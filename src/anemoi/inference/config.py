@@ -25,6 +25,8 @@ class Configuration(BaseModel):
     class Config:
         extra = "forbid"
 
+    description: str | None = None
+
     checkpoint: str
     """A path an Anemoi checkpoint file."""
 
@@ -81,12 +83,23 @@ class Configuration(BaseModel):
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
 
 
-def load_config(path, overrides, Configuration=Configuration):
+def load_config(path, overrides, defaults=None, Configuration=Configuration):
+
+    config = {}
+
+    # Set default values
+    if defaults is not None:
+        if not isinstance(defaults, list):
+            defaults = [defaults]
+        for d in defaults:
+            if isinstance(d, str):
+                with open(d) as f:
+                    d = yaml.safe_load(f)
+            config.update(d)
 
     # Load the configuration
-
     with open(path) as f:
-        config = yaml.safe_load(f)
+        config.update(yaml.safe_load(f))
 
     # Apply overrides
     for override in overrides:
@@ -97,7 +110,7 @@ def load_config(path, overrides, Configuration=Configuration):
             path = path.setdefault(key, {})
         path[keys[-1]] = value
 
-    # Load the configuration
+    # Validate the configuration
     config = Configuration(**config)
 
     # Set environment variables found in the configuration

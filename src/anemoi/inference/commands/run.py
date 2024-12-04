@@ -24,12 +24,16 @@ class RunCmd(Command):
     need_logging = False
 
     def add_arguments(self, command_parser):
+        command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("config", help="Path to config file.")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
 
-        config = load_config(args.config, args.overrides)
+        config = load_config(args.config, args.overrides, defaults=args.defaults)
+
+        if config.description is not None:
+            LOG.info("%s", config.description)
 
         runner = DefaultRunner(config)
 
