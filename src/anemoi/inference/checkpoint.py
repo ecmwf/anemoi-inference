@@ -24,8 +24,9 @@ LOG = logging.getLogger(__name__)
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path):
+    def __init__(self, path, *, patch_metadata=None):
         self.path = path
+        self.patch_metadata = patch_metadata
 
     def __repr__(self):
         return f"Checkpoint({self.path})"
@@ -33,10 +34,16 @@ class Checkpoint:
     @cached_property
     def _metadata(self):
         try:
-            return Metadata(*load_metadata(self.path, supporting_arrays=True))
+            result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
             LOG.warning("Version for not support `supporting_arrays` (%s)", e)
-            return Metadata(load_metadata(self.path))
+            result= Metadata(load_metadata(self.path))
+
+        if self.patch_metadata:
+            LOG.warning("Patching metadata with %r", self.patch_metadata)
+            result.patch(self.patch_metadata)
+
+        return result
 
     ###########################################################################
     # Forwards used by the runner

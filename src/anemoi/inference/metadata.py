@@ -836,6 +836,31 @@ class Metadata(PatchMixin, LegacyMixin):
             LOG.info(f"   {name:{length}} => {', '.join(categories)}")
 
 
+    ###########################################################################
+
+    def patch(self, patch):
+        """Patch the metadata with the given patch"""
+
+        def merge(main, patch):
+
+            for k, v in patch.items():
+                if isinstance(v, dict):
+                    if k not in main:
+                        main[k] = {}
+                    merge(main[k], v)
+                else:
+                    main[k] = v
+
+        merge(self._metadata, patch)
+
+
+
+
+
+
+
+
+
 class SourceMetadata(Metadata):
     """An object that holds metadata of a source. It is only the `dataset` and `supporting_arrays` parts of the metadata.
     The rest is forwarded to the parent metadata object.
