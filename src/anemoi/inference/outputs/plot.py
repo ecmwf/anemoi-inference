@@ -49,7 +49,8 @@ class PlotOutput(Output):
                 self.variables = [self.variables]
 
     def write_initial_state(self, state):
-        self.write_state(state)
+        reduced_state = self.reduce(state)
+        self.write_state(reduced_state)
 
     def write_state(self, state):
         import cartopy.crs as ccrs
@@ -65,9 +66,6 @@ class PlotOutput(Output):
 
             if self.variables is not all and name not in self.variables:
                 continue
-
-            if values.ndim == 2:
-                values = values[-1]
 
             _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
             ax.coastlines()

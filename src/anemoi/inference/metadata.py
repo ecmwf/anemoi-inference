@@ -13,11 +13,13 @@ import os
 import warnings
 from collections import defaultdict
 from functools import cached_property
+from typing import Literal
 
 import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.provenance import gather_provenance_info
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
@@ -439,7 +441,6 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     def report_error(self):
-        from anemoi.utils.provenance import gather_provenance_info
 
         provenance = self._metadata.provenance_training
 
@@ -460,6 +461,43 @@ class Metadata(PatchMixin, LegacyMixin):
 
         LOG.warning("If you are running from a git repository, the versions reported above may not be accurate.")
         LOG.warning("The versions are only updated after a `pip install -e .`")
+
+    def validate_environment(
+        self,
+        *,
+        all_packages: bool = False,
+        on_difference: Literal["warn", "error", "ignore"] = "warn",
+        exempt_packages: list[str] | None = None,
+    ) -> bool:
+        """
+        Validate environment of the checkpoint against the current environment.
+
+        Parameters
+        ----------
+        all_packages : bool, optional
+            Check all packages in environment or just `anemoi`'s, by default False
+        on_difference : Literal['warn', 'error', 'ignore'], optional
+            What to do on difference, by default "warn"
+        exempt_packages : list[str], optional
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES
+
+        Returns
+        -------
+        bool
+            True if environment is valid, False otherwise
+
+        Raises
+        ------
+        RuntimeError
+            If found difference and `on_difference` is 'error'
+        ValueError
+            If `on_difference` is not 'warn' or 'error'
+        """
+        from anemoi.inference.provenance import validate_environment
+
+        return validate_environment(
+            self, all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+        )
 
     ###########################################################################
 
@@ -797,6 +835,23 @@ class Metadata(PatchMixin, LegacyMixin):
         length = max(len(name) for name in self.variables)
         for name, categories in sorted(self.variable_categories().items()):
             LOG.info(f"   {name:{length}} => {', '.join(categories)}")
+
+    ###########################################################################
+
+    def patch(self, patch):
+        """Patch the metadata with the given patch"""
+
+        def merge(main, patch):
+
+            for k, v in patch.items():
+                if isinstance(v, dict):
+                    if k not in main:
+                        main[k] = {}
+                    merge(main[k], v)
+                else:
+                    main[k] = v
+
+        merge(self._metadata, patch)
 
 
 class SourceMetadata(Metadata):

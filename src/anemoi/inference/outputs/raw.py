@@ -24,20 +24,30 @@ LOG = logging.getLogger(__name__)
 class RawOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, path):
+    def __init__(
+        self,
+        context,
+        path,
+        template="{date}.npz",
+        strftime="%Y%m%d%H%M%S",
+    ):
         super().__init__(context)
         self.path = path
+        self.template = template
+        self.strftime = strftime
 
     def __repr__(self):
         return f"RawOutput({self.path})"
 
     def write_initial_state(self, state):
-        self.write_state(state)
+        reduced_state = self.reduce(state)
+        self.write_state(reduced_state)
 
     def write_state(self, state):
         os.makedirs(self.path, exist_ok=True)
-        fn_state = f"{self.path}/{state['date'].strftime('%Y%m%d_%H')}"
+        date = state["date"].strftime(self.strftime)
+        fn_state = f"{self.path}/{self.template.format(date=date)}"
         restate = {f"field_{key}": val for key, val in state["fields"].items()}
-        restate["longitudes"] = state["longitudes"]
-        restate["latitudes"] = state["latitudes"]
+        for key in ["date", "longitudes", "latitudes"]:
+            restate[key] = np.array(state[key], dtype=str)
         np.savez_compressed(fn_state, **restate)

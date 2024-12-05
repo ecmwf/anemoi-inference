@@ -24,8 +24,9 @@ LOG = logging.getLogger(__name__)
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path):
+    def __init__(self, path, *, patch_metadata=None):
         self.path = path
+        self.patch_metadata = patch_metadata
 
     def __repr__(self):
         return f"Checkpoint({self.path})"
@@ -33,10 +34,16 @@ class Checkpoint:
     @cached_property
     def _metadata(self):
         try:
-            return Metadata(*load_metadata(self.path, supporting_arrays=True))
+            result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
-            LOG.warning("Version does not support `supporting_arrays` (%s)", e)
-            return Metadata(load_metadata(self.path))
+            LOG.warning("Version for not support `supporting_arrays` (%s)", e)
+            result = Metadata(load_metadata(self.path))
+
+        if self.patch_metadata:
+            LOG.warning("Patching metadata with %r", self.patch_metadata)
+            result.patch(self.patch_metadata)
+
+        return result
 
     ###########################################################################
     # Forwards used by the runner
@@ -123,6 +130,17 @@ class Checkpoint:
 
     def report_error(self):
         self._metadata.report_error()
+
+    def validate_environment(
+        self,
+        *,
+        all_packages: bool = False,
+        on_difference: str = "warn",
+        exempt_packages: list[str] | None = None,
+    ) -> bool:
+        return self._metadata.validate_environment(
+            all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+        )
 
     def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
         return self._metadata.open_dataset_args_kwargs(

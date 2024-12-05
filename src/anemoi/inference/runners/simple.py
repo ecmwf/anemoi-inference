@@ -52,4 +52,15 @@ class SimpleRunner(Runner):
         return [result]
 
     def create_constant_coupled_forcings(self, variables, mask):
+        # This runner does not support coupled forcings
+        # there are supposed to be already in the state dictionary
+        # of managed by the user.
+        LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
+        return []
+
+    def create_dynamic_coupled_forcings(self, variables, mask):
+        # This runner does not support coupled forcings
+        # there are supposed to be already in the state dictionary
+        # of managed by the user.
+        LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
         return []

@@ -25,6 +25,8 @@ class Configuration(BaseModel):
     class Config:
         extra = "forbid"
 
+    description: str | None = None
+
     checkpoint: str
     """A path an Anemoi checkpoint file."""
 
@@ -68,7 +70,7 @@ class Configuration(BaseModel):
     use_grib_paramid: bool = False
     """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
-    write_initial_state: bool = False
+    write_initial_state: bool = True
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written."""
 
@@ -77,16 +79,31 @@ class Configuration(BaseModel):
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured."""
 
+    patch_metadata: dict = {}
+    """A dictionary of metadata to patch the checkpoint metadata with. This is used to test new features or to work around
+    issues with the checkpoint metadata."""
+
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
 
 
-def load_config(path, overrides, Configuration=Configuration):
+def load_config(path, overrides, defaults=None, Configuration=Configuration):
+
+    config = {}
+
+    # Set default values
+    if defaults is not None:
+        if not isinstance(defaults, list):
+            defaults = [defaults]
+        for d in defaults:
+            if isinstance(d, str):
+                with open(d) as f:
+                    d = yaml.safe_load(f)
+            config.update(d)
 
     # Load the configuration
-
     with open(path) as f:
-        config = yaml.safe_load(f)
+        config.update(yaml.safe_load(f))
 
     # Apply overrides
     for override in overrides:
@@ -97,7 +114,7 @@ def load_config(path, overrides, Configuration=Configuration):
             path = path.setdefault(key, {})
         path[keys[-1]] = value
 
-    # Load the configuration
+    # Validate the configuration
     config = Configuration(**config)
 
     # Set environment variables found in the configuration
