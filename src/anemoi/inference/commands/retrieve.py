@@ -26,6 +26,7 @@ class RetrieveCmd(Command):
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
+        command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
         command_parser.add_argument("--output", type=str, help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
@@ -34,7 +35,7 @@ class RetrieveCmd(Command):
 
     def run(self, args):
 
-        config = load_config(args.config, args.overrides)
+        config = load_config(args.config, args.overrides, defaults=args.defaults)
 
         runner = DefaultRunner(config)
 
