@@ -835,7 +835,6 @@ class Metadata(PatchMixin, LegacyMixin):
         for name, categories in sorted(self.variable_categories().items()):
             LOG.info(f"   {name:{length}} => {', '.join(categories)}")
 
-
     ###########################################################################
 
     def patch(self, patch):
@@ -852,13 +851,6 @@ class Metadata(PatchMixin, LegacyMixin):
                     main[k] = v
 
         merge(self._metadata, patch)
-
-
-
-
-
-
-
 
 
 class SourceMetadata(Metadata):
