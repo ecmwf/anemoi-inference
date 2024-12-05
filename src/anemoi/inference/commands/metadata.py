@@ -58,6 +58,15 @@ class Metadata(Command):
         )
 
         group.add_argument(
+            "--view",
+            action="store_true",
+            help=(
+                "View the metadata in place, using the specified pager."
+                " See the ``--pager`` argument for more information."
+            ),
+        )
+
+        group.add_argument(
             "--remove",
             action="store_true",
             help="Remove the metadata from the checkpoint.",
@@ -92,20 +101,29 @@ class Metadata(Command):
         )
 
         command_parser.add_argument(
+            "--pager",
+            help="Editor to use for the ``--view`` option. Default to ``$PAGER`` if defined, else ``less``.",
+            default=os.environ.get("PAGER", "less"),
+        )
+
+        command_parser.add_argument(
             "--json",
             action="store_true",
-            help="Use the JSON format with ``--dump`` and ``--edit``.",
+            help="Use the JSON format with ``--dump``, ``--view`` and ``--edit``.",
         )
 
         command_parser.add_argument(
             "--yaml",
             action="store_true",
-            help="Use the YAML format with ``--dump`` and ``--edit``.",
+            help="Use the YAML format with ``--dump``, ``--view`` and ``--edit``.",
         )
 
     def run(self, args):
         if args.edit:
             return self.edit(args)
+
+        if args.view:
+            return self.view(args)
 
         if args.remove:
             return self.remove(args)
@@ -120,6 +138,12 @@ class Metadata(Command):
             return self.supporting_arrays(args)
 
     def edit(self, args):
+        return self._edit(args, view=False, cmd=args.editor)
+
+    def view(self, args):
+        return self._edit(args, view=True, cmd=args.pager)
+
+    def _edit(self, args, view, cmd):
 
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import replace_metadata
@@ -143,15 +167,16 @@ class Metadata(Command):
             with open(path, "w") as f:
                 dump(metadata, f, **kwargs)
 
-            subprocess.check_call([args.editor, path])
+            subprocess.check_call([cmd, path])
 
-            with open(path) as f:
-                edited = load(f)
+            if not view:
+                with open(path) as f:
+                    edited = load(f)
 
-            if edited != metadata:
-                replace_metadata(args.path, edited)
-            else:
-                LOG.info("No changes made.")
+                if edited != metadata:
+                    replace_metadata(args.path, edited)
+                else:
+                    LOG.info("No changes made.")
 
     def remove(self, args):
         from anemoi.utils.checkpoints import remove_metadata

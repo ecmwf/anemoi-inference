@@ -164,4 +164,6 @@ class LegacyMixin:
                 if len(checks[c]) > 1:
                     warnings.warn(f"{c} is ambigous: {checks[c]}")
 
+            result = [r for r in result if r["grid"] is not None]
+
         return result[0]

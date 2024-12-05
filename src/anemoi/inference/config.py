@@ -79,6 +79,10 @@ class Configuration(BaseModel):
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured."""
 
+    patch_metadata: dict = {}
+    """A dictionary of metadata to patch the checkpoint metadata with. This is used to test new features or to work around
+    issues with the checkpoint metadata."""
+
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
 

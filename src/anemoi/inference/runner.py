@@ -62,9 +62,10 @@ class Runner(Context):
         use_grib_paramid=False,
         verbosity=0,
         inference_options=None,
+        patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
     ):
-        self._checkpoint = Checkpoint(checkpoint)
+        self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
         self.device = device
         self.precision = precision
