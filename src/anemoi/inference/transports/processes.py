@@ -82,49 +82,15 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
-    def send_state(self, sender, target, *, input_state, variables, constants):
-
-        assert isinstance(input_state, dict)
-
-        assert sender.name != target.name, f"Cannot send to self {sender}"
-        _, write_fd = self.pipes[(sender.name, target.name)]
-
-        fields = input_state["fields"]
-
-        LOG.info(f"{sender}: sending to {target} {variables} {input_state['date']}")
-
-        fields = {v: fields[v] for v in variables if v in fields}
-
-        for v in variables:
-            if v not in fields:
-                # Check in the constants
-                if v in constants:
-                    LOG.warning(f"{sender}: {v} not in fields, using the value from constants")
-                    fields[v] = constants[v]
-                else:
-                    raise ValueError(f"{sender}: Variable {v} not in fields or constants")
-
-        for f, v in fields.items():
-            assert len(v.shape) == 1, f"Expected  got {v.shape}"
-
-        state = input_state.copy()
-        state["fields"] = fields
-
-        # Don't send unnecessary data
-        state["latitudes"] = None
-        state["longitudes"] = None
-        for s in list(state.keys()):
-            if s.startswith("_"):
-                del state[s]
-
+    def send(self, sender, target, state):
         # TODO: something more efficient than pickle
-
+        _, write_fd = self.pipes[(sender.name, target.name)]
         pickle_data = pickle.dumps(state)
 
         os.write(write_fd, struct.pack("!Q", len(pickle_data)))
         os.write(write_fd, pickle_data)
 
-    def receive_state(self, receiver, source, *, output_state, variables):
+    def receive(self, receiver, source):
 
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
 
@@ -136,22 +102,4 @@ class ProcessesTransport(Transport):
         if isinstance(state, Exception):
             raise state
 
-        assert isinstance(state, dict)
-        assert "fields" in state
-        assert isinstance(state["fields"], dict), f"Expected dict got {type(state['fields'])}"
-
-        output_state.setdefault("fields", {})
-
-        fields_in = state["fields"]
-        fields_out = output_state["fields"]
-
-        for v in variables:
-            if v in fields_out:
-                raise ValueError(f"Variable {v} already in output state")
-
-            if v not in fields_in:
-                raise ValueError(f"Variable {v} not in input state")
-
-            fields_out[v] = fields_in[v]
-
-            assert len(fields_out[v].shape) == 1, f"Expected  got {fields_out[v].shape}"
+        return state
