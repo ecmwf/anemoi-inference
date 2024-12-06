@@ -91,9 +91,6 @@ class ProcessesTransport(Transport):
         os.write(write_fd, pickle_data)
 
     def receive(self, receiver, source):
-
-        assert receiver.name != source.name, f"Cannot receive from self {receiver}"
-
         read_fd, _ = self.pipes[(source.name, receiver.name)]
 
         size = struct.unpack("!Q", os.read(read_fd, 8))[0]

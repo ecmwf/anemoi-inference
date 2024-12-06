@@ -64,30 +64,22 @@ class ThreadsTransport(Transport):
             if wrapped_task.error:
                 raise wrapped_task.error
 
-    def send_state(self, sender, tensor, target, tag):
-        assert sender.name != target.name, f"Cannot send to self {sender}"
-        LOG.info(f"{sender}: sending to {target} {tag}")
-        self.wrapped_tasks[target.name].queue.put((sender.name, tensor, tag))
-        LOG.info(f"{sender}: sent to {target} {tag}")
+    def send(self, sender, target, state):
+        self.wrapped_tasks[target.name].queue.put((sender.name, state.copy()))
 
-    def receive_state(self, receiver, tensor, source, tag):
-        assert receiver.name != source.name, f"Cannot receive from self {receiver}"
-        LOG.info(f"{receiver}: receiving from {source} {tag} (backlog: {len(self.backlogs[receiver.name])})")
+    def receive(self, receiver, source):
+        tag = 0
+        LOG.info(f"{receiver}: receiving from {source} (backlog: {len(self.backlogs[receiver.name])})")
 
         if (source.name, tag) in self.backlogs[receiver.name]:
             with self.lock:
-                data = self.backlogs[receiver.name].pop((source.name, tag))
-            tensor[:] = data
-            LOG.info(f"{receiver}: received from {source} {tag} (from backlog)")
-            return
+                return self.backlogs[receiver.name].pop((source.name, tag))
 
         while True:
-            (sender, data, tag) = self.wrapped_tasks[receiver.name].queue.get()
+            (sender, state) = self.wrapped_tasks[receiver.name].queue.get()
             if sender != source.name or tag != tag:
                 with self.lock:
-                    self.backlogs[receiver.name][(sender, tag)] = data
+                    self.backlogs[receiver.name][(sender, tag)] = state
                 continue
 
-            tensor[:] = data
-            LOG.info(f"{receiver}: received from {source} {tag}")
-            break
+            return state
