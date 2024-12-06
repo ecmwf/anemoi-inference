@@ -12,6 +12,8 @@ import logging
 import queue
 import threading
 
+from anemoi.utils.logs import set_logging_name
+
 from ..transport import Transport
 from . import transport_registry
 
@@ -28,6 +30,7 @@ class TaskWrapper:
         self.name = task.name
 
     def run(self, transport):
+        set_logging_name(self.task.name)
         try:
             self.task.run(transport)
         except Exception as e:
@@ -56,6 +59,7 @@ class ThreadsTransport(Transport):
             self.threads[name].start()
 
     def wait(self):
+        # TODO: wait for all threads, and kill remaining threads if any of them failed
         for name, thread in self.threads.items():
             thread.join()
             LOG.info(f"Thread `{name}` finished")

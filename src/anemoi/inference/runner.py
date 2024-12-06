@@ -256,7 +256,7 @@ class Runner(Context):
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
-        torch.set_grad_enabled(False)
+        # torch.set_grad_enabled(False) # Maybe not thread safe.
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)

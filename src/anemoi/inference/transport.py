@@ -9,6 +9,8 @@
 import logging
 from abc import ABC
 
+from anemoi.utils.logs import enable_logging_name
+
 LOG = logging.getLogger(__name__)
 
 
@@ -53,6 +55,7 @@ class Transport(ABC):
     """_summary_"""
 
     def __init__(self, couplings, rpcs, tasks):
+        enable_logging_name("main")
         self._couplings = couplings
         self.rpcs = rpcs
         self.tasks = tasks
