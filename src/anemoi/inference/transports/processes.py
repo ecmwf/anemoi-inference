@@ -11,7 +11,6 @@
 import logging
 import os
 import pickle
-import select
 import struct
 
 from anemoi.utils.logs import enable_logging_name
@@ -83,7 +82,7 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
-    def send_state(self, sender, target, *, input_state, output_state, variables):
+    def send_state(self, sender, target, *, input_state, variables, constants):
 
         assert isinstance(input_state, dict)
 
@@ -92,9 +91,21 @@ class ProcessesTransport(Transport):
 
         fields = input_state["fields"]
 
-        LOG.info(f"{sender}: sending to {target} {variables}")
+        LOG.info(f"{sender}: sending to {target} {variables} {input_state['date']}")
 
         fields = {v: fields[v] for v in variables if v in fields}
+
+        for v in variables:
+            if v not in fields:
+                # Check in the constants
+                if v in constants:
+                    LOG.warning(f"{sender}: {v} not in fields, using the value from constants")
+                    fields[v] = constants[v]
+                else:
+                    raise ValueError(f"{sender}: Variable {v} not in fields or constants")
+
+        for f, v in fields.items():
+            assert len(v.shape) == 1, f"Expected  got {v.shape}"
 
         state = input_state.copy()
         state["fields"] = fields
@@ -113,7 +124,7 @@ class ProcessesTransport(Transport):
         os.write(write_fd, struct.pack("!Q", len(pickle_data)))
         os.write(write_fd, pickle_data)
 
-    def receive_state(self, receiver, source, *, input_state, output_state, variables):
+    def receive_state(self, receiver, source, *, output_state, variables):
 
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
 
@@ -126,7 +137,6 @@ class ProcessesTransport(Transport):
             raise state
 
         assert isinstance(state, dict)
-        assert input_state["date"] == state["date"]
         assert "fields" in state
         assert isinstance(state["fields"], dict), f"Expected dict got {type(state['fields'])}"
 
@@ -144,64 +154,4 @@ class ProcessesTransport(Transport):
 
             fields_out[v] = fields_in[v]
 
-    def rpc(self, sender, proc, *args, **kwargs):
-
-        target = self.rpcs[proc]
-
-        assert sender.name != target, f"Cannot send to self {sender}"
-        _, write_fd = self.pipes[(sender.name, target)]
-        read_fd, _ = self.pipes[(target, sender.name)]
-
-        LOG.info(f"{sender}: sending rpc {proc} to {target} {read_fd} {write_fd}")
-
-        os.write(write_fd, "r".encode())
-        data = pickle.dumps((proc, args, kwargs))
-        os.write(write_fd, struct.pack("!I", len(data)))
-        os.write(write_fd, data)
-
-        code = os.read(read_fd, 1).decode()
-        assert code == "r", f"Expected array got {code}"
-        size = struct.unpack("!I", os.read(read_fd, 4))[0]
-        data = os.read(read_fd, size)
-        result = pickle.loads(data)
-        if isinstance(result, Exception):
-            raise result
-        return result
-
-    def dispatch(self, task, dispatcher):
-        LOG.info(f"{task}: waiting for messages {self.pipes} {task.name}")
-        while True:
-            fds = [fd[0] for (peers, fd) in self.pipes.items() if task.name == peers[1]]
-            remotes = {fd[0]: peers[0] for (peers, fd) in self.pipes.items() if task.name == peers[1]}
-
-            if not fds:
-                LOG.info(f"{task}: no more messages")
-                break
-
-            LOG.info(f"{task}: waiting on {fds}")
-            read_fds, _, _ = select.select(fds, [], [])
-            LOG.info(f"{task}: got message {read_fds}")
-
-            for read_fd in read_fds:
-
-                LOG.info(f"{task}: reading from {read_fd}, remote is {remotes[read_fd]}")
-
-                code = os.read(read_fd, 1).decode()
-                assert code == "r", f"Expected array got {code}"
-                size = struct.unpack("!I", os.read(read_fd, 4))[0]
-                data = os.read(read_fd, size)
-                (proc, args, kwargs) = pickle.loads(data)
-
-                LOG.info(f"{task}: received rpc {proc} {args} {kwargs}")
-
-                try:
-                    result = dispatcher[proc](*args, **kwargs)
-                except Exception as e:
-                    LOG.exception(e)
-                    result = e
-
-                _, write_fd = self.pipes[(task.name, remotes[read_fd])]
-                os.write(write_fd, "r".encode())
-                data = pickle.dumps(result)
-                os.write(write_fd, struct.pack("!I", len(data)))
-                os.write(write_fd, data)
+            assert len(fields_out[v].shape) == 1, f"Expected  got {fields_out[v].shape}"

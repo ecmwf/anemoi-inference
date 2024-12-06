@@ -44,11 +44,20 @@ class Forcings(ABC):
         And that the fields values are sorted by dates.
         """
         fields = state["fields"]
-        result = np.stack([fields[v] for v in variables], axis=0)
-        assert result.shape[:2] == (
-            len(variables),
-            len(dates),
-        ), (result.shape, variables, dates)
+
+        if len(dates) == 1:
+            result = np.stack([fields[v] for v in variables], axis=0)
+            if len(result.shape) == 2:
+                result = result[:, np.newaxis]
+        else:
+            result = np.stack([fields[v] for v in variables], axis=0)
+
+        assert len(result.shape) == 3 and result.shape[0] == len(variables) and result.shape[1] == len(dates), (
+            result.shape,
+            variables,
+            dates,
+        )
+
         return result
 
 
@@ -107,7 +116,11 @@ class CoupledForcings(Forcings):
 
     def load_forcings_array(self, dates, current_state):
         return self._state_to_numpy(
-            self.input.load_forcings_state(variables=self.variables, dates=dates, current_state=current_state),
+            self.input.load_forcings_state(
+                variables=self.variables,
+                dates=dates,
+                current_state=current_state,
+            ),
             self.variables,
             dates,
         )

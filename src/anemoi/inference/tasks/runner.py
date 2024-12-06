@@ -47,18 +47,26 @@ class CoupledInput:
         self.task = task
         self.transport = transport
         self.couplings = couplings
+        self.constants = {}
 
     def load_forcings_state(self, *, variables, dates, current_state):
         LOG.info("Adding dynamic forcings %s %s", variables, dates)
-        state = dict(variables=variables, dates=dates)
+        state = dict(variables=variables, date=dates)
 
         for c in self.couplings:
-            c.apply(self.task, self.transport, input_state=current_state, output_state=state)
+            c.apply(self.task, self.transport, input_state=current_state, output_state=state, constants=self.constants)
 
-        if len(dates) == 1:
-            state["date"] = dates[0]
+        for f, v in state["fields"].items():
+            assert len(v.shape) == 1, (f, v.shape)
+
+        assert state["date"] == dates, (state["date"], dates)
 
         return state
+
+    def initial_state(self, state):
+        # We want to copy the constants that may be requested by the other tasks
+        # For now, we keep it simple and just copy the whole state
+        self.constants = state["fields"].copy()
 
 
 @task_registry.register("runner")
@@ -74,11 +82,13 @@ class RunnerTask(Task):
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 
-        runner = CoupledRunner(self.config, CoupledInput(self, transport, couplings))
+        coupler = CoupledInput(self, transport, couplings)
+        runner = CoupledRunner(self.config, coupler)
         input = runner.create_input()
         output = runner.create_output()
 
         input_state = input.create_input_state(date=self.config.date)
+        coupler.initial_state(output.reduce(input_state))
 
         if self.config.write_initial_state:
             output.write_initial_state(input_state)

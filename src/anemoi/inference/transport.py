@@ -27,18 +27,25 @@ class Coupling:
 class CouplingSend(Coupling):
     """_summary_"""
 
-    def apply(self, task, transport, *, input_state, output_state):
+    def apply(self, task, transport, *, input_state, output_state, constants):
         transport.send_state(
-            task, self.target, input_state=input_state, output_state=output_state, variables=self.variables
+            task,
+            self.target,
+            input_state=input_state,
+            variables=self.variables,
+            constants=constants,
         )
 
 
 class CouplingRecv(Coupling):
     """_summary_"""
 
-    def apply(self, task, transport, *, input_state, output_state):
+    def apply(self, task, transport, *, input_state, output_state, constants):
         transport.receive_state(
-            task, self.source, input_state=input_state, output_state=output_state, variables=self.variables
+            task,
+            self.source,
+            output_state=output_state,
+            variables=self.variables,
         )
 
 

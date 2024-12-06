@@ -411,10 +411,6 @@ class Runner(Context):
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
-    def exchange_tensors(self, state):
-        # To be overriden by coupled models
-        pass
-
     def validate_input_state(self, input_state):
 
         if not isinstance(input_state, dict):
