@@ -40,6 +40,14 @@ class DatasetInput(Input):
 
         return open_dataset(*self.args, **self.kwargs)
 
+    @cached_property
+    def latitudes(self):
+        return self.ds.latitudes
+
+    @cached_property
+    def longitudes(self):
+        return self.ds.longitudes
+
     def __repr__(self):
         return f"DatasetInput({self.args}, {self.kwargs})"
 
@@ -51,8 +59,8 @@ class DatasetInput(Input):
 
         input_state = dict(
             date=date,
-            latitudes=self.ds.latitudes,
-            longitudes=self.ds.longitudes,
+            latitudes=self.latitudes,
+            longitudes=self.longitudes,
             fields=dict(),
         )
 
@@ -73,7 +81,7 @@ class DatasetInput(Input):
 
         return input_state
 
-    def load_forcings(self, *, variables, dates):
+    def load_forcings_state(self, *, variables, dates, current_state):
         data = self._load_dates(dates)  # (date, variables, ensemble, values)
 
         requested_variables = np.array([self.ds.name_to_index[v] for v in variables])
@@ -82,7 +90,14 @@ class DatasetInput(Input):
         data = np.squeeze(data, axis=2)
         # Reorder the dimensions to (variable, date, values)
         data = np.swapaxes(data, 0, 1)
-        return data
+        fields = {v: data[i] for i, v in enumerate(variables)}
+
+        return dict(
+            fields=fields,
+            dates=dates,
+            latitudes=self.latitudes,
+            longitudes=self.longitudes,
+        )
 
     def _load_dates(self, dates):
 

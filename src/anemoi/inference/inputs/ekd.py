@@ -79,7 +79,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _create_input_state(
+    def _create_state(
         self,
         input_fields,
         *,
@@ -208,6 +208,13 @@ class EkdInput(Input):
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
-    def _load_forcings(self, fields, variables, dates):
-        data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
-        return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
+    def _load_forcings_state(self, fields, variables, dates, current_state):
+        return self._create_state(
+            fields,
+            variables=variables,
+            date=dates,
+            latitudes=current_state["latitudes"],
+            longitudes=current_state["longitudes"],
+            dtype=np.float32,
+            flatten=True,
+        )

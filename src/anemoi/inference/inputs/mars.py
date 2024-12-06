@@ -126,7 +126,7 @@ class MarsInput(GribInput):
 
         date = to_datetime(date)
 
-        return self._create_input_state(
+        return self._create_state(
             self.retrieve(
                 self.variables,
                 [date + h for h in self.checkpoint.lagged],
@@ -151,5 +151,7 @@ class MarsInput(GribInput):
     def template(self, variable, date, **kwargs):
         return self.retrieve([variable], [date])[0]
 
-    def load_forcings(self, variables, dates):
-        return self._load_forcings(self.retrieve(variables, dates), variables, dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        return self._load_forcings_state(
+            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+        )

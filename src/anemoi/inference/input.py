@@ -33,7 +33,7 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def load_forcings(self, *, variables, dates):
+    def load_forcings_state(self, *, variables, dates, current_state):
         """Load forcings (constant and dynamic)."""
         pass
 

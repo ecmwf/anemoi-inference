@@ -44,7 +44,8 @@ class MultiInput(Input):
     def create_input_state(self, *, date):
         raise NotImplementedError("MultiInput.create_input_state() not implemented")
 
-    def load_forcings(self, variables, dates):
+    def load_forcings_state(self, *, variables, dates, current_state):
+        raise NotImplementedError("MultiInput.load_forcings_state() not implemented")
         inputs = defaultdict(list)
         for v in variables:
             if v not in self.inputs:
@@ -54,7 +55,7 @@ class MultiInput(Input):
         rows = {}
 
         for input, vs in inputs.items():
-            array = self._input_per_id[input].load_forcings(variables=vs, dates=dates)
+            array = self._input_per_id[input].load_forcings_state(variables=vs, dates=dates)
             for i, v in enumerate(vs):
                 rows[v] = array[i]
 

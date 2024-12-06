@@ -45,7 +45,7 @@ class IconInput(GribInput):
 
         LOG.info("Done")
 
-        return self._create_input_state(
+        return self._create_state(
             ekd.from_source("file", self.path),
             variables=None,
             date=date,
@@ -53,5 +53,7 @@ class IconInput(GribInput):
             longitudes=longitudes,
         )
 
-    def load_forcings(self, *, variables, dates):
-        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        return self._load_forcings_state(
+            ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
+        )

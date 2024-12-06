@@ -10,8 +10,6 @@
 
 import logging
 
-import numpy as np
-
 from anemoi.inference.config import load_config
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.runners.default import DefaultRunner
@@ -33,6 +31,14 @@ class CoupledRunner(DefaultRunner):
         result = CoupledForcings(self, self.input, variables, mask)
         return [result]
 
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
+        # For the initial state we need to load the forcings
+        # from the default input.
+        result = []
+        for c in dynamic_forcings_inputs:
+            result.extend(super().create_dynamic_coupled_forcings(c.variables, c.mask))
+        return result
+
 
 class CoupledInput:
     """_summary_"""
@@ -41,19 +47,18 @@ class CoupledInput:
         self.task = task
         self.transport = transport
         self.couplings = couplings
-        self.tag = 0
 
-    # def load_forcings(self, variables, dates):
-    #     return self.transport.rpc(self.task, "load_forcings", variables, dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        LOG.info("Adding dynamic forcings %s %s", variables, dates)
+        state = dict(variables=variables, dates=dates)
 
-    def load_forcings(self, variables, dates):
-        LOG.info("Adding dynamic forcings %s %s", len(variables), len(dates))
-        tensor = self.tensor = np.zeros(shape=(11, len(dates), 40320), dtype=np.float32)
         for c in self.couplings:
-            c.apply(self.task, self.transport, tensor, tag=self.tag)
+            c.apply(self.task, self.transport, input_state=current_state, output_state=state)
 
-        self.tag += 1
-        return tensor
+        if len(dates) == 1:
+            state["date"] = dates[0]
+
+        return state
 
 
 @task_registry.register("runner")

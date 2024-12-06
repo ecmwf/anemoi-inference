@@ -14,7 +14,8 @@ import pickle
 import select
 import struct
 
-import numpy as np
+from anemoi.utils.logs import enable_logging_name
+from anemoi.utils.logs import set_logging_name
 
 from ..transport import Transport
 from . import transport_registry
@@ -29,8 +30,10 @@ class ProcessesTransport(Transport):
     def __init__(self, couplings, rpcs, tasks, *args, **kwargs):
         super().__init__(couplings, rpcs, tasks)
         self.children = {}
+        enable_logging_name("main")
 
     def child_process(self, task):
+        set_logging_name(task.name)
 
         # Close all the pipes that are not needed
         for (task1, task2), (read_fd, write_fd) in self.pipes.items():
@@ -63,7 +66,7 @@ class ProcessesTransport(Transport):
             if pid == 0:
                 os._exit(self.child_process(task))
             else:
-                self.children[name] = pid
+                self.children[pid] = name
 
         # We need to close the pipes in the parent process
         for read_fd, write_fd in self.pipes.values():
@@ -71,38 +74,75 @@ class ProcessesTransport(Transport):
             os.close(write_fd)
 
     def wait(self):
-        for name, pid in self.children.items():
-            if os.waitpid(pid, 0) != (pid, 0):
-                raise RuntimeError("Child process failed %s %s" % (name, pid))
+        while self.children:
+            (pid, status) = os.wait()
+            LOG.info(f"Child process {pid} ({self.children[pid]}) exited with status {status}")
+            del self.children[pid]
 
-    def send_array(self, sender, tensor, target, tag):
+            if status != 0:
+                for pid in self.children:
+                    os.kill(pid, 15)
+
+    def send_state(self, sender, target, *, input_state, output_state, variables):
+
+        assert isinstance(input_state, dict)
+
         assert sender.name != target.name, f"Cannot send to self {sender}"
         _, write_fd = self.pipes[(sender.name, target.name)]
 
-        os.write(write_fd, "a".encode())  # a for array
+        fields = input_state["fields"]
 
-        header = np.array([tag, tensor.size * tensor.itemsize], dtype=np.uint64)
+        LOG.info(f"{sender}: sending to {target} {variables}")
 
-        os.write(write_fd, header.tobytes())
-        os.write(write_fd, tensor.tobytes())
+        fields = {v: fields[v] for v in variables if v in fields}
 
-    def receive_array(self, receiver, tensor, source, tag):
+        state = input_state.copy()
+        state["fields"] = fields
+
+        # Don't send unnecessary data
+        state["latitudes"] = None
+        state["longitudes"] = None
+        for s in list(state.keys()):
+            if s.startswith("_"):
+                del state[s]
+
+        # TODO: something more efficient than pickle
+
+        pickle_data = pickle.dumps(state)
+
+        os.write(write_fd, struct.pack("!Q", len(pickle_data)))
+        os.write(write_fd, pickle_data)
+
+    def receive_state(self, receiver, source, *, input_state, output_state, variables):
+
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
-        tag = np.uint64(tag)
 
         read_fd, _ = self.pipes[(source.name, receiver.name)]
 
-        code = os.read(read_fd, 1).decode()
-        assert code == "a", f"Expected array got {code}"
+        size = struct.unpack("!Q", os.read(read_fd, 8))[0]
+        data = os.read(read_fd, size)
+        state = pickle.loads(data)
+        if isinstance(state, Exception):
+            raise state
 
-        # Read the data
-        header = os.read(read_fd, np.dtype(np.uint64).itemsize * 2)
-        header = np.frombuffer(header, dtype=np.uint64)
-        assert tag == header[0]
-        size = header[1]
-        LOG.info(f"{receiver}: receiving from {source} {tag} {size} {tensor.size * tensor.itemsize} {tensor.shape}")
-        tensor[:] = np.ndarray(buffer=os.read(read_fd, size), dtype=tensor.dtype, shape=tensor.shape)
-        LOG.info(f"{receiver}: received from {source} {tag}")
+        assert isinstance(state, dict)
+        assert input_state["date"] == state["date"]
+        assert "fields" in state
+        assert isinstance(state["fields"], dict), f"Expected dict got {type(state['fields'])}"
+
+        output_state.setdefault("fields", {})
+
+        fields_in = state["fields"]
+        fields_out = output_state["fields"]
+
+        for v in variables:
+            if v in fields_out:
+                raise ValueError(f"Variable {v} already in output state")
+
+            if v not in fields_in:
+                raise ValueError(f"Variable {v} not in input state")
+
+            fields_out[v] = fields_in[v]
 
     def rpc(self, sender, proc, *args, **kwargs):
 

@@ -29,17 +29,6 @@ class InputTask(Task):
         super().__init__(name)
         self.config = load_config(config, [])
 
-    # def run(self, transport):
-    #     transport.dispatch(
-    #         self,
-    #         {
-    #             "load_forcings": self.load_forcings,
-    #         },
-    #     )
-
-    # def load_forcings(self, variables, dates):
-    #     assert False, (variables, dates)
-
     def run(self, transport):
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
@@ -58,7 +47,7 @@ class InputTask(Task):
         while date <= last:
             LOG.info(f"=============== Loading: {dates}")
             for input in inputs:
-                tensor = input.load_forcings({}, dates)
+                tensor = input.load_forcings_state({}, dates)
                 LOG.info(f"Sending matrix: {tensor.shape} {tensor.size * tensor.itemsize}")
                 for c in couplings:
                     c.apply(self, transport, tensor, tag=tag)

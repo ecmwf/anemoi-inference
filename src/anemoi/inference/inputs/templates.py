@@ -83,5 +83,5 @@ class TemplatesInput(Input):
 
         return ekd.from_source("memory", template)[0]
 
-    def load_forcings(self, variables, dates):
-        raise NotImplementedError("TemplatesInput.load_forcings() not implemented")
+    def load_forcings_state(self, *, variables, dates, current_state):
+        raise NotImplementedError("TemplatesInput.load_forcings_state() not implemented")

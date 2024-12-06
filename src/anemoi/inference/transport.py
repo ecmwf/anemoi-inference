@@ -15,28 +15,31 @@ LOG = logging.getLogger(__name__)
 class Coupling:
     """_summary_"""
 
-    def __init__(self, source, sidx, target, tidx):
+    def __init__(self, source, target, variables):
         self.source = source
-        self.sidx = sidx
         self.target = target
-        self.tidx = tidx
+        self.variables = variables
 
     def __str__(self):
-        return f"{self.source}:{self.sidx}->{self.target}:{self.tidx}"
+        return f"{self.source}->{self.target}"
 
 
 class CouplingSend(Coupling):
     """_summary_"""
 
-    def apply(self, task, transport, tensor, tag):
-        transport.send_array(task, tensor[self.sidx], self.target, tag)
+    def apply(self, task, transport, *, input_state, output_state):
+        transport.send_state(
+            task, self.target, input_state=input_state, output_state=output_state, variables=self.variables
+        )
 
 
 class CouplingRecv(Coupling):
     """_summary_"""
 
-    def apply(self, task, transport, tensor, tag):
-        transport.receive_array(task, tensor[self.tidx], self.source, tag)
+    def apply(self, task, transport, *, input_state, output_state):
+        transport.receive_state(
+            task, self.source, input_state=input_state, output_state=output_state, variables=self.variables
+        )
 
 
 class Transport(ABC):
@@ -54,37 +57,38 @@ class Transport(ABC):
 
         couplings = []
         for coupling in self._couplings:
-            source, target = coupling.split("->")
-            source, sidx = source.strip().split(":")
-            target, tidx = target.strip().split(":")
+            assert isinstance(coupling, dict)
+            assert len(coupling) == 1
+            k, variables = list(coupling.items())[0]
+            source, target = k.split("->")
+            source = source.strip()
+            target = target.strip()
 
             if task.name == source:
                 couplings.append(
                     CouplingSend(
                         self.tasks[source],
-                        int(sidx),
                         self.tasks[target],
-                        int(tidx),
+                        variables,
                     )
                 )
             if task.name == target:
                 couplings.append(
                     CouplingRecv(
                         self.tasks[source],
-                        int(sidx),
                         self.tasks[target],
-                        int(tidx),
+                        variables,
                     )
                 )
 
         return couplings
 
     # @abstractmethod
-    # def send_array(self, data, destination):
+    # def send_state(self, data, destination):
     #     """_summary_"""
     #     pass
 
     # @abstractmethod
-    # def receive_array(self, source):
+    # def receive_state(self, source):
     #     """_summary_"""
     #     pass

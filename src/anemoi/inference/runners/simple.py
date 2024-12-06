@@ -30,7 +30,7 @@ class NoForcings(Forcings):
         self.mask = mask
         self.kinds = dict(unknown=True)
 
-    def load_forcings(self, state, date):
+    def load_forcings_state(self, state, date):
         pass
 
 

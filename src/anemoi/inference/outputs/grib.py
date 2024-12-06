@@ -109,7 +109,7 @@ class GribOutput(Output):
                     self.quiet.add(name)
 
                 variable_keys = variable.grib_keys.copy()
-                for key in ("class", "type", "stream", "expver", "date", "time", "step"):
+                for key in ("class", "type", "stream", "expver", "date", "time", "step", "domain"):
                     variable_keys.pop(key, None)
 
                 keys.update(variable_keys)
