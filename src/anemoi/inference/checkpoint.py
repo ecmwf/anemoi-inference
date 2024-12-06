@@ -20,15 +20,42 @@ from .metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
+def _download_huggingfacehub(huggingface_config):
+    """Download model from huggingface"""
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as e:
+        raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
+
+    config_path = hf_hub_download(**huggingface_config)
+    return config_path
 
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, model):
+        self._model = model
 
     def __repr__(self):
         return f"Checkpoint({self.path})"
+    
+    @cached_property
+    def path(self):
+        import json
+
+        try:
+            self._model = json.loads(self._model)
+        except TypeError:
+            pass
+
+        if isinstance(self._model, str):
+            return self._model
+        elif isinstance(self._model, dict):
+            if 'huggingface' in self._model:
+                return _download_huggingfacehub(self._model['huggingface'])
+            pass
+        raise TypeError(f"Cannot parse model path: {self._model}. It must be a path or dict")
+
 
     @cached_property
     def _metadata(self):

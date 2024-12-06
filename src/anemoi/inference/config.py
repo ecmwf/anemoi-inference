@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-from typing import Dict
+from typing import Dict, Literal, Any
 
 import yaml
 from pydantic import BaseModel
@@ -27,8 +27,8 @@ class Configuration(BaseModel):
 
     description: str | None = None
 
-    checkpoint: str
-    """A path an Anemoi checkpoint file."""
+    checkpoint: str | Dict[Literal['huggingface'], Dict[str, Any]]
+    """A path to an Anemoi checkpoint file."""
 
     date: str | int | datetime.datetime | None = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`.

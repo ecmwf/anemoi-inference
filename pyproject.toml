@@ -69,6 +69,8 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+optional-dependencies.huggingface = [ "huggingface_hub" ]
+
 
 optional-dependencies.tests = [ "anemoi-datasets[all]", "hypothesis", "pytest" ]
 

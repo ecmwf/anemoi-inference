@@ -11,12 +11,19 @@ The following options control the inference process:
 checkpoint:
 ===========
 
-The only compulsory option is ``checkpoint``, which specifies the path
-to the checkpoint file.
+The only compulsory option is ``checkpoint``, which specifies the checkpoint file. 
+It can be a path to a local file, or a huggingface config.
 
 .. code:: yaml
 
    checkpoint: /path/to/checkpoint.ckpt
+
+.. code:: yaml
+
+   checkpoint: 
+      huggingface:
+         repo_id: "ecmwf/aifs-single"
+         filename: "aifs_single_v0.2.1.ckpt"
 
 device:
 =======
