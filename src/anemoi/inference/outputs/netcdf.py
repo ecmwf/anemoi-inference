@@ -20,7 +20,7 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 
-# According to the documentation, the HDF5 module is not thread-safe.
+# In case HDF5 was not compiled with thread safety on
 LOCK = threading.Lock()
 
 
@@ -37,10 +37,6 @@ class NetCDFOutput(Output):
 
     def __repr__(self):
         return f"NetCDFOutput({self.path})"
-
-    # def __del__(self):
-    #     if self.ncfile is not None:
-    #         self.ncfile.close()
 
     def _init(self, state):
         from netCDF4 import Dataset
