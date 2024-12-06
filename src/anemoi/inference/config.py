@@ -12,7 +12,9 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-from typing import Dict, Literal, Any
+from typing import Any
+from typing import Dict
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel
@@ -27,7 +29,7 @@ class Configuration(BaseModel):
 
     description: str | None = None
 
-    checkpoint: str | Dict[Literal['huggingface'], Dict[str, Any]]
+    checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any]]
     """A path to an Anemoi checkpoint file."""
 
     date: str | int | datetime.datetime | None = None

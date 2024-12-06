@@ -11,8 +11,9 @@ The following options control the inference process:
 checkpoint:
 ===========
 
-The only compulsory option is ``checkpoint``, which specifies the checkpoint file. 
-It can be a path to a local file, or a huggingface config.
+The only compulsory option is ``checkpoint``, which specifies the
+checkpoint file. It can be a path to a local file, or a huggingface
+config.
 
 .. code:: yaml
 
@@ -20,7 +21,7 @@ It can be a path to a local file, or a huggingface config.
 
 .. code:: yaml
 
-   checkpoint: 
+   checkpoint:
       huggingface:
          repo_id: "ecmwf/aifs-single"
          filename: "aifs_single_v0.2.1.ckpt"

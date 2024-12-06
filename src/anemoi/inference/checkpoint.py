@@ -20,6 +20,7 @@ from .metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
+
 def _download_huggingfacehub(huggingface_config):
     """Download model from huggingface"""
     try:
@@ -30,6 +31,7 @@ def _download_huggingfacehub(huggingface_config):
     config_path = hf_hub_download(**huggingface_config)
     return config_path
 
+
 class Checkpoint:
     """Represents an inference checkpoint."""
 
@@ -38,7 +40,7 @@ class Checkpoint:
 
     def __repr__(self):
         return f"Checkpoint({self.path})"
-    
+
     @cached_property
     def path(self):
         import json
@@ -51,11 +53,10 @@ class Checkpoint:
         if isinstance(self._model, str):
             return self._model
         elif isinstance(self._model, dict):
-            if 'huggingface' in self._model:
-                return _download_huggingfacehub(self._model['huggingface'])
+            if "huggingface" in self._model:
+                return _download_huggingfacehub(self._model["huggingface"])
             pass
         raise TypeError(f"Cannot parse model path: {self._model}. It must be a path or dict")
-
 
     @cached_property
     def _metadata(self):
