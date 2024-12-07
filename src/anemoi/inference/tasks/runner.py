@@ -48,18 +48,28 @@ class CoupledInput:
         self.transport = transport
         self.couplings = couplings
         self.constants = {}
+        self.tag = 0
 
     def load_forcings_state(self, *, variables, dates, current_state):
         LOG.info("Adding dynamic forcings %s %s", variables, dates)
         state = dict(variables=variables, date=dates)
 
         for c in self.couplings:
-            c.apply(self.task, self.transport, input_state=current_state, output_state=state, constants=self.constants)
+            c.apply(
+                self.task,
+                self.transport,
+                input_state=current_state,
+                output_state=state,
+                constants=self.constants,
+                tag=self.tag,
+            )
 
         for f, v in state["fields"].items():
             assert len(v.shape) == 1, (f, v.shape)
 
         assert state["date"] == dates, (state["date"], dates)
+
+        self.tag += 1
 
         return state
 

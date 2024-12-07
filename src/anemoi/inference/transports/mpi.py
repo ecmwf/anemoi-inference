@@ -48,11 +48,9 @@ class MPITransport(Transport):
     def wait(self):
         self.comm.barrier()
 
-    def send(self, sender, target, state):
-        # TODO: use a tag; use Send() to send numpy arrays, if faster
-        tag = 0
+    def send(self, sender, target, state, tag):
+        # TODO: use Send() to send numpy arrays, if faster
         self.comm.send(state, dest=self.ranks[target.name], tag=tag)
 
-    def receive(self, receiver, source):
-        tag = 0
+    def receive(self, receiver, source, tag):
         return self.comm.recv(source=self.ranks[source.name], tag=tag)

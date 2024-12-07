@@ -68,19 +68,18 @@ class ThreadsTransport(Transport):
             if wrapped_task.error:
                 raise wrapped_task.error
 
-    def send(self, sender, target, state):
-        self.wrapped_tasks[target.name].queue.put((sender.name, state.copy()))
+    def send(self, sender, target, state, tag):
+        self.wrapped_tasks[target.name].queue.put((sender.name, tag, state.copy()))
 
-    def receive(self, receiver, source):
-        tag = 0
-        LOG.info(f"{receiver}: receiving from {source} (backlog: {len(self.backlogs[receiver.name])})")
+    def receive(self, receiver, source, tag):
+        LOG.info(f"{receiver}: receiving from {source} [{tag}] (backlog: {len(self.backlogs[receiver.name])})")
 
         if (source.name, tag) in self.backlogs[receiver.name]:
             with self.lock:
                 return self.backlogs[receiver.name].pop((source.name, tag))
 
         while True:
-            (sender, state) = self.wrapped_tasks[receiver.name].queue.get()
+            (sender, tag, state) = self.wrapped_tasks[receiver.name].queue.get()
             if sender != source.name or tag != tag:
                 with self.lock:
                     self.backlogs[receiver.name][(sender, tag)] = state

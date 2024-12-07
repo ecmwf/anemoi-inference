@@ -82,16 +82,20 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
-    def send(self, sender, target, state):
+    def send(self, sender, target, state, tag):
         # TODO: something more efficient than pickle
         _, write_fd = self.pipes[(sender.name, target.name)]
         pickle_data = pickle.dumps(state)
 
+        os.write(write_fd, struct.pack("!Q", tag))
         os.write(write_fd, struct.pack("!Q", len(pickle_data)))
         os.write(write_fd, pickle_data)
 
-    def receive(self, receiver, source):
+    def receive(self, receiver, source, tag):
         read_fd, _ = self.pipes[(source.name, receiver.name)]
+
+        recieved_tag = struct.unpack("!Q", os.read(read_fd, 8))[0]
+        assert recieved_tag == tag, (recieved_tag, tag)
 
         size = struct.unpack("!Q", os.read(read_fd, 8))[0]
         data = os.read(read_fd, size)

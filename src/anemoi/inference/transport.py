@@ -29,25 +29,27 @@ class Coupling:
 class CouplingSend(Coupling):
     """_summary_"""
 
-    def apply(self, task, transport, *, input_state, output_state, constants):
+    def apply(self, task, transport, *, input_state, output_state, constants, tag):
         transport.send_state(
             task,
             self.target,
             input_state=input_state,
             variables=self.variables,
             constants=constants,
+            tag=tag,
         )
 
 
 class CouplingRecv(Coupling):
     """_summary_"""
 
-    def apply(self, task, transport, *, input_state, output_state, constants):
+    def apply(self, task, transport, *, input_state, output_state, constants, tag):
         transport.receive_state(
             task,
             self.source,
             output_state=output_state,
             variables=self.variables,
+            tag=tag,
         )
 
 
@@ -93,10 +95,7 @@ class Transport(ABC):
 
         return couplings
 
-    def send_state(self, sender, target, *, input_state, variables, constants):
-
-        assert isinstance(input_state, dict)
-
+    def send_state(self, sender, target, *, input_state, variables, constants, tag):
         assert sender.name != target.name, f"Cannot send to self {sender}"
 
         fields = input_state["fields"]
@@ -127,13 +126,13 @@ class Transport(ABC):
             if s.startswith("_"):
                 del state[s]
 
-        self.send(sender, target, state)
+        self.send(sender, target, state, tag)
 
-    def receive_state(self, receiver, source, *, output_state, variables):
+    def receive_state(self, receiver, source, *, output_state, variables, tag):
 
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
 
-        state = self.receive(receiver, source)
+        state = self.receive(receiver, source, tag)
 
         assert isinstance(state, dict)
         assert "fields" in state
