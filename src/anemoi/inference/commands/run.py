@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 
-from ..config import RunnerConfiguration
+from ..config import RunConfiguration
 from ..config import load_config
 from ..runners.default import DefaultRunner
 from . import Command
@@ -29,7 +29,7 @@ class RunCmd(Command):
 
     def run(self, args):
 
-        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=RunnerConfiguration)
+        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=RunConfiguration)
 
         if config.description is not None:
             LOG.info("%s", config.description)

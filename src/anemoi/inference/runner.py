@@ -98,7 +98,7 @@ class Runner(Context):
         if self.verbosity > 2:
             self.checkpoint.print_indices()
 
-        LOG.info("Using %s runner", self.__class__.__name__)
+        LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
             self.checkpoint.print_variable_categories()

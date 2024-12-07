@@ -15,13 +15,21 @@ from copy import deepcopy
 
 import yaml
 
-from .coupled import CoupledConfiguration as CoupledConfiguration
-from .runner import RunnerConfiguration as RunnerConfiguration
+from .couple import CoupleConfiguration as CoupleConfiguration
+from .run import RunConfiguration as RunConfiguration
 
 LOG = logging.getLogger(__name__)
 
 
-def load_config(path, overrides=[], defaults=None, Configuration=RunnerConfiguration):
+def _merge_configs(a, b):
+    for key, value in b.items():
+        if key in a and isinstance(a[key], dict) and isinstance(value, dict):
+            _merge_configs(a[key], value)
+        else:
+            a[key] = value
+
+
+def load_config(path, overrides=[], defaults=None, Configuration=RunConfiguration):
 
     config = {}
 
@@ -43,13 +51,19 @@ def load_config(path, overrides=[], defaults=None, Configuration=RunnerConfigura
             config.update(yaml.safe_load(f))
 
     # Apply overrides
+    if not isinstance(overrides, list):
+        overrides = [overrides]
+
     for override in overrides:
-        path = config
-        key, value = override.split("=")
-        keys = key.split(".")
-        for key in keys[:-1]:
-            path = path.setdefault(key, {})
-        path[keys[-1]] = value
+        if isinstance(override, dict):
+            _merge_configs(config, override)
+        else:
+            path = config
+            key, value = override.split("=")
+            keys = key.split(".")
+            for key in keys[:-1]:
+                path = path.setdefault(key, {})
+            path[keys[-1]] = value
 
     # Validate the configuration
     config = Configuration(**config)

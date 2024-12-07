@@ -83,10 +83,10 @@ class CoupledInput:
 class RunnerTask(Task):
     """_summary_"""
 
-    def __init__(self, name, config, global_config):
+    def __init__(self, name, config, overrides={}, global_config={}):
         super().__init__(name)
-        LOG.info("Creating RunnerTask %s %s", self, config)
-        self.config = load_config(config, [])
+        LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
+        self.config = load_config(config, overrides=[global_config, overrides])
 
     def run(self, transport):
         LOG.info("Running task %s", self.name)
@@ -94,6 +94,8 @@ class RunnerTask(Task):
 
         coupler = CoupledInput(self, transport, couplings)
         runner = CoupledRunner(self.config, coupler)
+
+        # TODO: Forctorise with the similar code in commands/run.py
         input = runner.create_input()
         output = runner.create_output()
 
