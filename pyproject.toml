@@ -68,8 +68,9 @@ optional-dependencies.docs = [
   "sphinx-rtd-theme",
 ]
 
-optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+optional-dependencies.huggingface = [ "huggingface-hub" ]
 
+optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 optional-dependencies.tests = [ "anemoi-datasets[all]", "hypothesis", "pytest" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
