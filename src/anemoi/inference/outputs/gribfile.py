@@ -117,6 +117,7 @@ class GribFileOutput(GribOutput):
         path = self.archive_requests["path"]
         extra = self.archive_requests.get("extra", {})
         patch = self.archive_requests.get("patch", {})
+        indent = self.archive_requests.get("indent", None)
 
         def _patch(r):
             if self.context.config.use_grib_paramid:
@@ -147,4 +148,4 @@ class GribFileOutput(GribOutput):
                 request.update(extra)
                 requests.append(request)
 
-            json.dump(requests, f, indent=4)
+            json.dump(requests, f, indent=indent)
