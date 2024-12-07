@@ -19,7 +19,6 @@ LOG = logging.getLogger(__name__)
 class PatchCmd(Command):
     """Patch a checkpoint file."""
 
-    need_logging = True
     _cache = {}
 
     def add_arguments(self, command_parser):

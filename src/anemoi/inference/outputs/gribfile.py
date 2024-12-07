@@ -24,6 +24,8 @@ LOG = logging.getLogger(__name__)
 
 
 class ArchiveCollector:
+    """Collects archive requests"""
+
     UNIQUE = {"date", "hdate", "time", "referenceDate", "type", "stream", "expver"}
 
     def __init__(self) -> None:

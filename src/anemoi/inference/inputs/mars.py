@@ -85,16 +85,20 @@ def retrieve(requests, grid, area, **kwargs):
 
     result = ekd.from_source("empty")
     for r in requests:
-        if r.get("class") in ("rd", "ea"):
-            r["class"] = "od"
-
-        if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
-            r["stream"] = "scda"
 
         r.update(pproc)
         r.update(kwargs)
 
-        LOG.debug("%s", _(r))
+        if (
+            r.get("class", "od") == "od"
+            and r.get("type") == "fc"
+            and r.get("stream") == "oper"
+            and r["time"] in ("0600", "1800")
+        ):
+
+            r["stream"] = "scda"
+
+        LOG.info("MarsInput: REQUEST  %r", r)
 
         result += ekd.from_source("mars", r)
 
@@ -107,9 +111,13 @@ class MarsInput(GribInput):
 
     def __init__(self, context, *, namer=None, **kwargs):
         super().__init__(context, namer=namer)
-        self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
-        self.kwargs = kwargs
+        self.request = kwargs
+
+        self.request.setdefault("class", "od")
+        self.request.setdefault("stream", "oper")
+        self.request.setdefault("expver", "0001")
+        # self.request.setdefault('type', 'an')
 
     def create_input_state(self, *, date):
         if date is None:
@@ -118,7 +126,7 @@ class MarsInput(GribInput):
 
         date = to_datetime(date)
 
-        return self._create_input_state(
+        return self._create_state(
             self.retrieve(
                 self.variables,
                 [date + h for h in self.checkpoint.lagged],
@@ -138,10 +146,12 @@ class MarsInput(GribInput):
         if not requests:
             raise ValueError("No requests for %s (%s)" % (variables, dates))
 
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
+        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, **self.request)
 
     def template(self, variable, date, **kwargs):
         return self.retrieve([variable], [date])[0]
 
-    def load_forcings(self, variables, dates):
-        return self._load_forcings(self.retrieve(variables, dates), variables, dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        return self._load_forcings_state(
+            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+        )

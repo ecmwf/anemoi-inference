@@ -11,18 +11,15 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
-from typing import Any
 from typing import Dict
 from typing import Literal
 
-import yaml
 from pydantic import BaseModel
 
 LOG = logging.getLogger(__name__)
 
 
-class Configuration(BaseModel):
+class RunConfiguration(BaseModel):
 
     class Config:
         extra = "forbid"
@@ -87,41 +84,3 @@ class Configuration(BaseModel):
 
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
-
-
-def load_config(path, overrides, defaults=None, Configuration=Configuration):
-
-    config = {}
-
-    # Set default values
-    if defaults is not None:
-        if not isinstance(defaults, list):
-            defaults = [defaults]
-        for d in defaults:
-            if isinstance(d, str):
-                with open(d) as f:
-                    d = yaml.safe_load(f)
-            config.update(d)
-
-    # Load the configuration
-    with open(path) as f:
-        config.update(yaml.safe_load(f))
-
-    # Apply overrides
-    for override in overrides:
-        path = config
-        key, value = override.split("=")
-        keys = key.split(".")
-        for key in keys[:-1]:
-            path = path.setdefault(key, {})
-        path[keys[-1]] = value
-
-    # Validate the configuration
-    config = Configuration(**config)
-
-    # Set environment variables found in the configuration
-    # as soon as possible
-    for key, value in config.env.items():
-        os.environ[key] = str(value)
-
-    return config

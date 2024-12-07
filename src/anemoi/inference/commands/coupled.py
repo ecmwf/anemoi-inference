@@ -11,15 +11,16 @@ from __future__ import annotations
 
 import logging
 
-from ..config import RunConfiguration
+from ..config import CoupleConfiguration
 from ..config import load_config
-from ..runners.default import DefaultRunner
+from ..tasks import create_task
+from ..transports import create_transport
 from . import Command
 
 LOG = logging.getLogger(__name__)
 
 
-class RunCmd(Command):
+class CoupledCmd(Command):
     """Inspect the contents of a checkpoint file."""
 
     def add_arguments(self, command_parser):
@@ -29,25 +30,18 @@ class RunCmd(Command):
 
     def run(self, args):
 
-        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=RunConfiguration)
+        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=CoupleConfiguration)
 
-        if config.description is not None:
-            LOG.info("%s", config.description)
+        tasks = {name: create_task(name, action, global_config=config) for name, action in config.tasks.items()}
+        for task in tasks.values():
+            LOG.info("Task: %s", task)
 
-        runner = DefaultRunner(config)
+        transport = create_transport(config.transport, config.couplings, tasks)
+        LOG.info("Transport: %s", transport)
 
-        input = runner.create_input()
-        output = runner.create_output()
-
-        input_state = input.create_input_state(date=config.date)
-
-        if config.write_initial_state:
-            output.write_initial_state(input_state)
-
-        for state in runner.run(input_state=input_state, lead_time=config.lead_time):
-            output.write_state(state)
-
-        output.close()
+        transport.start()
+        transport.wait()
+        LOG.info("Run complete")
 
 
-command = RunCmd
+command = CoupledCmd

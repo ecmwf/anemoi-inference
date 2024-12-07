@@ -15,8 +15,6 @@ from . import Command
 class InspectCmd(Command):
     """Inspect the contents of a checkpoint file."""
 
-    need_logging = False
-
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--dump", action="store_true", help="Print internal information")
