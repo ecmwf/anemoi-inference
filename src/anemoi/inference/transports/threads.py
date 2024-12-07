@@ -45,8 +45,8 @@ class TaskWrapper:
 class ThreadsTransport(Transport):
     """_summary_"""
 
-    def __init__(self, couplings, rpcs, tasks, *args, **kwargs):
-        super().__init__(couplings, rpcs, tasks)
+    def __init__(self, couplings, tasks, *args, **kwargs):
+        super().__init__(couplings, tasks)
         self.threads = {}
         self.lock = threading.Lock()
         self.backlogs = {name: {} for name in tasks}

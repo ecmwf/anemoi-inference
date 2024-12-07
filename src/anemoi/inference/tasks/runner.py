@@ -83,7 +83,7 @@ class CoupledInput:
 class RunnerTask(Task):
     """_summary_"""
 
-    def __init__(self, name, config):
+    def __init__(self, name, config, global_config):
         super().__init__(name)
         LOG.info("Creating RunnerTask %s %s", self, config)
         self.config = load_config(config, [])

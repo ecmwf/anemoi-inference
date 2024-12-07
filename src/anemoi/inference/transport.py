@@ -56,10 +56,9 @@ class CouplingRecv(Coupling):
 class Transport(ABC):
     """_summary_"""
 
-    def __init__(self, couplings, rpcs, tasks):
+    def __init__(self, couplings, tasks):
         enable_logging_name("main")
         self._couplings = couplings
-        self.rpcs = rpcs
         self.tasks = tasks
 
     def __repr__(self) -> str:

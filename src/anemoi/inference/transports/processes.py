@@ -26,8 +26,8 @@ LOG = logging.getLogger(__name__)
 class ProcessesTransport(Transport):
     """_summary_"""
 
-    def __init__(self, couplings, rpcs, tasks, *args, **kwargs):
-        super().__init__(couplings, rpcs, tasks)
+    def __init__(self, couplings, tasks, *args, **kwargs):
+        super().__init__(couplings, tasks)
         self.children = {}
         enable_logging_name("main")
 

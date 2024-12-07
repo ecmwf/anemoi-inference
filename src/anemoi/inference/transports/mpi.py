@@ -22,10 +22,10 @@ LOG = logging.getLogger(__name__)
 class MPITransport(Transport):
     """_summary_"""
 
-    def __init__(self, couplings, rpcs, tasks, *args, **kwargs):
+    def __init__(self, couplings, tasks, *args, **kwargs):
         from mpi4py import MPI
 
-        super().__init__(couplings, rpcs, tasks)
+        super().__init__(couplings, tasks)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()

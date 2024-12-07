@@ -12,5 +12,5 @@ from anemoi.utils.registry import Registry
 task_registry = Registry(__name__)
 
 
-def create_task(name, config):
-    return task_registry.from_config(config, name)
+def create_task(name, config, global_config):
+    return task_registry.from_config(config, name, global_config=global_config)
