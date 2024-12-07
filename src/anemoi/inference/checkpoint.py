@@ -21,6 +21,17 @@ from .metadata import Metadata
 LOG = logging.getLogger(__name__)
 
 
+def _download_huggingfacehub(huggingface_config):
+    """Download model from huggingface"""
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as e:
+        raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
+
+    config_path = hf_hub_download(**huggingface_config)
+    return config_path
+
+
 class Checkpoint:
     """Represents an inference checkpoint."""
 
@@ -32,12 +43,29 @@ class Checkpoint:
         return f"Checkpoint({self.path})"
 
     @cached_property
+    def path(self):
+        import json
+
+        try:
+            self._model = json.loads(self._model)
+        except TypeError:
+            pass
+
+        if isinstance(self._model, str):
+            return self._model
+        elif isinstance(self._model, dict):
+            if "huggingface" in self._model:
+                return _download_huggingfacehub(self._model["huggingface"])
+            pass
+        raise TypeError(f"Cannot parse model path: {self._model}. It must be a path or dict")
+
+    @cached_property
     def _metadata(self):
         try:
             result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
             LOG.warning("Version for not support `supporting_arrays` (%s)", e)
-            result= Metadata(load_metadata(self.path))
+            result = Metadata(load_metadata(self.path))
 
         if self.patch_metadata:
             LOG.warning("Patching metadata with %r", self.patch_metadata)
