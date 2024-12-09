@@ -16,6 +16,7 @@ from ..config import load_config
 from ..inputs.mars import postproc
 from ..runners.default import DefaultRunner
 from . import Command
+from icecream import ic
 
 
 class RetrieveCmd(Command):
@@ -28,8 +29,19 @@ class RetrieveCmd(Command):
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
         command_parser.add_argument("--date", type=str, help="Date")
         command_parser.add_argument("--output", type=str, help="Output file")
-        command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
-        command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
+
+        command_parser.add_argument(
+            "--input_idx", type=int, help="To choose input index"
+        )
+
+        command_parser.add_argument(
+            "--staging-dates", type=str, help="Path to a file with staging dates"
+        )
+        command_parser.add_argument(
+            "--extra",
+            action="append",
+            help="Additional request values. Can be repeated",
+        )
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
@@ -38,11 +50,13 @@ class RetrieveCmd(Command):
 
         runner = DefaultRunner(config)
 
-        # TODO: Move this to the runner
+        checkpoint = getattr(runner, f"checkpoint_{args.input_idx}")
 
-        variables = runner.checkpoint.variables_from_input(include_forcings=True)
-        area = runner.checkpoint.area
-        grid = runner.checkpoint.grid
+        variables = checkpoint.variables_from_input(include_forcings=True)
+        area = checkpoint.area
+        grid = checkpoint.grid
+
+        ic(checkpoint, args.input_idx, variables, area, grid)
 
         extra = postproc(grid, area)
 
@@ -57,12 +71,10 @@ class RetrieveCmd(Command):
                     dates.append(to_datetime(line.strip()))
         else:
             date = to_datetime(args.date)
-            assert len(args.time) == 4
-            date = date.replace(hour=int(args.time[:2]), minute=int(args.time[2:]))
-            dates = [date + h for h in runner.checkpoint.lagged]
+            dates = [date + h for h in checkpoint.lagged]
 
         requests = []
-        for r in runner.checkpoint.mars_requests(
+        for r in checkpoint.mars_requests(
             dates=dates,
             variables=variables,
             use_grib_paramid=config.use_grib_paramid,

@@ -13,19 +13,18 @@ import logging
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
-from ..forcings import BoundaryForcings
-from ..forcings import ComputedForcings
-from ..forcings import CoupledForcings
+from ..ds_runner import DownscalingRunner
+from ..forcings import BoundaryForcings, ComputedForcings, CoupledForcings
 from ..inputs import create_input
+from ..inputs_hres import create_input_hres
 from ..outputs import create_output
-from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
 
 @runner_registry.register("default")
-class DefaultRunner(Runner):
+class DefaultRunner(DownscalingRunner):
     """Runner from a configuration file."""
 
     def __init__(self, config):
@@ -54,6 +53,11 @@ class DefaultRunner(Runner):
         input = create_input(self, self.config.input)
         LOG.info("Input: %s", input)
         return input
+
+    def create_input_hres(self):
+        input_hres = create_input_hres(self, self.config.input_hres)
+        LOG.info("Input: %s", input)
+        return input_hres
 
     def create_output(self):
         output = create_output(self, self.config.output)

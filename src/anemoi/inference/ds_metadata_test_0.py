@@ -19,6 +19,7 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from icecream import ic
+
 from .legacy import LegacyMixin
 from .patch import PatchMixin
 
@@ -96,8 +97,14 @@ class Metadata(PatchMixin, LegacyMixin):
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
-        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"])
-        self._print_indices("Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]))
+        self._print_indices(
+            "Data indices", self._indices.data, dict(input=v, output=v), skip=["output"]
+        )
+        self._print_indices(
+            "Model indices",
+            self._indices.model,
+            dict(input=r, output=s, skip=["output.full"]),
+        )
 
     ###########################################################################
     # Inference
@@ -120,14 +127,29 @@ class Metadata(PatchMixin, LegacyMixin):
         return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
     @property
-    def variable_to_input_tensor_index(self):
-        """Return the mapping between variable name and input tensor index"""
+    def variable_to_input_0_tensor_index(self):
+        """Return the mapping between variable name and input_0 tensor index"""
         mapping = self._make_indices_mapping(
-            self._indices.data.input.full,
-            self._indices.model.input.full,
+            self._indices.data.input_0.full,
+            self._indices.model.input_0.full,
         )
 
-        return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
+        return frozendict(
+            {v: mapping[i] for i, v in enumerate(self.variables) if i in mapping}
+        )
+
+    @property
+    def variable_to_input_1_tensor_index(self):
+        """Return the mapping between variable name and input_1 tensor index"""
+        # ic(self._indices.data)
+        mapping = self._make_indices_mapping(
+            self._indices.data.input_1.full,
+            self._indices.model.input_1.full,
+        )
+
+        return frozendict(
+            {v: mapping[i] for i, v in enumerate(self.variables_1) if i in mapping}
+        )
 
     @cached_property
     def output_tensor_index_to_variable(self):
@@ -136,53 +158,81 @@ class Metadata(PatchMixin, LegacyMixin):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        ic(self._indices.model.output.full, self._indices.data.output.full, self.variables)
         return frozendict({k: self.variables[v] for k, v in mapping.items()})
 
     @cached_property
-    def number_of_grid_points(self):
+    def number_of_input_0_grid_points(self):
         """Return the number of grid points per fields"""
         try:
-            return self._metadata.dataset.shape[-1]
+            return self._metadata.dataset.shape[0][0][-1]
         except AttributeError:
             return self._legacy_number_of_grid_points()
 
     @cached_property
-    def number_of_input_features(self):
-        """Return the number of input features"""
-        return len(self._indices.model.input.full)
+    def number_of_input_1_grid_points(self):
+        """Return the number of grid points per fields"""
+        try:
+            return self._metadata.dataset.shape[0][1][-1]
+        except AttributeError:
+            return self._legacy_number_of_grid_points()
+
+    @cached_property
+    def number_of_output_grid_points(self):
+        """Return the number of grid points per fields"""
+        try:
+            return self._metadata.dataset.shape[1][-1]
+        except AttributeError:
+            return self._legacy_number_of_grid_points()
+
+    @cached_property
+    def number_of_input_0_features(self):
+        """Return the number of input_0 features"""
+        return len(self._indices.model.input_0.full)
+
+    @cached_property
+    def number_of_input_1_features(self):
+        """Return the number of input_1 features"""
+        return len(self._indices.model.input_1.full)
 
     @cached_property
     def model_computed_variables(self):
         """The initial conditions variables that need to be computed and not retrieved"""
         typed_variables = self.typed_variables
-        return tuple(name for name, v in typed_variables.items() if v.is_computed_forcing)
+        return tuple(
+            name for name, v in typed_variables.items() if v.is_computed_forcing
+        )
 
     @cached_property
     def multi_step_input(self):
         """Number of past steps needed for the initial conditions tensor"""
-        return self._config_training.multistep_input
+        return 1
 
     @cached_property
     def prognostic_output_mask(self):
         return np.array(self._indices.model.output.prognostic)
 
     @cached_property
-    def prognostic_input_mask(self):
-        return np.array(self._indices.model.input.prognostic)
+    def prognostic_input_0_mask(self):
+        return np.array(self._indices.model.input_0.prognostic)
 
     @cached_property
-    def computed_time_dependent_forcings(self):
+    def prognostic_input_1_mask(self):
+        return np.array(self._indices.model.input_1.prognostic)
+
+    @cached_property
+    def computed_time_dependent_forcings_input_0(self):
         """Return the indices and names of the computed forcings that are not constant in time"""
 
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
-            self._indices.model.input.full,
-            self._indices.data.input.full,
+            self._indices.model.input_0.full,
+            self._indices.data.input_0.full,
         )
 
         # Mapping between model indices and variable names
-        forcings_variables = {self.variables[mapping[i]]: i for i in self._indices.model.input.forcing}
+        forcings_variables = {
+            self.variables[mapping[i]]: i for i in self._indices.model.input_0.forcing
+        }
         typed_variables = self.typed_variables
 
         # Filter out the computed forcings that are not constant in time
@@ -197,17 +247,73 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(indices), variables
 
     @cached_property
-    def computed_constant_forcings(self):
+    def computed_time_dependent_forcings_input_1(self):
+        """Return the indices and names of the computed forcings that are not constant in time"""
+
+        # Mapping between model and data indices
+        mapping = self._make_indices_mapping(
+            self._indices.model.input_1.full,
+            self._indices.data.input_1.full,
+        )
+
+        # Mapping between model indices and variable names
+        forcings_variables = {
+            self.variables[mapping[i]]: i for i in self._indices.model.input_1.forcing
+        }
+        typed_variables = self.typed_variables
+
+        # Filter out the computed forcings that are not constant in time
+        indices = []
+        variables = []
+        for name, idx in sorted(forcings_variables.items(), key=lambda x: x[1]):
+            v = typed_variables[name]
+            if v.is_computed_forcing and not v.is_constant_in_time:
+                indices.append(idx)
+                variables.append(name)
+
+        return np.array(indices), variables
+
+    @cached_property
+    def computed_constant_forcings_input_0(self):
         """Return the indices and names of the computed forcings that are  constant in time"""
 
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
-            self._indices.model.input.full,
-            self._indices.data.input.full,
+            self._indices.model.input_0.full,
+            self._indices.data.input_0.full,
         )
 
         # Mapping between model indices and variable names
-        forcings_variables = {self.variables[mapping[i]]: i for i in self._indices.model.input.forcing}
+        forcings_variables = {
+            self.variables[mapping[i]]: i for i in self._indices.model.input_0.forcing
+        }
+        typed_variables = self.typed_variables
+
+        # Filter out the computed forcings that are not constant in time
+        indices = []
+        variables = []
+        for name, idx in sorted(forcings_variables.items(), key=lambda x: x[1]):
+            v = typed_variables[name]
+            if v.is_computed_forcing and v.is_constant_in_time:
+                indices.append(idx)
+                variables.append(name)
+
+        return np.array(indices), variables
+
+    @cached_property
+    def computed_constant_forcings_input_1(self):
+        """Return the indices and names of the computed forcings that are  constant in time"""
+
+        # Mapping between model and data indices
+        mapping = self._make_indices_mapping(
+            self._indices.model.input_1.full,
+            self._indices.data.input_1.full,
+        )
+
+        # Mapping between model indices and variable names
+        forcings_variables = {
+            self.variables[mapping[i]]: i for i in self._indices.model.input_1.forcing
+        }
         typed_variables = self.typed_variables
 
         # Filter out the computed forcings that are not constant in time
@@ -230,6 +336,14 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the variables as found in the training dataset"""
         return tuple(self._metadata.dataset.variables)
 
+    @property
+    def variables_1(self):
+        return tuple(
+            self._metadata.dataset["arguments"]["args"][0]["dataset"]["x"]["zip"][1][
+                "select"
+            ]
+        )
+
     @cached_property
     def variables_metadata(self):
         """Return the variables and their metadata as found in the training dataset"""
@@ -246,14 +360,32 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     @cached_property
-    def diagnostic_variables(self):
+    def diagnostic_variables_input_0(self):
         """Variables that are marked as diagnostic"""
-        return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
+        return [
+            self.index_to_variable[i] for i in self._indices.data.input_0.diagnostic
+        ]
 
     @cached_property
-    def prognostic_variables(self):
+    def diagnostic_variables_input_1(self):
+        """Variables that are marked as diagnostic"""
+        return [
+            self.index_to_variable[i] for i in self._indices.data.input_1.diagnostic
+        ]
+
+    @cached_property
+    def prognostic_variables_input_0(self):
         """Variables that are marked as prognostic"""
-        return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]
+        return [
+            self.index_to_variable[i] for i in self._indices.data.input_0.prognostic
+        ]
+
+    @cached_property
+    def prognostic_variables_input_1(self):
+        """Variables that are marked as prognostic"""
+        return [
+            self.index_to_variable[i] for i in self._indices.data.input_1.prognostic
+        ]
 
     @cached_property
     def index_to_variable(self):
@@ -263,7 +395,10 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def typed_variables(self):
         """Returns a strongly typed variables"""
-        result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
+        result = {
+            name: Variable.from_dict(name, self.variables_metadata[name])
+            for name in self.variables
+        }
 
         if "cos_latitude" in result:
             assert result["cos_latitude"].is_computed_forcing
@@ -405,7 +540,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables, use_grib_paramid=False):
+    def mars_requests(self, *, variables, input_idx = 0, use_grib_paramid=False):
         """Return a list of MARS requests for the variables in the dataset"""
 
         from anemoi.utils.grib import shortname_to_paramid
@@ -423,7 +558,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             mars = self.variables_metadata[variable]["mars"].copy()
 
-            for k in ("date", "time"):
+            for k in ("date", "time"):x
                 mars.pop(k, None)
 
             if use_grib_paramid and "param" in mars:
@@ -448,14 +583,18 @@ class Metadata(PatchMixin, LegacyMixin):
                     sha1 = git.get("git", {}).get("sha1", "unknown")
                     LOG.info(f"   {package:20}: {sha1}")
 
-            for package, version in sorted(provenance.get("module_versions", {}).items()):
+            for package, version in sorted(
+                provenance.get("module_versions", {}).items()
+            ):
                 if package.startswith("anemoi."):
                     LOG.info(f"   {package:20}: {version}")
 
         _print("Environment used during training", provenance)
         _print("This environment", gather_provenance_info())
 
-        LOG.warning("If you are running from a git repository, the versions reported above may not be accurate.")
+        LOG.warning(
+            "If you are running from a git repository, the versions reported above may not be accurate."
+        )
         LOG.warning("The versions are only updated after a `pip install -e .`")
 
     ###########################################################################
@@ -514,7 +653,10 @@ class Metadata(PatchMixin, LegacyMixin):
         if from_dataloader is not None:
             args, kwargs = [], self._metadata.config.dataloader[from_dataloader]
         else:
-            args, kwargs = self._metadata.dataset.arguments.args, self._metadata.dataset.arguments.kwargs
+            args, kwargs = (
+                self._metadata.dataset.arguments.args,
+                self._metadata.dataset.arguments.kwargs,
+            )
 
         args, kwargs = _fix([args, kwargs])
 
@@ -533,13 +675,12 @@ class Metadata(PatchMixin, LegacyMixin):
         typed_variables = self.typed_variables
 
         variables_in_data_space = self.variables
-        ic(variables_in_data_space)
         variables_in_model_space = self.output_tensor_index_to_variable
-        ic(variables_in_model_space)
+
         for name in self._config.data.forcing:
             result[name].add("forcing")
 
-        for idx in self._indices.data.input.diagnostic:
+        for idx in self._indices.data.input_0.diagnostic:
             name = variables_in_data_space[idx]
             result[name].add("diagnostic")
 
@@ -563,12 +704,10 @@ class Metadata(PatchMixin, LegacyMixin):
                 raise ValueError(f"Variable {name} has no category")
 
             result[name] = sorted(result[name])
-        
-        ic(result)
 
         return result
 
-    def constant_forcings_inputs(self, context, input_state):
+    def constant_forcings_inputs(self, context, input_state, idx_input):
         # TODO: this does not belong here
 
         result = []
@@ -576,7 +715,9 @@ class Metadata(PatchMixin, LegacyMixin):
         provided_variables = set(input_state["fields"].keys())
 
         # This will manage the dynamic forcings that are computed
-        forcing_mask, forcing_variables = self.computed_constant_forcings
+        forcing_mask, forcing_variables = getattr(
+            self, f"computed_constant_forcings_input_{idx_input}"
+        )
 
         # Ingore provided variables
         new_forcing_mask = []
@@ -617,12 +758,22 @@ class Metadata(PatchMixin, LegacyMixin):
 
         # We need the mask of the remaining variable in the model.input space
 
+        if idx_input not in [0, 1]:
+            raise ValueError(f"Invalid idx_input value: {idx_input}")
+
         mapping = self._make_indices_mapping(
-            self._indices.data.input.full,
-            self._indices.model.input.full,
+            getattr(self._indices.data, f"input_{idx_input}").full,
+            getattr(self._indices.model, f"input_{idx_input}").full,
         )
 
-        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
+        # ic(mapping, idx_input, remaining)
+        # for name in remaining:
+        # ic(name, self.variables.index(name))
+        # ic(mapping[self.variables.index(name)])
+
+        remaining = sorted(
+            (mapping[self.variables.index(name)], name) for name in remaining
+        )
 
         LOG.info("Will get the following from MARS for now: %s", remaining)
 
@@ -638,12 +789,15 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def dynamic_forcings_inputs(self, context, input_state):
+    def dynamic_forcings_inputs(self, context, input_state, idx_input):
 
         result = []
 
         # This will manage the dynamic forcings that are computed
-        forcing_mask, forcing_variables = self.computed_time_dependent_forcings
+        forcing_mask, forcing_variables = getattr(
+            self, f"computed_time_dependent_forcings_input_{idx_input}"
+        )
+
         if len(forcing_mask) > 0:
             result.append(
                 context.create_dynamic_computed_forcings(
@@ -655,7 +809,13 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining = (
             set(self._config.data.forcing)
             - set(self.model_computed_variables)
-            - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
+            - set(
+                [
+                    name
+                    for name, v in self.typed_variables.items()
+                    if v.is_constant_in_time
+                ]
+            )
         )
         if not remaining:
             return result
@@ -665,11 +825,13 @@ class Metadata(PatchMixin, LegacyMixin):
         # We need the mask of the remaining variable in the model.input space
 
         mapping = self._make_indices_mapping(
-            self._indices.data.input.full,
-            self._indices.model.input.full,
+            getattr(self._indices.data, f"input_{idx_input}").full,
+            getattr(self._indices.model, f"input_{idx_input}").full,
         )
 
-        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
+        remaining = sorted(
+            (mapping[self.variables.index(name)], name) for name in remaining
+        )
 
         LOG.info("Will get the following from MARS for now: %s", remaining)
 
@@ -684,17 +846,19 @@ class Metadata(PatchMixin, LegacyMixin):
         )
         return result
 
-    def boundary_forcings_inputs(self, context, input_state):
+    def boundary_forcings_inputs(self, context, input_state, idx_input):
 
         result = []
 
         output_mask = self._config_model.get("output_mask", None)
         if output_mask is not None:
-            assert output_mask == "cutout", "Currently only cutout as output mask supported."
+            assert (
+                output_mask == "cutout"
+            ), "Currently only cutout as output mask supported."
             result.append(
                 context.create_boundary_forcings(
-                    self.prognostic_variables,
-                    self.prognostic_input_mask,
+                    getattr(self, f"prognostic_variables_input_{idx_input}"),
+                    self.prognostic_input_0_mask,
                 )
             )
         return result
@@ -770,7 +934,8 @@ class Metadata(PatchMixin, LegacyMixin):
         with zipfile.ZipFile(path, "r") as zipf:
             for i, source in enumerate(self._metadata.dataset.get("sources", [])):
                 entries = {
-                    name: self._metadata.supporting_arrays_paths[name] for name in source.get("supporting_arrays", [])
+                    name: self._metadata.supporting_arrays_paths[name]
+                    for name in source.get("supporting_arrays", [])
                 }
                 arrays = load_supporting_arrays(zipf, entries)
 

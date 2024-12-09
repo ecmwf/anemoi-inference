@@ -16,7 +16,7 @@ from functools import cached_property
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
-from .metadata import Metadata
+from .ds_metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
@@ -54,16 +54,32 @@ class Checkpoint:
         return self._metadata.precision
 
     @property
-    def number_of_grid_points(self):
-        return self._metadata.number_of_grid_points
+    def number_of_input_0_grid_points(self):
+        return self._metadata.number_of_input_0_grid_points
 
     @property
-    def number_of_input_features(self):
-        return self._metadata.number_of_input_features
+    def number_of_input_1_grid_points(self):
+        return self._metadata.number_of_input_1_grid_points
 
     @property
-    def variable_to_input_tensor_index(self):
-        return self._metadata.variable_to_input_tensor_index
+    def number_of_output_grid_points(self):
+        return self._metadata.number_of_output_grid_points
+
+    @property
+    def number_of_input_0_features(self):
+        return self._metadata.number_of_input_0_features
+
+    @property
+    def number_of_input_1_features(self):
+        return self._metadata.number_of_input_1_features
+
+    @property
+    def variable_to_input_0_tensor_index(self):
+        return self._metadata.variable_to_input_0_tensor_index
+
+    @property
+    def variable_to_input_1_tensor_index(self):
+        return self._metadata.variable_to_input_1_tensor_index
 
     @property
     def model_computed_variables(self):
@@ -74,20 +90,24 @@ class Checkpoint:
         return self._metadata.typed_variables
 
     @property
-    def diagnostic_variables(self):
-        return self._metadata.diagnostic_variables
+    def diagnostic_variables_input_0(self):
+        return self._metadata.diagnostic_variables_input_0
 
     @property
-    def prognostic_variables(self):
-        return self._metadata.prognostic_variables
+    def diagnostic_variables_input_1(self):
+        return self._metadata.diagnostic_variables_input_1
 
     @property
     def prognostic_output_mask(self):
         return self._metadata.prognostic_output_mask
 
     @property
-    def prognostic_input_mask(self):
-        return self._metadata.prognostic_input_mask
+    def prognostic_variables_input_0(self):
+        return self._metadata.prognostic_variables_input_0
+
+    @property
+    def prognostic_variables_input_1(self):
+        return self._metadata.prognostic_variables_input_1
 
     @property
     def output_tensor_index_to_variable(self):
@@ -124,31 +144,20 @@ class Checkpoint:
     def report_error(self):
         self._metadata.report_error()
 
-    def validate_environment(
-        self,
-        *,
-        all_packages: bool = False,
-        on_difference: str = "warn",
-        exempt_packages: list[str] | None = None,
-    ) -> bool:
-        return self._metadata.validate_environment(
-            all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
-        )
-
     def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
         return self._metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner, input_state):
-        return self._metadata.constant_forcings_inputs(runner, input_state)
+    def constant_forcings_inputs(self, runner, input_state, idx_input):
+        return self._metadata.constant_forcings_inputs(runner, input_state, idx_input)
 
-    def dynamic_forcings_inputs(self, runner, input_state):
-        return self._metadata.dynamic_forcings_inputs(runner, input_state)
+    def dynamic_forcings_inputs(self, runner, input_state, idx_input):
+        return self._metadata.dynamic_forcings_inputs(runner, input_state, idx_input)
 
-    def boundary_forcings_inputs(self, runner, input_state):
-        return self._metadata.boundary_forcings_inputs(runner, input_state)
+    def boundary_forcings_inputs(self, runner, input_state, idx_input):
+        return self._metadata.boundary_forcings_inputs(runner, input_state, idx_input)
 
     def name_fields(self, fields, namer=None):
         return self._metadata.name_fields(fields, namer=namer)
@@ -217,11 +226,16 @@ class Checkpoint:
         DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
 
         # The split oper/scda is a bit special
-        KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
+        KEYS = {
+            ("oper", "fc"): DEFAULT_KEYS_AND_TIME,
+            ("scda", "fc"): DEFAULT_KEYS_AND_TIME,
+        }
 
         requests = defaultdict(list)
 
-        for r in self._metadata.mars_requests(variables=variables, use_grib_paramid=use_grib_paramid):
+        for r in self._metadata.mars_requests(
+            variables=variables, use_grib_paramid=use_grib_paramid
+        ):
             for date in dates:
 
                 r = r.copy()
@@ -234,7 +248,9 @@ class Checkpoint:
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
 
-                r.update(kwargs)  # We do it here so that the Availability can use that information
+                r.update(
+                    kwargs
+                )  # We do it here so that the Availability can use that information
 
                 keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
                 key = tuple(r.get(k) for k in keys)
@@ -267,13 +283,6 @@ class Checkpoint:
     @property
     def name(self):
         return self._metadata.name
-
-    ###########################################################################
-    # Misc
-    ###########################################################################
-
-    def provenance_training(self):
-        return self._metadata.provenance_training()
 
 
 class SourceCheckpoint(Checkpoint):

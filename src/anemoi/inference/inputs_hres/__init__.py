@@ -10,9 +10,9 @@
 from anemoi.utils.registry import Registry
 from icecream import ic
 
-input_registry = Registry(__name__)
+input_hres_registry = Registry(__name__)
 
 
-def create_input(context, config):
+def create_input_hres(context, config):
     ic(context, config)
-    return input_registry.from_config(config, context)
+    return input_hres_registry.from_config(config, context)

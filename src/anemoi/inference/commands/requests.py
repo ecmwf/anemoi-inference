@@ -10,7 +10,7 @@
 
 from anemoi.utils.grib import shortname_to_paramid
 
-from ..checkpoint import Checkpoint
+from ..ds_checkpoint import Checkpoint
 from . import Command
 
 
@@ -21,8 +21,14 @@ class RequestCmd(Command):
 
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
-        command_parser.add_argument("--mars", action="store_true", help="Print the MARS request.")
-        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
+        command_parser.add_argument(
+            "--mars", action="store_true", help="Print the MARS request."
+        )
+        command_parser.add_argument(
+            "--use-grib-paramid",
+            action="store_true",
+            help="Use paramId instead of param.",
+        )
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args):

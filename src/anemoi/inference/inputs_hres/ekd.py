@@ -90,7 +90,7 @@ class EkdInput(Input):
         dtype=np.float32,
         flatten=True,
     ):
-
+        ic(input_fields)
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
 
@@ -158,7 +158,7 @@ class EkdInput(Input):
             )
             if name not in fields:
                 fields[name] = np.full(
-                    shape=(len(dates), self.checkpoint.number_of_input_0_grid_points),
+                    shape=(len(dates), self.checkpoint.number_of_input_1_grid_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -179,7 +179,7 @@ class EkdInput(Input):
                 LOG.error("dates %s", dates)
                 LOG.error(
                     "number_of_grid_points %s",
-                    self.checkpoint.number_of_input_0_grid_points,
+                    self.checkpoint.number_of_input_1_grid_points,
                 )
                 raise
 

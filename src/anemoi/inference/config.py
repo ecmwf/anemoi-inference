@@ -46,7 +46,8 @@ class Configuration(BaseModel):
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error."""
 
-    input: str | Dict | None = "test"
+    input_0: str | Dict | None = "test"
+    input_1: str | Dict | None = "test"
     output: str | Dict | None = "printer"
 
     forcings: Dict[str, Dict] | None = None

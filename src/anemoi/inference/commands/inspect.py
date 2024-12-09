@@ -8,7 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-from ..checkpoint import Checkpoint
+from ..ds_checkpoint import Checkpoint
 from . import Command
 
 
@@ -19,9 +19,13 @@ class InspectCmd(Command):
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
-        command_parser.add_argument("--dump", action="store_true", help="Print internal information")
         command_parser.add_argument(
-            "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
+            "--dump", action="store_true", help="Print internal information"
+        )
+        command_parser.add_argument(
+            "--validate",
+            action="store_true",
+            help="Validate the current virtual environment against the checkpoint",
         )
 
     def run(self, args):
@@ -47,7 +51,9 @@ class InspectCmd(Command):
         print("computed_constants:", _(lambda: c.computed_constants))
         print("computed_forcings_mask:", _(lambda: c.computed_forcings_mask))
         print("computed_forcings:", _(lambda: c.computed_forcings))
-        print("constant_data_from_input_mask:", _(lambda: c.constant_data_from_input_mask))
+        print(
+            "constant_data_from_input_mask:", _(lambda: c.constant_data_from_input_mask)
+        )
         print("constants_from_input_mask:", _(lambda: c.constants_from_input_mask))
         print("constants_from_input:", _(lambda: c.constants_from_input))
         print("data_to_model:", _(lambda: c.data_to_model))

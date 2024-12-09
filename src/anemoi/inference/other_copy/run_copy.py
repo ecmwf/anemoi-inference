@@ -36,29 +36,19 @@ class RunCmd(Command):
         runner = DefaultRunner(config)
 
         ic("Create input")
-        input = runner.create_input()
-
-        ic("Create input_hres")
-        input_hres = runner.create_input_hres()
+        input_0 = runner.create_input()
+        input_1 = runner.create_input()
 
         ic("Create output")
         output = runner.create_output()
 
-        ic("Create input_0 lres state")
+        ic("Create input state")
         input_state = input.create_input_state(date=config.date)
 
-        ic("Create input_1 hres state")
-        input_hres_state = input_hres.create_input_state(date=config.date)
-
-        ic("Write initial state")
         if config.write_initial_state:
             output.write_initial_state(input_state)
-            output.write_initial_state(input_hres_state)
 
-        ic("Run")
-        for state in runner.run(
-            input_0_state=input_state, input_1_state=input_hres_state
-        ):
+        for state in runner.run(input_state=input_state, lead_time=config.lead_time):
             output.write_state(state)
 
         output.close()

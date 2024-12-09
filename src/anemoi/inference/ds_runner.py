@@ -18,8 +18,8 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
 
-from .checkpoint import Checkpoint
 from .context import Context
+from .ds_checkpoint import Checkpoint_0, Checkpoint_1
 from .postprocess import Accumulator, Noop
 from .precisions import PRECISIONS
 
@@ -45,7 +45,7 @@ class Kind:
         return ", ".join(result)
 
 
-class Runner(Context):
+class DownscalingRunner(Context):
     """A runner is responsible for running a model."""
 
     def __init__(
@@ -60,7 +60,8 @@ class Runner(Context):
         use_grib_paramid=False,
         verbosity=0,
     ):
-        self._checkpoint = Checkpoint(checkpoint)
+        self._checkpoint_0 = Checkpoint_0(checkpoint)
+        self._checkpoint_1 = Checkpoint_1(checkpoint)
 
         self.device = device
         self.precision = precision
@@ -76,69 +77,92 @@ class Runner(Context):
         self.postprocess = Noop()
 
         if accumulations is True:
-            # Get accumulations from the checkpoint
-            accumulations = self.checkpoint.accumulations
+            accumulations = self.checkpoint_0.accumulations
 
-        if accumulations:
+        if accumulations:   
             self.postprocess = Accumulator(accumulations)
 
-        self._input_kinds = {}
-        self._input_tensor_by_name = []
+        self._input_0_kinds = {}
+        self._input_1_kinds = {}
+        self._input_0_tensor_by_name = []
+        self._input_1_tensor_by_name = []
+
+        self._forcing_kinds = {}
+        self._forcing_tensor_by_name = []
 
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
         if self.verbosity > 2:
-            self.checkpoint.print_indices()
+            self.checkpoint_0.print_indices()
 
         LOG.info("Using %s runner", self.__class__.__name__)
 
         if self.verbosity > 1:
-            self.checkpoint.print_variable_categories()
+            self.checkpoint_0.print_variable_categories()
 
     @property
     def checkpoint(self):
-        return self._checkpoint
+        return self._checkpoint_0
+    
+    @property
+    def checkpoint_0(self):
+        return self._checkpoint_0
 
-    def run(self, *, input_state, lead_time):
+    @property
+    def checkpoint_1(self):
+        return self._checkpoint_1
 
-        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(
-            self, input_state
+
+    def run(self, *, input_0_state, input_1_state):
+
+        self.constant_forcings_input_0 = self.checkpoint_0.constant_forcings_inputs(
+            self, input_0_state
         )
-        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(
-            self, input_state
+        self.dynamic_forcings_input_0 = self.checkpoint_0.dynamic_forcings_inputs(
+            self, input_0_state
         )
-        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(
-            self, input_state
+        self.boundary_forcings_input_0 = self.checkpoint_0.boundary_forcings_inputs(
+            self, input_0_state
+        )
+
+        self.constant_forcings_input_1 = self.checkpoint_1.constant_forcings_inputs(
+            self, input_1_state
+        )
+        self.dynamic_forcings_input_1 = self.checkpoint_1.dynamic_forcings_inputs(
+            self, input_1_state
+        )
+        self.boundary_forcings_input_1 = self.checkpoint_1.boundary_forcings_inputs(
+            self, input_1_state
         )
 
         # timers = Timers()
-
-        lead_time = to_timedelta(lead_time)
-
-        # This may be used but Ouput objects to compute the step
-        self.lead_time = lead_time
-        self.time_step = self.checkpoint.timestep
-
-        input_tensor = self.prepare_input_tensor(input_state)
+        input_0_tensor = self.prepare_input_tensor(input_0_state, 0)
+        input_1_tensor = self.prepare_input_tensor(input_1_state, 1)
 
         try:
             yield from self.postprocess(
-                self.forecast(lead_time, input_tensor, input_state)
+                self.downscale(
+                    input_0_tensor, input_1_tensor, input_0_state, input_1_state
+                )
             )
         except (TypeError, ModuleNotFoundError):
             if self.report_error:
-                self.checkpoint.report_error()
+                self.checkpoint_0.report_error()
             raise
 
         # timers.report()
 
-    def add_initial_forcings_to_input_state(self, input_state):
+    def add_initial_forcings_to_input_state(self, input_state, idx_input):
+
+        constant_forcings = getattr(self, f"constant_forcings_input_{idx_input}")
+        dynamic_forcings = getattr(self, f"dynamic_forcings_input_{idx_input}")
+
         # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
 
-        dates = [date + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.checkpoint_0.lagged]
 
         # For output object. Should be moved elsewhere
         self.reference_date = dates[-1]
@@ -146,7 +170,7 @@ class Runner(Context):
 
         # TODO: Check for user provided forcings
 
-        for source in self.constant_forcings_inputs:
+        for source in constant_forcings:
             LOG.info(
                 "Constant forcings input: %s %s (%s)", source, source.variables, dates
             )
@@ -154,11 +178,16 @@ class Runner(Context):
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
-                self._input_kinds[name] = Kind(
-                    forcing=True, constant=True, **source.kinds
-                )
+                if idx_input == 0:
+                    self._input_0_kinds[name] = Kind(
+                        forcing=True, constant=True, **source.kinds
+                    )
+                elif idx_input == 1:
+                    self._input_1_kinds[name] = Kind(
+                        forcing=True, constant=True, **source.kinds
+                    )
 
-        for source in self.dynamic_forcings_inputs:
+        for source in dynamic_forcings:
             LOG.info(
                 "Dynamic forcings input: %s %s (%s)", source, source.variables, dates
             )
@@ -166,41 +195,57 @@ class Runner(Context):
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
-                self._input_kinds[name] = Kind(
-                    forcing=True, constant=True, **source.kinds
-                )
+                if idx_input == 0:
+                    self._input_0_kinds[name] = Kind(
+                        forcing=True, constant=True, **source.kinds
+                    )
+                elif idx_input == 1:
+                    self._input_1_kinds[name] = Kind(
+                        forcing=True, constant=True, **source.kinds
+                    )
 
-    def prepare_input_tensor(self, input_state, dtype=np.float32):
-
-        typed_variables = self.checkpoint.typed_variables
+    def prepare_input_tensor(self, input_state, idx_input, dtype=np.float32):
 
         for name in input_state["fields"]:
-            self._input_kinds[name] = Kind(
-                input=True, constant=typed_variables[name].is_constant_in_time
+            if idx_input == 0:
+                self._input_0_kinds[name] = Kind(
+                    input=True, constant=self.checkpoint_0.typed_variables[name].is_constant_in_time
+                )
+            elif idx_input == 1:
+                self._input_1_kinds[name] = Kind(
+                    input=True, constant=self.checkpoint_1.typed_variables[name].is_constant_in_time
+                )
+            else:
+                raise ValueError(f"Invalid idx_input {idx_input}")
+
+            checkpoint = getattr(self, f"checkpoint_{idx_input}")
+            number_of_grid_points = checkpoint.number_of_input_grid_points
+            number_of_features = checkpoint.number_of_input_features
+            variable_to_input_tensor_index = (
+                checkpoint.variable_to_input_tensor_index
             )
 
-        # Add initial forcings to input state if needed
-        self.add_initial_forcings_to_input_state(input_state)
 
-        input_state = self.validate_input_state(input_state)
+        # Add initial forcings to input state if needed
+        self.add_initial_forcings_to_input_state(input_state, idx_input)
+
+        input_state = self.validate_input_state(input_state, idx_input)
 
         input_fields = input_state["fields"]
 
         input_tensor_numpy = np.full(
             shape=(
-                self.checkpoint.multi_step_input,
-                self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                1,
+                number_of_features,
+                number_of_grid_points,
             ),
             fill_value=np.nan,
             dtype=dtype,
         )
 
-        self._input_tensor_by_name = [None] * self.checkpoint.number_of_input_features
+        self._input_tensor_by_name = [None] * number_of_features
 
         LOG.info("Preparing input tensor with shape %s", input_tensor_numpy.shape)
-
-        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
 
         check = set()
         for var, field in input_fields.items():
@@ -212,11 +257,9 @@ class Runner(Context):
 
             self._input_tensor_by_name[i] = var
 
-        if len(check) != self.checkpoint.number_of_input_features:
-            missing = set(range(self.checkpoint.number_of_input_features)) - check
-            mapping = {
-                v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()
-            }
+        if len(check) != number_of_features:
+            missing = set(range(number_of_features)) - check
+            mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
             raise ValueError(
                 f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}"
             )
@@ -228,7 +271,7 @@ class Runner(Context):
         autocast = self.precision
 
         if autocast is None:
-            autocast = self.checkpoint.precision
+            autocast = self.checkpoint_0.precision
 
         if autocast is None:
             LOG.warning("No autocast given, using float16")
@@ -238,45 +281,48 @@ class Runner(Context):
 
     @cached_property
     def model(self):
-        with Timer(f"Loading {self.checkpoint}"):
+        with Timer(f"Loading {self.checkpoint_0}"):
             return torch.load(
-                self.checkpoint.path, map_location=self.device, weights_only=False
+                self.checkpoint_0.path, map_location=self.device, weights_only=False
             ).to(self.device)
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
+    def downscale(
+        self,
+        input_tensor_numpy_0,
+        input_tensor_numpy_1,
+        input_state_0,
+        input_state_1,
+    ):
         self.model.eval()
 
         torch.set_grad_enabled(False)
 
         # Create pytorch input tensor
-        input_tensor_torch = torch.from_numpy(
-            np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]
+        input_tensor_torch_0 = torch.from_numpy(
+            np.swapaxes(input_tensor_numpy_0, -2, -1)[np.newaxis, ...]
+        ).to(self.device)
+        input_tensor_torch_1 = torch.from_numpy(
+            np.swapaxes(input_tensor_numpy_1, -2, -1)[np.newaxis, ...]
         ).to(self.device)
 
         LOG.info("Using autocast %s", self.autocast)
 
-        lead_time = to_timedelta(lead_time)
-        steps = lead_time // self.checkpoint.timestep
+        steps = 1
 
-        LOG.info(
-            "Lead time: %s, time stepping: %s Forecasting %s steps",
-            lead_time,
-            self.checkpoint.timestep,
-            steps,
-        )
-
-        result = input_state.copy()  # We should not modify the input state
+        result = input_state_0.copy()  # We should not modify the input state
         result["fields"] = dict()
 
-        start = input_state["date"]
+        start = input_state_0["date"]
 
         # The variable `check` is used to keep track of which variables have been updated
         # In the input tensor. `reset` is used to reset `check` to False except
         # when the values are of the constant in time variables
 
-        reset = np.full((input_tensor_torch.shape[-1],), False)
-        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-        typed_variables = self.checkpoint.typed_variables
+        reset = np.full((input_tensor_torch_0.shape[-1],), False)
+        variable_to_input_tensor_index = (
+            self.checkpoint_0.variable_to_input_tensor_index
+        )
+        typed_variables = self.checkpoint_0.typed_variables
         for variable, i in variable_to_input_tensor_index.items():
             if typed_variables[variable].is_constant_in_time:
                 reset[i] = True
@@ -284,10 +330,10 @@ class Runner(Context):
         check = reset.copy()
 
         if self.verbosity > 0:
-            self._print_input_tensor("First input tensor", input_tensor_torch)
+            self._print_input_tensor("First input tensor", input_tensor_torch_0, 0)
 
         for s in range(steps):
-            step = (s + 1) * self.checkpoint.timestep
+            step = (s + 1) * self.checkpoint_0.timestep
             date = start + step
             LOG.info("Forecasting step %s (%s)", step, date)
 
@@ -295,14 +341,16 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                y_pred = self.model.predict_step(input_tensor_torch)
+                y_pred = self.model.predict_step(
+                    [input_tensor_torch_0, input_tensor_torch_1]
+                )
 
             # Detach tensor and squeeze (should we detach here?)
             output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             # Update state
             for i in range(output.shape[1]):
-                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = (
+                result["fields"][self.checkpoint_0.output_tensor_index_to_variable[i]] = (
                     output[:, i]
                 )
 
@@ -311,6 +359,7 @@ class Runner(Context):
 
             yield result
 
+            """
             # Update  tensor for next iteration
 
             check[:] = reset
@@ -345,7 +394,9 @@ class Runner(Context):
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
+            """
 
+    """
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
@@ -374,7 +425,9 @@ class Runner(Context):
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
 
         return input_tensor_torch
+    """
 
+    """
     def add_dynamic_forcings_to_input_tensor(
         self, input_tensor_torch, state, date, check
     ):
@@ -410,7 +463,8 @@ class Runner(Context):
                 )
 
         return input_tensor_torch
-
+    """
+    """
     def add_boundary_forcings_to_input_tensor(
         self, input_tensor_torch, state, date, check
     ):
@@ -436,8 +490,9 @@ class Runner(Context):
 
         # TO DO: add some consistency checks as above
         return input_tensor_torch
+    """
 
-    def validate_input_state(self, input_state):
+    def validate_input_state(self, input_state, idx_input):
 
         if not isinstance(input_state, dict):
             raise ValueError("Input state must be a dictionnary")
@@ -461,7 +516,11 @@ class Runner(Context):
         # Detach from the user's input so we can modify it
         input_state = input_state.copy()
         fields = input_state["fields"] = input_state["fields"].copy()
-        number_of_grid_points = self.checkpoint.number_of_grid_points
+        if idx_input == 0:
+            number_of_grid_points = self.checkpoint_0.number_of_input_grid_points
+        elif idx_input == 1:
+            number_of_grid_points = self.checkpoint_1.number_of_input_grid_points
+        
 
         for latlon in ("latitudes", "longitudes"):
             if len(input_state[latlon].shape) != 1:
@@ -479,7 +538,7 @@ class Runner(Context):
                 f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}"
             )
 
-        multi_step = self.checkpoint.multi_step_input
+        multi_step = 1
 
         expected_shape = (multi_step, number_of_grid_points)
 
@@ -521,7 +580,7 @@ class Runner(Context):
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (
             1,
-            self.checkpoint.multi_step_input,
+            1,
         ), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
 
@@ -556,7 +615,7 @@ class Runner(Context):
         )
         LOG.info("")
 
-    def _print_input_tensor(self, title, input_tensor_torch):
+    def _print_input_tensor(self, title, input_tensor_torch, idx_input):
 
         input_tensor_numpy = (
             input_tensor_torch.cpu().numpy()
@@ -573,7 +632,10 @@ class Runner(Context):
         )  # (multi_step_input, variables, values)
 
         self._print_tensor(
-            title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds
+            title,
+            input_tensor_numpy,
+            self._input_tensor_by_name,
+            getattr(self, f"_input_{idx_input}_kinds"),
         )
 
     def _print_output_tensor(self, title, output_tensor_numpy):
@@ -586,15 +648,15 @@ class Runner(Context):
         if not self._output_tensor_by_name:
             for i in range(output_tensor_numpy.shape[1]):
                 self._output_tensor_by_name.append(
-                    self.checkpoint.output_tensor_index_to_variable[i]
+                    self.checkpoint_0.output_tensor_index_to_variable[i]
                 )
-                if i in self.checkpoint.prognostic_output_mask:
+                if i in self.checkpoint_0.prognostic_output_mask:
                     self._output_kinds[
-                        self.checkpoint.output_tensor_index_to_variable[i]
+                        self.checkpoint_0.output_tensor_index_to_variable[i]
                     ] = Kind(prognostic=True)
                 else:
                     self._output_kinds[
-                        self.checkpoint.output_tensor_index_to_variable[i]
+                        self.checkpoint_0.output_tensor_index_to_variable[i]
                     ] = Kind(diagnostic=True)
 
         # output_tensor_numpy = output_tensor_numpy.cpu().numpy()

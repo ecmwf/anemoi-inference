@@ -9,19 +9,17 @@
 
 
 import logging
-import os
 
 import earthkit.data as ekd
-from icecream import ic
 
 from ..decorators import main_argument
-from . import input_registry
+from . import input_hres_registry
 from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
 
-@input_registry.register("grib")
+@input_hres_registry.register("grib")
 @main_argument("path")
 class GribFileInput(GribInput):
     """
@@ -33,7 +31,6 @@ class GribFileInput(GribInput):
         self.path = path
 
     def create_input_state(self, *, date):
-        ic(os.getcwd(), self.path)
         return self._create_input_state(
             ekd.from_source("file", self.path), variables=None, date=date
         )

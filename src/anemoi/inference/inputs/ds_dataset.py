@@ -14,8 +14,9 @@ from functools import cached_property
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
+from icecream import ic
 
-from ..input import Input
+from ..ds_input import Input
 from . import input_registry
 
 LOG = logging.getLogger(__name__)
@@ -29,9 +30,12 @@ class DatasetInput(Input):
     def __init__(self, context, args, kwargs):
         super().__init__(context)
         self.args, self.kwargs = args, kwargs
+        self.kwargs["dataset"] = self.kwargs["dataset"]["x"]["zip"][0]
         if context.verbosity > 0:
             LOG.info(
-                "Opening dataset with\nargs=%s\nkwargs=%s", json.dumps(args, indent=4), json.dumps(kwargs, indent=4)
+                "Opening dataset with\nargs=%s\nkwargs=%s",
+                json.dumps(args, indent=4),
+                json.dumps(kwargs, indent=4),
             )
 
     @cached_property
@@ -58,11 +62,11 @@ class DatasetInput(Input):
 
         fields = input_state["fields"]
 
+        # ic(self.checkpoint.lagged, date)
         date = np.datetime64(date)
-        data = self._load_dates([date + np.timedelta64(h) for h in self.checkpoint.lagged])
-
-        if data.shape[2] != 1:
-            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
+        data = self._load_dates(
+            [date]  # + np.timedelta64(h) for h in self.checkpoint.lagged]
+        )
 
         requested_variables = set(self.input_variables())
         for i, variable in enumerate(self.ds.variables):
@@ -118,11 +122,15 @@ class DatasetInputArgsKwargs(DatasetInput):
 
     def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
         if not args and not kwargs:
-            args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+            args, kwargs = context.checkpoint.open_dataset_args_kwargs(
+                use_original_paths=use_original_paths
+            )
 
             # TODO: remove start/end from the arguments
 
-            LOG.warning("No arguments provided to open_dataset, using the default arguments:")
+            LOG.warning(
+                "No arguments provided to open_dataset, using the default arguments:"
+            )
 
             cmd = "open_dataset("
             for arg in args:
@@ -152,7 +160,9 @@ class TestInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input"""
 
     def __init__(self, context, /, use_original_paths=True, **kwargs):
-        super().__init__(context, name="test", use_original_paths=use_original_paths, **kwargs)
+        super().__init__(
+            context, name="test", use_original_paths=use_original_paths, **kwargs
+        )
 
 
 @input_registry.register("validation")
@@ -160,7 +170,9 @@ class ValidationInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input"""
 
     def __init__(self, context, /, use_original_paths=True, **kwargs):
-        super().__init__(context, name="validation", use_original_paths=use_original_paths, **kwargs)
+        super().__init__(
+            context, name="validation", use_original_paths=use_original_paths, **kwargs
+        )
 
 
 @input_registry.register("training")
@@ -168,4 +180,6 @@ class TrainingInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input"""
 
     def __init__(self, context, /, use_original_paths=True, **kwargs):
-        super().__init__(context, name="training", use_original_paths=use_original_paths, **kwargs)
+        super().__init__(
+            context, name="training", use_original_paths=use_original_paths, **kwargs
+        )

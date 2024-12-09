@@ -9,15 +9,13 @@
 
 
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import earthkit.data as ekd
 import numpy as np
+from anemoi.inference.inputs.ds_dataset import DatasetInput
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
-
-from anemoi.inference.inputs.dataset import DatasetInput
 
 LOG = logging.getLogger(__name__)
 
@@ -64,7 +62,11 @@ class ComputedForcings(Forcings):
 
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
 
-        assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
+        assert len(ds) == len(self.variables) * len(dates), (
+            len(ds),
+            len(self.variables),
+            dates,
+        )
 
         def rename(f, _, metadata):
             return metadata["param"]
@@ -75,7 +77,9 @@ class ComputedForcings(Forcings):
 
         # Forcing are sorted by `compute_forcings`  in the order (varaible, date)
 
-        return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
+        return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(
+            len(self.variables), len(dates), -1
+        )
 
 
 class CoupledForcings(Forcings):
@@ -134,7 +138,9 @@ class BoundaryForcings(Forcings):
         super().__init__(context)
         self.variables = variables
         self.variables_mask = variables_mask
-        assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
+        assert isinstance(
+            input, DatasetInput
+        ), "Currently only boundary forcings from dataset supported."
         self.input = input
         num_lam, num_other = input.ds.grids
         self.spatial_mask = np.array([False] * num_lam + [True] * num_other, dtype=bool)
@@ -147,7 +153,11 @@ class BoundaryForcings(Forcings):
         data = self.input.load_forcings(variables=self.variables, dates=dates)
         data = data[..., self.spatial_mask]
 
-        expected_shape = (len(self.variables), len(dates), state["latitudes"][self.spatial_mask].size)
+        expected_shape = (
+            len(self.variables),
+            len(dates),
+            state["latitudes"][self.spatial_mask].size,
+        )
         assert data.shape == expected_shape, (data.shape, expected_shape)
 
         return data
