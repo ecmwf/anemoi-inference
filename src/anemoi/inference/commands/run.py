@@ -15,6 +15,7 @@ from ..config import RunConfiguration
 from ..config import load_config
 from ..runners.default import DefaultRunner
 from . import Command
+from ..runners import create_runner
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class RunCmd(Command):
         if config.description is not None:
             LOG.info("%s", config.description)
 
-        runner = DefaultRunner(config)
+        runner = create_runner(config)
 
         input = runner.create_input()
         output = runner.create_output()

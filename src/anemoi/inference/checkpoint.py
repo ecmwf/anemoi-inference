@@ -303,6 +303,13 @@ class Checkpoint:
     def name(self):
         return self._metadata.name
 
+
+    ###########################################################################
+
+    def components(self):
+        return {k: ComponentCheckpoint(self, v) for k, v in self._metadata.components().items()}
+
+
     ###########################################################################
     # Misc
     ###########################################################################
@@ -321,3 +328,14 @@ class SourceCheckpoint(Checkpoint):
 
     def __repr__(self):
         return f"Source({self.name}@{self.path})"
+
+class ComponentCheckpoint(Checkpoint):
+    """A checkpoint that represents a source."""
+
+    def __init__(self, owner, metadata):
+        super().__init__(owner.path)
+        self._owner = owner
+        self._metadata = metadata
+
+    def __repr__(self):
+        return f"Component({self.name}@{self.path})"

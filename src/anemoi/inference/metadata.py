@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import json
 import logging
 import os
 import warnings
@@ -504,7 +505,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             if isinstance(x, list):
                 for y in x:
-                    if isinstance(y, str):
+                    if isinstance(y, str) and y.endswith(".zarr"):
                         result.append(y)
                     else:
                         _find(y)
@@ -759,6 +760,43 @@ class Metadata(PatchMixin, LegacyMixin):
         """Environmental Configuration when trained"""
         return dict(self._metadata.get("provenance_training", {}))
 
+    def components(self):
+
+        def _dataset(dataset, result):
+            if 'name' in dataset:
+                result[dataset['name']] = dataset
+
+            for k, v in dataset.items():
+                _visit(v, result)
+
+
+        def _visit(x, result=None):
+            if result is None:
+                result = {}
+
+            if isinstance(x, list):
+                for a in x:
+                    _visit(a, result)
+
+            if isinstance(x, dict):
+                if "dataset" in x:
+                    _dataset(x['dataset'], result)
+                    # assert isinstance(x['dataset'], (dict, str)), type(x['dataset'])
+
+                if "datasets" in x:
+                    assert isinstance(x['datasets'], list), type(x['datasets'])
+                    for d in x["datasets"]:
+                        _dataset(d, result)
+
+                for  k, v in x.items():
+                    _visit(v, result)
+
+            return result
+
+        names = _visit(self._metadata.dataset.specific)
+        return {k: ComponentMetadata(self, k, v) for k, v in names.items()}
+
+
     def sources(self, path):
 
         if "sources" not in self._metadata.dataset:
@@ -845,6 +883,11 @@ class Metadata(PatchMixin, LegacyMixin):
 
         merge(self._metadata, patch)
 
+class ComponentMetadata(Metadata):
+    def __init__(self, parent, name, metadata, supporting_arrays={}):
+        super().__init__(metadata, supporting_arrays)
+        self.parent = parent
+        self.name = name
 
 class SourceMetadata(Metadata):
     """An object that holds metadata of a source. It is only the `dataset` and `supporting_arrays` parts of the metadata.
