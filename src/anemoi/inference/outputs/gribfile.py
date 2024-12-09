@@ -149,3 +149,4 @@ class GribFileOutput(GribOutput):
                 requests.append(request)
 
             json.dump(requests, f, indent=indent)
+            f.write("\n")
