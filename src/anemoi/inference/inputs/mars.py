@@ -91,9 +91,9 @@ def retrieve(requests, grid, area, **kwargs):
 
         if (
             r.get("class", "od") == "od"
-            and r.get("type") == "fc"
-            and r.get("stream") == "oper"
-            and r["time"] in ("0600", "1800")
+            and r.get("type", "an") == "fc"
+            and r.get("stream", "oper") == "oper"
+            and r.get("time", "1200") in ("0600", "1800")
         ):
 
             r["stream"] = "scda"

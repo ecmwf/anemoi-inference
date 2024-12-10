@@ -9,11 +9,9 @@
 
 
 import logging
-import warnings
-from collections import defaultdict
 from copy import deepcopy
-LOG = logging.getLogger(__name__)
 
+LOG = logging.getLogger(__name__)
 
 
 class DownscalingMixin:
@@ -24,15 +22,14 @@ class DownscalingMixin:
         metadata_0 = deepcopy(self._metadata)
         metadata_1 = deepcopy(self._metadata)
 
-        for key in ('data', 'model'):
-                metadata_0['data_indices'][key]['input'] = metadata_0['data_indices'][key]['input_0']
-                metadata_1['data_indices'][key]['input'] = metadata_1['data_indices'][key]['input_1']
+        for key in ("data", "model"):
+            metadata_0["data_indices"][key]["input"] = metadata_0["data_indices"][key]["input_0"]
+            metadata_1["data_indices"][key]["input"] = metadata_1["data_indices"][key]["input_1"]
 
-        zip0 = metadata_0['dataset']['specific']['datasets'][0]
-        metadata_0['dataset']['specific'] = zip0['datasets'][0]
+        zip0 = metadata_0["dataset"]["specific"]["datasets"][0]
+        metadata_0["dataset"]["specific"] = zip0["datasets"][0]
 
-        zip1 = metadata_1['dataset']['specific']['datasets'][0]
-        metadata_1['dataset']['specific'] = zip1['datasets'][1]
-
+        zip1 = metadata_1["dataset"]["specific"]["datasets"][0]
+        metadata_1["dataset"]["specific"] = zip1["datasets"][1]
 
         return [self.__class__(metadata_0), self.__class__(metadata_1)]

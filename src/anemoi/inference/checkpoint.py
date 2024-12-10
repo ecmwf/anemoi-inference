@@ -241,7 +241,18 @@ class Checkpoint:
     def mars_by_levtype(self, levtype):
         return self._metadata.mars_by_levtype(levtype)
 
-    def mars_requests(self, *, variables, dates, use_grib_paramid=False, **kwargs):
+    def _set_scda(self, r):
+
+        if (
+            r.get("class", "od") == "od"
+            and r.get("type", "an") == "fc"
+            and r.get("stream", "oper") == "oper"
+            and r.get("time", "1200") in ("0600", "1800")
+        ):
+
+            r["stream"] = "scda"
+
+    def mars_requests(self, *, variables, dates, use_grib_paramid=False, use_scda=True, **kwargs):
         from earthkit.data.utils.availability import Availability
 
         assert variables, "No variables provided"
@@ -278,6 +289,9 @@ class Checkpoint:
 
                 r.update(kwargs)  # We do it here so that the Availability can use that information
 
+                if use_scda:
+                    self._set_scda(r)
+
                 keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
                 key = tuple(r.get(k) for k in keys)
 
@@ -310,7 +324,6 @@ class Checkpoint:
     def name(self):
         return self._metadata.name
 
-
     ###########################################################################
 
     def components(self):
@@ -337,6 +350,7 @@ class SourceCheckpoint(Checkpoint):
 
     def __repr__(self):
         return f"Source({self.name}@{self.path})"
+
 
 class ComponentCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""

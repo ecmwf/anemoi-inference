@@ -8,7 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 
-import json
 import logging
 import os
 import warnings
@@ -23,9 +22,9 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
+from .downscaling import DownscalingMixin
 from .legacy import LegacyMixin
 from .patch import PatchMixin
-from .downscaling import DownscalingMixin
 
 LOG = logging.getLogger(__name__)
 
@@ -766,12 +765,11 @@ class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
     def components(self):
 
         def _dataset(dataset, result):
-            if 'name' in dataset:
-                result[dataset['name']] = dataset
+            if "name" in dataset:
+                result[dataset["name"]] = dataset
 
             for k, v in dataset.items():
                 _visit(v, result)
-
 
         def _visit(x, result=None):
             if result is None:
@@ -783,15 +781,15 @@ class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
 
             if isinstance(x, dict):
                 if "dataset" in x:
-                    _dataset(x['dataset'], result)
+                    _dataset(x["dataset"], result)
                     # assert isinstance(x['dataset'], (dict, str)), type(x['dataset'])
 
                 if "datasets" in x:
-                    assert isinstance(x['datasets'], list), type(x['datasets'])
+                    assert isinstance(x["datasets"], list), type(x["datasets"])
                     for d in x["datasets"]:
                         _dataset(d, result)
 
-                for  k, v in x.items():
+                for k, v in x.items():
                     _visit(v, result)
 
             return result
@@ -885,11 +883,15 @@ class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
 
         merge(self._metadata, patch)
 
+
 class ComponentMetadata(Metadata):
+    """An object that holds metadata of a component."""
+
     def __init__(self, parent, name, metadata, supporting_arrays={}):
         super().__init__(metadata, supporting_arrays)
         self.parent = parent
         self.name = name
+
 
 class SourceMetadata(Metadata):
     """An object that holds metadata of a source. It is only the `dataset` and `supporting_arrays` parts of the metadata.

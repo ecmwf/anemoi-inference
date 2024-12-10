@@ -13,9 +13,8 @@ import logging
 
 from ..config import RunConfiguration
 from ..config import load_config
-from ..runners.default import DefaultRunner
-from . import Command
 from ..runners import create_runner
+from . import Command
 
 LOG = logging.getLogger(__name__)
 

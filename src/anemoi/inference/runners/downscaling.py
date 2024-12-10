@@ -13,6 +13,7 @@ import logging
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
+from ..checkpoint import Checkpoint
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
 from ..forcings import CoupledForcings
@@ -20,7 +21,6 @@ from ..inputs import create_input
 from ..outputs import create_output
 from ..runner import Runner
 from . import runner_registry
-from ..checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
 

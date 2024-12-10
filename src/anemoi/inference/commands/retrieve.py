@@ -14,9 +14,8 @@ from earthkit.data.utils.dates import to_datetime
 
 from ..config import load_config
 from ..inputs.mars import postproc
-from ..runners.default import DefaultRunner
-from . import Command
 from ..runners import create_runner
+from . import Command
 
 
 class RetrieveCmd(Command):
@@ -61,12 +60,8 @@ class RetrieveCmd(Command):
 
         requests = []
         for r in runner.checkpoint.mars_requests(
-            dates=dates,
-            variables=variables,
-            use_grib_paramid=config.use_grib_paramid,
+            dates=dates, variables=variables, use_grib_paramid=config.use_grib_paramid, **extra
         ):
-            r = r.copy()
-            r.update(extra)
             requests.append(r)
 
         with open(args.output, "w") as f:
