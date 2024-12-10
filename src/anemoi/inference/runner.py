@@ -65,7 +65,11 @@ class Runner(Context):
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
     ):
-        self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
+        if isinstance(checkpoint, Checkpoint):
+            assert not patch_metadata, "Cannot patch metadata when passing a Checkpoint object"
+            self._checkpoint = checkpoint
+        else:
+            self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
         self.device = device
         self.precision = precision

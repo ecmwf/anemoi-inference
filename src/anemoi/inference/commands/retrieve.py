@@ -16,6 +16,7 @@ from ..config import load_config
 from ..inputs.mars import postproc
 from ..runners.default import DefaultRunner
 from . import Command
+from ..runners import create_runner
 
 
 class RetrieveCmd(Command):
@@ -23,7 +24,7 @@ class RetrieveCmd(Command):
 
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
-        command_parser.add_argument("config", type=str, help="Path to checkpoint")
+        command_parser.add_argument("config", type=str, help="Path to config")
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
         command_parser.add_argument("--output", type=str, help="Output file")
@@ -35,7 +36,7 @@ class RetrieveCmd(Command):
 
         config = load_config(args.config, args.overrides, defaults=args.defaults)
 
-        runner = DefaultRunner(config)
+        runner = create_runner(config)
 
         # TODO: Move this to the runner
 

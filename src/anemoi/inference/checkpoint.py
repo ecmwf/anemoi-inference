@@ -35,9 +35,10 @@ def _download_huggingfacehub(huggingface_config):
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path, *, patch_metadata=None):
+    def __init__(self, path, *, patch_metadata=None, user_provided_metadata=None):
         self.path = path
         self.patch_metadata = patch_metadata
+        self.user_provided_metadata = user_provided_metadata
 
     def __repr__(self):
         return f"Checkpoint({self.path})"
@@ -61,6 +62,12 @@ class Checkpoint:
 
     @cached_property
     def _metadata(self):
+
+        if self.user_provided_metadata is not None:
+            if isinstance(self.user_provided_metadata, Metadata):
+                return self.user_provided_metadata
+            return Metadata(self.user_provided_metadata)
+
         try:
             result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
@@ -309,6 +316,8 @@ class Checkpoint:
     def components(self):
         return {k: ComponentCheckpoint(self, v) for k, v in self._metadata.components().items()}
 
+    def split(self):
+        return [Checkpoint(self.path, user_provided_metadata=m) for m in self._metadata.split()]
 
     ###########################################################################
     # Misc

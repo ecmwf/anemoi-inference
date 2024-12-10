@@ -25,6 +25,7 @@ from anemoi.utils.provenance import gather_provenance_info
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
+from .downscaling import DownscalingMixin
 
 LOG = logging.getLogger(__name__)
 
@@ -39,10 +40,11 @@ def _remove_full_paths(x):
     return x
 
 
-class Metadata(PatchMixin, LegacyMixin):
+class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
     """An object that holds metadata of a checkpoint."""
 
     def __init__(self, metadata, supporting_arrays={}):
+        assert isinstance(metadata, dict), type(metadata)
         self._metadata = DotDict(metadata)
         assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
@@ -593,7 +595,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         for name in self.variables:
             if name not in result:
-                raise ValueError(f"Variable {name} has no category")
+                LOG.warning(f"Variable {name} has no category, assuming prognostic")
+                result[name].add("prognostic")
 
             result[name] = sorted(result[name])
 
@@ -795,7 +798,6 @@ class Metadata(PatchMixin, LegacyMixin):
 
         names = _visit(self._metadata.dataset.specific)
         return {k: ComponentMetadata(self, k, v) for k, v in names.items()}
-
 
     def sources(self, path):
 

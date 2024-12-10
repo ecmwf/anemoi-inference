@@ -88,3 +88,6 @@ class RunConfiguration(BaseModel):
 
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
+
+    which: int | None = None
+    """Use for downscaling. The index of the model to use."""
