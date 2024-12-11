@@ -234,7 +234,7 @@ class Metadata(PatchMixin, LegacyMixin):
             result = self._metadata.dataset.variables_metadata
             self._legacy_check_variables_metadata(result)
         except AttributeError:
-            return self._legacy_variables_metadata()
+            result = self._legacy_variables_metadata()
 
         if "constant_fields" in self._metadata.dataset:
             for name in self._metadata.dataset.constant_fields:
