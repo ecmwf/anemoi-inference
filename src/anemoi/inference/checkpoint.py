@@ -12,6 +12,7 @@ import datetime
 import logging
 from collections import defaultdict
 from functools import cached_property
+from pathlib import Path
 
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
@@ -25,10 +26,21 @@ def _download_huggingfacehub(huggingface_config):
     """Download model from huggingface"""
     try:
         from huggingface_hub import hf_hub_download
+        from huggingface_hub import snapshot_download
     except ImportError as e:
         raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
 
-    config_path = hf_hub_download(**huggingface_config)
+    if "filename" in huggingface_config:
+        config_path = hf_hub_download(**huggingface_config)
+    else:
+        repo_path = Path(snapshot_download(**huggingface_config))
+        ckpt_files = list(repo_path.glob("*.ckpt"))
+        if len(ckpt_files) == 1:
+            return str(ckpt_files[0])
+        else:
+            ValueError(
+                f"Multiple ckpt files found in repo, {ckpt_files}.\nCannot pick one to load, please specify `filename`."
+            )
     return config_path
 
 
