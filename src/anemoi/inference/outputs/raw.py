@@ -53,4 +53,3 @@ class RawOutput(Output):
         for key in ["latitudes", "longitudes"]:
             restate[key] = np.array(state[key])
         np.savez_compressed(fn_state, **restate)
-
