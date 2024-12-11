@@ -48,6 +48,8 @@ class RawOutput(Output):
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"
         restate = {f"field_{key}": val for key, val in state["fields"].items()}
-        for key in ["date", "longitudes", "latitudes"]:
+        for key in ["date"]:
             restate[key] = np.array(state[key], dtype=str)
+        for key in ["latitudes", "longitudes"]:
+            restate[key] = np.array(state[key])
         np.savez_compressed(fn_state, **restate)
