@@ -40,7 +40,7 @@ class DownscalingRunner(Runner):
             config = DotDict(config.model_dump())
 
         self.config = config
-        self.forcings = None # A 'Checkpoint' object that points to the forcings
+        self.forcings = None  # A 'Checkpoint' object that points to the forcings
 
         if config.which is None:
             checkpoint, self.forcings = Checkpoint(config.checkpoint).split()

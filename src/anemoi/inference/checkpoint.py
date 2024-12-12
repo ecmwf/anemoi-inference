@@ -252,7 +252,6 @@ class Checkpoint:
 
             r["stream"] = "scda"
 
-
     def _expand_to_by(self, value):
         # TODO: This code needs to be moved to a more general place
         if isinstance(value, str):
@@ -295,8 +294,8 @@ class Checkpoint:
         KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 
         user_provided_steps = None
-        if 'step' in kwargs:
-            user_provided_steps = self._expand_to_by(kwargs.pop('step'))
+        if "step" in kwargs:
+            user_provided_steps = self._expand_to_by(kwargs.pop("step"))
 
         requests = defaultdict(list)
 
@@ -305,30 +304,30 @@ class Checkpoint:
             for date in dates:
                 # for step in steps:
 
-                    r = request.copy()
+                r = request.copy()
 
-                    base = date
-                    step = int(str(r.get('step', 0)).split("-")[-1])
-                    base = base - datetime.timedelta(hours=step)
+                base = date
+                step = int(str(r.get("step", 0)).split("-")[-1])
+                base = base - datetime.timedelta(hours=step)
 
-                    r["date"] = base.strftime("%Y-%m-%d")
-                    r["time"] = base.strftime("%H%M")
+                r["date"] = base.strftime("%Y-%m-%d")
+                r["time"] = base.strftime("%H%M")
 
-                    if user_provided_steps:
-                        # assert step == 0, (user_provided_steps, r)
-                        r['step'] = [s + step for s in user_provided_steps]
+                if user_provided_steps:
+                    # assert step == 0, (user_provided_steps, r)
+                    r["step"] = [s + step for s in user_provided_steps]
 
-                    r.update(kwargs)  # We do it here so that the Availability can use that information
+                r.update(kwargs)  # We do it here so that the Availability can use that information
 
-                    if use_scda:
-                        self._set_scda(r)
+                if use_scda:
+                    self._set_scda(r)
 
-                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
-                    key = tuple(r.get(k) for k in keys)
+                keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                key = tuple(r.get(k) for k in keys)
 
-                    # Special case because of oper/scda
+                # Special case because of oper/scda
 
-                    requests[key].append(r)
+                requests[key].append(r)
 
         result = []
         for reqs in requests.values():
