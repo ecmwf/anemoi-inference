@@ -40,9 +40,12 @@ class DownscalingRunner(Runner):
             config = DotDict(config.model_dump())
 
         self.config = config
+        self.forcings = None # A 'Checkpoint' object that points to the forcings
 
-        assert config.which in [0, 1], "The 'which' parameter must be 0 or 1"
-        checkpoint = Checkpoint(config.checkpoint).split()[config.which]
+        if config.which is None:
+            checkpoint, self.forcings = Checkpoint(config.checkpoint).split()
+        else:
+            checkpoint = Checkpoint(config.checkpoint).split()[config.which]
 
         super().__init__(
             checkpoint,

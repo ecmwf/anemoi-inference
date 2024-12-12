@@ -252,6 +252,28 @@ class Checkpoint:
 
             r["stream"] = "scda"
 
+
+    def _expand_to_by(self, value):
+        # TODO: This code needs to be moved to a more general place
+        if isinstance(value, str):
+            if "/" not in value:
+                return [value]
+
+            bits = value.split("/")
+            if len(bits) == 3 and bits[1].lower() == "to":
+                value = list(range(int(bits[0]), int(bits[2]) + 1, 1))
+
+            elif len(bits) == 5 and bits[1].lower() == "to" and bits[3].lower() == "by":
+                value = list(range(int(bits[0]), int(bits[2]) + int(bits[4]), int(bits[4])))
+
+        if isinstance(value, (list, tuple)):
+            return value
+
+        if isinstance(value, int):
+            return [value]
+
+        raise ValueError(f"Cannot make list from {value}")
+
     def mars_requests(self, *, variables, dates, use_grib_paramid=False, use_scda=True, **kwargs):
         from earthkit.data.utils.availability import Availability
 
@@ -272,32 +294,41 @@ class Checkpoint:
         # The split oper/scda is a bit special
         KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 
+        user_provided_steps = None
+        if 'step' in kwargs:
+            user_provided_steps = self._expand_to_by(kwargs.pop('step'))
+
         requests = defaultdict(list)
 
-        for r in self._metadata.mars_requests(variables=variables, use_grib_paramid=use_grib_paramid):
+        for request in self._metadata.mars_requests(variables=variables, use_grib_paramid=use_grib_paramid):
+
             for date in dates:
+                # for step in steps:
 
-                r = r.copy()
+                    r = request.copy()
 
-                base = date
-                step = str(r.get("step", 0)).split("-")[-1]
-                step = int(step)
-                base = base - datetime.timedelta(hours=step)
+                    base = date
+                    step = int(str(r.get('step', 0)).split("-")[-1])
+                    base = base - datetime.timedelta(hours=step)
 
-                r["date"] = base.strftime("%Y-%m-%d")
-                r["time"] = base.strftime("%H%M")
+                    r["date"] = base.strftime("%Y-%m-%d")
+                    r["time"] = base.strftime("%H%M")
 
-                r.update(kwargs)  # We do it here so that the Availability can use that information
+                    if user_provided_steps:
+                        # assert step == 0, (user_provided_steps, r)
+                        r['step'] = [s + step for s in user_provided_steps]
 
-                if use_scda:
-                    self._set_scda(r)
+                    r.update(kwargs)  # We do it here so that the Availability can use that information
 
-                keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
-                key = tuple(r.get(k) for k in keys)
+                    if use_scda:
+                        self._set_scda(r)
 
-                # Special case because of oper/scda
+                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                    key = tuple(r.get(k) for k in keys)
 
-                requests[key].append(r)
+                    # Special case because of oper/scda
+
+                    requests[key].append(r)
 
         result = []
         for reqs in requests.values():
