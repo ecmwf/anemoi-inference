@@ -48,7 +48,7 @@ class Checkpoint:
     """Represents an inference checkpoint."""
 
     def __init__(self, path, *, patch_metadata=None):
-        self.path = path
+        self._path = path
         self.patch_metadata = patch_metadata
 
     def __repr__(self):
@@ -59,17 +59,17 @@ class Checkpoint:
         import json
 
         try:
-            self._model = json.loads(self._model)
-        except TypeError:
-            pass
+            path = json.loads(self._path)
+        except Exception:
+            path = self._path
 
-        if isinstance(self._model, str):
-            return self._model
-        elif isinstance(self._model, dict):
-            if "huggingface" in self._model:
-                return _download_huggingfacehub(self._model["huggingface"])
+        if isinstance(path, (Path, str)):
+            return path
+        elif isinstance(path, dict):
+            if "huggingface" in path:
+                return _download_huggingfacehub(path["huggingface"])
             pass
-        raise TypeError(f"Cannot parse model path: {self._model}. It must be a path or dict")
+        raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
     @cached_property
     def _metadata(self):
