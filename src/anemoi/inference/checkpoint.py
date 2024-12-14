@@ -30,6 +30,9 @@ def _download_huggingfacehub(huggingface_config):
     except ImportError as e:
         raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
 
+    if isinstance(huggingface_config, str):
+        huggingface_config = {"repo_id": huggingface_config}
+
     if "filename" in huggingface_config:
         config_path = hf_hub_download(**huggingface_config)
     else:
