@@ -22,7 +22,7 @@ from .metadata import Metadata
 LOG = logging.getLogger(__name__)
 
 
-def _download_huggingfacehub(huggingface_config):
+def _download_huggingfacehub(huggingface_config) -> str:
     """Download model from huggingface"""
     try:
         from huggingface_hub import hf_hub_download
@@ -34,17 +34,17 @@ def _download_huggingfacehub(huggingface_config):
         huggingface_config = {"repo_id": huggingface_config}
 
     if "filename" in huggingface_config:
-        config_path = hf_hub_download(**huggingface_config)
+        return str(hf_hub_download(**huggingface_config))
+
+    repo_path = Path(snapshot_download(**huggingface_config))
+    ckpt_files = list(repo_path.glob("*.ckpt"))
+
+    if len(ckpt_files) == 1:
+        return str(ckpt_files[0])
     else:
-        repo_path = Path(snapshot_download(**huggingface_config))
-        ckpt_files = list(repo_path.glob("*.ckpt"))
-        if len(ckpt_files) == 1:
-            return str(ckpt_files[0])
-        else:
-            ValueError(
-                f"Multiple ckpt files found in repo, {ckpt_files}.\nCannot pick one to load, please specify `filename`."
-            )
-    return config_path
+        raise ValueError(
+            f"None or Multiple ckpt files found in repo, {ckpt_files}.\nCannot pick one to load, please specify `filename`."
+        )
 
 
 class Checkpoint:
@@ -58,7 +58,7 @@ class Checkpoint:
         return f"Checkpoint({self.path})"
 
     @cached_property
-    def path(self):
+    def path(self) -> str:
         import json
 
         try:
@@ -67,7 +67,7 @@ class Checkpoint:
             path = self._path
 
         if isinstance(path, (Path, str)):
-            return path
+            return str(path)
         elif isinstance(path, dict):
             if "huggingface" in path:
                 return _download_huggingfacehub(path["huggingface"])
