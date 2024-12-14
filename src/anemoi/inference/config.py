@@ -29,7 +29,7 @@ class Configuration(BaseModel):
 
     description: str | None = None
 
-    checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any]]
+    checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any] | str]
     """A path to an Anemoi checkpoint file."""
 
     date: str | int | datetime.datetime | None = None
