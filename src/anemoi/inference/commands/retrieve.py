@@ -28,7 +28,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
-        command_parser.add_argument("--output", type=str, help="Output file")
+        command_parser.add_argument("--output", type=str, default="/dev/stdout", help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
