@@ -31,6 +31,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--output", type=str, help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
+        command_parser.add_argument("--retrieve-fields-type", type=str, help="Type of fields to retrieve")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
@@ -44,6 +45,18 @@ class RetrieveCmd(Command):
         variables = runner.checkpoint.variables_from_input(include_forcings=True)
         area = runner.checkpoint.area
         grid = runner.checkpoint.grid
+
+        if args.retrieve_fields_type is not None:
+            selected = set()
+
+            for name, kinds in runner.checkpoint.variable_categories().items():
+                if "computed" in kinds:
+                    continue
+                for kind in kinds:
+                    if args.retrieve_fields_type.startswith(kind):  # PrepML adds an 's' to the type
+                        selected.add(name)
+
+            variables = sorted(selected)
 
         extra = postproc(grid, area)
 

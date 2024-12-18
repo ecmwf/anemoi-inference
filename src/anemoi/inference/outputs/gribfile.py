@@ -74,6 +74,20 @@ class GribFileOutput(GribOutput):
         return f"GribFileOutput({self.path})"
 
     def write_message(self, message, template, **keys):
+        # Make sure `name` is not in the keys, otherwise grib_encoding will fail
+        if template is not None and template.metadata("name", default=None) is not None:
+            # We cannot clear the metadata...
+            class Dummy:
+                def __init__(self, template):
+                    self.template = template
+                    self.handle = template.handle
+
+                def __repr__(self):
+                    return f"Dummy({self.template})"
+
+            template = Dummy(template)
+
+        # LOG.info("Writing message to %s %s", template, keys)
         try:
             self.collect_archive_requests(
                 self.output.write(
@@ -90,6 +104,7 @@ class GribFileOutput(GribOutput):
 
             LOG.error("Error writing message to %s", self.path)
             LOG.error("eccodes: %s", eccodes.__version__)
+            LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)
             if message is not None and np.isnan(message.data).any():
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
