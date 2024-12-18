@@ -48,8 +48,10 @@ class RetrieveCmd(Command):
         extra = postproc(grid, area)
 
         if isinstance(config.input, dict):
-            if path := config.input.get("grib"):
-                extra["target"] = path
+            if input := config.input.get("grib"):
+                if isinstance(input, dict):
+                    input = input["path"]
+                extra["target"] = input
 
         for r in args.extra or []:
             k, v = r.split("=")
