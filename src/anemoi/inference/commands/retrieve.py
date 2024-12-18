@@ -13,6 +13,7 @@ import json
 from earthkit.data.utils.dates import to_datetime
 
 from ..config import load_config
+from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
 from ..runners.default import DefaultRunner
 from . import Command
@@ -47,11 +48,9 @@ class RetrieveCmd(Command):
 
         extra = postproc(grid, area)
 
-        if isinstance(config.input, dict):
-            if input := config.input.get("grib"):
-                if isinstance(input, dict):
-                    input = input["path"]
-                extra["target"] = input
+        input = runner.create_input()
+        if isinstance(input, GribInput):
+            extra["target"] = input.path
 
         for r in args.extra or []:
             k, v = r.split("=")
