@@ -61,9 +61,17 @@ class GribFileOutput(GribOutput):
         templates=None,
         grib1_keys=None,
         grib2_keys=None,
+        modifiers=None,
         **kwargs,
     ):
-        super().__init__(context, encoding=encoding, templates=templates, grib1_keys=grib1_keys, grib2_keys=grib2_keys)
+        super().__init__(
+            context,
+            encoding=encoding,
+            templates=templates,
+            grib1_keys=grib1_keys,
+            grib2_keys=grib2_keys,
+            modifiers=modifiers,
+        )
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
         self.archiving = defaultdict(ArchiveCollector)
