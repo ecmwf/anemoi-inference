@@ -47,6 +47,9 @@ class DownscalingRunner(Runner):
         else:
             checkpoint = Checkpoint(config.checkpoint).split()[config.which]
 
+        print(f"✅✅✅✅✅✅✅✅✅✅✅✅✅ input: {checkpoint._metadata}")
+        print(f"✅✅✅✅✅✅✅✅✅✅✅✅✅ output: {self.forcings._metadata}")
+
         super().__init__(
             checkpoint,
             device=config.device,
@@ -115,3 +118,12 @@ class DownscalingRunner(Runner):
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return [result]
+
+    def inference_loop(self, start, lead_time):
+        LOG.info("Inference loop: start=%s, lead_time=%s", start, lead_time)
+        # return self.checkpoint.inference_loop(start, leadjson_time)
+        for s in range(10):
+            step = (s + 1) * self.checkpoint.timestep
+            date = start + step
+            LOG.info("Forecasting step %s (%s)", step, date)
+            yield date, step, False

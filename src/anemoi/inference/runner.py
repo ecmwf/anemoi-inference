@@ -267,11 +267,6 @@ class Runner(Context):
 
         LOG.info("Using autocast %s", self.autocast)
 
-        lead_time = to_timedelta(lead_time)
-        steps = lead_time // self.checkpoint.timestep
-
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
-
         new_state = input_state.copy()  # We should not modify the input state
         new_state["fields"] = dict()
 
@@ -293,10 +288,7 @@ class Runner(Context):
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
-        for s in range(steps):
-            step = (s + 1) * self.checkpoint.timestep
-            date = start + step
-            LOG.info("Forecasting step %s (%s)", step, date)
+        for date, step, last in self.inference_loop(start, lead_time):
 
             new_state["date"] = date
 
@@ -311,14 +303,14 @@ class Runner(Context):
             for i in range(output.shape[1]):
                 new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+            if (step == 1 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
 
-            new_state["step"] = s + 1
+            new_state["step"] = step
             yield new_state
 
             # No need to prepare next input tensor if we are at the last step
-            if s == steps - 1:
+            if last:
                 continue
 
             # Update  tensor for next iteration
@@ -343,8 +335,21 @@ class Runner(Context):
 
                 raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+            if (step == 1 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
+
+    def inference_loop(self, start, lead_time):
+
+        lead_time = to_timedelta(lead_time)
+        steps = lead_time // self.checkpoint.timestep
+
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+
+        for s in range(steps):
+            step = (s + 1) * self.checkpoint.timestep
+            date = start + step
+            LOG.info("Forecasting step %s (%s)", step, date)
+            yield date, step, s == steps - 1
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 

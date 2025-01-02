@@ -91,6 +91,17 @@ class EkdInput(Input):
         flatten=True,
     ):
 
+        print(
+            "✅✅✅✅✅✅✅✅✅ create_input_state",
+            type(input_fields),
+            type(variables),
+            type(date),
+            type(latitudes),
+            type(longitudes),
+            type(dtype),
+            type(flatten),
+        )
+
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
 
@@ -119,7 +130,6 @@ class EkdInput(Input):
             LOG.info(
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
-
         date = to_datetime(date)
         dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
@@ -209,6 +219,9 @@ class EkdInput(Input):
         return data.sel(name=name, **kwargs)
 
     def _load_forcings_state(self, fields, variables, dates, current_state):
+        assert isinstance(dates, list), dates
+        assert len(dates) == 1, dates
+        dates = dates[0]
         return self._create_state(
             fields,
             variables=variables,

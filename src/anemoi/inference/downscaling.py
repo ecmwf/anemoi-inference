@@ -28,8 +28,10 @@ class DownscalingMixin:
 
         zip0 = metadata_0["dataset"]["specific"]["datasets"][0]
         metadata_0["dataset"]["specific"] = zip0["datasets"][0]
+        metadata_0["dataset"]["shape"] = zip0["shape"][0]
 
         zip1 = metadata_1["dataset"]["specific"]["datasets"][0]
         metadata_1["dataset"]["specific"] = zip1["datasets"][1]
+        metadata_1["dataset"]["shape"] = zip1["shape"][1]
 
         return [self.__class__(metadata_0), self.__class__(metadata_1)]

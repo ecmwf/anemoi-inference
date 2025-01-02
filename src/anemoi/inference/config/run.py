@@ -54,7 +54,7 @@ class RunConfiguration(BaseModel):
     input: str | Dict | None = "test"
     output: str | Dict | None = "printer"
 
-    forcings: Dict[str, Dict] | None = None
+    forcings: str | Dict | None = None
     """Where to find the forcings."""
 
     device: str = "cuda"

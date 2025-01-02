@@ -141,10 +141,11 @@ class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
     @cached_property
     def number_of_grid_points(self):
         """Return the number of grid points per fields"""
-        try:
-            return self._metadata.dataset.shape[-1]
-        except AttributeError:
-            return self._legacy_number_of_grid_points()
+        # try:
+        print(self, self._metadata.dataset.shape)
+        return self._metadata.dataset.shape[-1]
+        # except AttributeError:
+        #     return self._legacy_number_of_grid_points()
 
     @cached_property
     def number_of_input_features(self):

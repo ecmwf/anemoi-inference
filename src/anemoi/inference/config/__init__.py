@@ -14,6 +14,7 @@ import os
 from copy import deepcopy
 
 import yaml
+from pydantic import ValidationError
 
 from .couple import CoupleConfiguration as CoupleConfiguration
 from .run import RunConfiguration as RunConfiguration
@@ -66,7 +67,12 @@ def load_config(path, overrides=[], defaults=None, Configuration=RunConfiguratio
             path[keys[-1]] = value
 
     # Validate the configuration
-    config = Configuration(**config)
+    try:
+        config = Configuration(**config)
+    except ValidationError as e:
+        for err in e.errors():
+            LOG.info(f"Configuration error: field `{err['loc'][0]}`, error: {err['msg']}.")
+        raise ValueError("Configuration error")
 
     # Set environment variables found in the configuration
     # as soon as possible
