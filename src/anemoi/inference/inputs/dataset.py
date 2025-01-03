@@ -99,6 +99,8 @@ class DatasetInput(Input):
         data = np.squeeze(data, axis=2)
         # Reorder the dimensions to (variable, date, values)
         data = np.swapaxes(data, 0, 1)
+        # apply reduction to `grid_indices`
+        data=data[...,self.grid_indices]
         return data
 
     def _load_dates(self, dates):
