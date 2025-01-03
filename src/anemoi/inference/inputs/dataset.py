@@ -28,11 +28,25 @@ class DatasetInput(Input):
 
     def __init__(self, context, args, kwargs):
         super().__init__(context)
+
+        grid_indices=kwargs.pop("grid_indices", None)
+
         self.args, self.kwargs = args, kwargs
         if context.verbosity > 0:
             LOG.info(
                 "Opening dataset with\nargs=%s\nkwargs=%s", json.dumps(args, indent=4), json.dumps(kwargs, indent=4)
             )
+
+        if grid_indices is None and "grid_indices" in context.checkpoint._supporting_arrays:
+            grid_indices = context.checkpoint.load_supporting_array("grid_indices")
+            if context.verbosity > 0:
+                LOG.info(
+                    "Loading supporting array `grid_indices` from checkpoint, \
+                    the input grid will be reduced accordingly."
+                )
+
+        self.grid_indices = slice(None) if grid_indices is None else grid_indices
+
 
     @cached_property
     def ds(self):
@@ -48,11 +62,13 @@ class DatasetInput(Input):
             raise ValueError("`date` must be provided")
 
         date = to_datetime(date)
+        latitudes=self.ds.latitudes
+        longitudes=self.ds.longitudes
 
         input_state = dict(
             date=date,
-            latitudes=self.ds.latitudes,
-            longitudes=self.ds.longitudes,
+            latitudes=latitudes[self.grid_indices],
+            longitudes=longitudes[self.grid_indices],
             fields=dict(),
         )
 
@@ -69,7 +85,8 @@ class DatasetInput(Input):
             if variable not in requested_variables:
                 continue
             # Squeeze the data to remove the ensemble dimension
-            fields[variable] = np.squeeze(data[:, i], axis=1)
+            values = np.squeeze(data[:, i], axis=1)
+            fields[variable] = values[:,self.grid_indices]
 
         return input_state
 

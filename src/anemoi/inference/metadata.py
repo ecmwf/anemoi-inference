@@ -139,6 +139,8 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def number_of_grid_points(self):
         """Return the number of grid points per fields"""
+        if "grid_indices" in self._supporting_arrays:
+            return len(self.load_supporting_array("grid_indices"))
         try:
             return self._metadata.dataset.shape[-1]
         except AttributeError:
