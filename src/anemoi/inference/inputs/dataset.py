@@ -29,7 +29,7 @@ class DatasetInput(Input):
     def __init__(self, context, args, kwargs):
         super().__init__(context)
 
-        grid_indices=kwargs.pop("grid_indices", None)
+        grid_indices = kwargs.pop("grid_indices", None)
 
         self.args, self.kwargs = args, kwargs
         if context.verbosity > 0:
@@ -47,7 +47,6 @@ class DatasetInput(Input):
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
 
-
     @cached_property
     def ds(self):
         from anemoi.datasets import open_dataset
@@ -62,8 +61,8 @@ class DatasetInput(Input):
             raise ValueError("`date` must be provided")
 
         date = to_datetime(date)
-        latitudes=self.ds.latitudes
-        longitudes=self.ds.longitudes
+        latitudes = self.ds.latitudes
+        longitudes = self.ds.longitudes
 
         input_state = dict(
             date=date,
@@ -86,7 +85,7 @@ class DatasetInput(Input):
                 continue
             # Squeeze the data to remove the ensemble dimension
             values = np.squeeze(data[:, i], axis=1)
-            fields[variable] = values[:,self.grid_indices]
+            fields[variable] = values[:, self.grid_indices]
 
         return input_state
 
@@ -100,7 +99,7 @@ class DatasetInput(Input):
         # Reorder the dimensions to (variable, date, values)
         data = np.swapaxes(data, 0, 1)
         # apply reduction to `grid_indices`
-        data=data[...,self.grid_indices]
+        data = data[..., self.grid_indices]
         return data
 
     def _load_dates(self, dates):

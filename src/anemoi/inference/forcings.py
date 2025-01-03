@@ -137,9 +137,9 @@ class BoundaryForcings(Forcings):
         assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
         if "output_mask" in context.checkpoint._supporting_arrays:
-            self.spatial_mask= ~context.checkpoint.load_supporting_array("output_mask")
+            self.spatial_mask = ~context.checkpoint.load_supporting_array("output_mask")
         else:
-            self.spatial_mask=np.array([False] * len(input["latitudes"]) , dtype=bool)
+            self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def __repr__(self):
