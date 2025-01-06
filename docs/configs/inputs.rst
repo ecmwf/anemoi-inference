@@ -101,16 +101,16 @@ input.
 *****
 
 You can also specify the input as ``cds`` to read the data from the
-[Climate Data Store](https://cds.climate.copernicus.eu/). This requires
-the `cdsapi` package to be installed, and the user to have a CDS
-account.
+`Climate Data Store <https://cds.climate.copernicus.eu/>`_. This
+requires the `cdsapi` package to be installed, and the user to have a
+CDS account.
 
 .. literalinclude:: inputs_8.yaml
    :language: yaml
 
-As the CDS contains a plethora of
-[datasets](https://cds.climate.copernicus.eu/datasets), you can specify
-the dataset you want to use with the key `dataset`.
+As the CDS contains a plethora of `datasets
+<https://cds.climate.copernicus.eu/datasets>`_, you can specify the
+dataset you want to use with the key `dataset`.
 
 This can be a str in which case the dataset is used for all requests, or
 a dict of any number of levels which will be descended based on the
