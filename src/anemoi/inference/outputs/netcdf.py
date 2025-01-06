@@ -84,6 +84,7 @@ class NetCDFOutput(Output):
         self.longitude_var.long_name = "longitude"
 
         self.vars = {}
+
         for name in state["fields"].keys():
             chunksizes = (1, values)
 
@@ -104,12 +105,34 @@ class NetCDFOutput(Output):
         self.n = 0
         return self.ncfile
 
+    def ensure_variables(self, state):
+        values = len(state["latitudes"])
+
+        compression = {}  # dict(zlib=False, complevel=0)
+
+        for name in state["fields"].keys():
+            if name in self.vars:
+                continue
+            chunksizes = (1, values)
+
+            while np.prod(chunksizes) > 1000000:
+                chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
+
+            self.vars[name] = self.ncfile.createVariable(
+                name,
+                self.float_size,
+                ("time", "values"),
+                chunksizes=chunksizes,
+                **compression,
+            )
+
     def write_initial_state(self, state):
         reduced_state = self.reduce(state)
         self.write_state(reduced_state)
 
     def write_state(self, state):
         self._init(state)
+        self.ensure_variables(state)
 
         step = state["date"] - self.reference_date
         self.time_var[self.n] = step.total_seconds()
