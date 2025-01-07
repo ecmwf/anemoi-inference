@@ -512,14 +512,12 @@ class Metadata(PatchMixin, LegacyMixin):
                         _find(y)
 
             if isinstance(x, dict):
-                if "dataset" in x:
+                if "dataset" in x  and isinstance(x["dataset"], str):
                     result.append(x["dataset"])
 
                 for k, v in x.items():
                     _find(v)
-
         _find(self._config.dataloader.training.dataset)
-
         return result
 
     def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
