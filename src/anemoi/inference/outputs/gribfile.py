@@ -10,6 +10,7 @@
 
 import json
 import logging
+import warnings
 from collections import defaultdict
 
 import earthkit.data as ekd
@@ -126,6 +127,12 @@ class GribFileOutput(GribOutput):
         handle, path = written
 
         mars = handle.as_namespace("mars")
+
+        # There is a bug with hincasts, where the 'number' is not added to the 'mars' namespace
+        for key in ("number",):
+            if key in keys and key not in mars:
+                mars[key] = keys[key]
+                warnings.warn(f"collect_archive_requests: missing key {key} in 'mars' namespace, using {keys[key]}")
 
         if self.check_encoding:
             check_encoding(handle, keys)
