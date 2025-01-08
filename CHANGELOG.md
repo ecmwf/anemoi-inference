@@ -11,6 +11,9 @@ Keep it human-readable, your future self will thank you!
 ## [Unreleased]
 
 ### Added
+- Add support for models with unconnected nodes dropped from input [#95](https://github.com/ecmwf/anemoi-inference/pull/95).
+- Change trigger for boundary forcings [#95](https://github.com/ecmwf/anemoi-inference/pull/95).
+- Add support for automatic loading of anemoi-datasets of more general type [#95](https://github.com/ecmwf/anemoi-inference/pull/95).
 - Add initial state output in netcdf format
 - Fix: Enable inference when no constant forcings are used
 - Add anemoi-transform link to documentation
