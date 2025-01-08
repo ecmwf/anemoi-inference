@@ -23,6 +23,22 @@ from .grib import GribOutput
 
 LOG = logging.getLogger(__name__)
 
+# There is a bug with hindcasts, where these keys are not added to the 'mars' namespace
+MARS_MAYBE_MISSING_KEYS = (
+    "number",
+    "step",
+    "time",
+    "date",
+    "hdate",
+    "type",
+    "stream",
+    "expver",
+    "class",
+    "levtype",
+    "levelist",
+    "param",
+)
+
 
 class ArchiveCollector:
     """Collects archive requests"""
@@ -129,7 +145,7 @@ class GribFileOutput(GribOutput):
         mars = handle.as_namespace("mars")
 
         # There is a bug with hincasts, where the 'number' is not added to the 'mars' namespace
-        for key in ("number",):
+        for key in MARS_MAYBE_MISSING_KEYS:
             if key in keys and key not in mars:
                 mars[key] = keys[key]
                 warnings.warn(f"collect_archive_requests: missing key {key} in 'mars' namespace, using {keys[key]}")
