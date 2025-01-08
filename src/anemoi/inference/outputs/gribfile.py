@@ -10,7 +10,6 @@
 
 import json
 import logging
-import warnings
 from collections import defaultdict
 
 import earthkit.data as ekd
@@ -38,6 +37,18 @@ MARS_MAYBE_MISSING_KEYS = (
     "levelist",
     "param",
 )
+
+
+def _is_valid(mars, keys):
+    if "number" in keys and "number" not in mars:
+        LOG.warning("`number` is missing from mars namespace")
+        return False
+
+    if "referenceDate" in keys and "hdate" not in mars:
+        LOG.warning("`hdate` is missing from mars namespace")
+        return False
+
+    return True
 
 
 class ArchiveCollector:
@@ -94,6 +105,7 @@ class GribFileOutput(GribOutput):
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
+        self._namespace_bug_fix = False
 
     def __repr__(self):
         return f"GribFileOutput({self.path})"
@@ -142,13 +154,25 @@ class GribFileOutput(GribOutput):
 
         handle, path = written
 
-        mars = handle.as_namespace("mars")
+        while True:
 
-        # There is a bug with hincasts, where the 'number' is not added to the 'mars' namespace
-        for key in MARS_MAYBE_MISSING_KEYS:
-            if key in keys and key not in mars:
-                mars[key] = keys[key]
-                warnings.warn(f"collect_archive_requests: missing key {key} in 'mars' namespace, using {keys[key]}")
+            if self._namespace_bug_fix:
+                import eccodes
+                from earthkit.data.readers.grib.codes import GribCodesHandle
+
+                handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
+
+            mars = {k: v for k, v in handle.items("mars")}
+
+            if _is_valid(mars, keys):
+                break
+
+            if self._namespace_bug_fix:
+                raise ValueError("Namespace bug: %s" % mars)
+
+            # Try again with the namespace bug
+            LOG.warning("Namespace bug detected, trying again")
+            self._namespace_bug_fix = True
 
         if self.check_encoding:
             check_encoding(handle, keys)
