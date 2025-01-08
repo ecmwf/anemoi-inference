@@ -35,6 +35,7 @@ Keep it human-readable, your future self will thank you!
 - Fix SimpleRunner
 
 ### Removed
+- ci: turn off hpc workflow
 
 
 ## [0.2.0](https://github.com/ecmwf/anemoi-inference/compare/0.1.9...0.2.0) - Use earthkit-data
