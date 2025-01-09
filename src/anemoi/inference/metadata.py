@@ -367,6 +367,8 @@ class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
 
             result.append(variable)
 
+        assert False, result
+
         return result
 
     def mars_input_requests(self):
@@ -655,6 +657,11 @@ class Metadata(PatchMixin, LegacyMixin, DownscalingMixin):
             self._indices.data.input.full,
             self._indices.model.input.full,
         )
+
+        print("==✅✅✅✅✅✅✅✅✅=====", self.variables)
+        for name in remaining:
+            print("==✅✅✅✅✅✅✅✅✅=====", name)
+            print("==✅✅✅✅✅✅✅✅✅=====", self.variables.index(name))
 
         remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
 

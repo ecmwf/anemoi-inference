@@ -19,6 +19,13 @@ class DownscalingMixin:
     # Support for downscaling checkpoint
 
     def split(self):
+
+        if "action" not in self._metadata["dataset"]["specific"]:
+            self._metadata["dataset"]["specific"]["action"] = "zip"
+            self._metadata["dataset"]["specific"]["datasets"] = self._metadata["dataset"]["specific"]["zip"]
+
+        assert self._metadata["dataset"]["specific"]["action"] == "zip", self._metadata["dataset"]["specific"]["action"]
+
         metadata_0 = deepcopy(self._metadata)
         metadata_1 = deepcopy(self._metadata)
 
@@ -27,11 +34,15 @@ class DownscalingMixin:
             metadata_1["data_indices"][key]["input"] = metadata_1["data_indices"][key]["input_1"]
 
         zip0 = metadata_0["dataset"]["specific"]["datasets"][0]
-        metadata_0["dataset"]["specific"] = zip0["datasets"][0]
-        metadata_0["dataset"]["shape"] = zip0["shape"][0]
+        metadata_0["dataset"]["specific"] = zip0
+        metadata_0["dataset"]["shape"] = zip0["shape"]
+        metadata_0["dataset"]["variables"] = zip0["variables"]
 
-        zip1 = metadata_1["dataset"]["specific"]["datasets"][0]
-        metadata_1["dataset"]["specific"] = zip1["datasets"][1]
-        metadata_1["dataset"]["shape"] = zip1["shape"][1]
+        zip1 = metadata_1["dataset"]["specific"]["datasets"][1]
+        metadata_1["dataset"]["specific"] = zip1
+        metadata_1["dataset"]["shape"] = zip1["shape"]
+        metadata_1["dataset"]["variables"] = zip1["variables"]
+
+        # assert False, zip1["variables"]
 
         return [self.__class__(metadata_0), self.__class__(metadata_1)]

@@ -108,3 +108,17 @@ class DefaultRunner(Runner):
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return [result]
+
+    def execute(self, date, lead_time, write_initial_state):
+        input = self.create_input()
+        output = self.create_output()
+
+        input_state = input.create_input_state(date=date)
+
+        if write_initial_state:
+            output.write_initial_state(input_state)
+
+        for state in self.run(input_state=input_state, lead_time=lead_time):
+            output.write_state(state)
+
+        output.close()

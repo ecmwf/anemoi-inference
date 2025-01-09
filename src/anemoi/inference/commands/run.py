@@ -35,19 +35,19 @@ class RunCmd(Command):
             LOG.info("%s", config.description)
 
         runner = create_runner(config)
+        runner.execute(date=config.date, lead_time=config.lead_time, write_initial_state=config.write_initial_state)
+        # input = runner.create_input()
+        # output = runner.create_output()
 
-        input = runner.create_input()
-        output = runner.create_output()
+        # input_state = input.create_input_state(date=config.date)
 
-        input_state = input.create_input_state(date=config.date)
+        # if config.write_initial_state:
+        #     output.write_initial_state(input_state)
 
-        if config.write_initial_state:
-            output.write_initial_state(input_state)
+        # for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+        #     output.write_state(state)
 
-        for state in runner.run(input_state=input_state, lead_time=config.lead_time):
-            output.write_state(state)
-
-        output.close()
+        # output.close()
 
 
 command = RunCmd

@@ -111,14 +111,17 @@ class Runner(Context):
     def checkpoint(self):
         return self._checkpoint
 
+    def add_forcings(self, input_state):
+        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
+        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
+        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
+
     def run(self, *, input_state, lead_time):
 
         input_state = input_state.copy()
         input_state["step"] = 0
 
-        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
-        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
-        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
+        self.add_forcings(input_state)
 
         # timers = Timers()
 
