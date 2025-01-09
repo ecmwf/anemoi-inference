@@ -9,7 +9,7 @@
 
 import gc
 import logging
-import random
+import os
 
 import torch
 from anemoi.utils.humanize import bytes_to_human
@@ -24,19 +24,21 @@ class Collector:
         self.known = set()
         self.last_total = 0
         self.last_title = "START"
+        self.n = 0
+        self.plot = int(os.environ.get("MEMORY_PLOT", "0"))
 
-    def __call__(self, title, plot=False):
+    def __call__(self, title):
         gc.collect()
         total = 0
         tensors = set()
-        added = []
+        newobj = []
 
         for obj in gc.get_objects():
             try:
 
                 if torch.is_tensor(obj) or ("data" in obj.__dict__ and torch.is_tensor(obj.data)):
                     if id(obj) not in self.known:
-                        added.append(obj)
+                        newobj.append(obj)
                     tensors.add(id(obj))
                     total += obj.element_size() * obj.nelement()
 
@@ -46,13 +48,12 @@ class Collector:
         added = tensors - self.known
         removed = self.known - tensors
 
-        if plot:
+        if newobj and self.plot:
             import objgraph
 
-            one = random.choice(added)
-            del added
             gc.collect()
-            objgraph.show_backrefs([one], filename="backref.png")
+            objgraph.show_backrefs(newobj, filename=f"backref-{self.n:04d}.pdf")
+            self.n += 1
 
         delta = total - self.last_total
         if delta < 0:
