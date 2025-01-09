@@ -34,9 +34,11 @@ class Collector:
         newobj = []
 
         for obj in gc.get_objects():
+            if obj.__class__.__name__ == "SourceMaker":
+                # Remove some warnings from earthkit-data
+                continue
             try:
-
-                if torch.is_tensor(obj) or ("data" in obj.__dict__ and torch.is_tensor(obj.data)):
+                if torch.is_tensor(obj) or (hasattr(obj, "data") and torch.is_tensor(obj.data)):
                     if id(obj) not in self.known:
                         newobj.append(obj)
                     tensors.add(id(obj))
@@ -63,7 +65,7 @@ class Collector:
             what = "increase"
 
         LOG.info(
-            "[%s] => [%s] memory %s %s (memory=%s, tensors=%s, added=%s, removed=%s)",
+            "[%s] => [%s] memory %s %s (memory=%s, tensors=%s, added=%s, removed=%s), allocated=%s, reserved=%s",
             self.last_title,
             title,
             what,
@@ -72,6 +74,8 @@ class Collector:
             len(tensors),
             len(added),
             len(removed),
+            bytes_to_human(torch.cuda.memory_allocated(0)),
+            bytes_to_human(torch.cuda.memory_reserved(0)),
         )
 
         self.last_total = total
