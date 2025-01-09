@@ -139,6 +139,8 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def number_of_grid_points(self):
         """Return the number of grid points per fields"""
+        if "grid_indices" in self._supporting_arrays:
+            return len(self.load_supporting_array("grid_indices"))
         try:
             return self._metadata.dataset.shape[-1]
         except AttributeError:
@@ -510,14 +512,13 @@ class Metadata(PatchMixin, LegacyMixin):
                         _find(y)
 
             if isinstance(x, dict):
-                if "dataset" in x:
+                if "dataset" in x and isinstance(x["dataset"], str):
                     result.append(x["dataset"])
 
                 for k, v in x.items():
                     _find(v)
 
         _find(self._config.dataloader.training.dataset)
-
         return result
 
     def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
@@ -717,9 +718,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         result = []
 
-        output_mask = self._config_model.get("output_mask", None)
-        if output_mask is not None:
-            assert output_mask == "cutout", "Currently only cutout as output mask supported."
+        if "output_mask" in self._supporting_arrays:
             result.append(
                 context.create_boundary_forcings(
                     self.prognostic_variables,
