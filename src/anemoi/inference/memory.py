@@ -74,6 +74,10 @@ class Collector:
             len(removed),
         )
 
+        free, total = torch.cuda.mem_get_info('cuda:0')
+        mem_used_MB = (total - free) / 1024 ** 2
+        LOG.info(f"Pytorch mem_get_info says 'cuda:0' is using {mem_used_MB}MB / {total / 1024 ** 2}MB of memory.")
+
         self.last_total = total
         self.last_title = title
         self.known = tensors
