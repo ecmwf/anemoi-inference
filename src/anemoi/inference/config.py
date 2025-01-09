@@ -91,6 +91,9 @@ class Configuration(BaseModel):
     debugging_info: dict = {}
     """A dictionary to store debug information. This is ignored."""
 
+    memory_debugging: bool = False
+    """If True, the runner will print memory debugging information."""
+
 
 def load_config(path, overrides, defaults=None, Configuration=Configuration):
 

@@ -21,11 +21,16 @@ from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
+from .memory import Collector
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
 
 LOG = logging.getLogger(__name__)
+
+
+def _ignore(*args, **kwargs):
+    pass
 
 
 class Kind:
@@ -64,6 +69,7 @@ class Runner(Context):
         inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        memory_debugging=False,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -102,6 +108,14 @@ class Runner(Context):
 
         if self.verbosity > 1:
             self.checkpoint.print_variable_categories()
+
+        if callable(memory_debugging):
+            self.memory_debugging = memory_debugging
+        else:
+            if memory_debugging:
+                self.memory_debugging = Collector()
+            else:
+                self.memory_debugging = _ignore
 
     @property
     def checkpoint(self):
@@ -234,7 +248,9 @@ class Runner(Context):
     @cached_property
     def model(self):
         with Timer(f"Loading {self.checkpoint}"):
+            self.memory_debugging("Loading model")
             model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            self.memory_debugging("Model loaded")
             # model.set_inference_options(**self.inference_options)
             return model
 
@@ -243,8 +259,12 @@ class Runner(Context):
 
         torch.set_grad_enabled(False)
 
+        self.memory_debugging("Creating input tensor")
+
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+
+        self.memory_debugging("Input tensor created")
 
         LOG.info("Using autocast %s", self.autocast)
 
@@ -275,6 +295,7 @@ class Runner(Context):
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
         for s in range(steps):
+
             step = (s + 1) * self.checkpoint.timestep
             date = start + step
             LOG.info("Forecasting step %s (%s)", step, date)
@@ -283,7 +304,9 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
+                self.memory_debugging("Predict step")
                 y_pred = self.model.predict_step(input_tensor_torch)
+                self.memory_debugging("Predict step done")
 
             # Detach tensor and squeeze (should we detach here?)
             output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
