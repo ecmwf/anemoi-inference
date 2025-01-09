@@ -25,15 +25,18 @@ class Collector:
         self.last_total = 0
         self.last_title = "START"
 
-    def __call__(self, title, quiet=True):
+    def __call__(self, title, plot=False):
         gc.collect()
         total = 0
         tensors = set()
+        added = []
 
         for obj in gc.get_objects():
             try:
 
                 if torch.is_tensor(obj) or ("data" in obj.__dict__ and torch.is_tensor(obj.data)):
+                    if id(obj) not in self.known:
+                        added.append(obj)
                     tensors.add(id(obj))
                     total += obj.element_size() * obj.nelement()
 
@@ -43,7 +46,7 @@ class Collector:
         added = tensors - self.known
         removed = self.known - tensors
 
-        if not quiet:
+        if plot:
             import objgraph
 
             one = random.choice(added)
