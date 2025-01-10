@@ -312,7 +312,7 @@ class Checkpoint:
 
     @cached_property
     def _supporting_arrays(self):
-        return self._metadata.supporting_arrays
+        return self._metadata._supporting_arrays
 
     @property
     def name(self):
