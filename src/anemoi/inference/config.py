@@ -15,6 +15,8 @@ import os
 from typing import Any
 from typing import Dict
 from typing import Literal
+from typing import Optional
+from typing import Union
 
 import yaml
 from pydantic import BaseModel
@@ -27,12 +29,12 @@ class Configuration(BaseModel):
     class Config:
         extra = "forbid"
 
-    description: str | None = None
+    description: Optional[str] = None
 
     checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any] | str]
     """A path to an Anemoi checkpoint file."""
 
-    date: str | int | datetime.datetime | None = None
+    date: Union[str, int, datetime.datetime, None] = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`.
     """
 
@@ -41,7 +43,7 @@ class Configuration(BaseModel):
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
 
-    name: str | None = None
+    name: Optional[str] = None
     """Used by prepml."""
 
     verbosity: int = 0
@@ -50,19 +52,19 @@ class Configuration(BaseModel):
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error."""
 
-    input: str | Dict | None = "test"
-    output: str | Dict | None = "printer"
+    input: Union[str, Dict, None] = "test"
+    output: Union[str, Dict, None] = "printer"
 
-    forcings: Dict[str, Dict] | None = None
+    forcings: Union[Dict[str, Dict], None] = None
     """Where to find the forcings."""
 
     device: str = "cuda"
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
 
-    precision: str | None = None
+    precision: Optional[str] = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
 
-    allow_nans: bool | None = None
+    allow_nans: Optional[bool] = None
     """
     - If None (default), the model will check for NaNs in the input. If NaNs are found, the model issue a warning and `allow_nans` to True.
     - If False, the model will raise an exception if NaNs are found in the input and output.

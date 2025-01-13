@@ -11,6 +11,7 @@
 import logging
 from typing import TYPE_CHECKING
 from typing import Literal
+from typing import Optional
 
 from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
@@ -43,7 +44,7 @@ def validate_environment(
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore"] = "warn",
-    exempt_packages: list[str] | None = None,
+    exempt_packages: Optional[list[str]] = None,
 ) -> bool:
     """
     Validate environment of the checkpoint against the current environment.
