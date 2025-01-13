@@ -138,7 +138,10 @@ class MarsInput(GribInput):
         if not requests:
             raise ValueError("No requests for %s (%s)" % (variables, dates))
 
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
+        kwargs = self.kwargs.copy()
+        kwargs.setdefault("expver", "0001")
+
+        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, **kwargs)
 
     def template(self, variable, date, **kwargs):
         return self.retrieve([variable], [date])[0]
