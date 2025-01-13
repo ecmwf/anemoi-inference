@@ -13,6 +13,7 @@ import logging
 from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
+from typing import Optional
 
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
@@ -179,7 +180,7 @@ class Checkpoint:
         *,
         all_packages: bool = False,
         on_difference: str = "warn",
-        exempt_packages: list[str] | None = None,
+        exempt_packages: Optional[list[str]] = None,
     ) -> bool:
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages

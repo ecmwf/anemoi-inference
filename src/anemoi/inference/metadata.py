@@ -15,6 +15,7 @@ from collections import defaultdict
 from functools import cached_property
 from types import MappingProxyType as frozendict
 from typing import Literal
+from typing import Optional
 
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -461,7 +462,7 @@ class Metadata(PatchMixin, LegacyMixin):
         *,
         all_packages: bool = False,
         on_difference: Literal["warn", "error", "ignore"] = "warn",
-        exempt_packages: list[str] | None = None,
+        exempt_packages: Optional[list[str]] = None,
     ) -> bool:
         """
         Validate environment of the checkpoint against the current environment.
