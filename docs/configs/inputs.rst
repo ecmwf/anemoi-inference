@@ -95,3 +95,39 @@ You can change that to use ERA5 reanalysis data (``class=ea``).
 
 The ``mars`` input also accepts the ``namer`` parameter of the GRIB
 input.
+
+*****
+ cds
+*****
+
+You can also specify the input as ``cds`` to read the data from the
+`Climate Data Store <https://cds.climate.copernicus.eu/>`_. This
+requires the `cdsapi` package to be installed, and the user to have a
+CDS account.
+
+.. literalinclude:: inputs_8.yaml
+   :language: yaml
+
+As the CDS contains a plethora of `datasets
+<https://cds.climate.copernicus.eu/datasets>`_, you can specify the
+dataset you want to use with the key `dataset`.
+
+This can be a str in which case the dataset is used for all requests, or
+a dict of any number of levels which will be descended based on the
+key/values for each request.
+
+You can use `*` to represent any not given value for a key, i.e. set a
+dataset for `param: 2t`. and `param: *` to represent any other param.
+
+.. literalinclude:: inputs_9.yaml
+   :language: yaml
+
+In the above example, the dataset `reanalysis-era5-pressure-levels` is
+used for all with `levtype: pl` and `reanalysis-era5-single-levels` used
+for all with `levtype: sfc`.
+
+Additionally, any kwarg can be passed to be added to all requests, i.e.
+for ERA5 data, `product_type: 'reanalysis'` is needed.
+
+.. literalinclude:: inputs_10.yaml
+   :language: yaml

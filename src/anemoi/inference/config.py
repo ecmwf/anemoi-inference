@@ -88,6 +88,9 @@ class Configuration(BaseModel):
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
 
+    debugging_info: dict = {}
+    """A dictionary to store debug information. This is ignored."""
+
 
 def load_config(path, overrides, defaults=None, Configuration=Configuration):
 

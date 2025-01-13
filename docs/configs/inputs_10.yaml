@@ -1,0 +1,7 @@
+input:
+  cds:
+    dataset:
+      levtype:
+        pl: reanalysis-era5-pressure-levels
+        sfc: reanalysis-era5-single-levels
+    product_type: 'reanalysis'
