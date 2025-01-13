@@ -22,6 +22,34 @@ from .grib import GribOutput
 
 LOG = logging.getLogger(__name__)
 
+# There is a bug with hindcasts, where these keys are not added to the 'mars' namespace
+MARS_MAYBE_MISSING_KEYS = (
+    "number",
+    "step",
+    "time",
+    "date",
+    "hdate",
+    "type",
+    "stream",
+    "expver",
+    "class",
+    "levtype",
+    "levelist",
+    "param",
+)
+
+
+def _is_valid(mars, keys):
+    if "number" in keys and "number" not in mars:
+        LOG.warning("`number` is missing from mars namespace")
+        return False
+
+    if "referenceDate" in keys and "hdate" not in mars:
+        LOG.warning("`hdate` is missing from mars namespace")
+        return False
+
+    return True
+
 
 class ArchiveCollector:
     """Collects archive requests"""
@@ -61,19 +89,42 @@ class GribFileOutput(GribOutput):
         templates=None,
         grib1_keys=None,
         grib2_keys=None,
+        modifiers=None,
         **kwargs,
     ):
-        super().__init__(context, encoding=encoding, templates=templates, grib1_keys=grib1_keys, grib2_keys=grib2_keys)
+        super().__init__(
+            context,
+            encoding=encoding,
+            templates=templates,
+            grib1_keys=grib1_keys,
+            grib2_keys=grib2_keys,
+            modifiers=modifiers,
+        )
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
+        self._namespace_bug_fix = False
 
     def __repr__(self):
         return f"GribFileOutput({self.path})"
 
     def write_message(self, message, template, **keys):
+        # Make sure `name` is not in the keys, otherwise grib_encoding will fail
+        if template is not None and template.metadata("name", default=None) is not None:
+            # We cannot clear the metadata...
+            class Dummy:
+                def __init__(self, template):
+                    self.template = template
+                    self.handle = template.handle
+
+                def __repr__(self):
+                    return f"Dummy({self.template})"
+
+            template = Dummy(template)
+
+        # LOG.info("Writing message to %s %s", template, keys)
         try:
             self.collect_archive_requests(
                 self.output.write(
@@ -90,6 +141,7 @@ class GribFileOutput(GribOutput):
 
             LOG.error("Error writing message to %s", self.path)
             LOG.error("eccodes: %s", eccodes.__version__)
+            LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)
             if message is not None and np.isnan(message.data).any():
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
@@ -102,7 +154,25 @@ class GribFileOutput(GribOutput):
 
         handle, path = written
 
-        mars = handle.as_namespace("mars")
+        while True:
+
+            if self._namespace_bug_fix:
+                import eccodes
+                from earthkit.data.readers.grib.codes import GribCodesHandle
+
+                handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
+
+            mars = {k: v for k, v in handle.items("mars")}
+
+            if _is_valid(mars, keys):
+                break
+
+            if self._namespace_bug_fix:
+                raise ValueError("Namespace bug: %s" % mars)
+
+            # Try again with the namespace bug
+            LOG.warning("Namespace bug detected, trying again")
+            self._namespace_bug_fix = True
 
         if self.check_encoding:
             check_encoding(handle, keys)

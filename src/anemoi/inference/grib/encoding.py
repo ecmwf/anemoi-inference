@@ -86,11 +86,10 @@ def grib_keys(
             result.update(grib2_keys.get(param, {}))
 
     result.setdefault("type", "fc")
-    type = result.get("type")
 
-    if type is not None:
+    if result.get("type") in ("an", "fc"):
         # For organisations that do not use type
-        result.setdefault("dataType", type)
+        result.setdefault("dataType", result.pop("type"))
 
     # if stream is not None:
     #     result.setdefault("stream", stream)
