@@ -10,17 +10,16 @@
 
 import datetime
 import logging
+import os
 import warnings
 from functools import cached_property
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
-
-import torch.distributed as dist
-import os
 
 from .checkpoint import Checkpoint
 from .context import Context
@@ -243,15 +242,17 @@ class Runner(Context):
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))
-        self.device=f"{self.device}:{local_rank}"
+        self.device = f"{self.device}:{local_rank}"
         torch.cuda.set_device(local_rank)
         self.model.eval()
 
         torch.set_grad_enabled(False)
 
-        global_rank = int(os.environ.get("SLURM_PROCID", 0))  # Get rank of the current process, equivalent to dist.get_rank()
+        global_rank = int(
+            os.environ.get("SLURM_PROCID", 0)
+        )  # Get rank of the current process, equivalent to dist.get_rank()
         world_size = int(os.environ.get("SLURM_NTASKS", 1))  # Total number of processes
-        if (local_rank == 0):
+        if local_rank == 0:
             LOG.info("World size: %d", world_size)
 
         # Create pytorch input tensor
@@ -269,13 +270,13 @@ class Runner(Context):
 
         start = input_state["date"]
 
-        if (world_size > 1):
+        if world_size > 1:
             dist.init_process_group(
-              backend="nccl",
-              init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
-              timeout=datetime.timedelta(minutes=3),
-              world_size=world_size,
-              rank=global_rank,
+                backend="nccl",
+                init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
+                timeout=datetime.timedelta(minutes=3),
+                world_size=world_size,
+                rank=global_rank,
             )
 
             model_comm_group_ranks = np.arange(world_size, dtype=int)
@@ -303,18 +304,18 @@ class Runner(Context):
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
             date = start + step
-            if (local_rank == 0):
+            if local_rank == 0:
                 LOG.info("Forecasting step %s (%s)", step, date)
 
             result["date"] = date
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                #y_pred = self.model.forward(input_tensor_torch.unsqueeze(2), model_comm_group)
-                #y_pred = self.model.forward(input_tensor_torch, model_comm_group)
+                # y_pred = self.model.forward(input_tensor_torch.unsqueeze(2), model_comm_group)
+                # y_pred = self.model.forward(input_tensor_torch, model_comm_group)
                 y_pred = self.model.predict_step(input_tensor_torch, model_comm_group)
 
-            if (local_rank == 0):
+            if local_rank == 0:
                 # Detach tensor and squeeze (should we detach here?)
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
@@ -339,7 +340,9 @@ class Runner(Context):
 
                 del y_pred  # Recover memory
 
-                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
+                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch, input_state, date, check
+                )
                 input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
                     input_tensor_torch, input_state, date, check
                 )
