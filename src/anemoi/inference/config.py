@@ -34,6 +34,9 @@ class Configuration(BaseModel):
     checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any] | str]
     """A path to an Anemoi checkpoint file."""
 
+    runner: str = "default"
+    """The runner to use."""
+
     date: Union[str, int, datetime.datetime, None] = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`.
     """
