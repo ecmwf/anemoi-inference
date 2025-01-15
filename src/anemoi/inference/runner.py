@@ -12,6 +12,7 @@ import datetime
 import logging
 import os
 import warnings
+import random
 from functools import cached_property
 
 import numpy as np
@@ -26,6 +27,7 @@ from .context import Context
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
+from .parallel import init_network
 
 LOG = logging.getLogger(__name__)
 
@@ -252,18 +254,17 @@ class Runner(Context):
             os.environ.get("SLURM_PROCID", 0)
         )  # Get rank of the current process, equivalent to dist.get_rank()
         world_size = int(os.environ.get("SLURM_NTASKS", 1))  # Total number of processes
-        if local_rank == 0:
-            LOG.info("World size: %d", world_size)
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
-        LOG.info("Using autocast %s", self.autocast)
-
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+        if global_rank == 0:
+            LOG.info("World size: %d", world_size)
+            LOG.info("Using autocast %s", self.autocast)
+            LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
@@ -271,6 +272,14 @@ class Runner(Context):
         start = input_state["date"]
 
         if world_size > 1:
+            
+            #only rank 0 logs
+            if (local_rank != 0):
+                LOG.handlers.clear()
+
+            init_network()
+
+
             dist.init_process_group(
                 backend="nccl",
                 init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
@@ -304,7 +313,7 @@ class Runner(Context):
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
             date = start + step
-            if local_rank == 0:
+            if global_rank == 0:
                 LOG.info("Forecasting step %s (%s)", step, date)
 
             result["date"] = date
@@ -315,7 +324,7 @@ class Runner(Context):
                 # y_pred = self.model.forward(input_tensor_torch, model_comm_group)
                 y_pred = self.model.predict_step(input_tensor_torch, model_comm_group)
 
-            if local_rank == 0:
+            if global_rank == 0:
                 # Detach tensor and squeeze (should we detach here?)
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
@@ -361,7 +370,7 @@ class Runner(Context):
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
 
-        dist.destroy_process_group()
+        #dist.destroy_process_group()
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
