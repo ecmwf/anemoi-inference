@@ -123,6 +123,8 @@ class Runner(Context):
 
     def run(self, *, input_state, lead_time):
 
+        torch.cuda.memory._record_memory_history()
+
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
         self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
@@ -145,6 +147,7 @@ class Runner(Context):
             raise
 
         # timers.report()
+        torch.cuda.memory._dump_snapshot("my_snapshot.pickle")
 
     def add_initial_forcings_to_input_state(self, input_state):
         # Should that be alreay a list of dates
