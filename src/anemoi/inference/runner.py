@@ -10,24 +10,22 @@
 
 import datetime
 import logging
-import os
 import warnings
-import random
 from functools import cached_property
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
+from .parallel import get_parallel_info
+from .parallel import init_parallel
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
-from .parallel import init_parallel, get_parallel_info
 
 LOG = logging.getLogger(__name__)
 
@@ -258,18 +256,20 @@ class Runner(Context):
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
-        #TODO make it so that only rank 0 logs by default
+        # TODO make it so that only rank 0 logs by default
         if global_rank == 0:
             LOG.info("World size: %d", world_size)
             LOG.info("Using autocast %s", self.autocast)
-            LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+            LOG.info(
+                "Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps
+            )
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
 
         start = input_state["date"]
 
-        model_comm_group = init_parallel(world_size)
+        model_comm_group = init_parallel(global_rank, world_size)
 
         # The variable `check` is used to keep track of which variables have been updated
         # In the input tensor. `reset` is used to reset `check` to False except
@@ -347,7 +347,7 @@ class Runner(Context):
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
 
-        #dist.destroy_process_group()
+        # dist.destroy_process_group()
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
