@@ -27,7 +27,7 @@ from .context import Context
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
-from .parallel import init_network
+from .parallel import init_parallel, get_parallel_info
 
 LOG = logging.getLogger(__name__)
 
@@ -243,17 +243,14 @@ class Runner(Context):
             return model
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
-        local_rank = int(os.environ.get("SLURM_LOCALID", 0))
+
+        global_rank, local_rank, world_size = get_parallel_info()
+
         self.device = f"{self.device}:{local_rank}"
         torch.cuda.set_device(local_rank)
         self.model.eval()
 
         torch.set_grad_enabled(False)
-
-        global_rank = int(
-            os.environ.get("SLURM_PROCID", 0)
-        )  # Get rank of the current process, equivalent to dist.get_rank()
-        world_size = int(os.environ.get("SLURM_NTASKS", 1))  # Total number of processes
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
@@ -261,6 +258,7 @@ class Runner(Context):
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
+        #TODO make it so that only rank 0 logs by default
         if global_rank == 0:
             LOG.info("World size: %d", world_size)
             LOG.info("Using autocast %s", self.autocast)
@@ -271,28 +269,7 @@ class Runner(Context):
 
         start = input_state["date"]
 
-        if world_size > 1:
-            
-            #only rank 0 logs
-            if (local_rank != 0):
-                LOG.handlers.clear()
-
-            init_network()
-
-
-            dist.init_process_group(
-                backend="nccl",
-                init_method=f'tcp://{os.environ["MASTER_ADDR"]}:{os.environ["MASTER_PORT"]}',
-                timeout=datetime.timedelta(minutes=3),
-                world_size=world_size,
-                rank=global_rank,
-            )
-
-            model_comm_group_ranks = np.arange(world_size, dtype=int)
-            model_comm_group_ranks = np.arange(world_size, dtype=int)
-            model_comm_group = torch.distributed.new_group(model_comm_group_ranks)
-        else:
-            model_comm_group = None
+        model_comm_group = init_parallel(world_size)
 
         # The variable `check` is used to keep track of which variables have been updated
         # In the input tensor. `reset` is used to reset `check` to False except
