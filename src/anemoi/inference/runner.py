@@ -308,7 +308,6 @@ class Runner(Context):
                         LOG.error("Please upgrade to a newer version of anemoi-models to use parallel inference")
                         raise err
 
-
             if global_rank == 0:
                 # Detach tensor and squeeze (should we detach here?)
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
