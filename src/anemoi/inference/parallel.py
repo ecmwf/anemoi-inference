@@ -58,14 +58,21 @@ def init_network():
     return master_addr, master_port
 
 
-def init_parallel(global_rank, world_size):
+def init_parallel(device, global_rank, world_size):
     """Creates a model communication group to be used for parallel inference"""
 
     if world_size > 1:
 
         master_addr, master_port = init_network()
+
+        # use 'startswith' instead of '==' in case device is 'cuda:0'
+        if device.startswith("cuda"):
+            backend = "nccl"
+        else:
+            backend = "gloo"
+
         dist.init_process_group(
-            backend="nccl",
+            backend=backend,
             init_method=f"tcp://{master_addr}:{master_port}",
             timeout=datetime.timedelta(minutes=3),
             world_size=world_size,

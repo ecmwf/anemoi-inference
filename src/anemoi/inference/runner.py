@@ -244,8 +244,9 @@ class Runner(Context):
 
         # determine processes rank for parallel inference and assign a device
         global_rank, local_rank, world_size = get_parallel_info()
-        self.device = f"{self.device}:{local_rank}"
-        torch.cuda.set_device(local_rank)
+        if self.device == "cuda":
+            self.device = f"{self.device}:{local_rank}"
+            torch.cuda.set_device(local_rank)
 
         self.model.eval()
 
@@ -271,7 +272,7 @@ class Runner(Context):
 
         # Create a model comm group for parallel inference
         # A dummy comm group is created if only a single device is in use
-        model_comm_group = init_parallel(global_rank, world_size)
+        model_comm_group = init_parallel(self.device, global_rank, world_size)
 
         # The variable `check` is used to keep track of which variables have been updated
         # In the input tensor. `reset` is used to reset `check` to False except
