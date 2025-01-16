@@ -242,10 +242,11 @@ class Runner(Context):
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
 
+        # determine processes rank for parallel inference and assign a device
         global_rank, local_rank, world_size = get_parallel_info()
-
         self.device = f"{self.device}:{local_rank}"
         torch.cuda.set_device(local_rank)
+
         self.model.eval()
 
         torch.set_grad_enabled(False)
@@ -256,7 +257,6 @@ class Runner(Context):
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
-        # TODO make it so that only rank 0 logs by default
         if global_rank == 0:
             LOG.info("World size: %d", world_size)
             LOG.info("Using autocast %s", self.autocast)
@@ -269,6 +269,8 @@ class Runner(Context):
 
         start = input_state["date"]
 
+        # Create a model comm group for parallel inference
+        # A dummy comm group is created if only a single device is in use
         model_comm_group = init_parallel(global_rank, world_size)
 
         # The variable `check` is used to keep track of which variables have been updated
@@ -297,8 +299,6 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                # y_pred = self.model.forward(input_tensor_torch.unsqueeze(2), model_comm_group)
-                # y_pred = self.model.forward(input_tensor_torch, model_comm_group)
                 y_pred = self.model.predict_step(input_tensor_torch, model_comm_group)
 
             if global_rank == 0:
