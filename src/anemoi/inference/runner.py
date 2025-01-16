@@ -354,8 +354,6 @@ class Runner(Context):
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
 
-        # dist.destroy_process_group()
-
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
