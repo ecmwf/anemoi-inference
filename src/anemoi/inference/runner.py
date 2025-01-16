@@ -299,7 +299,15 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                y_pred = self.model.predict_step(input_tensor_torch, model_comm_group)
+                if model_comm_group is None:
+                    y_pred = self.model.predict_step(input_tensor_torch)
+                else:
+                    try:
+                        y_pred = self.model.predict_step(input_tensor_torch, model_comm_group)
+                    except TypeError as err:
+                        LOG.error("Please upgrade to a newer version of anemoi-models to use parallel inference")
+                        raise err
+
 
             if global_rank == 0:
                 # Detach tensor and squeeze (should we detach here?)
