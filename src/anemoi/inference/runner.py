@@ -15,6 +15,7 @@ from functools import cached_property
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
@@ -320,38 +321,40 @@ class Runner(Context):
 
                 yield result
 
-                # No need to prepare next input tensor if we are at the last step
-                if s == steps - 1:
-                    continue
+            # No need to prepare next input tensor if we are at the last step
+            if s == steps - 1:
+                continue
 
-                # Update  tensor for next iteration
+            # Update  tensor for next iteration
 
-                check[:] = reset
+            check[:] = reset
 
-                input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+            input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
-                del y_pred  # Recover memory
+            del y_pred  # Recover memory
 
-                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                    input_tensor_torch, input_state, date, check
-                )
-                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                    input_tensor_torch, input_state, date, check
-                )
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
+            )
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
+            )
 
-                if not check.all():
-                    # Not all variables have been updated
-                    missing = []
-                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                    for i in range(check.shape[-1]):
-                        if not check[i]:
-                            missing.append(mapping[i])
+            if not check.all():
+                # Not all variables have been updated
+                missing = []
+                variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                for i in range(check.shape[-1]):
+                    if not check[i]:
+                        missing.append(mapping[i])
 
-                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_input_tensor("Next input tensor", input_tensor_torch)
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                self._print_input_tensor("Next input tensor", input_tensor_torch)
+
+        #dist.destroy_process_group(model_comm_group)
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
