@@ -240,6 +240,11 @@ class Runner(Context):
             # model.set_inference_options(**self.inference_options)
             return model
 
+    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
+        # extra args are only used in specific runners
+        # TODO: move this to a Stepper class.
+        return model.predict_step(input_tensor_torch)
+
     def forecast(self, lead_time, input_tensor_numpy, input_state):
 
         # determine processes rank for parallel inference and assign a device
@@ -300,14 +305,7 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                if model_comm_group is None:
-                    y_pred = self.model.predict_step(input_tensor_torch)
-                else:
-                    try:
-                        y_pred = self.model.predict_step(input_tensor_torch, model_comm_group)
-                    except TypeError as err:
-                        LOG.error("Please upgrade to a newer version of anemoi-models to use parallel inference")
-                        raise err
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
             if global_rank == 0:
                 # Detach tensor and squeeze (should we detach here?)

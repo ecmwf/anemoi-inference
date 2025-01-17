@@ -19,6 +19,7 @@ from typing import Optional
 from typing import Union
 
 import yaml
+from anemoi.utils.config import _merge_dicts
 from pydantic import BaseModel
 
 LOG = logging.getLogger(__name__)
@@ -33,6 +34,9 @@ class Configuration(BaseModel):
 
     checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any] | str]
     """A path to an Anemoi checkpoint file."""
+
+    runner: str = "default"
+    """The runner to use."""
 
     date: Union[str, int, datetime.datetime, None] = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`.
@@ -110,7 +114,8 @@ def load_config(path, overrides, defaults=None, Configuration=Configuration):
 
     # Load the configuration
     with open(path) as f:
-        config.update(yaml.safe_load(f))
+        user_config = yaml.safe_load(f)
+        _merge_dicts(config, user_config)
 
     # Apply overrides
     for override in overrides:
