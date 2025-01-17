@@ -15,15 +15,12 @@ from functools import cached_property
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
-from .parallel import get_parallel_info
-from .parallel import init_parallel
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
@@ -247,15 +244,6 @@ class Runner(Context):
         return model.predict_step(input_tensor_torch)
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
-
-        # determine processes rank for parallel inference and assign a device
-        global_rank, local_rank, world_size = get_parallel_info()
-        if self.device == "cuda":
-            self.device = f"{self.device}:{local_rank}"
-            torch.cuda.set_device(local_rank)
-
-        self.model.eval()
-
         torch.set_grad_enabled(False)
 
         # Create pytorch input tensor
@@ -264,21 +252,13 @@ class Runner(Context):
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
-        if global_rank == 0:
-            LOG.info("World size: %d", world_size)
-            LOG.info("Using autocast %s", self.autocast)
-            LOG.info(
-                "Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps
-            )
+        LOG.info("Using autocast %s", self.autocast)
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
 
         start = input_state["date"]
-
-        # Create a model comm group for parallel inference
-        # A dummy comm group is created if only a single device is in use
-        model_comm_group = init_parallel(self.device, global_rank, world_size)
 
         # The variable `check` is used to keep track of which variables have been updated
         # In the input tensor. `reset` is used to reset `check` to False except
@@ -299,8 +279,7 @@ class Runner(Context):
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
             date = start + step
-            if global_rank == 0:
-                LOG.info("Forecasting step %s (%s)", step, date)
+            LOG.info("Forecasting step %s (%s)", step, date)
 
             result["date"] = date
 
@@ -308,18 +287,17 @@ class Runner(Context):
             with torch.autocast(device_type=self.device, dtype=self.autocast):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
-            if global_rank == 0:
-                # Detach tensor and squeeze (should we detach here?)
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            # Detach tensor and squeeze (should we detach here?)
+            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
-                # Update state
-                for i in range(output.shape[1]):
-                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+            # Update state
+            for i in range(output.shape[1]):
+                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_output_tensor("Output tensor", output)
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                self._print_output_tensor("Output tensor", output)
 
-                yield result
+            yield result
 
             # No need to prepare next input tensor if we are at the last step
             if s == steps - 1:
@@ -333,9 +311,7 @@ class Runner(Context):
 
             del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                input_tensor_torch, input_state, date, check
-            )
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
             input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
                 input_tensor_torch, input_state, date, check
             )
@@ -353,8 +329,6 @@ class Runner(Context):
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
-
-        #dist.destroy_process_group(model_comm_group)
 
     def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
 
