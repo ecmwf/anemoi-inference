@@ -19,7 +19,7 @@ from typing import Optional
 from typing import Union
 
 import yaml
-from anemoi.utils.config import _merge_dicts
+from anemoi.utils.config import merge_configs
 from pydantic import BaseModel
 
 LOG = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def load_config(path, overrides, defaults=None, Configuration=Configuration):
     # Load the configuration
     with open(path) as f:
         user_config = yaml.safe_load(f)
-        _merge_dicts(config, user_config)
+        config = merge_configs(config, user_config)
 
     # Apply overrides
     for override in overrides:
