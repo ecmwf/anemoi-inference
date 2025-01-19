@@ -20,19 +20,19 @@ LOG = logging.getLogger(__name__)
 class ApplyMaskOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, *, mask, output):
-        super().__init__(context)
+    def __init__(self, context, *, mask, output, output_frequency=None, write_initial_step=False):
+        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
         self.mask = self.checkpoint.load_supporting_array(mask)
         self.output = create_output(context, output)
 
     def __repr__(self):
         return f"ApplyMaskOutput({self.mask}, {self.output})"
 
-    def write_initial_state(self, state):
-        self.output.write_initial_state(self._apply_mask(state))
+    def write_initial_step(self, state, step):
+        self.output.write_initial_step(self._apply_mask(state), step)
 
-    def write_state(self, state):
-        self.output.write_state(self._apply_mask(state))
+    def write_step(self, state, step):
+        self.output.write_step(self._apply_mask(state), step)
 
     def _apply_mask(self, state):
         state = state.copy()

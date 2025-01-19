@@ -21,6 +21,7 @@ Keep it human-readable, your future self will thank you!
 - Add CONTRIBUTORS.md file (#36)
 - Add sanetise command
 - Add support for huggingface
+- Add support for `output_frequency` to write less output
 
 ### Changed
 - Change `write_initial_state` default value to `true`

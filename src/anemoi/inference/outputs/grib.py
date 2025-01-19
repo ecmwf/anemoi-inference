@@ -72,8 +72,19 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, context, *, encoding=None, templates=None, grib1_keys=None, grib2_keys=None, modifiers=None):
-        super().__init__(context)
+    def __init__(
+        self,
+        context,
+        *,
+        encoding=None,
+        templates=None,
+        grib1_keys=None,
+        grib2_keys=None,
+        modifiers=None,
+        output_frequency=None,
+        write_initial_step=False,
+    ):
+        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.quiet = set()
@@ -88,7 +99,7 @@ class GribOutput(Output):
         self.use_closest_template = False  # Off for now
         self.modifiers = modifier_factory(modifiers)
 
-    def write_initial_state(self, state):
+    def write_initial_step(self, state, step):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
@@ -98,7 +109,7 @@ class GribOutput(Output):
             if template is None:
                 # We can currently only write grib output if we have a grib input
                 raise ValueError(
-                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_state` to `false`."
+                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
                 )
 
             variable = self.typed_variables[name]
@@ -128,7 +139,7 @@ class GribOutput(Output):
 
             self.write_message(values, template=template, **keys)
 
-    def write_state(self, state):
+    def write_step(self, state, step):
 
         reference_date = self.context.reference_date
         date = state["date"]

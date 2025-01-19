@@ -60,8 +60,5 @@ def print_state(state, print=print):
 class PrinterOutput(Output):
     """_summary_"""
 
-    def write_initial_state(self, state):
-        self.write_state(state)
-
-    def write_state(self, state):
+    def write_step(self, state, step):
         print_state(state)

@@ -30,8 +30,10 @@ class RawOutput(Output):
         path,
         template="{date}.npz",
         strftime="%Y%m%d%H%M%S",
+        output_frequency=None,
+        write_initial_step=False,
     ):
-        super().__init__(context)
+        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
         self.path = path
         self.template = template
         self.strftime = strftime
@@ -39,11 +41,11 @@ class RawOutput(Output):
     def __repr__(self):
         return f"RawOutput({self.path})"
 
-    def write_initial_state(self, state):
+    def write_initial_step(self, state):
         reduced_state = self.reduce(state)
-        self.write_state(reduced_state)
+        self.write_step(reduced_state)
 
-    def write_state(self, state):
+    def write_step(self, state, step):
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"

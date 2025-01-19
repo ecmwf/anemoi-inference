@@ -20,20 +20,26 @@ LOG = logging.getLogger(__name__)
 class TeeOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, *args, outputs=None, **kwargs):
-        super().__init__(context)
+    def __init__(self, context, *args, outputs=None, output_frequency=None, write_initial_step=False, **kwargs):
+        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
         if outputs is None:
             outputs = args
         assert isinstance(outputs, (list, tuple)), outputs
         self.outputs = [create_output(context, output) for output in outputs]
 
-    def write_initial_state(self, state):
+    def write_initial_step(self, state):
         for output in self.outputs:
             output.write_initial_state(state)
 
-    def write_state(self, state):
+    def write_step(self, state, step):
+        # We call write_state instead of write_step
+        # so we can have a per-output `output_frequency`
         for output in self.outputs:
             output.write_state(state)
+
+    def open(self, state):
+        for output in self.outputs:
+            output.open(state)
 
     def close(self):
         for output in self.outputs:

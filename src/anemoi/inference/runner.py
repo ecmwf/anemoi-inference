@@ -64,6 +64,7 @@ class Runner(Context):
         inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        output_frequency=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -77,6 +78,7 @@ class Runner(Context):
         self.use_grib_paramid = use_grib_paramid
         self.development_hacks = development_hacks
         self.hacks = bool(development_hacks)
+        self.output_frequency = output_frequency
 
         # This could also be passed as an argument
 
