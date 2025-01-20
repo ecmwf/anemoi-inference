@@ -80,27 +80,37 @@ class ParallelRunner(DefaultRunner):
         if not slurm_nodelist:
             raise ValueError("SLURM_NODELIST environment variable is not set.")
 
-        # Use subprocess to execute scontrol and get the first hostname
-        result = subprocess.run(
-            ["scontrol", "show", "hostname", slurm_nodelist], stdout=subprocess.PIPE, text=True, check=True
-        )
-        master_addr = result.stdout.splitlines()[0]
+        # Check if MASTER_ADDR is given, otherwise try set it using 'scontrol'
+        master_addr = os.environ.get("MASTER_ADDR")
+        if master_addr is None:
+            LOG.debug("'MASTER_ADDR' environment variable not set. Trying to set via SLURM")
+            try:
+                result = subprocess.run(
+                    ["scontrol", "show", "hostname", slurm_nodelist], stdout=subprocess.PIPE, text=True, check=True
+                )
+            except subprocess.CalledProcessError as err:
+                LOG.error(
+                    "Python could not execute 'scontrol show hostname $SLURM_NODELIST' while calculating MASTER_ADDR. You could avoid this error by setting the MASTER_ADDR env var manually."
+                )
+                raise err
 
-        # Resolve the master address using nslookup
-        try:
-            resolved_addr = socket.gethostbyname(master_addr)
-        except socket.gaierror:
-            raise ValueError(f"Could not resolve hostname: {master_addr}")
+            master_addr = result.stdout.splitlines()[0]
 
-        # Set the resolved address as MASTER_ADDR
-        master_addr = resolved_addr
+            # Resolve the master address using nslookup
+            try:
+                master_addr = socket.gethostbyname(master_addr)
+            except socket.gaierror:
+                raise ValueError(f"Could not resolve hostname: {master_addr}")
 
-        # Calculate the MASTER_PORT using SLURM_JOBID
-        slurm_jobid = os.environ.get("SLURM_JOBID")
-        if not slurm_jobid:
-            raise ValueError("SLURM_JOBID environment variable is not set.")
+        # Check if MASTER_PORT is given, otherwise generate one based on SLURM_JOBID
+        master_port = os.environ.get("MASTER_PORT")
+        if master_port is None:
+            LOG.debug("'MASTER_PORT' environment variable not set. Trying to set via SLURM")
+            slurm_jobid = os.environ.get("SLURM_JOBID")
+            if not slurm_jobid:
+                raise ValueError("SLURM_JOBID environment variable is not set.")
 
-        master_port = str(10000 + int(slurm_jobid[-4:]))
+            master_port = str(10000 + int(slurm_jobid[-4:]))
 
         # Print the results for confirmation
         LOG.debug(f"MASTER_ADDR: {master_addr}")
