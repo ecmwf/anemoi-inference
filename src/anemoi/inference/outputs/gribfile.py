@@ -91,7 +91,7 @@ class GribFileOutput(GribOutput):
         grib2_keys=None,
         modifiers=None,
         output_frequency=None,
-        write_initial_step=False,
+        write_initial_state=True,
         **kwargs,
     ):
         super().__init__(
@@ -102,7 +102,7 @@ class GribFileOutput(GribOutput):
             grib2_keys=grib2_keys,
             modifiers=modifiers,
             output_frequency=output_frequency,
-            write_initial_step=write_initial_step,
+            write_initial_state=write_initial_state,
         )
         self.path = path
         self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)

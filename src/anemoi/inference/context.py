@@ -31,6 +31,7 @@ class Context(ABC):
     time_step = None
     lead_time = None
     output_frequency = None
+    write_initial_state = True
 
     ##################################################################
 

@@ -51,6 +51,7 @@ class DefaultRunner(Runner):
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
             output_frequency=config.output_frequency,
+            write_initial_state=config.write_initial_state,
         )
 
     def create_input(self):

@@ -16,14 +16,14 @@ LOG = logging.getLogger(__name__)
 class Output(ABC):
     """_summary_"""
 
-    def __init__(self, context, output_frequency=None, write_initial_step=False):
+    def __init__(self, context, output_frequency=None, write_initial_state=True):
         from anemoi.utils.dates import as_timedelta
 
         self.context = context
         self.checkpoint = context.checkpoint
         self.reference_date = None
 
-        self.write_step_zero = write_initial_step and context.write_initial_step
+        self.write_step_zero = write_initial_state and context.write_initial_state
 
         self.output_frequency = output_frequency or context.output_frequency
         if self.output_frequency is not None:

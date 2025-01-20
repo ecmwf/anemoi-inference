@@ -65,6 +65,7 @@ class Runner(Context):
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
         output_frequency=None,
+        write_initial_state=True,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -79,6 +80,7 @@ class Runner(Context):
         self.development_hacks = development_hacks
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
+        self.write_initial_state = write_initial_state
 
         # This could also be passed as an argument
 

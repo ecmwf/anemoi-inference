@@ -20,8 +20,8 @@ LOG = logging.getLogger(__name__)
 class ApplyMaskOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, *, mask, output, output_frequency=None, write_initial_step=False):
-        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
+    def __init__(self, context, *, mask, output, output_frequency=None, write_initial_state=True):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.mask = self.checkpoint.load_supporting_array(mask)
         self.output = create_output(context, output)
 

@@ -82,9 +82,9 @@ class GribOutput(Output):
         grib2_keys=None,
         modifiers=None,
         output_frequency=None,
-        write_initial_step=False,
+        write_initial_state=True,
     ):
-        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.quiet = set()

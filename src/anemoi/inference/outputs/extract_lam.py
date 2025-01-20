@@ -22,8 +22,8 @@ LOG = logging.getLogger(__name__)
 class ExtractLamOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, *, output, points="cutout_mask", output_frequency=None, write_initial_step=False):
-        super().__init__(context, output_frequency=output_frequency, write_initial_step=write_initial_step)
+    def __init__(self, context, *, output, points="cutout_mask", output_frequency=None, write_initial_state=True):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         if isinstance(points, str):
             mask = self.checkpoint.load_supporting_array(points)
