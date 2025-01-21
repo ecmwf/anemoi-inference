@@ -3,12 +3,13 @@
 ####################
 
 If the memory requirements of your model are too large to fit within a
-single GPU, you run Anemoi-Inference in parallel across multiple GPUs.
+single GPU, you can run Anemoi-Inference in parallel across multiple
+GPUs.
 
 Parallel inference requires SLURM to launch the parallel processes and
 to determine information about your network environment. If SLURM is not
 available to you, please create an issue on the Anemoi-Inference github
-page.
+page `here <https://github.com/ecmwf/anemoi-inference/issues>`_.
 
 ***************
  Configuration
@@ -42,7 +43,7 @@ job across 4 GPUs.
    #SBATCH --gpus-per-node=4
    #SBATCH --cpus-per-task=8
    #SBATCH --time=0:05:00
-   #SBATCH --output=outputs/paralell_inf.%j.out
+   #SBATCH --output=outputs/parallel_inf.%j.out
 
    source /path/to/venv/bin/activate
    srun anemoi-inference run parallel.yaml
