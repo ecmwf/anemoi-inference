@@ -244,6 +244,8 @@ class Runner(Context):
         return model.predict_step(input_tensor_torch)
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
+        self.model.eval()
+
         torch.set_grad_enabled(False)
 
         # Create pytorch input tensor
