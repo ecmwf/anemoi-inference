@@ -61,6 +61,7 @@ class Runner(Context):
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
         verbosity=0,
+        send_to_cpu: bool = True,
         inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
@@ -76,6 +77,7 @@ class Runner(Context):
         self.allow_nans = allow_nans
         self.use_grib_paramid = use_grib_paramid
         self.development_hacks = development_hacks
+        self.send_to_cpu = send_to_cpu
         self.hacks = bool(development_hacks)
 
         # This could also be passed as an argument
@@ -286,7 +288,10 @@ class Runner(Context):
                 y_pred = self.model.predict_step(input_tensor_torch)
 
             # Detach tensor and squeeze (should we detach here?)
-            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            if self.send_to_cpu:
+                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            else:
+                output = torch.squeeze(y_pred)
 
             # Update state
             for i in range(output.shape[1]):

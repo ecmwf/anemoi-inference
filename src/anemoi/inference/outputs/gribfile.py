@@ -13,7 +13,7 @@ import logging
 from collections import defaultdict
 
 import earthkit.data as ekd
-import numpy as np
+from earthkit.data.utils import array as array_api
 
 from ..decorators import main_argument
 from ..grib.encoding import check_encoding
@@ -91,7 +91,9 @@ class GribFileOutput(GribOutput):
             LOG.error("Error writing message to %s", self.path)
             LOG.error("eccodes: %s", eccodes.__version__)
             LOG.error("Exception: %s", e)
-            if message is not None and np.isnan(message.data).any():
+
+            an = array_api.get_backend(message.data).module
+            if message is not None and an.isnan(message.data).any():
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 

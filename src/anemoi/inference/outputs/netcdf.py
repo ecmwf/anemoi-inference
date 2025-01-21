@@ -11,6 +11,7 @@ import logging
 import os
 
 import numpy as np
+from earthkit.data.utils import array as array_api
 
 from ..decorators import main_argument
 from ..output import Output
@@ -115,7 +116,8 @@ class NetCDFOutput(Output):
         self.time_var[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
-            self.vars[name][self.n] = value
+            array_backend = array_api.get_backend(value)
+            self.vars[name][self.n] = array_backend.to_numpy(value)
 
         self.n += 1
 

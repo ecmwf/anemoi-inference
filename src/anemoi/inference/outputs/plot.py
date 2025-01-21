@@ -11,6 +11,7 @@ import logging
 import os
 
 import numpy as np
+from earthkit.data.utils import array as array_api
 
 from ..output import Output
 from . import output_registry
@@ -63,6 +64,9 @@ class PlotOutput(Output):
         last_missing = None
 
         for name, values in state["fields"].items():
+
+            array_backend = array_api.get_backend(values)
+            values = array_backend.to_numpy(values)
 
             if self.variables is not all and name not in self.variables:
                 continue

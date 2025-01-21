@@ -11,6 +11,7 @@ import logging
 import os
 
 import numpy as np
+from earthkit.data.utils import array as array_api
 
 from ..decorators import main_argument
 from ..output import Output
@@ -47,7 +48,10 @@ class RawOutput(Output):
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"
-        restate = {f"field_{key}": val for key, val in state["fields"].items()}
+        restate = {}
+        for key, val in state["fields"].items():
+            array_backend = array_api.get_backend(val)
+            restate[f"field_{key}"] = array_backend.to_numpy(val)
         for key in ["date"]:
             restate[key] = np.array(state[key], dtype=str)
         for key in ["latitudes", "longitudes"]:

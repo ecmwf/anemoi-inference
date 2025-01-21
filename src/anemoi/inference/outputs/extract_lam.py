@@ -9,7 +9,7 @@
 
 import logging
 
-import numpy as np
+from earthkit.data.utils import array as array_api
 
 from ..output import Output
 from . import create_output
@@ -26,7 +26,8 @@ class ExtractLamOutput(Output):
         super().__init__(context)
         if isinstance(points, str):
             mask = self.checkpoint.load_supporting_array(points)
-            points = -np.sum(mask)  # This is the global, we want the lam
+            an = array_api.get_backend(mask).module
+            points = -an.sum(mask)  # This is the global, we want the lam
 
         self.points = points
         self.output = create_output(context, output)
