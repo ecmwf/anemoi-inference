@@ -251,11 +251,10 @@ class Runner(Context):
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
-        LOG.info("Using autocast %s", self.autocast)
-
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
+        LOG.info("Using autocast %s", self.autocast)
         LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
