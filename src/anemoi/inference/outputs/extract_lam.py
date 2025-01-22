@@ -22,12 +22,23 @@ LOG = logging.getLogger(__name__)
 class ExtractLamOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, *, output, points="cutout_mask", output_frequency=None, write_initial_state=None):
+    def __init__(self, context, *, output, lam="lam_0", output_frequency=None, write_initial_state=None):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
-        if isinstance(points, str):
-            mask = self.checkpoint.load_supporting_array(points)
-            points = -np.sum(mask)  # This is the global, we want the lam
+        if "cutout_mask" in self.checkpoint.supporting_arrays:
+            # Backwards compatibility
+            mask = self.checkpoint.load_supporting_array("cutout_mask")
+            points = slice(None, -np.sum(mask))
+        else:
+            if lam != "lam_0":
+                raise NotImplementedError("Only lam_0 is supported")
+
+            if "lam_1/cutout_mask" in self.checkpoint.supporting_arrays:
+                raise NotImplementedError("Only lam_0 is supported")
+
+            mask = self.checkpoint.load_supporting_array(f"{lam}/cutout_mask")
+            assert len(mask) == np.sum(mask)
+            points = slice(None, np.sum(mask))
 
         self.points = points
         self.output = create_output(context, output, parent=self)
@@ -45,21 +56,17 @@ class ExtractLamOutput(Output):
 
     def _apply_mask(self, state):
 
-        if self.points < 0:
-            # This is the global, we want the lam
-            self.points = state["latitudes"].size + self.points
-
         state = state.copy()
         state["fields"] = state["fields"].copy()
-        state["latitudes"] = state["latitudes"][: self.points]
-        state["longitudes"] = state["longitudes"][: self.points]
+        state["latitudes"] = state["latitudes"][self.points]
+        state["longitudes"] = state["longitudes"][self.points]
 
         for field in state["fields"]:
             data = state["fields"][field]
             if data.ndim == 1:
-                data = data[: self.points]
+                data = data[self.points]
             else:
-                data = data[..., : self.points]
+                data = data[..., self.points]
             state["fields"][field] = data
 
         return state

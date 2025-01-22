@@ -742,6 +742,10 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._supporting_arrays[name]
 
     @property
+    def supporting_arrays(self):
+        return self._supporting_arrays
+
+    @property
     def latitudes(self):
         return self._supporting_arrays.get("latitudes")
 
