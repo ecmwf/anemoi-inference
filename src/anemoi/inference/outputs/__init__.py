@@ -12,5 +12,7 @@ from anemoi.utils.registry import Registry
 output_registry = Registry(__name__)
 
 
-def create_output(context, config):
-    return output_registry.from_config(config, context)
+def create_output(context, config, parent=None):
+    result = output_registry.from_config(config, context)
+    result._parent = parent
+    return result

@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 class NetCDFOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, path, output_frequency=None, write_initial_state=True):
+    def __init__(self, context, path, output_frequency=None, write_initial_state=None):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.ncfile = None
@@ -43,6 +43,8 @@ class NetCDFOutput(Output):
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
             os.remove(self.path)
+
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
 
         self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
@@ -108,11 +110,11 @@ class NetCDFOutput(Output):
                 **compression,
             )
 
-    def write_step(self, state, step):
+    def write_step(self, state):
 
         self.ensure_variables(state)
 
-        self.time_var[self.n] = step.total_seconds()
+        self.time_var[self.n] = self.step(state).total_seconds()
 
         for name, value in state["fields"].items():
             self.vars[name][self.n] = value

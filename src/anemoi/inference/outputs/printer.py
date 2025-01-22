@@ -60,5 +60,5 @@ def print_state(state, print=print):
 class PrinterOutput(Output):
     """_summary_"""
 
-    def write_step(self, state, step):
+    def write_step(self, state):
         print_state(state)

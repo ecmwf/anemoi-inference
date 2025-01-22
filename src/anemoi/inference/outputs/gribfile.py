@@ -91,7 +91,7 @@ class GribFileOutput(GribOutput):
         grib2_keys=None,
         modifiers=None,
         output_frequency=None,
-        write_initial_state=True,
+        write_initial_state=None,
         **kwargs,
     ):
         super().__init__(

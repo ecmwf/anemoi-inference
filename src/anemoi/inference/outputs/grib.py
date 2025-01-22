@@ -82,7 +82,7 @@ class GribOutput(Output):
         grib2_keys=None,
         modifiers=None,
         output_frequency=None,
-        write_initial_state=True,
+        write_initial_state=None,
     ):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
@@ -99,7 +99,7 @@ class GribOutput(Output):
         self.use_closest_template = False  # Off for now
         self.modifiers = modifier_factory(modifiers)
 
-    def write_initial_step(self, state, step):
+    def write_initial_step(self, state):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
@@ -139,7 +139,7 @@ class GribOutput(Output):
 
             self.write_message(values, template=template, **keys)
 
-    def write_step(self, state, step):
+    def write_step(self, state):
 
         reference_date = self.context.reference_date
         date = state["date"]

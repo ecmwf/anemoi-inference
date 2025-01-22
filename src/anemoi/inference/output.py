@@ -9,6 +9,7 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from functools import cached_property
 
 LOG = logging.getLogger(__name__)
 
@@ -16,36 +17,37 @@ LOG = logging.getLogger(__name__)
 class Output(ABC):
     """_summary_"""
 
-    def __init__(self, context, output_frequency=None, write_initial_state=True):
-        from anemoi.utils.dates import as_timedelta
+    _parent = None
+
+    def __init__(self, context, output_frequency=None, write_initial_state=None):
 
         self.context = context
         self.checkpoint = context.checkpoint
         self.reference_date = None
 
-        self.write_step_zero = write_initial_state and context.write_initial_state
-
-        self.output_frequency = output_frequency or context.output_frequency
-        if self.output_frequency is not None:
-            self.output_frequency = as_timedelta(self.output_frequency)
+        self._write_step_zero = write_initial_state
+        self._output_frequency = output_frequency
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
 
+    def step(self, state):
+        return state["date"] - self.reference_date
+
     def write_initial_state(self, state):
         self._init(state)
         if self.write_step_zero:
-            return self.write_initial_step(state, state["date"] - self.reference_date)
+            return self.write_initial_step(state)
 
     def write_state(self, state):
         self._init(state)
 
-        step = state["date"] - self.reference_date
+        step = self.step(state)
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
-        return self.write_step(state, step)
+        return self.write_step(state)
 
     def _init(self, state):
         if self.reference_date is not None:
@@ -55,15 +57,15 @@ class Output(ABC):
 
         self.open(state)
 
-    def write_initial_step(self, state, step):
+    def write_initial_step(self, state):
         """This method should not be called directly
         call `write_initial_state` instead.
         """
         reduced_state = self.reduce(state)
-        self.write_step(reduced_state, step)
+        self.write_step(reduced_state)
 
     @abstractmethod
-    def write_step(self, state, step):
+    def write_step(self, state):
         """This method should be be called directly
         call `write_state` instead.
         """
@@ -83,3 +85,25 @@ class Output(ABC):
 
     def close(self):
         pass
+
+    @cached_property
+    def write_step_zero(self):
+        if self._write_step_zero is not None:
+            return self._write_step_zero
+
+        if self._parent is not None:
+            return self._parent.write_step_zero
+
+        return self.context.write_initial_state
+
+    @cached_property
+    def output_frequency(self):
+        from anemoi.utils.dates import as_timedelta
+
+        if self._output_frequency is not None:
+            return as_timedelta(self._output_frequency)
+
+        if self._parent is not None:
+            return self._parent.output_frequency
+
+        return as_timedelta(self.context.output_frequency)

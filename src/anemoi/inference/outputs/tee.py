@@ -20,12 +20,12 @@ LOG = logging.getLogger(__name__)
 class TeeOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, *args, outputs=None, output_frequency=None, write_initial_state=True, **kwargs):
+    def __init__(self, context, *args, outputs=None, output_frequency=None, write_initial_state=None, **kwargs):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         if outputs is None:
             outputs = args
         assert isinstance(outputs, (list, tuple)), outputs
-        self.outputs = [create_output(context, output) for output in outputs]
+        self.outputs = [create_output(context, output, parent=self) for output in outputs]
 
     # We override write_initial_state and write_state
     # so users can configures each levels independently
@@ -37,7 +37,7 @@ class TeeOutput(Output):
         for output in self.outputs:
             output.write_state(state)
 
-    def write_step(self, state, step):
+    def write_step(self, state):
         raise NotImplementedError("TeeOutput does not support write_step")
 
     def open(self, state):
