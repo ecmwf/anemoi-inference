@@ -24,6 +24,7 @@ of the *Anemoi* packages.
 
 -  :doc:`overview`
 -  :doc:`installing`
+-  :doc:`parallel`
 
 .. toctree::
    :maxdepth: 1
@@ -31,6 +32,7 @@ of the *Anemoi* packages.
 
    overview
    installing
+   parallel
 
 *********************
  Tree levels of APIs
