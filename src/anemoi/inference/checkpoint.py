@@ -216,6 +216,10 @@ class Checkpoint:
     def load_supporting_array(self, name):
         return self._metadata.load_supporting_array(name)
 
+    @property
+    def supporting_arrays(self):
+        return self._metadata.supporting_arrays
+
     ###########################################################################
 
     @cached_property
