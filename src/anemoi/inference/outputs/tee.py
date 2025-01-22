@@ -27,13 +27,13 @@ class TeeOutput(Output):
         assert isinstance(outputs, (list, tuple)), outputs
         self.outputs = [create_output(context, output) for output in outputs]
 
-    def write_initial_step(self, state, step):
+    # We override write_initial_state and write_state
+    # so users can configures each levels independently
+    def write_initial_state(self, state):
         for output in self.outputs:
             output.write_initial_state(state)
 
-    def write_step(self, state, step):
-        # We call write_state instead of write_step
-        # so we can have a per-output `output_frequency`
+    def write_state(self, state):
         for output in self.outputs:
             output.write_state(state)
 
