@@ -37,6 +37,9 @@ class TeeOutput(Output):
         for output in self.outputs:
             output.write_state(state)
 
+    def write_step(self, state, step):
+        raise NotImplementedError("TeeOutput does not support write_step")
+
     def open(self, state):
         for output in self.outputs:
             output.open(state)
