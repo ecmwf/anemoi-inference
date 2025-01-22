@@ -64,8 +64,18 @@ class Runner(Context):
         inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        trace_path=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
+
+        self.trace_path = trace_path
+
+        if trace_path:
+            from .trace import Trace
+
+            self.trace = Trace(trace_path)
+        else:
+            self.trace = None
 
         self.device = device
         self.precision = precision
@@ -296,6 +306,9 @@ class Runner(Context):
 
             new_state["date"] = date
 
+            if self.trace:
+                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
+
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
                 y_pred = self.model.predict_step(input_tensor_torch)
@@ -309,6 +322,9 @@ class Runner(Context):
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
+
+            if self.trace:
+                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
             new_state["step"] = s + 1
             yield new_state

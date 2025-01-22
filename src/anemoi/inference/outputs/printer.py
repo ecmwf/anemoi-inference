@@ -9,16 +9,18 @@
 
 import datetime
 import logging
+from functools import partial
 
 import numpy as np
 
+from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
 
-def print_state(state, print=print):
+def print_state(state, print=print, max_lines=4, variables=None):
     print()
     print("😀", end=" ")
     for key, value in state.items():
@@ -38,16 +40,31 @@ def print_state(state, print=print):
     print()
 
     names = list(fields.keys())
-    n = 4
 
-    idx = list(range(0, len(names), len(names) // n))
-    idx.append(len(names) - 1)
-    idx = sorted(set(idx))
+    if variables == "all":
+        variables = names
+        max_lines = 0
+
+    if not isinstance(variables, (list, tuple, set)):
+        variables = [variables]
+
+    variables = set(variables)
+
+    n = max_lines
+
+    if max_lines == 0 or max_lines >= len(names):
+        idx = list(range(len(names)))
+    else:
+        idx = list(range(0, len(names), len(names) // n))
+        idx.append(len(names) - 1)
+        idx = sorted(set(idx))
 
     length = max(len(name) for name in names)
 
     for i in idx:
         name = names[i]
+        if name not in variables:
+            continue
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
         max_value = f"max={np.nanmax(field):g}"
@@ -57,11 +74,21 @@ def print_state(state, print=print):
 
 
 @output_registry.register("printer")
+@main_argument("max_lines")
 class PrinterOutput(Output):
     """_summary_"""
+
+    def __init__(self, context, path=None, variables=None, **kwargs):
+        super().__init__(context)
+        self.print = print
+        self.variables = variables
+        assert variables == "all", variables
+        if path is not None:
+            self.f = open(path, "w")
+            self.print = partial(print, file=self.f)
 
     def write_initial_state(self, state):
         self.write_state(state)
 
     def write_state(self, state):
-        print_state(state)
+        print_state(state, print=self.print, variables=self.variables)

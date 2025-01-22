@@ -83,3 +83,6 @@ class RunConfiguration(BaseModel):
 
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around"""
+
+    trace_path: str | None = None
+    """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
