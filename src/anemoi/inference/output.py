@@ -106,4 +106,7 @@ class Output(ABC):
         if self._parent is not None:
             return self._parent.output_frequency
 
-        return as_timedelta(self.context.output_frequency)
+        if self.context.output_frequency is not None:
+            return as_timedelta(self.context.output_frequency)
+
+        return None
