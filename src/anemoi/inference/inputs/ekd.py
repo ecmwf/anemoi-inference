@@ -176,6 +176,10 @@ class EkdInput(Input):
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
 
+        if self.context.trace:
+            for name in check.items():
+                self.context.trace.from_input(name, self)
+
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
         # to be used as output

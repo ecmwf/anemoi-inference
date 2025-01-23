@@ -43,6 +43,8 @@ class CoupledRunner(DefaultRunner):
 class CoupledInput:
     """_summary_"""
 
+    trace_name = "coupled"
+
     def __init__(self, task, transport, couplings):
         self.task = task
         self.transport = transport

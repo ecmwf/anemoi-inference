@@ -23,6 +23,8 @@ LOG = logging.getLogger(__name__)
 class MultiInput(Input):
     """An input to manage multiple sources of forcings."""
 
+    trace_name = "multi"
+
     def __init__(self, context, *args, inputs=None, **kwargs):
         super().__init__(context)
         if inputs is None:

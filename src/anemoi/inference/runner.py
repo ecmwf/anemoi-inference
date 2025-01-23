@@ -169,6 +169,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
 
         for source in initial_dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
@@ -177,6 +179,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def initial_constant_forcings_inputs(self, constant_forcings_inputs):
         # Give an opportunity to modify the forcings for the first step
@@ -332,6 +336,8 @@ class Runner(Context):
             # Update  tensor for next iteration
 
             check[:] = reset
+            if self.trace:
+                self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
             input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
@@ -374,6 +380,8 @@ class Runner(Context):
 
         for n in prognostic_input_mask:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+            if self.trace:
+                self.trace.from_rollout(self._input_tensor_by_name[n])
 
         return input_tensor_torch
 
@@ -406,6 +414,10 @@ class Runner(Context):
 
             for n in source.mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+
+            if self.trace:
+                for n in source.mask:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
 
         return input_tensor_torch
 
