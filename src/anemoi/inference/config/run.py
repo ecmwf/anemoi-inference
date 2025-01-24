@@ -65,6 +65,10 @@ class RunConfiguration(BaseModel):
     - If True, the model will allow NaNs in the input and output.
     """
 
+    accumulations: bool = True
+    """If True, the runner will accumulate the accumulated
+    fields from the initial state to the forecast reference date."""
+
     use_grib_paramid: bool = False
     """If True, the runner will use the grib parameter ID when generating MARS requests."""
 

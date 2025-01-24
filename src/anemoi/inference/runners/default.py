@@ -51,6 +51,7 @@ class DefaultRunner(Runner):
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
             trace_path=config.trace_path,
+            accumulations=config.accumulations,
         )
 
     def create_input(self):
