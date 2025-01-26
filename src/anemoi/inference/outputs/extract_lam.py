@@ -11,7 +11,7 @@ import logging
 
 import numpy as np
 
-from ..output import Output
+from ..output import ForwardOutput
 from . import create_output
 from . import output_registry
 
@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("extract_lam")
-class ExtractLamOutput(Output):
+class ExtractLamOutput(ForwardOutput):
     """_summary_"""
 
     def __init__(self, context, *, output, lam="lam_0", output_frequency=None, write_initial_state=None):
@@ -41,7 +41,7 @@ class ExtractLamOutput(Output):
             points = slice(None, np.sum(mask))
 
         self.points = points
-        self.output = create_output(context, output, parent=self)
+        self.output = create_output(context, output)
 
     def __repr__(self):
         return f"ExtractLamOutput({self.points}, {self.output})"
@@ -73,3 +73,7 @@ class ExtractLamOutput(Output):
 
     def close(self):
         self.output.close()
+
+    def print_summary(self, depth=0):
+        super().print_summary(depth)
+        self.output.print_summary(depth + 1)

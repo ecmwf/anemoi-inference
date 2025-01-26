@@ -17,8 +17,6 @@ LOG = logging.getLogger(__name__)
 class Output(ABC):
     """_summary_"""
 
-    _parent = None
-
     def __init__(self, context, output_frequency=None, write_initial_state=None):
 
         self.context = context
@@ -91,9 +89,6 @@ class Output(ABC):
         if self._write_step_zero is not None:
             return self._write_step_zero
 
-        if self._parent is not None:
-            return self._parent.write_step_zero
-
         return self.context.write_initial_state
 
     @cached_property
@@ -103,10 +98,33 @@ class Output(ABC):
         if self._output_frequency is not None:
             return as_timedelta(self._output_frequency)
 
-        if self._parent is not None:
-            return self._parent.output_frequency
-
         if self.context.output_frequency is not None:
             return as_timedelta(self.context.output_frequency)
 
+        return None
+
+    def print_summary(self, depth=0):
+        LOG.info(
+            "%s%s: output_frequency=%s write_initial_state=%s",
+            " " * depth,
+            self,
+            self.output_frequency,
+            self.write_step_zero,
+        )
+
+
+class ForwardOutput(Output):
+    """
+    Subclass of Output that forwards calls to other outputs
+    Subclass from that class to implement the desired behaviour of `output_frequency`
+    which should only apply to leaves
+    """
+
+    def __init__(self, context, output_frequency=None, write_initial_state=None):
+        super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
+        if self.context.output_frequency is not None:
+            LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)
+
+    @cached_property
+    def output_frequency(self):
         return None

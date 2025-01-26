@@ -9,7 +9,7 @@
 
 import logging
 
-from ..output import Output
+from ..output import ForwardOutput
 from . import create_output
 from . import output_registry
 
@@ -17,15 +17,17 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("tee")
-class TeeOutput(Output):
+class TeeOutput(ForwardOutput):
     """_summary_"""
 
     def __init__(self, context, *args, outputs=None, output_frequency=None, write_initial_state=None, **kwargs):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+
         if outputs is None:
             outputs = args
+
         assert isinstance(outputs, (list, tuple)), outputs
-        self.outputs = [create_output(context, output, parent=self) for output in outputs]
+        self.outputs = [create_output(context, output) for output in outputs]
 
     # We override write_initial_state and write_state
     # so users can configures each levels independently
@@ -50,3 +52,8 @@ class TeeOutput(Output):
 
     def __repr__(self):
         return f"TeeOutput({self.outputs})"
+
+    def print_summary(self, depth=0):
+        super().print_summary(depth)
+        for output in self.outputs:
+            output.print_summary(depth + 1)
