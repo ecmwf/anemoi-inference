@@ -100,7 +100,7 @@ class Configuration(BaseModel):
     memory_debugging: bool = False
     """If True, the runner will print memory debugging information."""
 
-    
+
 def load_config(path, overrides, defaults=None, Configuration=Configuration):
 
     config = {}
