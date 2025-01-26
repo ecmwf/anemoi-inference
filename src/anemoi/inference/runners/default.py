@@ -18,6 +18,7 @@ from ..forcings import ComputedForcings
 from ..forcings import CoupledForcings
 from ..inputs import create_input
 from ..outputs import create_output
+from ..processors import create_processor
 from ..runner import Runner
 from . import runner_registry
 
@@ -109,4 +110,18 @@ class DefaultRunner(Runner):
         input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
+        return result
+
+    def create_post_processors(self):
+        result = []
+        for processor in self.config.post_processors:
+            result.append(create_processor(self, processor))
+
+        # Backward compatibility
+        if True:  # self.config.accumulations or True:
+            if self.checkpoint.accumulations:
+                LOG.warning("Using accumulations from the checkpoint")
+                result.append(create_processor(self, "accumulate"))
+
+        LOG.info("Post processors: %s", result)
         return result

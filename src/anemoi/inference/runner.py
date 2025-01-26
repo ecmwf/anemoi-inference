@@ -21,8 +21,6 @@ from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
-from .postprocess import Accumulator
-from .postprocess import Noop
 from .precisions import PRECISIONS
 
 LOG = logging.getLogger(__name__)
@@ -78,17 +76,6 @@ class Runner(Context):
         self.development_hacks = development_hacks
         self.hacks = bool(development_hacks)
 
-        # This could also be passed as an argument
-
-        self.postprocess = Noop()
-
-        if accumulations is True:
-            # Get accumulations from the checkpoint
-            accumulations = self.checkpoint.accumulations
-
-        if accumulations:
-            self.postprocess = Accumulator(accumulations)
-
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -124,7 +111,7 @@ class Runner(Context):
         input_tensor = self.prepare_input_tensor(input_state)
 
         try:
-            yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
+            yield from self.forecast(lead_time, input_tensor, input_state)
         except (TypeError, ModuleNotFoundError, AttributeError):
             if self.report_error:
                 self.checkpoint.report_error()
