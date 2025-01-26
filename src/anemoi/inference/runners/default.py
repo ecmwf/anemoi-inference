@@ -50,6 +50,7 @@ class DefaultRunner(Runner):
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
+            memory_debugging=config.memory_debugging,
         )
 
     def create_input(self):
