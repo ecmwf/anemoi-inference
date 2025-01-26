@@ -12,14 +12,14 @@ from __future__ import annotations
 import logging
 
 from ..config import load_config
-from ..runners.default import DefaultRunner
+from ..runners import create_runner
 from . import Command
 
 LOG = logging.getLogger(__name__)
 
 
 class RunCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """Run inference from a config yaml file."""
 
     need_logging = False
 
@@ -35,7 +35,7 @@ class RunCmd(Command):
         if config.description is not None:
             LOG.info("%s", config.description)
 
-        runner = DefaultRunner(config)
+        runner = create_runner(config)
 
         input = runner.create_input()
         output = runner.create_output()

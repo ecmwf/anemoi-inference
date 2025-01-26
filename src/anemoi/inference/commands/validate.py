@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ValidateCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """Validate the virtual environment against a checkpoint file."""
 
     def add_arguments(self, command_parser):
 

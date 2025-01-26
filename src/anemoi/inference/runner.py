@@ -257,6 +257,11 @@ class Runner(Context):
             # model.set_inference_options(**self.inference_options)
             return model
 
+    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
+        # extra args are only used in specific runners
+        # TODO: move this to a Stepper class.
+        return model.predict_step(input_tensor_torch)
+
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
@@ -274,6 +279,7 @@ class Runner(Context):
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
+        LOG.info("Using autocast %s", self.autocast)
         LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
@@ -308,7 +314,7 @@ class Runner(Context):
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
                 self.memory_debugging("Predict step")
-                y_pred = self.model.predict_step(input_tensor_torch)
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
                 self.memory_debugging("Predict step done")
 
             # Detach tensor and squeeze (should we detach here?)

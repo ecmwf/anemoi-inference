@@ -15,6 +15,7 @@ import re
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from typing import Optional
 from typing import TypeVar
 
 import numpy as np
@@ -163,7 +164,7 @@ class State(dict[str, np.ndarray]):
         self,
         data: xr.Dataset | xr.DataArray,
         *,
-        flatten: str | None = None,
+        flatten: Optional[str] = None,
         variable_dim: str = "variable",
         private_info: Any = None,
     ) -> State:

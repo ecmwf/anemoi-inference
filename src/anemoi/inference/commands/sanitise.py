@@ -16,8 +16,8 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
-class SanatiseCmd(Command):
-    """Sanetise a checkpoint file."""
+class SanitiseCmd(Command):
+    """Sanitise a checkpoint file."""
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("path", help="Path to the checkpoint.")
@@ -39,4 +39,4 @@ class SanatiseCmd(Command):
             LOG.info("Metadata is already sanitised")
 
 
-command = SanatiseCmd
+command = SanitiseCmd
