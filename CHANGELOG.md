@@ -38,6 +38,7 @@ Keep it human-readable, your future self will thank you!
 - Fix `__version__` import in init
 - use earthkit-data 0.11.2
 - Fix SimpleRunner
+- Better plots when fields have missing values
 
 ### Removed
 - ci: turn off hpc workflow

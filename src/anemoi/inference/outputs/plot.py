@@ -62,7 +62,6 @@ class PlotOutput(Output):
 
         os.makedirs(self.path, exist_ok=True)
 
-        last_missing = None
         longitudes = state["longitudes"]
         latitudes = state["latitudes"]
         triangulation = tri.Triangulation(fix(longitudes), latitudes)
@@ -77,17 +76,11 @@ class PlotOutput(Output):
             ax.add_feature(cfeature.BORDERS, linestyle=":")
 
             missing_values = np.isnan(values)
-            if self.missing_value is None:
-                values = values[~missing_values]
+            missing_value = self.missing_value
+            if missing_value is None:
+                missing_value = np.nanmin(values) * 1.0001
 
-                if last_missing is None or np.any(last_missing != missing_values):
-                    longitudes = state["longitudes"][~missing_values]
-                    latitudes = state["latitudes"][~missing_values]
-                    triangulation = tri.Triangulation(fix(longitudes), latitudes)
-                    last_missing = missing_values
-            else:
-
-                values = np.where(missing_values, self.missing_value, values)
+            values = np.where(missing_values, self.missing_value, values)
 
             _ = ax.tricontourf(triangulation, values, levels=10, transform=ccrs.PlateCarree())
 
