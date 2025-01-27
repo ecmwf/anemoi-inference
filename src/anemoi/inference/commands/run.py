@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 class RunCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """Run inference from a config yaml file."""
 
     need_logging = False
 

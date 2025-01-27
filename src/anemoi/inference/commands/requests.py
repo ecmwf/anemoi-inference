@@ -15,7 +15,7 @@ from . import Command
 
 
 class RequestCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """MARS request utility."""
 
     need_logging = False
 
