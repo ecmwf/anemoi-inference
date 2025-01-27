@@ -78,7 +78,8 @@ class PlotOutput(Output):
             missing_values = np.isnan(values)
             missing_value = self.missing_value
             if missing_value is None:
-                missing_value = np.nanmin(values) * 1.0001
+                min = np.nanmin(values)
+                missing_value = min - np.abs(min) * 0.001
 
             values = np.where(missing_values, self.missing_value, values)
 
