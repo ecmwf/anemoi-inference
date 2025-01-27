@@ -11,7 +11,7 @@ import logging
 
 from earthkit.data.utils import array as array_api
 
-from ..output import Output
+from ..output import ForwardOutput
 from . import create_output
 from . import output_registry
 
@@ -19,15 +19,29 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("extract_lam")
-class ExtractLamOutput(Output):
+class ExtractLamOutput(ForwardOutput):
     """_summary_"""
 
-    def __init__(self, context, *, output, points="cutout_mask"):
-        super().__init__(context)
-        if isinstance(points, str):
-            mask = self.checkpoint.load_supporting_array(points)
+    def __init__(self, context, *, output, lam="lam_0", output_frequency=None, write_initial_state=None):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+
+        if "cutout_mask" in self.checkpoint.supporting_arrays:
+            # Backwards compatibility
+            mask = self.checkpoint.load_supporting_array("cutout_mask")
             an = array_api.get_backend(mask).module
-            points = -an.sum(mask)  # This is the global, we want the lam
+            points = slice(None, -an.sum(mask))
+        else:
+            if lam != "lam_0":
+                raise NotImplementedError("Only lam_0 is supported")
+
+            if "lam_1/cutout_mask" in self.checkpoint.supporting_arrays:
+                raise NotImplementedError("Only lam_0 is supported")
+
+            mask = self.checkpoint.load_supporting_array(f"{lam}/cutout_mask")
+            an = array_api.get_backend(mask).module
+            
+            assert len(mask) == an.sum(mask)
+            points = slice(None, an.sum(mask))
 
         self.points = points
         self.output = create_output(context, output)
@@ -35,32 +49,34 @@ class ExtractLamOutput(Output):
     def __repr__(self):
         return f"ExtractLamOutput({self.points}, {self.output})"
 
-    def write_initial_state(self, state):
+    def write_initial_step(self, state):
+        # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
-    def write_state(self, state):
+    def write_step(self, state):
+        # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
     def _apply_mask(self, state):
 
-        if self.points < 0:
-            # This is the global, we want the lam
-            self.points = state["latitudes"].size + self.points
-
         state = state.copy()
         state["fields"] = state["fields"].copy()
-        state["latitudes"] = state["latitudes"][: self.points]
-        state["longitudes"] = state["longitudes"][: self.points]
+        state["latitudes"] = state["latitudes"][self.points]
+        state["longitudes"] = state["longitudes"][self.points]
 
         for field in state["fields"]:
             data = state["fields"][field]
             if data.ndim == 1:
-                data = data[: self.points]
+                data = data[self.points]
             else:
-                data = data[..., : self.points]
+                data = data[..., self.points]
             state["fields"][field] = data
 
         return state
 
     def close(self):
         self.output.close()
+
+    def print_summary(self, depth=0):
+        super().print_summary(depth)
+        self.output.print_summary(depth + 1)

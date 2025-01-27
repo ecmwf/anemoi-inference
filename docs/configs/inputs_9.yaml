@@ -1,0 +1,24 @@
+input:
+  cds:
+    # Dataset examples
+    ## As a string
+    dataset:
+      'reanalysis-era5-pressure-levels'
+
+    ## As a simple dictionary
+    dataset:
+      levtype:
+        pl: reanalysis-era5-pressure-levels
+        sfc: reanalysis-era5-single-levels
+
+    ## As a complex dictionary
+    dataset:
+      stream:
+        oper:
+          levtype:
+            pl: reanalysis-era5-pressure-levels
+            sfc: reanalysis-era5-single-levels
+        an:
+          # ... Other datasets
+        '*': # Any other stream
+          # ... Other datasets

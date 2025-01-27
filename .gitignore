@@ -194,3 +194,4 @@ _version.py
 *.gif
 *.zarr/
 /*-plots/
+/definitions*/

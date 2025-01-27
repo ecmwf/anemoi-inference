@@ -51,6 +51,8 @@ class DefaultRunner(Runner):
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
             send_to_cpu=False,
+            output_frequency=config.output_frequency,
+            write_initial_state=config.write_initial_state,
         )
 
     def create_input(self):
@@ -60,7 +62,8 @@ class DefaultRunner(Runner):
 
     def create_output(self):
         output = create_output(self, self.config.output)
-        LOG.info("Output: %s", output)
+        LOG.info("Output:")
+        output.print_summary()
         return output
 
     # Computed forcings

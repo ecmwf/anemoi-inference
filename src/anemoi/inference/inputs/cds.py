@@ -14,61 +14,12 @@ from earthkit.data.utils.dates import to_datetime
 
 from . import input_registry
 from .grib import GribInput
+from .mars import postproc
 
 LOG = logging.getLogger(__name__)
 
 
-def rounded_area(area):
-    try:
-        surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
-        if surface > 0.98:
-            return [90, 0.0, -90, 360]
-    except TypeError:
-        pass
-    return area
-
-
-def grid_is_valid(grid):
-    if grid is None:
-        return False
-
-    if isinstance(grid, str):
-        return True
-
-    try:
-        [float(x) for x in grid]
-        return True
-    except TypeError:
-        return False
-
-
-def area_is_valid(area):
-
-    if area is None:
-        return False
-
-    if len(area) != 4:
-        return False
-
-    try:
-        [float(x) for x in area]
-        return True
-    except TypeError:
-        return False
-
-
-def postproc(grid, area):
-    pproc = dict()
-    if grid_is_valid(grid):
-        pproc["grid"] = grid
-
-    if area_is_valid(area):
-        pproc["area"] = rounded_area(area)
-
-    return pproc
-
-
-def retrieve(requests, grid, area, **kwargs):
+def retrieve(requests, grid, area, dataset, **kwargs):
     import earthkit.data as ekd
 
     def _(r):
@@ -85,36 +36,54 @@ def retrieve(requests, grid, area, **kwargs):
 
     result = ekd.from_source("empty")
     for r in requests:
-        if r.get("class") in ("rd", "ea"):
-            r["class"] = "od"
+        if isinstance(dataset, str):
+            d = dataset
+        elif isinstance(dataset, dict):
+            # Get dataset from intersection of keys between request and dataset dict
+            search_dataset = dataset.copy()
+            while isinstance(search_dataset, dict):
+                keys = set(r.keys()).intersection(set(search_dataset.keys()))
+                if len(keys) == 0:
+                    raise KeyError(
+                        f"While searching for dataset, could not find any valid key in dictionary: {r.keys()}, {search_dataset}"
+                    )
+                key = list(keys)[0]
+                if r[key] not in search_dataset[key]:
+                    if "*" in search_dataset[key]:
+                        search_dataset = search_dataset[key]["*"]
+                        continue
 
-        if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
-            r["stream"] = "scda"
+                    raise KeyError(
+                        f"Dataset dictionary does not contain key {r[key]!r} in {key!r}: {dict(search_dataset[key])}."
+                    )
+                search_dataset = search_dataset[key][r[key]]
+
+            d = search_dataset
 
         r.update(pproc)
         r.update(kwargs)
 
         LOG.debug("%s", _(r))
-
-        result += ekd.from_source("mars", r)
+        result += ekd.from_source("cds", d, r)
 
     return result
 
 
-@input_registry.register("mars")
-class MarsInput(GribInput):
-    """Get input fields from MARS"""
+@input_registry.register("cds")
+class CDSInput(GribInput):
+    """Get input fields from CDS"""
 
-    def __init__(self, context, *, namer=None, **kwargs):
+    def __init__(self, context, *, dataset, namer=None, **kwargs):
         super().__init__(context, namer=namer)
-        self.kwargs = kwargs
+
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
+        self.dataset = dataset
         self.kwargs = kwargs
 
     def create_input_state(self, *, date):
         if date is None:
             date = to_datetime(-1)
-            LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
+            LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
 
         date = to_datetime(date)
 
@@ -138,10 +107,9 @@ class MarsInput(GribInput):
         if not requests:
             raise ValueError("No requests for %s (%s)" % (variables, dates))
 
-        kwargs = self.kwargs.copy()
-        kwargs.setdefault("expver", "0001")
-
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, **kwargs)
+        return retrieve(
+            requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
+        )
 
     def template(self, variable, date, **kwargs):
         return self.retrieve([variable], [date])[0]

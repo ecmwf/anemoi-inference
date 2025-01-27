@@ -65,6 +65,8 @@ class Runner(Context):
         inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        output_frequency=None,
+        write_initial_state=True,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -79,6 +81,8 @@ class Runner(Context):
         self.development_hacks = development_hacks
         self.send_to_cpu = send_to_cpu
         self.hacks = bool(development_hacks)
+        self.output_frequency = output_frequency
+        self.write_initial_state = write_initial_state
 
         # This could also be passed as an argument
 
@@ -240,6 +244,11 @@ class Runner(Context):
             # model.set_inference_options(**self.inference_options)
             return model
 
+    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
+        # extra args are only used in specific runners
+        # TODO: move this to a Stepper class.
+        return model.predict_step(input_tensor_torch)
+
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
@@ -248,11 +257,10 @@ class Runner(Context):
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
-        LOG.info("Using autocast %s", self.autocast)
-
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
+        LOG.info("Using autocast %s", self.autocast)
         LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
@@ -285,7 +293,7 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                y_pred = self.model.predict_step(input_tensor_torch)
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
             # Detach tensor and squeeze (should we detach here?)
             if self.send_to_cpu:

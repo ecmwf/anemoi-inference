@@ -21,13 +21,70 @@ from ..output import Output
 LOG = logging.getLogger(__name__)
 
 
+class HindcastOutput:
+
+    def __init__(self, reference_year):
+        self.reference_year = reference_year
+
+    def __call__(self, values, template, keys):
+
+        if "date" not in keys:
+            assert template.metadata("hdate", default=None) is None, template
+            date = template.metadata("date")
+        else:
+            date = keys.pop("date")
+
+        for k in ("date", "hdate"):
+            keys.pop(k, None)
+
+        keys["edition"] = 1
+        keys["localDefinitionNumber"] = 30
+        keys["dataDate"] = int(to_datetime(date).strftime("%Y%m%d"))
+        keys["referenceDate"] = int(to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
+
+        return values, template, keys
+
+
+MODIFIERS = dict(hindcast=HindcastOutput)
+
+
+def modifier_factory(modifiers):
+
+    if modifiers is None:
+        return []
+
+    if not isinstance(modifiers, list):
+        modifiers = [modifiers]
+
+    result = []
+    for modifier in modifiers:
+        assert isinstance(modifier, dict), modifier
+        assert len(modifier) == 1, modifier
+
+        klass = list(modifier.keys())[0]
+        result.append(MODIFIERS[klass](**modifier[klass]))
+
+    return result
+
+
 class GribOutput(Output):
     """
     Handles grib
     """
 
-    def __init__(self, context, *, encoding=None, templates=None, grib1_keys=None, grib2_keys=None):
-        super().__init__(context)
+    def __init__(
+        self,
+        context,
+        *,
+        encoding=None,
+        templates=None,
+        grib1_keys=None,
+        grib2_keys=None,
+        modifiers=None,
+        output_frequency=None,
+        write_initial_state=None,
+    ):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.quiet = set()
@@ -40,8 +97,9 @@ class GribOutput(Output):
         self._template_date = None
         self._template_reuse = None
         self.use_closest_template = False  # Off for now
+        self.modifiers = modifier_factory(modifiers)
 
-    def write_initial_state(self, state):
+    def write_initial_step(self, state):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
@@ -51,7 +109,7 @@ class GribOutput(Output):
             if template is None:
                 # We can currently only write grib output if we have a grib input
                 raise ValueError(
-                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_state` to `false`."
+                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
                 )
 
             variable = self.typed_variables[name]
@@ -76,11 +134,12 @@ class GribOutput(Output):
                 quiet=self.quiet,
             )
 
-            # LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
+            for modifier in self.modifiers:
+                values, template, keys = modifier(values, template, keys)
 
             self.write_message(values, template=template, **keys)
 
-    def write_state(self, state):
+    def write_step(self, state):
 
         reference_date = self.context.reference_date
         date = state["date"]
@@ -95,7 +154,7 @@ class GribOutput(Output):
                 self.quiet.add("_grib_templates_for_output")
                 LOG.warning("Input is not GRIB.")
 
-        for name, value in state["fields"].items():
+        for name, values in state["fields"].items():
             keys = {}
 
             variable = self.typed_variables[name]
@@ -118,7 +177,7 @@ class GribOutput(Output):
             keys.update(self.encoding)
 
             keys = grib_keys(
-                values=value,
+                values=values,
                 template=template,
                 date=reference_date.strftime("%Y-%m-%d"),
                 time=reference_date.hour,
@@ -131,11 +190,14 @@ class GribOutput(Output):
                 quiet=self.quiet,
             )
 
+            for modifier in self.modifiers:
+                values, template, keys = modifier(values, template, keys)
+
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             try:
-                self.write_message(value, template=template, **keys)
+                self.write_message(values, template=template, **keys)
             except Exception:
                 LOG.error("Error writing field %s", name)
                 LOG.error("Template: %s", template)
