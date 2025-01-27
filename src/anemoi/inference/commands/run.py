@@ -42,8 +42,7 @@ class RunCmd(Command):
 
         input_state = input.create_input_state(date=config.date)
 
-        if config.write_initial_state:
-            output.write_initial_state(input_state)
+        output.write_initial_state(input_state)
 
         for state in runner.run(input_state=input_state, lead_time=config.lead_time):
             output.write_state(state)

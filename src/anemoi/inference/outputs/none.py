@@ -19,8 +19,5 @@ LOG = logging.getLogger(__name__)
 class NoneOutput(Output):
     """_summary_"""
 
-    def write_initial_state(self, state):
-        pass
-
-    def write_state(self, state):
+    def write_step(self, state):
         pass

@@ -11,7 +11,7 @@ import logging
 
 import numpy as np
 
-from ..output import Output
+from ..output import ForwardOutput
 from . import create_output
 from . import output_registry
 
@@ -19,14 +19,11 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("extract_lam")
-class ExtractLamOutput(Output):
+class ExtractLamOutput(ForwardOutput):
     """_summary_"""
 
-    def __init__(self, context, *, output, lam="lam_0"):
-        super().__init__(context)
-
-        LOG.info("context.checkpoint.supporting_arrays %s", list(context.checkpoint.supporting_arrays.keys()))
-        LOG.info("%s", len(context.checkpoint.supporting_arrays["grid_indices"]))
+    def __init__(self, context, *, output, lam="lam_0", output_frequency=None, write_initial_state=None):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         if "cutout_mask" in self.checkpoint.supporting_arrays:
             # Backwards compatibility
@@ -49,10 +46,12 @@ class ExtractLamOutput(Output):
     def __repr__(self):
         return f"ExtractLamOutput({self.points}, {self.output})"
 
-    def write_initial_state(self, state):
+    def write_initial_step(self, state):
+        # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
-    def write_state(self, state):
+    def write_step(self, state):
+        # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
     def _apply_mask(self, state):
@@ -74,3 +73,7 @@ class ExtractLamOutput(Output):
 
     def close(self):
         self.output.close()
+
+    def print_summary(self, depth=0):
+        super().print_summary(depth)
+        self.output.print_summary(depth + 1)

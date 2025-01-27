@@ -50,6 +50,8 @@ class DefaultRunner(Runner):
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
+            output_frequency=config.output_frequency,
+            write_initial_state=config.write_initial_state,
         )
 
     def create_input(self):
@@ -59,7 +61,8 @@ class DefaultRunner(Runner):
 
     def create_output(self):
         output = create_output(self, self.config.output)
-        LOG.info("Output: %s", output)
+        LOG.info("Output:")
+        output.print_summary()
         return output
 
     # Computed forcings
