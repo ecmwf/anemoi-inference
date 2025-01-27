@@ -64,7 +64,7 @@ class Output(ABC):
 
     @abstractmethod
     def write_step(self, state):
-        """This method should be be called directly
+        """This method should not be called directly
         call `write_state` instead.
         """
         pass
