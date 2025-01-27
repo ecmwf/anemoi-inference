@@ -195,3 +195,5 @@ _version.py
 *.zarr/
 /*-plots/
 /definitions*/
+*.grib1
+*.grib2
