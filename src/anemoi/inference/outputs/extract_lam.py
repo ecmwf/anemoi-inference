@@ -39,7 +39,7 @@ class ExtractLamOutput(ForwardOutput):
 
             mask = self.checkpoint.load_supporting_array(f"{lam}/cutout_mask")
             an = array_api.get_backend(mask).module
-            
+
             assert len(mask) == an.sum(mask)
             points = slice(None, an.sum(mask))
 
