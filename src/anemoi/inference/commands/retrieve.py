@@ -78,14 +78,11 @@ class RetrieveCmd(Command):
             requests.append(r)
 
         if args.output and args.output != "-":
-            f = open(args.output, "w")
-        else:
-            f = sys.stdout
+            with open(args.output, "w") as f:
+                json.dump(requests, f, indent=4)
+            return
 
-        try:
-            json.dump(requests, f, indent=4)
-        finally:
-            f.close()
+        json.dump(requests, sys.stdout, indent=4)
 
 
 command = RetrieveCmd
