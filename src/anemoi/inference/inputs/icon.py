@@ -37,6 +37,7 @@ class IconInput(GribInput):
 
         LOG.info(f"Reading ICON grid from {self.grid}")
         ds = xr.open_dataset(self.grid)
+
         latitudes = np.rad2deg(ds.clat[ds.refinement_level_c <= self.refinement_level_c].values)
         longitudes = np.rad2deg(ds.clon[ds.refinement_level_c <= self.refinement_level_c].values)
 
