@@ -9,6 +9,7 @@
 
 
 import json
+import sys
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -29,7 +30,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
-        command_parser.add_argument("--output", type=str, default="/dev/stdout", help="Output file")
+        command_parser.add_argument("--output", type=str, default=None, help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
@@ -48,6 +49,7 @@ class RetrieveCmd(Command):
 
         extra = postproc(grid, area)
 
+        # so that the user does not need to pass --extra target=path when the input file is already in the config
         input = runner.create_input()
         if isinstance(input, GribInput):
             extra["target"] = input.path
@@ -75,8 +77,15 @@ class RetrieveCmd(Command):
             r.update(extra)
             requests.append(r)
 
-        with open(args.output, "w") as f:
+        if args.output and args.output != "-":
+            f = open(args.output, "w")
+        else:
+            f = sys.stdout
+
+        try:
             json.dump(requests, f, indent=4)
+        finally:
+            f.close()
 
 
 command = RetrieveCmd
