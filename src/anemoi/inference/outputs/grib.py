@@ -83,6 +83,7 @@ class GribOutput(Output):
         modifiers=None,
         output_frequency=None,
         write_initial_state=None,
+        variables=None,
     ):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
@@ -98,12 +99,15 @@ class GribOutput(Output):
         self._template_reuse = None
         self.use_closest_template = False  # Off for now
         self.modifiers = modifier_factory(modifiers)
+        self.variables = variables
 
     def write_initial_step(self, state):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
-        for name in state["fields"]:
+        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+
+        for name in out_vars:
 
             template = self.template(state, name)
             if template is None:
@@ -136,7 +140,6 @@ class GribOutput(Output):
 
             for modifier in self.modifiers:
                 values, template, keys = modifier(values, template, keys)
-
             self.write_message(values, template=template, **keys)
 
     def write_step(self, state):
@@ -154,7 +157,9 @@ class GribOutput(Output):
                 self.quiet.add("_grib_templates_for_output")
                 LOG.warning("Input is not GRIB.")
 
-        for name, values in state["fields"].items():
+        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+        for name in out_vars:
+            values = state["fields"][name]
             keys = {}
 
             variable = self.typed_variables[name]
@@ -254,7 +259,8 @@ class GribOutput(Output):
         LOG.info("Loading template for %s from %s", name, self._template_source)
 
         date = self._template_date if self._template_date is not None else state["date"]
-        field = self._template_source.template(variable=name, date=date)
+        param = self.typed_variables[name].grib_keys.get("param", name)
+        field = self._template_source.template(variable=param, date=date)
 
         if field is None:
             LOG.warning("No template found for `%s`", name)
@@ -263,7 +269,6 @@ class GribOutput(Output):
             self._template_cache[None] = field
         else:
             self._template_cache[name] = field
-
         return field
 
     def _clostest_template(self, templates, name):
