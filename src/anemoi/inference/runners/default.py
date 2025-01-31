@@ -19,6 +19,7 @@ from ..forcings import CoupledForcings
 from ..inputs import create_input
 from ..outputs import create_output
 from ..processors import create_processor
+from ..processors import processor_registry
 from ..runner import Runner
 from . import runner_registry
 
@@ -117,11 +118,32 @@ class DefaultRunner(Runner):
         for processor in self.config.post_processors:
             result.append(create_processor(self, processor))
 
-        # Backward compatibility
-        if True:  # self.config.accumulations or True:
-            if self.checkpoint.accumulations:
-                LOG.warning("Using accumulations from the checkpoint")
-                result.append(create_processor(self, "accumulate"))
+        self._add_accumulate(result)
 
         LOG.info("Post processors: %s", result)
         return result
+
+    def _add_accumulate(self, result):
+        # Backward compatibility
+        accumulate = processor_registry.lookup("accumulate")
+        user_provided_accumulate = any(p.__class__ == accumulate for p in result)
+
+        if user_provided_accumulate:
+            if self.config.accumulations is False:
+                LOG.warning(
+                    "`accumulate` post-processor provided by the user, but `accumulations` is set to `false` in configuration."
+                )
+                LOG.warning(
+                    "Ignoring the configuration value. Please update the configuration to remove the `accumulations` entry."
+                )
+            return
+
+        if self.config.accumulations is False:
+            return
+
+        if self.config.accumulations is True:
+            if self.checkpoint.accumulations:
+                LOG.warning("DEPRECATION: `accumulations` is set to `true` in configuration.")
+                LOG.warning("Please set `accumulations` to `null` in the configuration file.")
+                LOG.warning("And add `accumulate` to the `post_processor` list.")
+                result.append(create_processor(self, "accumulate"))

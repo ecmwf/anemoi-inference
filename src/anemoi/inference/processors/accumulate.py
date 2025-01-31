@@ -41,3 +41,6 @@ class Accumulate(Processor):
                 state["fields"][accumulation] = self.accumulators[accumulation]
 
         return state
+
+    def __repr__(self):
+        return f"Accumulate({self.accumulations})"

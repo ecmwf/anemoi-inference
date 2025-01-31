@@ -10,7 +10,7 @@
 
 import logging
 
-import numpy as np
+from anemoi.transform.filters import filter_registry
 
 from ..processor import Processor
 from . import processor_registry
@@ -22,17 +22,9 @@ LOG = logging.getLogger(__name__)
 class MeanWaveDirection(Processor):
     """Accumulate fields from zero and return the accumulated fields"""
 
-    def __init__(self, context, *kwargs):
+    def __init__(self, context, **kwargs):
         super().__init__(context)
+        self.filter = filter_registry.create("mean_wave_direction", **kwargs)
 
     def process(self, state):
-        cos_mwd = state["fields"].pop("cos_mwd")
-        sin_mwd = state["fields"].pop("sin_mwd")
-
-        mwd = np.rad2deg(np.arctan2(sin_mwd, cos_mwd))
-        mwd = np.where(mwd >= 360, mwd - 360, mwd)
-        mwd = np.where(mwd < 0, mwd + 360, mwd)
-
-        state["fields"]["mwd"] = mwd
-
-        return state
+        return self.filter.forward_processor(state)
