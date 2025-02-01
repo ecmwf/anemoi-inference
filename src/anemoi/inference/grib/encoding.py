@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -30,15 +30,52 @@ def _param(param):
             return "shortName"
 
 
+def _step_in_hours(step):
+    step = step.total_seconds() / 3600
+    assert int(step) == step
+    return int(step)
+
+
+STEP_TYPE = {
+    "accumulation": "accum",
+    "average": "avg",
+    "maximum": "max",
+    "minimum": "min",
+    "instantaneous": None,
+}
+
+
+def encode_time_processing(*, result, template, variable, step, previous_step, edition, ensemble):
+    assert edition in (1, 2)
+
+    if variable.time_processing is None:
+        result["step"] = _step_in_hours(step)
+        return
+
+    result["startStep"] = _step_in_hours(previous_step)
+    result["endStep"] = _step_in_hours(step)
+    result["stepType"] = STEP_TYPE[variable.time_processing]
+
+    if edition == 1:
+        return
+
+    if ensemble:
+        result["productDefinitionTemplateNumber"] = 11
+    else:
+        result["productDefinitionTemplateNumber"] = 8
+
+
 def grib_keys(
     *,
     values,
     template,
-    accumulation,
+    variable,
+    ensemble,
     param,
     date,
     time,
     step,
+    previous_step,
     keys,
     quiet,
     grib1_keys={},
@@ -49,19 +86,6 @@ def grib_keys(
     edition = keys.get("edition")
     if edition is None and template is not None:
         edition = template.metadata("edition")
-        # centre = template.metadata("centre")
-        if edition == 2:
-            productDefinitionTemplateNumber = template.metadata("productDefinitionTemplateNumber")
-            if productDefinitionTemplateNumber in (8, 11) and not accumulation:
-                if f"{param}-accumulation" not in quiet:
-                    LOG.warning(
-                        "%s: Template %s is accumulation but `accumulation` was not specified",
-                        param,
-                        productDefinitionTemplateNumber,
-                    )
-                    LOG.warning("%s: Setting `accumulation` to `True`", param)
-                    quiet.add(f"{param}-accumulation")
-                accumulation = True
 
     if edition is None:
         edition = 1
@@ -75,6 +99,8 @@ def grib_keys(
             result.pop(k, None)
 
     result["edition"] = edition
+
+    result["eps"] = 1 if ensemble else 0
 
     if param is not None:
         result.setdefault(_param(param), param)
@@ -91,40 +117,21 @@ def grib_keys(
         # For organisations that do not use type
         result.setdefault("dataType", result.pop("type"))
 
-    # if stream is not None:
-    #     result.setdefault("stream", stream)
-
     if date is not None:
         result["date"] = date
 
     if time is not None:
         result.setdefault("time", time)
 
-    # 0: instantaneous, deterministic
-    # 1: instantaneous, ensemble
-    # 8: time processed, deterministic
-    # 11: time processed, ensemble
-
-    if accumulation:
-        if edition == 1:
-            result["step"] = step
-        else:
-            result["startStep"] = 0
-            result["endStep"] = step
-            result["stepType"] = "accum"
-
-        if edition == 2:
-            result["typeOfStatisticalProcessing"] = 1
-            result["productDefinitionTemplateNumber"] = 8
-            if result.get("type") in ("pf", "cf"):
-                result["productDefinitionTemplateNumber"] = 11
-
-    else:
-        result["step"] = step
-        if edition == 2:
-            result["productDefinitionTemplateNumber"] = 0
-            if result.get("type") in ("pf", "cf"):
-                result["productDefinitionTemplateNumber"] = 1
+    encode_time_processing(
+        result=result,
+        template=template,
+        variable=variable,
+        step=step,
+        previous_step=previous_step,
+        edition=edition,
+        ensemble=ensemble,
+    )
 
     return result
 

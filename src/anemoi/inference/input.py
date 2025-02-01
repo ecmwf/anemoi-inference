@@ -46,7 +46,3 @@ class Input(ABC):
         dictionary, that may be needed but the output object.
         """
         pass
-
-    def template(self, variable, date, **kwargs):
-        """Used for fetching GRIB templates."""
-        raise NotImplementedError(f"{self.__class__.__name__}.template() not implemented")

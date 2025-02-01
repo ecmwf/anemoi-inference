@@ -263,6 +263,7 @@ class Runner(Context):
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
+        result["step"] = to_timedelta(0)
 
         start = input_state["date"]
 
@@ -288,6 +289,8 @@ class Runner(Context):
             LOG.info("Forecasting step %s (%s)", step, date)
 
             result["date"] = date
+            result["previous_step"] = result.get("step")
+            result["step"] = step
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
