@@ -50,10 +50,27 @@ def encode_time_processing(*, result, template, variable, step, previous_step, e
 
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)
+        # result["startStep"] = _step_in_hours(step)
+        # result["endStep"] = _step_in_hours(step)
+        result["stepType"] = "instant"
         return
 
-    result["startStep"] = _step_in_hours(previous_step)
-    result["endStep"] = _step_in_hours(step)
+    if previous_step is None:
+        if not variable.is_accumulation:
+            LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
+        previous_step = step
+
+    start = _step_in_hours(previous_step)
+    end = _step_in_hours(step)
+
+    # if variable.is_accumulation:
+    if start > 0:
+        result["stepRange"] = "%d-%d" % (start, end)
+    else:
+        result["stepRange"] = end
+    # else:
+    # result["startStep"] = start
+    # result["endStep"] = end
     result["stepType"] = STEP_TYPE[variable.time_processing]
 
     if edition == 1:
@@ -133,10 +150,16 @@ def grib_keys(
         ensemble=ensemble,
     )
 
+    for k, v in variable.grib_keys.items():
+        if k not in ("domain", "type", "stream", "expver", "class", "param", "number", "step", "date", "time"):
+            if k == "levtype" and v in ("sfc", "o2d"):
+                continue
+            result.setdefault(k, v)
+
     return result
 
 
-def check_encoding(handle, keys):
+def check_encoding(handle, keys, first=True):
     def same(w, v, k):
         if type(v) is type(w):
             return v == w
@@ -172,4 +195,12 @@ def check_encoding(handle, keys):
             mismatches[k] = 'Expected "{}" but got "{}"'.format(v, w)
 
     if mismatches:
+
+        if first:
+            import eccodes
+            from earthkit.data.readers.grib.codes import GribCodesHandle
+
+            handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
+            return check_encoding(handle, keys, first=False)
+
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")

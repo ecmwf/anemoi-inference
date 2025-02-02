@@ -59,13 +59,15 @@ class IndexTemplateProvider(TemplateProvider):
 
     def template(self, variable, lookup):
         def _(value):
-            if isinstance(value, tuple):
-                return list(value)
+            if not isinstance(value, list):
+                return [value]
             return value
 
         for template in self.templates:
             match, grib = template
-            if all(_(lookup.get(k)) == v for k, v in match.items()):
+            if LOG.isEnabledFor(logging.DEBUG):
+                LOG.debug("%s", [(lookup.get(k), _(v)) for k, v in match.items()])
+            if all(lookup.get(k) in _(v) for k, v in match.items()):
                 return self.load_template(grib, lookup)
 
         return None

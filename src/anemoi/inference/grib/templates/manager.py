@@ -61,17 +61,12 @@ class TemplateManager:
             number_of_grid_points=len(state["latitudes"]),
         )
 
-        lookup.update(typed.grib_keys)
-        lookup.update(self.owner.template_lookup(name))
+        for key, value in typed.grib_keys.items():
+            if key in ("step", "date", "time", "hdate"):
+                continue
+            lookup[key] = value
 
-        # TODO: Should not come from the owner
-        reference_date = self.owner.context.reference_date
-        lookup["date"] = reference_date.strftime("%Y-%m-%d")
-        lookup["time"] = reference_date.hour
-        lookup["step"] = state["step"]
-        lookup["previous_step"] = state["previous_step"]
-        lookup["reference_date"] = reference_date
-        lookup["valid_datetime"] = state["date"]
+        lookup.update(self.owner.template_lookup(name))
 
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug(f"Loading template for `{name}` with lookup:")
@@ -87,9 +82,15 @@ class TemplateManager:
             tried.append(provider)
 
         LOG.warning(f"Could not find template for `{name}` in {tried}")
+        LOG.warning(f"Loading template for `{name}` with lookup:")
+        LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
     def _grid(self, grid):
         if isinstance(grid, str):
             return grid.upper()
+        if isinstance(grid, (tuple, list)) and len(grid) == 2:
+            if grid[0] == grid[1]:
+                return grid[0]
+            return f"{grid[0]}x{grid[1]}"
         return grid

@@ -110,7 +110,16 @@ class GribOutput(Output):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
+        state = state.copy()
+
+        self.reference_date = state["date"]
+        state.setdefault("step", datetime.timedelta(0))
+
         for name in state["fields"]:
+            variable = self.typed_variables[name]
+
+            if variable.is_computed_forcing:
+                continue
 
             template = self.template(state, name)
             if template is None:
@@ -119,33 +128,11 @@ class GribOutput(Output):
                     "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
                 )
 
-            variable = self.typed_variables[name]
-
-            values = None
-            keys = grib_keys(
-                values=values,
-                template=template,
-                variable=variable,
-                ensemble=self.ensemble,
-                param=None,
-                date=None,
-                time=None,
-                step=datetime.timedelta(0),
-                keys=self.encoding,
-                grib1_keys=self.grib1_keys,
-                grib2_keys=self.grib2_keys,
-                quiet=self.quiet,
-                previous_step=None,
-            )
-
-            for modifier in self.modifiers:
-                values, template, keys = modifier(values, template, keys)
-
-            self.write_message(values, template=template, **keys)
+        return self.write_step(state)
 
     def write_step(self, state):
 
-        reference_date = self.context.reference_date
+        reference_date = self.reference_date or self.context.reference_date
         step = state["step"]
         previous_step = state.get("previous_step")
 
@@ -153,7 +140,11 @@ class GribOutput(Output):
             keys = {}
 
             variable = self.typed_variables[name]
-            param = variable.grib_keys.get("param", variable)
+
+            if variable.is_computed_forcing:
+                continue
+
+            param = variable.grib_keys.get("param", name)
 
             template = self.template(state, name)
 
