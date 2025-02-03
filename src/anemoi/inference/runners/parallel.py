@@ -19,10 +19,29 @@ import torch
 import torch.distributed as dist
 
 from ..outputs import create_output
+from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
+
+
+# The code executed by manually spawned subprocesses (srun not available)
+# This is identical to the 'run' method in commands/run.py except the config file is not loaded
+def _run_subproc(config):
+    runner = create_runner(config)
+
+    input = runner.create_input()
+    output = runner.create_output()
+
+    input_state = input.create_input_state(date=config.date)
+
+    output.write_initial_state(input_state)
+
+    for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+        output.write_state(state)
+
+    output.close()
 
 
 @runner_registry.register("parallel")
@@ -32,44 +51,22 @@ class ParallelRunner(DefaultRunner):
     def __init__(self, context):
         super().__init__(context)
 
-        self.model_comm_group=None
+        self.model_comm_group = None
 
-        using_srun=False
-        if using_srun:
-            global_rank, local_rank, world_size = self.__get_parallel_info()
-            self.global_rank = global_rank
-            self.local_rank = local_rank
-            self.world_size = world_size
-
-        else:
-        #If srun is not available, spawn procs manually on a node
-        #self.config.spawned=False
-        #if not self.config.spawned and not self.__srun_present:
-        #if self.must_spawn_manually:
-        #    self.must_spawn_manually=False #prevent spawned processes spawning their own processes
-            self.world_size=self.config.world_size
-            self.local_rank=self.config.pid
-            self.global_rank=self.config.pid #only inference within a single node is supported when not using srun
-            os.environ["MASTER_ADDR"]="localhost"
-            os.environ["MASTER_PORT"]="12366"
-            if self.local_rank == 0:
-                LOG.info(f"going to spawn {self.world_size -1 } procs")
-                self.__spawn_parallel_procs(self.world_size)
+        self.__bootstrap()
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0:
             logging.getLogger().setLevel(logging.WARNING)
 
-
         if self.device == "cuda":
             self.device = f"{self.device}:{self.local_rank}"
             torch.cuda.set_device(self.local_rank)
-        LOG.info(f"proc {self.config.pid} using {self.device=}")
 
         # Create a model comm group for parallel inference
         # A dummy comm group is created if only a single device is in use
         if self.world_size > 1:
-            model_comm_group = self.__init_parallel(self.device, self.global_rank, self.world_size)
+            model_comm_group = self.__init_parallel()
             self.model_comm_group = model_comm_group
 
             # Ensure each parallel model instance uses the same seed
@@ -108,50 +105,87 @@ class ParallelRunner(DefaultRunner):
             dist.destroy_process_group()
 
     def __srun_present(self):
-        """ returns true if anemoi-inference was launched with srun """
+        """returns true if anemoi-inference was launched with srun"""
+
+        return False
         import psutil
 
-        return false
+        pid = os.getpid()
+        with open(f"/proc/{pid}/cmdline", "r") as f:
+            cmdline = f.read().replace("\x00", " ")
+        LOG.debug(f"Command line for PID {pid}: {cmdline}")
+        first_cmd = cmdline.split(" ")[0]
+        return first_cmd == "srun"
 
         parent = psutil.Process().parent()
-        srun_present=(parent and "srun" in parent.name())
+        srun_present = parent and "srun" in parent.name()
         LOG.info(f"{srun_present=}")
         return srun_present
 
     def __spawn_parallel_procs(self, num_procs):
-        """ When srun is not available, this method creates N-1 child processes within the same node for parallel inference """
-        self.config.spawned=True
+        """When srun is not available, this method creates N-1 child processes within the same node for parallel inference"""
+        LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
         if self.device.startswith("cuda"):
             num_gpus = torch.cuda.device_count()
             if num_procs > num_gpus:
-                raise ValueError(f"You requested parallel inference over {num_procs} GPUs but your node only has {num_gpus} available.")
+                raise ValueError(
+                    f"You requested parallel inference over {num_procs} GPUs but your node only has {num_gpus} GPUs available."
+                )
 
-        LOG.info("SPAWNING PROCS")
-
-        #from ..runners import create_runner
-        from ..commands.run import RunCmd
+        # Create N-1 procs, each with a unique PID
         import torch.multiprocessing as mp
-        mp.set_start_method('spawn')
+
+        mp.set_start_method("spawn")
         for pid in range(1, num_procs):
-            config=self.config
-            config.pid=pid
-            LOG.info(f"Creating Proc {config.pid}")
-            mp.Process(target=create_runner, args=(config,)).start()
+            config = self.config
+            config.pid = pid
+            mp.Process(target=_run_subproc, args=(config,)).start()
 
-            #from argparse import Namespace
+    def __bootstrap(self):
+        """initalises networking.
+        If srun is available, slurm variables are read to determine network settings.
+        Otherwise, local processes are spawned
+        """
+        using_slurm = self.__srun_present()
+        if using_slurm:
 
-            #args = Namespace(config=config)
-            #print(args.config)  # Now you can access it like args.config
+            # Determine world size and rank from slurm env vars
+            global_rank, local_rank, world_size = self.__get_parallel_info_from_slurm()
+            self.global_rank = global_rank
+            self.local_rank = local_rank
+            self.world_size = world_size
 
+            # determine master address and port from slurm/override env vars
+            slurm_addr, slurm_port = self.__init_network_from_slurm()
+            self.master_addr = slurm_addr
+            self.master_port = slurm_port
 
-            args={"config": config}
-            #mp.Process(target=RunCmd.run, args=(RunCmd(), args,)).start()
-        #torch.multiprocessing.spawn.spawn(create_runner, args=(self.config,), nprocs=num_procs-1)
+            # the world size entry in the config is only heeded when not launching via srun
+            if self.config.world_size != 1:
+                LOG.warning(
+                    f"world size ({self.config.world_size}) set in the config is ignored because we are launching via srun, using 'SLURM_NTASKS' instead"
+                )
+        else:
+            # If srun is not available, spawn procs manually on a node
 
+            # Read the config to determine world_size and pid
+            self.global_rank = self.config.pid  # only inference within a single node is supported when not using srun
+            self.local_rank = self.config.pid
+            self.world_size = self.config.world_size
 
-    def __init_network(self):
+            # since we are running within a node, 'localhost' and any port can be used
+            self.master_addr = "localhost"
+            self.master_port = "12366"  # TODO randomise
+            import random
+            master_port = str(10000 + random.randint(1,9999)) # generates a random number between 10001 and 19999
+
+            # Spawn the other processes manually
+            if self.local_rank == 0:
+                self.__spawn_parallel_procs(self.world_size)
+
+    def __init_network_from_slurm(self):
         """Reads Slurm environment to set master address and port for parallel communication"""
 
         # Get the master address from the SLURM_NODELIST environment variable
@@ -197,36 +231,37 @@ class ParallelRunner(DefaultRunner):
 
         return master_addr, master_port
 
-    def __init_parallel(self, device, global_rank, world_size):
+    def __init_parallel(self):
         """Creates a model communication group to be used for parallel inference"""
 
-        if world_size > 1:
-
-            master_addr, master_port = self.__init_network()
+        if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'
-            if device.startswith("cuda"):
+            if self.device.startswith("cuda"):
                 backend = "nccl"
             else:
-                backend = "gloo"
+                if dist.is_mpi_available():
+                    backend = "mpi"
+                else:
+                    backend = "gloo"
 
             dist.init_process_group(
                 backend=backend,
-                init_method=f"tcp://{master_addr}:{master_port}",
+                init_method=f"tcp://{self.master_addr}:{self.master_port}",
                 timeout=datetime.timedelta(minutes=3),
-                world_size=world_size,
-                rank=global_rank,
+                world_size=self.world_size,
+                rank=self.global_rank,
             )
-            LOG.info(f"Creating a model comm group with {world_size} devices with the {backend} backend (tcp://{master_addr}:{master_port})")
+            LOG.info(f"Creating a model communication group with {self.world_size} devices with the {backend} backend")
 
-            model_comm_group_ranks = np.arange(world_size, dtype=int)
-            model_comm_group = torch.distributed.new_group(model_comm_group_ranks)
+            model_comm_group_ranks = np.arange(self.world_size, dtype=int)
+            model_comm_group = dist.new_group(model_comm_group_ranks)
         else:
             model_comm_group = None
 
         return model_comm_group
 
-    def __get_parallel_info(self):
+    def __get_parallel_info_from_slurm(self):
         """Reads Slurm env vars, if they exist, to determine if inference is running in parallel"""
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))  # Rank within a node, between 0 and num_gpus
         global_rank = int(os.environ.get("SLURM_PROCID", 0))  # Rank within all nodes
