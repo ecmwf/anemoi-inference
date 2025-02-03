@@ -107,9 +107,9 @@ class ParallelRunner(DefaultRunner):
     def __srun_used(self):
         """returns true if anemoi-inference was launched with srun"""
 
-        #from pytorch lightning
+        # from pytorch lightning
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
-        return "SLURM_NTASKS" in os.environ and not (os.environ.get("SLURM_JOB_NAME") in ("bash", "interactive"))
+        return "SLURM_NTASKS" in os.environ and os.environ.get("SLURM_JOB_NAME") not in ("bash", "interactive")
 
     def __spawn_parallel_procs(self, num_procs):
         """When srun is not available, this method creates N-1 child processes within the same node for parallel inference"""
@@ -166,8 +166,9 @@ class ParallelRunner(DefaultRunner):
 
             # since we are running within a node, 'localhost' and any port can be used
             self.master_addr = "localhost"
-            #generates a port between 10000 and 19999, based on the nodes hostname (which will be the same across all node-local procs)
+            # generates a port between 10000 and 19999, based on the nodes hostname (which will be the same across all node-local procs)
             import hashlib
+
             node_name = os.uname().nodename.encode()  # Convert to bytes
             hash_val = int(hashlib.md5(node_name).hexdigest(), 16)  # Convert hash to int
             self.master_port = 10000 + (hash_val % 9999)
