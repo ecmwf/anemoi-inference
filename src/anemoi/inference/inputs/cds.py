@@ -111,8 +111,5 @@ class CDSInput(GribInput):
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def template(self, variable, date, **kwargs):
-        return self.retrieve([variable], [date])[0]
-
     def load_forcings(self, variables, dates):
         return self._load_forcings(self.retrieve(variables, dates), variables, dates)
