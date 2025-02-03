@@ -10,21 +10,10 @@
 # 1 - Get a GRIB, for example with mars: retrieve,param=tp,levtype=sfc,type=fc,step=6,target=data.grib,grid=0.25/0.25
 # 2 - grib_set -s edition=2,packingType=grid_ccsds data.grib data.grib2
 # 3 - grib_set -d 0 data.grib2 out.grib
-# 4 - python -c 'import base64, sys, zlib;print(base64.b64encode(zlib.compress(open(sys.argv[1], "rb").read())))' out.grib
-
-# TP, GRIB2, ECMWF, CCSDS
-- - { grid: O96, time_processing: [ accumulation, average, minimum, maximum ] }
-  - |
-    eJxlkjFIW1EUhv//mailoVSNaCFDChlEMjwhoEgGkYAWMohkcAgllEAdgjhkcMiQ4RUcMjg4ONji4ODg4ODg4KDg4ODQwaGDQw
-    cHB4cODh2E1+/FDoXex7v3cO6555z/u3dp9cNiHCtQfwQNpnHrk/TeHnp4PZHBYf6RgMV6lXIYhjP4rgfwfu0G1pTi/webF0nG
-    xE6vfoz66b9gjH/eaPwNoFhWk8oprwJZigpV0pzKWlBFy6pqRTWtqU5gU+tqaVNtbamjriJtq6cd7WpP+zrQoY50rBOd6kznVL
-    7StW70Xbf6oTv91L0e9KhfetJvPSMk5WFn/NZZTzrnvAuectGhS55z2QuueNlVr7jmNdfdcNPrbnnTbW+5464jb7vnHb4eVoSn
-    w06biBaRTU7UOVkjQ5VMFTKWyVyiQpFKBSrmqJylgwydpCD8TGdPdPhIp/d0fEfntyi4QckVis5RdorCY5Qeongf5bsQ6EEigk
-    gHMm0ItSDVhFgdcjUIViFZgWgZsiUIFyFdgHgO8lkuYT7FNOxLxd+4leSqB/3PPSZvYPTlCchBf4lf3orepZMHoOnE7o4l85s8
-    jZBgMAlJD80y/gBx3pOi
+# 4 - python -c 'import base64, sys, zlib;print(base64.b64encode(zlib.compress(open(sys.argv[1], "rb").read())).decode())' out.grib | sed 's/.\{98\}/&\n/g'
 
 # Q-1000, GRIB2, ECMWF, CCSDS
-- - { grid: O96, levtype: pl, time_processing: null }
+- - { grid: O96, levtype: pl }
   - |
     eJxlkSFMW1EUhr//0QKiWUbSJpBUdEsFWSrekiZDVBDSZF1SQUgFoiENeckQzYKoQFRUPBZEBQIxwUhFxQQCgZhAIBAIBAIxgU
     AgWIJAIBAkb/8jy8zuzbu57557z/n/73xc+bSUJAS8jKDhpSDW4Q2a+h0o54PE30yAPIOMwjB8Dzqf8On3QSDmSf4fDp6mGdN9
@@ -33,29 +22,19 @@
     L9p+2XKGpjPVnbHmzFVXqLhS2RWLrpy3gpyVZATPVvZohfdWemvF11Z+ZQcXdnJmRyd2dmyHh3Y6tuN9O98zgaFJxCbSN5meCX
     VNKjKxtsm1TLBpknUTrZls1YQrJl028aLJ592Et5m0MxaQHLgrSn8i/38d/evjXDZtNO/S0KCQrq9KLgiTk2k4O/XB4w98SI3l
 
-# 2T, GRIB2, ECMWF, CCSDS
+# LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
+# retrieve,levtype=sfc,param=lsm,grid=o96,target=data.grib
 - - { grid: O96 }
   - |
-    eJxlkiFIZFEUhr//7YzuwiAujKAwYVYmyDLhCQNrmCDLgLMwQWSCYZBBBjQMYphgmDDhLRgmGAwGlQ0Gg8FgMBgMBoNhg8FgMB
-    h2wWAwGITn/0bZsvfyLodzzz3n/N95cws/vscxAYMVVH2MiWX4gob/BsrYEfv7HCDvIKUwDKdBlx/s3esFYor4/+XL8yRjYqcX
-    lqJB+p82xlbWmu8BTcgyTo48BWcpElJihjKzVKhSY546izQc2GKVNut02KBLj4hN+myxzQ67/OKAQ4445oRTzlz5gkuu+M01N9
-    xyxz1/eOCRJ555sZCUPiqjUWU1rpzyKmhKRYUqaUZlzaqiqmqaV12LaqipllbV1ro62lBXPUXaVF9b3n1bkT1d33Qc0XZkyy8a
-    fll3hpozVZyx7MwlVyi6UsEVc66cdQcZd5ISvLizJ3f44E7v3fGtO7+2gisrubCiMys7scIjKz2w4l0r3zaBvklEJtI1mY4JtU
-    2qZWINk6ubYM0kKyZaNtmSCRdNumDiOZPPegiTqbfRE+97KkqslcGv8G+OE+lk0HxNvL1PyTmSd0EYGkqu08PfvF4BRTCMtg==
-
-# TP, GRIB2, ECMWF, CCSDS
-- - { grid: N320, time_processing: [ accumulation, average, minimum, maximum ] }
-  - |
-    eJztlDFLw0AYht87m1ZRCgpFCg4VHEQs1C6KOASpqDjVSRykiIJDBzddhAyKji46SsE/0MHd6uTg4KiTuoiTODh1ie93SfXaSO
-    gP8B5yd4TjI1y+91lcXZ73fWiY4bxwyihsAqNKpd77hwf4QvEZ1FwU+hKqUChM8eRSD9C74GmFcfjRAWhPKsreWdd5U/6Im8zu
-    80ZwQLnAELIYY4U8ipiDiyWygjLWUcEWqtgnBzjGKTlHDVeGBrnDo+EVn4YmPy9NcoZJ4hpKasdij3jklJypesit4eWHN/UlaF
-    6LHvnBtVgL8do4IZchDxGe9EdAD0JyFhOk8ieHHTRiuCfv7SRgMRPDdgxehHoXXNs4+Kcb2m+tq3uO/p24fxnXA1avdPaR6a1G
-    DJ19+nc3S5/bfR9moZUNpiSanFamJF/tiWvl0M7mb2KZ3yDJTPRvuoO0t7J/ZlzgEXGD7YpSaBBxSWAV8QvQDI3zGhrozvgoMF
-    ONlhJXHdNa4q4qLVahzcq0mrjNpeWKtN04rZel/YDZBKdedQP/glYU1SaV5VFx8FCgYChtFj9wNbKOCBgTsvekFNI5iHSTSTni
-    pKY5vgHl2Dri
+    eJxlkSFIZFEUhr//OaOGQXZhRIUJszJBlglPGFjDBJEBR5ggMsEwLIMMrGFYDBMMEya8BcMEg2GDKwaDwWAwGAwGg8FgMBgMBo
+    OCYYNhg/D8n1pk7+VeDvece875vzO/tDAXx0HA6wqqvkbFCnxBQw9BkPFD7PM5QN5BSmEYToPOB/z6pxeIKeL/l52nScbETi99
+    j17T/7Ix+uNn8z2gCVnGyZGn4CxFQkrMUGaWClVqLFJnmYYDW6zSZo0O63TpEbFBn022+M02u+yxzwGHHHHMiSufcc4Fl1xxzQ
+    233HHPI3954h/PFpLSsDL6pKzGlVNeBU2pqFAlzaisWVVUVU2LqmtZDTXV0qraWlNH6+qqp0gb6mvTu28r8kvXno4j2o5s+UfD
+    P+vOUHOmijOWnbnkCkVXKrhizpWz7iDjTlKCZ3f25A4f3emdO75x51dWcGElZ1Z0YmVHVnhgpXtWvG3lWybQN4nIRLom0zGhtk
+    m1TKxhcnUTrJlkxUTLJlsy4aJJF0w8Z/JZD2Ey9TZ64h1PRYmlj3OcSCeD5mvi6o0l90jeBWFwMHGnh755vQAsMZFa9
 
 # Q-1000, GRIB2, ECMWF, CCSDS
-- - { grid: N320, levtype: pl, time_processing: null }
+- - { grid: N320, levtype: pl }
   - |
     eJztlL9Lw0AYht+7NtVBBIUOBYcqDiIK1UUHhyCKFac6iYMUUXBwcNNFyOCv0aWOUvAf6OBucerg4KiTdhFdxMHJJb7fJdFLI6
     F/gPeQ45I7jnD3vc/S6vK870PDNKfFLq+wCQxD9bxp1ccPPp8BDUV0VpVKpSmuLGeA3kVPK4zBTzZAe7KjjJ11PWm2P+Ygv/e0
@@ -64,12 +43,13 @@
     rNO/q1nq3K77MAtRNpiSZHKiTEm+4omLcmhn8zexzG+QZCb6N91B2qPs14wLPCJusF2xEBpEXBJYRfwCfIXGaYcGahkfBWaq01
     LiqlNaS9y1S4tVabMKrSZuc2m5adpujNYr0H7ASFbMyG39S1pRycsW30/qkUdRcES0GJcpLy99fxEi11xOpp2eGbZv22c1Jg==
 
-# 2T, GRIB2, ECMWF, CCSDS
+# LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
+# retrieve,levtype=sfc,param=lsm,grid=n320,target=data.grib
 - - grid: N320
   - |
-    eJztlLFLw0Achd9dm6oggkKHgkMVBxGF6qKDQxDFilOdpIMUUXRwcNNFyKDo6FJHEfwHHNwtTh0cHHXSLqKLODh1ie93SfTalNA
-    /wPvIcSThCJf3vuW1lQXfh4YZTp1TVmETGIHq+dCqnzd8XoMaiui0KhQK03yzmAJ6lzytMA4/PgDtyY6ydsp6ymx/wkV2/2UjeE
-    G5wBByGOMOU5jBPFwUySpKKKOCLezhkBzhFOfkAle4NdRIHU+GBr4MTX7eAMkbJolrWFS7FgfEI+ekqm5C7g2vv7ypb0HzWPTwL
-    67FeojXwhm5DnmM8aw/A1IIyVtMkEpHjtuoJfBA3ltJw2Iuge0EvBg3XXBn4+Cfbmg9ta7OOf53kv5lUgasrLTnyGSrlkB7Tjun
-    WXJu5z7sQtQNtiTenKhT0q/WxkU9tLv511j2N2gyG/3X7qDtUferxgUeETfYrlgMDSIuCawifgGaoXEaoYHqxkeBma5oKXHVKa0
-    l7tqjxSq0WYlWE7e5tNwMbTdO6+VoP2A0HagX/iWtqGS1I5OOPIqcI6LFhNz1+mQeyEPkmsnIY6dnluMHpE8z9w==
+    eJzt1LFLw0AYBfB3Z9M6iKBQpOBQxUFEobro4BBEseKkkzhIEQUHBzddhAyKjl10lIL/gIO7xamDg6NO6iK6iIOTS3zf5aqXpo
+    T+AeZHw9GEIyTfe4urS3NhqDXM4TV4yitsAkNQuXete/hHyF+fhiKdUaVSaZJ3lruA7oVAK4wiTB6ADmRHWXvresJsf8xFfu9p
+    I7pB+UA/ChjhDhOYwix8lGkZK1hHBVvYxQEd4gRVOkcN10adGngwXvBpfPPxeqlojJNvzKsdxz4FVKUzdWXdGs+/XtWX0KDBX7
+    5jzQpiTunSuk941B+RLlhFxxhV2jpqUU9xR29xGThmUmynCBKuOnDj8vCvE/G31tF7Tn6dtG+ZNgPOrLTOkZmteorWOW0/zTLn
+    7tzbLDSzwZQkk9PMlOQrnrhmDt1s/iWW+Y2SzET/pTtKezP7Z6YLApJucLti3jaIdEnUKtIvwLdtnBfbQA3TR1Ez1dhS0lUnbC
+    3prl22WIVttsJWk27z2XJTbLtRtl6B7QcMZ6LqRXjBVlSyUrEeRcGTosWYXAoG5NxbhJRrNiuXvdw0jx+V0Dib

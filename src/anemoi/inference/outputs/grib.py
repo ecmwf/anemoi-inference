@@ -165,8 +165,8 @@ class GribOutput(Output):
             keys = grib_keys(
                 values=values,
                 template=template,
-                date=reference_date.strftime("%Y-%m-%d"),
-                time=reference_date.hour,
+                date=int(reference_date.strftime("%Y%m%d")),
+                time=reference_date.hour * 100,
                 step=step,
                 param=param,
                 variable=variable,

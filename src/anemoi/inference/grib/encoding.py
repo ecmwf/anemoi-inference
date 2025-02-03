@@ -9,6 +9,7 @@
 
 
 import logging
+import re
 
 LOG = logging.getLogger(__name__)
 
@@ -16,6 +17,22 @@ LOG = logging.getLogger(__name__)
 GRIB1_ONLY = []
 
 GRIB2_ONLY = ["typeOfGeneratingProcess"]
+
+
+ORDERING = (
+    "edition",
+    "typeOfLevel",
+    "stepType",
+    "productDefinitionTemplateNumber",
+    "eps",
+    "number",
+)
+
+ORDERING = {k: i for i, k in enumerate(ORDERING)}
+
+
+def _ordering(item):
+    return ORDERING.get(item[0], 999)
 
 
 def _param(param):
@@ -63,14 +80,8 @@ def encode_time_processing(*, result, template, variable, step, previous_step, e
     start = _step_in_hours(previous_step)
     end = _step_in_hours(step)
 
-    # if variable.is_accumulation:
-    if start > 0:
-        result["stepRange"] = "%d-%d" % (start, end)
-    else:
-        result["stepRange"] = end
-    # else:
-    # result["startStep"] = start
-    # result["endStep"] = end
+    result["startStep"] = start
+    result["endStep"] = end
     result["stepType"] = STEP_TYPE[variable.time_processing]
 
     if edition == 1:
@@ -80,6 +91,14 @@ def encode_time_processing(*, result, template, variable, step, previous_step, e
         result["productDefinitionTemplateNumber"] = 11
     else:
         result["productDefinitionTemplateNumber"] = 8
+
+
+LEVTYPES = {
+    "pl": "isobaricInhPa",
+    "ml": "hybrid",
+    "pt": "theta",
+    "pv": "potentialVorticity",
+}
 
 
 def grib_keys(
@@ -134,11 +153,8 @@ def grib_keys(
         # For organisations that do not use type
         result.setdefault("dataType", result.pop("type"))
 
-    if date is not None:
-        result["date"] = date
-
-    if time is not None:
-        result.setdefault("time", time)
+    result["date"] = date
+    result["time"] = time
 
     encode_time_processing(
         result=result,
@@ -152,9 +168,14 @@ def grib_keys(
 
     for k, v in variable.grib_keys.items():
         if k not in ("domain", "type", "stream", "expver", "class", "param", "number", "step", "date", "time"):
-            if k == "levtype" and v in ("sfc", "o2d"):
-                continue
+            if k == "levtype":
+                v = LEVTYPES.get(v)
+                if v is None:
+                    continue
+                k = "typeOfLevel"
             result.setdefault(k, v)
+
+    result = {k: v for k, v in sorted(result.items(), key=_ordering) if v is not None}
 
     return result
 
@@ -204,3 +225,109 @@ def check_encoding(handle, keys, first=True):
             return check_encoding(handle, keys, first=False)
 
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
+
+
+def encode_message(*, values, template, metadata, check_nans=False, missing_value=9999):
+    metadata = metadata.copy()  # avoid modifying the original metadata
+    handle = template.handle.clone()
+
+    if check_nans and values is not None:
+        import numpy as np
+
+        if np.isnan(values).any():
+            # missing_value = np.finfo(values.dtype).max
+            missing_value = missing_value
+            values = np.nan_to_num(values, nan=missing_value)
+            metadata["missingValue"] = missing_value
+            metadata["bitmapPresent"] = 1
+
+    if int(metadata.get("deleteLocalDefinition", 0)):
+        for k in ("class", "type", "stream", "expver", "setLocalDefinition"):
+            metadata.pop(k, None)
+
+    metadata.setdefault("generatingProcessIdentifier", 255)
+
+    LOG.debug("GribOutput.metadata %s", metadata)
+
+    single = {}
+    multiple = {}
+    for k, v in metadata.items():
+        if isinstance(v, (int, float, str, bool)):
+            single[k] = v
+        else:
+            multiple[k] = v
+
+    try:
+        # Try to set all metadata at once
+        # This is needed when we set multiple keys that are interdependent
+        handle.set_multiple(single)
+    except Exception as e:
+        LOG.error("Failed to set metadata at once: %s", e)
+        # Try again, but one by one
+        for k, v in single.items():
+            handle.set(k, v)
+
+    for k, v in multiple.items():
+        handle.set(k, v)
+
+    if values is not None:
+        handle.set_values(values)
+
+    return handle
+
+
+class GribWriter:
+    """Write GRIB messages to one or more files."""
+
+    def __init__(self, path, split_output=False):
+        self._files = {}
+        self.filename = path
+
+        if split_output:
+            self.split_output = re.findall(r"\{(.*?)\}", self.filename)
+        else:
+            self.split_output = None
+
+    def close(self):
+        for f in self._files.values():
+            f.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, trace):
+        self.close()
+
+    def write(
+        self,
+        *,
+        values,
+        template,
+        metadata,
+        check_nans=False,
+        missing_value=9999,
+    ):
+        handle = encode_message(
+            values=values,
+            check_nans=check_nans,
+            metadata=metadata,
+            template=template,
+            missing_value=missing_value,
+        )
+
+        file, path = self.target(handle)
+        handle.write(file)
+
+        return handle, path
+
+    def target(self, handle):
+
+        if self.split_output:
+            path = self.filename.format(**{k: handle.get(k) for k in self.split_output})
+        else:
+            path = self.filename
+
+        if path not in self._files:
+            self._files[path] = open(path, "wb")
+
+        return self._files[path], path
