@@ -53,7 +53,7 @@ class ParallelRunner(DefaultRunner):
 
         self.model_comm_group = None
 
-        self.__bootstrap()
+        self.__bootstrap_processes()
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0:
@@ -104,23 +104,12 @@ class ParallelRunner(DefaultRunner):
         if self.model_comm_group is not None:
             dist.destroy_process_group()
 
-    def __srun_present(self):
+    def __srun_used(self):
         """returns true if anemoi-inference was launched with srun"""
 
-        return False
-        import psutil
-
-        pid = os.getpid()
-        with open(f"/proc/{pid}/cmdline", "r") as f:
-            cmdline = f.read().replace("\x00", " ")
-        LOG.debug(f"Command line for PID {pid}: {cmdline}")
-        first_cmd = cmdline.split(" ")[0]
-        return first_cmd == "srun"
-
-        parent = psutil.Process().parent()
-        srun_present = parent and "srun" in parent.name()
-        LOG.info(f"{srun_present=}")
-        return srun_present
+        #from pytorch lightning
+        # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
+        return "SLURM_NTASKS" in os.environ and not (os.environ.get("SLURM_JOB_NAME") in ("bash", "interactive"))
 
     def __spawn_parallel_procs(self, num_procs):
         """When srun is not available, this method creates N-1 child processes within the same node for parallel inference"""
@@ -143,12 +132,12 @@ class ParallelRunner(DefaultRunner):
             config.pid = pid
             mp.Process(target=_run_subproc, args=(config,)).start()
 
-    def __bootstrap(self):
-        """initalises networking.
+    def __bootstrap_processes(self):
+        """initalises processes and their network information
         If srun is available, slurm variables are read to determine network settings.
-        Otherwise, local processes are spawned
+        Otherwise, local processes are spawned and network info is infered from config
         """
-        using_slurm = self.__srun_present()
+        using_slurm = self.__srun_used()
         if using_slurm:
 
             # Determine world size and rank from slurm env vars
@@ -177,9 +166,11 @@ class ParallelRunner(DefaultRunner):
 
             # since we are running within a node, 'localhost' and any port can be used
             self.master_addr = "localhost"
-            self.master_port = "12366"  # TODO randomise
-            import random
-            master_port = str(10000 + random.randint(1,9999)) # generates a random number between 10001 and 19999
+            #generates a port between 10000 and 19999, based on the nodes hostname (which will be the same across all node-local procs)
+            import hashlib
+            node_name = os.uname().nodename.encode()  # Convert to bytes
+            hash_val = int(hashlib.md5(node_name).hexdigest(), 16)  # Convert hash to int
+            self.master_port = 10000 + (hash_val % 9999)
 
             # Spawn the other processes manually
             if self.local_rank == 0:
