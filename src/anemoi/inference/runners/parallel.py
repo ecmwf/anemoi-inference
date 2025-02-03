@@ -31,33 +31,58 @@ class ParallelRunner(DefaultRunner):
 
     def __init__(self, context):
         super().__init__(context)
-        global_rank, local_rank, world_size = self.__get_parallel_info()
-        self.global_rank = global_rank
-        self.local_rank = local_rank
-        self.world_size = world_size
 
-        if self.device == "cuda":
-            self.device = f"{self.device}:{local_rank}"
-            torch.cuda.set_device(local_rank)
+        self.model_comm_group=None
+
+        using_srun=False
+        if using_srun:
+            global_rank, local_rank, world_size = self.__get_parallel_info()
+            self.global_rank = global_rank
+            self.local_rank = local_rank
+            self.world_size = world_size
+
+        else:
+        #If srun is not available, spawn procs manually on a node
+        #self.config.spawned=False
+        #if not self.config.spawned and not self.__srun_present:
+        #if self.must_spawn_manually:
+        #    self.must_spawn_manually=False #prevent spawned processes spawning their own processes
+            self.world_size=self.config.world_size
+            self.local_rank=self.config.pid
+            self.global_rank=self.config.pid #only inference within a single node is supported when not using srun
+            os.environ["MASTER_ADDR"]="localhost"
+            os.environ["MASTER_PORT"]="12366"
+            if self.local_rank == 0:
+                LOG.info(f"going to spawn {self.world_size -1 } procs")
+                self.__spawn_parallel_procs(self.world_size)
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0:
             logging.getLogger().setLevel(logging.WARNING)
 
+
+        if self.device == "cuda":
+            self.device = f"{self.device}:{self.local_rank}"
+            torch.cuda.set_device(self.local_rank)
+        LOG.info(f"proc {self.config.pid} using {self.device=}")
+
         # Create a model comm group for parallel inference
         # A dummy comm group is created if only a single device is in use
-        model_comm_group = self.__init_parallel(self.device, self.global_rank, self.world_size)
-        self.model_comm_group = model_comm_group
+        if self.world_size > 1:
+            model_comm_group = self.__init_parallel(self.device, self.global_rank, self.world_size)
+            self.model_comm_group = model_comm_group
 
-        # Ensure each parallel model instance uses the same seed
-        if self.global_rank == 0:
-            seed = torch.initial_seed()
-            torch.distributed.broadcast_object_list([seed], src=0, group=model_comm_group)
+            # Ensure each parallel model instance uses the same seed
+            if self.global_rank == 0:
+                seed = torch.initial_seed()
+                torch.distributed.broadcast_object_list([seed], src=0, group=model_comm_group)
+            else:
+                msg_buffer = np.array([1], dtype=np.uint64)
+                torch.distributed.broadcast_object_list(msg_buffer, src=0, group=model_comm_group)
+                seed = msg_buffer[0]
+                torch.manual_seed(seed)
         else:
-            msg_buffer = np.array([1], dtype=np.uint64)
-            torch.distributed.broadcast_object_list(msg_buffer, src=0, group=model_comm_group)
-            seed = msg_buffer[0]
-            torch.manual_seed(seed)
+            LOG.warning("ParallelRunner selected but world size of 1 detected")
 
     def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
         if self.model_comm_group is None:
@@ -81,6 +106,50 @@ class ParallelRunner(DefaultRunner):
     def __del__(self):
         if self.model_comm_group is not None:
             dist.destroy_process_group()
+
+    def __srun_present(self):
+        """ returns true if anemoi-inference was launched with srun """
+        import psutil
+
+        return false
+
+        parent = psutil.Process().parent()
+        srun_present=(parent and "srun" in parent.name())
+        LOG.info(f"{srun_present=}")
+        return srun_present
+
+    def __spawn_parallel_procs(self, num_procs):
+        """ When srun is not available, this method creates N-1 child processes within the same node for parallel inference """
+        self.config.spawned=True
+
+        # check num_procs <= num_gpus
+        if self.device.startswith("cuda"):
+            num_gpus = torch.cuda.device_count()
+            if num_procs > num_gpus:
+                raise ValueError(f"You requested parallel inference over {num_procs} GPUs but your node only has {num_gpus} available.")
+
+        LOG.info("SPAWNING PROCS")
+
+        #from ..runners import create_runner
+        from ..commands.run import RunCmd
+        import torch.multiprocessing as mp
+        mp.set_start_method('spawn')
+        for pid in range(1, num_procs):
+            config=self.config
+            config.pid=pid
+            LOG.info(f"Creating Proc {config.pid}")
+            mp.Process(target=create_runner, args=(config,)).start()
+
+            #from argparse import Namespace
+
+            #args = Namespace(config=config)
+            #print(args.config)  # Now you can access it like args.config
+
+
+            args={"config": config}
+            #mp.Process(target=RunCmd.run, args=(RunCmd(), args,)).start()
+        #torch.multiprocessing.spawn.spawn(create_runner, args=(self.config,), nprocs=num_procs-1)
+
 
     def __init_network(self):
         """Reads Slurm environment to set master address and port for parallel communication"""
@@ -148,7 +217,7 @@ class ParallelRunner(DefaultRunner):
                 world_size=world_size,
                 rank=global_rank,
             )
-            LOG.info(f"Creating a model comm group with {world_size} devices with the {backend} backend")
+            LOG.info(f"Creating a model comm group with {world_size} devices with the {backend} backend (tcp://{master_addr}:{master_port})")
 
             model_comm_group_ranks = np.arange(world_size, dtype=int)
             model_comm_group = torch.distributed.new_group(model_comm_group_ranks)
