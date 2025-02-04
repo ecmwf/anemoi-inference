@@ -18,13 +18,12 @@ LOG = logging.getLogger(__name__)
 
 
 @template_provider_registry.register("file")
-class SamplesTemplates(TemplateProvider):
+class FileTemplates(TemplateProvider):
     """Template provider using a single GRIB file."""
 
     def __init__(self, manager, path):
         self.manager = manager
         self.path = path
 
-    def load_template(self, grib, lookup):
-
+    def template(self, grib, lookup):
         return ekd.from_source("file", self.path)[0]

@@ -29,6 +29,9 @@ class TemplateProvider:
     def __init__(self, manager):
         self.manager = manager
 
+    def template(self, variable, lookup):
+        raise NotImplementedError()
+
 
 class IndexTemplateProvider(TemplateProvider):
     """Template provider based on an index file"""
