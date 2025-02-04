@@ -7,19 +7,26 @@ single GPU, you can run Anemoi-Inference in parallel across multiple
 GPUs.
 
 You have two options to launch parallel inference:
- * Launch without Slurm. This allows you to run inference across multiple GPUs **on a single node**. 
- * Launch via Slurm. Slurm is needed to run inference **across multiple nodes**.
+   -  Launch without Slurm. This allows you to run inference across
+      multiple GPUs **on a single node**.
+   -  Launch via Slurm. Slurm is needed to run inference **across
+      multiple nodes**.
 
 ***************
  Configuration
 ***************
 
-To run in parallel, you must add ':code:`runner:parallel`' to your inference
-config file. 
-If you are running in parallel without Slurm, you must also add a ':code:`world_size: num_gpus`' field. This informs Anemoi-Inference how many GPUs you want to run across. It cannot be greater then the number of GPUs on a single node.
+To run in parallel, you must add '``runner:parallel``' to your inference
+config file. If you are running in parallel without Slurm, you must also
+add a '``world_size: num_gpus``' field. This informs Anemoi-Inference
+how many GPUs you want to run across. It cannot be greater then the
+number of GPUs on a single node.
 
 .. note::
-        If you are launching parallel inference via Slurm, ':code:`world_size`' will be ignored in favour of the ':code:`SLURM_NTASKS`' environment variable.
+
+   If you are launching parallel inference via Slurm, '``world_size``'
+   will be ignored in favour of the '``SLURM_NTASKS``' environment
+   variable.
 
 .. code:: yaml
 
@@ -36,7 +43,9 @@ If you are running in parallel without Slurm, you must also add a ':code:`world_
  Running inference in parallel without Slurm
 *********************************************
 
-Once you have added ':code:`runner:parallel`' and ':code:`world_size: num_gpus`' to your config file, you can launch parallel inference by calling ':code:`anemoi-inferece run config.yaml`' as normal. 
+Once you have added '``runner:parallel``' and '``world_size: num_gpus``'
+to your config file, you can launch parallel inference by calling
+'``anemoi-inferece run config.yaml``' as normal.
 
 ******************************************
  Running inference in parallel with Slurm
@@ -60,8 +69,8 @@ job across 4 GPUs with SLURM.
 
 .. warning::
 
-   If you specify ':code:`runner:parallel`' but you don't launch with
-   ':code:`srun`', your anemoi-inference job may hang as only 1 process will
+   If you specify '``runner:parallel``' but you don't launch with
+   '``srun``', your anemoi-inference job may hang as only 1 process will
    be launched.
 
 .. note::
