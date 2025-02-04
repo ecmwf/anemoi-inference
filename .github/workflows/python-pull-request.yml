@@ -1,12 +1,14 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
-
-name: Code Quality checks for PRs
+# This workflow runs pre-commit checks and pytest tests against multiple platforms and Python versions.
+name: Code Quality checks and Testing
 
 on:
-  push:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "9 2 * * 0" # at 9:02 on sunday
 
 jobs:
   quality:
