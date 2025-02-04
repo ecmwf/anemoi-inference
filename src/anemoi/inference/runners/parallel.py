@@ -163,6 +163,10 @@ class ParallelRunner(DefaultRunner):
             self.global_rank = self.config.pid  # only inference within a single node is supported when not using srun
             self.local_rank = self.config.pid
             self.world_size = self.config.world_size
+            if self.world_size == 1:
+                LOG.warning("You selected 'runner: parallel' but you have only set 'world_size: 1'. Please update world_size or launch via srun to make use of parallel inference")
+            if self.world_size <= 0:
+                raise ValueError(f"Error. 'world_size' must be greater then 1 to use parallel inference. {world_size=} set in the config is invalid.")
 
             # since we are running within a node, 'localhost' and any port can be used
             self.master_addr = "localhost"
