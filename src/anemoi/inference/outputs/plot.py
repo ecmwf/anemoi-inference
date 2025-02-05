@@ -36,8 +36,10 @@ class PlotOutput(Output):
         dpi=300,
         format="png",
         missing_value=None,
+        output_frequency=None,
+        write_initial_state=None,
     ):
-        super().__init__(context)
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.format = format
         self.variables = variables
@@ -50,11 +52,7 @@ class PlotOutput(Output):
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-    def write_initial_state(self, state):
-        reduced_state = self.reduce(state)
-        self.write_state(reduced_state)
-
-    def write_state(self, state):
+    def write_step(self, state):
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
         import matplotlib.pyplot as plt

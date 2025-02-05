@@ -9,10 +9,12 @@
 
 
 import json
+import sys
 
 from earthkit.data.utils.dates import to_datetime
 
 from ..config import load_config
+from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
 from ..runners.default import DefaultRunner
 from . import Command
@@ -28,7 +30,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("config", type=str, help="Path to checkpoint")
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
-        command_parser.add_argument("--output", type=str, help="Output file")
+        command_parser.add_argument("--output", type=str, default=None, help="Output file")
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--retrieve-fields-type", type=str, help="Type of fields to retrieve")
@@ -60,6 +62,11 @@ class RetrieveCmd(Command):
 
         extra = postproc(grid, area)
 
+        # so that the user does not need to pass --extra target=path when the input file is already in the config
+        input = runner.create_input()
+        if isinstance(input, GribInput):
+            extra["target"] = input.path
+
         for r in args.extra or []:
             k, v = r.split("=")
             extra[k] = v
@@ -83,8 +90,12 @@ class RetrieveCmd(Command):
             r.update(extra)
             requests.append(r)
 
-        with open(args.output, "w") as f:
-            json.dump(requests, f, indent=4)
+        if args.output and args.output != "-":
+            with open(args.output, "w") as f:
+                json.dump(requests, f, indent=4)
+            return
+
+        json.dump(requests, sys.stdout, indent=4)
 
 
 command = RetrieveCmd

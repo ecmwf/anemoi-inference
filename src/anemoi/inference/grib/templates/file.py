@@ -9,15 +9,21 @@
 
 import logging
 
-from ..output import Output
-from . import output_registry
+import earthkit.data as ekd
+
+from . import TemplateProvider
+from . import template_provider_registry
 
 LOG = logging.getLogger(__name__)
 
 
-@output_registry.register("none")
-class NoneOutput(Output):
-    """_summary_"""
+@template_provider_registry.register("file")
+class FileTemplates(TemplateProvider):
+    """Template provider using a single GRIB file."""
 
-    def write_step(self, state):
-        pass
+    def __init__(self, manager, path):
+        self.manager = manager
+        self.path = path
+
+    def template(self, grib, lookup):
+        return ekd.from_source("file", self.path)[0]

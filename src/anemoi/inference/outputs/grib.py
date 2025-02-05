@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 import json
 import logging
 from abc import abstractmethod
@@ -15,7 +16,7 @@ from abc import abstractmethod
 from earthkit.data.utils.dates import to_datetime
 
 from ..grib.encoding import grib_keys
-from ..inputs import create_input
+from ..grib.templates.manager import TemplateManager
 from ..output import Output
 
 LOG = logging.getLogger(__name__)
@@ -72,82 +73,78 @@ class GribOutput(Output):
     Handles grib
     """
 
-    def __init__(self, context, *, encoding=None, templates=None, grib1_keys=None, grib2_keys=None, modifiers=None):
-        super().__init__(context)
+    def __init__(
+        self,
+        context,
+        *,
+        encoding=None,
+        templates=None,
+        grib1_keys=None,
+        grib2_keys=None,
+        modifiers=None,
+        output_frequency=None,
+        write_initial_state=None,
+    ):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
-        self.templates = templates
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
-        self._template_cache = None
-        self._template_source = None
-        self._template_date = None
-        self._template_reuse = None
-        self.use_closest_template = False  # Off for now
+
         self.modifiers = modifier_factory(modifiers)
 
-    def write_initial_state(self, state):
+        self.ensemble = False
+        for d in (self.grib1_keys, self.grib2_keys, self.encoding):
+            if "eps" in d:
+                self.ensemble = d["eps"]
+                break
+            if d.get("type") in ("pf", "cf"):
+                self.ensemble = True
+                break
+
+        self.template_manager = TemplateManager(self, templates)
+
+    def write_initial_step(self, state):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
+        state = state.copy()
+
+        self.reference_date = state["date"]
+        state.setdefault("step", datetime.timedelta(0))
+
         for name in state["fields"]:
+            variable = self.typed_variables[name]
+
+            if variable.is_computed_forcing:
+                continue
 
             template = self.template(state, name)
             if template is None:
                 # We can currently only write grib output if we have a grib input
                 raise ValueError(
-                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_state` to `false`."
+                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
                 )
 
-            variable = self.typed_variables[name]
-            if variable.is_accumulation:
-                LOG.warning("Found accumulated variable `%s` is initial state.", name)
+        return self.write_step(state)
 
-            # assert False,
-            # values = state["fields"][name]
-            # assert False, values.shape
-            values = None
-            keys = grib_keys(
-                values=values,
-                template=template,
-                accumulation=variable.is_accumulation,
-                param=None,
-                date=None,
-                time=None,
-                step=0,
-                keys=self.encoding,
-                grib1_keys=self.grib1_keys,
-                grib2_keys=self.grib2_keys,
-                quiet=self.quiet,
-            )
+    def write_step(self, state):
 
-            for modifier in self.modifiers:
-                values, template, keys = modifier(values, template, keys)
-
-            self.write_message(values, template=template, **keys)
-
-    def write_state(self, state):
-
-        reference_date = self.context.reference_date
-        date = state["date"]
-
-        step = date - reference_date
-        step = step.total_seconds() / 3600
-        assert int(step) == step, step
-        step = int(step)
-
-        if "_grib_templates_for_output" not in state:
-            if "_grib_templates_for_output" not in self.quiet:
-                self.quiet.add("_grib_templates_for_output")
-                LOG.warning("Input is not GRIB.")
+        reference_date = self.reference_date or self.context.reference_date
+        step = state["step"]
+        previous_step = state.get("previous_step")
 
         for name, values in state["fields"].items():
             keys = {}
 
             variable = self.typed_variables[name]
-            param = variable.grib_keys.get("param", variable)
+
+            if variable.is_computed_forcing:
+                continue
+
+            param = variable.grib_keys.get("param", name)
 
             template = self.template(state, name)
 
@@ -168,15 +165,17 @@ class GribOutput(Output):
             keys = grib_keys(
                 values=values,
                 template=template,
-                date=reference_date.strftime("%Y-%m-%d"),
-                time=reference_date.hour,
+                date=int(reference_date.strftime("%Y%m%d")),
+                time=reference_date.hour * 100,
                 step=step,
                 param=param,
-                accumulation=variable.is_accumulation,
+                variable=variable,
+                ensemble=self.ensemble,
                 keys=keys,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
                 quiet=self.quiet,
+                previous_step=previous_step,
             )
 
             for modifier in self.modifiers:
@@ -190,7 +189,7 @@ class GribOutput(Output):
             except Exception:
                 LOG.error("Error writing field %s", name)
                 LOG.error("Template: %s", template)
-                LOG.error("Keys:\n%s", json.dumps(keys, indent=4))
+                LOG.error("Keys:\n%s", json.dumps(keys, indent=4, default=str))
                 raise
 
     @abstractmethod
@@ -199,70 +198,10 @@ class GribOutput(Output):
 
     def template(self, state, name):
 
-        if self._template_cache is None:
-            self._template_cache = {}
-            if "_grib_templates_for_output" in state:
-                self._template_cache.update(state.get("_grib_templates_for_output", {}))
+        if self.template_manager is None:
+            self.template_manager = TemplateManager(self, self.templates)
 
-        if name is None:
-            return self._template_cache
+        return self.template_manager.template(name, state)
 
-        if name in self._template_cache:
-            return self._template_cache[name]
-
-        # Catch all template
-        if None in self._template_cache:
-            return self._template_cache[None]
-
-        if self.use_closest_template:  #
-            template, name2 = self._clostest_template(self._template_cache, name)
-
-            if name not in self.quiet:
-                if name2 is not None:
-                    LOG.warning("Using template for `%s`", name2)
-                self.quiet.add(name)
-
-                self._template_cache[name] = template
-                return template
-
-        if not self.templates:
-            return None
-
-        if self._template_source is None:
-            if "source" not in self.templates:
-                raise ValueError("No `source` given in `templates`")
-
-            self._template_source = create_input(self.context, self.templates["source"])
-            LOG.info("Loading templates from %s", self._template_source)
-
-            if "date" in self.templates:
-                self._template_date = to_datetime(self.templates["date"])
-
-            self._template_reuse = self.templates.get("reuse", False)
-
-        LOG.info("Loading template for %s from %s", name, self._template_source)
-
-        date = self._template_date if self._template_date is not None else state["date"]
-        field = self._template_source.template(variable=name, date=date)
-
-        if field is None:
-            LOG.warning("No template found for `%s`", name)
-
-        if self._template_reuse:
-            self._template_cache[None] = field
-        else:
-            self._template_cache[name] = field
-
-        return field
-
-    def _clostest_template(self, templates, name):
-        best = None, None
-        best_similarity = 0
-        md1 = self.typed_variables[name]
-        for name2, template in templates.items():
-            md2 = self.typed_variables[name2]
-            similarity = md1.similarity(md2)
-            if similarity > best_similarity:
-                best = template, name2
-                best_similarity = similarity
-        return best
+    def template_lookup(self, name):
+        return self.encoding

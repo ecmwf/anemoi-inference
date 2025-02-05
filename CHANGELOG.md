@@ -21,8 +21,10 @@ Keep it human-readable, your future self will thank you!
 - Add CONTRIBUTORS.md file (#36)
 - Add sanetise command
 - Add support for huggingface
+- Add support for `output_frequency` to write less output
 - Added ability to run inference over multiple GPUs [#55](https://github.com/ecmwf/anemoi-inference/pull/55)
 - Add `processor` class
+- Revisit GRIB encoding
 
 ### Changed
 - Change `write_initial_state` default value to `true`

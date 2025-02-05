@@ -62,6 +62,8 @@ class Runner(Context):
         inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        output_frequency=None,
+        write_initial_state=True,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -75,6 +77,8 @@ class Runner(Context):
         self.use_grib_paramid = use_grib_paramid
         self.development_hacks = development_hacks
         self.hacks = bool(development_hacks)
+        self.output_frequency = output_frequency
+        self.write_initial_state = write_initial_state
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
@@ -246,6 +250,7 @@ class Runner(Context):
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
+        result["step"] = to_timedelta(0)
 
         start = input_state["date"]
 
@@ -271,6 +276,8 @@ class Runner(Context):
             LOG.info("Forecasting step %s (%s)", step, date)
 
             result["date"] = date
+            result["previous_step"] = result.get("step")
+            result["step"] = step
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):

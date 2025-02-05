@@ -88,6 +88,9 @@ class Configuration(BaseModel):
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written."""
 
+    output_frequency: Optional[str] = None
+    """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
+
     env: Dict[str, str | int] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
