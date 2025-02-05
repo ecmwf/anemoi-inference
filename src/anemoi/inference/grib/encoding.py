@@ -62,7 +62,17 @@ STEP_TYPE = {
 }
 
 
-def encode_time_processing(*, result, template, variable, step, previous_step, edition, ensemble):
+def encode_time_processing(
+    *,
+    result,
+    template,
+    variable,
+    step,
+    previous_step,
+    start_steps,
+    edition,
+    ensemble,
+):
     assert edition in (1, 2)
 
     if variable.time_processing is None:
@@ -77,7 +87,7 @@ def encode_time_processing(*, result, template, variable, step, previous_step, e
             LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
-    start = _step_in_hours(previous_step)
+    start = _step_in_hours(start_steps.get(variable, previous_step))
     end = _step_in_hours(step)
 
     result["startStep"] = start
@@ -112,6 +122,7 @@ def grib_keys(
     time,
     step,
     previous_step,
+    start_steps,
     keys,
     quiet,
     grib1_keys={},
@@ -162,6 +173,7 @@ def grib_keys(
         variable=variable,
         step=step,
         previous_step=previous_step,
+        start_steps=start_steps,
         edition=edition,
         ensemble=ensemble,
     )

@@ -135,6 +135,7 @@ class GribOutput(Output):
         reference_date = self.reference_date or self.context.reference_date
         step = state["step"]
         previous_step = state.get("previous_step")
+        start_steps = state.get("start_steps", {})
 
         for name, values in state["fields"].items():
             keys = {}
@@ -176,6 +177,7 @@ class GribOutput(Output):
                 grib2_keys=self.grib2_keys,
                 quiet=self.quiet,
                 previous_step=previous_step,
+                start_steps=start_steps,
             )
 
             for modifier in self.modifiers:
