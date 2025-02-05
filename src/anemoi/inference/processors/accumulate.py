@@ -9,6 +9,7 @@
 
 
 import logging
+from datetime import timedelta
 
 import numpy as np
 
@@ -31,14 +32,18 @@ class Accumulate(Processor):
         LOG.info("Accumulating fields %s", self.accumulations)
 
         self.accumulators = {}
+        self.step_zero = timedelta(0)
 
     def process(self, state):
+        state = state.copy()
+        state.setdefault("start_steps", {})
         for accumulation in self.accumulations:
             if accumulation in state["fields"]:
                 if accumulation not in self.accumulators:
                     self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
                 self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
                 state["fields"][accumulation] = self.accumulators[accumulation]
+                state["start_steps"][accumulation] = self.step_zero
 
         return state
 
