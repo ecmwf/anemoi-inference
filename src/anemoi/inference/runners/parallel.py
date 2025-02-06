@@ -81,7 +81,9 @@ class ParallelRunner(DefaultRunner):
             try:
                 return model.predict_step(input_tensor_torch, self.model_comm_group)
             except TypeError as err:
-                LOG.error("Please upgrade to a newer version of anemoi-models to use parallel inference")
+                LOG.error(
+                    "Please upgrade to a newer version of anemoi-models (at least commit 'db587fe5b350a98cfb95b90ede327e6ec6d470da') to use parallel inference. If updating breaks your checkpoints, you can try reverting to your original version of anemoi-models and cherry-picking 'https://github.com/ecmwf/anemoi-core/pull/77'"
+                )
                 raise err
 
     def create_output(self):
