@@ -53,7 +53,7 @@ class ParallelRunner(DefaultRunner):
 
         self.model_comm_group = None
 
-        self.__bootstrap_processes()
+        self._bootstrap_processes()
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0:
@@ -66,18 +66,11 @@ class ParallelRunner(DefaultRunner):
         # Create a model comm group for parallel inference
         # A dummy comm group is created if only a single device is in use
         if self.world_size > 1:
-            model_comm_group = self.__init_parallel()
+            model_comm_group = self._init_parallel()
             self.model_comm_group = model_comm_group
 
             # Ensure each parallel model instance uses the same seed
-            if self.global_rank == 0:
-                seed = torch.initial_seed()
-                torch.distributed.broadcast_object_list([seed], src=0, group=model_comm_group)
-            else:
-                msg_buffer = np.array([1], dtype=np.uint64)
-                torch.distributed.broadcast_object_list(msg_buffer, src=0, group=model_comm_group)
-                seed = msg_buffer[0]
-                torch.manual_seed(seed)
+            self._seed_procs()
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
@@ -104,14 +97,41 @@ class ParallelRunner(DefaultRunner):
         if self.model_comm_group is not None:
             dist.destroy_process_group()
 
-    def __srun_used(self):
+    def _seed_procs(self):
+        """Ensures each process uses the same seed.
+        Will try read 'ANEMOI_BASE_SEED' from the environment
+        Otherwise, the seed of process 0 will be shared to all processes"""
+
+        seed = None
+        seed_threshold = 1000
+        env_var_list = ["ANEMOI_BASE_SEED"]
+        for env_var in env_var_list:
+            if env_var in os.environ:
+                seed = int(os.environ.get(env_var))
+                if seed < seed_threshold:
+                    seed *= seed_threshold  # make it (hopefully) big enough
+                break
+
+        if self.global_rank == 0:
+            if seed is None:
+                seed = torch.initial_seed()
+            torch.distributed.broadcast_object_list([seed], src=0, group=self.model_comm_group)
+        else:
+            msg_buffer = np.array([1], dtype=np.uint64)
+            torch.distributed.broadcast_object_list(msg_buffer, src=0, group=self.model_comm_group)
+            seed = msg_buffer[0]
+            torch.manual_seed(seed)
+
+        LOG.error(f"Proc {self.local_rank} has a seed of {seed}")
+
+    def _srun_used(self):
         """returns true if anemoi-inference was launched with srun"""
 
         # from pytorch lightning
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
         return "SLURM_NTASKS" in os.environ and os.environ.get("SLURM_JOB_NAME") not in ("bash", "interactive")
 
-    def __spawn_parallel_procs(self, num_procs):
+    def _spawn_parallel_procs(self, num_procs):
         """When srun is not available, this method creates N-1 child processes within the same node for parallel inference"""
         LOG.debug(f"spawning {num_procs -1 } procs")
 
@@ -132,26 +152,26 @@ class ParallelRunner(DefaultRunner):
             config.pid = pid
             mp.Process(target=_run_subproc, args=(config,)).start()
 
-    def __bootstrap_processes(self):
+    def _bootstrap_processes(self):
         """initalises processes and their network information
         If srun is available, slurm variables are read to determine network settings.
         Otherwise, local processes are spawned and network info is infered from config
         """
-        using_slurm = self.__srun_used()
+        using_slurm = self._srun_used()
         if using_slurm:
 
             # Determine world size and rank from slurm env vars
-            global_rank, local_rank, world_size = self.__get_parallel_info_from_slurm()
+            global_rank, local_rank, world_size = self._get_parallel_info_from_slurm()
             self.global_rank = global_rank
             self.local_rank = local_rank
             self.world_size = world_size
 
             # determine master address and port from slurm/override env vars
-            slurm_addr, slurm_port = self.__init_network_from_slurm()
+            slurm_addr, slurm_port = self._init_network_from_slurm()
             self.master_addr = slurm_addr
             self.master_port = slurm_port
 
-            # the world size entry in the config is only heeded when not launching via srun
+            # the world size entry in the config is only needed when not launching via srun
             if self.config.world_size != 1:
                 LOG.warning(
                     f"world size ({self.config.world_size}) set in the config is ignored because we are launching via srun, using 'SLURM_NTASKS' instead"
@@ -183,9 +203,9 @@ class ParallelRunner(DefaultRunner):
 
             # Spawn the other processes manually
             if self.local_rank == 0:
-                self.__spawn_parallel_procs(self.world_size)
+                self._spawn_parallel_procs(self.world_size)
 
-    def __init_network_from_slurm(self):
+    def _init_network_from_slurm(self):
         """Reads Slurm environment to set master address and port for parallel communication"""
 
         # Get the master address from the SLURM_NODELIST environment variable
@@ -231,7 +251,7 @@ class ParallelRunner(DefaultRunner):
 
         return master_addr, master_port
 
-    def __init_parallel(self):
+    def _init_parallel(self):
         """Creates a model communication group to be used for parallel inference"""
 
         if self.world_size > 1:
@@ -261,7 +281,7 @@ class ParallelRunner(DefaultRunner):
 
         return model_comm_group
 
-    def __get_parallel_info_from_slurm(self):
+    def _get_parallel_info_from_slurm(self):
         """Reads Slurm env vars, if they exist, to determine if inference is running in parallel"""
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))  # Rank within a node, between 0 and num_gpus
         global_rank = int(os.environ.get("SLURM_PROCID", 0))  # Rank within all nodes

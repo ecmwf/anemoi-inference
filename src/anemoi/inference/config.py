@@ -54,7 +54,7 @@ class Configuration(BaseModel):
     """The verbosity level of the runner. This can be 0 (default), 1, 2 or 3."""
 
     pid: Optional[int] = 0
-    """ Process id, used for parallel inference without SLURM """
+    """ Process id, used for parallel inference without SLURM. This should not be set by the user"""
 
     world_size: Optional[int] = 1
     """ Number of parallel processes, used for parallel inference without SLURM """
