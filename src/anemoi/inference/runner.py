@@ -52,14 +52,12 @@ class Runner(Context):
         self,
         checkpoint,
         *,
-        accumulations=True,
         device: str = "cuda",
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
         verbosity=0,
-        inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
         output_frequency=None,
@@ -85,6 +83,9 @@ class Runner(Context):
 
         self._output_kinds = {}
         self._output_tensor_by_name = []
+
+        self.pre_processors = self.create_pre_processors()
+        self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
             self.checkpoint.print_indices()
@@ -531,3 +532,15 @@ class Runner(Context):
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+
+    def patch_data_request(self, request):
+        """
+        Some of the processores may need to patch the data request (e.g. mars or cds request)
+        """
+        for p in self.pre_processors:
+            request = p.patch_data_request(request)
+
+        for p in self.post_processors:
+            request = p.patch_data_request(request)
+
+        return request

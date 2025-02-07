@@ -13,12 +13,12 @@ import logging
 from anemoi.transform.filters import filter_registry
 
 from ..processor import Processor
-from . import processor_registry
+from . import post_processor_registry
 
 LOG = logging.getLogger(__name__)
 
 
-@processor_registry.register("mean_wave_direction")
+@post_processor_registry.register("mean_wave_direction")
 class MeanWaveDirection(Processor):
     """Accumulate fields from zero and return the accumulated fields"""
 

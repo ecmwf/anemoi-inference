@@ -9,8 +9,8 @@
 
 from anemoi.utils.registry import Registry
 
-processor_registry = Registry(__name__)
+pre_processor_registry = Registry(__name__)
 
 
-def create_processor(context, config):
-    return processor_registry.from_config(config, context)
+def create_pre_processor(context, config):
+    return pre_processor_registry.from_config(config, context)

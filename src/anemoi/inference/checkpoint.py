@@ -254,7 +254,9 @@ class Checkpoint:
     def mars_by_levtype(self, levtype):
         return self._metadata.mars_by_levtype(levtype)
 
-    def mars_requests(self, *, variables, dates, use_grib_paramid=False, **kwargs):
+    def mars_requests(self, *, variables, dates, use_grib_paramid=False, patch_request, **kwargs):
+
+        from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
         assert variables, "No variables provided"
@@ -276,7 +278,7 @@ class Checkpoint:
 
         requests = defaultdict(list)
 
-        for r in self._metadata.mars_requests(variables=variables, use_grib_paramid=use_grib_paramid):
+        for r in self._metadata.mars_requests(variables=variables):
             for date in dates:
 
                 r = r.copy()
@@ -303,11 +305,50 @@ class Checkpoint:
 
             compressed = Availability(reqs)
             for r in compressed.iterate():
+
+                if not r:
+                    continue
+
+                changed = True
+                while changed:
+                    changed = False
+                    for k, v in r.items():
+                        if isinstance(v, tuple):
+                            r[k] = list(v)
+                            changed = True
+
+                        if isinstance(v, (list, tuple)) and len(v) == 1:
+                            r[k] = v[0]
+                            changed = True
+
+                # Convert all to lists
                 for k, v in r.items():
-                    if isinstance(v, (list, tuple)) and len(v) == 1:
+                    if not isinstance(v, list):
+                        r[k] = [v]
+
+                # Patch BEFORE the shortname to paramid
+
+                if patch_request:
+                    r = patch_request(r)
+
+                # Convert all to lists (again)
+                for k, v in r.items():
+                    if isinstance(v, tuple):
+                        r[k] = list(*v)
+                    if not isinstance(v, list):
+                        r[k] = [v]
+
+                if use_grib_paramid and "param" in r:
+                    r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
+
+                # Simplyfie the request
+
+                for k, v in r.items():
+
+                    if len(v) == 1:
                         r[k] = v[0]
-                if r:
-                    result.append(r)
+
+                result.append(r)
 
         return result
 

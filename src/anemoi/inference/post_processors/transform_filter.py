@@ -13,12 +13,12 @@ import logging
 import numpy as np
 
 from ..processor import Processor
-from . import processor_registry
+from . import post_processor_registry
 
 LOG = logging.getLogger(__name__)
 
 
-@processor_registry.register("transform_filter")
+@post_processor_registry.register("transform_filter")
 class TransformFilter(Processor):
     """Accumulate fields from zero and return the accumulated fields"""
 

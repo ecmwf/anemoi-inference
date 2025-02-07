@@ -85,6 +85,7 @@ class RetrieveCmd(Command):
             dates=dates,
             variables=variables,
             use_grib_paramid=config.use_grib_paramid,
+            patch_request=runner.patch_data_request,
         ):
             r = r.copy()
             r.update(extra)

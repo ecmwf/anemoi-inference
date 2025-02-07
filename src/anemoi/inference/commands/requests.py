@@ -27,6 +27,8 @@ class RequestCmd(Command):
 
     def run(self, args):
 
+        raise NotImplementedError("Use command `retrieve` instead.")
+
         c = Checkpoint(args.path)
 
         for r in c.mars_requests(dates=[-1], use_grib_paramid=args.use_grib_paramid):

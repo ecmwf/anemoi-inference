@@ -102,30 +102,6 @@ class CoupledForcings(Forcings):
 
         return data
 
-        # assert False, "Not implemented yet"
-        # from .inputs.mars import retrieve
-
-        # requests = self.context.checkpoint.mars_requests(
-        #     variables=self.variables,
-        #     dates=dates,
-        #     use_grib_paramid=self.use_grib_paramid,
-        # )
-
-        # if not requests:
-        #     raise ValueError("No requests for %s (%s)" % (self.variables, dates))
-
-        # for r in requests:
-        #     LOG.info("Request: %s", r)
-
-        # fields = retrieve(requests=requests, grid=self.grid, area=self.area, expver=1)
-
-        # if not fields:
-        #     raise ValueError("No fields retrieved for {self.variables} ({dates})")
-
-        # fields = self.checkpoint.name_fields(fields).order_by(name=self.variables, valid_datetime="ascending")
-
-        # return fields.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
-
 
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""

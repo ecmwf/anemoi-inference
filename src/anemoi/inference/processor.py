@@ -23,3 +23,7 @@ class Processor(ABC):
     @abstractmethod
     def process(self, state):
         pass
+
+    def patch_data_request(self, data_request):
+        """Override if a processor needs to patch the data request (e.g. mars or cds)"""
+        return data_request

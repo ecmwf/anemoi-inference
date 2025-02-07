@@ -40,7 +40,8 @@ class RunCmd(Command):
         input = runner.create_input()
         output = runner.create_output()
 
-        post_processors = runner.create_post_processors()
+        # pre_processors = runner.pre_processors
+        post_processors = runner.post_processors
 
         input_state = input.create_input_state(date=config.date)
 

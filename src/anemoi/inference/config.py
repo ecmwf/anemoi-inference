@@ -60,10 +60,8 @@ class Configuration(BaseModel):
     input: Union[str, Dict, None] = "test"
     output: Union[str, Dict, None] = "printer"
 
+    pre_processors: List[Union[str, Dict]] = []
     post_processors: List[Union[str, Dict]] = []
-
-    accumulations: bool | None = True
-    #
 
     forcings: Union[Dict[str, Dict], None] = None
     """Where to find the forcings."""
