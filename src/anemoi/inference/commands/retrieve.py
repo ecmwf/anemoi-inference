@@ -34,6 +34,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--retrieve-fields-type", type=str, help="Type of fields to retrieve")
+        command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args):
@@ -85,9 +86,12 @@ class RetrieveCmd(Command):
             dates=dates,
             variables=variables,
             use_grib_paramid=config.use_grib_paramid,
+            always_split_time=args.use_scda,
         ):
             r = r.copy()
             r.update(extra)
+            if args.use_scda:
+                _patch_scda(date, r)
             requests.append(r)
 
         if args.output and args.output != "-":
@@ -96,6 +100,25 @@ class RetrieveCmd(Command):
             return
 
         json.dump(requests, sys.stdout, indent=4)
+
+
+def _patch_scda(base_date, request):
+    if base_date.hour not in (6, 18):
+        return
+
+    if request.get("class", "od") != "od":
+        return
+    if request.get("type", "an") not in ("an", "fc"):
+        return
+    if request.get("stream", "oper") not in ("oper", "scda"):
+        return
+
+    request_time = int(request.get("time", 12))
+    if request_time > 100:
+        request_time = int(request_time / 100)
+
+    if request_time in (6, 18):
+        request["stream"] = "scda"
 
 
 command = RetrieveCmd
