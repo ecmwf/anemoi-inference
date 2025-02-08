@@ -26,6 +26,8 @@ class IconInput(GribInput):
     WARNING: this code will become a pugin in the future
     """
 
+    trace_name = "icon file"
+
     def __init__(self, context, path, grid, refinement_level_c, namer=None, **kwargs):
         super().__init__(context, namer=namer, **kwargs)
         self.path = path

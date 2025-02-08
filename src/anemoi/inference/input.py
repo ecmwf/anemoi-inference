@@ -20,6 +20,8 @@ LOG = logging.getLogger(__name__)
 class Input(ABC):
     """_summary_"""
 
+    trace_name = "????"  # Override in subclass
+
     def __init__(self, context):
         self.context = context
         self.checkpoint = context.checkpoint

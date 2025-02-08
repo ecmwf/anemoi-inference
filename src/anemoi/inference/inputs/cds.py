@@ -73,6 +73,8 @@ def retrieve(requests, grid, area, dataset, **kwargs):
 class CDSInput(GribInput):
     """Get input fields from CDS"""
 
+    trace_name = "cds"
+
     def __init__(self, context, *, dataset, namer=None, **kwargs):
         super().__init__(context, namer=namer)
 

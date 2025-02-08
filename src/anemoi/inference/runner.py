@@ -60,10 +60,20 @@ class Runner(Context):
         verbosity=0,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        trace_path=None,
         output_frequency=None,
         write_initial_state=True,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
+
+        self.trace_path = trace_path
+
+        if trace_path:
+            from .trace import Trace
+
+            self.trace = Trace(trace_path)
+        else:
+            self.trace = None
 
         self.device = device
         self.precision = precision
@@ -90,7 +100,7 @@ class Runner(Context):
         if self.verbosity > 2:
             self.checkpoint.print_indices()
 
-        LOG.info("Using %s runner", self.__class__.__name__)
+        LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
             self.checkpoint.print_variable_categories()
@@ -144,6 +154,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
 
         for source in self.dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
@@ -152,6 +164,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -243,6 +257,8 @@ class Runner(Context):
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
+        LOG.info("Using autocast %s", self.autocast)
+
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
@@ -280,12 +296,18 @@ class Runner(Context):
             result["previous_step"] = result.get("step")
             result["step"] = step
 
+            if self.trace:
+                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
+
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
             # Detach tensor and squeeze (should we detach here?)
             output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+
+            if self.trace:
+                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
             # Update state
             for i in range(output.shape[1]):
@@ -303,6 +325,8 @@ class Runner(Context):
             # Update  tensor for next iteration
 
             check[:] = reset
+            if self.trace:
+                self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
             input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
@@ -347,6 +371,8 @@ class Runner(Context):
 
         for n in prognostic_input_mask:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+            if self.trace:
+                self.trace.from_rollout(self._input_tensor_by_name[n])
 
         return input_tensor_torch
 
@@ -379,6 +405,10 @@ class Runner(Context):
 
             for n in source.mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+
+            if self.trace:
+                for n in source.mask:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
 
         return input_tensor_torch
 

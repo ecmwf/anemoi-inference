@@ -41,6 +41,8 @@ class Forcings(ABC):
 class ComputedForcings(Forcings):
     """Compute forcings like `cos_julian_day` or `insolation`."""
 
+    trace_name = "computed"
+
     def __init__(self, context, variables, mask):
         super().__init__(context)
         self.variables = variables
@@ -80,6 +82,8 @@ class ComputedForcings(Forcings):
 
 class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
+
+    trace_name = "coupled"
 
     def __init__(self, context, input, variables, mask):
         super().__init__(context)
