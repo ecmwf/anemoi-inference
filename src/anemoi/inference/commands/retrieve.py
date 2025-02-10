@@ -65,8 +65,8 @@ class RetrieveCmd(Command):
 
         # so that the user does not need to pass --extra target=path when the input file is already in the config
         input = runner.create_input()
-        if isinstance(input, GribInput):
-            extra["target"] = input.path
+        if isinstance(input, GribInput) and (path := getattr(input, "path", None)):
+            extra["target"] = path
 
         for r in args.extra or []:
             k, v = r.split("=")
