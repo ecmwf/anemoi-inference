@@ -34,13 +34,13 @@ class Accumulator:
         for state in source:
             for accumulation in self.accumulations:
                 if accumulation in state["fields"]:
-                    an = array_api.get_backend(state["fields"][accumulation]).module
+                    xp = array_api.get_backend(state["fields"][accumulation]).module
 
                     if accumulation not in self.accumulators:
-                        self.accumulators[accumulation] = an.zeros_like(state["fields"][accumulation])
+                        self.accumulators[accumulation] = xp.zeros_like(state["fields"][accumulation])
 
-                    self.accumulators[accumulation] += an.maximum(
-                        an.zeros((1,), device=state["fields"][accumulation].device), state["fields"][accumulation]
+                    self.accumulators[accumulation] += xp.maximum(
+                        xp.zeros((1,), device=state["fields"][accumulation].device), state["fields"][accumulation]
                     )
                     state["fields"][accumulation] = self.accumulators[accumulation]
 

@@ -50,7 +50,7 @@ class DefaultRunner(Runner):
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
-            send_to_cpu=False,
+            send_to_cpu=True,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
         )

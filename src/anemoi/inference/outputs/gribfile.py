@@ -148,8 +148,8 @@ class GribFileOutput(GribOutput):
             LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)
 
-            an = array_api.get_backend(message.data).module
-            if message is not None and an.isnan(message.data).any():
+            xp = array_api.get_backend(message.data).module
+            if message is not None and xp.isnan(message.data).any():
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
