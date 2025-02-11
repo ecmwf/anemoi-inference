@@ -10,7 +10,7 @@
 
 import logging
 
-from earthkit.data.utils import array as array_api
+from earthkit.data import array_api
 
 LOG = logging.getLogger(__name__)
 

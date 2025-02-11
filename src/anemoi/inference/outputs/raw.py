@@ -11,7 +11,7 @@ import logging
 import os
 
 import numpy as np
-from earthkit.data.utils import array as array_api
+from earthkit.data import array_api
 
 from ..decorators import main_argument
 from ..output import Output

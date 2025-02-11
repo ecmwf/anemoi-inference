@@ -9,7 +9,7 @@
 
 import logging
 
-from earthkit.data.utils import array as array_api
+from earthkit.data import array_api
 
 from ..output import ForwardOutput
 from . import create_output
