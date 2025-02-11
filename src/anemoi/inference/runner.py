@@ -54,7 +54,7 @@ class Runner(Context):
         self,
         checkpoint,
         *,
-        accumulations=False,
+        accumulate_from_start_of_forecast=False,
         device: str = "cuda",
         precision: str = None,
         report_error=False,
@@ -86,12 +86,12 @@ class Runner(Context):
 
         self.postprocess = Noop()
 
-        if accumulations is True:
+        if accumulate_from_start_of_forecast is True:
             # Get accumulations from the checkpoint
             accumulations = self.checkpoint.accumulations
 
-        if accumulations:
-            self.postprocess = Accumulator(accumulations)
+            if accumulations:
+                self.postprocess = Accumulator(accumulations)
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
