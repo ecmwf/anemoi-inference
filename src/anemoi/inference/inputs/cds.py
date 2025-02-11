@@ -73,6 +73,8 @@ def retrieve(requests, grid, area, dataset, **kwargs):
 class CDSInput(GribInput):
     """Get input fields from CDS"""
 
+    trace_name = "cds"
+
     def __init__(self, context, *, dataset, namer=None, **kwargs):
         super().__init__(context, namer=namer)
 
@@ -102,6 +104,7 @@ class CDSInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
+            patch_request=self.context.patch_data_request,
         )
 
         if not requests:
@@ -110,9 +113,6 @@ class CDSInput(GribInput):
         return retrieve(
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
-
-    def template(self, variable, date, **kwargs):
-        return self.retrieve([variable], [date])[0]
 
     def load_forcings(self, variables, dates):
         return self._load_forcings(self.retrieve(variables, dates), variables, dates)

@@ -20,6 +20,8 @@ LOG = logging.getLogger(__name__)
 class Input(ABC):
     """_summary_"""
 
+    trace_name = "????"  # Override in subclass
+
     def __init__(self, context):
         self.context = context
         self.checkpoint = context.checkpoint
@@ -46,7 +48,3 @@ class Input(ABC):
         dictionary, that may be needed but the output object.
         """
         pass
-
-    def template(self, variable, date, **kwargs):
-        """Used for fetching GRIB templates."""
-        raise NotImplementedError(f"{self.__class__.__name__}.template() not implemented")

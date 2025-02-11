@@ -405,10 +405,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables, use_grib_paramid=False):
+    def mars_requests(self, *, variables):
         """Return a list of MARS requests for the variables in the dataset"""
-
-        from anemoi.utils.grib import shortname_to_paramid
 
         if len(variables) == 0:
             raise ValueError("No variables requested")
@@ -425,9 +423,6 @@ class Metadata(PatchMixin, LegacyMixin):
 
             for k in ("date", "time"):
                 mars.pop(k, None)
-
-            if use_grib_paramid and "param" in mars:
-                mars["param"] = shortname_to_paramid(mars["param"])
 
             yield mars
 

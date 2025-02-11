@@ -40,11 +40,16 @@ class RunCmd(Command):
         input = runner.create_input()
         output = runner.create_output()
 
+        # pre_processors = runner.pre_processors
+        post_processors = runner.post_processors
+
         input_state = input.create_input_state(date=config.date)
 
         output.write_initial_state(input_state)
 
         for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+            for processor in post_processors:
+                state = processor.process(state)
             output.write_state(state)
 
         output.close()

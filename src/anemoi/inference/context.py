@@ -66,3 +66,9 @@ class Context(ABC):
 
     def create_dynamic_coupled_forcings(self, variables, mask):
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")
+
+    def create_pre_processors(self):
+        return []
+
+    def create_post_processors(self):
+        return []
