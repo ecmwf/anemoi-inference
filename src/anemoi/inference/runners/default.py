@@ -84,7 +84,7 @@ class DefaultRunner(Runner):
             development_hacks=config.development_hacks,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
-            accumulations=accumulate_from_start_of_forecast,
+            accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
         )
 
     def create_input(self):
