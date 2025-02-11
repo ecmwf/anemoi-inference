@@ -43,37 +43,6 @@ class DefaultRunner(Runner):
 
         self.config = config
 
-        # TODO #131: Remove this when we have a processor factory
-        # For now, implement a three-way switch.
-        # post_processors: None -> accumulate_from_start_of_forecast = True
-        # post_processors: []   -> accumulate_from_start_of_forecast = False
-        # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
-        post_processors = config.get("post_processors")
-
-        if isinstance(post_processors, list):
-            accumulate_from_start_of_forecast = "accumulate_from_start_of_forecast" in post_processors
-
-            if not accumulate_from_start_of_forecast:
-                warnings.warn(
-                    """
-                    post_processors are defined but `accumulate_from_start_of_forecast` is not set."
-                    🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
-                    """
-                )
-        else:
-            warnings.warn(
-                """
-                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
-
-                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-                Update your config if you wish to keep accumulating from the beginning.
-                https://github.com/ecmwf/anemoi-inference/issues/131
-                """,
-            )
-            accumulate_from_start_of_forecast = True
-
-        LOG.info("accumulate_from_start_of_forecast: %s", accumulate_from_start_of_forecast)
-
         super().__init__(
             config.checkpoint,
             device=config.device,
@@ -87,7 +56,6 @@ class DefaultRunner(Runner):
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
             trace_path=config.trace_path,
-            accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
         )
 
     def create_input(self):
@@ -151,6 +119,25 @@ class DefaultRunner(Runner):
         return result
 
     def create_pre_processors(self):
+
+        # TODO #131:
+        # For now, implement a three-way switch.
+        # post_processors: None -> accumulate_from_start_of_forecast = True
+        # post_processors: []   -> accumulate_from_start_of_forecast = False
+        # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
+
+        if self.config.pre_processors is None:
+            self.config.pre_processors = ["accumulate_from_start_of_forecast"]
+            warnings.warn(
+                """
+                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
+
+                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
+                Update your config if you wish to keep accumulating from the beginning.
+                https://github.com/ecmwf/anemoi-inference/issues/131
+                """,
+            )
+
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))

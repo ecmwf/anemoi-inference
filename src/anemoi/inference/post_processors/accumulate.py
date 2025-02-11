@@ -19,7 +19,7 @@ from . import post_processor_registry
 LOG = logging.getLogger(__name__)
 
 
-@post_processor_registry.register("accumulate")
+@post_processor_registry.register("accumulate_from_start_of_forecast")
 class Accumulate(Processor):
     """Accumulate fields from zero and return the accumulated fields"""
 
