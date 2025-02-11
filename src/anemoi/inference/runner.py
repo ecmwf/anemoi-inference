@@ -54,7 +54,7 @@ class Runner(Context):
         self,
         checkpoint,
         *,
-        accumulations=True,
+        accumulations=False,
         device: str = "cuda",
         precision: str = None,
         report_error=False,

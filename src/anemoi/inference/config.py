@@ -14,6 +14,7 @@ import logging
 import os
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Literal
 from typing import Optional
 from typing import Union
@@ -58,6 +59,9 @@ class Configuration(BaseModel):
 
     input: Union[str, Dict, None] = "test"
     output: Union[str, Dict, None] = "printer"
+
+    pre_processors: List[Union[str, Dict]] = []
+    post_processors: Optional[List[Union[str, Dict]]] = None  # TODO: change default to [] when we have a factory
 
     forcings: Union[Dict[str, Dict], None] = None
     """Where to find the forcings."""
