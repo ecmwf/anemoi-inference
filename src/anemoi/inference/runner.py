@@ -90,8 +90,8 @@ class Runner(Context):
             # Get accumulations from the checkpoint
             accumulations = self.checkpoint.accumulations
 
-        if accumulations:
-            self.postprocess = Accumulator(accumulations)
+            if accumulations:
+                self.postprocess = Accumulator(accumulations)
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
