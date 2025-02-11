@@ -61,7 +61,7 @@ class Configuration(BaseModel):
     output: Union[str, Dict, None] = "printer"
 
     pre_processors: List[Union[str, Dict]] = []
-    post_processors: List[Union[str, Dict]] = []
+    post_processors: Optional[List[Union[str, Dict]]] = None  # TODO: change default to [] when we have a factory
 
     forcings: Union[Dict[str, Dict], None] = None
     """Where to find the forcings."""

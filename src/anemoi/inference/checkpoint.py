@@ -254,7 +254,9 @@ class Checkpoint:
     def mars_by_levtype(self, levtype):
         return self._metadata.mars_by_levtype(levtype)
 
-    def mars_requests(self, *, variables, dates, use_grib_paramid=False, patch_request, **kwargs):
+    def mars_requests(
+        self, *, variables, dates, use_grib_paramid=False, always_split_time=False, patch_request, **kwargs
+    ):
 
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
@@ -293,7 +295,10 @@ class Checkpoint:
 
                 r.update(kwargs)  # We do it here so that the Availability can use that information
 
-                keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                if always_split_time:
+                    keys = DEFAULT_KEYS_AND_TIME
+                else:
+                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
                 key = tuple(r.get(k) for k in keys)
 
                 # Special case because of oper/scda

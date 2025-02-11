@@ -52,6 +52,7 @@ class Runner(Context):
         self,
         checkpoint,
         *,
+        accumulate_from_start_of_forecast=False,
         device: str = "cuda",
         precision: str = None,
         report_error=False,
