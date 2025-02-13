@@ -22,36 +22,19 @@ from ..outputs import create_output
 from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
+from ..commands.run import _run
 
 LOG = logging.getLogger(__name__)
-
-
-# The code executed by manually spawned subprocesses (srun not available)
-# This is identical to the 'run' method in commands/run.py except the config file is not loaded
-def _run_subproc(config):
-    runner = create_runner(config)
-
-    input = runner.create_input()
-    output = runner.create_output()
-
-    input_state = input.create_input_state(date=config.date)
-
-    output.write_initial_state(input_state)
-
-    for state in runner.run(input_state=input_state, lead_time=config.lead_time):
-        output.write_state(state)
-
-    output.close()
-
 
 @runner_registry.register("parallel")
 class ParallelRunner(DefaultRunner):
     """Runner which splits a model over multiple devices"""
 
-    def __init__(self, context):
+    def __init__(self, context, pid):
         super().__init__(context)
 
         self.model_comm_group = None
+        self.pid=pid
 
         self._bootstrap_processes()
 
@@ -124,8 +107,6 @@ class ParallelRunner(DefaultRunner):
             seed = msg_buffer[0]
             torch.manual_seed(seed)
 
-        LOG.error(f"Proc {self.local_rank} has a seed of {seed}")
-
     def _srun_used(self):
         """returns true if anemoi-inference was launched with srun"""
 
@@ -150,9 +131,7 @@ class ParallelRunner(DefaultRunner):
 
         mp.set_start_method("spawn")
         for pid in range(1, num_procs):
-            config = self.config
-            config.pid = pid
-            mp.Process(target=_run_subproc, args=(config,)).start()
+            mp.Process(target=_run, args=(self.config,pid)).start()
 
     def _bootstrap_processes(self):
         """initalises processes and their network information
@@ -182,8 +161,8 @@ class ParallelRunner(DefaultRunner):
             # If srun is not available, spawn procs manually on a node
 
             # Read the config to determine world_size and pid
-            self.global_rank = self.config.pid  # only inference within a single node is supported when not using srun
-            self.local_rank = self.config.pid
+            self.global_rank = self.pid  # only inference within a single node is supported when not using srun
+            self.local_rank = self.pid
             self.world_size = self.config.world_size
             if self.world_size == 1:
                 LOG.warning(
