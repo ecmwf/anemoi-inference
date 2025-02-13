@@ -16,11 +16,10 @@ You have two options to launch parallel inference:
  Prerequisites
 ***************
 
-Parallel inference requires a certain minimum version of Anemoi-models >=
-v0.4.2. If this breaks your
-checkpoints, you could cherry-pick `the relevant PR
-<https://github.com/ecmwf/anemoi-core/pull/77>`_ into your old version
-of Anemoi-Models.
+Parallel inference requires a certain minimum version of Anemoi-models
+>= v0.4.2. If this breaks your checkpoints, you could cherry-pick `the
+relevant PR <https://github.com/ecmwf/anemoi-core/pull/77>`_ into your
+old version of Anemoi-Models.
 
 ***************
  Configuration
