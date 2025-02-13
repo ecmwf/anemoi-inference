@@ -18,7 +18,7 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
-#need to abstract this for parallel inference
+# need to abstract this for parallel inference
 def _run(config, pid=0):
     runner = create_runner(config, pid)
 
@@ -53,5 +53,6 @@ class RunCmd(Command):
             LOG.info("%s", config.description)
 
         _run(config)
+
 
 command = RunCmd

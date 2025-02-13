@@ -18,13 +18,13 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from ..commands.run import _run
 from ..outputs import create_output
-from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
-from ..commands.run import _run
 
 LOG = logging.getLogger(__name__)
+
 
 @runner_registry.register("parallel")
 class ParallelRunner(DefaultRunner):
@@ -34,7 +34,7 @@ class ParallelRunner(DefaultRunner):
         super().__init__(context)
 
         self.model_comm_group = None
-        self.pid=pid
+        self.pid = pid
 
         self._bootstrap_processes()
 
@@ -131,7 +131,7 @@ class ParallelRunner(DefaultRunner):
 
         mp.set_start_method("spawn")
         for pid in range(1, num_procs):
-            mp.Process(target=_run, args=(self.config,pid)).start()
+            mp.Process(target=_run, args=(self.config, pid)).start()
 
     def _bootstrap_processes(self):
         """initalises processes and their network information
