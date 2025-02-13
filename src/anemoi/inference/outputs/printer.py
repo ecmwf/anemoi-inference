@@ -40,7 +40,7 @@ def print_state(state, print=print):
     names = list(fields.keys())
     n = 4
 
-    idx = list(range(0, len(names), len(names) // n))
+    idx = list(range(0, len(names), max(1, len(names) // n)))
     idx.append(len(names) - 1)
     idx = sorted(set(idx))
 
