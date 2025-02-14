@@ -22,15 +22,19 @@ from ..commands.run import _run
 from ..outputs import create_output
 from . import runner_registry
 from .default import DefaultRunner
+from ..runners import create_runner
 
 LOG = logging.getLogger(__name__)
 
+def create_parallel_runner(config, pid):
+    runner = create_runner(config, pid)
+    _run(runner, config)
 
 @runner_registry.register("parallel")
 class ParallelRunner(DefaultRunner):
     """Runner which splits a model over multiple devices"""
 
-    def __init__(self, context, pid):
+    def __init__(self, context, pid=0):
         super().__init__(context)
 
         self.model_comm_group = None
@@ -130,8 +134,9 @@ class ParallelRunner(DefaultRunner):
         import torch.multiprocessing as mp
 
         mp.set_start_method("spawn")
+        config=self.config
         for pid in range(1, num_procs):
-            mp.Process(target=_run, args=(self.config, pid)).start()
+            mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 
     def _bootstrap_processes(self):
         """initalises processes and their network information
