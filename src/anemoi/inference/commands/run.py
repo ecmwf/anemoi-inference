@@ -18,6 +18,20 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
+def _run(runner, config):
+    input = runner.create_input()
+    output = runner.create_output()
+
+    input_state = input.create_input_state(date=config.date)
+
+    output.write_initial_state(input_state)
+
+    for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+        output.write_state(state)
+
+    output.close()
+
+
 class RunCmd(Command):
     """Run inference from a config yaml file."""
 
@@ -37,17 +51,7 @@ class RunCmd(Command):
 
         runner = create_runner(config)
 
-        input = runner.create_input()
-        output = runner.create_output()
-
-        input_state = input.create_input_state(date=config.date)
-
-        output.write_initial_state(input_state)
-
-        for state in runner.run(input_state=input_state, lead_time=config.lead_time):
-            output.write_state(state)
-
-        output.close()
+        _run(runner, config)
 
 
 command = RunCmd
