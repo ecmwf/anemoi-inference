@@ -20,15 +20,17 @@ import torch.distributed as dist
 
 from ..commands.run import _run
 from ..outputs import create_output
+from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
-from ..runners import create_runner
 
 LOG = logging.getLogger(__name__)
+
 
 def create_parallel_runner(config, pid):
     runner = create_runner(config, pid)
     _run(runner, config)
+
 
 @runner_registry.register("parallel")
 class ParallelRunner(DefaultRunner):
@@ -134,7 +136,7 @@ class ParallelRunner(DefaultRunner):
         import torch.multiprocessing as mp
 
         mp.set_start_method("spawn")
-        config=self.config
+        config = self.config
         for pid in range(1, num_procs):
             mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 

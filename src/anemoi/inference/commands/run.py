@@ -17,6 +17,7 @@ from . import Command
 
 LOG = logging.getLogger(__name__)
 
+
 def _run(runner, config):
     input = runner.create_input()
     output = runner.create_output()
