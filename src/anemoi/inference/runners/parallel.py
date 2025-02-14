@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 
 
 def create_parallel_runner(config, pid):
-    runner = create_runner(config, pid)
+    runner = create_runner(config, pid=pid)
     _run(runner, config)
 
 
