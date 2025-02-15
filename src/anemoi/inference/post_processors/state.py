@@ -18,35 +18,6 @@ from earthkit.data.indexing.fieldlist import SimpleFieldList
 
 LOG = logging.getLogger(__name__)
 
-# class ForcingMetadata(RawMetadata):
-#     LS_KEYS = ["valid_datetime", "param"]
-
-#     def __init__(self, d, geography):
-#         self._geo = geography
-#         super().__init__(d)
-
-#     @property
-#     def geography(self):
-#         return self._geo
-
-#     def datetime(self):
-#         return {
-#             "base_time": self.base_datetime(),
-#             "valid_time": self.valid_datetime(),
-#         }
-
-#     def base_datetime(self):
-#         return None
-
-#     def valid_datetime(self):
-#         return datetime.datetime.fromisoformat(self["valid_datetime"])
-
-#     def step_timedelta(self):
-#         return datetime.timedelta()
-
-#     def ls_keys(self):
-#         return self.LS_KEYS
-
 
 class StateFieldGeography:
     def __init__(self, field):
@@ -101,12 +72,14 @@ class StateField(Field):
 
 
 def wrap_state(state):
+    """Transform a state dictionary into a field list."""
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
     fields = [StateField(k, v, state) for k, v in state["fields"].items()]
     return SimpleFieldList(fields)
 
 
 def unwrap_state(fields, state):
+    """Transform a field list into a state dictionary."""
     new_fields = {}
     for n in fields:
         new_fields[n.metadata("name")] = n.to_numpy(flatten=True)
