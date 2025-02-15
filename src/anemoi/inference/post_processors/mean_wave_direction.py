@@ -14,6 +14,8 @@ from anemoi.transform.filters import filter_registry
 
 from ..processor import Processor
 from . import post_processor_registry
+from .state import unwrap_state
+from .state import wrap_state
 
 LOG = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class MeanWaveDirection(Processor):
 
     def __init__(self, context, **kwargs):
         super().__init__(context)
-        self.filter = filter_registry.create("mean_wave_direction", **kwargs)
+        self.filter = filter_registry.create("cos_sin_mean_wave_direction", **kwargs)
 
     def process(self, state):
-        return self.filter.forward_processor(state)
+        return unwrap_state(self.filter.backward(wrap_state(state)), state)
