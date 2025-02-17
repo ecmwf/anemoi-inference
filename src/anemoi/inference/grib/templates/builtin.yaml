@@ -1,0 +1,55 @@
+# (C) Copyright 2025 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+# 1 - Get a GRIB, for example with mars: retrieve,param=tp,levtype=sfc,type=fc,step=6,target=data.grib,grid=0.25/0.25
+# 2 - grib_set -s edition=2,packingType=grid_ccsds data.grib data.grib2
+# 3 - grib_set -d 0 data.grib2 out.grib
+# 4 - python -c 'import base64, sys, zlib;print(base64.b64encode(zlib.compress(open(sys.argv[1], "rb").read())).decode())' out.grib | sed 's/.\{98\}/&\n/g'
+
+# Q-1000, GRIB2, ECMWF, CCSDS
+- - { grid: O96, levtype: pl }
+  - |
+    eJxlkSFMW1EUhr//0QKiWUbSJpBUdEsFWSrekiZDVBDSZF1SQUgFoiENeckQzYKoQFRUPBZEBQIxwUhFxQQCgZhAIBAIBAIxgU
+    AgWIJAIBAkb/8jy8zuzbu57557z/n/73xc+bSUJAS8jKDhpSDW4Q2a+h0o54PE30yAPIOMwjB8Dzqf8On3QSDmSf4fDp6mGdN9
+    dmUtfkm/7U3h85fO3wsdyDNLkRJlZ6kQUmWBGovUadBkmRartH0xYoMum/TYos+AmB2G7LLHN/YZMeYHhxxxzE9OXPmMcy645I
+    pfXHPDLXfc88AjTzzbSEbTyum18ppVUSWVNa+KQlW1oJoWVVdDTS2rpVW11VGkDXW1qZ621NdAsXY01K7n0LvYJ31Her7R9c3I
+    L9p+2XKGpjPVnbHmzFVXqLhS2RWLrpy3gpyVZATPVvZohfdWemvF11Z+ZQcXdnJmRyd2dmyHh3Y6tuN9O98zgaFJxCbSN5meCX
+    VNKjKxtsm1TLBpknUTrZls1YQrJl028aLJ592Et5m0MxaQHLgrSn8i/38d/evjXDZtNO/S0KCQrq9KLgiTk2k4O/XB4w98SI3l
+
+# LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
+# retrieve,levtype=sfc,param=lsm,grid=o96,target=data.grib
+- - { grid: O96 }
+  - |
+    eJxlkSFIZFEUhr//OaOGQXZhRIUJszJBlglPGFjDBJEBR5ggMsEwLIMMrGFYDBMMEya8BcMEg2GDKwaDwWAwGAwGg8FgMBgMBo
+    OCYYNhg/D8n1pk7+VeDvece875vzO/tDAXx0HA6wqqvkbFCnxBQw9BkPFD7PM5QN5BSmEYToPOB/z6pxeIKeL/l52nScbETi99
+    j17T/7Ix+uNn8z2gCVnGyZGn4CxFQkrMUGaWClVqLFJnmYYDW6zSZo0O63TpEbFBn022+M02u+yxzwGHHHHMiSufcc4Fl1xxzQ
+    233HHPI3954h/PFpLSsDL6pKzGlVNeBU2pqFAlzaisWVVUVU2LqmtZDTXV0qraWlNH6+qqp0gb6mvTu28r8kvXno4j2o5s+UfD
+    P+vOUHOmijOWnbnkCkVXKrhizpWz7iDjTlKCZ3f25A4f3emdO75x51dWcGElZ1Z0YmVHVnhgpXtWvG3lWybQN4nIRLom0zGhtk
+    m1TKxhcnUTrJlkxUTLJlsy4aJJF0w8Z/JZD2Ey9TZ64h1PRYmlj3OcSCeD5mvi6o0l90jeBWFwMHGnh755vQAsMZFa9
+
+# Q-1000, GRIB2, ECMWF, CCSDS
+- - { grid: N320, levtype: pl }
+  - |
+    eJztlL9Lw0AYht+7NtVBBIUOBYcqDiIK1UUHhyCKFac6iYMUUXBwcNNFyOCv0aWOUvAf6OBucerg4KiTdhFdxMHJJb7fJdFLI6
+    F/gPeQ45I7jnD3vc/S6vK870PDNKfFLq+wCQxD9bxp1ccPPp8BDUV0VpVKpSmuLGeA3kVPK4zBTzZAe7KjjJ11PWm2P+Ygv/e0
+    ESxQLjCIAka5wySmMQcXZbKCCtZRxRZ2cUAOcYpzcoE6rg1N0sKDoY0Pwxd/r58UDRPENSyoHYt94pFzUlONkFvD8w8v6lPQPB
+    Y99INrsRbixTgjVyH3CR71e0AGIUWLcVL9k6MOminckdc4WVjMprCdgpeg0QU3Ng7+6Yb4qXV1zsnbSbvLtBqwaqWzjkxtNVPo
+    rNO/q1nq3K77MAtRNpiSZHKiTEm+4omLcmhn8zexzG+QZCb6N91B2qPs14wLPCJusF2xEBpEXBJYRfwCfIXGaYcGahkfBWaq01
+    LiqlNaS9y1S4tVabMKrSZuc2m5adpujNYr0H7ASFbMyG39S1pRycsW30/qkUdRcES0GJcpLy99fxEi11xOpp2eGbZv22c1Jg==
+
+# LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
+# retrieve,levtype=sfc,param=lsm,grid=n320,target=data.grib
+- - grid: N320
+  - |
+    eJzt1LFLw0AYBfB3Z9M6iKBQpOBQxUFEobro4BBEseKkkzhIEQUHBzddhAyKjl10lIL/gIO7xamDg6NO6iK6iIOTS3zf5aqXpo
+    T+AeZHw9GEIyTfe4urS3NhqDXM4TV4yitsAkNQuXete/hHyF+fhiKdUaVSaZJ3lruA7oVAK4wiTB6ADmRHWXvresJsf8xFfu9p
+    I7pB+UA/ChjhDhOYwix8lGkZK1hHBVvYxQEd4gRVOkcN10adGngwXvBpfPPxeqlojJNvzKsdxz4FVKUzdWXdGs+/XtWX0KDBX7
+    5jzQpiTunSuk941B+RLlhFxxhV2jpqUU9xR29xGThmUmynCBKuOnDj8vCvE/G31tF7Tn6dtG+ZNgPOrLTOkZmteorWOW0/zTLn
+    7tzbLDSzwZQkk9PMlOQrnrhmDt1s/iWW+Y2SzET/pTtKezP7Z6YLApJucLti3jaIdEnUKtIvwLdtnBfbQA3TR1Ez1dhS0lUnbC
+    3prl22WIVttsJWk27z2XJTbLtRtl6B7QcMZ6LqRXjBVlSyUrEeRcGTosWYXAoG5NxbhJRrNiuXvdw0jx+V0Dib
