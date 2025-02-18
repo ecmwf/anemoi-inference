@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## 0.4.10 (2025-02-18)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Exciting New Features 🎉
+* feat: parallel inference without slurm by @cathalobrien in https://github.com/ecmwf/anemoi-inference/pull/121
+* feat(output): allow selecting variables for GRIB output by @frazane in https://github.com/ecmwf/anemoi-inference/pull/118
+* fix: issue #127, command "requests" broken by @b8raoult in https://github.com/ecmwf/anemoi-inference/pull/141
+### Other Changes 🔗
+* fix: Update output: printer to avoid range(a, b, 0) by @Kakalinn in https://github.com/ecmwf/anemoi-inference/pull/138
+
+## New Contributors
+* @Kakalinn made their first contribution in https://github.com/ecmwf/anemoi-inference/pull/138
+
+**Full Changelog**: https://github.com/ecmwf/anemoi-inference/compare/0.4.9...0.4.10
+
 ## 0.4.9 (2025-02-13)
 
 <!-- Release notes generated using configuration in .github/release.yml at main -->
