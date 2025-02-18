@@ -54,6 +54,9 @@ class Configuration(BaseModel):
     verbosity: int = 0
     """The verbosity level of the runner. This can be 0 (default), 1, 2 or 3."""
 
+    profiler: bool = False
+    """If True, the inference will be profiled, producing time and memory report."""
+
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error."""
 

@@ -24,6 +24,8 @@ from .context import Context
 from .postprocess import Accumulator
 from .postprocess import Noop
 from .precisions import PRECISIONS
+from .profiler import ProfilingLabel
+from .profiler import ProfilingRunner
 
 LOG = logging.getLogger(__name__)
 
@@ -66,6 +68,7 @@ class Runner(Context):
         development_hacks={},  # For testing purposes, don't use in production
         output_frequency=None,
         write_initial_state=True,
+        profiler=False,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -81,6 +84,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
+        self.profiler = profiler
 
         # This could also be passed as an argument
 
@@ -117,24 +121,22 @@ class Runner(Context):
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
         self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
 
-        # timers = Timers()
-
         lead_time = to_timedelta(lead_time)
 
         # This may be used but Output objects to compute the step
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
 
-        input_tensor = self.prepare_input_tensor(input_state)
+        with ProfilingRunner(self.profiler):
+            with ProfilingLabel("Prepare input tensor", self.profiler):
+                input_tensor = self.prepare_input_tensor(input_state)
 
-        try:
-            yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
-        except (TypeError, ModuleNotFoundError, AttributeError):
-            if self.report_error:
-                self.checkpoint.report_error()
-            raise
-
-        # timers.report()
+            try:
+                yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
+            except (TypeError, ModuleNotFoundError, AttributeError):
+                if self.report_error:
+                    self.checkpoint.report_error()
+                raise
 
     def add_initial_forcings_to_input_state(self, input_state):
         # Should that be alreay a list of dates
@@ -285,20 +287,26 @@ class Runner(Context):
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
             date = start + step
-            LOG.info("Forecasting step %s (%s)", step, date)
+            title = f"Forecasting step {step} ({date})"
 
             result["date"] = date
 
             # Predict next state of atmosphere
-            with torch.autocast(device_type=self.device, dtype=self.autocast):
+            with (
+                torch.autocast(device_type=self.device, dtype=self.autocast),
+                ProfilingLabel("Predict step", self.profiler),
+                Timer(title),
+            ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
             # Detach tensor and squeeze (should we detach here?)
-            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            with ProfilingLabel("Sending output to cpu", self.profiler):
+                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             # Update state
-            for i in range(output.shape[1]):
-                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+            with ProfilingLabel("Updating state (CPU)", self.profiler):
+                for i in range(output.shape[1]):
+                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
@@ -310,17 +318,19 @@ class Runner(Context):
                 continue
 
             # Update  tensor for next iteration
+            with ProfilingLabel("Update tensor for next step", self.profiler):
+                check[:] = reset
 
-            check[:] = reset
+                input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
-            input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                del y_pred  # Recover memory
 
-            del y_pred  # Recover memory
-
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, input_state, date, check
-            )
+                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch, input_state, date, check
+                )
+                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                    input_tensor_torch, input_state, date, check
+                )
 
             if not check.all():
                 # Not all variables have been updated

@@ -85,6 +85,7 @@ class DefaultRunner(Runner):
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
             accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
+            profiler=config.profiler,
         )
 
     def create_input(self):
