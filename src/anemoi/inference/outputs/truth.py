@@ -10,6 +10,7 @@
 import logging
 
 from ..context import Context
+from ..output import ForwardOutput
 from ..output import Output
 from . import create_output
 from . import output_registry
@@ -18,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("truth")
-class TruthOutput(Output):
+class TruthOutput(ForwardOutput):
     """Write the truth state for each output state."""
 
     def __init__(self, context: Context, output: dict, output_frequency=None, write_initial_state=None, **kwargs):
