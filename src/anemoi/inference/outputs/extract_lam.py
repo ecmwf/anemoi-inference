@@ -9,7 +9,7 @@
 
 import logging
 
-import numpy as np
+from earthkit.data import array_api
 
 from ..output import ForwardOutput
 from . import create_output
@@ -28,7 +28,8 @@ class ExtractLamOutput(ForwardOutput):
         if "cutout_mask" in self.checkpoint.supporting_arrays:
             # Backwards compatibility
             mask = self.checkpoint.load_supporting_array("cutout_mask")
-            points = slice(None, -np.sum(mask))
+            xp = array_api.get_backend(mask).module
+            points = slice(None, -xp.sum(mask))
         else:
             if lam != "lam_0":
                 raise NotImplementedError("Only lam_0 is supported")
@@ -37,8 +38,10 @@ class ExtractLamOutput(ForwardOutput):
                 raise NotImplementedError("Only lam_0 is supported")
 
             mask = self.checkpoint.load_supporting_array(f"{lam}/cutout_mask")
-            assert len(mask) == np.sum(mask)
-            points = slice(None, np.sum(mask))
+            xp = array_api.get_backend(mask).module
+
+            assert len(mask) == xp.sum(mask)
+            points = slice(None, xp.sum(mask))
 
         self.points = points
         self.output = create_output(context, output)
