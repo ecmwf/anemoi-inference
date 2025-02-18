@@ -1,0 +1,8 @@
+output:
+  tee:
+    - truth:
+        output:
+          grib:
+            path: truth.grib
+    - grib:
+        path: prediction.grib

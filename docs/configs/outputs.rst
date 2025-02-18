@@ -127,3 +127,17 @@ and is based on `anemoi-datasets's` :ref:`cutout feature
 <anemoi-datasets:combining-datasets>`.
 
 .. literalinclude:: outputs_8.yaml
+
+*******
+ truth
+*******
+
+For use with forecasts taking place in the past, the ``truth`` output
+will write out data from an ``input`` class alongside the
+``predictions``.
+
+It is best used with the ``tee`` output, as it will write out the
+``truth`` data to a separate file. It is capable of using any of the
+outputs that are available to the ``output`` class.
+
+.. literalinclude:: outputs_9.yaml
