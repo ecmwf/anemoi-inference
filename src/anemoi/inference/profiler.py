@@ -18,7 +18,6 @@ LOG = logging.getLogger(__name__)
 
 @contextmanager
 def ProfilingLabel(label, use_profiler):
-
     if use_profiler:
         with torch.autograd.profiler.record_function(label):
             torch.cuda.nvtx.range_push(label)
@@ -30,16 +29,33 @@ def ProfilingLabel(label, use_profiler):
 
 @contextmanager
 def ProfilingRunner(use_profiler):
+    dirname = "profiling-output"
     if use_profiler:
         torch.cuda.memory._record_memory_history(max_entries=100000)
-        with torch.autograd.profiler.profile(with_stack=True, profile_memory=True) as prof:
+        activities = [torch.profiler.ProfilerActivity.CPU]
+        if torch.cuda.is_available():
+            activities.append(torch.profiler.ProfilerActivity.CUDA)
+        with torch.profiler.profile(
+            profile_memory=True,
+            record_shapes=True,
+            with_stack=True,
+            activities=activities,
+            with_flops=True,
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(dirname),
+        ) as prof:
             yield
         try:
-            torch.cuda.memory._dump_snapshot("memory_snapshot.pickle")
+            torch.cuda.memory._dump_snapshot(f"{dirname}/memory_snapshot.pickle")
         except Exception as e:
             LOG.error(f"Failed to capture memory snapshot {e}")
         torch.cuda.memory._record_memory_history(enabled=None)
-        LOG.info("Average usage \n%s", prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=10))
+        row_limit = 10
+        LOG.info(
+            f"Top {row_limit} kernels by runtime on CPU:\n {prof.key_averages().table(sort_by='self_cpu_time_total', row_limit=row_limit)}"
+        )
+        LOG.info(
+            f"Top {row_limit} kernels by runtime on CUDA:\n {prof.key_averages().table(sort_by='self_cuda_time_total', row_limit=row_limit)}"
+        )
         LOG.info("Memory summary \n%s", torch.cuda.memory_summary())
     else:
         yield
