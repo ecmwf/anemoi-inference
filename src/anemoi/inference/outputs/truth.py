@@ -22,8 +22,8 @@ LOG = logging.getLogger(__name__)
 class TruthOutput(ForwardOutput):
     """Write the truth state for each output state."""
 
-    def __init__(self, context: Context, output: dict, output_frequency=None, write_initial_state=None, **kwargs):
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+    def __init__(self, context: Context, output: dict, **kwargs):
+        super().__init__(context, **kwargs)
 
         self.output: Output = create_output(context, output)
 
