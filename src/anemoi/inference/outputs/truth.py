@@ -24,14 +24,14 @@ class TruthOutput(ForwardOutput):
 
     def __init__(self, context: Context, output: dict, **kwargs):
         super().__init__(context, **kwargs)
-
+        self._input = self.context.create_input()
         self.output: Output = create_output(context, output)
 
     def write_initial_state(self, state):
         self.output.write_initial_state(state)
 
     def write_state(self, state):
-        truth_state = self.context.create_input().create_input_state(date=state["date"])
+        truth_state = self._input.create_input_state(date=state["date"])
         reduced_state = self.reduce(truth_state)
         self.output.write_state(reduced_state)
 
