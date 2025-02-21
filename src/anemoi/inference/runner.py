@@ -313,7 +313,7 @@ class Runner(Context):
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
-                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, input_date=date - step)
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
