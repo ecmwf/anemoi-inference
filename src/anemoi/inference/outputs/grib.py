@@ -171,7 +171,7 @@ class GribOutput(Output):
                     self.quiet.add(name)
 
                 variable_keys = variable.grib_keys.copy()
-                forbidden_keys = ("class", "type", "stream", "expver", "date", "time", "step", "domain")
+                forbidden_keys = ("class", "type", "stream", "expver", "date", "hdate", "time", "step", "domain")
                 for key in forbidden_keys:
                     variable_keys.pop(key, None)
 

@@ -291,7 +291,7 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
-                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, input_date=date - step)
 
             # Detach tensor and squeeze (should we detach here?)
             output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
