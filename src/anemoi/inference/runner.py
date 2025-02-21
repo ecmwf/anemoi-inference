@@ -218,7 +218,11 @@ class Runner(Context):
         self._device = value
 
     def run(
-        self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
+        self,
+        *,
+        input_state: State,
+        lead_time: str | int | datetime.timedelta,
+        return_numpy: bool = True,
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -277,7 +281,6 @@ class Runner(Context):
                 self.complete_forecast_hook()
 
     def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
-
         result = []
 
         loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
@@ -307,7 +310,6 @@ class Runner(Context):
         return result
 
     def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
-
         result = []
         loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
             include=["forcing"], exclude=["computed", "constant"]
@@ -335,7 +337,6 @@ class Runner(Context):
         return result
 
     def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
-
         if not self.checkpoint.has_supporting_array("output_mask"):
             return []
 
@@ -603,7 +604,10 @@ class Runner(Context):
             return model
 
     def predict_step(
-        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+        self,
+        model: "torch.nn.Module",
+        input_tensor_torch: "torch.Tensor",
+        **kwargs: Any,
     ) -> "torch.Tensor":
         """Predict the next step.
 
@@ -637,7 +641,11 @@ class Runner(Context):
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    ) -> Generator[
+        tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool],
+        None,
+        None,
+    ]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -660,7 +668,12 @@ class Runner(Context):
         """
         steps = lead_time // self.checkpoint.timestep
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+        LOG.info(
+            "Lead time: %s, time stepping: %s Forecasting %s steps",
+            lead_time,
+            self.checkpoint.timestep,
+            steps,
+        )
 
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
@@ -739,8 +752,13 @@ class Runner(Context):
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
 
                 # Predict next state of atmosphere
-                with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                with (
+                    torch.inference_mode(),
+                    amp_ctx,
+                    ProfilingLabel("Predict step", self.use_profiler),
+                    Timer(title),
+                ):
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, input_date=date - step)
 
                 output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
 
@@ -801,7 +819,10 @@ class Runner(Context):
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        y_pred: "torch.Tensor",
+        check: BoolArray,
     ) -> "torch.Tensor":
         """Copy prognostic fields to the input tensor.
 
@@ -857,7 +878,11 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        date: datetime.datetime,
+        check: BoolArray,
     ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
@@ -912,7 +937,11 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        date: datetime.datetime,
+        check: BoolArray,
     ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
@@ -969,7 +998,12 @@ class Runner(Context):
         if not isinstance(input_state, dict):
             raise ValueError("Input state must be a dictionnary")
 
-        EXPECT = dict(date=datetime.datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
+        EXPECT = dict(
+            date=datetime.datetime,
+            latitudes=np.ndarray,
+            longitudes=np.ndarray,
+            fields=dict,
+        )
 
         for key, klass in EXPECT.items():
             if key not in input_state:
@@ -1032,7 +1066,11 @@ class Runner(Context):
         return input_state
 
     def _print_tensor(
-        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
+        self,
+        title: str,
+        tensor_numpy: FloatArray,
+        tensor_by_name: list[str],
+        kinds: dict[str, Kind],
     ) -> None:
         """Print the tensor.
 

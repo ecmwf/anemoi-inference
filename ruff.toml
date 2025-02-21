@@ -1,0 +1,5 @@
+line-length = 120
+exclude = ["docs/**/*_.py"]
+
+[lint.isort]
+force-single-line = true
