@@ -16,7 +16,7 @@ from earthkit.data.utils.dates import to_datetime
 from ..config import load_config
 from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
-from ..runners.default import DefaultRunner
+from ..runners import create_runner
 from . import Command
 
 
@@ -104,7 +104,7 @@ class RetrieveCmd(Command):
 
         config = load_config(args.config, args.overrides, defaults=args.defaults)
 
-        runner = DefaultRunner(config)
+        runner = create_runner(config)
 
         # so that the user does not need to pass --extra target=path when the input file is already in the config
         target = None
