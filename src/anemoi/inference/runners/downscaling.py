@@ -116,6 +116,11 @@ class DownscalingRunner(DefaultRunner):
         self.checkpoint.print_variable_categories()
         self.verbosity = 3
 
+    def run(self, *, input_state, lead_time):
+        if lead_time != 1:
+            LOG.info("Forcing lead_time to 1 for downscaling.")
+        return super().run(input_state=input_state, lead_time=1)
+
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
