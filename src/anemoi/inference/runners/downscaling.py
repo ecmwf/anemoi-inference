@@ -60,9 +60,17 @@ class DsMetadata(Metadata):
         self._metadata.data_indices.model.input = self._metadata.data_indices.model.input_0
 
         # treat all low res inputs as forcings
-        self._config.data.forcing = self._metadata["dataset"]["specific"]["zip"][0]["variables"]
+        self._config.data.forcing = self.low_res_input_variables
         self._metadata.data_indices.data.input.prognostic = []
         self._metadata.data_indices.data.input.diagnostic = []
+
+    @property
+    def low_res_input_variables(self):
+        return self._metadata.dataset.specific.zip[0]["variables"]
+
+    @property
+    def high_res_output_variables(self):
+        return self._metadata.dataset.specific.zip[2]["variables"]
 
     @cached_property
     def output_tensor_index_to_variable(self):
@@ -71,8 +79,7 @@ class DsMetadata(Metadata):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        variables = self._metadata["dataset"]["specific"]["zip"][2]["variables"]
-        return frozendict({k: variables[v] for k, v in mapping.items()})
+        return frozendict({k: self.high_res_output_variables[v] for k, v in mapping.items()})
 
     @cached_property
     def number_of_grid_points(self):
@@ -139,18 +146,18 @@ class DownscalingRunner(DefaultRunner):
 
     @cached_property
     def constant_high_res_focings(self):
-        file = np.load(self.config.development_hacks["high_res_forcings_npz"])
+        file = np.load(self.config.development_hacks.high_res_forcings_npz)
         high_res = np.stack([file[forcing] for forcing in CONSTANT_HIGH_RES_FORCINGS], axis=1)
 
         return high_res[np.newaxis, np.newaxis, ...]  # shape: (1, 1, values, variables)
 
     @cached_property
     def high_res_latitudes(self):
-        return np.load(self.config.development_hacks["high_res_lat_lon_npz"])["latitudes"]
+        return np.load(self.config.development_hacks.high_res_lat_lon_npz)["latitudes"]
 
     @cached_property
     def high_res_longitudes(self):
-        return np.load(self.config.development_hacks["high_res_lat_lon_npz"])["longitudes"]
+        return np.load(self.config.development_hacks.high_res_lat_lon_npz)["longitudes"]
 
     def prepare_high_res_tensor(self, input_date):
         state = {
