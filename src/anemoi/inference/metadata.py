@@ -464,8 +464,7 @@ class Metadata(PatchMixin, LegacyMixin):
         on_difference: Literal["warn", "error", "ignore"] = "warn",
         exempt_packages: Optional[list[str]] = None,
     ) -> bool:
-        """
-        Validate environment of the checkpoint against the current environment.
+        """Validate environment of the checkpoint against the current environment.
 
         Parameters
         ----------

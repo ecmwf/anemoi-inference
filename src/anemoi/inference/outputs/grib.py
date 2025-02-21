@@ -68,9 +68,7 @@ def modifier_factory(modifiers):
 
 
 class GribOutput(Output):
-    """
-    Handles grib
-    """
+    """Handles grib"""
 
     def __init__(
         self,

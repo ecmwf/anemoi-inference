@@ -91,7 +91,8 @@ class ParallelRunner(DefaultRunner):
     def _seed_procs(self):
         """Ensures each process uses the same seed.
         Will try read 'ANEMOI_BASE_SEED' from the environment
-        Otherwise, the seed of process 0 will be shared to all processes"""
+        Otherwise, the seed of process 0 will be shared to all processes
+        """
 
         seed = None
         seed_threshold = 1000
