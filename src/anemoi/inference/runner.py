@@ -68,7 +68,7 @@ class Runner(Context):
         development_hacks={},  # For testing purposes, don't use in production
         output_frequency=None,
         write_initial_state=True,
-        profiler=False,
+        use_profiler=False,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -84,7 +84,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
-        self.profiler = profiler
+        self.use_profiler = use_profiler
 
         # This could also be passed as an argument
 
@@ -127,8 +127,8 @@ class Runner(Context):
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
 
-        with ProfilingRunner(self.profiler):
-            with ProfilingLabel("Prepare input tensor", self.profiler):
+        with ProfilingRunner(self.use_profiler):
+            with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
@@ -294,17 +294,17 @@ class Runner(Context):
             # Predict next state of atmosphere
             with (
                 torch.autocast(device_type=self.device, dtype=self.autocast),
-                ProfilingLabel("Predict step", self.profiler),
+                ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
             # Detach tensor and squeeze (should we detach here?)
-            with ProfilingLabel("Sending output to cpu", self.profiler):
+            with ProfilingLabel("Sending output to cpu", self.use_profiler):
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             # Update state
-            with ProfilingLabel("Updating state (CPU)", self.profiler):
+            with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                 for i in range(output.shape[1]):
                     result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
@@ -318,7 +318,7 @@ class Runner(Context):
                 continue
 
             # Update  tensor for next iteration
-            with ProfilingLabel("Update tensor for next step", self.profiler):
+            with ProfilingLabel("Update tensor for next step", self.use_profiler):
                 check[:] = reset
 
                 input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
