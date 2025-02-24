@@ -94,8 +94,6 @@ def retrieve(requests, grid, area, patch=None, **kwargs):
         r.update(pproc)
         r.update(kwargs)
 
-        r.pop("hdate", None)
-
         if patch:
             r = patch(r)
 
