@@ -57,6 +57,9 @@ class Configuration(BaseModel):
     profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""
 
+    world_size: Optional[int] = 1
+    """ Number of parallel processes, used for parallel inference without SLURM """
+
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error."""
 

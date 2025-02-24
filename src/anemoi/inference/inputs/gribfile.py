@@ -22,9 +22,7 @@ LOG = logging.getLogger(__name__)
 @input_registry.register("grib")
 @main_argument("path")
 class GribFileInput(GribInput):
-    """
-    Handles grib files
-    """
+    """Handles grib files"""
 
     def __init__(self, context, path, *, namer=None, **kwargs):
         super().__init__(context, namer=namer, **kwargs)

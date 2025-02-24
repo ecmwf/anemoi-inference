@@ -114,8 +114,7 @@ class Output(ABC):
 
 
 class ForwardOutput(Output):
-    """
-    Subclass of Output that forwards calls to other outputs
+    """Subclass of Output that forwards calls to other outputs
     Subclass from that class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves
     """

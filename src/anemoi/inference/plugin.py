@@ -24,9 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 class FieldListInput(GribInput):
-    """
-    Handles earchkit-data fieldlists input fields.
-    """
+    """Handles earchkit-data fieldlists input fields."""
 
     def __init__(self, context, *, input_fields):
         super().__init__(context)
