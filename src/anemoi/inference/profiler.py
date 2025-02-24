@@ -77,5 +77,7 @@ def ProfilingRunner(use_profiler: bool) -> None:
             f"Top {row_limit} kernels by runtime on CUDA:\n {prof.key_averages().table(sort_by='self_cuda_time_total', row_limit=row_limit)}"
         )
         LOG.info("Memory summary \n%s", torch.cuda.memory_summary())
+        if torch.cuda.is_available():
+            prof.export_memory_timeline(f"{dirname}/memory_timeline.html", device="cuda:0")
     else:
         yield
