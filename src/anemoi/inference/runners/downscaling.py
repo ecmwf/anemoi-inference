@@ -110,6 +110,7 @@ class DsCheckpoint(Checkpoint):
         return DsMetadata(load_metadata(self.path))
 
     def variables_from_input(self, *, include_forcings):
+        # include forcings in initial conditions retrieval
         return super().variables_from_input(include_forcings=True)
 
 
@@ -122,27 +123,6 @@ class DownscalingRunner(DefaultRunner):
         self.checkpoint.print_indices()
         self.checkpoint.print_variable_categories()
         self.verbosity = 3
-
-    def run(self, *, input_state, lead_time):
-        if lead_time != 1:
-            LOG.info("Forcing lead_time to 1 for downscaling.")
-        return super().run(input_state=input_state, lead_time=1)
-
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
-        for state in super().forecast(lead_time, input_tensor_numpy, input_state):
-            state = state.copy()
-            state["latitudes"] = self.high_res_latitudes
-            state["longitudes"] = self.high_res_longitudes
-            state.pop("_grib_templates_for_output", None)
-            yield state
-
-    def predict_step(self, model, input_tensor_torch, input_date, **kwargs):
-        low_res_tensor = input_tensor_torch
-        high_res_tensor = self.prepare_high_res_tensor(input_date)
-
-        LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
-        LOG.info("High res tensor shape: %s", high_res_tensor.shape)
-        return model.predict_step(low_res_tensor, high_res_tensor)
 
     @cached_property
     def constant_high_res_focings(self):
@@ -159,7 +139,45 @@ class DownscalingRunner(DefaultRunner):
     def high_res_longitudes(self):
         return np.load(self.config.development_hacks.high_res_lat_lon_npz)["longitudes"]
 
-    def prepare_high_res_tensor(self, input_date):
+    def run(self, *, input_state, lead_time):
+        if lead_time != 1:
+            LOG.info("Forcing lead_time to 1 for downscaling.")
+        return super().run(input_state=input_state, lead_time=1)
+
+    def forecast(self, lead_time, input_tensor_numpy, input_state):
+        for state in super().forecast(lead_time, input_tensor_numpy, input_state):
+            state = state.copy()
+            state["latitudes"] = self.high_res_latitudes
+            state["longitudes"] = self.high_res_longitudes
+            state.pop("_grib_templates_for_output", None)
+            yield state
+
+    def predict_step(self, model, input_tensor_torch, input_date, **kwargs):
+        low_res_tensor = input_tensor_torch
+        high_res_tensor = self._prepare_high_res_input_tensor(input_date)
+
+        LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
+        LOG.info("High res tensor shape: %s", high_res_tensor.shape)
+
+        residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor)
+        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
+
+        self._print_output_tensor("Residual output tensor", residual_output_numpy)
+
+        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw").get("path")):
+            self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
+
+        output_tensor_interp = _prepare_high_res_output_tensor(
+            model,
+            low_res_tensor[0],  # remove batch dimension
+            residual_output_tensor,
+            self.checkpoint.variable_to_input_tensor_index,
+            self.checkpoint._metadata.high_res_output_variables,
+        )
+
+        return output_tensor_interp
+
+    def _prepare_high_res_input_tensor(self, input_date):
         state = {
             "latitudes": self.high_res_latitudes,
             "longitudes": self.high_res_longitudes,
@@ -194,3 +212,72 @@ class DownscalingRunner(DefaultRunner):
         self._print_tensor("High res input tensor", np.swapaxes(high_res_numpy[0], -2, -1), forcings_dict.keys(), {})
 
         return torch.from_numpy(high_res_numpy).to(self.device)
+
+    def _save_residual_tensor(self, residual_output_numpy, path):
+        residuals = []
+        for k in self.checkpoint._metadata.output_tensor_index_to_variable.keys():
+            residuals.append(residual_output_numpy[:, k])
+
+        np.savez(
+            path,
+            **{
+                f"field_{k}": v
+                for k, v in zip(
+                    self.checkpoint._metadata.output_tensor_index_to_variable.values(),
+                    residuals,
+                )
+            },
+        )
+
+
+def _match_tensor_channels(input_name_to_index, output_names):
+    """Reorders and selects channels from input tensor to match output tensor structure.
+    x_in: Input tensor of shape [batch, n_grid_points, channels]
+    """
+
+    common_channels = set(input_name_to_index.keys()) & set(output_names)
+
+    # for each output channel, look for corresponding input channel
+    channel_mapping = []
+    for channel_name in output_names:
+        if channel_name in common_channels:
+            input_pos = input_name_to_index[channel_name]
+            channel_mapping.append(input_pos)
+
+    # Convert to tensor for indexing
+    channel_indices = torch.tensor(channel_mapping)
+
+    return channel_indices
+
+
+def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input_name_to_index, output_names):
+    # interpolate the low res input tensor to high res, and add the residuals to get the final high res output
+
+    matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
+    print("matching_channel_indices", matching_channel_indices)
+    # [64, 25, 36, 46,  3,  0,  1, 16]
+
+    print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
+
+    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
+        ..., matching_channel_indices
+    ]
+    print("interp_high_res_in", interp_high_res_in.shape)  # [1, 1, 1, 421120, 8]
+
+    high_res_out = interp_high_res_in + high_res_residuals
+    print(
+        "interp_high_res_in is denormalised",
+        interp_high_res_in[..., 0].mean(),  # 56081.4609
+        interp_high_res_in[..., 0].std(),  # 2634.4143
+    )
+
+    print(
+        "high_res_residuals is denormalised",
+        high_res_residuals[..., 0].mean(),  # 168.26504510123863
+        high_res_residuals[..., 0].std(),  # 576.3987445776402
+    )
+
+    print("high_res_out", high_res_out.shape)  # [1, 1, 1, 421120, 8]
+    print("high_res_out is denormalised", high_res_out[..., 0].mean(), high_res_out[..., 0].std())  # 56249 2677
+
+    return high_res_out
