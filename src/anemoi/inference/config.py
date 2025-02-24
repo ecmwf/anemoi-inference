@@ -54,6 +54,9 @@ class Configuration(BaseModel):
     verbosity: int = 0
     """The verbosity level of the runner. This can be 0 (default), 1, 2 or 3."""
 
+    use_profiler: bool = False
+    """If True, the inference will be profiled, producing time and memory report."""
+
     world_size: Optional[int] = 1
     """ Number of parallel processes, used for parallel inference without SLURM """
 
