@@ -94,8 +94,6 @@ def retrieve(requests, grid, area, **kwargs):
         r.update(pproc)
         r.update(kwargs)
 
-        r.pop("hdate", None)
-
         LOG.debug("%s", _(r))
 
         result += ekd.from_source("mars", r)

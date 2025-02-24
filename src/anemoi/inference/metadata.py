@@ -423,7 +423,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             mars = self.variables_metadata[variable]["mars"].copy()
 
-            for k in ("date", "time"):
+            for k in ("hdate", "date", "time"):
                 mars.pop(k, None)
 
             if use_grib_paramid and "param" in mars:
