@@ -317,7 +317,7 @@ class Metadata(PatchMixin, LegacyMixin):
             )
 
             # Bug in eccodes that returns levelist for single level fields in GRIB2
-            if levtype in ("sfc", "o2d"):
+            if levtype in ("sol", "sfc", "o2d"):
                 levelist = None
 
             if levelist is None:
