@@ -10,7 +10,7 @@
 
 import logging
 
-import numpy as np
+from earthkit.data import array_api
 
 LOG = logging.getLogger(__name__)
 
@@ -34,9 +34,14 @@ class Accumulator:
         for state in source:
             for accumulation in self.accumulations:
                 if accumulation in state["fields"]:
+                    xp = array_api.get_backend(state["fields"][accumulation]).module
+
                     if accumulation not in self.accumulators:
-                        self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
-                    self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
+                        self.accumulators[accumulation] = xp.zeros_like(state["fields"][accumulation])
+
+                    self.accumulators[accumulation] += xp.maximum(
+                        xp.zeros((1,), device=state["fields"][accumulation].device), state["fields"][accumulation]
+                    )
                     state["fields"][accumulation] = self.accumulators[accumulation]
 
             yield state

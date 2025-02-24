@@ -11,6 +11,7 @@ import datetime
 import logging
 
 import numpy as np
+from earthkit.data import array_api
 
 from ..output import Output
 from . import output_registry
@@ -49,10 +50,13 @@ def print_state(state, print=print):
     for i in idx:
         name = names[i]
         field = fields[name]
-        min_value = f"min={np.nanmin(field):g}"
-        max_value = f"max={np.nanmax(field):g}"
+        xp = array_api.get_backend(field).module
+
+        min_value = f"min={xp.min(field):g}"
+        max_value = f"max={xp.max(field):g}"
         print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
 
+    del state
     print()
 
 
