@@ -18,8 +18,7 @@ LOG = logging.getLogger(__name__)
 
 @contextmanager
 def ProfilingLabel(label: str, use_profiler: bool) -> None:
-    """
-    Add label to function so that the profiler can recognize it, only if the use_profiler option is True.
+    """Add label to function so that the profiler can recognize it, only if the use_profiler option is True.
 
     Parameters
     ----------
@@ -40,8 +39,7 @@ def ProfilingLabel(label: str, use_profiler: bool) -> None:
 
 @contextmanager
 def ProfilingRunner(use_profiler: bool) -> None:
-    """
-    Perform time and memory usage profiles of the wrapped code.
+    """Perform time and memory usage profiles of the wrapped code.
 
     Parameters
     ----------
