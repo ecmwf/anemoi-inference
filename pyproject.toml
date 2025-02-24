@@ -54,7 +54,11 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [ "anemoi-inference[plugin,huggingface]", "anemoi-utils[all]>=0.4.9" ]
+optional-dependencies.all = [
+  "anemoi-inference[plugin,huggingface]",
+  "anemoi-utils[all]>=0.4.9",
+  "earthkit-data[cds,ecmwf-opendata,mars]>0.11.2",
+]
 
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
