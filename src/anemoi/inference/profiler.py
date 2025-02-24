@@ -17,7 +17,18 @@ LOG = logging.getLogger(__name__)
 
 
 @contextmanager
-def ProfilingLabel(label, use_profiler):
+def ProfilingLabel(label: str, use_profiler: bool) -> None:
+    """
+    Add label to function so that the profiler can recognize it, only if the use_profiler option is True.
+
+    Parameters
+    ----------
+    label : str
+        Name or description to identify the function.
+    use_profiler : bool
+        Wrap the function with the label if True, otherwise just execute the function as it is.
+
+    """
     if use_profiler:
         with torch.autograd.profiler.record_function(label):
             torch.cuda.nvtx.range_push(label)
@@ -28,7 +39,16 @@ def ProfilingLabel(label, use_profiler):
 
 
 @contextmanager
-def ProfilingRunner(use_profiler):
+def ProfilingRunner(use_profiler: bool) -> None:
+    """
+    Perform time and memory usage profiles of the wrapped code.
+
+    Parameters
+    ----------
+    use_profiler : bool
+        Weither to profile the wrapped code (True) or not (False).
+
+    """
     dirname = "profiling-output"
     if use_profiler:
         torch.cuda.memory._record_memory_history(max_entries=100000)
