@@ -57,10 +57,12 @@ def checkpoint_to_requests(
         more[k] = v
 
     if staging_dates:
-        dates = []
+        dates = set()
         with open(staging_dates) as f:
             for line in f:
-                dates.append(to_datetime(line.strip()))
+                date = to_datetime(line.strip())
+                dates.update([date + h for h in checkpoint.lagged])
+        dates = sorted(dates)
     else:
         date = to_datetime(date)
         dates = [date + h for h in checkpoint.lagged]
