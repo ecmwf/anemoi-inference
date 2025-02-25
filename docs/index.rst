@@ -67,6 +67,7 @@ of the *Anemoi* packages.
    cli/introduction
    cli/run
    cli/metadata
+   cli/validate
 
 .. toctree::
    :maxdepth: 1
