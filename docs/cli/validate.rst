@@ -6,6 +6,11 @@ or if anemoi packages differ in version between the inference and the training e
 
 This can be very useful to resolve issues when running an older or shared environment.
 
+*********
+ Usage
+*********
+
+
 .. argparse::
     :module: anemoi.inference.__main__
     :func: create_parser
