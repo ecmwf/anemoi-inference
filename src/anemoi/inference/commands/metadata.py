@@ -78,6 +78,11 @@ class Metadata(Command):
             help="Print the supporting arrays.",
         )
 
+        group.add_argument(
+            "--get",
+            help="Navigate the metadata via dot-separated path.",
+        )
+
         command_parser.add_argument(
             "--name",
             default=DEFAULT_NAME,
@@ -124,6 +129,9 @@ class Metadata(Command):
 
         if args.view:
             return self.view(args)
+
+        if args.get:
+            return self.get(args)
 
         if args.remove:
             return self.remove(args)
@@ -200,6 +208,31 @@ class Metadata(Command):
         if args.json or True:
             print(json.dumps(metadata, indent=4, sort_keys=True), file=file)
             return
+
+    def get(self, args):
+        from pprint import pprint
+
+        from anemoi.utils.checkpoints import load_metadata
+
+        metadata = load_metadata(args.path, name=args.name)
+
+        if args.get == ".":
+            print("Metadata from root: ", list(metadata.keys()))
+            return
+
+        for key in args.get.split("."):
+            if key == "":
+                keys = list(metadata.keys())
+                print(f"Metadata keys from {args.get[:-1]}: ", keys)
+                return
+            else:
+                metadata = metadata[key]
+
+        print(f"Metadata values for {args.get}: ", end="\n" if isinstance(metadata, (dict, list)) else "")
+        if isinstance(metadata, dict):
+            pprint(metadata, indent=2, compact=True)
+        else:
+            print(metadata)
 
     def load(self, args):
         from anemoi.utils.checkpoints import has_metadata
