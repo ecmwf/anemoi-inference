@@ -16,9 +16,7 @@ LOG = logging.getLogger(__name__)
 
 
 class GribInput(EkdInput):
-    """
-    Handles GRIB input fields.
-    """
+    """Handles GRIB input fields."""
 
     def set_private_attributes(self, state, input_fields):
         # For now we just pass all the fields

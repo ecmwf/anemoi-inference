@@ -8,6 +8,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.4.10](https://github.com/ecmwf/anemoi-inference/compare/0.4.9...0.4.10) (2025-02-25)
+
+
+### Features
+
+* Add truth output ([#144](https://github.com/ecmwf/anemoi-inference/issues/144)) ([cfefc21](https://github.com/ecmwf/anemoi-inference/commit/cfefc21743802af3ca19a62cbbeb9e501f49cd5a))
+* **output:** allow selecting variables for output ([#118](https://github.com/ecmwf/anemoi-inference/issues/118)) ([3c833e1](https://github.com/ecmwf/anemoi-inference/commit/3c833e19f23eac584c59845070d49778fdf65b9a))
+* parallel inference without slurm ([#121](https://github.com/ecmwf/anemoi-inference/issues/121)) ([90d7911](https://github.com/ecmwf/anemoi-inference/commit/90d79111a71963c560e026b67e9625ef195d2fbc))
+* **retrieve:** Create runner from config ([#146](https://github.com/ecmwf/anemoi-inference/issues/146)) ([e7283b9](https://github.com/ecmwf/anemoi-inference/commit/e7283b9cf7d4622cabd69a297b4543525cfd479c))
+
+
+### Bug Fixes
+
+* issue [#127](https://github.com/ecmwf/anemoi-inference/issues/127), command "requests" broken ([#141](https://github.com/ecmwf/anemoi-inference/issues/141)) ([abfb633](https://github.com/ecmwf/anemoi-inference/commit/abfb63377f13cf4afc5bb6dfc8292a0d81afc444))
+* prepml staging ([#150](https://github.com/ecmwf/anemoi-inference/issues/150)) ([384c5ee](https://github.com/ecmwf/anemoi-inference/commit/384c5ee59d19f631d8bc621256e86359b8f92aeb))
+* Update output printer to avoid range(a, b, 0) ([#138](https://github.com/ecmwf/anemoi-inference/issues/138)) ([7cb2f0d](https://github.com/ecmwf/anemoi-inference/commit/7cb2f0d8e983350448a1c94e11625c740623ae5b))
+
+## 0.4.9 (2025-02-13)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+
+
+**Full Changelog**: https://github.com/ecmwf/anemoi-inference/compare/0.4.8...0.4.9
+
+## 0.4.8 (2025-02-11)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Exciting New Features 🎉
+* feat(config): Add `accumulate_from_start_of_forecast` post-processor by @gmertes in https://github.com/ecmwf/anemoi-inference/pull/133
+### Other Changes 🔗
+* refactor: Rename `accumulations` -> `accumulate_from_start_of_forecast` by @gmertes in https://github.com/ecmwf/anemoi-inference/pull/135
+* chore: synced file(s) with ecmwf-actions/reusable-workflows by @DeployDuck in https://github.com/ecmwf/anemoi-inference/pull/136
+
+
+**Full Changelog**: https://github.com/ecmwf/anemoi-inference/compare/0.4.7...0.4.8
+
 ## 0.4.7 (2025-02-10)
 
 <!-- Release notes generated using configuration in .github/release.yml at main -->

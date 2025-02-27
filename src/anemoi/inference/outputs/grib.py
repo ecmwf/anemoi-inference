@@ -69,9 +69,7 @@ def modifier_factory(modifiers):
 
 
 class GribOutput(Output):
-    """
-    Handles grib
-    """
+    """Handles grib"""
 
     def __init__(
         self,
@@ -84,6 +82,7 @@ class GribOutput(Output):
         modifiers=None,
         output_frequency=None,
         write_initial_state=None,
+        variables=None,
     ):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
@@ -94,6 +93,18 @@ class GribOutput(Output):
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
 
         self.modifiers = modifier_factory(modifiers)
+        self.variables = variables
+
+        self.ensemble = False
+        for d in (self.grib1_keys, self.grib2_keys, self.encoding):
+            if "eps" in d:
+                self.ensemble = d["eps"]
+                break
+            if d.get("type") in ("pf", "cf"):
+                self.ensemble = True
+                break
+
+        self.template_manager = TemplateManager(self, templates)
 
         self.ensemble = False
         for d in (self.grib1_keys, self.grib2_keys, self.encoding):
@@ -115,7 +126,9 @@ class GribOutput(Output):
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
 
-        for name in state["fields"]:
+        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+
+        for name in out_vars:
             variable = self.typed_variables[name]
 
             if variable.is_computed_forcing:
@@ -132,12 +145,15 @@ class GribOutput(Output):
 
     def write_step(self, state):
 
+
         reference_date = self.reference_date or self.context.reference_date
         step = state["step"]
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
 
-        for name, values in state["fields"].items():
+        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+        for name in out_vars:
+            values = state["fields"][name]
             keys = {}
 
             variable = self.typed_variables[name]

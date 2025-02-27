@@ -43,6 +43,9 @@ class DefaultRunner(Runner):
 
         self.config = config
 
+        # temporary code
+        accumulate_from_start_of_forecast = _check_accumulation_processor(config)
+
         super().__init__(
             config.checkpoint,
             device=config.device,

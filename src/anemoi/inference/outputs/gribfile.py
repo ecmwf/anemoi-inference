@@ -92,6 +92,7 @@ class GribFileOutput(GribOutput):
         modifiers=None,
         output_frequency=None,
         write_initial_state=None,
+        variables=None,
         split_output=True,
     ):
         super().__init__(
@@ -103,6 +104,7 @@ class GribFileOutput(GribOutput):
             modifiers=modifiers,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
+            variables=variables,
         )
         self.path = path
         self.output = GribWriter(self.path, split_output=split_output)

@@ -165,8 +165,7 @@ class Checkpoint:
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
     def default_namer(self, *args, **kwargs):
-        """
-        Return a callable that can be used to name fields.
+        """Return a callable that can be used to name fields.
         In that case, return the namer that was used to create the
         training dataset.
         """

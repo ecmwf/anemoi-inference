@@ -44,7 +44,8 @@ class NetCDFOutput(Output):
         if os.path.exists(self.path):
             os.remove(self.path)
 
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        if os.path.dirname(self.path):
+            os.makedirs(os.path.dirname(self.path), exist_ok=True)
 
         self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 

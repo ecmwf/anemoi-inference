@@ -22,9 +22,7 @@ LOG = logging.getLogger(__name__)
 
 
 class DatasetInput(Input):
-    """
-    Handles `anemoi-datasets` dataset as input
-    """
+    """Handles `anemoi-datasets` dataset as input"""
 
     def __init__(self, context, args, kwargs):
         super().__init__(context)
