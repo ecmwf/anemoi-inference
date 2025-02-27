@@ -64,6 +64,8 @@ class Runner(Context):
         trace_path=None,
         output_frequency=None,
         write_initial_state=True,
+        pre_processors=None,
+        post_processors=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -111,6 +113,12 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
+
+        # Shallow copy to avoid modifying the user's input state
+        input_state = input_state.copy()
+        input_state["fields"] = input_state["fields"].copy()
+
+        input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
