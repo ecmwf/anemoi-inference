@@ -573,9 +573,7 @@ class Runner(Context):
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
 
     def patch_data_request(self, request):
-        """
-        Some of the processores may need to patch the data request (e.g. mars or cds request)
-        """
+        """Some of the processores may need to patch the data request (e.g. mars or cds request)"""
         for p in self.pre_processors:
             request = p.patch_data_request(request)
 

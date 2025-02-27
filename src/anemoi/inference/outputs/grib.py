@@ -145,7 +145,6 @@ class GribOutput(Output):
 
     def write_step(self, state):
 
-
         reference_date = self.reference_date or self.context.reference_date
         step = state["step"]
         previous_step = state.get("previous_step")

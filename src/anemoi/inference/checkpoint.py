@@ -254,7 +254,7 @@ class Checkpoint:
         return self._metadata.mars_by_levtype(levtype)
 
     def mars_requests(
-        self, *, variables, dates, use_grib_paramid=False, always_split_time=False, patch_request, **kwargs
+        self, *, variables, dates, use_grib_paramid=False, always_split_time=False, patch_request=None, **kwargs
     ):
 
         from anemoi.utils.grib import shortname_to_paramid

@@ -125,12 +125,6 @@ class RetrieveCmd(Command):
             use_grib_paramid=config.use_grib_paramid,
             always_split_time=args.use_scda,
             patch_request=runner.patch_data_request,
-        ):
-            r = r.copy()
-            r.update(extra)
-            if args.use_scda:
-                _patch_scda(date, r)
-            requests.append(r)
             use_scda=args.use_scda,
         )
 
