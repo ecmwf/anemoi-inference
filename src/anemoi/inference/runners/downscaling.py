@@ -214,17 +214,14 @@ class DownscalingRunner(DefaultRunner):
         return torch.from_numpy(high_res_numpy).to(self.device)
 
     def _save_residual_tensor(self, residual_output_numpy, path):
-        residuals = []
-        for k in self.checkpoint._metadata.output_tensor_index_to_variable.keys():
-            residuals.append(residual_output_numpy[:, k])
-
+        # residual_output_numpy.shape: (values, variables)
         np.savez(
             path,
             **{
                 f"field_{k}": v
                 for k, v in zip(
                     self.checkpoint._metadata.output_tensor_index_to_variable.values(),
-                    residuals,
+                    residual_output_numpy.T,
                 )
             },
         )
