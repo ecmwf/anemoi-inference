@@ -81,7 +81,7 @@ and output. It set to ``null`` (default), the value is set internally to
 ********************
 
 The entries for the inputs and outputs are specified in the :ref:`inputs
-<inputs>` and :ref:`inputs <outputs>` sections of the documentation.
+<inputs>` and :ref:`outputs <outputs>` sections of the documentation.
 
 ***********
  Debugging
@@ -100,6 +100,15 @@ The ``report_errors`` option specifies whether to produce a longer error
 report when the code of the model cannot be loaded. The aim od that
 report is to troubleshoot versioning issues (git branches, python
 modules, etc.). It is set to ``false`` by default.
+
+use_profiler:
+=============
+
+The ``use_profiler`` option specifies whether to profile the inference
+run. When enabled, the profiler produces a memory snapshot and timeline,
+as well as a time summary. The profiler also adds labels to identify the
+different steps of the inference to simplify visualization with Nsight.
+This option is set to ``false`` by default.
 
 ***************
  Miscellaneous
