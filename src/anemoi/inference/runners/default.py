@@ -60,6 +60,7 @@ class DefaultRunner(Runner):
             write_initial_state=config.write_initial_state,
             trace_path=config.trace_path,
             accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
+            use_profiler=config.use_profiler,
         )
 
     def create_input(self):
