@@ -12,10 +12,10 @@ import json
 import logging
 from collections import defaultdict
 
-import earthkit.data as ekd
 import numpy as np
 
 from ..decorators import main_argument
+from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
 from .grib import GribOutput
@@ -93,7 +93,7 @@ class GribFileOutput(GribOutput):
         output_frequency=None,
         write_initial_state=None,
         variables=None,
-        **kwargs,
+        split_output=True,
     ):
         super().__init__(
             context,
@@ -107,7 +107,7 @@ class GribFileOutput(GribOutput):
             variables=variables,
         )
         self.path = path
-        self.output = ekd.new_grib_output(self.path, split_output=True, **kwargs)
+        self.output = GribWriter(self.path, split_output=split_output)
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
@@ -134,10 +134,10 @@ class GribFileOutput(GribOutput):
         try:
             self.collect_archive_requests(
                 self.output.write(
-                    message,
+                    values=message,
                     template=template,
+                    metadata=keys,
                     check_nans=self.context.allow_nans,
-                    **keys,
                 ),
                 template,
                 **keys,

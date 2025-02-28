@@ -132,6 +132,8 @@ class DatasetInput(Input):
 class DatasetInputArgsKwargs(DatasetInput):
     """Handles `anemoi-datasets` dataset as input"""
 
+    trace_name = "dataset/provided"
+
     def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
         if not args and not kwargs:
             args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
@@ -167,6 +169,8 @@ class DataloaderInput(DatasetInput):
 class TestInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input"""
 
+    trace_name = "dataset/test"
+
     def __init__(self, context, /, use_original_paths=True, **kwargs):
         super().__init__(context, name="test", use_original_paths=use_original_paths, **kwargs)
 
@@ -175,6 +179,8 @@ class TestInput(DataloaderInput):
 class ValidationInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input"""
 
+    trace_name = "dataset/validation"
+
     def __init__(self, context, /, use_original_paths=True, **kwargs):
         super().__init__(context, name="validation", use_original_paths=use_original_paths, **kwargs)
 
@@ -182,6 +188,8 @@ class ValidationInput(DataloaderInput):
 @input_registry.register("training")
 class TrainingInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input"""
+
+    trace_name = "dataset/training"
 
     def __init__(self, context, /, use_original_paths=True, **kwargs):
         super().__init__(context, name="training", use_original_paths=use_original_paths, **kwargs)

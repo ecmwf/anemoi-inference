@@ -91,6 +91,10 @@ class EkdInput(Input):
         flatten=True,
     ):
 
+        for processor in self.context.pre_processors:
+            LOG.info("Processing with %s", processor)
+            input_fields = processor.process(input_fields)
+
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
 
@@ -193,9 +197,15 @@ class EkdInput(Input):
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
+        # for f in data:
+        #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
+
         data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
             name=variables, valid_datetime="ascending"
         )
+
+        # for f in data:
+        #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
 
         check_data(title, data, variables, dates)
 
@@ -209,5 +219,10 @@ class EkdInput(Input):
         return data.sel(name=name, **kwargs)
 
     def _load_forcings(self, fields, variables, dates):
+
+        for processor in self.context.pre_processors:
+            LOG.info("Processing with %s", processor)
+            fields = processor.process(fields)
+
         data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
         return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)

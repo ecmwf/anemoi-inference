@@ -19,6 +19,8 @@ from ..forcings import ComputedForcings
 from ..forcings import CoupledForcings
 from ..inputs import create_input
 from ..outputs import create_output
+from ..post_processors import create_post_processor
+from ..pre_processors import create_pre_processor
 from ..runner import Runner
 from . import runner_registry
 
@@ -56,6 +58,7 @@ class DefaultRunner(Runner):
             development_hacks=config.development_hacks,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
+            trace_path=config.trace_path,
             accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
             use_profiler=config.use_profiler,
         )
@@ -118,6 +121,41 @@ class DefaultRunner(Runner):
         input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
+        return result
+
+    def create_pre_processors(self):
+
+        # TODO #131:
+        # For now, implement a three-way switch.
+        # post_processors: None -> accumulate_from_start_of_forecast = True
+        # post_processors: []   -> accumulate_from_start_of_forecast = False
+        # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
+
+        if self.config.pre_processors is None:
+            self.config.pre_processors = ["accumulate_from_start_of_forecast"]
+            warnings.warn(
+                """
+                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
+
+                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
+                Update your config if you wish to keep accumulating from the beginning.
+                https://github.com/ecmwf/anemoi-inference/issues/131
+                """,
+            )
+
+        result = []
+        for processor in self.config.pre_processors:
+            result.append(create_pre_processor(self, processor))
+
+        LOG.info("Pre processors: %s", result)
+        return result
+
+    def create_post_processors(self):
+        result = []
+        for processor in self.config.post_processors:
+            result.append(create_post_processor(self, processor))
+
+        LOG.info("Post processors: %s", result)
         return result
 
 
