@@ -85,6 +85,11 @@ def retrieve(requests, grid, area, patch=None, **kwargs):
 
     result = ekd.from_source("empty")
     for r in requests:
+        if r.get("class") in ("rd", "ea"):
+            r["class"] = "od"
+
+        if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
+            r["stream"] = "scda"
 
         r.update(pproc)
         r.update(kwargs)
@@ -107,6 +112,7 @@ class MarsInput(GribInput):
 
     def __init__(self, context, *, namer=None, patches=None, **kwargs):
         super().__init__(context, namer=namer)
+        self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.kwargs = kwargs
         self.patches = patches or []
@@ -142,11 +148,16 @@ class MarsInput(GribInput):
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
 
-        self.patch = None
-
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
 
     def load_forcings_state(self, *, variables, dates, current_state):
         return self._load_forcings_state(
             self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
         )
+
+    def patch(self, request):
+        for match, keys in self.patches:
+            if all(request.get(k) == v for k, v in match.items()):
+                request.update(keys)
+
+        return request

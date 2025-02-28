@@ -94,8 +94,6 @@ class NetCDFOutput(Output):
         return self.ncfile
 
     def ensure_variables(self, state):
-        self._init(state)
-
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)
@@ -103,7 +101,6 @@ class NetCDFOutput(Output):
         for name in state["fields"].keys():
             if name in self.vars:
                 continue
-
             chunksizes = (1, values)
 
             while np.prod(chunksizes) > 1000000:
@@ -120,8 +117,7 @@ class NetCDFOutput(Output):
 
     def write_initial_state(self, state):
         reduced_state = self.reduce(state)
-        with LOCK:
-            self.write_state(reduced_state)
+        self.write_state(reduced_state)
 
     def write_state(self, state):
 
