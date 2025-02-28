@@ -30,12 +30,13 @@ def _run(runner, config):
 
     input_state = input.create_input_state(date=config.date)
 
+    output.open(input_state)
     output.write_initial_state(input_state)
 
     for state in runner.run(input_state=input_state, lead_time=config.lead_time):
         for processor in post_processors:
             state = processor.process(state)
-        output.write_state(state)
+        output.write_step(state)
 
     output.close()
 

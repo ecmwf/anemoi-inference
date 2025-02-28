@@ -17,6 +17,14 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("none")
 class NoneOutput(Output):
+    """None output class."""
 
     def write_step(self, state: dict) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         pass

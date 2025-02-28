@@ -86,8 +86,5 @@ class PrinterOutput(Output):
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 
-    def write_initial_state(self, state: dict) -> None:
-        self.write_state(state)
-
-    def write_state(self, state: dict) -> None:
+    def write_step(self, state: dict) -> None:
         print_state(state, print=self.print, variables=self.variables)

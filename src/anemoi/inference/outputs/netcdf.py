@@ -27,6 +27,19 @@ LOCK = threading.RLock()
 @output_registry.register("netcdf")
 @main_argument("path")
 class NetCDFOutput(Output):
+    """NetCDF output class.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    path : str
+        The path to save the NetCDF file.
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    """
 
     def __init__(
         self, context: dict, path: str, output_frequency: int = None, write_initial_state: bool = None
@@ -40,6 +53,13 @@ class NetCDFOutput(Output):
         return f"NetCDFOutput({self.path})"
 
     def open(self, state: dict) -> None:
+        """Open the NetCDF file and initialize dimensions and variables.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         from netCDF4 import Dataset
 
         with LOCK:
@@ -95,6 +115,13 @@ class NetCDFOutput(Output):
         return self.ncfile
 
     def ensure_variables(self, state: dict) -> None:
+        """Ensure that all variables are created in the NetCDF file.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)
@@ -116,11 +143,14 @@ class NetCDFOutput(Output):
                     **compression,
                 )
 
-    def write_initial_state(self, state: dict) -> None:
-        reduced_state = self.reduce(state)
-        self.write_state(reduced_state)
+    def write_step(self, state: dict) -> None:
+        """Write the state.
 
-    def write_state(self, state: dict) -> None:
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
 
         self.ensure_variables(state)
 
@@ -134,6 +164,7 @@ class NetCDFOutput(Output):
         self.n += 1
 
     def close(self) -> None:
+        """Close the NetCDF file."""
         if self.ncfile is not None:
             with LOCK:
                 self.ncfile.close()

@@ -19,11 +19,48 @@ LOG = logging.getLogger(__name__)
 
 
 def fix(lons: np.ndarray) -> np.ndarray:
+    """Fix longitudes greater than 180 degrees.
+
+    Parameters
+    ----------
+    lons : np.ndarray
+        Array of longitudes.
+
+    Returns
+    -------
+    np.ndarray
+        Fixed array of longitudes.
+    """
     return np.where(lons > 180, lons - 360, lons)
 
 
 @output_registry.register("plot")
 class PlotOutput(Output):
+    """Plot output class.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    path : str
+        The path to save the plots.
+    variables : list, optional
+        The list of variables to plot, by default all.
+    strftime : str, optional
+        The date format string, by default "%Y%m%d%H%M%S".
+    template : str, optional
+        The template for plot filenames, by default "plot_{variable}_{date}.{format}".
+    dpi : int, optional
+        The resolution of the plot, by default 300.
+    format : str, optional
+        The format of the plot, by default "png".
+    missing_value : float, optional
+        The value to use for missing data, by default None.
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    """
 
     def __init__(
         self,
@@ -52,6 +89,13 @@ class PlotOutput(Output):
                 self.variables = [self.variables]
 
     def write_step(self, state: dict) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
         import matplotlib.pyplot as plt
