@@ -13,14 +13,28 @@ import logging
 
 from ..config import RunConfiguration
 from ..config import load_config
-from ..runners.default import DefaultRunner
+from ..runners import create_runner
 from . import Command
 
 LOG = logging.getLogger(__name__)
 
 
+def _run(runner, config):
+    input = runner.create_input()
+    output = runner.create_output()
+
+    input_state = input.create_input_state(date=config.date)
+
+    output.write_initial_state(input_state)
+
+    for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+        output.write_state(state)
+
+    output.close()
+
+
 class RunCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """Run inference from a config yaml file."""
 
     def add_arguments(self, command_parser):
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
@@ -34,17 +48,21 @@ class RunCmd(Command):
         if config.description is not None:
             LOG.info("%s", config.description)
 
-        runner = DefaultRunner(config)
+        runner = create_runner(config)
 
         input = runner.create_input()
         output = runner.create_output()
 
+        # pre_processors = runner.pre_processors
+        post_processors = runner.post_processors
+
         input_state = input.create_input_state(date=config.date)
 
-        if config.write_initial_state:
-            output.write_initial_state(input_state)
+        output.write_initial_state(input_state)
 
         for state in runner.run(input_state=input_state, lead_time=config.lead_time):
+            for processor in post_processors:
+                state = processor.process(state)
             output.write_state(state)
 
         output.close()

@@ -68,7 +68,7 @@ def postproc(grid, area):
     return pproc
 
 
-def retrieve(requests, grid, area, **kwargs):
+def retrieve(requests, grid, area, patch=None, **kwargs):
     import earthkit.data as ekd
 
     def _(r):
@@ -89,16 +89,10 @@ def retrieve(requests, grid, area, **kwargs):
         r.update(pproc)
         r.update(kwargs)
 
-        if (
-            r.get("class", "od") == "od"
-            and r.get("type") == "fc"
-            and r.get("stream") == "oper"
-            and r["time"] in ("0600", "1800")
-        ):
+        if patch:
+            r = patch(r)
 
-            r["stream"] = "scda"
-
-        LOG.info("MarsInput: REQUEST  %r", r)
+        LOG.debug("%s", _(r))
 
         result += ekd.from_source("mars", r)
 
@@ -111,15 +105,11 @@ class MarsInput(GribInput):
 
     trace_name = "mars"
 
-    def __init__(self, context, *, namer=None, **kwargs):
+    def __init__(self, context, *, namer=None, patches=None, **kwargs):
         super().__init__(context, namer=namer)
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
-        self.request = kwargs
-
-        self.request.setdefault("class", "od")
-        self.request.setdefault("stream", "oper")
-        self.request.setdefault("expver", "0001")
-        # self.request.setdefault('type', 'an')
+        self.kwargs = kwargs
+        self.patches = patches or []
 
     def create_input_state(self, *, date):
         if date is None:
@@ -143,17 +133,19 @@ class MarsInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
+            patch_request=self.context.patch_data_request,
         )
 
         if not requests:
             raise ValueError("No requests for %s (%s)" % (variables, dates))
 
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, **self.request)
+        kwargs = self.kwargs.copy()
+        kwargs.setdefault("expver", "0001")
 
-    def template(self, variable, date, **kwargs):
-        return self.retrieve([variable], [date])[0]
+        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
 
     def load_forcings_state(self, *, variables, dates, current_state):
         return self._load_forcings_state(
             self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
         )
+

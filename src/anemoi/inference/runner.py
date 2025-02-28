@@ -21,9 +21,9 @@ from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
-from .postprocess import Accumulator
-from .postprocess import Noop
 from .precisions import PRECISIONS
+from .profiler import ProfilingLabel
+from .profiler import ProfilingRunner
 
 LOG = logging.getLogger(__name__)
 
@@ -54,17 +54,15 @@ class Runner(Context):
         self,
         checkpoint,
         *,
-        accumulations=True,
+        accumulate_from_start_of_forecast=False,
         device: str = "cuda",
         precision: str = None,
         report_error=False,
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
         verbosity=0,
-        inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
-        trace_path=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -87,23 +85,18 @@ class Runner(Context):
         self.use_grib_paramid = use_grib_paramid
         self.development_hacks = development_hacks
         self.hacks = bool(development_hacks)
-
-        # This could also be passed as an argument
-
-        self.postprocess = Noop()
-
-        if accumulations is True:
-            # Get accumulations from the checkpoint
-            accumulations = self.checkpoint.accumulations
-
-        if accumulations:
-            self.postprocess = Accumulator(accumulations)
+        self.output_frequency = output_frequency
+        self.write_initial_state = write_initial_state
+        self.use_profiler = use_profiler
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
         self._output_kinds = {}
         self._output_tensor_by_name = []
+
+        self.pre_processors = self.create_pre_processors()
+        self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
             self.checkpoint.print_indices()
@@ -119,14 +112,9 @@ class Runner(Context):
 
     def run(self, *, input_state, lead_time):
 
-        input_state = input_state.copy()
-        input_state["step"] = 0
-
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
         self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
-
-        # timers = Timers()
 
         lead_time = to_timedelta(lead_time)
 
@@ -134,16 +122,16 @@ class Runner(Context):
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
 
-        input_tensor = self.prepare_input_tensor(input_state)
+        with ProfilingRunner(self.use_profiler):
+            with ProfilingLabel("Prepare input tensor", self.use_profiler):
+                input_tensor = self.prepare_input_tensor(input_state)
 
         try:
-            yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
+            yield from self.forecast(lead_time, input_tensor, input_state)
         except (TypeError, ModuleNotFoundError, AttributeError):
             if self.report_error:
                 self.checkpoint.report_error()
             raise
-
-        # timers.report()
 
     def add_initial_forcings_to_input_state(self, input_state):
         # Should that be alreay a list of dates
@@ -179,16 +167,6 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
-
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs):
-        # Give an opportunity to modify the forcings for the first step
-        return constant_forcings_inputs
-
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
-        # Give an opportunity to modify the forcings for the first step
-        return dynamic_forcings_inputs
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -267,6 +245,11 @@ class Runner(Context):
             # model.set_inference_options(**self.inference_options)
             return model
 
+    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
+        # extra args are only used in specific runners
+        # TODO: move this to a Stepper class.
+        return model.predict_step(input_tensor_torch)
+
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
@@ -280,10 +263,11 @@ class Runner(Context):
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
+        LOG.info("Using autocast %s", self.autocast)
         LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
-        new_state = input_state.copy()  # We should not modify the input state
-        new_state["fields"] = dict()
+        result = input_state.copy()  # We should not modify the input state
+        result["fields"] = dict()
 
         start = input_state["date"]
 
@@ -306,23 +290,28 @@ class Runner(Context):
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
             date = start + step
-            LOG.info("Forecasting step %s (%s)", step, date)
+            title = f"Forecasting step {step} ({date})"
 
-            new_state["date"] = date
-
-            if self.trace:
-                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
+            result["date"] = date
 
             # Predict next state of atmosphere
-            with torch.autocast(device_type=self.device, dtype=self.autocast):
-                y_pred = self.model.predict_step(input_tensor_torch)
+            with (
+                torch.autocast(device_type=self.device, dtype=self.autocast),
+                ProfilingLabel("Predict step", self.use_profiler),
+                Timer(title),
+            ):
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
             # Detach tensor and squeeze (should we detach here?)
-            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+
+            if self.trace:
+                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
             # Update state
             for i in range(output.shape[1]):
-                new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
@@ -333,18 +322,22 @@ class Runner(Context):
             new_state["step"] = s + 1
             yield new_state
 
+            # No need to prepare next input tensor if we are at the last step
+            if s == steps - 1:
+                continue
+
             # Update  tensor for next iteration
 
             check[:] = reset
-            if self.trace:
-                self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
-            input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
-            del y_pred  # Recover memory
+                del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, new_state, date, check)
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(input_tensor_torch, new_state, date, check)
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
+            )
 
             if not check.all():
                 # Not all variables have been updated
@@ -571,3 +564,13 @@ class Runner(Context):
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+
+    def patch_data_request(self, request):
+        """Some of the processores may need to patch the data request (e.g. mars or cds request)"""
+        for p in self.pre_processors:
+            request = p.patch_data_request(request)
+
+        for p in self.post_processors:
+            request = p.patch_data_request(request)
+
+        return request

@@ -11,5 +11,5 @@ from anemoi.utils.registry import Registry
 runner_registry = Registry(__name__)
 
 
-def create_runner(context, config):
-    return runner_registry.from_config(config, context)
+def create_runner(config, **kwargs):
+    return runner_registry.create(config.runner, config, **kwargs)

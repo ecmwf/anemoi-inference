@@ -21,8 +21,8 @@ LOG = logging.getLogger(__name__)
 class PluginRunner(Runner):
     """A runner implementing the ai-models plugin API."""
 
-    def __init__(self, checkpoint: str, *, device: str):
-        super().__init__(checkpoint, device=device)
+    def __init__(self, checkpoint: str, *, device: str, pre_processors=None, post_processors=None):
+        super().__init__(checkpoint, device=device, pre_processors=pre_processors, post_processors=post_processors)
 
     # Compatibility with the ai_models API
 

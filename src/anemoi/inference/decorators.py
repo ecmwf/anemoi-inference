@@ -22,7 +22,6 @@ class main_argument:
     def grib_file_output(context, path, encoding=None, archive_requests=None):
         ...
 
-
     So we can have:
 
     output:

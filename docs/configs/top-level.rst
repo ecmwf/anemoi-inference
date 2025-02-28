@@ -11,12 +11,20 @@ The following options control the inference process:
 checkpoint:
 ===========
 
-The only compulsory option is ``checkpoint``, which specifies the path
-to the checkpoint file.
+The only compulsory option is ``checkpoint``, which specifies the
+checkpoint file. It can be a path to a local file, or a huggingface
+config.
 
 .. code:: yaml
 
    checkpoint: /path/to/checkpoint.ckpt
+
+.. code:: yaml
+
+   checkpoint:
+      huggingface:
+         repo_id: "ecmwf/aifs-single"
+         filename: "aifs_single_v0.2.1.ckpt"
 
 device:
 =======
@@ -73,7 +81,7 @@ and output. It set to ``null`` (default), the value is set internally to
 ********************
 
 The entries for the inputs and outputs are specified in the :ref:`inputs
-<inputs>` and :ref:`inputs <outputs>` sections of the documentation.
+<inputs>` and :ref:`outputs <outputs>` sections of the documentation.
 
 ***********
  Debugging
@@ -92,6 +100,15 @@ The ``report_errors`` option specifies whether to produce a longer error
 report when the code of the model cannot be loaded. The aim od that
 report is to troubleshoot versioning issues (git branches, python
 modules, etc.). It is set to ``false`` by default.
+
+use_profiler:
+=============
+
+The ``use_profiler`` option specifies whether to profile the inference
+run. When enabled, the profiler produces a memory snapshot and timeline,
+as well as a time summary. The profiler also adds labels to identify the
+different steps of the inference to simplify visualization with Nsight.
+This option is set to ``false`` by default.
 
 ***************
  Miscellaneous

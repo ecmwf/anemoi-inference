@@ -54,7 +54,7 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [ "anemoi-inference[plugin]", "anemoi-utils[all]>=0.4.9" ]
+optional-dependencies.all = [ "anemoi-inference[plugin,huggingface]", "anemoi-utils[all]>=0.4.9" ]
 
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
@@ -63,14 +63,15 @@ optional-dependencies.docs = [
   "nbsphinx",
   "pandoc",
   "rstfmt",
-  "sphinx",
+  "sphinx<8.2",
   "sphinx-argparse<0.5",
   "sphinx-rtd-theme",
 ]
 
-optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+optional-dependencies.huggingface = [ "huggingface-hub" ]
 
-optional-dependencies.tests = [ "anemoi-datasets[all]", "hypothesis", "pytest" ]
+optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
@@ -82,3 +83,6 @@ entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
+
+[setuptools.package-data]
+"anemoi.inference.grib.templates" = [ "*.yaml" ]

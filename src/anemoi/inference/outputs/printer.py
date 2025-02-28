@@ -76,7 +76,6 @@ def print_state(state, print=print, max_lines=4, variables=None):
 @output_registry.register("printer")
 @main_argument("max_lines")
 class PrinterOutput(Output):
-    """_summary_"""
 
     def __init__(self, context, path=None, variables=None, **kwargs):
         super().__init__(context)

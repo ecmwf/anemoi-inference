@@ -21,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 
 # In case HDF5 was not compiled with thread safety on
-LOCK = threading.Lock()
+LOCK = threading.RLock()
 
 
 @output_registry.register("netcdf")
@@ -29,8 +29,8 @@ LOCK = threading.Lock()
 class NetCDFOutput(Output):
     """_summary_"""
 
-    def __init__(self, context, path):
-        super().__init__(context)
+    def __init__(self, context, path, output_frequency=None, write_initial_state=None):
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.ncfile = None
         self.float_size = "f4"
@@ -40,9 +40,6 @@ class NetCDFOutput(Output):
 
     def _init(self, state):
         from netCDF4 import Dataset
-
-        if self.ncfile is not None:
-            return self.ncfile
 
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
@@ -89,11 +86,27 @@ class NetCDFOutput(Output):
             self.longitude_var.long_name = "longitude"
 
         self.vars = {}
+        self.ensure_variables(state)
+
+        self.latitude_var[:] = latitudes
+        self.longitude_var[:] = longitudes
+
+        self.n = 0
+        return self.ncfile
+
+    def ensure_variables(self, state):
+        values = len(state["latitudes"])
+
+        compression = {}  # dict(zlib=False, complevel=0)
+
         for name in state["fields"].keys():
+            if name in self.vars:
+                continue
             chunksizes = (1, values)
 
             while np.prod(chunksizes) > 1000000:
                 chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
+
             with LOCK:
                 self.vars[name] = self.ncfile.createVariable(
                     name,
@@ -106,8 +119,13 @@ class NetCDFOutput(Output):
             self.latitude_var[:] = latitudes
             self.longitude_var[:] = longitudes
 
-        self.n = 0
-        return self.ncfile
+            self.vars[name] = self.ncfile.createVariable(
+                name,
+                self.float_size,
+                ("time", "values"),
+                chunksizes=chunksizes,
+                **compression,
+            )
 
     def write_initial_state(self, state):
         reduced_state = self.reduce(state)

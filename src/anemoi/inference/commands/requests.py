@@ -12,10 +12,11 @@ from anemoi.utils.grib import shortname_to_paramid
 
 from ..checkpoint import Checkpoint
 from . import Command
+from .retrieve import checkpoint_to_requests
 
 
 class RequestCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """MARS request utility."""
 
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
@@ -26,8 +27,7 @@ class RequestCmd(Command):
     def run(self, args):
 
         c = Checkpoint(args.path)
-
-        for r in c.mars_requests(dates=[-1], use_grib_paramid=args.use_grib_paramid):
+        for r in checkpoint_to_requests(c, date=-1, use_grib_paramid=args.use_grib_paramid):
             if args.mars:
                 req = ["retrieve,target=data"]
                 for k, v in r.items():

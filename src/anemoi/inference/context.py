@@ -30,6 +30,17 @@ class Context(ABC):
     verbosity = 0
     development_hacks = {}  # For testing purposes, don't use in production
 
+    # Some runners will set these values, which can be queried by Output objects,
+    # but may remain as None
+
+    reference_date = None
+    time_step = None
+    lead_time = None
+    output_frequency = None
+    write_initial_state = True
+
+    ##################################################################
+
     @property
     @abstractmethod
     def checkpoint(self):
@@ -61,3 +72,9 @@ class Context(ABC):
 
     def create_dynamic_coupled_forcings(self, variables, mask) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")
+
+    def create_pre_processors(self):
+        return []
+
+    def create_post_processors(self):
+        return []

@@ -35,24 +35,24 @@ class PlotOutput(Output):
         template="plot_{variable}_{date}.{format}",
         dpi=300,
         format="png",
+        missing_value=None,
+        output_frequency=None,
+        write_initial_state=None,
     ):
-        super().__init__(context)
+        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.format = format
         self.variables = variables
         self.strftime = strftime
         self.template = template
         self.dpi = dpi
+        self.missing_value = missing_value
 
         if self.variables is not all:
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-    def write_initial_state(self, state):
-        reduced_state = self.reduce(state)
-        self.write_state(reduced_state)
-
-    def write_state(self, state):
+    def write_step(self, state):
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
         import matplotlib.pyplot as plt
@@ -60,7 +60,9 @@ class PlotOutput(Output):
 
         os.makedirs(self.path, exist_ok=True)
 
-        last_missing = None
+        longitudes = state["longitudes"]
+        latitudes = state["latitudes"]
+        triangulation = tri.Triangulation(fix(longitudes), latitudes)
 
         for name, values in state["fields"].items():
 
@@ -72,13 +74,12 @@ class PlotOutput(Output):
             ax.add_feature(cfeature.BORDERS, linestyle=":")
 
             missing_values = np.isnan(values)
+            missing_value = self.missing_value
+            if missing_value is None:
+                min = np.nanmin(values)
+                missing_value = min - np.abs(min) * 0.001
 
-            values = values[~missing_values]
-            if last_missing is None or np.any(last_missing != missing_values):
-                longitudes = state["longitudes"][~missing_values]
-                latitudes = state["latitudes"][~missing_values]
-                triangulation = tri.Triangulation(fix(longitudes), latitudes)
-                last_missing = missing_values
+            values = np.where(missing_values, self.missing_value, values)
 
             _ = ax.tricontourf(triangulation, values, levels=10, transform=ccrs.PlateCarree())
 

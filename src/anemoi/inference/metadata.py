@@ -13,7 +13,9 @@ import os
 import warnings
 from collections import defaultdict
 from functools import cached_property
+from types import MappingProxyType as frozendict
 from typing import Literal
+from typing import Optional
 
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -35,15 +37,6 @@ def _remove_full_paths(x):
     if isinstance(x, str):
         return os.path.splitext(os.path.basename(x))[0]
     return x
-
-
-class frozendict(dict):
-    def __deepcopy__(self, memo):
-        # As this is a frozendict, we can return the same object
-        return self
-
-    def __setitem__(self, key, value):
-        raise TypeError("frozendict is immutable")
 
 
 class Metadata(PatchMixin, LegacyMixin):
@@ -147,6 +140,8 @@ class Metadata(PatchMixin, LegacyMixin):
     @cached_property
     def number_of_grid_points(self):
         """Return the number of grid points per fields"""
+        if "grid_indices" in self._supporting_arrays:
+            return len(self.load_supporting_array("grid_indices"))
         try:
             return self._metadata.dataset.shape[-1]
         except AttributeError:
@@ -242,7 +237,7 @@ class Metadata(PatchMixin, LegacyMixin):
             result = self._metadata.dataset.variables_metadata
             self._legacy_check_variables_metadata(result)
         except AttributeError:
-            return self._legacy_variables_metadata()
+            result = self._legacy_variables_metadata()
 
         if "constant_fields" in self._metadata.dataset:
             for name in self._metadata.dataset.constant_fields:
@@ -410,10 +405,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables, use_grib_paramid=False):
+    def mars_requests(self, *, variables):
         """Return a list of MARS requests for the variables in the dataset"""
-
-        from anemoi.utils.grib import shortname_to_paramid
 
         if len(variables) == 0:
             raise ValueError("No variables requested")
@@ -430,9 +423,6 @@ class Metadata(PatchMixin, LegacyMixin):
 
             for k in ("date", "time"):
                 mars.pop(k, None)
-
-            if use_grib_paramid and "param" in mars:
-                mars["param"] = shortname_to_paramid(mars["param"])
 
             yield mars
 
@@ -467,10 +457,9 @@ class Metadata(PatchMixin, LegacyMixin):
         *,
         all_packages: bool = False,
         on_difference: Literal["warn", "error", "ignore"] = "warn",
-        exempt_packages: list[str] | None = None,
+        exempt_packages: Optional[list[str]] = None,
     ) -> bool:
-        """
-        Validate environment of the checkpoint against the current environment.
+        """Validate environment of the checkpoint against the current environment.
 
         Parameters
         ----------
@@ -518,14 +507,13 @@ class Metadata(PatchMixin, LegacyMixin):
                         _find(y)
 
             if isinstance(x, dict):
-                if "dataset" in x:
+                if "dataset" in x and isinstance(x["dataset"], str):
                     result.append(x["dataset"])
 
                 for k, v in x.items():
                     _find(v)
 
         _find(self._config.dataloader.training.dataset)
-
         return result
 
     def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
@@ -726,10 +714,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         result = []
 
-        output_mask = self._config_model.get("output_mask", None)
-        if output_mask is not None:
-            assert output_mask == "cutout", "Currently only cutout as output mask supported."
-            result.extend(
+        if "output_mask" in self._supporting_arrays:
+            result.append(
                 context.create_boundary_forcings(
                     self.prognostic_variables,
                     self.prognostic_input_mask,
@@ -749,6 +735,10 @@ class Metadata(PatchMixin, LegacyMixin):
                 LOG.error("  %s", names)
             raise ValueError(f"Supporting array `{name}` not found")
         return self._supporting_arrays[name]
+
+    @property
+    def supporting_arrays(self):
+        return self._supporting_arrays
 
     @property
     def latitudes(self):

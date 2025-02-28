@@ -110,6 +110,7 @@ class CoupledForcings(Forcings):
     def trace_name(self):
         return self.input.trace_name
 
+
     def __init__(self, context, input, variables, mask):
         super().__init__(context)
         self.variables = variables
@@ -132,6 +133,7 @@ class CoupledForcings(Forcings):
         )
 
 
+
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
@@ -141,8 +143,10 @@ class BoundaryForcings(Forcings):
         self.variables_mask = variables_mask
         assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
-        num_lam, num_other = input.ds.grids
-        self.spatial_mask = np.array([False] * num_lam + [True] * num_other, dtype=bool)
+        if "output_mask" in context.checkpoint._supporting_arrays:
+            self.spatial_mask = ~context.checkpoint.load_supporting_array("output_mask")
+        else:
+            self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def __repr__(self):

@@ -12,6 +12,8 @@ import datetime
 import logging
 from collections import defaultdict
 from functools import cached_property
+from pathlib import Path
+from typing import Optional
 
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
@@ -21,15 +23,57 @@ from .metadata import Metadata
 LOG = logging.getLogger(__name__)
 
 
+def _download_huggingfacehub(huggingface_config) -> str:
+    """Download model from huggingface"""
+    try:
+        from huggingface_hub import hf_hub_download
+        from huggingface_hub import snapshot_download
+    except ImportError as e:
+        raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
+
+    if isinstance(huggingface_config, str):
+        huggingface_config = {"repo_id": huggingface_config}
+
+    if "filename" in huggingface_config:
+        return str(hf_hub_download(**huggingface_config))
+
+    repo_path = Path(snapshot_download(**huggingface_config))
+    ckpt_files = list(repo_path.glob("*.ckpt"))
+
+    if len(ckpt_files) == 1:
+        return str(ckpt_files[0])
+    else:
+        raise ValueError(
+            f"None or Multiple ckpt files found in repo, {ckpt_files}.\nCannot pick one to load, please specify `filename`."
+        )
+
+
 class Checkpoint:
     """Represents an inference checkpoint."""
 
     def __init__(self, path, *, patch_metadata=None):
-        self.path = path
+        self._path = path
         self.patch_metadata = patch_metadata
 
     def __repr__(self):
         return f"Checkpoint({self.path})"
+
+    @cached_property
+    def path(self) -> str:
+        import json
+
+        try:
+            path = json.loads(self._path)
+        except Exception:
+            path = self._path
+
+        if isinstance(path, (Path, str)):
+            return str(path)
+        elif isinstance(path, dict):
+            if "huggingface" in path:
+                return _download_huggingfacehub(path["huggingface"])
+            pass
+        raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
     @cached_property
     def _metadata(self):
@@ -121,8 +165,7 @@ class Checkpoint:
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
     def default_namer(self, *args, **kwargs):
-        """
-        Return a callable that can be used to name fields.
+        """Return a callable that can be used to name fields.
         In that case, return the namer that was used to create the
         training dataset.
         """
@@ -136,7 +179,7 @@ class Checkpoint:
         *,
         all_packages: bool = False,
         on_difference: str = "warn",
-        exempt_packages: list[str] | None = None,
+        exempt_packages: Optional[list[str]] = None,
     ) -> bool:
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
@@ -172,6 +215,10 @@ class Checkpoint:
     def load_supporting_array(self, name):
         return self._metadata.load_supporting_array(name)
 
+    @property
+    def supporting_arrays(self):
+        return self._metadata.supporting_arrays
+
     ###########################################################################
 
     @cached_property
@@ -206,7 +253,11 @@ class Checkpoint:
     def mars_by_levtype(self, levtype):
         return self._metadata.mars_by_levtype(levtype)
 
-    def mars_requests(self, *, variables, dates, use_grib_paramid=False, **kwargs):
+    def mars_requests(
+        self, *, variables, dates, use_grib_paramid=False, always_split_time=False, patch_request=None, **kwargs
+    ):
+
+        from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
         assert variables, "No variables provided"
@@ -228,7 +279,7 @@ class Checkpoint:
 
         requests = defaultdict(list)
 
-        for r in self._metadata.mars_requests(variables=variables, use_grib_paramid=use_grib_paramid):
+        for r in self._metadata.mars_requests(variables=variables):
             for date in dates:
 
                 r = r.copy()
@@ -243,7 +294,10 @@ class Checkpoint:
 
                 r.update(kwargs)  # We do it here so that the Availability can use that information
 
-                keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                if always_split_time:
+                    keys = DEFAULT_KEYS_AND_TIME
+                else:
+                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
                 key = tuple(r.get(k) for k in keys)
 
                 # Special case because of oper/scda
@@ -255,11 +309,50 @@ class Checkpoint:
 
             compressed = Availability(reqs)
             for r in compressed.iterate():
+
+                if not r:
+                    continue
+
+                changed = True
+                while changed:
+                    changed = False
+                    for k, v in r.items():
+                        if isinstance(v, tuple):
+                            r[k] = list(v)
+                            changed = True
+
+                        if isinstance(v, (list, tuple)) and len(v) == 1:
+                            r[k] = v[0]
+                            changed = True
+
+                # Convert all to lists
                 for k, v in r.items():
-                    if isinstance(v, (list, tuple)) and len(v) == 1:
+                    if not isinstance(v, list):
+                        r[k] = [v]
+
+                # Patch BEFORE the shortname to paramid
+
+                if patch_request:
+                    r = patch_request(r)
+
+                # Convert all to lists (again)
+                for k, v in r.items():
+                    if isinstance(v, tuple):
+                        r[k] = list(*v)
+                    if not isinstance(v, list):
+                        r[k] = [v]
+
+                if use_grib_paramid and "param" in r:
+                    r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
+
+                # Simplyfie the request
+
+                for k, v in r.items():
+
+                    if len(v) == 1:
                         r[k] = v[0]
-                if r:
-                    result.append(r)
+
+                result.append(r)
 
         return result
 
@@ -269,7 +362,7 @@ class Checkpoint:
 
     @cached_property
     def _supporting_arrays(self):
-        return self._metadata.supporting_arrays
+        return self._metadata._supporting_arrays
 
     @property
     def name(self):
