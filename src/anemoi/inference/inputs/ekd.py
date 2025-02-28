@@ -8,11 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 
-import datetime
 import logging
 import re
 from collections import defaultdict
-from types import NoneType
 
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
@@ -93,8 +91,6 @@ class EkdInput(Input):
         flatten=True,
     ):
 
-        assert isinstance(date, (datetime.datetime, NoneType)), (type(date), date)
-
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             input_fields = processor.process(input_fields)
@@ -128,8 +124,13 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        date = to_datetime(date)
-        dates = [date + h for h in self.checkpoint.lagged]
+        if isinstance(date, list):
+            # FIXME: find out why we have a list of dates
+            dates = [date[-1] + h for h in self.checkpoint.lagged]
+            assert date == dates, (date, dates)
+        else:
+            date = to_datetime(date)
+            dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         input_state = dict(date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
