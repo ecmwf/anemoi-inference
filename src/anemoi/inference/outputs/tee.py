@@ -19,7 +19,6 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("tee")
 class TeeOutput(ForwardOutput):
-    """_summary_"""
 
     def __init__(self, context, *args, outputs=None, output_frequency=None, write_initial_state=None, **kwargs):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)

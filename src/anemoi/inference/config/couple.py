@@ -27,8 +27,7 @@ class CoupleConfiguration(BaseModel):
     description: str | None = None
 
     date: str | int | datetime.datetime | None = None
-    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`.
-    """
+    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
     lead_time: str | int | datetime.timedelta = None
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
@@ -45,4 +44,5 @@ class CoupleConfiguration(BaseModel):
     env: Dict[str, str | int] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
-    is already loaded when the runner is configured."""
+    is already loaded when the runner is configured.
+    """

@@ -9,6 +9,8 @@
 
 
 import logging
+from typing import Any
+from typing import List
 
 from .ekd import EkdInput
 
@@ -18,7 +20,7 @@ LOG = logging.getLogger(__name__)
 class GribInput(EkdInput):
     """Handles GRIB input fields."""
 
-    def set_private_attributes(self, state, input_fields):
+    def set_private_attributes(self, state: Any, input_fields: List[Any]) -> None:
         # For now we just pass all the fields
         # Later, we can select a relevant subset (e.g. only one
         # level), to save memory

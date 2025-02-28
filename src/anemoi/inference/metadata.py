@@ -104,14 +104,14 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def timestep(self):
-        """Model time stepping timestep"""
+        """Model time stepping timestep."""
         # frequency = to_timedelta(self._config_data.frequency)
         timestep = to_timedelta(self._config_data.timestep)
         return timestep
 
     @cached_property
     def precision(self):
-        """Return the precision of the model (bits per float)"""
+        """Return the precision of the model (bits per float)."""
         return self._config_training.precision
 
     def _make_indices_mapping(self, indices_from, indices_to):
@@ -120,7 +120,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def variable_to_input_tensor_index(self):
-        """Return the mapping between variable name and input tensor index"""
+        """Return the mapping between variable name and input tensor index."""
         mapping = self._make_indices_mapping(
             self._indices.data.input.full,
             self._indices.model.input.full,
@@ -130,7 +130,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def output_tensor_index_to_variable(self):
-        """Return the mapping between output tensor index and variable name"""
+        """Return the mapping between output tensor index and variable name."""
         mapping = self._make_indices_mapping(
             self._indices.model.output.full,
             self._indices.data.output.full,
@@ -139,7 +139,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def number_of_grid_points(self):
-        """Return the number of grid points per fields"""
+        """Return the number of grid points per fields."""
         if "grid_indices" in self._supporting_arrays:
             return len(self.load_supporting_array("grid_indices"))
         try:
@@ -149,18 +149,18 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def number_of_input_features(self):
-        """Return the number of input features"""
+        """Return the number of input features."""
         return len(self._indices.model.input.full)
 
     @cached_property
     def model_computed_variables(self):
-        """The initial conditions variables that need to be computed and not retrieved"""
+        """The initial conditions variables that need to be computed and not retrieved."""
         typed_variables = self.typed_variables
         return tuple(name for name, v in typed_variables.items() if v.is_computed_forcing)
 
     @cached_property
     def multi_step_input(self):
-        """Number of past steps needed for the initial conditions tensor"""
+        """Number of past steps needed for the initial conditions tensor."""
         return self._config_training.multistep_input
 
     @cached_property
@@ -173,7 +173,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def computed_time_dependent_forcings(self):
-        """Return the indices and names of the computed forcings that are not constant in time"""
+        """Return the indices and names of the computed forcings that are not constant in time."""
 
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -198,7 +198,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def computed_constant_forcings(self):
-        """Return the indices and names of the computed forcings that are  constant in time"""
+        """Return the indices and names of the computed forcings that are  constant in time."""
 
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -227,12 +227,12 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def variables(self):
-        """Return the variables as found in the training dataset"""
+        """Return the variables as found in the training dataset."""
         return tuple(self._metadata.dataset.variables)
 
     @cached_property
     def variables_metadata(self):
-        """Return the variables and their metadata as found in the training dataset"""
+        """Return the variables and their metadata as found in the training dataset."""
         try:
             result = self._metadata.dataset.variables_metadata
             self._legacy_check_variables_metadata(result)
@@ -247,22 +247,22 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def diagnostic_variables(self):
-        """Variables that are marked as diagnostic"""
+        """Variables that are marked as diagnostic."""
         return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
 
     @cached_property
     def prognostic_variables(self):
-        """Variables that are marked as prognostic"""
+        """Variables that are marked as prognostic."""
         return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]
 
     @cached_property
     def index_to_variable(self):
-        """Return a mapping from index to variable name"""
+        """Return a mapping from index to variable name."""
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
     def typed_variables(self):
-        """Returns a strongly typed variables"""
+        """Returns a strongly typed variables."""
         result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
         if "cos_latitude" in result:
@@ -277,7 +277,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def accumulations(self):
-        """Return the indices of the variables that are accumulations"""
+        """Return the indices of the variables that are accumulations."""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
     def name_fields(self, fields, namer=None):
@@ -333,7 +333,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def _data_request(self):
-        """Return the data request as encoded in the dataset"""
+        """Return the data request as encoded in the dataset."""
         try:
             return self._metadata.dataset.data_request
         except AttributeError:
@@ -406,7 +406,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return params, levels
 
     def mars_requests(self, *, variables):
-        """Return a list of MARS requests for the variables in the dataset"""
+        """Return a list of MARS requests for the variables in the dataset."""
 
         if len(variables) == 0:
             raise ValueError("No variables requested")
@@ -492,7 +492,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
     def _get_datasets_full_paths(self):
         """This is a temporary method to get the full paths of the datasets used in the training.
-        we need to review what goes in the dataset metadata
+        we need to review what goes in the dataset metadata.
         """
 
         result = []
@@ -754,7 +754,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return None
 
     def provenance_training(self):
-        """Environmental Configuration when trained"""
+        """Environmental Configuration when trained."""
         return dict(self._metadata.get("provenance_training", {}))
 
     def sources(self, path):
@@ -829,7 +829,7 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     def patch(self, patch):
-        """Patch the metadata with the given patch"""
+        """Patch the metadata with the given patch."""
 
         def merge(main, patch):
 

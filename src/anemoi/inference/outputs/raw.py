@@ -22,26 +22,25 @@ LOG = logging.getLogger(__name__)
 @output_registry.register("raw")
 @main_argument("path")
 class RawOutput(Output):
-    """_summary_"""
 
     def __init__(
         self,
-        context,
-        path,
-        template="{date}.npz",
-        strftime="%Y%m%d%H%M%S",
-        output_frequency=None,
-        write_initial_state=None,
-    ):
+        context: dict,
+        path: str,
+        template: str = "{date}.npz",
+        strftime: str = "%Y%m%d%H%M%S",
+        output_frequency: int = None,
+        write_initial_state: bool = None,
+    ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.template = template
         self.strftime = strftime
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RawOutput({self.path})"
 
-    def write_step(self, state):
+    def write_step(self, state: dict) -> None:
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"

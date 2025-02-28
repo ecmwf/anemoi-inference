@@ -9,6 +9,9 @@
 
 import logging
 import os
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 import earthkit.data as ekd
 
@@ -21,7 +24,7 @@ LOG = logging.getLogger(__name__)
 @template_provider_registry.register("samples")
 class SamplesTemplates(IndexTemplateProvider):
 
-    def load_template(self, grib, lookup):
+    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
 
         template = grib.format(**lookup)
         if not os.path.exists(template):

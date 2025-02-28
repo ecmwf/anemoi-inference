@@ -79,5 +79,11 @@ repos:
         - --check-protected  # Check protected methods
         - --check-class      # Check class docstrings
         - --disable=SIG101,SIG102     # Disable empty docstrings
+
+- repo: https://github.com/DanielNoord/pydocstringformatter
+  rev: main
+  hooks:
+    - id: pydocstringformatter
+
 ci:
   autoupdate_schedule: monthly

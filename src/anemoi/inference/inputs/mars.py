@@ -9,6 +9,12 @@
 
 
 import logging
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -18,7 +24,7 @@ from .grib import GribInput
 LOG = logging.getLogger(__name__)
 
 
-def rounded_area(area):
+def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
     try:
         surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
         if surface > 0.98:
@@ -28,7 +34,7 @@ def rounded_area(area):
     return area
 
 
-def grid_is_valid(grid):
+def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
     if grid is None:
         return False
 
@@ -42,7 +48,7 @@ def grid_is_valid(grid):
         return False
 
 
-def area_is_valid(area):
+def area_is_valid(area: Optional[List[float]]) -> bool:
 
     if area is None:
         return False
@@ -57,7 +63,9 @@ def area_is_valid(area):
         return False
 
 
-def postproc(grid, area):
+def postproc(
+    grid: Optional[Union[str, List[float]]], area: Optional[List[float]]
+) -> Dict[str, Union[str, List[float]]]:
     pproc = dict()
     if grid_is_valid(grid):
         pproc["grid"] = grid
@@ -68,7 +76,13 @@ def postproc(grid, area):
     return pproc
 
 
-def retrieve(requests, grid, area, patch=None, **kwargs):
+def retrieve(
+    requests: List[Dict[str, Any]],
+    grid: Optional[Union[str, List[float]]],
+    area: Optional[List[float]],
+    patch: Optional[Any] = None,
+    **kwargs: Any,
+) -> Any:
     import earthkit.data as ekd
 
     def _(r):
@@ -106,18 +120,25 @@ def retrieve(requests, grid, area, patch=None, **kwargs):
 
 @input_registry.register("mars")
 class MarsInput(GribInput):
-    """Get input fields from MARS"""
+    """Get input fields from MARS."""
 
     trace_name = "mars"
 
-    def __init__(self, context, *, namer=None, patches=None, **kwargs):
+    def __init__(
+        self,
+        context: Any,
+        *,
+        namer: Optional[Any] = None,
+        patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(context, namer=namer)
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.kwargs = kwargs
         self.patches = patches or []
 
-    def create_input_state(self, *, date):
+    def create_input_state(self, *, date: Optional[Any]) -> Any:
         if date is None:
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
@@ -133,7 +154,7 @@ class MarsInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables, dates):
+    def retrieve(self, variables: List[str], dates: List[Any]) -> Any:
 
         requests = self.checkpoint.mars_requests(
             variables=variables,
@@ -150,12 +171,12 @@ class MarsInput(GribInput):
 
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
         return self._load_forcings_state(
             self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
         )
 
-    def patch(self, request):
+    def patch(self, request: Dict[str, Any]) -> Dict[str, Any]:
         for match, keys in self.patches:
             if all(request.get(k) == v for k, v in match.items()):
                 request.update(keys)

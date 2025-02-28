@@ -11,6 +11,8 @@
 import logging
 import warnings
 from collections import defaultdict
+from typing import Any
+from typing import Dict
 
 LOG = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ class LegacyMixin:
     # `self` is a `Metadata` object
 
     @warn
-    def _legacy_variables_metadata(self):
+    def _legacy_variables_metadata(self) -> Dict[str, Dict[str, Any]]:
 
         # Assumes ECMWF data from MARS
         result = {}
@@ -98,7 +100,7 @@ class LegacyMixin:
 
         return result
 
-    def _legacy_check_variables_metadata(self, variables):
+    def _legacy_check_variables_metadata(self, variables: Dict[str, Dict[str, Any]]) -> None:
 
         if variables == {}:
             variables.update(self._legacy_variables_metadata())
@@ -139,14 +141,14 @@ class LegacyMixin:
                     metadata["constant_in_time"] = True
 
     @warn
-    def _legacy_number_of_grid_points(self):
+    def _legacy_number_of_grid_points(self) -> int:
 
         POINTS = {"o96": 40_320, "n320": 542_080}
 
         return POINTS[self.grid.lower()]
 
     @warn
-    def _legacy_data_request(self):
+    def _legacy_data_request(self) -> Dict[str, Any]:
         from anemoi.utils.config import find
 
         result = find(self._metadata["dataset"], "data_request")

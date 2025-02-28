@@ -13,9 +13,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Task(ABC):
-    """_summary_"""
-
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
 
     def __repr__(self) -> str:

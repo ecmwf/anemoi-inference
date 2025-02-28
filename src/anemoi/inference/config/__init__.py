@@ -12,6 +12,10 @@ from __future__ import annotations
 import logging
 import os
 from copy import deepcopy
+from typing import Any
+from typing import List
+from typing import Optional
+from typing import Union
 
 import yaml
 
@@ -21,7 +25,7 @@ from .run import RunConfiguration as RunConfiguration
 LOG = logging.getLogger(__name__)
 
 
-def _merge_configs(a, b):
+def _merge_configs(a: dict, b: dict) -> None:
     for key, value in b.items():
         if key in a and isinstance(a[key], dict) and isinstance(value, dict):
             _merge_configs(a[key], value)
@@ -29,7 +33,12 @@ def _merge_configs(a, b):
             a[key] = value
 
 
-def load_config(path, overrides=[], defaults=None, Configuration=RunConfiguration):
+def load_config(
+    path: Union[str, dict],
+    overrides: Union[List[str], List[dict], str, dict] = [],
+    defaults: Optional[Union[str, List[str], dict]] = None,
+    Configuration: type = RunConfiguration,
+) -> Any:
 
     config = {}
 

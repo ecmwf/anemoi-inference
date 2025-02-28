@@ -9,12 +9,13 @@
 
 
 from functools import wraps
+from typing import Callable
 
 MARKER = object()
 
 
 class main_argument:
-    """Decorator to set the main argument of a function
+    """Decorator to set the main argument of a function.
 
     For example...
 
@@ -32,13 +33,12 @@ class main_argument:
     output:
         grib:
             path: out.grib
-
     """
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
 
-    def __call__(self, f):
+    def __call__(self, f: Callable) -> Callable:
 
         @wraps(f)
         def decorator(context, main=MARKER, *args, **kwargs):

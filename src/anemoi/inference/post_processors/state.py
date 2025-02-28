@@ -11,7 +11,10 @@
 import datetime
 import logging
 from functools import cached_property
+from typing import Any
+from typing import Dict
 
+import numpy as np
 from earthkit.data.core.fieldlist import Field
 from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
@@ -20,16 +23,16 @@ LOG = logging.getLogger(__name__)
 
 
 class StateFieldGeography:
-    def __init__(self, field):
+    def __init__(self, field: Any):
         self._field = field
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
         return self.field.shape
 
 
 class StateFieldMetadata(RawMetadata):
-    def __init__(self, field):
+    def __init__(self, field: Any):
         super().__init__(
             name=field.name,
             param=field.name,
@@ -41,44 +44,44 @@ class StateFieldMetadata(RawMetadata):
         )
         self._field = field
 
-    def as_namespace(self, ns):
+    def as_namespace(self, ns: str) -> Dict[str, Any]:
         assert ns == "mars"
         return {k: v for k, v in self.items() if k != "name"}
 
     @property
-    def geography(self):
+    def geography(self) -> StateFieldGeography:
         return StateFieldGeography(self._field)
 
 
 class StateField(Field):
-    def __init__(self, name, values, state):
+    def __init__(self, name: str, values: np.ndarray, state: Dict[str, Any]):
         self.name = name
         self.__values = values
         self.state = state
 
-    def _values(self, dtype):
+    def _values(self, dtype: np.dtype) -> np.ndarray:
         return self.__values.astype(dtype)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
         return self.__values.shape
 
     @cached_property
-    def _metadata(self):
+    def _metadata(self) -> StateFieldMetadata:
         return StateFieldMetadata(self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__ }({self._metadata})"
 
 
-def wrap_state(state):
+def wrap_state(state: Dict[str, Any]) -> SimpleFieldList:
     """Transform a state dictionary into a field list."""
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
     fields = [StateField(k, v, state) for k, v in state["fields"].items()]
     return SimpleFieldList(fields)
 
 
-def unwrap_state(fields, state):
+def unwrap_state(fields: SimpleFieldList, state: Dict[str, Any]) -> Dict[str, Any]:
     """Transform a field list into a state dictionary."""
     new_fields = {}
     for n in fields:

@@ -34,7 +34,7 @@ def create_parallel_runner(config, pid):
 
 @runner_registry.register("parallel")
 class ParallelRunner(DefaultRunner):
-    """Runner which splits a model over multiple devices"""
+    """Runner which splits a model over multiple devices."""
 
     def __init__(self, context, pid=0):
         super().__init__(context)
@@ -91,7 +91,7 @@ class ParallelRunner(DefaultRunner):
     def _seed_procs(self):
         """Ensures each process uses the same seed.
         Will try read 'ANEMOI_BASE_SEED' from the environment
-        Otherwise, the seed of process 0 will be shared to all processes
+        Otherwise, the seed of process 0 will be shared to all processes.
         """
 
         seed = None
@@ -115,14 +115,14 @@ class ParallelRunner(DefaultRunner):
             torch.manual_seed(seed)
 
     def _srun_used(self):
-        """returns true if anemoi-inference was launched with srun"""
+        """Returns true if anemoi-inference was launched with srun."""
 
         # from pytorch lightning
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
         return "SLURM_NTASKS" in os.environ and os.environ.get("SLURM_JOB_NAME") not in ("bash", "interactive")
 
     def _spawn_parallel_procs(self, num_procs):
-        """When srun is not available, this method creates N-1 child processes within the same node for parallel inference"""
+        """When srun is not available, this method creates N-1 child processes within the same node for parallel inference."""
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
@@ -142,9 +142,9 @@ class ParallelRunner(DefaultRunner):
             mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 
     def _bootstrap_processes(self):
-        """initalises processes and their network information
+        """Initalises processes and their network information
         If srun is available, slurm variables are read to determine network settings.
-        Otherwise, local processes are spawned and network info is infered from config
+        Otherwise, local processes are spawned and network info is infered from config.
         """
         using_slurm = self._srun_used()
         if using_slurm:
@@ -195,7 +195,7 @@ class ParallelRunner(DefaultRunner):
                 self._spawn_parallel_procs(self.world_size)
 
     def _init_network_from_slurm(self):
-        """Reads Slurm environment to set master address and port for parallel communication"""
+        """Reads Slurm environment to set master address and port for parallel communication."""
 
         # Get the master address from the SLURM_NODELIST environment variable
         slurm_nodelist = os.environ.get("SLURM_NODELIST")
@@ -241,7 +241,7 @@ class ParallelRunner(DefaultRunner):
         return master_addr, master_port
 
     def _init_parallel(self):
-        """Creates a model communication group to be used for parallel inference"""
+        """Creates a model communication group to be used for parallel inference."""
 
         if self.world_size > 1:
 
@@ -271,7 +271,7 @@ class ParallelRunner(DefaultRunner):
         return model_comm_group
 
     def _get_parallel_info_from_slurm(self):
-        """Reads Slurm env vars, if they exist, to determine if inference is running in parallel"""
+        """Reads Slurm env vars, if they exist, to determine if inference is running in parallel."""
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))  # Rank within a node, between 0 and num_gpus
         global_rank = int(os.environ.get("SLURM_PROCID", 0))  # Rank within all nodes
         world_size = int(os.environ.get("SLURM_NTASKS", 1))  # Total number of processes

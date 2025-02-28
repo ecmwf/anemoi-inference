@@ -9,6 +9,12 @@
 
 import logging
 from collections import defaultdict
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 
@@ -25,7 +31,13 @@ class MultiInput(Input):
 
     trace_name = "multi"
 
-    def __init__(self, context, *args, inputs=None, **kwargs):
+    def __init__(
+        self,
+        context: Any,
+        *args: Any,
+        inputs: Optional[Union[List[Dict[str, Any]], Tuple[Dict[str, Any], ...]]] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(context)
         if inputs is None:
             inputs = args
@@ -40,13 +52,13 @@ class MultiInput(Input):
                     raise ValueError(f"Variable {v} already defined")
                 self.inputs[v] = input
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MultiInput({self._input_per_id.values()})"
 
-    def create_input_state(self, *, date):
+    def create_input_state(self, *, date: Any) -> None:
         raise NotImplementedError("MultiInput.create_input_state() not implemented")
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> np.ndarray:
         raise NotImplementedError("MultiInput.load_forcings_state() not implemented")
         inputs = defaultdict(list)
         for v in variables:

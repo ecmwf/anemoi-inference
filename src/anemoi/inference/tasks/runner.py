@@ -21,7 +21,6 @@ LOG = logging.getLogger(__name__)
 
 
 class CoupledRunner(DefaultRunner):
-    """_summary_"""
 
     def __init__(self, config, input):
         super().__init__(config)
@@ -41,7 +40,6 @@ class CoupledRunner(DefaultRunner):
 
 
 class CoupledInput:
-    """_summary_"""
 
     trace_name = "coupled"
 
@@ -83,7 +81,6 @@ class CoupledInput:
 
 @task_registry.register("runner")
 class RunnerTask(Task):
-    """_summary_"""
 
     def __init__(self, name, config, overrides={}, global_config={}):
         super().__init__(name)

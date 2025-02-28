@@ -13,6 +13,7 @@ import json
 import logging
 from abc import abstractmethod
 
+import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
 from ..grib.encoding import grib_keys
@@ -24,10 +25,10 @@ LOG = logging.getLogger(__name__)
 
 class HindcastOutput:
 
-    def __init__(self, reference_year):
+    def __init__(self, reference_year: int) -> None:
         self.reference_year = reference_year
 
-    def __call__(self, values, template, keys):
+    def __call__(self, values: np.ndarray, template: object, keys: dict) -> tuple:
 
         if "date" not in keys:
             assert template.metadata("hdate", default=None) is None, template
@@ -49,7 +50,7 @@ class HindcastOutput:
 MODIFIERS = dict(hindcast=HindcastOutput)
 
 
-def modifier_factory(modifiers):
+def modifier_factory(modifiers: list) -> list:
 
     if modifiers is None:
         return []
@@ -69,21 +70,21 @@ def modifier_factory(modifiers):
 
 
 class GribOutput(Output):
-    """Handles grib"""
+    """Handles grib."""
 
     def __init__(
         self,
-        context,
+        context: dict,
         *,
-        encoding=None,
-        templates=None,
-        grib1_keys=None,
-        grib2_keys=None,
-        modifiers=None,
-        output_frequency=None,
-        write_initial_state=None,
-        variables=None,
-    ):
+        encoding: dict = None,
+        templates: dict = None,
+        grib1_keys: dict = None,
+        grib2_keys: dict = None,
+        modifiers: list = None,
+        output_frequency: int = None,
+        write_initial_state: bool = None,
+        variables: list = None,
+    ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
@@ -117,7 +118,7 @@ class GribOutput(Output):
 
         self.template_manager = TemplateManager(self, templates)
 
-    def write_initial_step(self, state):
+    def write_initial_step(self, state: dict) -> None:
         # We trust the GribInput class to provide the templates
         # matching the input state
 
@@ -143,7 +144,7 @@ class GribOutput(Output):
 
         return self.write_step(state)
 
-    def write_step(self, state):
+    def write_step(self, state: dict) -> None:
 
         reference_date = self.reference_date or self.context.reference_date
         step = state["step"]
@@ -212,15 +213,15 @@ class GribOutput(Output):
                 raise
 
     @abstractmethod
-    def write_message(self, message, *args, **kwargs):
+    def write_message(self, message: np.ndarray, *args, **kwargs) -> None:
         pass
 
-    def template(self, state, name):
+    def template(self, state: dict, name: str) -> object:
 
         if self.template_manager is None:
             self.template_manager = TemplateManager(self, self.templates)
 
         return self.template_manager.template(name, state)
 
-    def template_lookup(self, name):
+    def template_lookup(self, name: str) -> dict:
         return self.encoding

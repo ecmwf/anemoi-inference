@@ -8,6 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 
+from argparse import ArgumentParser
+from argparse import Namespace
+
 from anemoi.utils.grib import shortname_to_paramid
 
 from ..checkpoint import Checkpoint
@@ -18,13 +21,13 @@ from .retrieve import checkpoint_to_requests
 class RequestCmd(Command):
     """MARS request utility."""
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
         command_parser.description = self.__doc__
         command_parser.add_argument("--mars", action="store_true", help="Print the MARS request.")
         command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
 
         c = Checkpoint(args.path)
         for r in checkpoint_to_requests(c, date=-1, use_grib_paramid=args.use_grib_paramid):

@@ -9,6 +9,9 @@
 
 
 import logging
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 import numpy as np
 
@@ -20,9 +23,9 @@ LOG = logging.getLogger(__name__)
 
 @post_processor_registry.register("transform_filter")
 class TransformFilter(Processor):
-    """Accumulate fields from zero and return the accumulated fields"""
+    """Accumulate fields from zero and return the accumulated fields."""
 
-    def __init__(self, context, accumulations=None):
+    def __init__(self, context: Any, accumulations: Optional[list] = None):
         super().__init__(context)
         if accumulations is None:
             accumulations = context.checkpoint.accumulations
@@ -32,7 +35,7 @@ class TransformFilter(Processor):
 
         self.accumulators = {}
 
-    def process(self, state):
+    def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
         for accumulation in self.accumulations:
             if accumulation in state["fields"]:
                 if accumulation not in self.accumulators:

@@ -10,6 +10,8 @@
 import datetime
 import logging
 import sys
+from typing import Any
+from typing import Dict
 
 import numpy as np
 
@@ -37,7 +39,7 @@ class UnchangedSource:
 class InputSource:
     """Represents a source of data that is an input."""
 
-    def __init__(self, input):
+    def __init__(self, input: Any) -> None:
         self.input = input
         self.trace_name = input.trace_name
 
@@ -45,19 +47,25 @@ class InputSource:
 class Trace:
     """Implementation of a trace."""
 
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.path = path
         self.file = sys.stdout if path is True else open(path, "w")
 
-        self.sources = {}
-        self.extra = {}
+        self.sources: Dict[str, Any] = {}
+        self.extra: Dict[str, Any] = {}
 
         print("-+" * 80, file=self.file)
         print("Trace:", datetime.datetime.now(), file=self.file)
         print("-+" * 80, file=self.file)
         print(file=self.file, flush=True)
 
-    def write_input_tensor(self, date, step, input_tensor, variable_to_input_tensor_index):
+    def write_input_tensor(
+        self,
+        date: datetime.datetime,
+        step: int,
+        input_tensor: np.ndarray,
+        variable_to_input_tensor_index: Dict[str, int],
+    ) -> None:
         print("Input tensor:", date, input_tensor.shape, file=self.file)
         names = {v: k for k, v in variable_to_input_tensor_index.items()}
         assert len(input_tensor.shape) == 4
@@ -88,7 +96,13 @@ class Trace:
 
         print(file=self.file, flush=True)
 
-    def write_output_tensor(self, date, step, output_tensor, output_tensor_index_to_variable):
+    def write_output_tensor(
+        self,
+        date: datetime.datetime,
+        step: int,
+        output_tensor: np.ndarray,
+        output_tensor_index_to_variable: Dict[int, str],
+    ) -> None:
         print("Output tensor:", output_tensor.shape, file=self.file)
         assert len(output_tensor.shape) == 2
         names = output_tensor_index_to_variable
@@ -102,10 +116,10 @@ class Trace:
         self.table(lines)
         print(file=self.file, flush=True)
 
-    def table(self, lines):
+    def table(self, lines: list[list[Any]]) -> None:
         print(file=self.file)
 
-        def _(x):
+        def _(x: Any) -> str:
             if isinstance(x, float):
                 return f"{x:g}"
             return str(x)
@@ -116,7 +130,7 @@ class Trace:
         for line in lines:
             print(" ".join(f"{x:{lengths[i]}}" for i, x in enumerate(line)), file=self.file)
 
-    def from_source(self, name, source, extra=None):
+    def from_source(self, name: str, source: Any, extra: Any = None) -> None:
         if name in self.sources:
             old = self.sources[name]
             LOG.warning(
@@ -127,13 +141,13 @@ class Trace:
         self.sources[name] = source
         self.extra[name] = extra
 
-    def from_rollout(self, name):
+    def from_rollout(self, name: str) -> None:
         self.from_source(name, RolloutSource())
 
-    def from_input(self, name, input):
+    def from_input(self, name: str, input: Any) -> None:
         self.from_source(name, InputSource(input))
 
-    def reset_sources(self, reset, variable_to_input_tensor_index):
+    def reset_sources(self, reset: list[bool], variable_to_input_tensor_index: Dict[str, int]) -> None:
         self.sources = {}
         self.extra = {}
         names = {v: k for k, v in variable_to_input_tensor_index.items()}

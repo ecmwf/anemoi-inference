@@ -8,6 +8,9 @@
 #
 import logging
 from abc import ABC
+from typing import Any
+from typing import Dict
+from typing import List
 
 from anemoi.utils.logs import enable_logging_name
 
@@ -15,21 +18,26 @@ LOG = logging.getLogger(__name__)
 
 
 class Coupling:
-    """_summary_"""
-
-    def __init__(self, source, target, variables):
+    def __init__(self, source: Any, target: Any, variables: List[str]) -> None:
         self.source = source
         self.target = target
         self.variables = variables
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.source}->{self.target}"
 
 
 class CouplingSend(Coupling):
-    """_summary_"""
-
-    def apply(self, task, transport, *, input_state, output_state, constants, tag):
+    def apply(
+        self,
+        task: Any,
+        transport: Any,
+        *,
+        input_state: Dict[str, Any],
+        output_state: Dict[str, Any],
+        constants: Dict[str, Any],
+        tag: str,
+    ) -> None:
         transport.send_state(
             task,
             self.target,
@@ -41,9 +49,16 @@ class CouplingSend(Coupling):
 
 
 class CouplingRecv(Coupling):
-    """_summary_"""
-
-    def apply(self, task, transport, *, input_state, output_state, constants, tag):
+    def apply(
+        self,
+        task: Any,
+        transport: Any,
+        *,
+        input_state: Dict[str, Any],
+        output_state: Dict[str, Any],
+        constants: Dict[str, Any],
+        tag: str,
+    ) -> None:
         transport.receive_state(
             task,
             self.source,
@@ -54,9 +69,7 @@ class CouplingRecv(Coupling):
 
 
 class Transport(ABC):
-    """_summary_"""
-
-    def __init__(self, couplings, tasks):
+    def __init__(self, couplings: List[Dict[str, List[str]]], tasks: Dict[str, Any]) -> None:
         enable_logging_name("main")
         self._couplings = couplings
         self.tasks = tasks
@@ -64,8 +77,7 @@ class Transport(ABC):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
-    def couplings(self, task):
-
+    def couplings(self, task: Any) -> List[Coupling]:
         couplings = []
         for coupling in self._couplings:
             assert isinstance(coupling, dict)
@@ -94,7 +106,16 @@ class Transport(ABC):
 
         return couplings
 
-    def send_state(self, sender, target, *, input_state, variables, constants, tag):
+    def send_state(
+        self,
+        sender: Any,
+        target: Any,
+        *,
+        input_state: Dict[str, Any],
+        variables: List[str],
+        constants: Dict[str, Any],
+        tag: str,
+    ) -> None:
         assert sender.name != target.name, f"Cannot send to self {sender}"
 
         fields = input_state["fields"]
@@ -127,8 +148,15 @@ class Transport(ABC):
 
         self.send(sender, target, state, tag)
 
-    def receive_state(self, receiver, source, *, output_state, variables, tag):
-
+    def receive_state(
+        self,
+        receiver: Any,
+        source: Any,
+        *,
+        output_state: Dict[str, Any],
+        variables: List[str],
+        tag: str,
+    ) -> None:
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
 
         state = self.receive(receiver, source, tag)

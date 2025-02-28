@@ -44,7 +44,7 @@ class FieldListInput(GribInput):
 
 
 class CallbackOutput(GribOutput):
-    """Call ai-models write method"""
+    """Call ai-models write method."""
 
     def __init__(self, context, *, write, encoding=None):
         super().__init__(context, encoding=encoding, templates={"source": "templates"})

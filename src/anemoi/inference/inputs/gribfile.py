@@ -9,6 +9,9 @@
 
 
 import logging
+from typing import Any
+from typing import List
+from typing import Optional
 
 import earthkit.data as ekd
 
@@ -22,18 +25,18 @@ LOG = logging.getLogger(__name__)
 @input_registry.register("grib")
 @main_argument("path")
 class GribFileInput(GribInput):
-    """Handles grib files"""
+    """Handles grib files."""
 
     trace_name = "grib file"
 
-    def __init__(self, context, path, *, namer=None, **kwargs):
+    def __init__(self, context: Any, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
         super().__init__(context, namer=namer, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date):
+    def create_input_state(self, *, date: Optional[Any]) -> Any:
         return self._create_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
         return self._load_forcings_state(
             ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
         )

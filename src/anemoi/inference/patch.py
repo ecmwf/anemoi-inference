@@ -63,7 +63,7 @@ class PatchMixin:
     @cached_property
     def _from_zarr(self):
         """We assume that the datasets are reachable via the content of
-        ~/.config/anemoi/settings.toml
+        ~/.config/anemoi/settings.toml.
         """
         from anemoi.datasets import open_dataset
 

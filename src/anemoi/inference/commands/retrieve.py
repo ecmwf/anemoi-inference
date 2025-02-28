@@ -10,6 +10,8 @@
 
 import json
 import sys
+from argparse import ArgumentParser
+from argparse import Namespace
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -88,7 +90,7 @@ def checkpoint_to_requests(
 class RetrieveCmd(Command):
     """Used by prepml."""
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
         command_parser.description = self.__doc__
         command_parser.add_argument("config", type=str, help="Path to config file")
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
@@ -100,7 +102,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
 
         config = load_config(args.config, args.overrides, defaults=args.defaults)
 

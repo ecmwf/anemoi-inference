@@ -7,6 +7,8 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from argparse import ArgumentParser
+from argparse import Namespace
 
 from ..checkpoint import Checkpoint
 from . import Command
@@ -15,14 +17,14 @@ from . import Command
 class InspectCmd(Command):
     """Inspect the contents of a checkpoint file."""
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--dump", action="store_true", help="Print internal information")
         command_parser.add_argument(
             "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
         )
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
 
         c = Checkpoint(args.path)
 

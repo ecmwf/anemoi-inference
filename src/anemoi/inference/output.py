@@ -8,13 +8,13 @@
 #
 import logging
 from abc import ABC
+from abc import abstractmethod
 from functools import cached_property
 
 LOG = logging.getLogger(__name__)
 
 
 class Output(ABC):
-    """_summary_"""
 
     def __init__(self, context, output_frequency=None, write_initial_state=None):
 
@@ -57,6 +57,10 @@ class Output(ABC):
     def close(self):
         pass
 
+    @abstractmethod
+    def write_step(self, state):
+        pass
+
     @cached_property
     def write_step_zero(self):
         if self._write_step_zero is not None:
@@ -89,7 +93,7 @@ class Output(ABC):
 class ForwardOutput(Output):
     """Subclass of Output that forwards calls to other outputs
     Subclass from that class to implement the desired behaviour of `output_frequency`
-    which should only apply to leaves
+    which should only apply to leaves.
     """
 
     def __init__(self, context, output_frequency=None, write_initial_state=None):

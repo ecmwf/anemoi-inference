@@ -27,18 +27,19 @@ LOCK = threading.RLock()
 @output_registry.register("netcdf")
 @main_argument("path")
 class NetCDFOutput(Output):
-    """_summary_"""
 
-    def __init__(self, context, path, output_frequency=None, write_initial_state=None):
+    def __init__(
+        self, context: dict, path: str, output_frequency: int = None, write_initial_state: bool = None
+    ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.ncfile = None
         self.float_size = "f4"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"NetCDFOutput({self.path})"
 
-    def open(self, state):
+    def open(self, state: dict) -> None:
         from netCDF4 import Dataset
 
         with LOCK:
@@ -93,7 +94,7 @@ class NetCDFOutput(Output):
         self.n = 0
         return self.ncfile
 
-    def ensure_variables(self, state):
+    def ensure_variables(self, state: dict) -> None:
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)
@@ -115,11 +116,11 @@ class NetCDFOutput(Output):
                     **compression,
                 )
 
-    def write_initial_state(self, state):
+    def write_initial_state(self, state: dict) -> None:
         reduced_state = self.reduce(state)
         self.write_state(reduced_state)
 
-    def write_state(self, state):
+    def write_state(self, state: dict) -> None:
 
         self.ensure_variables(state)
 
@@ -132,7 +133,7 @@ class NetCDFOutput(Output):
 
         self.n += 1
 
-    def close(self):
+    def close(self) -> None:
         if self.ncfile is not None:
             with LOCK:
                 self.ncfile.close()

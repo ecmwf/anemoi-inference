@@ -9,6 +9,8 @@
 
 
 import logging
+from argparse import ArgumentParser
+from argparse import Namespace
 from copy import deepcopy
 
 from . import Command
@@ -21,12 +23,12 @@ class PatchCmd(Command):
 
     _cache = {}
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
         command_parser.add_argument("--force", action="store_true", help="Force the patching.")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata

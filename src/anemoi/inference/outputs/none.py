@@ -17,7 +17,6 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("none")
 class NoneOutput(Output):
-    """_summary_"""
 
-    def write_step(self, state):
+    def write_step(self, state: dict) -> None:
         pass

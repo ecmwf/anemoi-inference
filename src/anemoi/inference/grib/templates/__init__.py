@@ -9,6 +9,9 @@
 
 
 import logging
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 import yaml
 from anemoi.utils.registry import Registry
@@ -19,24 +22,24 @@ LOG = logging.getLogger(__name__)
 template_provider_registry = Registry(__name__)
 
 
-def create_template_provider(owner, config):
+def create_template_provider(owner: Any, config: Dict[str, Any]) -> "TemplateProvider":
     return template_provider_registry.from_config(config, owner)
 
 
 class TemplateProvider:
-    """Base class for template providers"""
+    """Base class for template providers."""
 
-    def __init__(self, manager):
+    def __init__(self, manager: Any) -> None:
         self.manager = manager
 
-    def template(self, variable, lookup):
+    def template(self, variable: str, lookup: Dict[str, Any]) -> Optional[str]:
         raise NotImplementedError()
 
 
 class IndexTemplateProvider(TemplateProvider):
-    """Template provider based on an index file"""
+    """Template provider based on an index file."""
 
-    def __init__(self, manager, index_path):
+    def __init__(self, manager: Any, index_path: str) -> None:
         super().__init__(manager)
         self.index_path = index_path
 
@@ -60,7 +63,7 @@ class IndexTemplateProvider(TemplateProvider):
             if not isinstance(grib, str):
                 raise ValueError(f"Invalid grib in templates.yaml, must be a string: {grib}")
 
-    def template(self, variable, lookup):
+    def template(self, variable: str, lookup: Dict[str, Any]) -> Optional[str]:
         def _(value):
             if not isinstance(value, list):
                 return [value]
@@ -75,5 +78,5 @@ class IndexTemplateProvider(TemplateProvider):
 
         return None
 
-    def load_template(self, grib, lookup):
+    def load_template(self, grib: str, lookup: Dict[str, Any]) -> str:
         raise NotImplementedError()

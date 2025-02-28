@@ -15,8 +15,11 @@ import re
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from typing import Dict
+from typing import List
 from typing import Optional
 from typing import TypeVar
+from typing import Union
 
 import numpy as np
 
@@ -27,13 +30,13 @@ if TYPE_CHECKING:
 Array = TypeVar("Array")
 
 
-def extract_keys(s: str) -> list[str]:
+def extract_keys(s: str) -> List[str]:
     # Use regular expression to find all occurrences of {key}
     keys = re.findall(r"\{(.*?)\}", s)
     return keys
 
 
-def permute_dict(d: dict) -> list[dict]:
+def permute_dict(d: Dict) -> List[Dict]:
     # Get the keys and values from the dictionary
     keys = d.keys()
     values = d.values()
@@ -47,17 +50,17 @@ def permute_dict(d: dict) -> list[dict]:
     return result
 
 
-def summarise_list(lst: list, max_length: int) -> str:
+def summarise_list(lst: List, max_length: int) -> str:
     if len(lst) > max_length:
         summary = f"{str(lst[:3])[:-1]} ... {str(lst[-3:])[1:]} (Total: {len(lst)} items)"
         return summary
     return str(lst)
 
 
-class State(dict[str, np.ndarray]):
+class State(Dict[str, np.ndarray]):
     """A collection of data for inference."""
 
-    def __init__(self, data: dict[str, np.ndarray] = None, *, private_info: Any = None, **kwargs):
+    def __init__(self, data: Dict[str, np.ndarray] = None, *, private_info: Any = None, **kwargs) -> None:
         """Create a State object.
 
         Parameters
@@ -70,10 +73,10 @@ class State(dict[str, np.ndarray]):
         super().__init__(data or {}, **kwargs)
         self.__private_info = private_info
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"State({summarise_list(list(self.keys()), 8)}, private_info = {self.__private_info})"
 
-    def take(self, axis: int, indices: int | slice | tuple[int, ...], *, copy: bool = True) -> State:
+    def take(self, axis: int, indices: Union[int, slice, tuple[int, ...]], *, copy: bool = True) -> State:
         """Take data from the State with a specific dimension and index.
 
         Parameters
@@ -112,10 +115,10 @@ class State(dict[str, np.ndarray]):
 
     def to_array(
         self,
-        order: list[str],
+        order: List[str],
         *,
-        stack_function: Callable[[list[Array], Any], Array] = np.stack,
-        array_function: Callable[[np.array], Array] = np.array,
+        stack_function: Callable[[List[Array], Any], Array] = np.stack,
+        array_function: Callable[[np.ndarray], Array] = np.array,
         **kwargs,
     ) -> Array:
         """Convert the State to an array.
@@ -126,7 +129,7 @@ class State(dict[str, np.ndarray]):
             Order to extract the keys from the State
         stack_function : Callable, optional
             Function to stack arrays with, by default np.stack
-        array_function: Callable, optional
+        array_function : Callable, optional
             Function to convert arrays with, must take np.array, by default np.array
         **kwargs:
             Additional keyword arguments to pass to the stack_function
@@ -155,14 +158,14 @@ class State(dict[str, np.ndarray]):
         return stack_function([array_function(self.get(key)) for key in order], **kwargs)
 
     @property
-    def shape(self) -> dict[str, tuple[int, ...]]:
-        """Get the shape of the State"""
+    def shape(self) -> Dict[str, tuple[int, ...]]:
+        """Get the shape of the State."""
         return {key: value.shape for key, value in self.items()}
 
     @classmethod
     def from_xarray(
-        self,
-        data: xr.Dataset | xr.DataArray,
+        cls,
+        data: Union[xr.Dataset, xr.DataArray],
         *,
         flatten: Optional[str] = None,
         variable_dim: str = "variable",
@@ -255,7 +258,7 @@ class State(dict[str, np.ndarray]):
         return State(variable_dict, private_info=private_info)
 
     @classmethod
-    def from_earthkit(self, fieldlist: "ekd.FieldList", private_info: Any = None, **kwargs) -> State:
+    def from_earthkit(cls, fieldlist: "ekd.FieldList", private_info: Any = None, **kwargs) -> State:
         """Convert a FieldList to a State.
 
         Parameters
@@ -285,13 +288,13 @@ class State(dict[str, np.ndarray]):
         >>> State.from_earthkit(fieldlist, variable_key="par_lev_type", remapping={"par_lev_type": "{param}_{levelist}"})
         State(['t_1000', 't_850', 'u_1000', 'u_850', 'v_1000', 'v_850'], private_info = None)
         """
-        return self.from_xarray(fieldlist.to_xarray(**kwargs), private_info=private_info)
+        return cls.from_xarray(fieldlist.to_xarray(**kwargs), private_info=private_info)
 
     @classmethod
     def from_numpy(
-        self,
+        cls,
         data: np.ndarray,
-        names: list[str],
+        names: List[str],
         *,
         axis: int = 0,
         private_info: Any = None,
@@ -330,6 +333,6 @@ class State(dict[str, np.ndarray]):
             data = np.moveaxis(data, axis, 0)
         return State(dict(zip(names, data)), private_info=private_info)
 
-    def copy(self):
+    def copy(self) -> State:
         """Copy the State object."""
         return State(dict(self.items()), private_info=self.__private_info)

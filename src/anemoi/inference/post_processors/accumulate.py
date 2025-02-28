@@ -10,6 +10,9 @@
 
 import logging
 from datetime import timedelta
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 import numpy as np
 
@@ -21,9 +24,9 @@ LOG = logging.getLogger(__name__)
 
 @post_processor_registry.register("accumulate_from_start_of_forecast")
 class Accumulate(Processor):
-    """Accumulate fields from zero and return the accumulated fields"""
+    """Accumulate fields from zero and return the accumulated fields."""
 
-    def __init__(self, context, accumulations=None):
+    def __init__(self, context: Any, accumulations: Optional[list] = None):
         super().__init__(context)
         if accumulations is None:
             accumulations = context.checkpoint.accumulations
@@ -34,7 +37,7 @@ class Accumulate(Processor):
         self.accumulators = {}
         self.step_zero = timedelta(0)
 
-    def process(self, state):
+    def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
         state = state.copy()
         state.setdefault("start_steps", {})
         for accumulation in self.accumulations:
@@ -47,5 +50,5 @@ class Accumulate(Processor):
 
         return state
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Accumulate({self.accumulations})"

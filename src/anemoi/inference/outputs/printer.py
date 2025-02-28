@@ -20,7 +20,7 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 
-def print_state(state, print=print, max_lines=4, variables=None):
+def print_state(state: dict, print=print, max_lines: int = 4, variables: list = None) -> None:
     print()
     print("😀", end=" ")
     for key, value in state.items():
@@ -77,7 +77,7 @@ def print_state(state, print=print, max_lines=4, variables=None):
 @main_argument("max_lines")
 class PrinterOutput(Output):
 
-    def __init__(self, context, path=None, variables=None, **kwargs):
+    def __init__(self, context: dict, path: str = None, variables: list = None, **kwargs) -> None:
         super().__init__(context)
         self.print = print
         self.variables = variables
@@ -86,8 +86,8 @@ class PrinterOutput(Output):
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 
-    def write_initial_state(self, state):
+    def write_initial_state(self, state: dict) -> None:
         self.write_state(state)
 
-    def write_state(self, state):
+    def write_state(self, state: dict) -> None:
         print_state(state, print=self.print, variables=self.variables)

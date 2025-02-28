@@ -7,10 +7,13 @@
 # nor does it submit to any jurisdiction.
 #
 
+from typing import Any
+from typing import Dict
+
 from anemoi.utils.registry import Registry
 
 post_processor_registry = Registry(__name__)
 
 
-def create_post_processor(context, config):
+def create_post_processor(context: Any, config: Dict[str, Any]) -> Any:
     return post_processor_registry.from_config(config, context)

@@ -9,6 +9,8 @@
 
 
 import logging
+from typing import Any
+from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
@@ -20,21 +22,19 @@ LOG = logging.getLogger(__name__)
 
 @transport_registry.register("mpi")
 class MPITransport(Transport):
-    """_summary_"""
-
-    def __init__(self, couplings, tasks, *args, **kwargs):
+    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
         from mpi4py import MPI
 
         super().__init__(couplings, tasks)
-        self.comm = MPI.COMM_WORLD
-        self.rank = self.comm.Get_rank()
-        self.size = self.comm.Get_size()
+        self.comm: MPI.Comm = MPI.COMM_WORLD
+        self.rank: int = self.comm.Get_rank()
+        self.size: int = self.comm.Get_size()
 
         assert (
             len(tasks) == self.size
         ), f"Number of tasks ({len(tasks)}) must match number of MPI processes ({self.size})"
 
-    def start(self):
+    def start(self) -> None:
 
         tasks = list(self.tasks.values())
         self.ranks = {task.name: i for i, task in enumerate(tasks)}
@@ -45,12 +45,12 @@ class MPITransport(Transport):
 
         task.run(self)
 
-    def wait(self):
+    def wait(self) -> None:
         self.comm.barrier()
 
-    def send(self, sender, target, state, tag):
+    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
         # TODO: use Send() to send numpy arrays, if faster
         self.comm.send(state, dest=self.ranks[target.name], tag=tag)
 
-    def receive(self, receiver, source, tag):
+    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
         return self.comm.recv(source=self.ranks[source.name], tag=tag)

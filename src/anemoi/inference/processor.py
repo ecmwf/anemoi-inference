@@ -11,7 +11,6 @@ from abc import abstractmethod
 
 
 class Processor(ABC):
-    """_summary_"""
 
     def __init__(self, context):
         self.context = context
@@ -25,5 +24,5 @@ class Processor(ABC):
         pass
 
     def patch_data_request(self, data_request):
-        """Override if a processor needs to patch the data request (e.g. mars or cds)"""
+        """Override if a processor needs to patch the data request (e.g. mars or cds)."""
         return data_request

@@ -11,6 +11,12 @@
 import logging
 import re
 from collections import defaultdict
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
@@ -23,14 +29,14 @@ LOG = logging.getLogger(__name__)
 
 
 class NoMask:
-    """No mask to apply"""
+    """No mask to apply."""
 
     def apply(self, field):
         return field
 
 
 class ApplyMask:
-    """Apply a mask to a field"""
+    """Apply a mask to a field."""
 
     def __init__(self, mask):
         self.mask = mask
@@ -40,7 +46,7 @@ class ApplyMask:
 
 
 class RulesNamer:
-    """A namer that uses rules to generate names"""
+    """A namer that uses rules to generate names."""
 
     def __init__(self, rules, default_namer):
         self.rules = rules
@@ -65,9 +71,11 @@ class RulesNamer:
 
 
 class EkdInput(Input):
-    """Handles earthkit-data FieldList as input"""
+    """Handles earthkit-data FieldList as input."""
 
-    def __init__(self, context, *, namer=None):
+    def __init__(
+        self, context: Any, *, namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None
+    ) -> None:
         super().__init__(context)
 
         if isinstance(namer, dict):
@@ -81,15 +89,15 @@ class EkdInput(Input):
 
     def _create_state(
         self,
-        input_fields,
+        input_fields: Any,
         *,
-        variables=None,
-        date=None,
-        latitudes=None,
-        longitudes=None,
-        dtype=np.float32,
-        flatten=True,
-    ):
+        variables: Optional[List[str]] = None,
+        date: Optional[Any] = None,
+        latitudes: Optional[Any] = None,
+        longitudes: Optional[Any] = None,
+        dtype: Any = np.float32,
+        flatten: bool = True,
+    ) -> Dict[str, Any]:
 
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
@@ -196,7 +204,7 @@ class EkdInput(Input):
 
         return input_state
 
-    def _filter_and_sort(self, data, *, variables, dates, title):
+    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
 
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
@@ -220,14 +228,16 @@ class EkdInput(Input):
 
         return data
 
-    def _find_variable(self, data, name, **kwargs):
+    def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
-    def _load_forcings_state(self, fields, variables, dates, current_state):
+    def _load_forcings_state(
+        self, fields: Any, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)

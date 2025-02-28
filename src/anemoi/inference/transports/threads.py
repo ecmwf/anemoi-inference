@@ -11,6 +11,8 @@
 import logging
 import queue
 import threading
+from typing import Any
+from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
@@ -21,15 +23,14 @@ LOG = logging.getLogger(__name__)
 
 
 class TaskWrapper:
-    """_summary_"""
 
-    def __init__(self, task):
-        self.task = task
-        self.queue = queue.Queue(maxsize=1)
-        self.error = None
-        self.name = task.name
+    def __init__(self, task: Any) -> None:
+        self.task: Any = task
+        self.queue: queue.Queue = queue.Queue(maxsize=1)
+        self.error: Exception | None = None
+        self.name: str = task.name
 
-    def run(self, transport):
+    def run(self, transport: "ThreadsTransport") -> None:
         set_logging_name(self.task.name)
         try:
             self.task.run(transport)
@@ -43,22 +44,21 @@ class TaskWrapper:
 
 @transport_registry.register("threads")
 class ThreadsTransport(Transport):
-    """_summary_"""
 
-    def __init__(self, couplings, tasks, *args, **kwargs):
+    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
         super().__init__(couplings, tasks)
-        self.threads = {}
-        self.lock = threading.Lock()
-        self.backlogs = {name: {} for name in tasks}
+        self.threads: Dict[str, threading.Thread] = {}
+        self.lock: threading.Lock = threading.Lock()
+        self.backlogs: Dict[str, Dict[tuple, Any]] = {name: {} for name in tasks}
 
-    def start(self):
+    def start(self) -> None:
         self.wrapped_tasks = {name: TaskWrapper(task) for name, task in self.tasks.items()}
 
         for name, wrapped_task in self.wrapped_tasks.items():
             self.threads[name] = threading.Thread(target=wrapped_task.run, args=(self,))
             self.threads[name].start()
 
-    def wait(self):
+    def wait(self) -> None:
         # TODO: wait for all threads, and kill remaining threads if any of them failed
         for name, thread in self.threads.items():
             thread.join()
@@ -68,10 +68,10 @@ class ThreadsTransport(Transport):
             if wrapped_task.error:
                 raise wrapped_task.error
 
-    def send(self, sender, target, state, tag):
+    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
         self.wrapped_tasks[target.name].queue.put((sender.name, tag, state.copy()))
 
-    def receive(self, receiver, source, tag):
+    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
         LOG.info(f"{receiver}: receiving from {source} [{tag}] (backlog: {len(self.backlogs[receiver.name])})")
 
         if (source.name, tag) in self.backlogs[receiver.name]:

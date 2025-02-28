@@ -9,6 +9,10 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 LOG = logging.getLogger(__name__)
 
@@ -18,32 +22,33 @@ LOG = logging.getLogger(__name__)
 
 
 class Input(ABC):
-    """_summary_"""
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context):
+    def __init__(self, context: Any):
         self.context = context
         self.checkpoint = context.checkpoint
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def create_input_state(self, *, date=None):
+    def create_input_state(self, *, date: Optional[Any] = None) -> Dict[str, Any]:
         """Create the input state dictionary."""
         pass
 
     @abstractmethod
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(
+        self, *, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Load forcings (constant and dynamic)."""
         pass
 
-    def input_variables(self):
-        """Return the list of input variables"""
+    def input_variables(self) -> List[str]:
+        """Return the list of input variables."""
         return list(self.checkpoint.variable_to_input_tensor_index.keys())
 
-    def set_private_attributes(self, state, value):
+    def set_private_attributes(self, state: Dict[str, Any], value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state
         dictionary, that may be needed but the output object.
         """

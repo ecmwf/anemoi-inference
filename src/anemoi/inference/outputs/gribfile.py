@@ -52,7 +52,7 @@ def _is_valid(mars, keys):
 
 
 class ArchiveCollector:
-    """Collects archive requests"""
+    """Collects archive requests."""
 
     UNIQUE = {"date", "hdate", "time", "referenceDate", "type", "stream", "expver"}
 
@@ -76,25 +76,25 @@ class ArchiveCollector:
 @output_registry.register("grib")
 @main_argument("path")
 class GribFileOutput(GribOutput):
-    """Handles grib files"""
+    """Handles grib files."""
 
     def __init__(
         self,
-        context,
+        context: dict,
         *,
-        path,
-        encoding=None,
-        archive_requests=None,
-        check_encoding=True,
-        templates=None,
-        grib1_keys=None,
-        grib2_keys=None,
-        modifiers=None,
-        output_frequency=None,
-        write_initial_state=None,
-        variables=None,
-        split_output=True,
-    ):
+        path: str,
+        encoding: dict = None,
+        archive_requests: dict = None,
+        check_encoding: bool = True,
+        templates: dict = None,
+        grib1_keys: dict = None,
+        grib2_keys: dict = None,
+        modifiers: list = None,
+        output_frequency: int = None,
+        write_initial_state: bool = None,
+        variables: list = None,
+        split_output: bool = True,
+    ) -> None:
         super().__init__(
             context,
             encoding=encoding,
@@ -113,10 +113,10 @@ class GribFileOutput(GribOutput):
         self.check_encoding = check_encoding
         self._namespace_bug_fix = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"GribFileOutput({self.path})"
 
-    def write_message(self, message, template, **keys):
+    def write_message(self, message: np.ndarray, template: object, **keys: dict) -> None:
         # Make sure `name` is not in the keys, otherwise grib_encoding will fail
         if template is not None and template.metadata("name", default=None) is not None:
             # We cannot clear the metadata...
@@ -153,7 +153,7 @@ class GribFileOutput(GribOutput):
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
-    def collect_archive_requests(self, written, template, **keys):
+    def collect_archive_requests(self, written: tuple, template: object, **keys: dict) -> None:
 
         if not self.archive_requests and not self.check_encoding:
             return
@@ -186,7 +186,7 @@ class GribFileOutput(GribOutput):
         if self.archive_requests:
             self.archiving[path].add(mars)
 
-    def close(self):
+    def close(self) -> None:
         self.output.close()
 
         if not self.archive_requests:

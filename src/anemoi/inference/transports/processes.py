@@ -12,6 +12,9 @@ import logging
 import os
 import pickle
 import struct
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
 from anemoi.utils.logs import enable_logging_name
 from anemoi.utils.logs import set_logging_name
@@ -24,14 +27,14 @@ LOG = logging.getLogger(__name__)
 
 @transport_registry.register("processes")
 class ProcessesTransport(Transport):
-    """_summary_"""
 
-    def __init__(self, couplings, tasks, *args, **kwargs):
+    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
         super().__init__(couplings, tasks)
-        self.children = {}
+        self.children: Dict[int, str] = {}
+        self.pipes: Dict[Tuple[str, str], Tuple[int, int]] = {}
         enable_logging_name("main")
 
-    def child_process(self, task):
+    def child_process(self, task: Any) -> int:
         set_logging_name(task.name)
 
         # Close all the pipes that are not needed
@@ -47,7 +50,7 @@ class ProcessesTransport(Transport):
             return 1
         return 0
 
-    def start(self):
+    def start(self) -> None:
 
         # Many to many pipes. May not scale well
         # We can use the couplings to reduce the number of pipes
@@ -72,7 +75,7 @@ class ProcessesTransport(Transport):
             os.close(read_fd)
             os.close(write_fd)
 
-    def wait(self):
+    def wait(self) -> None:
         while self.children:
             (pid, status) = os.wait()
             LOG.info(f"Child process {pid} ({self.children[pid]}) exited with status {status}")
@@ -82,7 +85,7 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
-    def send(self, sender, target, state, tag):
+    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
         # TODO: something more efficient than pickle
         _, write_fd = self.pipes[(sender.name, target.name)]
         pickle_data = pickle.dumps(state)
@@ -91,7 +94,7 @@ class ProcessesTransport(Transport):
         os.write(write_fd, struct.pack("!Q", len(pickle_data)))
         os.write(write_fd, pickle_data)
 
-    def receive(self, receiver, source, tag):
+    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
         read_fd, _ = self.pipes[(source.name, receiver.name)]
 
         recieved_tag = struct.unpack("!Q", os.read(read_fd, 8))[0]

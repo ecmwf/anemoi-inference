@@ -11,6 +11,11 @@
 import json
 import logging
 from functools import cached_property
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
@@ -22,9 +27,9 @@ LOG = logging.getLogger(__name__)
 
 
 class DatasetInput(Input):
-    """Handles `anemoi-datasets` dataset as input"""
+    """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context, args, kwargs):
+    def __init__(self, context: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         super().__init__(context)
 
         grid_indices = kwargs.pop("grid_indices", None)
@@ -62,7 +67,7 @@ class DatasetInput(Input):
     def __repr__(self):
         return f"DatasetInput({self.args}, {self.kwargs})"
 
-    def create_input_state(self, *, date=None):
+    def create_input_state(self, *, date: Optional[Any] = None) -> Dict[str, Any]:
         if date is None:
             raise ValueError("`date` must be provided")
 
@@ -98,7 +103,9 @@ class DatasetInput(Input):
 
         return input_state
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(
+        self, *, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         data = self._load_dates(dates)  # (date, variables, ensemble, values)
 
         requested_variables = np.array([self.ds.name_to_index[v] for v in variables])
@@ -120,7 +127,7 @@ class DatasetInput(Input):
             longitudes=self.longitudes,
         )
 
-    def _load_dates(self, dates):
+    def _load_dates(self, dates: List[Any]) -> Any:
 
         # TODO: use the fact that the dates are sorted
 
@@ -150,11 +157,11 @@ class DatasetInput(Input):
 
 @input_registry.register("dataset")
 class DatasetInputArgsKwargs(DatasetInput):
-    """Handles `anemoi-datasets` dataset as input"""
+    """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/provided"
 
-    def __init__(self, context, /, *args, use_original_paths=True, **kwargs):
+    def __init__(self, context: Any, /, *args: Any, use_original_paths: bool = True, **kwargs: Any) -> None:
         if not args and not kwargs:
             args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
@@ -173,9 +180,9 @@ class DatasetInputArgsKwargs(DatasetInput):
 
 
 class DataloaderInput(DatasetInput):
-    """Handles `anemoi-datasets` dataset as input"""
+    """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context, /, name, use_original_paths=True, **kwargs):
+    def __init__(self, context: Any, /, name: str, use_original_paths: bool = True, **kwargs: Any) -> None:
 
         args, kwargs = context.checkpoint.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
@@ -187,29 +194,29 @@ class DataloaderInput(DatasetInput):
 
 @input_registry.register("test")
 class TestInput(DataloaderInput):
-    """Handles `anemoi-datasets` dataset as input"""
+    """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/test"
 
-    def __init__(self, context, /, use_original_paths=True, **kwargs):
+    def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
         super().__init__(context, name="test", use_original_paths=use_original_paths, **kwargs)
 
 
 @input_registry.register("validation")
 class ValidationInput(DataloaderInput):
-    """Handles `anemoi-datasets` dataset as input"""
+    """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/validation"
 
-    def __init__(self, context, /, use_original_paths=True, **kwargs):
+    def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
         super().__init__(context, name="validation", use_original_paths=use_original_paths, **kwargs)
 
 
 @input_registry.register("training")
 class TrainingInput(DataloaderInput):
-    """Handles `anemoi-datasets` dataset as input"""
+    """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/training"
 
-    def __init__(self, context, /, use_original_paths=True, **kwargs):
+    def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
         super().__init__(context, name="training", use_original_paths=use_original_paths, **kwargs)

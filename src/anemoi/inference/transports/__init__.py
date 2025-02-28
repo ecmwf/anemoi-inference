@@ -7,10 +7,12 @@
 # nor does it submit to any jurisdiction.
 #
 
+from typing import Any
+
 from anemoi.utils.registry import Registry
 
 transport_registry = Registry(__name__)
 
 
-def create_transport(config, couplings, tasks):
+def create_transport(config: Any, couplings: Any, tasks: Any) -> Any:
     return transport_registry.from_config(config, couplings, tasks)

@@ -18,27 +18,26 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 
-def fix(lons):
+def fix(lons: np.ndarray) -> np.ndarray:
     return np.where(lons > 180, lons - 360, lons)
 
 
 @output_registry.register("plot")
 class PlotOutput(Output):
-    """_summary_"""
 
     def __init__(
         self,
-        context,
-        path,
-        variables=all,
-        strftime="%Y%m%d%H%M%S",
-        template="plot_{variable}_{date}.{format}",
-        dpi=300,
-        format="png",
-        missing_value=None,
-        output_frequency=None,
-        write_initial_state=None,
-    ):
+        context: dict,
+        path: str,
+        variables: list = all,
+        strftime: str = "%Y%m%d%H%M%S",
+        template: str = "plot_{variable}_{date}.{format}",
+        dpi: int = 300,
+        format: str = "png",
+        missing_value: float = None,
+        output_frequency: int = None,
+        write_initial_state: bool = None,
+    ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.format = format
@@ -52,7 +51,7 @@ class PlotOutput(Output):
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-    def write_step(self, state):
+    def write_step(self, state: dict) -> None:
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
         import matplotlib.pyplot as plt
