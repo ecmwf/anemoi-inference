@@ -253,7 +253,12 @@ class TestInput(DataloaderInput):
     trace_name = "dataset/test"
 
     def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
-        super().__init__(context, name="test", use_original_paths=use_original_paths, **kwargs)
+        super().__init__(
+            context,
+            name="test",
+            use_original_paths=use_original_paths,
+            **kwargs,
+        )
 
 
 @input_registry.register("validation")
@@ -263,7 +268,12 @@ class ValidationInput(DataloaderInput):
     trace_name = "dataset/validation"
 
     def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
-        super().__init__(context, name="validation", use_original_paths=use_original_paths, **kwargs)
+        super().__init__(
+            context,
+            name="validation",
+            use_original_paths=use_original_paths,
+            **kwargs,
+        )
 
 
 @input_registry.register("training")
@@ -273,4 +283,9 @@ class TrainingInput(DataloaderInput):
     trace_name = "dataset/training"
 
     def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
-        super().__init__(context, name="training", use_original_paths=use_original_paths, **kwargs)
+        super().__init__(
+            context,
+            name="training",
+            use_original_paths=use_original_paths,
+            **kwargs,
+        )

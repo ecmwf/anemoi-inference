@@ -18,6 +18,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+import earthkit.data as ekd
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
 from earthkit.data.utils.dates import to_datetime
@@ -31,28 +32,82 @@ LOG = logging.getLogger(__name__)
 class NoMask:
     """No mask to apply."""
 
-    def apply(self, field):
+    def apply(self, field: Any) -> Any:
+        """Apply the mask.
+
+        Parameters
+        ----------
+        field : Any
+            The field to which the mask is applied.
+
+        Returns
+        -------
+        Any
+            The field with the mask applied.
+        """
         return field
 
 
 class ApplyMask:
     """Apply a mask to a field."""
 
-    def __init__(self, mask):
+    def __init__(self, mask: Any) -> None:
+        """Initialize the ApplyMask.
+
+        Parameters
+        ----------
+        mask : Any
+            The mask to apply.
+        """
         self.mask = mask
 
-    def apply(self, field):
+    def apply(self, field: Any) -> Any:
+        """Apply the mask.
+
+        Parameters
+        ----------
+        field : Any
+            The field to which the mask is applied.
+
+        Returns
+        -------
+        Any
+            The field with the mask applied.
+        """
         return field[self.mask]
 
 
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
-    def __init__(self, rules, default_namer):
+    def __init__(self, rules: List[Dict[str, Any]], default_namer: Callable[[Any, Dict[str, Any]], str]) -> None:
+        """Initialize the RulesNamer.
+
+        Parameters
+        ----------
+        rules : List[Dict[str, Any]]
+            The rules for naming.
+        default_namer : Callable[[Any, Dict[str, Any]], str]
+            The default namer to use if no rules match.
+        """
         self.rules = rules
         self.default_namer = default_namer
 
-    def __call__(self, field, original_metadata):
+    def __call__(self, field: Any, original_metadata: Dict[str, Any]) -> str:
+        """Generate a name for the field.
+
+        Parameters
+        ----------
+        field : Any
+            The field for which to generate a name.
+        original_metadata : Dict[str, Any]
+            The original metadata of the field.
+
+        Returns
+        -------
+        str
+            The generated name.
+        """
         for rule in self.rules:
             assert len(rule) == 2, rule
             ok = True
@@ -64,7 +119,23 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template, field, original_metadata):
+    def substitute(self, template: str, field: Any, original_metadata: Dict[str, Any]) -> str:
+        """Substitute placeholders in the template with metadata values.
+
+        Parameters
+        ----------
+        template : str
+            The template string with placeholders.
+        field : Any
+            The field for which to generate a name.
+        original_metadata : Dict[str, Any]
+            The original metadata of the field.
+
+        Returns
+        -------
+        str
+            The generated name with placeholders substituted.
+        """
         matches = re.findall(r"\{(.+?)\}", template)
         matches = {m: original_metadata.get(m) for m in matches}
         return template.format(**matches)
@@ -74,7 +145,10 @@ class EkdInput(Input):
     """Handles earthkit-data FieldList as input."""
 
     def __init__(
-        self, context: Any, *, namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None
+        self,
+        context: Any,
+        *,
+        namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
     ) -> None:
         """Initialize the EkdInput.
 
@@ -98,7 +172,7 @@ class EkdInput(Input):
 
     def _create_state(
         self,
-        input_fields: Any,
+        input_fields: ekd.FieldList,
         *,
         variables: Optional[List[str]] = None,
         date: Optional[Any] = None,
@@ -111,7 +185,7 @@ class EkdInput(Input):
 
         Parameters
         ----------
-        input_fields : Any
+        input_fields : ekd.FieldList
             The input fields.
         variables : Optional[List[str]]
             List of variables.
@@ -237,8 +311,26 @@ class EkdInput(Input):
         return input_state
 
     def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
+        """Filter and sort the data.
 
-        def _name(field, _, original_metadata):
+        Parameters
+        ----------
+        data : Any
+            The data to filter and sort.
+        variables : List[str]
+            The list of variables to select.
+        dates : List[Any]
+            The list of dates to select.
+        title : str
+            The title for logging.
+
+        Returns
+        -------
+        Any
+            The filtered and sorted data.
+        """
+
+        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
@@ -261,15 +353,54 @@ class EkdInput(Input):
         return data
 
     def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
-        def _name(field, _, original_metadata):
+        """Find a variable in the data.
+
+        Parameters
+        ----------
+        data : Any
+            The data to search.
+        name : str
+            The name of the variable to find.
+        **kwargs : Any
+            Additional arguments for selecting the variable.
+
+        Returns
+        -------
+        Any
+            The selected variable.
+        """
+
+        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
     def _load_forcings_state(
-        self, fields: Any, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
+        self,
+        fields: ekd.FieldList,
+        variables: List[str],
+        dates: List[Any],
+        current_state: Dict[str, Any],
     ) -> Dict[str, Any]:
+        """Load the forcings state.
+
+        Parameters
+        ----------
+        fields : ekd.FieldList
+            The fields to load.
+        variables : List[str]
+            The list of variables to load.
+        dates : List[Any]
+            The list of dates to load.
+        current_state : Dict[str, Any]
+            The current state.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The loaded forcings state.
+        """
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
