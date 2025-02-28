@@ -76,6 +76,15 @@ class EkdInput(Input):
     def __init__(
         self, context: Any, *, namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None
     ) -> None:
+        """Initialize the EkdInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
+            Optional namer for the input.
+        """
         super().__init__(context)
 
         if isinstance(namer, dict):
@@ -98,7 +107,30 @@ class EkdInput(Input):
         dtype: Any = np.float32,
         flatten: bool = True,
     ) -> Dict[str, Any]:
+        """Create the input state.
 
+        Parameters
+        ----------
+        input_fields : Any
+            The input fields.
+        variables : Optional[List[str]]
+            List of variables.
+        date : Optional[Any]
+            The date for which to create the input state.
+        latitudes : Optional[Any]
+            The latitudes.
+        longitudes : Optional[Any]
+            The longitudes.
+        dtype : Any
+            The data type.
+        flatten : bool
+            Whether to flatten the data.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The created input state.
+        """
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             input_fields = processor.process(input_fields)

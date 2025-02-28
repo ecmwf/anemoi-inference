@@ -30,13 +30,57 @@ class GribFileInput(GribInput):
     trace_name = "grib file"
 
     def __init__(self, context: Any, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
+        """Initialize the GribFileInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        path : str
+            The path to the GRIB file.
+        namer : Optional[Any]
+            Optional namer for the input.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context, namer=namer, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Optional[Any]) -> Any:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Any]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        Any
+            The created input state.
+        """
         return self._create_state(ekd.from_source("file", self.path), variables=None, date=date)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variables to load.
+        dates : List[Any]
+            List of dates for which to load the forcings.
+        current_state : Any
+            The current state of the input.
+
+        Returns
+        -------
+        Any
+            The loaded forcings state.
+        """
         return self._load_forcings_state(
-            ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
+            ekd.from_source("file", self.path),
+            variables=variables,
+            dates=dates,
+            current_state=current_state,
         )

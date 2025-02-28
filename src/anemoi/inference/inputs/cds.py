@@ -89,6 +89,19 @@ class CDSInput(GribInput):
     def __init__(
         self, context: Any, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
     ) -> None:
+        """Initialize the CDSInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        dataset : Union[str, Dict[str, Any]]
+            The dataset to use.
+        namer : Optional[Any]
+            Optional namer for the input.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context, namer=namer)
 
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
@@ -96,6 +109,18 @@ class CDSInput(GribInput):
         self.kwargs = kwargs
 
     def create_input_state(self, *, date: Optional[Any]) -> Any:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Any]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        Any
+            The created input state.
+        """
         if date is None:
             date = to_datetime(-1)
             LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)

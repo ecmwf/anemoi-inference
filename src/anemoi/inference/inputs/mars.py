@@ -132,6 +132,19 @@ class MarsInput(GribInput):
         patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
         **kwargs: Any,
     ) -> None:
+        """Initialize the MarsInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        namer : Optional[Any]
+            Optional namer for the input.
+        patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
+            Optional list of patches for the input.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context, namer=namer)
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
@@ -139,6 +152,18 @@ class MarsInput(GribInput):
         self.patches = patches or []
 
     def create_input_state(self, *, date: Optional[Any]) -> Any:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Any]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        Any
+            The created input state.
+        """
         if date is None:
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)

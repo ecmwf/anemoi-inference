@@ -30,6 +30,17 @@ class DatasetInput(Input):
     """Handles `anemoi-datasets` dataset as input."""
 
     def __init__(self, context: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+        """Initialize the DatasetInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        args : Tuple[Any, ...]
+            Arguments for the dataset.
+        kwargs : Dict[str, Any]
+            Keyword arguments for the dataset.
+        """
         super().__init__(context)
 
         grid_indices = kwargs.pop("grid_indices", None)
@@ -52,22 +63,38 @@ class DatasetInput(Input):
 
     @cached_property
     def ds(self):
+        """Return the dataset."""
         from anemoi.datasets import open_dataset
 
         return open_dataset(*self.args, **self.kwargs)
 
     @cached_property
     def latitudes(self):
+        """Return the latitudes."""
         return self.ds.latitudes
 
     @cached_property
     def longitudes(self):
+        """Return the longitudes."""
         return self.ds.longitudes
 
     def __repr__(self):
+        """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.args}, {self.kwargs})"
 
     def create_input_state(self, *, date: Optional[Any] = None) -> Dict[str, Any]:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Any]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The created input state.
+        """
         if date is None:
             raise ValueError("`date` must be provided")
 
@@ -106,6 +133,22 @@ class DatasetInput(Input):
     def load_forcings_state(
         self, *, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variables to load.
+        dates : List[Any]
+            List of dates for which to load the forcings.
+        current_state : Dict[str, Any]
+            The current state of the input.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The loaded forcings state.
+        """
         data = self._load_dates(dates)  # (date, variables, ensemble, values)
 
         requested_variables = np.array([self.ds.name_to_index[v] for v in variables])
@@ -128,7 +171,18 @@ class DatasetInput(Input):
         )
 
     def _load_dates(self, dates: List[Any]) -> Any:
+        """Load the data for the given dates.
 
+        Parameters
+        ----------
+        dates : List[Any]
+            List of dates for which to load the data.
+
+        Returns
+        -------
+        Any
+            The loaded data.
+        """
         # TODO: use the fact that the dates are sorted
 
         dataset_dates = self.ds.dates

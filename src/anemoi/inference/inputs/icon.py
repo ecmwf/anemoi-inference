@@ -33,6 +33,23 @@ class IconInput(GribInput):
     def __init__(
         self, context: Any, path: str, grid: str, refinement_level_c: int, namer: Optional[Any] = None, **kwargs: Any
     ) -> None:
+        """Initialize the IconInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        path : str
+            The path to the ICON grib file.
+        grid : str
+            The grid type.
+        refinement_level_c : int
+            The refinement level.
+        namer : Optional[Any]
+            Optional namer for the input.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context, namer=namer, **kwargs)
         self.path = path
         self.grid = grid

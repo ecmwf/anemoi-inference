@@ -38,6 +38,19 @@ class MultiInput(Input):
         inputs: Optional[Union[List[Dict[str, Any]], Tuple[Dict[str, Any], ...]]] = None,
         **kwargs: Any,
     ) -> None:
+        """Initialize the MultiInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        *args : Any
+            Additional arguments.
+        inputs : Optional[Union[List[Dict[str, Any]], Tuple[Dict[str, Any], ...]]]
+            List or tuple of input configurations.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context)
         if inputs is None:
             inputs = args
@@ -53,9 +66,17 @@ class MultiInput(Input):
                 self.inputs[v] = input
 
     def __repr__(self) -> str:
+        """Return a string representation of the MultiInput."""
         return f"MultiInput({self._input_per_id.values()})"
 
     def create_input_state(self, *, date: Any) -> None:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Any
+            The date for which to create the input state.
+        """
         raise NotImplementedError("MultiInput.create_input_state() not implemented")
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> np.ndarray:
