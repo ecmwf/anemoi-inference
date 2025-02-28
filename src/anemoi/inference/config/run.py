@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 from typing import Any
 from typing import Dict
 from typing import List
@@ -19,8 +18,6 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
-import yaml
-from anemoi.utils.config import merge_configs
 from pydantic import BaseModel
 
 LOG = logging.getLogger(__name__)
@@ -119,42 +116,3 @@ class RunConfiguration(BaseModel):
 
     trace_path: str | None = None
     """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
-
-
-def load_config(path, overrides, defaults=None, Configuration=RunConfiguration):
-
-    config = {}
-
-    # Set default values
-    if defaults is not None:
-        if not isinstance(defaults, list):
-            defaults = [defaults]
-        for d in defaults:
-            if isinstance(d, str):
-                with open(d) as f:
-                    d = yaml.safe_load(f)
-            config.update(d)
-
-    # Load the configuration
-    with open(path) as f:
-        user_config = yaml.safe_load(f)
-        config = merge_configs(config, user_config)
-
-    # Apply overrides
-    for override in overrides:
-        path = config
-        key, value = override.split("=")
-        keys = key.split(".")
-        for key in keys[:-1]:
-            path = path.setdefault(key, {})
-        path[keys[-1]] = value
-
-    # Validate the configuration
-    config = Configuration(**config)
-
-    # Set environment variables found in the configuration
-    # as soon as possible
-    for key, value in config.env.items():
-        os.environ[key] = str(value)
-
-    return config
