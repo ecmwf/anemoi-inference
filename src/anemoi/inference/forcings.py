@@ -110,7 +110,6 @@ class CoupledForcings(Forcings):
     def trace_name(self):
         return self.input.trace_name
 
-
     def __init__(self, context, input, variables, mask):
         super().__init__(context)
         self.variables = variables
@@ -131,7 +130,6 @@ class CoupledForcings(Forcings):
             self.variables,
             dates,
         )
-
 
 
 class BoundaryForcings(Forcings):
