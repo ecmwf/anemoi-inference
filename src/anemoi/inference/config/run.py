@@ -121,7 +121,7 @@ class RunConfiguration(BaseModel):
     """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
 
 
-def load_config(path, overrides, defaults=None, Configuration=Configuration):
+def load_config(path, overrides, defaults=None, Configuration=RunConfiguration):
 
     config = {}
 

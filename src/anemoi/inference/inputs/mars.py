@@ -148,4 +148,3 @@ class MarsInput(GribInput):
         return self._load_forcings_state(
             self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
         )
-

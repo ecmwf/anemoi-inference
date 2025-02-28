@@ -60,7 +60,6 @@ class DefaultRunner(Runner):
             accumulations=config.accumulations,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
-            trace_path=config.trace_path,
             accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
             use_profiler=config.use_profiler,
         )
@@ -198,4 +197,3 @@ def _check_accumulation_processor(config):
 
     LOG.info("accumulate_from_start_of_forecast: %s", accumulate_from_start_of_forecast)
     return accumulate_from_start_of_forecast
->>>>>>> main

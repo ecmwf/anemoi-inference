@@ -37,4 +37,3 @@ class GribFileInput(GribInput):
         return self._load_forcings_state(
             ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
         )
-

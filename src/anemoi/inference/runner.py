@@ -63,6 +63,12 @@ class Runner(Context):
         verbosity=0,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        trace_path=None,
+        output_frequency=None,
+        write_initial_state=True,
+        use_profiler=False,
+        pre_processors=None,
+        post_processors=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -111,6 +117,11 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
+        # Shallow copy to avoid modifying the user's input state
+        input_state = input_state.copy()
+        input_state["fields"] = input_state["fields"].copy()
+
+        input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
@@ -167,6 +178,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -268,7 +281,7 @@ class Runner(Context):
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
-
+        result["step"] = to_timedelta(0)
         start = input_state["date"]
 
         # The variable `check` is used to keep track of which variables have been updated
@@ -293,6 +306,11 @@ class Runner(Context):
             title = f"Forecasting step {step} ({date})"
 
             result["date"] = date
+            result["previous_step"] = result.get("step")
+            result["step"] = step
+
+            if self.trace:
+                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
 
             # Predict next state of atmosphere
             with (
@@ -310,8 +328,9 @@ class Runner(Context):
                 self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
             # Update state
-            for i in range(output.shape[1]):
-                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+            with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                for i in range(output.shape[1]):
+                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
@@ -327,8 +346,11 @@ class Runner(Context):
                 continue
 
             # Update  tensor for next iteration
+            with ProfilingLabel("Update tensor for next step", self.use_profiler):
 
-            check[:] = reset
+                check[:] = reset
+                if self.trace:
+                    self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
                 input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
