@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import datetime
 import logging
 
 from ..output import ForwardOutput
@@ -32,6 +33,7 @@ class TeeOutput(ForwardOutput):
     # We override write_initial_state and write_state
     # so users can configures each levels independently
     def write_initial_state(self, state):
+        state.setdefault("step", datetime.timedelta(0))
         for output in self.outputs:
             output.write_initial_state(state)
 

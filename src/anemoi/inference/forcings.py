@@ -115,6 +115,9 @@ class CoupledForcings(Forcings):
         self.variables = variables
         self.mask = mask
         self.input = input
+        # self.grid = context.checkpoint.grid
+        # self.area = context.checkpoint.area
+        # self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def __repr__(self):

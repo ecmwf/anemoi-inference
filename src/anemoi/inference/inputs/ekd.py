@@ -8,9 +8,11 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 import logging
 import re
 from collections import defaultdict
+from types import NoneType
 
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
@@ -90,6 +92,8 @@ class EkdInput(Input):
         dtype=np.float32,
         flatten=True,
     ):
+
+        assert isinstance(date, (datetime.datetime, NoneType)), (type(date), date)
 
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
@@ -181,7 +185,7 @@ class EkdInput(Input):
                 raise ValueError(f"Missing dates for {name}")
 
         if self.context.trace:
-            for name in check.items():
+            for name in check.keys():
                 self.context.trace.from_input(name, self)
 
         # This is our chance to communicate output object

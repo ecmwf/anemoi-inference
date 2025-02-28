@@ -28,18 +28,14 @@ class Output(ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}()"
 
-    def step(self, state):
-        return state["date"] - self.reference_date
-
     def write_initial_state(self, state):
-        self._init(state)
         if self.write_step_zero:
-            return self.write_initial_step(state)
+            return self.write_state(state)
 
     def write_state(self, state):
-        self._init(state)
+        self.open(state)
 
-        step = self.step(state)
+        step = state["step"]
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
                 return

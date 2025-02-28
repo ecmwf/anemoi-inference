@@ -119,7 +119,7 @@ class Runner(Context):
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
 
-        input_state = self.preprocess(input_state)
+        # input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)

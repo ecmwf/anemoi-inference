@@ -38,7 +38,7 @@ class NetCDFOutput(Output):
     def __repr__(self):
         return f"NetCDFOutput({self.path})"
 
-    def _init(self, state):
+    def open(self, state):
         from netCDF4 import Dataset
 
         with LOCK:
