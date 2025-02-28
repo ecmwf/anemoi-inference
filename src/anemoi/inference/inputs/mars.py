@@ -142,6 +142,8 @@ class MarsInput(GribInput):
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
 
+        self.patch = None
+
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
 
     def load_forcings_state(self, *, variables, dates, current_state):

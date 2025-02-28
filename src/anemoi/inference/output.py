@@ -8,7 +8,6 @@
 #
 import logging
 from abc import ABC
-from abc import abstractmethod
 from functools import cached_property
 
 LOG = logging.getLogger(__name__)
@@ -46,28 +45,6 @@ class Output(ABC):
                 return
 
         return self.write_step(state)
-
-    def _init(self, state):
-        if self.reference_date is not None:
-            return
-
-        self.reference_date = state["date"]
-
-        self.open(state)
-
-    def write_initial_step(self, state):
-        """This method should not be called directly
-        call `write_initial_state` instead.
-        """
-        reduced_state = self.reduce(state)
-        self.write_step(reduced_state)
-
-    @abstractmethod
-    def write_step(self, state):
-        """This method should not be called directly
-        call `write_state` instead.
-        """
-        pass
 
     def reduce(self, state):
         """Creates new state which is projection of original state on the last step in the multi-steps dimension."""

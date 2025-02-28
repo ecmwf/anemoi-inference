@@ -81,7 +81,7 @@ class PrinterOutput(Output):
         super().__init__(context)
         self.print = print
         self.variables = variables
-        assert variables == "all", variables
+
         if path is not None:
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)

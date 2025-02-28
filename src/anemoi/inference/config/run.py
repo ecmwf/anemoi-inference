@@ -64,7 +64,7 @@ class RunConfiguration(BaseModel):
     output: Union[str, Dict, None] = "printer"
 
     pre_processors: List[Union[str, Dict]] = []
-    post_processors: Optional[List[Union[str, Dict]]] = None  # TODO: change default to [] when we have a factory
+    post_processors: List[Union[str, Dict]] = []
 
     forcings: Union[Dict[str, Dict], None] = None
     """Where to find the forcings."""
@@ -81,10 +81,6 @@ class RunConfiguration(BaseModel):
     - If False, the model will raise an exception if NaNs are found in the input and output.
     - If True, the model will allow NaNs in the input and output.
     """
-
-    accumulations: bool = True
-    """If True, the runner will accumulate the accumulated
-    fields from the initial state to the forecast reference date."""
 
     use_grib_paramid: bool = False
     """If True, the runner will use the grib parameter ID when generating MARS requests."""
