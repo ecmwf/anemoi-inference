@@ -251,7 +251,12 @@ class EkdInput(Input):
 
         fields = input_state["fields"]
 
-        input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates, title="Create input state")
+        input_fields = self._filter_and_sort(
+            input_fields,
+            variables=variables,
+            dates=dates,
+            title="Create input state",
+        )
         mask = self.checkpoint.grid_points_mask
         mask = ApplyMask(mask) if mask is not None else NoMask()
 
@@ -344,9 +349,6 @@ class EkdInput(Input):
         data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
             name=variables, valid_datetime="ascending"
         )
-
-        # for f in data:
-        #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
 
         check_data(title, data, variables, dates)
 
