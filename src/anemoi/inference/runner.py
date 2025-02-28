@@ -59,13 +59,11 @@ class Runner(Context):
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
         verbosity=0,
-        patch_metadata={},
-        development_hacks={},  # For testing purposes, don't use in production
         trace_path=None,
         output_frequency=None,
         write_initial_state=True,
-        pre_processors=None,
-        post_processors=None,
+        patch_metadata={},
+        development_hacks={},  # For testing purposes, don't use in production
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -120,6 +118,9 @@ class Runner(Context):
 
         input_state = self.preprocess(input_state)
 
+        input_state = input_state.copy()
+        input_state["step"] = 0
+
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
         self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
@@ -156,9 +157,13 @@ class Runner(Context):
 
         # TODO: Check for user provided forcings
 
-        for source in self.constant_forcings_inputs:
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings(input_state, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -166,15 +171,25 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial constant forcings")
 
-        for source in self.dynamic_forcings_inputs:
+        for source in initial_dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings(input_state, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
+
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs):
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_inputs
+
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_inputs
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -261,7 +276,7 @@ class Runner(Context):
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
-        torch.set_grad_enabled(False)
+        # torch.set_grad_enabled(False) # Maybe not thread safe.
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
@@ -276,7 +291,6 @@ class Runner(Context):
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
-        result["step"] = to_timedelta(0)
 
         start = input_state["date"]
 
@@ -292,6 +306,7 @@ class Runner(Context):
                 reset[i] = True
 
         check = reset.copy()
+        new_state = input_state.copy()
 
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
@@ -302,11 +317,6 @@ class Runner(Context):
             LOG.info("Forecasting step %s (%s)", step, date)
 
             result["date"] = date
-            result["previous_step"] = result.get("step")
-            result["step"] = step
-
-            if self.trace:
-                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
 
             # Predict next state of atmosphere
             with torch.autocast(device_type=self.device, dtype=self.autocast):
@@ -320,12 +330,16 @@ class Runner(Context):
 
             # Update state
             for i in range(output.shape[1]):
-                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
 
-            yield result
+            if self.trace:
+                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
+
+            new_state["step"] = s + 1
+            yield new_state
 
             # No need to prepare next input tensor if we are at the last step
             if s == steps - 1:
@@ -341,10 +355,8 @@ class Runner(Context):
 
             del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, input_state, date, check
-            )
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, new_state, date, check)
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(input_tensor_torch, new_state, date, check)
 
             if not check.all():
                 # Not all variables have been updated
@@ -399,7 +411,7 @@ class Runner(Context):
 
         for source in self.dynamic_forcings_inputs:
 
-            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
@@ -427,7 +439,7 @@ class Runner(Context):
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
-            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 

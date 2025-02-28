@@ -12,6 +12,12 @@ from __future__ import annotations
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import TYPE_CHECKING
+from typing import List
+
+if TYPE_CHECKING:
+    from .forcings import Forcings
+
 
 LOG = logging.getLogger(__name__)
 
@@ -55,16 +61,16 @@ class Context(ABC):
     def create_output(self):
         raise NotImplementedError()
 
-    def create_constant_computed_forcings(self, variables, mask):
+    def create_constant_computed_forcings(self, variables, mask) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_constant_computed_forcings")
 
-    def create_constant_coupled_forcings(self, variables, mask):
+    def create_constant_coupled_forcings(self, variables, mask) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_constant_coupled_forcings")
 
-    def create_dynamic_computed_forcings(self, variables, mask):
+    def create_dynamic_computed_forcings(self, variables, mask) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_computed_forcings")
 
-    def create_dynamic_coupled_forcings(self, variables, mask):
+    def create_dynamic_coupled_forcings(self, variables, mask) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")
 
     def create_pre_processors(self):

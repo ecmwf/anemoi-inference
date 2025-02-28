@@ -26,7 +26,7 @@ from pydantic import BaseModel
 LOG = logging.getLogger(__name__)
 
 
-class Configuration(BaseModel):
+class RunConfiguration(BaseModel):
 
     class Config:
         extra = "forbid"
@@ -82,6 +82,10 @@ class Configuration(BaseModel):
     - If True, the model will allow NaNs in the input and output.
     """
 
+    accumulations: bool = True
+    """If True, the runner will accumulate the accumulated
+    fields from the initial state to the forecast reference date."""
+
     use_grib_paramid: bool = False
     """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
@@ -111,7 +115,7 @@ class Configuration(BaseModel):
     """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
 
 
-def load_config(path, overrides, defaults=None, Configuration=Configuration):
+def load_config(path, overrides, defaults=None, Configuration=RunConfiguration):
 
     config = {}
 

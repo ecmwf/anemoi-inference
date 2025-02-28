@@ -36,7 +36,7 @@ class IconInput(GribInput):
     def create_input_state(self, *, date):
         latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
 
-        return self._create_input_state(
+        return self._create_state(
             ekd.from_source("file", self.path),
             variables=None,
             date=date,
@@ -44,5 +44,7 @@ class IconInput(GribInput):
             longitudes=longitudes,
         )
 
-    def load_forcings(self, *, variables, dates):
-        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        return self._load_forcings_state(
+            ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
+        )

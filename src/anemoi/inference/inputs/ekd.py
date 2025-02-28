@@ -79,7 +79,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _create_input_state(
+    def _create_state(
         self,
         input_fields,
         *,
@@ -180,6 +180,10 @@ class EkdInput(Input):
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
 
+        if self.context.trace:
+            for name in check.items():
+                self.context.trace.from_input(name, self)
+
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
         # to be used as output
@@ -218,11 +222,18 @@ class EkdInput(Input):
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
-    def _load_forcings(self, fields, variables, dates):
+    def _load_forcings_state(self, fields, variables, dates, current_state):
 
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
 
-        data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
-        return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
+        return self._create_state(
+            fields,
+            variables=variables,
+            date=dates,
+            latitudes=current_state["latitudes"],
+            longitudes=current_state["longitudes"],
+            dtype=np.float32,
+            flatten=True,
+        )

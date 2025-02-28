@@ -9,6 +9,7 @@
 
 import logging
 import os
+import threading
 
 import numpy as np
 
@@ -17,6 +18,10 @@ from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
+
+
+# In case HDF5 was not compiled with thread safety on
+LOCK = threading.RLock()
 
 
 @output_registry.register("netcdf")
@@ -33,53 +38,52 @@ class NetCDFOutput(Output):
     def __repr__(self):
         return f"NetCDFOutput({self.path})"
 
-    def __del__(self):
-        if self.ncfile is not None:
-            self.ncfile.close()
-
-    def open(self, state):
+    def _init(self, state):
         from netCDF4 import Dataset
 
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
             os.remove(self.path)
 
-        if os.path.dirname(self.path):
-            os.makedirs(os.path.dirname(self.path), exist_ok=True)
-
-        self.ncfile = Dataset(self.path, "w", format="NETCDF4")
+        with LOCK:
+            self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
         compression = {}  # dict(zlib=False, complevel=0)
 
         values = len(state["latitudes"])
 
-        self.values_dim = self.ncfile.createDimension("values", values)
-        self.time_dim = self.ncfile.createDimension("time", size=None)  # infinite dimension
-        self.time_var = self.ncfile.createVariable("time", "i8", ("time",), **compression)
+        time = 0
+        self.reference_date = state["date"]
+        if hasattr(self.context, "time_step") and hasattr(self.context, "lead_time"):
+            time = self.context.lead_time // self.context.time_step
+        if hasattr(self.context, "reference_date"):
+            self.reference_date = self.context.reference_date
 
-        self.time_var.units = "seconds since {0}".format(self.reference_date)
-        self.time_var.long_name = "time"
-        self.time_var.calendar = "gregorian"
+        with LOCK:
+            self.values_dim = self.ncfile.createDimension("values", values)
+            self.time_dim = self.ncfile.createDimension("time", time)
+            self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
+
+            self.time_var.units = "seconds since {0}".format(self.reference_date)
+            self.time_var.long_name = "time"
+            self.time_var.calendar = "gregorian"
 
         latitudes = state["latitudes"]
-        self.latitude_var = self.ncfile.createVariable(
-            "latitude",
-            self.float_size,
-            ("values",),
-            **compression,
-        )
-        self.latitude_var.units = "degrees_north"
-        self.latitude_var.long_name = "latitude"
+        with LOCK:
+            self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
+            self.latitude_var.units = "degrees_north"
+            self.latitude_var.long_name = "latitude"
 
         longitudes = state["longitudes"]
-        self.longitude_var = self.ncfile.createVariable(
-            "longitude",
-            self.float_size,
-            ("values",),
-            **compression,
-        )
-        self.longitude_var.units = "degrees_east"
-        self.longitude_var.long_name = "longitude"
+        with LOCK:
+            self.longitude_var = self.ncfile.createVariable(
+                "longitude",
+                self.float_size,
+                ("values",),
+                **compression,
+            )
+            self.longitude_var.units = "degrees_east"
+            self.longitude_var.long_name = "longitude"
 
         self.vars = {}
         self.ensure_variables(state)
@@ -102,27 +106,40 @@ class NetCDFOutput(Output):
 
             while np.prod(chunksizes) > 1000000:
                 chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
-
-            self.vars[name] = self.ncfile.createVariable(
-                name,
-                self.float_size,
-                ("time", "values"),
-                chunksizes=chunksizes,
-                **compression,
-            )
-
-    def write_step(self, state):
+            with LOCK:
+                self.vars[name] = self.ncfile.createVariable(
+                    name,
+                    self.float_size,
+                    ("time", "values"),
+                    chunksizes=chunksizes,
+                    **compression,
+                )
+        with LOCK:
+            self.latitude_var[:] = state["latitudes"]
+            self.longitude_var[:] = state["longitudes"]
 
         self.ensure_variables(state)
 
-        self.time_var[self.n] = self.step(state).total_seconds()
+    def write_initial_state(self, state):
+        reduced_state = self.reduce(state)
+        with LOCK:
+            self.write_state(reduced_state)
+
+    def write_state(self, state):
+
+        self._init(state)
+
+        step = state["date"] - self.reference_date
+        self.time_var[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
-            self.vars[name][self.n] = value
+            with LOCK:
+                self.vars[name][self.n] = value
 
         self.n += 1
 
     def close(self):
         if self.ncfile is not None:
-            self.ncfile.close()
+            with LOCK:
+                self.ncfile.close()
             self.ncfile = None

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from ..config import RunConfiguration
 from ..config import load_config
 from ..runners import create_runner
 from . import Command
@@ -35,8 +36,6 @@ def _run(runner, config):
 class RunCmd(Command):
     """Run inference from a config yaml file."""
 
-    need_logging = False
-
     def add_arguments(self, command_parser):
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("config", help="Path to config file.")
@@ -44,7 +43,7 @@ class RunCmd(Command):
 
     def run(self, args):
 
-        config = load_config(args.config, args.overrides, defaults=args.defaults)
+        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=RunConfiguration)
 
         if config.description is not None:
             LOG.info("%s", config.description)

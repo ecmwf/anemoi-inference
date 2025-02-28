@@ -623,7 +623,7 @@ class Metadata(PatchMixin, LegacyMixin):
         forcing_variables = new_forcing_variables
 
         if len(forcing_mask) > 0:
-            result.append(
+            result.extend(
                 context.create_constant_computed_forcings(
                     forcing_variables,
                     forcing_mask,
@@ -655,11 +655,12 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
 
-        forcing = context.create_constant_coupled_forcings(remaining, remaining_mask)
-
-        if forcing is not None:
-            # SimpleRunner does not support dynamic forcings
-            result.append(forcing)
+        result.extend(
+            context.create_constant_coupled_forcings(
+                remaining,
+                remaining_mask,
+            )
+        )
 
         return result
 
@@ -670,7 +671,7 @@ class Metadata(PatchMixin, LegacyMixin):
         # This will manage the dynamic forcings that are computed
         forcing_mask, forcing_variables = self.computed_time_dependent_forcings
         if len(forcing_mask) > 0:
-            result.append(
+            result.extend(
                 context.create_dynamic_computed_forcings(
                     forcing_variables,
                     forcing_mask,
@@ -701,20 +702,22 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining_mask = [i for i, _ in remaining]
         remaining = [name for _, name in remaining]
 
-        forcing = context.create_dynamic_coupled_forcings(remaining, remaining_mask)
-
-        if forcing is not None:
-            # SimpleRunner does not support dynamic forcings
-            result.append(forcing)
-
+        result.extend(
+            context.create_dynamic_coupled_forcings(
+                remaining,
+                remaining_mask,
+            )
+        )
         return result
 
     def boundary_forcings_inputs(self, context, input_state):
 
         result = []
 
-        if "output_mask" in self._supporting_arrays:
-            result.append(
+        output_mask = self._config_model.get("output_mask", None)
+        if output_mask is not None:
+            assert output_mask == "cutout", "Currently only cutout as output mask supported."
+            result.extend(
                 context.create_boundary_forcings(
                     self.prognostic_variables,
                     self.prognostic_input_mask,

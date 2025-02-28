@@ -26,7 +26,7 @@ class Input(ABC):
         self.context = context
         self.checkpoint = context.checkpoint
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
@@ -35,7 +35,7 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def load_forcings(self, *, variables, dates):
+    def load_forcings_state(self, *, variables, dates, current_state):
         """Load forcings (constant and dynamic)."""
         pass
 

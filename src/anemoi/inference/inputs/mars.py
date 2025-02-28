@@ -85,17 +85,9 @@ def retrieve(requests, grid, area, patch=None, **kwargs):
 
     result = ekd.from_source("empty")
     for r in requests:
-        if r.get("class") in ("rd", "ea"):
-            r["class"] = "od"
-
-        if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
-            r["stream"] = "scda"
 
         r.update(pproc)
         r.update(kwargs)
-
-        if patch:
-            r = patch(r)
 
         LOG.debug("%s", _(r))
 
@@ -110,12 +102,12 @@ class MarsInput(GribInput):
 
     trace_name = "mars"
 
+    trace_name = "mars"
+
     def __init__(self, context, *, namer=None, patches=None, **kwargs):
         super().__init__(context, namer=namer)
-        self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.kwargs = kwargs
-        self.patches = patches or []
 
     def create_input_state(self, *, date):
         if date is None:
@@ -124,7 +116,7 @@ class MarsInput(GribInput):
 
         date = to_datetime(date)
 
-        return self._create_input_state(
+        return self._create_state(
             self.retrieve(
                 self.variables,
                 [date + h for h in self.checkpoint.lagged],
@@ -145,17 +137,7 @@ class MarsInput(GribInput):
         if not requests:
             raise ValueError("No requests for %s (%s)" % (variables, dates))
 
-        kwargs = self.kwargs.copy()
-        kwargs.setdefault("expver", "0001")
-
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
+        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
 
     def load_forcings(self, variables, dates):
         return self._load_forcings(self.retrieve(variables, dates), variables, dates)
-
-    def patch(self, request):
-        for match, keys in self.patches:
-            if all(request.get(k) == v for k, v in match.items()):
-                request.update(keys)
-
-        return request

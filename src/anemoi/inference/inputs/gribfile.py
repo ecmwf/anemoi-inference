@@ -22,7 +22,9 @@ LOG = logging.getLogger(__name__)
 @input_registry.register("grib")
 @main_argument("path")
 class GribFileInput(GribInput):
-    """Handles grib files"""
+    """
+    Handles grib files
+    """
 
     trace_name = "grib file"
 
@@ -31,7 +33,16 @@ class GribFileInput(GribInput):
         self.path = path
 
     def create_input_state(self, *, date):
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
+        return self._create_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings(self, *, variables, dates):
-        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        return self._load_forcings_state(
+            ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
+        )
+
+    def template(self, variable, date, **kwargs):
+        fields = ekd.from_source("file", self.path)
+        data = self._find_variable(fields, variable)
+        if len(data) == 0:
+            return None
+        return data[0]

@@ -18,8 +18,6 @@ from .retrieve import checkpoint_to_requests
 class RequestCmd(Command):
     """MARS request utility."""
 
-    need_logging = False
-
     def add_arguments(self, command_parser):
         command_parser.description = self.__doc__
         command_parser.add_argument("--mars", action="store_true", help="Print the MARS request.")

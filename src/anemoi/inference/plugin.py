@@ -33,8 +33,10 @@ class FieldListInput(GribInput):
     def create_input_state(self, *, date):
         return self._create_input_state(self.input_fields, variables=None, date=date)
 
-    def load_forcings(self, *, variables, dates):
-        return self._load_forcings(self.input_fields, variables=variables, dates=dates)
+    def load_forcings_state(self, *, variables, dates, current_state):
+        return self._load_forcings_state(
+            self.input_fields, variables=variables, dates=dates, current_state=current_state
+        )
 
     def set_private_attributes(self, state, input_fields):
         input_fields = input_fields.order_by("valid_datetime")
