@@ -181,6 +181,14 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs):
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_inputs
+
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_inputs
+
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
         if "latitudes" not in input_state:
@@ -338,8 +346,8 @@ class Runner(Context):
             if self.trace:
                 self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
-            new_state["step"] = s + 1
-            yield new_state
+            result["step"] = s + 1
+            yield result
 
             # No need to prepare next input tensor if we are at the last step
             if s == steps - 1:

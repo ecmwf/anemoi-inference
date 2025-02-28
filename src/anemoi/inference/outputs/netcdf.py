@@ -41,6 +41,10 @@ class NetCDFOutput(Output):
     def _init(self, state):
         from netCDF4 import Dataset
 
+        with LOCK:
+            if self.ncfile is not None:
+                return self.ncfile
+
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
             os.remove(self.path)
@@ -76,25 +80,22 @@ class NetCDFOutput(Output):
 
         longitudes = state["longitudes"]
         with LOCK:
-            self.longitude_var = self.ncfile.createVariable(
-                "longitude",
-                self.float_size,
-                ("values",),
-                **compression,
-            )
+            self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
             self.longitude_var.units = "degrees_east"
             self.longitude_var.long_name = "longitude"
 
-        self.vars = {}
-        self.ensure_variables(state)
-
         self.latitude_var[:] = latitudes
         self.longitude_var[:] = longitudes
+
+        self.vars = {}
+        self.ensure_variables(state)
 
         self.n = 0
         return self.ncfile
 
     def ensure_variables(self, state):
+        self._init(state)
+
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)
@@ -102,6 +103,7 @@ class NetCDFOutput(Output):
         for name in state["fields"].keys():
             if name in self.vars:
                 continue
+
             chunksizes = (1, values)
 
             while np.prod(chunksizes) > 1000000:
@@ -115,17 +117,6 @@ class NetCDFOutput(Output):
                     chunksizes=chunksizes,
                     **compression,
                 )
-        with LOCK:
-            self.latitude_var[:] = latitudes
-            self.longitude_var[:] = longitudes
-
-            self.vars[name] = self.ncfile.createVariable(
-                name,
-                self.float_size,
-                ("time", "values"),
-                chunksizes=chunksizes,
-                **compression,
-            )
 
     def write_initial_state(self, state):
         reduced_state = self.reduce(state)
@@ -134,7 +125,7 @@ class NetCDFOutput(Output):
 
     def write_state(self, state):
 
-        self._init(state)
+        self.ensure_variables(state)
 
         step = state["date"] - self.reference_date
         self.time_var[self.n] = step.total_seconds()
