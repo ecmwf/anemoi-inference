@@ -21,8 +21,6 @@ from anemoi.utils.timer import Timer  # , Timers
 
 from .checkpoint import Checkpoint
 from .context import Context
-from .postprocess import Accumulator
-from .postprocess import Noop
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
@@ -63,14 +61,25 @@ class Runner(Context):
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
         verbosity=0,
-        inference_options=None,
         patch_metadata={},
         development_hacks={},  # For testing purposes, don't use in production
+        trace_path=None,
         output_frequency=None,
         write_initial_state=True,
         use_profiler=False,
+        pre_processors=None,
+        post_processors=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
+
+        self.trace_path = trace_path
+
+        if trace_path:
+            from .trace import Trace
+
+            self.trace = Trace(trace_path)
+        else:
+            self.trace = None
 
         self.device = device
         self.precision = precision
@@ -86,27 +95,19 @@ class Runner(Context):
         self.write_initial_state = write_initial_state
         self.use_profiler = use_profiler
 
-        # This could also be passed as an argument
-
-        self.postprocess = Noop()
-
-        if accumulate_from_start_of_forecast is True:
-            # Get accumulations from the checkpoint
-            accumulations = self.checkpoint.accumulations
-
-            if accumulations:
-                self.postprocess = Accumulator(accumulations)
-
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
+        self.pre_processors = self.create_pre_processors()
+        self.post_processors = self.create_post_processors()
+
         if self.verbosity > 2:
             self.checkpoint.print_indices()
 
-        LOG.info("Using %s runner", self.__class__.__name__)
+        LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
             self.checkpoint.print_variable_categories()
@@ -116,6 +117,12 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
+
+        # Shallow copy to avoid modifying the user's input state
+        input_state = input_state.copy()
+        input_state["fields"] = input_state["fields"].copy()
+
+        input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
@@ -131,12 +138,12 @@ class Runner(Context):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
 
-            try:
-                yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
-            except (TypeError, ModuleNotFoundError, AttributeError):
-                if self.report_error:
-                    self.checkpoint.report_error()
-                raise
+        try:
+            yield from self.forecast(lead_time, input_tensor, input_state)
+        except (TypeError, ModuleNotFoundError, AttributeError):
+            if self.report_error:
+                self.checkpoint.report_error()
+            raise
 
     def add_initial_forcings_to_input_state(self, input_state):
         # Should that be alreay a list of dates
@@ -158,6 +165,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
 
         for source in self.dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
@@ -166,6 +175,8 @@ class Runner(Context):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -257,6 +268,8 @@ class Runner(Context):
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
+        LOG.info("Using autocast %s", self.autocast)
+
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
 
@@ -265,6 +278,7 @@ class Runner(Context):
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
+        result["step"] = to_timedelta(0)
 
         start = input_state["date"]
 
@@ -290,6 +304,11 @@ class Runner(Context):
             title = f"Forecasting step {step} ({date})"
 
             result["date"] = date
+            result["previous_step"] = result.get("step")
+            result["step"] = step
+
+            if self.trace:
+                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
 
             # Predict next state of atmosphere
             with (
@@ -302,6 +321,9 @@ class Runner(Context):
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+
+            if self.trace:
+                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -320,6 +342,8 @@ class Runner(Context):
             # Update  tensor for next iteration
             with ProfilingLabel("Update tensor for next step", self.use_profiler):
                 check[:] = reset
+                if self.trace:
+                    self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
                 input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
@@ -366,6 +390,8 @@ class Runner(Context):
 
         for n in prognostic_input_mask:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+            if self.trace:
+                self.trace.from_rollout(self._input_tensor_by_name[n])
 
         return input_tensor_torch
 
@@ -398,6 +424,10 @@ class Runner(Context):
 
             for n in source.mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+
+            if self.trace:
+                for n in source.mask:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
 
         return input_tensor_torch
 
@@ -551,3 +581,13 @@ class Runner(Context):
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+
+    def patch_data_request(self, request):
+        """Some of the processores may need to patch the data request (e.g. mars or cds request)"""
+        for p in self.pre_processors:
+            request = p.patch_data_request(request)
+
+        for p in self.post_processors:
+            request = p.patch_data_request(request)
+
+        return request

@@ -11,7 +11,7 @@
 import logging
 
 import earthkit.data as ekd
-import numpy as np
+from anemoi.transform.grids.icon import icon_grid
 
 from . import input_registry
 from .grib import GribInput
@@ -25,6 +25,8 @@ class IconInput(GribInput):
     WARNING: this code will become a pugin in the future
     """
 
+    trace_name = "icon file"
+
     def __init__(self, context, path, grid, refinement_level_c, namer=None, **kwargs):
         super().__init__(context, namer=namer, **kwargs)
         self.path = path
@@ -32,17 +34,7 @@ class IconInput(GribInput):
         self.refinement_level_c = refinement_level_c
 
     def create_input_state(self, *, date):
-        import xarray as xr
-
-        LOG.info(f"Reading ICON grid from {self.grid}")
-        ds = xr.open_dataset(self.grid)
-        latitudes = np.rad2deg(ds.clat[ds.refinement_level_c <= self.refinement_level_c].values)
-        longitudes = np.rad2deg(ds.clon[ds.refinement_level_c <= self.refinement_level_c].values)
-
-        LOG.info(f"Latitudes {np.min(latitudes)} {np.max(latitudes)}")
-        LOG.info(f"Longitudes {np.min(longitudes)} {np.max(longitudes)}")
-
-        LOG.info("Done")
+        latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
 
         return self._create_input_state(
             ekd.from_source("file", self.path),

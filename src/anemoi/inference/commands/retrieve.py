@@ -123,6 +123,8 @@ class RetrieveCmd(Command):
             retrieve_fields_type=args.retrieve_fields_type,
             staging_dates=args.staging_dates,
             use_grib_paramid=config.use_grib_paramid,
+            always_split_time=args.use_scda,
+            patch_request=runner.patch_data_request,
             use_scda=args.use_scda,
         )
 
