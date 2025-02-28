@@ -114,6 +114,7 @@ class Runner(Context):
         return self._checkpoint
 
     def run(self, *, input_state, lead_time):
+
         # Shallow copy to avoid modifying the user's input state
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
@@ -271,7 +272,7 @@ class Runner(Context):
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
-        # torch.set_grad_enabled(False) # Maybe not thread safe.
+        torch.set_grad_enabled(False)
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
@@ -287,6 +288,7 @@ class Runner(Context):
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
         result["step"] = to_timedelta(0)
+
         start = input_state["date"]
 
         # The variable `check` is used to keep track of which variables have been updated
@@ -343,7 +345,6 @@ class Runner(Context):
             if self.trace:
                 self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
-            result["step"] = s + 1
             yield result
 
             # No need to prepare next input tensor if we are at the last step
@@ -352,7 +353,6 @@ class Runner(Context):
 
             # Update  tensor for next iteration
             with ProfilingLabel("Update tensor for next step", self.use_profiler):
-
                 check[:] = reset
                 if self.trace:
                     self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
