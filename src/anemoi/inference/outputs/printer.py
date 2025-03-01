@@ -21,6 +21,19 @@ LOG = logging.getLogger(__name__)
 
 
 def print_state(state: dict, print=print, max_lines: int = 4, variables: list = None) -> None:
+    """Print the state.
+
+    Parameters
+    ----------
+    state : dict
+        The state dictionary.
+    print : function, optional
+        The print function to use, by default print.
+    max_lines : int, optional
+        The maximum number of lines to print, by default 4.
+    variables : list, optional
+        The list of variables to print, by default None.
+    """
     print()
     print("😀", end=" ")
     for key, value in state.items():
@@ -76,6 +89,17 @@ def print_state(state: dict, print=print, max_lines: int = 4, variables: list = 
 @output_registry.register("printer")
 @main_argument("max_lines")
 class PrinterOutput(Output):
+    """Printer output class.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    path : str, optional
+        The path to save the printed output, by default None.
+    variables : list, optional
+        The list of variables to print, by default None.
+    """
 
     def __init__(self, context: dict, path: str = None, variables: list = None, **kwargs) -> None:
         super().__init__(context)
@@ -87,4 +111,11 @@ class PrinterOutput(Output):
             self.print = partial(print, file=self.f)
 
     def write_step(self, state: dict) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         print_state(state, print=self.print, variables=self.variables)

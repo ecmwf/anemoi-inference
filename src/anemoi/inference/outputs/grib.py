@@ -24,11 +24,34 @@ LOG = logging.getLogger(__name__)
 
 
 class HindcastOutput:
+    """Hindcast output class.
+
+    Parameters
+    ----------
+    reference_year : int
+        The reference year.
+    """
 
     def __init__(self, reference_year: int) -> None:
         self.reference_year = reference_year
 
     def __call__(self, values: np.ndarray, template: object, keys: dict) -> tuple:
+        """Call the HindcastOutput object.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The values array.
+        template : object
+            The template object.
+        keys : dict
+            The keys dictionary.
+
+        Returns
+        -------
+        tuple
+            The modified values, template, and keys.
+        """
 
         if "date" not in keys:
             assert template.metadata("hdate", default=None) is None, template
@@ -70,7 +93,29 @@ def modifier_factory(modifiers: list) -> list:
 
 
 class GribOutput(Output):
-    """Handles grib."""
+    """Handles grib.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    encoding : dict, optional
+        The encoding dictionary, by default None.
+    templates : dict, optional
+        The templates dictionary, by default None.
+    grib1_keys : dict, optional
+        The grib1 keys dictionary, by default None.
+    grib2_keys : dict, optional
+        The grib2 keys dictionary, by default None.
+    modifiers : list, optional
+        The list of modifiers, by default None.
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    variables : list, optional
+        The list of variables, by default None.
+    """
 
     def __init__(
         self,
@@ -119,6 +164,13 @@ class GribOutput(Output):
         self.template_manager = TemplateManager(self, templates)
 
     def write_initial_step(self, state: dict) -> None:
+        """Write the initial step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         # We trust the GribInput class to provide the templates
         # matching the input state
 
@@ -145,6 +197,13 @@ class GribOutput(Output):
         return self.write_step(state)
 
     def write_step(self, state: dict) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
 
         reference_date = self.reference_date or self.context.reference_date
         step = state["step"]
@@ -214,9 +273,30 @@ class GribOutput(Output):
 
     @abstractmethod
     def write_message(self, message: np.ndarray, *args, **kwargs) -> None:
+        """Write a message to the grib file.
+
+        Parameters
+        ----------
+        message : np.ndarray
+            The message array.
+        """
         pass
 
     def template(self, state: dict, name: str) -> object:
+        """Get the template for a variable.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        name : str
+            The variable name.
+
+        Returns
+        -------
+        object
+            The template object.
+        """
 
         if self.template_manager is None:
             self.template_manager = TemplateManager(self, self.templates)
@@ -224,4 +304,16 @@ class GribOutput(Output):
         return self.template_manager.template(name, state)
 
     def template_lookup(self, name: str) -> dict:
+        """Lookup the template for a variable.
+
+        Parameters
+        ----------
+        name : str
+            The variable name.
+
+        Returns
+        -------
+        dict
+            The template dictionary.
+        """
         return self.encoding

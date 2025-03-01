@@ -20,6 +20,21 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("extract_lam")
 class ExtractLamOutput(ForwardOutput):
+    """Extract LAM output class.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    output : dict
+        The output configuration dictionary.
+    lam : str, optional
+        The LAM identifier, by default "lam_0".
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    """
 
     def __init__(
         self,
@@ -51,18 +66,44 @@ class ExtractLamOutput(ForwardOutput):
         self.output = create_output(context, output)
 
     def __repr__(self) -> str:
+        """Return a string representation of the ExtractLamOutput object."""
         return f"ExtractLamOutput({self.points}, {self.output})"
 
     def write_initial_step(self, state: dict) -> None:
+        """Write the initial step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
     def write_step(self, state: dict) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+        """
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
     def _apply_mask(self, state: dict) -> dict:
+        """Apply the mask to the state.
 
+        Parameters
+        ----------
+        state : dict
+            The state dictionary.
+
+        Returns
+        -------
+        dict
+            The masked state dictionary.
+        """
         state = state.copy()
         state["fields"] = state["fields"].copy()
         state["latitudes"] = state["latitudes"][self.points]
@@ -79,8 +120,16 @@ class ExtractLamOutput(ForwardOutput):
         return state
 
     def close(self) -> None:
+        """Close the output."""
         self.output.close()
 
     def print_summary(self, depth: int = 0) -> None:
+        """Print the summary of the output.
+
+        Parameters
+        ----------
+        depth : int, optional
+            The depth of the summary, by default 0.
+        """
         super().print_summary(depth)
         self.output.print_summary(depth + 1)

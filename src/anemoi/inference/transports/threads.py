@@ -23,14 +23,29 @@ LOG = logging.getLogger(__name__)
 
 
 class TaskWrapper:
+    """Wraps a task to be executed in a thread."""
 
     def __init__(self, task: Any) -> None:
+        """Initialize the TaskWrapper.
+
+        Parameters
+        ----------
+        task : Any
+            The task to be wrapped.
+        """
         self.task: Any = task
         self.queue: queue.Queue = queue.Queue(maxsize=1)
         self.error: Exception | None = None
         self.name: str = task.name
 
     def run(self, transport: "ThreadsTransport") -> None:
+        """Run the task within the given transport.
+
+        Parameters
+        ----------
+        transport : ThreadsTransport
+            The transport in which the task is run.
+        """
         set_logging_name(self.task.name)
         try:
             self.task.run(transport)
@@ -44,14 +59,25 @@ class TaskWrapper:
 
 @transport_registry.register("threads")
 class ThreadsTransport(Transport):
+    """Transport implementation using threads."""
 
     def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
+        """Initialize the ThreadsTransport.
+
+        Parameters
+        ----------
+        couplings : Any
+            The couplings for the transport.
+        tasks : Dict[str, Any]
+            The tasks to be executed.
+        """
         super().__init__(couplings, tasks)
         self.threads: Dict[str, threading.Thread] = {}
         self.lock: threading.Lock = threading.Lock()
         self.backlogs: Dict[str, Dict[tuple, Any]] = {name: {} for name in tasks}
 
     def start(self) -> None:
+        """Start the transport by initializing and starting threads for each task."""
         self.wrapped_tasks = {name: TaskWrapper(task) for name, task in self.tasks.items()}
 
         for name, wrapped_task in self.wrapped_tasks.items():
@@ -59,6 +85,7 @@ class ThreadsTransport(Transport):
             self.threads[name].start()
 
     def wait(self) -> None:
+        """Wait for all threads to complete and handle any errors."""
         # TODO: wait for all threads, and kill remaining threads if any of them failed
         for name, thread in self.threads.items():
             thread.join()
@@ -69,9 +96,38 @@ class ThreadsTransport(Transport):
                 raise wrapped_task.error
 
     def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
+        """Send a state from the sender to the target.
+
+        Parameters
+        ----------
+        sender : Any
+            The task sending the state.
+        target : Any
+            The task receiving the state.
+        state : Any
+            The state to be sent.
+        tag : int
+            The tag associated with the state.
+        """
         self.wrapped_tasks[target.name].queue.put((sender.name, tag, state.copy()))
 
     def receive(self, receiver: Any, source: Any, tag: int) -> Any:
+        """Receive a state from the source to the receiver.
+
+        Parameters
+        ----------
+        receiver : Any
+            The task receiving the state.
+        source : Any
+            The task sending the state.
+        tag : int
+            The tag associated with the state.
+
+        Returns
+        -------
+        Any
+            The received state.
+        """
         LOG.info(f"{receiver}: receiving from {source} [{tag}] (backlog: {len(self.backlogs[receiver.name])})")
 
         if (source.name, tag) in self.backlogs[receiver.name]:

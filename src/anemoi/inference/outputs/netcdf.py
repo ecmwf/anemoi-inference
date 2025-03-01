@@ -50,6 +50,7 @@ class NetCDFOutput(Output):
         self.float_size = "f4"
 
     def __repr__(self) -> str:
+        """Return a string representation of the NetCDFOutput object."""
         return f"NetCDFOutput({self.path})"
 
     def open(self, state: dict) -> None:

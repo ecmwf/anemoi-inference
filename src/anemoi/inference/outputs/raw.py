@@ -22,6 +22,23 @@ LOG = logging.getLogger(__name__)
 @output_registry.register("raw")
 @main_argument("path")
 class RawOutput(Output):
+    """Raw output class.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    path : str
+        The path to save the raw output.
+    template : str, optional
+        The template for filenames, by default "{date}.npz".
+    strftime : str, optional
+        The date format string, by default "%Y%m%d%H%M%S".
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    """
 
     def __init__(
         self,

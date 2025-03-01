@@ -76,7 +76,37 @@ class ArchiveCollector:
 @output_registry.register("grib")
 @main_argument("path")
 class GribFileOutput(GribOutput):
-    """Handles grib files."""
+    """Handles grib files.
+
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    path : str
+        The path to save the grib files.
+    encoding : dict, optional
+        The encoding dictionary, by default None.
+    archive_requests : dict, optional
+        The archive requests dictionary, by default None.
+    check_encoding : bool, optional
+        Whether to check encoding, by default True.
+    templates : dict, optional
+        The templates dictionary, by default None.
+    grib1_keys : dict, optional
+        The grib1 keys dictionary, by default None.
+    grib2_keys : dict, optional
+        The grib2 keys dictionary, by default None.
+    modifiers : list, optional
+        The list of modifiers, by default None.
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    variables : list, optional
+        The list of variables, by default None.
+    split_output : bool, optional
+        Whether to split the output, by default True.
+    """
 
     def __init__(
         self,
@@ -114,9 +144,21 @@ class GribFileOutput(GribOutput):
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
+        """Return a string representation of the GribFileOutput object."""
         return f"GribFileOutput({self.path})"
 
     def write_message(self, message: np.ndarray, template: object, **keys: dict) -> None:
+        """Write a message to the grib file.
+
+        Parameters
+        ----------
+        message : np.ndarray
+            The message array.
+        template : object
+            The template object.
+        **keys : dict
+            Additional keys for the message.
+        """
         # Make sure `name` is not in the keys, otherwise grib_encoding will fail
         if template is not None and template.metadata("name", default=None) is not None:
             # We cannot clear the metadata...
@@ -154,7 +196,17 @@ class GribFileOutput(GribOutput):
             raise
 
     def collect_archive_requests(self, written: tuple, template: object, **keys: dict) -> None:
+        """Collect archive requests.
 
+        Parameters
+        ----------
+        written : tuple
+            The written tuple.
+        template : object
+            The template object.
+        **keys : dict
+            Additional keys for the archive requests.
+        """
         if not self.archive_requests and not self.check_encoding:
             return
 
@@ -187,6 +239,7 @@ class GribFileOutput(GribOutput):
             self.archiving[path].add(mars)
 
     def close(self) -> None:
+        """Close the grib file."""
         self.output.close()
 
         if not self.archive_requests:

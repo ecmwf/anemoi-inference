@@ -15,4 +15,20 @@ transport_registry = Registry(__name__)
 
 
 def create_transport(config: Any, couplings: Any, tasks: Any) -> Any:
+    """Create a transport instance based on the given configuration.
+
+    Parameters
+    ----------
+    config : Any
+        The configuration for the transport.
+    couplings : Any
+        The couplings for the transport.
+    tasks : Any
+        The tasks to be executed.
+
+    Returns
+    -------
+    Any
+        The created transport instance.
+    """
     return transport_registry.from_config(config, couplings, tasks)

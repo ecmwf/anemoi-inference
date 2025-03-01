@@ -56,6 +56,15 @@ class Checkpoint:
     """Represents an inference checkpoint."""
 
     def __init__(self, path: str, *, patch_metadata: Optional[Dict[str, Any]] = None):
+        """Initialize the Checkpoint.
+
+        Parameters
+        ----------
+        path : str
+            The path to the checkpoint.
+        patch_metadata : Optional[Dict[str, Any]], optional
+            Metadata to patch the checkpoint with, by default None.
+        """
         self._path = path
         self.patch_metadata = patch_metadata
 
@@ -64,6 +73,7 @@ class Checkpoint:
 
     @cached_property
     def path(self) -> str:
+        """Get the path to the checkpoint."""
         import json
 
         try:
@@ -246,6 +256,18 @@ class Checkpoint:
     ###########################################################################
 
     def variables_from_input(self, *, include_forcings: bool) -> Any:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include_forcings : bool
+            Whether to include forcings.
+
+        Returns
+        -------
+        Any
+            The variables from input.
+        """
         return self._metadata.variables_from_input(include_forcings=include_forcings)
 
     @property
@@ -269,7 +291,26 @@ class Checkpoint:
         patch_request: Optional[Callable] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
+        """Generate MARS requests for the given variables and dates.
 
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables.
+        dates : List[Any]
+            The list of dates.
+        use_grib_paramid : bool, optional
+            Whether to use GRIB paramid, by default False.
+        always_split_time : bool, optional
+            Whether to always split time, by default False.
+        patch_request : Optional[Callable], optional
+            A callable to patch the request, by default None.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            The list of MARS requests.
+        """
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
@@ -386,6 +427,13 @@ class Checkpoint:
     ###########################################################################
 
     def provenance_training(self) -> Any:
+        """Get the provenance of the training.
+
+        Returns
+        -------
+        Any
+            The provenance of the training.
+        """
         return self._metadata.provenance_training()
 
 
@@ -393,6 +441,15 @@ class SourceCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""
 
     def __init__(self, owner: Checkpoint, metadata: Any):
+        """Initialize the SourceCheckpoint.
+
+        Parameters
+        ----------
+        owner : Checkpoint
+            The owner checkpoint.
+        metadata : Any
+            The metadata for the source checkpoint.
+        """
         super().__init__(owner.path)
         self._owner = owner
         self._metadata = metadata
