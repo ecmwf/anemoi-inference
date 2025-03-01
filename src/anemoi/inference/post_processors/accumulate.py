@@ -36,7 +36,7 @@ class Accumulate(Processor):
         If None, the fields are taken from the context's checkpoint.
     """
 
-    def __init__(self, context: Any, accumulations: Optional[List[str]] = None):
+    def __init__(self, context: Any, accumulations: Optional[List[str]] = None) -> None:
         super().__init__(context)
         if accumulations is None:
             accumulations = context.checkpoint.accumulations

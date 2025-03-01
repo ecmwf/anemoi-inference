@@ -25,7 +25,7 @@ class BackwardTransformFilter(Processor):
 
     def __init__(self, context: Any, filter: str, **kwargs: Any) -> None:
         super().__init__(context)
-        self.filter = filter_registry.create(filter, **kwargs)
+        self.filter: Any = filter_registry.create(filter, **kwargs)
 
     def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
         return unwrap_state(self.filter.backward(wrap_state(state)), state)
