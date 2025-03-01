@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import List
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
@@ -30,7 +31,7 @@ class NoForcings(Forcings):
         self.mask = mask
         self.kinds = dict(unknown=True)
 
-    def load_forcings_state(self, state, date):
+    def load_forcings_state(self, state: dict, date: str) -> None:
         pass
 
 
@@ -41,24 +42,24 @@ class SimpleRunner(Runner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def create_constant_computed_forcings(self, variables, mask):
+    def create_constant_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables, mask):
+    def create_dynamic_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def create_constant_coupled_forcings(self, variables, mask):
+    def create_constant_coupled_forcings(self, variables: list, mask: list) -> List:
         # This runner does not support coupled forcings
         # there are supposed to be already in the state dictionary
         # of managed by the user.
         LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
         return []
 
-    def create_dynamic_coupled_forcings(self, variables, mask):
+    def create_dynamic_coupled_forcings(self, variables: list, mask: list) -> List:
         # This runner does not support coupled forcings
         # there are supposed to be already in the state dictionary
         # of managed by the user.

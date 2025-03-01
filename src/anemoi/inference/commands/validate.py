@@ -23,7 +23,13 @@ class ValidateCmd(Command):
     """Validate the virtual environment against a checkpoint file."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
 
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.add_argument(
             "--all-packages", action="store_true", help="Check all packages in the environment."
         )
@@ -37,6 +43,18 @@ class ValidateCmd(Command):
         command_parser.add_argument("checkpoint", help="Path to checkpoint file.")
 
     def run(self, args: Namespace) -> bool:
+        """Run the validation command.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+
+        Returns
+        -------
+        bool
+            True if the environment is valid, False otherwise.
+        """
         checkpoint = Checkpoint(args.checkpoint)
         return checkpoint.validate_environment(
             all_packages=args.all_packages,

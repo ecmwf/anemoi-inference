@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Optional
 
 from ..context import Context
 from ..input import Input
@@ -26,7 +27,7 @@ class CutoutInput(Input):
         self.lam = lam
         self.globe = globe
 
-    def create_input_state(self, *, date=None):
+    def create_input_state(self, *, date: Optional[str] = None) -> None:
 
         state1 = self.lam.create_input_state(date=date)
         state2 = self.globe.create_input_state(date=date)
@@ -37,11 +38,11 @@ class CutoutInput(Input):
 class CutoutContext(Context):
     """A Context object for CutoutRunner."""
 
-    def __init__(self, checkpoint):
+    def __init__(self, checkpoint: str) -> None:
         self._checkpoint = checkpoint
 
     @property
-    def checkpoint(self):
+    def checkpoint(self) -> str:
         return self._checkpoint
 
 
@@ -49,7 +50,7 @@ class CutoutContext(Context):
 class CutoutRunner(Runner):
     """A Runner that for LAMs."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         sources = self.checkpoint.sources

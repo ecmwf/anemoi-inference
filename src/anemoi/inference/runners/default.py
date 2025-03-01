@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import List
 
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
@@ -58,24 +59,24 @@ class DefaultRunner(Runner):
             use_profiler=config.use_profiler,
         )
 
-    def create_input(self):
+    def create_input(self) -> create_input:
         input = create_input(self, self.config.input)
         LOG.info("Input: %s", input)
         return input
 
-    def create_output(self):
+    def create_output(self) -> create_output:
         output = create_output(self, self.config.output)
         LOG.info("Output:")
         output.print_summary()
         return output
 
     # Computed forcings
-    def create_constant_computed_forcings(self, variables, mask):
+    def create_constant_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables, mask):
+    def create_dynamic_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
@@ -98,25 +99,25 @@ class DefaultRunner(Runner):
 
         return self.config.forcings
 
-    def create_constant_coupled_forcings(self, variables, mask):
+    def create_constant_coupled_forcings(self, variables: list, mask: list) -> List[CoupledForcings]:
         input = create_input(self, self._input_forcings("constant"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables, mask):
+    def create_dynamic_coupled_forcings(self, variables: list, mask: list) -> List[CoupledForcings]:
         input = create_input(self, self._input_forcings("dynamic"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables, mask):
+    def create_boundary_forcings(self, variables: list, mask: list) -> List[BoundaryForcings]:
         input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return [result]
 
-    def create_pre_processors(self):
+    def create_pre_processors(self) -> List[create_pre_processor]:
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))
@@ -124,7 +125,7 @@ class DefaultRunner(Runner):
         LOG.info("Pre processors: %s", result)
         return result
 
-    def create_post_processors(self):
+    def create_post_processors(self) -> List[create_post_processor]:
         result = []
         for processor in self.config.post_processors:
             result.append(create_post_processor(self, processor))

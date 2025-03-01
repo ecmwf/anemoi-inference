@@ -18,6 +18,13 @@ class InspectCmd(Command):
     """Inspect the contents of a checkpoint file."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
+
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--dump", action="store_true", help="Print internal information")
         command_parser.add_argument(
@@ -25,7 +32,13 @@ class InspectCmd(Command):
         )
 
     def run(self, args: Namespace) -> None:
+        """Run the inspect command.
 
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         c = Checkpoint(args.path)
 
         if args.validate:

@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Any
 
 from . import runner_registry
 from .default import DefaultRunner
@@ -18,5 +19,5 @@ LOG = logging.getLogger(__name__)
 
 @runner_registry.register("crps")
 class CrpsRunner(DefaultRunner):
-    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
+    def predict_step(self, model, input_tensor_torch, fcstep: int, **kwargs: Any) -> Any:
         return model.predict_step(input_tensor_torch, fcstep=fcstep)

@@ -9,6 +9,8 @@
 
 
 import logging
+from typing import List
+from typing import Tuple
 
 from ..forcings import ComputedForcings
 from ..runner import Runner
@@ -27,30 +29,30 @@ class PluginRunner(Runner):
     # Compatibility with the ai_models API
 
     @property
-    def param_sfc(self):
+    def param_sfc(self) -> List[str]:
         params, _ = self.checkpoint.mars_by_levtype("sfc")
         return sorted(params)
 
     @property
-    def param_level_pl(self):
+    def param_level_pl(self) -> Tuple[List[str], List[int]]:
         params, levels = self.checkpoint.mars_by_levtype("pl")
         return sorted(params), sorted(levels)
 
     @property
-    def param_level_ml(self):
+    def param_level_ml(self) -> Tuple[List[str], List[int]]:
         params, levels = self.checkpoint.mars_by_levtype("ml")
         return sorted(params), sorted(levels)
 
     @property
-    def lagged(self):
+    def lagged(self) -> List[int]:
         return [s.total_seconds() // 3600 for s in self.checkpoint.lagged]
 
-    def create_constant_computed_forcings(self, variables, mask):
+    def create_constant_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables, mask):
+    def create_dynamic_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
