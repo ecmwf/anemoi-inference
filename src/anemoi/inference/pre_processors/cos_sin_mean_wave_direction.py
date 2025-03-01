@@ -10,12 +10,12 @@
 
 import logging
 
-from . import post_processor_registry
-from .backward_transform_filter import BackwardTransformFilter
+from . import pre_processor_registry
+from .forward_transform_filter import ForwardTransformFilter
 
 LOG = logging.getLogger(__name__)
 
 
-@post_processor_registry.register("cos_sin_mean_wave_direction")
-class CosSinMeanWaveDirection(BackwardTransformFilter):
+@pre_processor_registry.register("cos_sin_mean_wave_direction")
+class CosSinMeanWaveDirection(ForwardTransformFilter):
     pass

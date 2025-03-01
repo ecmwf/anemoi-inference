@@ -13,21 +13,17 @@ import logging
 from anemoi.transform.filters import filter_registry
 
 from ..processor import Processor
-from . import pre_processor_registry
 
 LOG = logging.getLogger(__name__)
 
 
-@pre_processor_registry.register("cos_sin_mean_wave_direction")
-class MeanWaveDirection(Processor):
-    """Accumulate fields from zero and return the accumulated fields."""
+class ForwardTransformFilter(Processor):
 
-    def __init__(self, context, **kwargs):
+    def __init__(self, context, filter, **kwargs):
         super().__init__(context)
-        self.filter = filter_registry.create("cos_sin_mean_wave_direction", **kwargs)
+        self.filter = filter_registry.create(filter, **kwargs)
 
     def process(self, fields):
-        LOG.info("MeanWaveDirection: processing %s fields", len(fields))
         return self.filter.forward(fields)
 
     def patch_data_request(self, data_request):
