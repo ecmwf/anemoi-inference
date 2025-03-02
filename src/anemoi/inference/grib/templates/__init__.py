@@ -16,13 +16,15 @@ from typing import Optional
 import yaml
 from anemoi.utils.registry import Registry
 
+from anemoi.inference.config import Configuration
+
 LOG = logging.getLogger(__name__)
 
 
 template_provider_registry = Registry(__name__)
 
 
-def create_template_provider(owner: Any, config: Dict[str, Any]) -> "TemplateProvider":
+def create_template_provider(owner: Any, config: Configuration) -> "TemplateProvider":
     return template_provider_registry.from_config(config, owner)
 
 

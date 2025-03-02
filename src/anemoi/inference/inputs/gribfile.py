@@ -15,6 +15,8 @@ from typing import Optional
 
 import earthkit.data as ekd
 
+from anemoi.inference.context import Context
+
 from ..decorators import main_argument
 from . import input_registry
 from .grib import GribInput
@@ -29,7 +31,7 @@ class GribFileInput(GribInput):
 
     trace_name = "grib file"
 
-    def __init__(self, context: Any, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
+    def __init__(self, context: Context, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
         """Initialize the GribFileInput.
 
         Parameters

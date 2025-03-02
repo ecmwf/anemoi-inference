@@ -23,6 +23,8 @@ import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.context import Context
+
 from ..checks import check_data
 from ..input import Input
 
@@ -146,7 +148,7 @@ class EkdInput(Input):
 
     def __init__(
         self,
-        context: Any,
+        context: Context,
         *,
         namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
     ) -> None:

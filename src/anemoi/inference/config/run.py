@@ -18,15 +18,12 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
-from pydantic import BaseModel
+from .config import Config
 
 LOG = logging.getLogger(__name__)
 
 
-class RunConfiguration(BaseModel):
-
-    class Config:
-        extra = "forbid"
+class RunConfiguration(Config):
 
     description: Optional[str] = None
 

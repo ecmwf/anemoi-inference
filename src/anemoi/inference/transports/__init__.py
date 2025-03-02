@@ -11,15 +11,17 @@ from typing import Any
 
 from anemoi.utils.registry import Registry
 
+from anemoi.inference.config import Configuration
+
 transport_registry = Registry(__name__)
 
 
-def create_transport(config: Any, couplings: Any, tasks: Any) -> Any:
+def create_transport(config: Configuration, couplings: Any, tasks: Any) -> Any:
     """Create a transport instance based on the given configuration.
 
     Parameters
     ----------
-    config : Any
+    config : Config
         The configuration for the transport.
     couplings : Any
         The couplings for the transport.

@@ -279,6 +279,10 @@ class GribOutput(Output):
         ----------
         message : np.ndarray
             The message array.
+        *args : Any
+            Additional arguments.
+        **kwargs : Any
+            Additional keyword arguments
         """
         pass
 

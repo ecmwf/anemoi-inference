@@ -14,6 +14,8 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+from anemoi.inference.context import Context
+
 LOG = logging.getLogger(__name__)
 
 # TODO: only one method is need: `load_data`.
@@ -25,7 +27,7 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: Any):
+    def __init__(self, context: Context):
         self.context = context
         self.checkpoint = context.checkpoint
 

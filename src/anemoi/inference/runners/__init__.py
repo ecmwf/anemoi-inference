@@ -10,8 +10,10 @@ from typing import Any
 
 from anemoi.utils.registry import Registry
 
+from anemoi.inference.config import Configuration
+
 runner_registry = Registry(__name__)
 
 
-def create_runner(config: Any, **kwargs: Any) -> Any:
+def create_runner(config: Configuration, **kwargs: Any) -> Any:
     return runner_registry.create(config.runner, config, **kwargs)

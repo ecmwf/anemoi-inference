@@ -8,12 +8,14 @@
 #
 
 from typing import Any
-from typing import Dict
 
 from anemoi.utils.registry import Registry
+
+from anemoi.inference.config import Configuration
+from anemoi.inference.context import Context
 
 post_processor_registry = Registry(__name__)
 
 
-def create_post_processor(context: Any, config: Dict[str, Any]) -> Any:
+def create_post_processor(context: Context, config: Configuration) -> Any:
     return post_processor_registry.from_config(config, context)

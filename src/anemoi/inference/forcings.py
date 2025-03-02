@@ -20,6 +20,7 @@ import numpy as np
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
 
+from anemoi.inference.context import Context
 from anemoi.inference.inputs.dataset import DatasetInput
 
 LOG = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
-    def __init__(self, context: Any):
+    def __init__(self, context: Context):
         self.context = context
         self.checkpoint = context.checkpoint
         self.kinds = dict(unknown=True)  # Used for debugging
@@ -69,7 +70,7 @@ class ComputedForcings(Forcings):
 
     trace_name = "computed"
 
-    def __init__(self, context: Any, variables: List[str], mask: Any):
+    def __init__(self, context: Context, variables: List[str], mask: Any):
         super().__init__(context)
         self.variables = variables
         self.mask = mask
@@ -113,7 +114,7 @@ class CoupledForcings(Forcings):
     def trace_name(self):
         return self.input.trace_name
 
-    def __init__(self, context: Any, input: Any, variables: List[str], mask: Any):
+    def __init__(self, context: Context, input: Any, variables: List[str], mask: Any):
         super().__init__(context)
         self.variables = variables
         self.mask = mask
@@ -138,7 +139,7 @@ class CoupledForcings(Forcings):
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
-    def __init__(self, context: Any, input: DatasetInput, variables: List[str], variables_mask: Any):
+    def __init__(self, context: Context, input: DatasetInput, variables: List[str], variables_mask: Any):
         super().__init__(context)
         self.variables = variables
         self.variables_mask = variables_mask

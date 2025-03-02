@@ -17,6 +17,8 @@ from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.context import Context
+
 from . import input_registry
 from .grib import GribInput
 from .mars import postproc
@@ -87,7 +89,7 @@ class CDSInput(GribInput):
     trace_name = "cds"
 
     def __init__(
-        self, context: Any, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
+        self, context: Context, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
     ) -> None:
         """Initialize the CDSInput.
 

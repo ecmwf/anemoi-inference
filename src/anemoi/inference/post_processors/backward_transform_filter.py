@@ -14,6 +14,8 @@ from typing import Dict
 
 from anemoi.transform.filters import filter_registry
 
+from anemoi.inference.context import Context
+
 from ..processor import Processor
 from .earthkit_state import unwrap_state
 from .earthkit_state import wrap_state
@@ -23,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 class BackwardTransformFilter(Processor):
 
-    def __init__(self, context: Any, filter: str, **kwargs: Any) -> None:
+    def __init__(self, context: Context, filter: str, **kwargs: Any) -> None:
         super().__init__(context)
         self.filter: Any = filter_registry.create(filter, **kwargs)
 

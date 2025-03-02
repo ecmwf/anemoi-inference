@@ -12,6 +12,7 @@ import datetime
 import logging
 import warnings
 from functools import cached_property
+from typing import Any
 
 import numpy as np
 import torch
@@ -31,7 +32,7 @@ LOG = logging.getLogger(__name__)
 class Kind:
     """Used for debugging purposes."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
 
     def __repr__(self):

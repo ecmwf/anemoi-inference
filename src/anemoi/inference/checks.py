@@ -19,8 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 def check_data(title: str, data: Any, variables: List[str], dates: List[datetime.datetime]) -> None:
-    """
-    Check if the data matches the expected number of fields based on variables and dates.
+    """Check if the data matches the expected number of fields based on variables and dates.
 
     Parameters
     ----------

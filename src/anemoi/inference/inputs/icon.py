@@ -16,6 +16,8 @@ from typing import Optional
 import earthkit.data as ekd
 from anemoi.transform.grids.icon import icon_grid
 
+from anemoi.inference.context import Context
+
 from . import input_registry
 from .grib import GribInput
 
@@ -31,7 +33,13 @@ class IconInput(GribInput):
     trace_name = "icon file"
 
     def __init__(
-        self, context: Any, path: str, grid: str, refinement_level_c: int, namer: Optional[Any] = None, **kwargs: Any
+        self,
+        context: Context,
+        path: str,
+        grid: str,
+        refinement_level_c: int,
+        namer: Optional[Any] = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize the IconInput.
 

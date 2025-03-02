@@ -1,4 +1,4 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2025 ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -7,12 +7,10 @@
 # nor does it submit to any jurisdiction.
 #
 
-from anemoi.utils.registry import Registry
+from typing import Any
+from typing import Dict
 
-from anemoi.inference.config import Configuration
+"""A collection of types used in the inference module. Some of these type could be moved to anemoi.utils.types or anemoi.transform.types."""
 
-output_registry = Registry(__name__)
-
-
-def create_output(context: dict, config: Configuration) -> object:
-    return output_registry.from_config(config, context)
+DataRequest = Dict[str, Any]
+"""A dictionary that represent a data request, like MARS, CDS, OpenData, ..."""

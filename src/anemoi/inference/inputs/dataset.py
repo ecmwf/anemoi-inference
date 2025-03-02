@@ -20,6 +20,8 @@ from typing import Tuple
 import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.context import Context
+
 from ..input import Input
 from . import input_registry
 
@@ -29,7 +31,7 @@ LOG = logging.getLogger(__name__)
 class DatasetInput(Input):
     """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context: Any, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+    def __init__(self, context: Context, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         """Initialize the DatasetInput.
 
         Parameters
@@ -215,7 +217,7 @@ class DatasetInputArgsKwargs(DatasetInput):
 
     trace_name = "dataset/provided"
 
-    def __init__(self, context: Any, /, *args: Any, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(self, context: Context, /, *args: Any, use_original_paths: bool = True, **kwargs: Any) -> None:
         if not args and not kwargs:
             args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
@@ -236,7 +238,7 @@ class DatasetInputArgsKwargs(DatasetInput):
 class DataloaderInput(DatasetInput):
     """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context: Any, /, name: str, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(self, context: Context, /, name: str, use_original_paths: bool = True, **kwargs: Any) -> None:
 
         args, kwargs = context.checkpoint.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
@@ -252,7 +254,7 @@ class TestInput(DataloaderInput):
 
     trace_name = "dataset/test"
 
-    def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
         super().__init__(
             context,
             name="test",
@@ -267,7 +269,7 @@ class ValidationInput(DataloaderInput):
 
     trace_name = "dataset/validation"
 
-    def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
         super().__init__(
             context,
             name="validation",
@@ -282,7 +284,7 @@ class TrainingInput(DataloaderInput):
 
     trace_name = "dataset/training"
 
-    def __init__(self, context: Any, /, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
         super().__init__(
             context,
             name="training",

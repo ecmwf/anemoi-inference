@@ -99,6 +99,8 @@ class PrinterOutput(Output):
         The path to save the printed output, by default None.
     variables : list, optional
         The list of variables to print, by default None.
+    **kwargs : Any
+        Additional keyword arguments.
     """
 
     def __init__(self, context: dict, path: str = None, variables: list = None, **kwargs) -> None:

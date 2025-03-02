@@ -18,6 +18,8 @@ from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.context import Context
+
 from . import input_registry
 from .grib import GribInput
 
@@ -126,7 +128,7 @@ class MarsInput(GribInput):
 
     def __init__(
         self,
-        context: Any,
+        context: Context,
         *,
         namer: Optional[Any] = None,
         patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,

@@ -22,13 +22,26 @@ from typing import Optional
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.types import MarsRequest
+
 from .metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
 
-def _download_huggingfacehub(huggingface_config) -> str:
-    """Download model from huggingface."""
+def _download_huggingfacehub(huggingface_config: Any) -> str:
+    """Download model from huggingface.
+
+    Parameters
+    ----------
+    huggingface_config : dict or str
+        Configuration for downloading from huggingface.
+
+    Returns
+    -------
+    str
+        Path to the downloaded model.
+    """
     try:
         from huggingface_hub import hf_hub_download
         from huggingface_hub import snapshot_download
@@ -90,7 +103,7 @@ class Checkpoint:
         raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
     @cached_property
-    def _metadata(self):
+    def _metadata(self) -> Metadata:
         try:
             result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
@@ -175,13 +188,24 @@ class Checkpoint:
         return self._metadata.grid_points_mask
 
     @cached_property
-    def sources(self):
+    def sources(self) -> List["SourceCheckpoint"]:
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
     def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
         """Return a callable that can be used to name fields.
-        In that case, return the namer that was used to create the
-        training dataset.
+
+        Parameters
+        ----------
+        *args : Any
+            Additional arguments.
+
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Callable
+            The namer that was used to create the training dataset.
         """
         return self._metadata.default_namer(*args, **kwargs)
 
@@ -195,6 +219,22 @@ class Checkpoint:
         on_difference: str = "warn",
         exempt_packages: Optional[List[str]] = None,
     ) -> bool:
+        """Validate the environment.
+
+        Parameters
+        ----------
+        all_packages : bool, optional
+            Whether to validate all packages, by default False.
+        on_difference : str, optional
+            Action to take on difference, by default "warn".
+        exempt_packages : Optional[List[str]], optional
+            List of packages to exempt, by default None.
+
+        Returns
+        -------
+        bool
+            True if the environment is valid, False otherwise.
+        """
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
@@ -202,24 +242,114 @@ class Checkpoint:
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: Optional[Any] = None
     ) -> Dict[str, Any]:
+        """Get arguments and keyword arguments for opening the dataset.
+
+        Parameters
+        ----------
+        use_original_paths : bool
+            Whether to use original paths.
+        from_dataloader : Optional[Any], optional
+            Data loader, by default None.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Arguments and keyword arguments for opening the dataset.
+        """
         return self._metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=from_dataloader,
         )
 
     def constant_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+        """Get constant forcings inputs.
+
+        Parameters
+        ----------
+        runner : Any
+            The runner.
+        input_state : Dict[str, Any]
+            The input state.
+
+        Returns
+        -------
+        Any
+            The constant forcings inputs.
+        """
         return self._metadata.constant_forcings_inputs(runner, input_state)
 
     def dynamic_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+        """Get dynamic forcings inputs.
+
+        Parameters
+        ----------
+        runner : Any
+            The runner.
+        input_state : Dict[str, Any]
+            The input state.
+
+        Returns
+        -------
+        Any
+            The dynamic forcings inputs.
+        """
         return self._metadata.dynamic_forcings_inputs(runner, input_state)
 
     def boundary_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+        """Get boundary forcings inputs.
+
+        Parameters
+        ----------
+        runner : Any
+            The runner.
+        input_state : Dict[str, Any]
+            The input state.
+
+        Returns
+        -------
+        Any
+            The boundary forcings inputs.
+        """
         return self._metadata.boundary_forcings_inputs(runner, input_state)
 
     def name_fields(self, fields: Any, namer: Optional[Callable] = None) -> Any:
+        """Name fields.
+
+        Parameters
+        ----------
+        fields : Any
+            The fields to name.
+        namer : Optional[Callable], optional
+            The namer, by default None.
+
+        Returns
+        -------
+        Any
+            The named fields.
+        """
         return self._metadata.name_fields(fields, namer=namer)
 
     def sort_by_name(self, fields: Any, namer: Optional[Callable] = None, *args: Any, **kwargs: Any) -> Any:
+        """Sort fields by name.
+
+        Parameters
+        ----------
+        fields : Any
+            The fields to sort.
+        namer : Optional[Callable], optional
+            The namer, by default None.
+
+        *args : Any
+            Additional arguments.
+
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Any
+            The sorted fields.
+        """
         return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
 
     def print_indices(self) -> None:
@@ -290,7 +420,7 @@ class Checkpoint:
         always_split_time: bool = False,
         patch_request: Optional[Callable] = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[MarsRequest]:
         """Generate MARS requests for the given variables and dates.
 
         Parameters
@@ -305,10 +435,12 @@ class Checkpoint:
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
             A callable to patch the request, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
-        List[Dict[str, Any]]
+        List[MarsRequest]
             The list of MARS requests.
         """
         from anemoi.utils.grib import shortname_to_paramid
