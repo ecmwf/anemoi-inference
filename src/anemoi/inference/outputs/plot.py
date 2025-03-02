@@ -9,8 +9,12 @@
 
 import logging
 import os
+from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from ..output import Output
 from . import output_registry
@@ -18,17 +22,17 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 
-def fix(lons: np.ndarray) -> np.ndarray:
+def fix(lons: FloatArray) -> FloatArray:
     """Fix longitudes greater than 180 degrees.
 
     Parameters
     ----------
-    lons : np.ndarray
+    lons : FloatArray
         Array of longitudes.
 
     Returns
     -------
-    np.ndarray
+    FloatArray
         Fixed array of longitudes.
     """
     return np.where(lons > 180, lons - 360, lons)
@@ -72,8 +76,8 @@ class PlotOutput(Output):
         dpi: int = 300,
         format: str = "png",
         missing_value: float = None,
-        output_frequency: int = None,
-        write_initial_state: bool = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
@@ -88,7 +92,7 @@ class PlotOutput(Output):
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Write a step of the state.
 
         Parameters

@@ -14,6 +14,8 @@ import warnings
 from collections import defaultdict
 from functools import cached_property
 from types import MappingProxyType as frozendict
+from typing import Callable
+from typing import Dict
 from typing import Literal
 from typing import Optional
 
@@ -22,6 +24,8 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
+
+from anemoi.inference.types import FloatArray
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
@@ -42,7 +46,7 @@ def _remove_full_paths(x):
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
-    def __init__(self, metadata, supporting_arrays={}):
+    def __init__(self, metadata, supporting_arrays: Dict[str, FloatArray] = {}):
         self._metadata = DotDict(metadata)
         assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
@@ -299,7 +303,7 @@ class Metadata(PatchMixin, LegacyMixin):
     # Default namer
     ###########################################################################
 
-    def default_namer(self, *args, **kwargs):
+    def default_namer(self, *args, **kwargs) -> Callable:
         """Return a callable that can be used to name earthkit-data fields.
         In that case, return the namer that was used to create the
         training dataset.
@@ -741,11 +745,11 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._supporting_arrays
 
     @property
-    def latitudes(self):
+    def latitudes(self) -> Optional[FloatArray]:
         return self._supporting_arrays.get("latitudes")
 
     @property
-    def longitudes(self):
+    def longitudes(self) -> Optional[FloatArray]:
         return self._supporting_arrays.get("longitudes")
 
     @property

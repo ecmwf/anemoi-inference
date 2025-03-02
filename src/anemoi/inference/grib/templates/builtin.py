@@ -41,7 +41,7 @@ class BuiltinTemplates(IndexTemplateProvider):
 
         super().__init__(manager, index_path)
 
-    def load_template(self, grib: str, lookup: Dict[str, Any]) -> ekd.Field:
+    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
         import earthkit.data as ekd
 
         template = zlib.decompress(base64.b64decode(grib))

@@ -13,12 +13,16 @@ import logging
 import warnings
 from functools import cached_property
 from typing import Any
+from typing import Optional
 
 import numpy as np
 import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer  # , Timers
+
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from .checkpoint import Checkpoint
 from .context import Context
@@ -56,7 +60,7 @@ class Runner(Context):
         checkpoint,
         *,
         device: str = "cuda",
-        precision: str = None,
+        precision: Optional[str] = None,
         report_error=False,
         allow_nans=None,  # can be True of False
         use_grib_paramid=False,
@@ -188,7 +192,7 @@ class Runner(Context):
         # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
 
-    def prepare_input_tensor(self, input_state, dtype=np.float32):
+    def prepare_input_tensor(self, input_state: State, dtype=np.float32) -> FloatArray:
 
         if "latitudes" not in input_state:
             input_state["latitudes"] = self.checkpoint.latitudes

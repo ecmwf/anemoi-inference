@@ -13,8 +13,12 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import List
+
+from anemoi.inference.input import Input
+from anemoi.inference.output import Output
+from anemoi.inference.processor import Processor
+from anemoi.inference.types import IntArray
 
 if TYPE_CHECKING:
     from .forcings import Forcings
@@ -56,26 +60,26 @@ class Context(ABC):
     # expected to provide the forcings directly as input to the runner.
     ##################################################################
 
-    def create_input(self) -> Any:
+    def create_input(self) -> Input:
         raise NotImplementedError()
 
-    def create_output(self) -> Any:
+    def create_output(self) -> Output:
         raise NotImplementedError()
 
-    def create_constant_computed_forcings(self, variables: List[str], mask: Any) -> List["Forcings"]:
+    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_constant_computed_forcings")
 
-    def create_constant_coupled_forcings(self, variables: List[str], mask: Any) -> List["Forcings"]:
+    def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_constant_coupled_forcings")
 
-    def create_dynamic_computed_forcings(self, variables: List[str], mask: Any) -> List["Forcings"]:
+    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_computed_forcings")
 
-    def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List["Forcings"]:
+    def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List["Forcings"]:
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")
 
-    def create_pre_processors(self) -> List[Any]:
+    def create_pre_processors(self) -> List[Processor]:
         return []
 
-    def create_post_processors(self) -> List[Any]:
+    def create_post_processors(self) -> List[Processor]:
         return []

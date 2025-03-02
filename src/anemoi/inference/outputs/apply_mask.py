@@ -8,6 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import Optional
+
+from anemoi.inference.types import State
 
 from ..output import ForwardOutput
 from . import create_output
@@ -35,7 +38,13 @@ class ApplyMaskOutput(ForwardOutput):
     """
 
     def __init__(
-        self, context: dict, *, mask: str, output: dict, output_frequency: int = None, write_initial_state: bool = None
+        self,
+        context: dict,
+        *,
+        mask: str,
+        output: dict,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.mask = self.checkpoint.load_supporting_array(mask)
@@ -45,7 +54,7 @@ class ApplyMaskOutput(ForwardOutput):
         """Return a string representation of the ApplyMaskOutput object."""
         return f"ApplyMaskOutput({self.mask}, {self.output})"
 
-    def write_initial_step(self, state: dict) -> None:
+    def write_initial_step(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters
@@ -56,7 +65,7 @@ class ApplyMaskOutput(ForwardOutput):
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Write a step of the state.
 
         Parameters
@@ -67,7 +76,7 @@ class ApplyMaskOutput(ForwardOutput):
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
-    def _apply_mask(self, state: dict) -> dict:
+    def _apply_mask(self, state: State) -> dict:
         """Apply the mask to the state.
 
         Parameters

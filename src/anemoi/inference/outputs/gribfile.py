@@ -11,8 +11,14 @@
 import json
 import logging
 from collections import defaultdict
+from typing import Any
+from typing import Dict
+from typing import Optional
 
+import earthkit.data as ekd
 import numpy as np
+
+from anemoi.inference.types import FloatArray
 
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
@@ -120,8 +126,8 @@ class GribFileOutput(GribOutput):
         grib1_keys: dict = None,
         grib2_keys: dict = None,
         modifiers: list = None,
-        output_frequency: int = None,
-        write_initial_state: bool = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
         variables: list = None,
         split_output: bool = True,
     ) -> None:
@@ -147,16 +153,16 @@ class GribFileOutput(GribOutput):
         """Return a string representation of the GribFileOutput object."""
         return f"GribFileOutput({self.path})"
 
-    def write_message(self, message: np.ndarray, template: object, **keys: dict) -> None:
+    def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
         """Write a message to the grib file.
 
         Parameters
         ----------
-        message : np.ndarray
+        message : FloatArray
             The message array.
-        template : object
-            The template object.
-        **keys : dict
+        template : ekd.Field
+            A ekd.Field use as a template for GRIB encoding.
+        **keys : Dict[str, Any]
             Additional keys for the message.
         """
         # Make sure `name` is not in the keys, otherwise grib_encoding will fail

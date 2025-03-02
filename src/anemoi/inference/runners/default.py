@@ -14,9 +14,12 @@ from typing import List
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
+from anemoi.inference.types import IntArray
+
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
 from ..forcings import CoupledForcings
+from ..forcings import Forcings
 from ..inputs import create_input
 from ..outputs import create_output
 from ..post_processors import create_post_processor
@@ -71,12 +74,12 @@ class DefaultRunner(Runner):
         return output
 
     # Computed forcings
-    def create_constant_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
+    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
+    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
@@ -99,13 +102,13 @@ class DefaultRunner(Runner):
 
         return self.config.forcings
 
-    def create_constant_coupled_forcings(self, variables: list, mask: list) -> List[CoupledForcings]:
+    def create_constant_coupled_forcings(self, variables: list, mask: list) -> List[Forcings]:
         input = create_input(self, self._input_forcings("constant"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: list, mask: list) -> List[CoupledForcings]:
+    def create_dynamic_coupled_forcings(self, variables: list, mask: list) -> List[Forcings]:
         input = create_input(self, self._input_forcings("dynamic"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)

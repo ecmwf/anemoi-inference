@@ -15,9 +15,12 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -33,7 +36,6 @@ def retrieve(
     dataset: Union[str, Dict[str, Any]],
     **kwargs: Any,
 ) -> Any:
-    import earthkit.data as ekd
 
     def _(r):
         mars = r.copy()
@@ -110,17 +112,17 @@ class CDSInput(GribInput):
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date: Optional[Any]) -> Any:
+    def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Any]
+        date : Optional[Date]
             The date for which to create the input state.
 
         Returns
         -------
-        Any
+        State
             The created input state.
         """
         if date is None:

@@ -12,9 +12,12 @@ import datetime
 import json
 import logging
 from abc import abstractmethod
+from typing import Optional
 
-import numpy as np
 from earthkit.data.utils.dates import to_datetime
+
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from ..grib.encoding import grib_keys
 from ..grib.templates.manager import TemplateManager
@@ -35,12 +38,12 @@ class HindcastOutput:
     def __init__(self, reference_year: int) -> None:
         self.reference_year = reference_year
 
-    def __call__(self, values: np.ndarray, template: object, keys: dict) -> tuple:
+    def __call__(self, values: FloatArray, template: object, keys: dict) -> tuple:
         """Call the HindcastOutput object.
 
         Parameters
         ----------
-        values : np.ndarray
+        values : FloatArray
             The values array.
         template : object
             The template object.
@@ -126,8 +129,8 @@ class GribOutput(Output):
         grib1_keys: dict = None,
         grib2_keys: dict = None,
         modifiers: list = None,
-        output_frequency: int = None,
-        write_initial_state: bool = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
         variables: list = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
@@ -163,7 +166,7 @@ class GribOutput(Output):
 
         self.template_manager = TemplateManager(self, templates)
 
-    def write_initial_step(self, state: dict) -> None:
+    def write_initial_step(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters
@@ -196,7 +199,7 @@ class GribOutput(Output):
 
         return self.write_step(state)
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Write a step of the state.
 
         Parameters
@@ -272,12 +275,12 @@ class GribOutput(Output):
                 raise
 
     @abstractmethod
-    def write_message(self, message: np.ndarray, *args, **kwargs) -> None:
+    def write_message(self, message: FloatArray, *args, **kwargs) -> None:
         """Write a message to the grib file.
 
         Parameters
         ----------
-        message : np.ndarray
+        message : FloatArray
             The message array.
         *args : Any
             Additional arguments.
@@ -286,7 +289,7 @@ class GribOutput(Output):
         """
         pass
 
-    def template(self, state: dict, name: str) -> object:
+    def template(self, state: State, name: str) -> object:
         """Get the template for a variable.
 
         Parameters

@@ -16,6 +16,8 @@ from typing import Optional
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..decorators import main_argument
 from . import input_registry
@@ -48,17 +50,17 @@ class GribFileInput(GribInput):
         super().__init__(context, namer=namer, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Optional[Any]) -> Any:
+    def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Any]
+        date : Optional[Date]
             The date for which to create the input state.
 
         Returns
         -------
-        Any
+        State
             The created input state.
         """
         return self._create_state(ekd.from_source("file", self.path), variables=None, date=date)

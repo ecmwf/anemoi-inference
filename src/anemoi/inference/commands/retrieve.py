@@ -12,8 +12,11 @@ import json
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
+from typing import List
 
 from earthkit.data.utils.dates import to_datetime
+
+from anemoi.inference.types import DataRequest
 
 from ..config import load_config
 from ..inputs.grib import GribInput
@@ -33,7 +36,7 @@ def checkpoint_to_requests(
     use_grib_paramid=False,
     extra=None,
     use_scda=False,
-):
+) -> List[DataRequest]:
     # TODO: Move this to the runner
 
     variables = checkpoint.variables_from_input(include_forcings=include_forcings)

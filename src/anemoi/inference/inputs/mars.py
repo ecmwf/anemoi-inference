@@ -19,6 +19,8 @@ from typing import Union
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -153,17 +155,17 @@ class MarsInput(GribInput):
         self.kwargs = kwargs
         self.patches = patches or []
 
-    def create_input_state(self, *, date: Optional[Any]) -> Any:
+    def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Any]
+        date : Optional[Date]
             The date for which to create the input state.
 
         Returns
         -------
-        Any
+        State
             The created input state.
         """
         if date is None:

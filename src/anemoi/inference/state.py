@@ -21,7 +21,10 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
+import earthkit.data as ekd
 import numpy as np
+
+from anemoi.inference.types import FloatArray
 
 if TYPE_CHECKING:
     import earthkit.data as ekd
@@ -57,15 +60,15 @@ def summarise_list(lst: List, max_length: int) -> str:
     return str(lst)
 
 
-class State(Dict[str, np.ndarray]):
+class State(Dict[str, FloatArray]):
     """A collection of data for inference."""
 
-    def __init__(self, data: Dict[str, np.ndarray] = None, *, private_info: Any = None, **kwargs) -> None:
+    def __init__(self, data: Dict[str, FloatArray] = None, *, private_info: Any = None, **kwargs) -> None:
         """Create a State object.
 
         Parameters
         ----------
-        data : dict[str, np.ndarray]
+        data : dict[str, FloatArray]
             Dictionary of data to store in the State
         private_info : Any, optional
             Private info to pass with the State, by default None
@@ -118,7 +121,7 @@ class State(Dict[str, np.ndarray]):
         order: List[str],
         *,
         stack_function: Callable[[List[Array], Any], Array] = np.stack,
-        array_function: Callable[[np.ndarray], Array] = np.array,
+        array_function: Callable[[FloatArray], Array] = np.array,
         **kwargs,
     ) -> Array:
         """Convert the State to an array.
@@ -293,7 +296,7 @@ class State(Dict[str, np.ndarray]):
     @classmethod
     def from_numpy(
         cls,
-        data: np.ndarray,
+        data: FloatArray,
         names: List[str],
         *,
         axis: int = 0,
@@ -303,7 +306,7 @@ class State(Dict[str, np.ndarray]):
 
         Parameters
         ----------
-        data : np.ndarray
+        data : FloatArray
             Numpy array to convert to a State
         names : list[str]
             Names upon `axis` to use as keys

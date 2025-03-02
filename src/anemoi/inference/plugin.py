@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+"""This is an `ai-models` plugin that can run anemoi.inference models."""
 
 import argparse
 import logging

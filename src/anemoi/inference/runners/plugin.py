@@ -12,7 +12,10 @@ import logging
 from typing import List
 from typing import Tuple
 
+from anemoi.inference.types import IntArray
+
 from ..forcings import ComputedForcings
+from ..forcings import Forcings
 from ..runner import Runner
 from . import runner_registry
 
@@ -47,12 +50,12 @@ class PluginRunner(Runner):
     def lagged(self) -> List[int]:
         return [s.total_seconds() // 3600 for s in self.checkpoint.lagged]
 
-    def create_constant_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
+    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: list, mask: list) -> List[ComputedForcings]:
+    def create_dynamic_computed_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]

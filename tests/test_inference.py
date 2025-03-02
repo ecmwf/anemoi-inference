@@ -8,7 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-def test_inference():
+def test_inference() -> None:
     pass
 
 

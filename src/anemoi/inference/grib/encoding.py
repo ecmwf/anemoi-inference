@@ -15,6 +15,8 @@ from typing import Dict
 from typing import Optional
 from typing import Union
 
+import earthkit.date as ekd
+
 LOG = logging.getLogger(__name__)
 
 
@@ -69,7 +71,7 @@ STEP_TYPE = {
 def encode_time_processing(
     *,
     result: Dict[str, Any],
-    template: Any,
+    template: ekd.Field,
     variable: Any,
     step: Any,
     previous_step: Optional[Any],

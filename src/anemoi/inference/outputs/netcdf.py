@@ -10,8 +10,11 @@
 import logging
 import os
 import threading
+from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.types import State
 
 from ..decorators import main_argument
 from ..output import Output
@@ -42,7 +45,11 @@ class NetCDFOutput(Output):
     """
 
     def __init__(
-        self, context: dict, path: str, output_frequency: int = None, write_initial_state: bool = None
+        self,
+        context: dict,
+        path: str,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
@@ -53,7 +60,7 @@ class NetCDFOutput(Output):
         """Return a string representation of the NetCDFOutput object."""
         return f"NetCDFOutput({self.path})"
 
-    def open(self, state: dict) -> None:
+    def open(self, state: State) -> None:
         """Open the NetCDF file and initialize dimensions and variables.
 
         Parameters
@@ -115,7 +122,7 @@ class NetCDFOutput(Output):
         self.n = 0
         return self.ncfile
 
-    def ensure_variables(self, state: dict) -> None:
+    def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
 
         Parameters
@@ -144,7 +151,7 @@ class NetCDFOutput(Output):
                     **compression,
                 )
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Write the state.
 
         Parameters

@@ -9,6 +9,8 @@
 
 import logging
 
+from anemoi.inference.types import State
+
 from ..context import Context
 from ..output import ForwardOutput
 from ..output import Output
@@ -27,18 +29,18 @@ class TruthOutput(ForwardOutput):
         self._input = self.context.create_input()
         self.output: Output = create_output(context, output)
 
-    def write_initial_state(self, state: dict) -> None:
+    def write_initial_state(self, state: State) -> None:
         self.output.write_initial_state(state)
 
-    def write_state(self, state: dict) -> None:
+    def write_state(self, state: State) -> None:
         truth_state = self._input.create_input_state(date=state["date"])
         reduced_state = self.reduce(truth_state)
         self.output.write_state(reduced_state)
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         raise NotImplementedError("TruthOutput does not support write_step")
 
-    def open(self, state: dict) -> None:
+    def open(self, state: State) -> None:
         self.output.open(state)
 
     def close(self) -> None:

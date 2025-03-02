@@ -22,6 +22,7 @@ from earthkit.data.indexing.fieldlist import FieldArray
 
 from anemoi.inference.context import Context
 from anemoi.inference.inputs.dataset import DatasetInput
+from anemoi.inference.types import FloatArray
 
 LOG = logging.getLogger(__name__)
 
@@ -35,14 +36,14 @@ class Forcings(ABC):
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
-    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> FloatArray:
         """Load the forcings for the given dates."""
         pass
 
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
-    def _state_to_numpy(self, state: Dict[str, Any], variables: List[str], dates: List[Any]) -> np.ndarray:
+    def _state_to_numpy(self, state: Dict[str, Any], variables: List[str], dates: List[Any]) -> FloatArray:
         """Convert the state dictionary to a numpy array.
         This assumes that the state dictionary contains the fields for the given variables.
         And that the fields values are sorted by dates.
@@ -79,7 +80,7 @@ class ComputedForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> FloatArray:
 
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
@@ -124,7 +125,7 @@ class CoupledForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> FloatArray:
         return self._state_to_numpy(
             self.input.load_forcings_state(
                 variables=self.variables,
@@ -154,7 +155,7 @@ class BoundaryForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> FloatArray:
         data = self._state_to_numpy(
             self.input.load_forcings_state(variables=self.variables, dates=dates, current_state=current_state),
             self.variables,

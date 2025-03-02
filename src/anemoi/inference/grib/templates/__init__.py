@@ -11,8 +11,10 @@
 import logging
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 
+import earthkit.data as ekd
 import yaml
 from anemoi.utils.registry import Registry
 
@@ -34,7 +36,7 @@ class TemplateProvider:
     def __init__(self, manager: Any) -> None:
         self.manager = manager
 
-    def template(self, variable: str, lookup: Dict[str, Any]) -> Optional[str]:
+    def template(self, variable: str, lookup: Dict[str, Any]) -> ekd.Field:
         raise NotImplementedError()
 
 
@@ -65,8 +67,9 @@ class IndexTemplateProvider(TemplateProvider):
             if not isinstance(grib, str):
                 raise ValueError(f"Invalid grib in templates.yaml, must be a string: {grib}")
 
-    def template(self, variable: str, lookup: Dict[str, Any]) -> Optional[str]:
-        def _(value):
+    def template(self, variable: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
+
+        def _as_list(value: Any) -> List[Any]:
             if not isinstance(value, list):
                 return [value]
             return value
@@ -74,11 +77,12 @@ class IndexTemplateProvider(TemplateProvider):
         for template in self.templates:
             match, grib = template
             if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug("%s", [(lookup.get(k), _(v)) for k, v in match.items()])
-            if all(lookup.get(k) in _(v) for k, v in match.items()):
+                LOG.debug("%s", [(lookup.get(k), _as_list(v)) for k, v in match.items()])
+
+            if all(lookup.get(k) in _as_list(v) for k, v in match.items()):
                 return self.load_template(grib, lookup)
 
         return None
 
-    def load_template(self, grib: str, lookup: Dict[str, Any]) -> str:
+    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
         raise NotImplementedError()

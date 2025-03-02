@@ -9,6 +9,8 @@
 
 from argparse import ArgumentParser
 from argparse import Namespace
+from typing import Any
+from typing import Callable
 
 from ..checkpoint import Checkpoint
 from . import Command
@@ -49,7 +51,7 @@ class InspectCmd(Command):
             c.dump()
             return
 
-        def _(f):
+        def _(f: Callable) -> Any:
             try:
                 return f()
             except Exception as e:

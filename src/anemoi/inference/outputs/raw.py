@@ -9,8 +9,11 @@
 
 import logging
 import os
+from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.types import State
 
 from ..decorators import main_argument
 from ..output import Output
@@ -46,8 +49,8 @@ class RawOutput(Output):
         path: str,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
-        output_frequency: int = None,
-        write_initial_state: bool = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
@@ -57,7 +60,7 @@ class RawOutput(Output):
     def __repr__(self) -> str:
         return f"RawOutput({self.path})"
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"

@@ -56,7 +56,7 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: Dict[str, Any]) -> None:
+    def load_template(self, name: str, state: Dict[str, Any]) -> Optional[ekd.Field]:
 
         checkpoint = self.owner.context.checkpoint
 

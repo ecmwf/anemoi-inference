@@ -10,8 +10,11 @@
 import datetime
 import logging
 from functools import partial
+from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.types import State
 
 from ..decorators import main_argument
 from ..output import Output
@@ -20,7 +23,7 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 
-def print_state(state: dict, print=print, max_lines: int = 4, variables: list = None) -> None:
+def print_state(state: State, print=print, max_lines: int = 4, variables: list = None) -> None:
     """Print the state.
 
     Parameters
@@ -103,7 +106,7 @@ class PrinterOutput(Output):
         Additional keyword arguments.
     """
 
-    def __init__(self, context: dict, path: str = None, variables: list = None, **kwargs) -> None:
+    def __init__(self, context: dict, path: Optional[str] = None, variables: list = None, **kwargs) -> None:
         super().__init__(context)
         self.print = print
         self.variables = variables
@@ -112,7 +115,7 @@ class PrinterOutput(Output):
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Write a step of the state.
 
         Parameters

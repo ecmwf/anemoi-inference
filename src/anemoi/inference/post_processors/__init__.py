@@ -7,15 +7,15 @@
 # nor does it submit to any jurisdiction.
 #
 
-from typing import Any
 
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
+from anemoi.inference.processor import Processor
 
 post_processor_registry = Registry(__name__)
 
 
-def create_post_processor(context: Context, config: Configuration) -> Any:
+def create_post_processor(context: Context, config: Configuration) -> Processor:
     return post_processor_registry.from_config(config, context)

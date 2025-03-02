@@ -8,8 +8,12 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..output import ForwardOutput
 from . import create_output
@@ -38,12 +42,12 @@ class ExtractLamOutput(ForwardOutput):
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         *,
         output: dict,
         lam: str = "lam_0",
-        output_frequency: int = None,
-        write_initial_state: bool = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
@@ -69,7 +73,7 @@ class ExtractLamOutput(ForwardOutput):
         """Return a string representation of the ExtractLamOutput object."""
         return f"ExtractLamOutput({self.points}, {self.output})"
 
-    def write_initial_step(self, state: dict) -> None:
+    def write_initial_step(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters
@@ -80,7 +84,7 @@ class ExtractLamOutput(ForwardOutput):
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Write a step of the state.
 
         Parameters
@@ -91,7 +95,7 @@ class ExtractLamOutput(ForwardOutput):
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
-    def _apply_mask(self, state: dict) -> dict:
+    def _apply_mask(self, state: State) -> State:
         """Apply the mask to the state.
 
         Parameters
@@ -101,7 +105,7 @@ class ExtractLamOutput(ForwardOutput):
 
         Returns
         -------
-        dict
+        State
             The masked state dictionary.
         """
         state = state.copy()

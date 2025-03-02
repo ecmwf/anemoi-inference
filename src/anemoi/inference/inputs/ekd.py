@@ -22,8 +22,12 @@ import earthkit.data as ekd
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
 from earthkit.data.utils.dates import to_datetime
+from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from ..checks import check_data
 from ..input import Input
@@ -177,12 +181,12 @@ class EkdInput(Input):
         input_fields: ekd.FieldList,
         *,
         variables: Optional[List[str]] = None,
-        date: Optional[Any] = None,
-        latitudes: Optional[Any] = None,
-        longitudes: Optional[Any] = None,
-        dtype: Any = np.float32,
+        date: Optional[Date] = None,
+        latitudes: Optional[FloatArray] = None,
+        longitudes: Optional[FloatArray] = None,
+        dtype: DTypeLike = np.float32,
         flatten: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> State:
         """Create the input state.
 
         Parameters
@@ -191,20 +195,20 @@ class EkdInput(Input):
             The input fields.
         variables : Optional[List[str]]
             List of variables.
-        date : Optional[Any]
+        date : Optional[Date]
             The date for which to create the input state.
-        latitudes : Optional[Any]
+        latitudes : Optional[FloatArray]
             The latitudes.
-        longitudes : Optional[Any]
+        longitudes : Optional[FloatArray]
             The longitudes.
-        dtype : Any
+        dtype : DTypeLike
             The data type.
         flatten : bool
             Whether to flatten the data.
 
         Returns
         -------
-        Dict[str, Any]
+        State
             The created input state.
         """
         for processor in self.context.pre_processors:

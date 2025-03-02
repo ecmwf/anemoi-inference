@@ -10,11 +10,12 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -35,14 +36,12 @@ class Input(ABC):
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def create_input_state(self, *, date: Optional[Any] = None) -> Dict[str, Any]:
+    def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state dictionary."""
         pass
 
     @abstractmethod
-    def load_forcings_state(
-        self, *, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load forcings (constant and dynamic)."""
         pass
 
@@ -50,7 +49,7 @@ class Input(ABC):
         """Return the list of input variables."""
         return list(self.checkpoint.variable_to_input_tensor_index.keys())
 
-    def set_private_attributes(self, state: Dict[str, Any], value: Any) -> None:
+    def set_private_attributes(self, state: State, value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state
         dictionary, that may be needed but the output object.
         """

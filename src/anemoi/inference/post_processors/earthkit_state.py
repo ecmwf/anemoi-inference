@@ -8,6 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 
+"""Code to wrap and unwrap state dictionaries into earthkit.data field lists. So that we can pass them through anemoi-transorm filters."""
+
 import datetime
 import logging
 from functools import cached_property
@@ -18,6 +20,8 @@ import earthkit.data as ekd
 import numpy as np
 from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
+
+from anemoi.inference.types import FloatArray
 
 LOG = logging.getLogger(__name__)
 
@@ -90,18 +94,18 @@ class StateField(ekd.Field):
     ----------
     name : str
         The name of the field.
-    values : np.ndarray
+    values : FloatArray
         The values of the field.
     state : Dict[str, Any]
         The state information associated with the field.
     """
 
-    def __init__(self, name: str, values: np.ndarray, state: Dict[str, Any]) -> None:
+    def __init__(self, name: str, values: FloatArray, state: Dict[str, Any]) -> None:
         self.name = name
         self.__values = values
         self.state = state
 
-    def _values(self, dtype: np.dtype) -> np.ndarray:
+    def _values(self, dtype: np.dtype) -> FloatArray:
         """Get the values of the field with a specific data type.
 
         Parameters
@@ -111,7 +115,7 @@ class StateField(ekd.Field):
 
         Returns
         -------
-        np.ndarray
+        FloatArray
             The values of the field in the specified data type.
         """
         return self.__values.astype(dtype)

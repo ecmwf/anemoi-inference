@@ -17,6 +17,8 @@ import earthkit.data as ekd
 from anemoi.transform.grids.icon import icon_grid
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -63,7 +65,7 @@ class IconInput(GribInput):
         self.grid = grid
         self.refinement_level_c = refinement_level_c
 
-    def create_input_state(self, *, date: Optional[Any]) -> Any:
+    def create_input_state(self, *, date: Optional[Date]) -> State:
         latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
 
         return self._create_state(

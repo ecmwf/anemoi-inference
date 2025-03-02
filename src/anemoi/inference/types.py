@@ -7,10 +7,30 @@
 # nor does it submit to any jurisdiction.
 #
 
+import datetime
 from typing import Any
 from typing import Dict
+from typing import Float
+from typing import Int
+from typing import Union
 
-"""A collection of types used in the inference module. Some of these type could be moved to anemoi.utils.types or anemoi.transform.types."""
+from numpy.typing import NDArray
+
+"""A collection of types used in the inference module.
+Some of these type could be moved to anemoi.utils.types or anemoi.transform.types.
+"""
+
+State = Dict[str, Any]
+"""A dictionary that represents the state of a model."""
 
 DataRequest = Dict[str, Any]
 """A dictionary that represent a data request, like MARS, CDS, OpenData, ..."""
+
+Date = Union[str, datetime.datetime, int]
+"""A date can be a string, a datetime object or an integer. It will always be converted to a datetime object."""
+
+IntArray = NDArray[Int]
+"""A numpy array of integers."""
+
+FloatArray = NDArray[Float]
+"""A numpy array of floats."""

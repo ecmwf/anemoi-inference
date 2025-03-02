@@ -21,6 +21,8 @@ import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..input import Input
 from . import input_registry
@@ -84,7 +86,7 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.args}, {self.kwargs})"
 
-    def create_input_state(self, *, date: Optional[Any] = None) -> Dict[str, Any]:
+    def create_input_state(self, *, date: Optional[Date] = None) -> State:
         """Create the input state for the given date.
 
         Parameters
