@@ -11,6 +11,11 @@ import base64
 import logging
 import os
 import zlib
+from typing import Any
+from typing import Dict
+from typing import Optional
+
+import earthkit.data as ekd
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
@@ -29,14 +34,14 @@ LOG = logging.getLogger(__name__)
 class BuiltinTemplates(IndexTemplateProvider):
     """Builtin templates provider."""
 
-    def __init__(self, manager, index_path=None):
+    def __init__(self, manager: Any, index_path: Optional[str] = None) -> None:
 
         if index_path is None:
             index_path = os.path.join(os.path.dirname(__file__), "builtin.yaml")
 
         super().__init__(manager, index_path)
 
-    def load_template(self, grib, lookup):
+    def load_template(self, grib: str, lookup: Dict[str, Any]) -> ekd.Field:
         import earthkit.data as ekd
 
         template = zlib.decompress(base64.b64decode(grib))

@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Kind:
-    """Used for debugging purposes"""
+    """Used for debugging purposes."""
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -54,7 +54,6 @@ class Runner(Context):
         self,
         checkpoint,
         *,
-        accumulate_from_start_of_forecast=False,
         device: str = "cuda",
         precision: str = None,
         report_error=False,
@@ -67,8 +66,6 @@ class Runner(Context):
         output_frequency=None,
         write_initial_state=True,
         use_profiler=False,
-        pre_processors=None,
-        post_processors=None,
     ):
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
@@ -122,7 +119,7 @@ class Runner(Context):
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
 
-        input_state = self.preprocess(input_state)
+        # input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
@@ -158,9 +155,13 @@ class Runner(Context):
 
         # TODO: Check for user provided forcings
 
-        for source in self.constant_forcings_inputs:
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings(input_state, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -168,15 +169,23 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial constant forcings")
 
-        for source in self.dynamic_forcings_inputs:
+        for source in initial_dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings(input_state, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
+
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs):
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_inputs
+
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_inputs
 
     def prepare_input_tensor(self, input_state, dtype=np.float32):
 
@@ -333,6 +342,9 @@ class Runner(Context):
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
 
+            if self.trace:
+                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
+
             yield result
 
             # No need to prepare next input tensor if we are at the last step
@@ -349,12 +361,10 @@ class Runner(Context):
 
                 del y_pred  # Recover memory
 
-                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                    input_tensor_torch, input_state, date, check
-                )
-                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                    input_tensor_torch, input_state, date, check
-                )
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                input_tensor_torch, input_state, date, check
+            )
 
             if not check.all():
                 # Not all variables have been updated
@@ -409,7 +419,7 @@ class Runner(Context):
 
         for source in self.dynamic_forcings_inputs:
 
-            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
@@ -437,7 +447,7 @@ class Runner(Context):
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
-            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
@@ -583,7 +593,7 @@ class Runner(Context):
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
 
     def patch_data_request(self, request):
-        """Some of the processores may need to patch the data request (e.g. mars or cds request)"""
+        """Some of the processores may need to patch the data request (e.g. mars or cds request)."""
         for p in self.pre_processors:
             request = p.patch_data_request(request)
 

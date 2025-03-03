@@ -10,6 +10,10 @@
 
 import logging
 import re
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Union
 
 LOG = logging.getLogger(__name__)
 
@@ -31,11 +35,11 @@ ORDERING = (
 ORDERING = {k: i for i, k in enumerate(ORDERING)}
 
 
-def _ordering(item):
+def _ordering(item: tuple) -> int:
     return ORDERING.get(item[0], 999)
 
 
-def _param(param):
+def _param(param: str) -> str:
     try:
         int(param)
         return "paramId"
@@ -47,7 +51,7 @@ def _param(param):
             return "shortName"
 
 
-def _step_in_hours(step):
+def _step_in_hours(step: Any) -> int:
     step = step.total_seconds() / 3600
     assert int(step) == step
     return int(step)
@@ -64,15 +68,15 @@ STEP_TYPE = {
 
 def encode_time_processing(
     *,
-    result,
-    template,
-    variable,
-    step,
-    previous_step,
-    start_steps,
-    edition,
-    ensemble,
-):
+    result: Dict[str, Any],
+    template: Any,
+    variable: Any,
+    step: Any,
+    previous_step: Optional[Any],
+    start_steps: Dict[Any, Any],
+    edition: int,
+    ensemble: bool,
+) -> None:
     assert edition in (1, 2)
 
     if variable.time_processing is None:
@@ -113,21 +117,21 @@ LEVTYPES = {
 
 def grib_keys(
     *,
-    values,
-    template,
-    variable,
-    ensemble,
-    param,
-    date,
-    time,
-    step,
-    previous_step,
-    start_steps,
-    keys,
-    quiet,
-    grib1_keys={},
-    grib2_keys={},
-):
+    values: Any,
+    template: Any,
+    variable: Any,
+    ensemble: bool,
+    param: Optional[Union[int, float, str]],
+    date: int,
+    time: int,
+    step: Any,
+    previous_step: Optional[Any],
+    start_steps: Dict[Any, Any],
+    keys: Dict[str, Any],
+    quiet: bool,
+    grib1_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
+    grib2_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
+) -> Dict[str, Any]:
     result = keys.copy()
 
     edition = keys.get("edition")
@@ -192,7 +196,7 @@ def grib_keys(
     return result
 
 
-def check_encoding(handle, keys, first=True):
+def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> None:
     def same(w, v, k):
         if type(v) is type(w):
             return v == w
@@ -239,7 +243,14 @@ def check_encoding(handle, keys, first=True):
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
 
 
-def encode_message(*, values, template, metadata, check_nans=False, missing_value=9999):
+def encode_message(
+    *,
+    values: Optional[Any],
+    template: Any,
+    metadata: Dict[str, Any],
+    check_nans: bool = False,
+    missing_value: Union[int, float] = 9999,
+) -> Any:
     metadata = metadata.copy()  # avoid modifying the original metadata
     handle = template.handle.clone()
 
@@ -291,8 +302,8 @@ def encode_message(*, values, template, metadata, check_nans=False, missing_valu
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, path, split_output=False):
-        self._files = {}
+    def __init__(self, path: str, split_output: bool = False) -> None:
+        self._files: Dict[str, Any] = {}
         self.filename = path
 
         if split_output:
@@ -300,25 +311,25 @@ class GribWriter:
         else:
             self.split_output = None
 
-    def close(self):
+    def close(self) -> None:
         for f in self._files.values():
             f.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "GribWriter":
         return self
 
-    def __exit__(self, exc_type, exc_value, trace):
+    def __exit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], trace: Optional[Any]) -> None:
         self.close()
 
     def write(
         self,
         *,
-        values,
-        template,
-        metadata,
-        check_nans=False,
-        missing_value=9999,
-    ):
+        values: Optional[Any],
+        template: Any,
+        metadata: Dict[str, Any],
+        check_nans: bool = False,
+        missing_value: Union[int, float] = 9999,
+    ) -> tuple:
         handle = encode_message(
             values=values,
             check_nans=check_nans,
@@ -332,8 +343,7 @@ class GribWriter:
 
         return handle, path
 
-    def target(self, handle):
-
+    def target(self, handle: Any) -> tuple:
         if self.split_output:
             path = self.filename.format(**{k: handle.get(k) for k in self.split_output})
         else:

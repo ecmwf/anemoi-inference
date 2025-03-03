@@ -28,7 +28,6 @@ def ProfilingLabel(label: str, use_profiler: bool) -> None:
         Name or description to identify the function.
     use_profiler : bool
         Wrap the function with the label if True, otherwise just execute the function as it is.
-
     """
     if use_profiler:
         with torch.autograd.profiler.record_function(label):
@@ -47,7 +46,6 @@ def ProfilingRunner(use_profiler: bool) -> None:
     ----------
     use_profiler : bool
         Weither to profile the wrapped code (True) or not (False).
-
     """
     dirname = f"profiling-output/{socket.gethostname()}-{int(time.time())}"
     if use_profiler:

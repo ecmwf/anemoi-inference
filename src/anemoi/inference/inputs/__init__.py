@@ -7,10 +7,12 @@
 # nor does it submit to any jurisdiction.
 #
 
+from typing import Any
+
 from anemoi.utils.registry import Registry
 
 input_registry = Registry(__name__)
 
 
-def create_input(context, config):
+def create_input(context: Any, config: Any) -> Any:
     return input_registry.from_config(config, context)

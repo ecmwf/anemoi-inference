@@ -9,7 +9,6 @@
 
 
 import logging
-import warnings
 
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
@@ -43,9 +42,6 @@ class DefaultRunner(Runner):
 
         self.config = config
 
-        # temporary code
-        accumulate_from_start_of_forecast = _check_accumulation_processor(config)
-
         super().__init__(
             config.checkpoint,
             device=config.device,
@@ -56,10 +52,9 @@ class DefaultRunner(Runner):
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
+            trace_path=config.trace_path,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
-            trace_path=config.trace_path,
-            accumulate_from_start_of_forecast=accumulate_from_start_of_forecast,
             use_profiler=config.use_profiler,
         )
 
@@ -78,12 +73,12 @@ class DefaultRunner(Runner):
     def create_constant_computed_forcings(self, variables, mask):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
-        return result
+        return [result]
 
     def create_dynamic_computed_forcings(self, variables, mask):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
-        return result
+        return [result]
 
     # Coupled forcings
     # TODO: Connect them to the Input if needed
@@ -107,42 +102,21 @@ class DefaultRunner(Runner):
         input = create_input(self, self._input_forcings("constant"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
-        return result
+        return [result]
 
     def create_dynamic_coupled_forcings(self, variables, mask):
-
         input = create_input(self, self._input_forcings("dynamic"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
-        return result
+        return [result]
 
     def create_boundary_forcings(self, variables, mask):
-
         input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
-        return result
+        return [result]
 
     def create_pre_processors(self):
-
-        # TODO #131:
-        # For now, implement a three-way switch.
-        # post_processors: None -> accumulate_from_start_of_forecast = True
-        # post_processors: []   -> accumulate_from_start_of_forecast = False
-        # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
-
-        if self.config.pre_processors is None:
-            self.config.pre_processors = ["accumulate_from_start_of_forecast"]
-            warnings.warn(
-                """
-                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
-
-                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-                Update your config if you wish to keep accumulating from the beginning.
-                https://github.com/ecmwf/anemoi-inference/issues/131
-                """,
-            )
-
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))
@@ -157,44 +131,3 @@ class DefaultRunner(Runner):
 
         LOG.info("Post processors: %s", result)
         return result
-
-
-def _check_accumulation_processor(config):
-    # TODO #131: Remove this when we have a processor factory
-    # For now, implement a three-way switch.
-    # post_processors: None -> accumulate_from_start_of_forecast = True
-    # post_processors: []   -> accumulate_from_start_of_forecast = False
-    # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
-    pre_processors = config.get("pre_processors")
-    post_processors = config.get("post_processors")
-
-    if pre_processors:
-        raise NotImplementedError("pre_processors are not yet supported. Please remove this entry from your config.")
-
-    if post_processors not in (None, [], ["accumulate_from_start_of_forecast"]):
-        raise ValueError("post_processors only supports `accumulate_from_start_of_forecast`.")
-
-    if isinstance(post_processors, list):
-        accumulate_from_start_of_forecast = "accumulate_from_start_of_forecast" in post_processors
-
-        if not accumulate_from_start_of_forecast:
-            warnings.warn(
-                """
-                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
-                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
-                """
-            )
-    else:
-        warnings.warn(
-            """
-            No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
-
-            🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-            Update your config if you wish to keep accumulating from the beginning.
-            https://github.com/ecmwf/anemoi-inference/issues/131
-            """,
-        )
-        accumulate_from_start_of_forecast = True
-
-    LOG.info("accumulate_from_start_of_forecast: %s", accumulate_from_start_of_forecast)
-    return accumulate_from_start_of_forecast

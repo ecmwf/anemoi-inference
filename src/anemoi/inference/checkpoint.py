@@ -13,6 +13,10 @@ import logging
 from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
 from typing import Optional
 
 from anemoi.utils.checkpoints import load_metadata
@@ -24,7 +28,7 @@ LOG = logging.getLogger(__name__)
 
 
 def _download_huggingfacehub(huggingface_config) -> str:
-    """Download model from huggingface"""
+    """Download model from huggingface."""
     try:
         from huggingface_hub import hf_hub_download
         from huggingface_hub import snapshot_download
@@ -51,7 +55,7 @@ def _download_huggingfacehub(huggingface_config) -> str:
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path, *, patch_metadata=None):
+    def __init__(self, path: str, *, patch_metadata: Optional[Dict[str, Any]] = None):
         self._path = path
         self.patch_metadata = patch_metadata
 
@@ -164,14 +168,14 @@ class Checkpoint:
     def sources(self):
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
-    def default_namer(self, *args, **kwargs):
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
         """Return a callable that can be used to name fields.
         In that case, return the namer that was used to create the
         training dataset.
         """
         return self._metadata.default_namer(*args, **kwargs)
 
-    def report_error(self):
+    def report_error(self) -> None:
         self._metadata.report_error()
 
     def validate_environment(
@@ -179,40 +183,42 @@ class Checkpoint:
         *,
         all_packages: bool = False,
         on_difference: str = "warn",
-        exempt_packages: Optional[list[str]] = None,
+        exempt_packages: Optional[List[str]] = None,
     ) -> bool:
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
 
-    def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
+    def open_dataset_args_kwargs(
+        self, *, use_original_paths: bool, from_dataloader: Optional[Any] = None
+    ) -> Dict[str, Any]:
         return self._metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner, input_state):
+    def constant_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
         return self._metadata.constant_forcings_inputs(runner, input_state)
 
-    def dynamic_forcings_inputs(self, runner, input_state):
+    def dynamic_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
         return self._metadata.dynamic_forcings_inputs(runner, input_state)
 
-    def boundary_forcings_inputs(self, runner, input_state):
+    def boundary_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
         return self._metadata.boundary_forcings_inputs(runner, input_state)
 
-    def name_fields(self, fields, namer=None):
+    def name_fields(self, fields: Any, namer: Optional[Callable] = None) -> Any:
         return self._metadata.name_fields(fields, namer=namer)
 
-    def sort_by_name(self, fields, namer=None, *args, **kwargs):
+    def sort_by_name(self, fields: Any, namer: Optional[Callable] = None, *args: Any, **kwargs: Any) -> Any:
         return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
 
-    def print_indices(self):
+    def print_indices(self) -> None:
         return self._metadata.print_indices()
 
-    def variable_categories(self):
+    def variable_categories(self) -> Any:
         return self._metadata.variable_categories()
 
-    def load_supporting_array(self, name):
+    def load_supporting_array(self, name: str) -> Any:
         return self._metadata.load_supporting_array(name)
 
     @property
@@ -222,7 +228,7 @@ class Checkpoint:
     ###########################################################################
 
     @cached_property
-    def lagged(self):
+    def lagged(self) -> List[datetime.timedelta]:
         """Return the list of timedelta for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
         result = [-s * self._metadata.timestep for s in result]
@@ -232,14 +238,14 @@ class Checkpoint:
     def multi_step_input(self):
         return self._metadata.multi_step_input
 
-    def print_variable_categories(self):
+    def print_variable_categories(self) -> None:
         return self._metadata.print_variable_categories()
 
     ###########################################################################
     # Data retrieval
     ###########################################################################
 
-    def variables_from_input(self, *, include_forcings):
+    def variables_from_input(self, *, include_forcings: bool) -> Any:
         return self._metadata.variables_from_input(include_forcings=include_forcings)
 
     @property
@@ -250,12 +256,19 @@ class Checkpoint:
     def area(self):
         return self._metadata.area
 
-    def mars_by_levtype(self, levtype):
+    def mars_by_levtype(self, levtype: str) -> Any:
         return self._metadata.mars_by_levtype(levtype)
 
     def mars_requests(
-        self, *, variables, dates, use_grib_paramid=False, always_split_time=False, patch_request=None, **kwargs
-    ):
+        self,
+        *,
+        variables: List[str],
+        dates: List[Any],
+        use_grib_paramid: bool = False,
+        always_split_time: bool = False,
+        patch_request: Optional[Callable] = None,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
 
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
@@ -372,14 +385,14 @@ class Checkpoint:
     # Misc
     ###########################################################################
 
-    def provenance_training(self):
+    def provenance_training(self) -> Any:
         return self._metadata.provenance_training()
 
 
 class SourceCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""
 
-    def __init__(self, owner, metadata):
+    def __init__(self, owner: Checkpoint, metadata: Any):
         super().__init__(owner.path)
         self._owner = owner
         self._metadata = metadata

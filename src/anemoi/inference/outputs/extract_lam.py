@@ -20,9 +20,16 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("extract_lam")
 class ExtractLamOutput(ForwardOutput):
-    """_summary_"""
 
-    def __init__(self, context, *, output, lam="lam_0", output_frequency=None, write_initial_state=None):
+    def __init__(
+        self,
+        context: dict,
+        *,
+        output: dict,
+        lam: str = "lam_0",
+        output_frequency: int = None,
+        write_initial_state: bool = None,
+    ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         if "cutout_mask" in self.checkpoint.supporting_arrays:
@@ -43,18 +50,18 @@ class ExtractLamOutput(ForwardOutput):
         self.points = points
         self.output = create_output(context, output)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ExtractLamOutput({self.points}, {self.output})"
 
-    def write_initial_step(self, state):
+    def write_initial_step(self, state: dict) -> None:
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
-    def write_step(self, state):
+    def write_step(self, state: dict) -> None:
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
-    def _apply_mask(self, state):
+    def _apply_mask(self, state: dict) -> dict:
 
         state = state.copy()
         state["fields"] = state["fields"].copy()
@@ -71,9 +78,9 @@ class ExtractLamOutput(ForwardOutput):
 
         return state
 
-    def close(self):
+    def close(self) -> None:
         self.output.close()
 
-    def print_summary(self, depth=0):
+    def print_summary(self, depth: int = 0) -> None:
         super().print_summary(depth)
         self.output.print_summary(depth + 1)

@@ -9,6 +9,8 @@
 
 
 import logging
+from argparse import ArgumentParser
+from argparse import Namespace
 from copy import deepcopy
 
 from . import Command
@@ -19,10 +21,10 @@ LOG = logging.getLogger(__name__)
 class SanitiseCmd(Command):
     """Sanitise a checkpoint file."""
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import replace_metadata
         from anemoi.utils.sanitise import sanitise

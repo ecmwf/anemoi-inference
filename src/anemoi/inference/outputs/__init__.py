@@ -12,5 +12,5 @@ from anemoi.utils.registry import Registry
 output_registry = Registry(__name__)
 
 
-def create_output(context, config):
+def create_output(context: dict, config: dict) -> object:
     return output_registry.from_config(config, context)

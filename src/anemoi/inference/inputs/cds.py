@@ -9,6 +9,11 @@
 
 
 import logging
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -19,7 +24,13 @@ from .mars import postproc
 LOG = logging.getLogger(__name__)
 
 
-def retrieve(requests, grid, area, dataset, **kwargs):
+def retrieve(
+    requests: List[Dict[str, Any]],
+    grid: Optional[Union[str, List[float]]],
+    area: Optional[List[float]],
+    dataset: Union[str, Dict[str, Any]],
+    **kwargs: Any,
+) -> Any:
     import earthkit.data as ekd
 
     def _(r):
@@ -71,18 +82,20 @@ def retrieve(requests, grid, area, dataset, **kwargs):
 
 @input_registry.register("cds")
 class CDSInput(GribInput):
-    """Get input fields from CDS"""
+    """Get input fields from CDS."""
 
     trace_name = "cds"
 
-    def __init__(self, context, *, dataset, namer=None, **kwargs):
+    def __init__(
+        self, context: Any, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
+    ) -> None:
         super().__init__(context, namer=namer)
 
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date):
+    def create_input_state(self, *, date: Optional[Any]) -> Any:
         if date is None:
             date = to_datetime(-1)
             LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
@@ -98,7 +111,7 @@ class CDSInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables, dates):
+    def retrieve(self, variables: List[str], dates: List[Any]) -> Any:
 
         requests = self.checkpoint.mars_requests(
             variables=variables,
@@ -114,5 +127,5 @@ class CDSInput(GribInput):
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def load_forcings(self, variables, dates):
+    def load_forcings(self, variables: List[str], dates: List[Any]) -> Any:
         return self._load_forcings(self.retrieve(variables, dates), variables, dates)

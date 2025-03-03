@@ -11,6 +11,9 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import Any
+from typing import Dict
+from typing import List
 
 import earthkit.data as ekd
 import numpy as np
@@ -25,17 +28,40 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
-    def __init__(self, context):
+    def __init__(self, context: Any):
         self.context = context
         self.checkpoint = context.checkpoint
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
-    def load_forcings(self, state, date):
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+        """Load the forcings for the given dates."""
         pass
 
     def __repr__(self):
         return f"{self.__class__.__name__}"
+
+    def _state_to_numpy(self, state: Dict[str, Any], variables: List[str], dates: List[Any]) -> np.ndarray:
+        """Convert the state dictionary to a numpy array.
+        This assumes that the state dictionary contains the fields for the given variables.
+        And that the fields values are sorted by dates.
+        """
+        fields = state["fields"]
+
+        if len(dates) == 1:
+            result = np.stack([fields[v] for v in variables], axis=0)
+            if len(result.shape) == 2:
+                result = result[:, np.newaxis]
+        else:
+            result = np.stack([fields[v] for v in variables], axis=0)
+
+        assert len(result.shape) == 3 and result.shape[0] == len(variables) and result.shape[1] == len(dates), (
+            result.shape,
+            variables,
+            dates,
+        )
+
+        return result
 
 
 class ComputedForcings(Forcings):
@@ -43,7 +69,7 @@ class ComputedForcings(Forcings):
 
     trace_name = "computed"
 
-    def __init__(self, context, variables, mask):
+    def __init__(self, context: Any, variables: List[str], mask: Any):
         super().__init__(context)
         self.variables = variables
         self.mask = mask
@@ -52,7 +78,7 @@ class ComputedForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings(self, state, dates):
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
 
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
@@ -60,8 +86,8 @@ class ComputedForcings(Forcings):
             dates = [dates]
 
         source = UnstructuredGridFieldList.from_values(
-            latitudes=state["latitudes"],
-            longitudes=state["longitudes"],
+            latitudes=current_state["latitudes"],
+            longitudes=current_state["longitudes"],
         )
 
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
@@ -75,7 +101,7 @@ class ComputedForcings(Forcings):
 
         forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
 
-        # Forcing are sorted by `compute_forcings`  in the order (varaible, date)
+        # Forcing are sorted by `compute_forcings`  in the order (variable, date)
 
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
@@ -83,34 +109,36 @@ class ComputedForcings(Forcings):
 class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
 
-    trace_name = "coupled"
+    @property
+    def trace_name(self):
+        return self.input.trace_name
 
-    def __init__(self, context, input, variables, mask):
+    def __init__(self, context: Any, input: Any, variables: List[str], mask: Any):
         super().__init__(context)
         self.variables = variables
         self.mask = mask
         self.input = input
-        # self.grid = context.checkpoint.grid
-        # self.area = context.checkpoint.area
-        # self.use_grib_paramid = True  # TODO: find a way to `use_grib_paramid``
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings(self, state, dates):
-        data = self.input.load_forcings(variables=self.variables, dates=dates)
-
-        expected_shape = (len(self.variables), len(dates), state["latitudes"].size)
-        assert data.shape == expected_shape, (data.shape, expected_shape)
-
-        return data
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+        return self._state_to_numpy(
+            self.input.load_forcings_state(
+                variables=self.variables,
+                dates=dates,
+                current_state=current_state,
+            ),
+            self.variables,
+            dates,
+        )
 
 
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
-    def __init__(self, context, input, variables, variables_mask):
+    def __init__(self, context: Any, input: DatasetInput, variables: List[str], variables_mask: Any):
         super().__init__(context)
         self.variables = variables
         self.variables_mask = variables_mask
@@ -125,11 +153,15 @@ class BoundaryForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings(self, state, dates):
-        data = self.input.load_forcings(variables=self.variables, dates=dates)
+    def load_forcings_array(self, dates: List[Any], current_state: Dict[str, Any]) -> np.ndarray:
+        data = self._state_to_numpy(
+            self.input.load_forcings_state(variables=self.variables, dates=dates, current_state=current_state),
+            self.variables,
+            dates,
+        )
         data = data[..., self.spatial_mask]
 
-        expected_shape = (len(self.variables), len(dates), state["latitudes"][self.spatial_mask].size)
+        expected_shape = (len(self.variables), len(dates), current_state["latitudes"][self.spatial_mask].size)
         assert data.shape == expected_shape, (data.shape, expected_shape)
 
         return data

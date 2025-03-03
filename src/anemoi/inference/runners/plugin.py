@@ -48,9 +48,9 @@ class PluginRunner(Runner):
     def create_constant_computed_forcings(self, variables, mask):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
-        return result
+        return [result]
 
     def create_dynamic_computed_forcings(self, variables, mask):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
-        return result
+        return [result]

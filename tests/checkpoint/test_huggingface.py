@@ -20,7 +20,7 @@ from ..metadata.fake_metadata import FakeMetadata
 
 @pytest.fixture(scope="session")
 def fake_huggingface_repo(tmp_path_factory):
-    """Create a fake huggingface repo download"""
+    """Create a fake huggingface repo download."""
     tmp_dir = tmp_path_factory.mktemp("repo")
     fn = tmp_dir / "model.ckpt"
     fn.write_text("TESTING", encoding="utf-8")
@@ -29,7 +29,7 @@ def fake_huggingface_repo(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def fake_huggingface_ckpt(tmp_path_factory):
-    """Create a fake huggingface ckpt download"""
+    """Create a fake huggingface ckpt download."""
     tmp_dir = tmp_path_factory.mktemp("repo")
     fn = tmp_dir / "model.ckpt"
     fn.write_text("TESTING", encoding="utf-8")

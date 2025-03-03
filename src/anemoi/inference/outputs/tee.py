@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import datetime
 import logging
 
 from ..output import ForwardOutput
@@ -18,7 +19,6 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("tee")
 class TeeOutput(ForwardOutput):
-    """_summary_"""
 
     def __init__(self, context, *args, outputs=None, output_frequency=None, write_initial_state=None, **kwargs):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
@@ -32,6 +32,7 @@ class TeeOutput(ForwardOutput):
     # We override write_initial_state and write_state
     # so users can configures each levels independently
     def write_initial_state(self, state):
+        state.setdefault("step", datetime.timedelta(0))
         for output in self.outputs:
             output.write_initial_state(state)
 

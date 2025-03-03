@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 
 @pre_processor_registry.register("cos_sin_mean_wave_direction")
 class MeanWaveDirection(Processor):
-    """Accumulate fields from zero and return the accumulated fields"""
+    """Accumulate fields from zero and return the accumulated fields."""
 
     def __init__(self, context, **kwargs):
         super().__init__(context)

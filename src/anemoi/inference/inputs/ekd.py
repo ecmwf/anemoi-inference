@@ -11,6 +11,12 @@
 import logging
 import re
 from collections import defaultdict
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import numpy as np
 from earthkit.data.indexing.fieldlist import FieldArray
@@ -23,14 +29,14 @@ LOG = logging.getLogger(__name__)
 
 
 class NoMask:
-    """No mask to apply"""
+    """No mask to apply."""
 
     def apply(self, field):
         return field
 
 
 class ApplyMask:
-    """Apply a mask to a field"""
+    """Apply a mask to a field."""
 
     def __init__(self, mask):
         self.mask = mask
@@ -40,7 +46,7 @@ class ApplyMask:
 
 
 class RulesNamer:
-    """A namer that uses rules to generate names"""
+    """A namer that uses rules to generate names."""
 
     def __init__(self, rules, default_namer):
         self.rules = rules
@@ -65,9 +71,11 @@ class RulesNamer:
 
 
 class EkdInput(Input):
-    """Handles earthkit-data FieldList as input"""
+    """Handles earthkit-data FieldList as input."""
 
-    def __init__(self, context, *, namer=None):
+    def __init__(
+        self, context: Any, *, namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None
+    ) -> None:
         super().__init__(context)
 
         if isinstance(namer, dict):
@@ -79,17 +87,17 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _create_input_state(
+    def _create_state(
         self,
-        input_fields,
+        input_fields: Any,
         *,
-        variables=None,
-        date=None,
-        latitudes=None,
-        longitudes=None,
-        dtype=np.float32,
-        flatten=True,
-    ):
+        variables: Optional[List[str]] = None,
+        date: Optional[Any] = None,
+        latitudes: Optional[Any] = None,
+        longitudes: Optional[Any] = None,
+        dtype: Any = np.float32,
+        flatten: bool = True,
+    ) -> Dict[str, Any]:
 
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
@@ -124,8 +132,13 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        date = to_datetime(date)
-        dates = [date + h for h in self.checkpoint.lagged]
+        if isinstance(date, list):
+            # FIXME: find out why we have a list of dates
+            dates = [date[-1] + h for h in self.checkpoint.lagged]
+            assert date == dates, (date, dates)
+        else:
+            date = to_datetime(date)
+            dates = [date + h for h in self.checkpoint.lagged]
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         input_state = dict(date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
@@ -180,6 +193,10 @@ class EkdInput(Input):
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
 
+        if self.context.trace:
+            for name in check.keys():
+                self.context.trace.from_input(name, self)
+
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
         # to be used as output
@@ -187,7 +204,7 @@ class EkdInput(Input):
 
         return input_state
 
-    def _filter_and_sort(self, data, *, variables, dates, title):
+    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
 
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
@@ -211,18 +228,26 @@ class EkdInput(Input):
 
         return data
 
-    def _find_variable(self, data, name, **kwargs):
+    def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
         def _name(field, _, original_metadata):
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
-    def _load_forcings(self, fields, variables, dates):
-
+    def _load_forcings_state(
+        self, fields: Any, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
 
-        data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
-        return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
+        return self._create_state(
+            fields,
+            variables=variables,
+            date=dates,
+            latitudes=current_state["latitudes"],
+            longitudes=current_state["longitudes"],
+            dtype=np.float32,
+            flatten=True,
+        )

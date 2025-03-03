@@ -15,7 +15,6 @@ LOG = logging.getLogger(__name__)
 
 
 class Output(ABC):
-    """_summary_"""
 
     def __init__(self, context, output_frequency=None, write_initial_state=None):
 
@@ -29,45 +28,19 @@ class Output(ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}()"
 
-    def step(self, state):
-        return state["date"] - self.reference_date
-
     def write_initial_state(self, state):
-        self._init(state)
         if self.write_step_zero:
-            return self.write_initial_step(state)
+            return self.write_state(state)
 
     def write_state(self, state):
-        self._init(state)
+        self.open(state)
 
-        step = self.step(state)
+        step = state["step"]
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
         return self.write_step(state)
-
-    def _init(self, state):
-        if self.reference_date is not None:
-            return
-
-        self.reference_date = state["date"]
-
-        self.open(state)
-
-    def write_initial_step(self, state):
-        """This method should not be called directly
-        call `write_initial_state` instead.
-        """
-        reduced_state = self.reduce(state)
-        self.write_step(reduced_state)
-
-    @abstractmethod
-    def write_step(self, state):
-        """This method should not be called directly
-        call `write_state` instead.
-        """
-        pass
 
     def reduce(self, state):
         """Creates new state which is projection of original state on the last step in the multi-steps dimension."""
@@ -82,6 +55,10 @@ class Output(ABC):
         pass
 
     def close(self):
+        pass
+
+    @abstractmethod
+    def write_step(self, state):
         pass
 
     @cached_property
@@ -116,7 +93,7 @@ class Output(ABC):
 class ForwardOutput(Output):
     """Subclass of Output that forwards calls to other outputs
     Subclass from that class to implement the desired behaviour of `output_frequency`
-    which should only apply to leaves
+    which should only apply to leaves.
     """
 
     def __init__(self, context, output_frequency=None, write_initial_state=None):

@@ -12,6 +12,8 @@ import json
 import logging
 import os
 import subprocess
+from argparse import ArgumentParser
+from argparse import Namespace
 from tempfile import TemporaryDirectory
 
 import yaml
@@ -24,7 +26,7 @@ LOG = logging.getLogger(__name__)
 class Metadata(Command):
     """Edit, remove, dump or load metadata from a checkpoint file."""
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
         from anemoi.utils.checkpoints import DEFAULT_NAME
 
         command_parser.add_argument("path", help="Path to the checkpoint.")
@@ -123,7 +125,7 @@ class Metadata(Command):
             help="Use the YAML format with ``--dump``, ``--view`` and ``--edit``.",
         )
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
         if args.edit:
             return self.edit(args)
 
@@ -145,13 +147,13 @@ class Metadata(Command):
         if args.supporting_arrays:
             return self.supporting_arrays(args)
 
-    def edit(self, args):
+    def edit(self, args: Namespace) -> None:
         return self._edit(args, view=False, cmd=args.editor)
 
-    def view(self, args):
+    def view(self, args: Namespace) -> None:
         return self._edit(args, view=True, cmd=args.pager)
 
-    def _edit(self, args, view, cmd):
+    def _edit(self, args: Namespace, view: bool, cmd: str) -> None:
 
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import replace_metadata
@@ -186,12 +188,12 @@ class Metadata(Command):
                 else:
                     LOG.info("No changes made.")
 
-    def remove(self, args):
+    def remove(self, args: Namespace) -> None:
         from anemoi.utils.checkpoints import remove_metadata
 
         remove_metadata(args.path, args.name)
 
-    def dump(self, args):
+    def dump(self, args: Namespace) -> None:
         from anemoi.utils.checkpoints import load_metadata
 
         if args.output:
@@ -209,7 +211,7 @@ class Metadata(Command):
             print(json.dumps(metadata, indent=4, sort_keys=True), file=file)
             return
 
-    def get(self, args):
+    def get(self, args: Namespace) -> None:
         from pprint import pprint
 
         from anemoi.utils.checkpoints import load_metadata
@@ -234,7 +236,7 @@ class Metadata(Command):
         else:
             print(metadata)
 
-    def load(self, args):
+    def load(self, args: Namespace) -> None:
         from anemoi.utils.checkpoints import has_metadata
         from anemoi.utils.checkpoints import replace_metadata
         from anemoi.utils.checkpoints import save_metadata
@@ -259,7 +261,7 @@ class Metadata(Command):
         else:
             save_metadata(args.path, metadata, name=args.name)
 
-    def supporting_arrays(self, args):
+    def supporting_arrays(self, args: Namespace) -> None:
         from anemoi.utils.checkpoints import load_metadata
 
         _, supporting_arrays = load_metadata(args.path, supporting_arrays=True)
