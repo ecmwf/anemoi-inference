@@ -22,7 +22,7 @@ HERE = os.path.dirname(__file__)
 
 @fake_checkpoints
 def test_inference():
-    config = RunConfiguration.load(os.path.join(HERE, "configs/simple.yaml"))
+    config = RunConfiguration.load(os.path.join(HERE, "configs/simple.yaml"), overrides=dict(device="cpu"))
     runner = create_runner(config)
     _run(runner, config)
 

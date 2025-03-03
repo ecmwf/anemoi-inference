@@ -13,9 +13,13 @@ def fake_checkpoints(func):
         from unittest.mock import patch
 
         from .mock_checkpoint import mock_load_metadata
+        from .mock_checkpoint import mock_torch_load
 
-        with patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata):
-            with patch("anemoi.inference.metadata.USE_LEGACY", False):
-                return func(*args, **kwargs)
+        with (
+            patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata),
+            patch("torch.load", mock_torch_load),
+            patch("anemoi.inference.metadata.USE_LEGACY", True),
+        ):
+            return func(*args, **kwargs)
 
     return wrapper
