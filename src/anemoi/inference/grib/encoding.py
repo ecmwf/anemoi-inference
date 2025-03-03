@@ -15,7 +15,7 @@ from typing import Dict
 from typing import Optional
 from typing import Union
 
-import earthkit.date as ekd
+import earthkit.data as ekd
 
 LOG = logging.getLogger(__name__)
 

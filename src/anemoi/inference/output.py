@@ -11,10 +11,13 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
+from typing import TYPE_CHECKING
 from typing import Optional
 
-from anemoi.inference.context import Context
 from anemoi.inference.types import State
+
+if TYPE_CHECKING:
+    from anemoi.inference.context import Context
 
 LOG = logging.getLogger(__name__)
 
@@ -22,7 +25,10 @@ LOG = logging.getLogger(__name__)
 class Output(ABC):
 
     def __init__(
-        self, context: Context, output_frequency: Optional[int] = None, write_initial_state: Optional[bool] = None
+        self,
+        context: "Context",
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ):
 
         self.context = context
@@ -36,6 +42,7 @@ class Output(ABC):
         return f"{self.__class__.__name__}()"
 
     def write_initial_state(self, state: State) -> None:
+        state.setdefault("step", datetime.timedelta(0))
         if self.write_step_zero:
             self.write_state(state)
 

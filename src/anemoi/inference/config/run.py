@@ -18,12 +18,12 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
-from .config import Config
+from . import Configuration
 
 LOG = logging.getLogger(__name__)
 
 
-class RunConfiguration(Config):
+class RunConfiguration(Configuration):
 
     description: Optional[str] = None
 

@@ -13,7 +13,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 
-from anemoi.inference.config import load_config
+from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.runners.default import DefaultRunner
 
@@ -90,7 +90,7 @@ class RunnerTask(Task):
     ) -> None:
         super().__init__(name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
-        self.config = load_config(config, overrides=[global_config, overrides])
+        self.config = CoupleConfiguration.load(config, overrides=[global_config, overrides])
 
     def run(self, transport: Any) -> None:
         LOG.info("Running task %s", self.name)

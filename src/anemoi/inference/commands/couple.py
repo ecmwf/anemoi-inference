@@ -13,8 +13,7 @@ import logging
 from argparse import ArgumentParser
 from argparse import Namespace
 
-from ..config import CoupleConfiguration
-from ..config import load_config
+from ..config.couple import CoupleConfiguration
 from ..tasks import create_task
 from ..transports import create_transport
 from . import Command
@@ -52,7 +51,7 @@ class CoupleCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=CoupleConfiguration)
+        config = CoupleConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         if config.description is not None:
             LOG.info("%s", config.description)

@@ -13,8 +13,7 @@ import logging
 from argparse import ArgumentParser
 from argparse import Namespace
 
-from ..config import RunConfiguration
-from ..config import load_config
+from ..config.run import RunConfiguration
 from ..runners import create_runner
 from . import Command
 
@@ -64,7 +63,9 @@ class RunCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=RunConfiguration)
+        config = RunConfiguration.load(
+            args.config, args.overrides, defaults=args.defaults, Configuration=RunConfiguration
+        )
 
         if config.description is not None:
             LOG.info("%s", config.description)
