@@ -9,9 +9,9 @@
 
 
 import logging
-from contextlib import contextmanager
 import socket
 import time
+from contextlib import contextmanager
 
 import torch
 
@@ -76,6 +76,8 @@ def ProfilingRunner(use_profiler: bool) -> None:
             f"Top {row_limit} kernels by runtime on CUDA:\n {prof.key_averages().table(sort_by='self_cuda_time_total', row_limit=row_limit)}"
         )
         LOG.info("Memory summary \n%s", torch.cuda.memory_summary())
-        LOG.info(f"Memory snapshot and trace file stored to '{dirname}'. To view the memory snapshot, upload the pickle file to 'https://pytorch.org/memory_viz'. To view the trace file, see 'https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html#use-tensorboard-to-view-results-and-analyze-model-performance'")
+        LOG.info(
+            f"Memory snapshot and trace file stored to '{dirname}'. To view the memory snapshot, upload the pickle file to 'https://pytorch.org/memory_viz'. To view the trace file, see 'https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html#use-tensorboard-to-view-results-and-analyze-model-performance'"
+        )
     else:
         yield
