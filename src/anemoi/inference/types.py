@@ -10,8 +10,6 @@
 import datetime
 from typing import Any
 from typing import Dict
-from typing import Float
-from typing import Int
 from typing import Union
 
 from numpy.typing import NDArray
@@ -29,8 +27,8 @@ DataRequest = Dict[str, Any]
 Date = Union[str, datetime.datetime, int]
 """A date can be a string, a datetime object or an integer. It will always be converted to a datetime object."""
 
-IntArray = NDArray[Int]
+IntArray = NDArray[Any]
 """A numpy array of integers."""
 
-FloatArray = NDArray[Float]
+FloatArray = NDArray[Any]
 """A numpy array of floats."""

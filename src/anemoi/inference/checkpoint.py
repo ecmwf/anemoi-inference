@@ -22,7 +22,7 @@ from typing import Optional
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.types import MarsRequest
+from anemoi.inference.types import DataRequest
 
 from .metadata import Metadata
 
@@ -104,11 +104,11 @@ class Checkpoint:
 
     @cached_property
     def _metadata(self) -> Metadata:
-        try:
-            result = Metadata(*load_metadata(self.path, supporting_arrays=True))
-        except Exception as e:
-            LOG.warning("Version for not support `supporting_arrays` (%s)", e)
-            result = Metadata(load_metadata(self.path))
+        # try:
+        result = Metadata(*load_metadata(self.path, supporting_arrays=True))
+        # except Exception as e:
+        #     LOG.warning("Version does not support `supporting_arrays` (%s)", e)
+        #     result = Metadata(load_metadata(self.path))
 
         if self.patch_metadata:
             LOG.warning("Patching metadata with %r", self.patch_metadata)
@@ -420,7 +420,7 @@ class Checkpoint:
         always_split_time: bool = False,
         patch_request: Optional[Callable] = None,
         **kwargs: Any,
-    ) -> List[MarsRequest]:
+    ) -> List[DataRequest]:
         """Generate MARS requests for the given variables and dates.
 
         Parameters

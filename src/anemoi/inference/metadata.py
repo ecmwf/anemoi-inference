@@ -30,6 +30,8 @@ from anemoi.inference.types import FloatArray
 from .legacy import LegacyMixin
 from .patch import PatchMixin
 
+USE_LEGACY = True
+
 LOG = logging.getLogger(__name__)
 
 
@@ -119,7 +121,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._config_training.precision
 
     def _make_indices_mapping(self, indices_from, indices_to):
-        assert len(indices_from) == len(indices_to)
+        assert len(indices_from) == len(indices_to), (indices_from, indices_to)
         return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
     @property
@@ -149,6 +151,8 @@ class Metadata(PatchMixin, LegacyMixin):
         try:
             return self._metadata.dataset.shape[-1]
         except AttributeError:
+            if not USE_LEGACY:
+                raise
             return self._legacy_number_of_grid_points()
 
     @cached_property
@@ -239,8 +243,11 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the variables and their metadata as found in the training dataset."""
         try:
             result = self._metadata.dataset.variables_metadata
-            self._legacy_check_variables_metadata(result)
+            if USE_LEGACY:
+                self._legacy_check_variables_metadata(result)
         except AttributeError:
+            if not USE_LEGACY:
+                raise
             result = self._legacy_variables_metadata()
 
         if "constant_fields" in self._metadata.dataset:

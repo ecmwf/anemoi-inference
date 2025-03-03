@@ -9,13 +9,16 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import List
 from typing import Optional
 
-from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
+
+if TYPE_CHECKING:
+    from anemoi.inference.context import Context
 
 LOG = logging.getLogger(__name__)
 
@@ -28,7 +31,7 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: Context):
+    def __init__(self, context: "Context"):
         self.context = context
         self.checkpoint = context.checkpoint
 

@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from copy import deepcopy
@@ -68,6 +69,8 @@ class Configuration(BaseModel):
                 for key in keys[:-1]:
                     path = path.setdefault(key, {})
                 path[keys[-1]] = value
+
+        print(json.dumps(config, indent=4, default=str))
 
         # Validate the configuration
         config = cls(**config)

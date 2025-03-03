@@ -18,7 +18,7 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import DataRequest
 
-from ..config import load_config
+from ..config.run import RunConfiguration
 from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
 from ..runners import create_runner
@@ -120,7 +120,7 @@ class RetrieveCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config = load_config(args.config, args.overrides, defaults=args.defaults)
+        config = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
 

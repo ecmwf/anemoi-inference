@@ -10,7 +10,7 @@
 
 import logging
 
-from anemoi.inference.config import load_config
+from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.runners.default import DefaultRunner
 
@@ -85,7 +85,7 @@ class RunnerTask(Task):
     def __init__(self, name, config, overrides={}, global_config={}):
         super().__init__(name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
-        self.config = load_config(config, overrides=[global_config, overrides])
+        self.config = CoupleConfiguration.load(config, overrides=[global_config, overrides])
 
     def run(self, transport):
         LOG.info("Running task %s", self.name)

@@ -180,7 +180,7 @@ class ParallelRunner(DefaultRunner):
                 )
             if self.world_size <= 0:
                 raise ValueError(
-                    f"Error. 'world_size' must be greater then 1 to use parallel inference. {world_size=} set in the config is invalid."
+                    f"Error. 'world_size' must be greater then 1 to use parallel inference. {self.config.world_size=} set in the config is invalid."
                 )
 
             # since we are running within a node, 'localhost' and any port can be used

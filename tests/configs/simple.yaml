@@ -1,0 +1,6 @@
+---
+checkpoint: simple.chkpt
+date: 2020-01-01
+
+input:
+  dataset: aifs-ea-an-oper-0001-mars-o96-1979-2022-6h-v6
