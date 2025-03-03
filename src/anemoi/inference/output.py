@@ -21,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 class Output(ABC):
 
-    def __init__(self, context: Context, output_frequency=None, write_initial_state=None):
+    def __init__(self, context: Context, output_frequency:Optional[int]=None, write_initial_state:Optional[bool]=None):
 
         self.context = context
         self.checkpoint = context.checkpoint

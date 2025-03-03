@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from abc import ABC
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from typing import List
 
 from anemoi.inference.input import Input
@@ -41,8 +41,8 @@ class Context(ABC):
     reference_date = None
     time_step = None
     lead_time = None
-    output_frequency = None
-    write_initial_state = True
+    output_frequency : Optional[int]= None
+    write_initial_state : bool = True
 
     ##################################################################
 
