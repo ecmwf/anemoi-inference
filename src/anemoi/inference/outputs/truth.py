@@ -30,13 +30,10 @@ class TruthOutput(ForwardOutput):
     def write_initial_state(self, state):
         self.output.write_initial_state(state)
 
-    def write_state(self, state):
+    def write_step(self, state):
         truth_state = self._input.create_input_state(date=state["date"])
         reduced_state = self.reduce(truth_state)
         self.output.write_state(reduced_state)
-
-    def write_step(self, state):
-        raise NotImplementedError("TruthOutput does not support write_step")
 
     def open(self, state):
         self.output.open(state)
