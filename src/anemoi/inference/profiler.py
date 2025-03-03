@@ -9,6 +9,8 @@
 
 
 import logging
+import socket
+import time
 from contextlib import contextmanager
 
 import torch
@@ -47,7 +49,7 @@ def ProfilingRunner(use_profiler: bool) -> None:
         Weither to profile the wrapped code (True) or not (False).
 
     """
-    dirname = "profiling-output"
+    dirname = f"profiling-output/{socket.gethostname()}-{int(time.time())}"
     if use_profiler:
         torch.cuda.memory._record_memory_history(max_entries=100000)
         activities = [torch.profiler.ProfilerActivity.CPU]
@@ -56,7 +58,6 @@ def ProfilingRunner(use_profiler: bool) -> None:
         with torch.profiler.profile(
             profile_memory=True,
             record_shapes=True,
-            with_stack=True,
             activities=activities,
             with_flops=True,
             on_trace_ready=torch.profiler.tensorboard_trace_handler(dirname),
@@ -75,7 +76,8 @@ def ProfilingRunner(use_profiler: bool) -> None:
             f"Top {row_limit} kernels by runtime on CUDA:\n {prof.key_averages().table(sort_by='self_cuda_time_total', row_limit=row_limit)}"
         )
         LOG.info("Memory summary \n%s", torch.cuda.memory_summary())
-        if torch.cuda.is_available():
-            prof.export_memory_timeline(f"{dirname}/memory_timeline.html", device="cuda:0")
+        LOG.info(
+            f"Memory snapshot and trace file stored to '{dirname}'. To view the memory snapshot, upload the pickle file to 'https://pytorch.org/memory_viz'. To view the trace file, see 'https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html#use-tensorboard-to-view-results-and-analyze-model-performance'"
+        )
     else:
         yield
