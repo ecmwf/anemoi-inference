@@ -9,6 +9,9 @@
 
 
 import logging
+from typing import Any
+from typing import Dict
+from typing import List
 
 from anemoi.inference.config import load_config
 from anemoi.inference.forcings import CoupledForcings
@@ -22,17 +25,15 @@ LOG = logging.getLogger(__name__)
 
 class CoupledRunner(DefaultRunner):
 
-    def __init__(self, config, input):
+    def __init__(self, config: Dict[str, Any], input: "CoupledInput") -> None:
         super().__init__(config)
         self.input = input
 
-    def create_dynamic_coupled_forcings(self, variables, mask):
+    def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
         result = CoupledForcings(self, self.input, variables, mask)
         return [result]
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
-        # For the initial state we need to load the forcings
-        # from the default input.
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Dict[str, Any]]) -> List[CoupledForcings]:
         result = []
         for c in dynamic_forcings_inputs:
             result.extend(super().create_dynamic_coupled_forcings(c.variables, c.mask))
@@ -43,14 +44,16 @@ class CoupledInput:
 
     trace_name = "coupled"
 
-    def __init__(self, task, transport, couplings):
+    def __init__(self, task: Task, transport: Any, couplings: List[Any]) -> None:
         self.task = task
         self.transport = transport
         self.couplings = couplings
         self.constants = {}
         self.tag = 0
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(
+        self, *, variables: List[str], dates: List[str], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         LOG.info("Adding dynamic forcings %s %s", variables, dates)
         state = dict(variables=variables, date=dates)
 
@@ -73,7 +76,7 @@ class CoupledInput:
 
         return state
 
-    def initial_state(self, state):
+    def initial_state(self, state: Dict[str, Any]) -> None:
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
         self.constants = state["fields"].copy()
@@ -82,12 +85,14 @@ class CoupledInput:
 @task_registry.register("runner")
 class RunnerTask(Task):
 
-    def __init__(self, name, config, overrides={}, global_config={}):
+    def __init__(
+        self, name: str, config: Dict[str, Any], overrides: Dict[str, Any] = {}, global_config: Dict[str, Any] = {}
+    ) -> None:
         super().__init__(name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
         self.config = load_config(config, overrides=[global_config, overrides])
 
-    def run(self, transport):
+    def run(self, transport: Any) -> None:
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 

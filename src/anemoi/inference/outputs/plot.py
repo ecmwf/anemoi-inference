@@ -9,7 +9,10 @@
 
 import logging
 import os
-from typing import List, Literal, Optional, Union
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -21,7 +24,8 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
-ListOrAll = Union[List[str], Literal['all']]
+ListOrAll = Union[List[str], Literal["all"]]
+
 
 def fix(lons: FloatArray) -> FloatArray:
     """Fix longitudes greater than 180 degrees.
@@ -71,7 +75,7 @@ class PlotOutput(Output):
         self,
         context: dict,
         path: str,
-        variables: ListOrAll = 'all',
+        variables: ListOrAll = "all",
         strftime: str = "%Y%m%d%H%M%S",
         template: str = "plot_{variable}_{date}.{format}",
         dpi: int = 300,
@@ -89,7 +93,7 @@ class PlotOutput(Output):
         self.dpi = dpi
         self.missing_value = missing_value
 
-        if self.variables != 'all':
+        if self.variables != "all":
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
@@ -114,7 +118,7 @@ class PlotOutput(Output):
 
         for name, values in state["fields"].items():
 
-            if self.variables !='all' and name not in self.variables:
+            if self.variables != "all" and name not in self.variables:
                 continue
 
             _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})

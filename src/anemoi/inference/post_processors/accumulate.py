@@ -10,14 +10,13 @@
 
 import logging
 from datetime import timedelta
-from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
@@ -49,17 +48,17 @@ class Accumulate(Processor):
         self.accumulators = {}
         self.step_zero = timedelta(0)
 
-    def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def process(self, state: State) -> State:
         """Process the state to accumulate specified fields.
 
         Parameters
         ----------
-        state : Dict[str, Any]
+        state : State
             The state containing fields to be accumulated.
 
         Returns
         -------
-        Dict[str, Any]
+        State
             The updated state with accumulated fields.
         """
         state = state.copy()

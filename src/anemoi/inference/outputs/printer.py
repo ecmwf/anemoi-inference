@@ -10,7 +10,10 @@
 import datetime
 import logging
 from functools import partial
-from typing import List, Literal, Optional, Union
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -22,10 +25,10 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
-ListOrAll = Union[List[str], Literal['all']]
+ListOrAll = Union[List[str], Literal["all"]]
 
 
-def print_state(state: State, print=print, max_lines: int = 4, variables: Optional[ListOrAll]=None) -> None:
+def print_state(state: State, print=print, max_lines: int = 4, variables: Optional[ListOrAll] = None) -> None:
     """Print the state.
 
     Parameters
@@ -108,7 +111,9 @@ class PrinterOutput(Output):
         Additional keyword arguments.
     """
 
-    def __init__(self, context: dict, path: Optional[str] = None, variables: Optional[ListOrAll]=None, **kwargs) -> None:
+    def __init__(
+        self, context: dict, path: Optional[str] = None, variables: Optional[ListOrAll] = None, **kwargs
+    ) -> None:
         super().__init__(context)
         self.print = print
         self.variables = variables
