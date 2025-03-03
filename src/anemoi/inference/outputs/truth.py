@@ -20,7 +20,11 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("truth")
 class TruthOutput(ForwardOutput):
-    """Write the truth state for each output state."""
+    """Write the input state at the same time for each output state.
+
+    Can only be used for inputs with that have access to the time of
+    the forecasts, effectively only for times in the past.
+    """
 
     def __init__(self, context: Context, output: dict, **kwargs):
         super().__init__(context, **kwargs)
