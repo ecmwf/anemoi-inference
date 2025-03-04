@@ -27,17 +27,44 @@ class PluginRunner(Runner):
     """A runner implementing the ai-models plugin API."""
 
     def __init__(self, checkpoint: str, *, device: str, pre_processors=None, post_processors=None):
+        """Initialize the PluginRunner.
+
+        Parameters
+        ----------
+        checkpoint : str
+            The checkpoint for the runner.
+        device : str
+            The device to run the model on.
+        pre_processors : optional
+            Pre-processors for the runner.
+        post_processors : optional
+            Post-processors for the runner.
+        """
         super().__init__(checkpoint, device=device, pre_processors=pre_processors, post_processors=post_processors)
 
     # Compatibility with the ai_models API
 
     @property
     def param_sfc(self) -> List[str]:
+        """Get surface parameters.
+
+        Returns
+        -------
+        List[str]
+            The surface parameters.
+        """
         params, _ = self.checkpoint.mars_by_levtype("sfc")
         return sorted(params)
 
     @property
     def param_level_pl(self) -> Tuple[List[str], List[int]]:
+        """Get pressure level parameters and levels.
+
+        Returns
+        -------
+        Tuple[List[str], List[int]]
+            The pressure level parameters and levels.
+        """
         params, levels = self.checkpoint.mars_by_levtype("pl")
         return sorted(params), sorted(levels)
 

@@ -28,6 +28,15 @@ class TemplateManager:
     """A class to manage GRIB templates."""
 
     def __init__(self, owner: Any, templates: Optional[Union[List[str], str]] = None) -> None:
+        """Initialize the TemplateManager.
+
+        Parameters
+        ----------
+        owner : Any
+            The owner of the TemplateManager.
+        templates : Optional[Union[List[str], str]], optional
+            A list of template names or a single template name, by default None.
+        """
         self.owner = owner
         self.checkpoint = owner.context.checkpoint
         self.typed_variables = self.checkpoint.typed_variables
@@ -46,6 +55,20 @@ class TemplateManager:
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
     def template(self, name: str, state: Dict[str, Any]) -> Optional[ekd.Field]:
+        """Get the template for a given name and state.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template.
+        state : Dict[str, Any]
+            The state dictionary containing template information.
+
+        Returns
+        -------
+        Optional[ekd.Field]
+            The template field if found, otherwise None.
+        """
         assert name is not None, name
 
         # Use input fields as templates
@@ -57,6 +80,20 @@ class TemplateManager:
         return self._template_cache.get(name)
 
     def load_template(self, name: str, state: Dict[str, Any]) -> Optional[ekd.Field]:
+        """Load the template for a given name and state.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template.
+        state : Dict[str, Any]
+            The state dictionary containing template information.
+
+        Returns
+        -------
+        Optional[ekd.Field]
+            The template field if found, otherwise None.
+        """
 
         checkpoint = self.owner.context.checkpoint
 
@@ -95,6 +132,18 @@ class TemplateManager:
         return None
 
     def _grid(self, grid: Union[str, List[int], Tuple[int, int]]) -> Union[str, int]:
+        """Convert the grid information to a standardized format.
+
+        Parameters
+        ----------
+        grid : Union[str, List[int], Tuple[int, int]]
+            The grid information.
+
+        Returns
+        -------
+        Union[str, int]
+            The standardized grid format.
+        """
         if isinstance(grid, str):
             return grid.upper()
         if isinstance(grid, (tuple, list)) and len(grid) == 2:

@@ -21,7 +21,7 @@ def create_transport(config: Configuration, couplings: Any, tasks: Any) -> Any:
 
     Parameters
     ----------
-    config : Config
+    config : Configuration
         The configuration for the transport.
     couplings : Any
         The couplings for the transport.

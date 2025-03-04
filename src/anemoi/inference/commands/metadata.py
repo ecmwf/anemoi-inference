@@ -27,6 +27,13 @@ class Metadata(Command):
     """Edit, remove, dump or load metadata from a checkpoint file."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add command line arguments to the parser.
+
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         from anemoi.utils.checkpoints import DEFAULT_NAME
 
         command_parser.add_argument("path", help="Path to the checkpoint.")
@@ -126,6 +133,13 @@ class Metadata(Command):
         )
 
     def run(self, args: Namespace) -> None:
+        """Execute the command based on the provided arguments.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         if args.edit:
             return self.edit(args)
 
@@ -148,13 +162,37 @@ class Metadata(Command):
             return self.supporting_arrays(args)
 
     def edit(self, args: Namespace) -> None:
+        """Edit the metadata in place using the specified editor.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         return self._edit(args, view=False, cmd=args.editor)
 
     def view(self, args: Namespace) -> None:
+        """View the metadata in place using the specified pager.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         return self._edit(args, view=True, cmd=args.pager)
 
     def _edit(self, args: Namespace, view: bool, cmd: str) -> None:
+        """Internal method to edit or view the metadata.
 
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        view : bool
+            If True, view the metadata; otherwise, edit it.
+        cmd : str
+            The command to use for editing or viewing.
+        """
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import replace_metadata
 
@@ -189,11 +227,25 @@ class Metadata(Command):
                     LOG.info("No changes made.")
 
     def remove(self, args: Namespace) -> None:
+        """Remove the metadata from the checkpoint.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import remove_metadata
 
         remove_metadata(args.path, args.name)
 
     def dump(self, args: Namespace) -> None:
+        """Dump the metadata from the checkpoint to a file or standard output.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import load_metadata
 
         if args.output:
@@ -212,6 +264,13 @@ class Metadata(Command):
             return
 
     def get(self, args: Namespace) -> None:
+        """Navigate and print the metadata via a dot-separated path.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from pprint import pprint
 
         from anemoi.utils.checkpoints import load_metadata
@@ -237,6 +296,13 @@ class Metadata(Command):
             print(metadata)
 
     def load(self, args: Namespace) -> None:
+        """Load metadata into the checkpoint from a specified file.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import has_metadata
         from anemoi.utils.checkpoints import replace_metadata
         from anemoi.utils.checkpoints import save_metadata
@@ -262,6 +328,13 @@ class Metadata(Command):
             save_metadata(args.path, metadata, name=args.name)
 
     def supporting_arrays(self, args: Namespace) -> None:
+        """Print the supporting arrays from the metadata.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import load_metadata
 
         _, supporting_arrays = load_metadata(args.path, supporting_arrays=True)

@@ -10,10 +10,12 @@
 
 import logging
 import warnings
+from typing import List
 
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
+from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
 
 from ..forcings import BoundaryForcings
@@ -63,11 +65,25 @@ class DefaultRunner(Runner):
         )
 
     def create_input(self) -> create_input:
+        """Create the input.
+
+        Returns
+        -------
+        create_input
+            The created input.
+        """
         input = create_input(self, self.config.input)
         LOG.info("Input: %s", input)
         return input
 
     def create_output(self) -> create_output:
+        """Create the output.
+
+        Returns
+        -------
+        create_output
+            The created output.
+        """
         output = create_output(self, self.config.output)
         LOG.info("Output:")
         output.print_summary()
@@ -75,11 +91,39 @@ class DefaultRunner(Runner):
 
     # Computed forcings
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+        """Create constant computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant computed forcings.
+        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
     def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+        """Create dynamic computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created dynamic computed forcings.
+        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
@@ -102,26 +146,74 @@ class DefaultRunner(Runner):
 
         return self.config.forcings
 
-    def create_constant_coupled_forcings(self, variables: list, mask: list) -> List[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+        """Create constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant coupled forcings.
+        """
         input = create_input(self, self._input_forcings("constant"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: list, mask: list) -> List[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+        """Create dynamic coupled forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created dynamic coupled forcings.
+        """
         input = create_input(self, self._input_forcings("dynamic"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables: list, mask: list) -> List[BoundaryForcings]:
+    def create_boundary_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+        """Create boundary forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created boundary forcings.
+        """
         input = create_input(self, self._input_forcings("boundary"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return [result]
 
-    def create_pre_processors(self) -> List[create_pre_processor]:
+    def create_pre_processors(self) -> List[Processor]:
+        """Create pre-processors.
 
+        Returns
+        -------
+        List[Processor]
+            The created pre-processors.
+        """
         # TODO #131:
         # For now, implement a three-way switch.
         # post_processors: None -> accumulate_from_start_of_forecast = True

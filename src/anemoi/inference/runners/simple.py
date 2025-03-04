@@ -29,12 +29,32 @@ class NoForcings(Forcings):
     """No forcings."""
 
     def __init__(self, context, variables, mask):
+        """Initialize the NoForcings.
+
+        Parameters
+        ----------
+        context : object
+            The context for the forcings.
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+        """
         super().__init__(context)
         self.variables = variables
         self.mask = mask
         self.kinds = dict(unknown=True)
 
     def load_forcings_state(self, state: State, date: str) -> None:
+        """Load forcings state.
+
+        Parameters
+        ----------
+        state : State
+            The state to load the forcings into.
+        date : str
+            The date for which to load the forcings.
+        """
         pass
 
 
@@ -43,14 +63,51 @@ class SimpleRunner(Runner):
     """Use that runner when using the low level API."""
 
     def __init__(self, *args, **kwargs):
+        """Initialize the SimpleRunner.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments.
+        **kwargs : dict
+            Keyword arguments.
+        """
         super().__init__(*args, **kwargs)
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+        """Create constant computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant computed forcings.
+        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
     def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+        """Create dynamic computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created dynamic computed forcings.
+        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]

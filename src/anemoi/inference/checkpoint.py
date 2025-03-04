@@ -68,7 +68,7 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path: str, *, patch_metadata: Optional[Dict[str, Any]] = None):
+    def __init__(self, path: str, *, patch_metadata: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the Checkpoint.
 
         Parameters
@@ -131,71 +131,88 @@ class Checkpoint:
     ###########################################################################
 
     @property
-    def timestep(self):
+    def timestep(self) -> Any:
+        """Get the timestep."""
         return self._metadata.timestep
 
     @property
-    def precision(self):
+    def precision(self) -> Any:
+        """Get the precision."""
         return self._metadata.precision
 
     @property
-    def number_of_grid_points(self):
+    def number_of_grid_points(self) -> Any:
+        """Get the number of grid points."""
         return self._metadata.number_of_grid_points
 
     @property
-    def number_of_input_features(self):
+    def number_of_input_features(self) -> Any:
+        """Get the number of input features."""
         return self._metadata.number_of_input_features
 
     @property
-    def variable_to_input_tensor_index(self):
+    def variable_to_input_tensor_index(self) -> Any:
+        """Get the variable to input tensor index."""
         return self._metadata.variable_to_input_tensor_index
 
     @property
-    def model_computed_variables(self):
+    def model_computed_variables(self) -> Any:
+        """Get the model computed variables."""
         return self._metadata.model_computed_variables
 
     @property
-    def typed_variables(self):
+    def typed_variables(self) -> Any:
+        """Get the typed variables."""
         return self._metadata.typed_variables
 
     @property
-    def diagnostic_variables(self):
+    def diagnostic_variables(self) -> Any:
+        """Get the diagnostic variables."""
         return self._metadata.diagnostic_variables
 
     @property
-    def prognostic_variables(self):
+    def prognostic_variables(self) -> Any:
+        """Get the prognostic variables."""
         return self._metadata.prognostic_variables
 
     @property
-    def prognostic_output_mask(self):
+    def prognostic_output_mask(self) -> Any:
+        """Get the prognostic output mask."""
         return self._metadata.prognostic_output_mask
 
     @property
-    def prognostic_input_mask(self):
+    def prognostic_input_mask(self) -> Any:
+        """Get the prognostic input mask."""
         return self._metadata.prognostic_input_mask
 
     @property
-    def output_tensor_index_to_variable(self):
+    def output_tensor_index_to_variable(self) -> Any:
+        """Get the output tensor index to variable."""
         return self._metadata.output_tensor_index_to_variable
 
     @property
-    def accumulations(self):
+    def accumulations(self) -> Any:
+        """Get the accumulations."""
         return self._metadata.accumulations
 
     @property
-    def latitudes(self):
+    def latitudes(self) -> Any:
+        """Get the latitudes."""
         return self._metadata.latitudes
 
     @property
-    def longitudes(self):
+    def longitudes(self) -> Any:
+        """Get the longitudes."""
         return self._metadata.longitudes
 
     @property
-    def grid_points_mask(self):
+    def grid_points_mask(self) -> Any:
+        """Get the grid points mask."""
         return self._metadata.grid_points_mask
 
     @cached_property
     def sources(self) -> List["SourceCheckpoint"]:
+        """Get the sources."""
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
     def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
@@ -390,7 +407,8 @@ class Checkpoint:
         return self._metadata.load_supporting_array(name)
 
     @property
-    def supporting_arrays(self):
+    def supporting_arrays(self) -> Any:
+        """Get the supporting arrays."""
         return self._metadata.supporting_arrays
 
     ###########################################################################
@@ -403,7 +421,8 @@ class Checkpoint:
         return sorted(result)
 
     @property
-    def multi_step_input(self):
+    def multi_step_input(self) -> Any:
+        """Get the multi-step input."""
         return self._metadata.multi_step_input
 
     def print_variable_categories(self) -> None:
@@ -430,11 +449,13 @@ class Checkpoint:
         return self._metadata.variables_from_input(include_forcings=include_forcings)
 
     @property
-    def grid(self):
+    def grid(self) -> Any:
+        """Get the grid."""
         return self._metadata.grid
 
     @property
-    def area(self):
+    def area(self) -> Any:
+        """Get the area."""
         return self._metadata.area
 
     def mars_by_levtype(self, levtype: str) -> Any:
@@ -588,11 +609,13 @@ class Checkpoint:
     ###########################################################################
 
     @cached_property
-    def _supporting_arrays(self):
+    def _supporting_arrays(self) -> Any:
+        """Get the supporting arrays."""
         return self._metadata._supporting_arrays
 
     @property
-    def name(self):
+    def name(self) -> Any:
+        """Get the name."""
         return self._metadata.name
 
     ###########################################################################
@@ -613,7 +636,7 @@ class Checkpoint:
 class SourceCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""
 
-    def __init__(self, owner: Checkpoint, metadata: Any):
+    def __init__(self, owner: Checkpoint, metadata: Any) -> None:
         """Initialize the SourceCheckpoint.
 
         Parameters

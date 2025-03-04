@@ -90,6 +90,13 @@ class PatchMixin:
 
     @cached_property
     def _from_zarr(self):
+        """Open the dataset and fetch metadata and supporting arrays.
+
+        Returns
+        -------
+        tuple
+            The metadata and supporting arrays.
+        """
         # We assume that the datasets are reachable via the content of
         # ~/.config/anemoi/settings.toml.
 
@@ -118,6 +125,12 @@ class PatchMixin:
         return ds.metadata(), ds.supporting_arrays()
 
     def _patch_variable_metadata_open_dataset_1(self):
+        """Try to open the dataset and re-fetch metadata.
+
+        Returns
+        -------
+        None
+        """
         # Try to open the dataset(s) and re-fetch metadata.
         # In the checkpoint we keep track of the arguments used to open the dataset.
 

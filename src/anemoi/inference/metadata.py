@@ -71,22 +71,27 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def _indices(self) -> dict:
+        """Return the data indices."""
         return self._metadata.data_indices
 
     @property
     def _config_data(self) -> dict:
+        """Return the data configuration."""
         return self._config.data
 
     @property
     def _config_training(self) -> dict:
+        """Return the training configuration."""
         return self._config.training
 
     @property
     def _config_model(self) -> dict:
+        """Return the model configuration."""
         return self._config.model
 
     @property
     def _config(self) -> dict:
+        """Return the configuration."""
         return self._metadata.config
 
     ###########################################################################
@@ -264,16 +269,35 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def prognostic_output_mask(self) -> np.ndarray:
+        """Return the prognostic output mask.
+
+        Returns
+        -------
+        np.ndarray
+            The prognostic output mask.
+        """
         return np.array(self._indices.model.output.prognostic)
 
     @cached_property
     def prognostic_input_mask(self) -> np.ndarray:
+        """Return the prognostic input mask.
+
+        Returns
+        -------
+        np.ndarray
+            The prognostic input mask.
+        """
         return np.array(self._indices.model.input.prognostic)
 
     @cached_property
     def computed_time_dependent_forcings(self) -> tuple[np.ndarray, list]:
-        """Return the indices and names of the computed forcings that are not constant in time."""
+        """Return the indices and names of the computed forcings that are not constant in time.
 
+        Returns
+        -------
+        tuple[np.ndarray, list]
+            The indices and names of the computed forcings that are not constant in time.
+        """
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
             self._indices.model.input.full,
@@ -297,8 +321,13 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def computed_constant_forcings(self) -> tuple[np.ndarray, list]:
-        """Return the indices and names of the computed forcings that are  constant in time."""
+        """Return the indices and names of the computed forcings that are  constant in time.
 
+        Returns
+        -------
+        tuple[np.ndarray, list]
+            The indices and names of the computed forcings that are constant in time.
+        """
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
             self._indices.model.input.full,
@@ -349,22 +378,46 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def diagnostic_variables(self) -> list:
-        """Variables that are marked as diagnostic."""
+        """Variables that are marked as diagnostic.
+
+        Returns
+        -------
+        list
+            The list of diagnostic variables.
+        """
         return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
 
     @cached_property
     def prognostic_variables(self) -> list:
-        """Variables that are marked as prognostic."""
+        """Variables that are marked as prognostic.
+
+        Returns
+        -------
+        list
+            The list of prognostic variables.
+        """
         return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]
 
     @cached_property
     def index_to_variable(self) -> frozendict:
-        """Return a mapping from index to variable name."""
+        """Return a mapping from index to variable name.
+
+        Returns
+        -------
+        frozendict
+            The mapping from index to variable name.
+        """
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
     def typed_variables(self) -> dict:
-        """Returns a strongly typed variables."""
+        """Returns a strongly typed variables.
+
+        Returns
+        -------
+        dict
+            The strongly typed variables.
+        """
         result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
         if "cos_latitude" in result:
@@ -379,7 +432,13 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @cached_property
     def accumulations(self) -> list:
-        """Return the indices of the variables that are accumulations."""
+        """Return the indices of the variables that are accumulations.
+
+        Returns
+        -------
+        list
+            The list of accumulation variables.
+        """
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
     def name_fields(self, fields: "FieldList", namer: Callable = None) -> "FieldList":
@@ -466,7 +525,13 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def _data_request(self) -> dict:
-        """Return the data request as encoded in the dataset."""
+        """Return the data request as encoded in the dataset.
+
+        Returns
+        -------
+        dict
+            The data request.
+        """
         try:
             return self._metadata.dataset.data_request
         except AttributeError:
@@ -474,10 +539,24 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def grid(self) -> Optional[str]:
+        """Return the grid information.
+
+        Returns
+        -------
+        Optional[str]
+            The grid information.
+        """
         return self._data_request.get("grid")
 
     @property
     def area(self) -> Optional[str]:
+        """Return the area information.
+
+        Returns
+        -------
+        Optional[str]
+            The area information.
+        """
         return self._data_request.get("area")
 
     def variables_from_input(self, *, include_forcings: bool) -> list:
@@ -1000,18 +1079,46 @@ class Metadata(PatchMixin, LegacyMixin):
 
     @property
     def supporting_arrays(self) -> dict:
+        """Return the supporting arrays.
+
+        Returns
+        -------
+        dict
+            The supporting arrays.
+        """
         return self._supporting_arrays
 
     @property
     def latitudes(self) -> Optional[FloatArray]:
+        """Return the latitudes.
+
+        Returns
+        -------
+        Optional[FloatArray]
+            The latitudes.
+        """
         return self._supporting_arrays.get("latitudes")
 
     @property
     def longitudes(self) -> Optional[FloatArray]:
+        """Return the longitudes.
+
+        Returns
+        -------
+        Optional[FloatArray]
+            The longitudes.
+        """
         return self._supporting_arrays.get("longitudes")
 
     @property
     def grid_points_mask(self) -> Optional[FloatArray]:
+        """Return the grid points mask.
+
+        Returns
+        -------
+        Optional[FloatArray]
+            The grid points mask.
+        """
         # TODO
         return None
 
@@ -1147,14 +1254,35 @@ class SourceMetadata(Metadata):
 
     @property
     def latitudes(self) -> Optional[FloatArray]:
+        """Return the latitudes.
+
+        Returns
+        -------
+        Optional[FloatArray]
+            The latitudes.
+        """
         return self._supporting_arrays.get(f"{self.name}/latitudes")
 
     @property
     def longitudes(self) -> Optional[FloatArray]:
+        """Return the longitudes.
+
+        Returns
+        -------
+        Optional[FloatArray]
+            The longitudes.
+        """
         return self._supporting_arrays.get(f"{self.name}/longitudes")
 
     @property
     def grid_points_mask(self) -> Optional[FloatArray]:
+        """Return the grid points mask.
+
+        Returns
+        -------
+        Optional[FloatArray]
+            The grid points mask.
+        """
         for k, v in self._supporting_arrays.items():
             # TODO: This is a bit of a hack
             if k.startswith(f"{self.name}/") and "mask" in k:
@@ -1167,18 +1295,22 @@ class SourceMetadata(Metadata):
 
     @property
     def _config_training(self) -> dict:
+        """Return the training configuration."""
         return self.parent._config_training
 
     @property
     def _config_data(self) -> dict:
+        """Return the data configuration."""
         return self.parent._config_data
 
     @property
     def _indices(self) -> dict:
+        """Return the indices."""
         return self.parent._indices
 
     @property
     def _config(self) -> dict:
+        """Return the configuration."""
         return self.parent._config
 
     ###########################################################################

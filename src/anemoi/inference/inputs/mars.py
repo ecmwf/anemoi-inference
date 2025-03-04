@@ -29,6 +29,18 @@ LOG = logging.getLogger(__name__)
 
 
 def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
+    """Round the area to a global extent if the surface is greater than 0.98.
+
+    Parameters
+    ----------
+    area : Optional[List[float]]
+        The area to be rounded.
+
+    Returns
+    -------
+    Optional[List[float]]
+        The rounded area or the original area if no rounding is needed.
+    """
     try:
         surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
         if surface > 0.98:
@@ -39,6 +51,18 @@ def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
 
 
 def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
+    """Check if the grid is valid.
+
+    Parameters
+    ----------
+    grid : Optional[Union[str, List[float]]]
+        The grid to be checked.
+
+    Returns
+    -------
+    bool
+        True if the grid is valid, False otherwise.
+    """
     if grid is None:
         return False
 
@@ -53,7 +77,18 @@ def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
 
 
 def area_is_valid(area: Optional[List[float]]) -> bool:
+    """Check if the area is valid.
 
+    Parameters
+    ----------
+    area : Optional[List[float]]
+        The area to be checked.
+
+    Returns
+    -------
+    bool
+        True if the area is valid, False otherwise.
+    """
     if area is None:
         return False
 
@@ -70,6 +105,20 @@ def area_is_valid(area: Optional[List[float]]) -> bool:
 def postproc(
     grid: Optional[Union[str, List[float]]], area: Optional[List[float]]
 ) -> Dict[str, Union[str, List[float]]]:
+    """Post-process the grid and area.
+
+    Parameters
+    ----------
+    grid : Optional[Union[str, List[float]]]
+        The grid to be post-processed.
+    area : Optional[List[float]]
+        The area to be post-processed.
+
+    Returns
+    -------
+    Dict[str, Union[str, List[float]]]
+        The post-processed grid and area.
+    """
     pproc = dict()
     if grid_is_valid(grid):
         pproc["grid"] = grid
@@ -87,6 +136,26 @@ def retrieve(
     patch: Optional[Any] = None,
     **kwargs: Any,
 ) -> Any:
+    """Retrieve data from MARS.
+
+    Parameters
+    ----------
+    requests : List[Dict[str, Any]]
+        The list of requests to be retrieved.
+    grid : Optional[Union[str, List[float]]]
+        The grid for the retrieval.
+    area : Optional[List[float]]
+        The area for the retrieval.
+    patch : Optional[Any], optional
+        Optional patch for the request, by default None.
+    **kwargs : Any
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Any
+        The retrieved data.
+    """
     import earthkit.data as ekd
 
     def _(r):
