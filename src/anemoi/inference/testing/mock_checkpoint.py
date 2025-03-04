@@ -16,6 +16,24 @@ from anemoi.utils.config import DotDict
 
 
 def mock_load_metadata(path: str, *, supporting_arrays=True, name: Any = None) -> dict:
+    """Load mock metadata for testing purposes.
+
+    Parameters
+    ----------
+    path : str
+        The path to the metadata file.
+    supporting_arrays : bool, optional
+        Whether to include supporting arrays in the output, by default True.
+    name : Any, optional
+        An optional name parameter, by default None.
+
+    Returns
+    -------
+    dict
+        The mock metadata.
+    dict, optional
+        The supporting arrays if `supporting_arrays` is True.
+    """
     metadata = {
         "config": {
             "training": {
@@ -65,12 +83,37 @@ def mock_load_metadata(path: str, *, supporting_arrays=True, name: Any = None) -
 
 
 def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
+    """Load a mock torch model for testing purposes.
+
+    Parameters
+    ----------
+    path : str
+        The path to the model file.
+    map_location : Any
+        The device on which to load the model.
+    weights_only : bool
+        Whether to load only the weights.
+
+    Returns
+    -------
+    Any
+        The mock torch model.
+    """
     import torch
 
     assert weights_only is False, "Not implemented"
 
     class MockModel(torch.nn.Module):
         def __init__(self, medatada, supporting_arrays):
+            """Initialize the mock model.
+
+            Parameters
+            ----------
+            medatada : dict
+                The metadata for the model.
+            supporting_arrays : dict
+                The supporting arrays for the model.
+            """
             super().__init__()
             metadata = DotDict(medatada)
 
@@ -82,11 +125,19 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
             self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
             self.output_shape = (1, 1, self.grid_size, self.features_out)
 
-        def forward(self, x):
-            assert False, "Not implemented"
-
         def predict_step(self, x):
+            """Perform a prediction step.
 
+            Parameters
+            ----------
+            x : torch.Tensor
+                The input tensor.
+
+            Returns
+            -------
+            torch.Tensor
+                The output tensor.
+            """
             assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
 
             y = torch.zeros(self.output_shape)

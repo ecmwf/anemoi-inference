@@ -78,7 +78,8 @@ repos:
         - --check-overridden # Check overridden methods
         - --check-protected  # Check protected methods
         - --check-class      # Check class docstrings
-        - --disable=SIG101,SIG102     # Disable empty docstrings
+        # - --disable=SIG101,SIG102     # Disable empty docstrings
+        - --disable=SIG505
 
 - repo: https://github.com/DanielNoord/pydocstringformatter
   rev: main

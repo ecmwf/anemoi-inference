@@ -12,5 +12,11 @@ from typing import Any
 
 
 class FakeMetadata:
+    """A class to simulate metadata for testing purposes.
+
+    This class returns None for any attribute accessed, simulating the absence
+    of metadata.
+    """
+
     def __getattr__(self, name: str) -> Any:
         return None

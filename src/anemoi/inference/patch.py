@@ -21,6 +21,17 @@ LOG = logging.getLogger(__name__)
 
 @contextmanager
 def patch_function(target, attribute, replacement):
+    """Context manager to temporarily replace an attribute of a target object.
+
+    Parameters
+    ----------
+    target : object
+        The target object whose attribute will be replaced.
+    attribute : str
+        The name of the attribute to replace.
+    replacement : any
+        The replacement value for the attribute.
+    """
     original = getattr(target, attribute)
     setattr(target, attribute, replacement)
     try:
@@ -34,6 +45,22 @@ class PatchMixin:
     # `self` is a `Metadata` object
 
     def patch_metadata(self, supporting_arrays, root, force=False):
+        """Patch the metadata with supporting arrays and root.
+
+        Parameters
+        ----------
+        supporting_arrays : dict
+            The supporting arrays to patch.
+        root : str
+            The root path for the supporting arrays.
+        force : bool, optional
+            Whether to force the patching, by default False.
+
+        Returns
+        -------
+        tuple
+            The patched metadata and supporting arrays.
+        """
         dataset = self._metadata["dataset"]
 
         if (
@@ -49,6 +76,7 @@ class PatchMixin:
         return self._metadata, self._supporting_arrays
 
     def _patch_variable_metadata(self):
+        """Patch the variable metadata."""
 
         try:
             return self._patch_variable_metadata_open_dataset_1()
@@ -62,9 +90,9 @@ class PatchMixin:
 
     @cached_property
     def _from_zarr(self):
-        """We assume that the datasets are reachable via the content of
-        ~/.config/anemoi/settings.toml.
-        """
+        # We assume that the datasets are reachable via the content of
+        # ~/.config/anemoi/settings.toml.
+
         from anemoi.datasets import open_dataset
 
         dataset = self._metadata["dataset"]
@@ -90,9 +118,8 @@ class PatchMixin:
         return ds.metadata(), ds.supporting_arrays()
 
     def _patch_variable_metadata_open_dataset_1(self):
-        """Try to open the dataset(s) and re-fetch metadata.
-        In the checkpoint we keep track of the arguments used to open the dataset.
-        """
+        # Try to open the dataset(s) and re-fetch metadata.
+        # In the checkpoint we keep track of the arguments used to open the dataset.
 
         # First attempt, try to open the dataset
 
@@ -106,7 +133,7 @@ class PatchMixin:
                 dataset[k] = v
 
     def _patch_variable_metadata_open_dataset_2(self):
-        """That version fetches the metadata from the catalogue."""
+        """Fetch the metadata from the catalogue."""
 
         import anemoi.datasets.data.stores
         import numpy as np
@@ -163,7 +190,20 @@ class PatchMixin:
             self._patch_variable_metadata_open_dataset_1()
 
     def _patch_supporting_arrays(self, supporting_arrays, root):
+        """Patch the supporting arrays.
 
+        Parameters
+        ----------
+        supporting_arrays : dict
+            The supporting arrays to patch.
+        root : str
+            The root path for the supporting arrays.
+
+        Returns
+        -------
+        dict
+            The patched supporting arrays.
+        """
         metadata, supporting_arrays = self._from_zarr
 
         # assert False, metadata['sources']

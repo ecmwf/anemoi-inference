@@ -36,12 +36,49 @@ class main_argument:
     """
 
     def __init__(self, name: str):
+        """Initialize the main_argument decorator.
+
+        Parameters
+        ----------
+        name : str
+            The name of the main argument.
+        """
         self.name = name
 
     def __call__(self, f: Callable) -> Callable:
+        """Decorate the function to set the main argument.
+
+        Parameters
+        ----------
+        f : Callable
+            The function to decorate.
+
+        Returns
+        -------
+        Callable
+            The decorated function.
+        """
 
         @wraps(f)
         def decorator(context, main=MARKER, *args, **kwargs):
+            """Decorator function to set the main argument.
+
+            Parameters
+            ----------
+            context : Any
+                The context in which the function is called.
+            main : Any, optional
+                The main argument value, by default MARKER.
+            *args : tuple
+                Additional positional arguments.
+            **kwargs : dict
+                Additional keyword arguments.
+
+            Returns
+            -------
+            Any
+                The result of the decorated function.
+            """
             if main is not MARKER:
                 kwargs[self.name] = main
             return f(context, *args, **kwargs)

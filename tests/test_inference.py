@@ -21,7 +21,12 @@ HERE = os.path.dirname(__file__)
 
 
 @fake_checkpoints
-def test_inference():
+def test_inference() -> None:
+    """Test the inference process using a fake checkpoint.
+
+    This function loads a configuration, creates a runner, and runs the inference
+    process to ensure that the system works as expected with the provided configuration.
+    """
     config = RunConfiguration.load(
         os.path.join(HERE, "configs/simple.yaml"),
         overrides=dict(device="cpu", input="dummy"),

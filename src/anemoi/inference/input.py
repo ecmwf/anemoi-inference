@@ -28,10 +28,18 @@ LOG = logging.getLogger(__name__)
 
 
 class Input(ABC):
+    """Abstract base class for input handling."""
 
     trace_name = "????"  # Override in subclass
 
     def __init__(self, context: "Context"):
+        """Initialize the Input object.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the input.
+        """
         self.context = context
         self.checkpoint = context.checkpoint
 
@@ -40,20 +48,59 @@ class Input(ABC):
 
     @abstractmethod
     def create_input_state(self, *, date: Optional[Date]) -> State:
-        """Create the input state dictionary."""
+        """Create the input state dictionary.
+
+        Parameters
+        ----------
+        date : Optional[Date]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        State
+            The input state dictionary.
+        """
         pass
 
     @abstractmethod
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        """Load forcings (constant and dynamic)."""
+        """Load forcings (constant and dynamic).
+
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables to load.
+        dates : List[Date]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        State
+            The updated state with the loaded forcings.
+        """
         pass
 
     def input_variables(self) -> List[str]:
-        """Return the list of input variables."""
+        """Return the list of input variables.
+
+        Returns
+        -------
+        List[str]
+            The list of input variables.
+        """
         return list(self.checkpoint.variable_to_input_tensor_index.keys())
 
     def set_private_attributes(self, state: State, value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state
-        dictionary, that may be needed but the output object.
+        dictionary, that may be needed by the output object.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        value : Any
+            The value to set.
         """
         pass

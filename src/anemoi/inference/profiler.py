@@ -43,7 +43,7 @@ def ProfilingRunner(use_profiler: bool) -> None:
     Parameters
     ----------
     use_profiler : bool
-        Weither to profile the wrapped code (True) or not (False).
+        Whether to profile the wrapped code (True) or not (False).
     """
     dirname = "profiling-output"
     if use_profiler:

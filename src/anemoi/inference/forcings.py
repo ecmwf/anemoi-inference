@@ -33,22 +33,56 @@ class Forcings(ABC):
     """Represents the forcings for the model."""
 
     def __init__(self, context: Context):
+        """Initialize the Forcings object.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the forcings.
+        """
         self.context = context
         self.checkpoint = context.checkpoint
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
     def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
-        """Load the forcings for the given dates."""
+        """Load the forcings for the given dates.
+
+        Parameters
+        ----------
+        dates : List[Date]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        FloatArray
+            The loaded forcings as a numpy array.
+        """
         pass
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
     def _state_to_numpy(self, state: State, variables: List[str], dates: List[Date]) -> FloatArray:
         """Convert the state dictionary to a numpy array.
         This assumes that the state dictionary contains the fields for the given variables.
         And that the fields values are sorted by dates.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        variables : List[str]
+            The list of variables.
+        dates : List[Date]
+            The list of dates.
+
+        Returns
+        -------
+        FloatArray
+            The state as a numpy array.
         """
         fields = state["fields"]
 
@@ -74,16 +108,40 @@ class ComputedForcings(Forcings):
     trace_name = "computed"
 
     def __init__(self, context: Context, variables: List[str], mask: Any):
+        """Initialize the ComputedForcings object.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the forcings.
+        variables : List[str]
+            The list of variables to compute.
+        mask : Any
+            The mask to apply to the forcings.
+        """
         super().__init__(context)
         self.variables = variables
         self.mask = mask
         self.kinds = dict(computed=True)  # Used for debugging
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.variables})"
 
     def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
+        """Load the computed forcings for the given dates.
 
+        Parameters
+        ----------
+        dates : List[Date]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        FloatArray
+            The loaded forcings as a numpy array.
+        """
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
         if not isinstance(dates, (list, tuple)):
@@ -118,6 +176,19 @@ class CoupledForcings(Forcings):
         return self.input.trace_name
 
     def __init__(self, context: Context, input: Any, variables: List[str], mask: IntArray):
+        """Initialize the CoupledForcings object.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the forcings.
+        input : Any
+            The input object.
+        variables : List[str]
+            The list of variables to retrieve.
+        mask : IntArray
+            The mask to apply to the forcings.
+        """
         super().__init__(context)
         self.variables = variables
         self.mask = mask
@@ -128,6 +199,20 @@ class CoupledForcings(Forcings):
         return f"{self.__class__.__name__}({self.variables})"
 
     def load_forcings_array(self, dates: List[Any], current_state: State) -> FloatArray:
+        """Load the forcings for the given dates.
+
+        Parameters
+        ----------
+        dates : List[Any]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        FloatArray
+            The loaded forcings as a numpy array.
+        """
         return self._state_to_numpy(
             self.input.load_forcings_state(
                 variables=self.variables,
@@ -143,6 +228,19 @@ class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
     def __init__(self, context: Context, input: DatasetInput, variables: List[str], variables_mask: IntArray):
+        """Initialize the BoundaryForcings object.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the forcings.
+        input : DatasetInput
+            The input object.
+        variables : List[str]
+            The list of variables to retrieve.
+        variables_mask : IntArray
+            The mask to apply to the forcings.
+        """
         super().__init__(context)
         self.variables = variables
         self.variables_mask = variables_mask
@@ -158,6 +256,20 @@ class BoundaryForcings(Forcings):
         return f"{self.__class__.__name__}({self.variables})"
 
     def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
+        """Load the boundary forcings for the given dates.
+
+        Parameters
+        ----------
+        dates : List[Date]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        FloatArray
+            The loaded forcings as a numpy array.
+        """
         data = self._state_to_numpy(
             self.input.load_forcings_state(variables=self.variables, dates=dates, current_state=current_state),
             self.variables,

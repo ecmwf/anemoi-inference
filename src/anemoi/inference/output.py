@@ -42,11 +42,25 @@ class Output(ABC):
         return f"{self.__class__.__name__}()"
 
     def write_initial_state(self, state: State) -> None:
+        """Write the initial state.
+
+        Parameters
+        ----------
+        state : State
+            The initial state to write.
+        """
         state.setdefault("step", datetime.timedelta(0))
         if self.write_step_zero:
             self.write_state(state)
 
     def write_state(self, state: State) -> None:
+        """Write the state.
+
+        Parameters
+        ----------
+        state : State
+            The state to write.
+        """
         self.open(state)
 
         step = state["step"]
@@ -57,7 +71,18 @@ class Output(ABC):
         return self.write_step(state)
 
     def reduce(self, state: State) -> State:
-        """Creates new state which is projection of original state on the last step in the multi-steps dimension."""
+        """Create a new state which is a projection of the original state on the last step in the multi-steps dimension.
+
+        Parameters
+        ----------
+        state : State
+            The original state.
+
+        Returns
+        -------
+        State
+            The reduced state.
+        """
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
@@ -65,18 +90,40 @@ class Output(ABC):
         return reduced_state
 
     def open(self, state: State) -> None:
+        """Open the output for writing.
+
+        Parameters
+        ----------
+        state : State
+            The state to open.
+        """
         # Override this method when initialisation is needed
         pass
 
     def close(self) -> None:
+        """Close the output."""
         pass
 
     @abstractmethod
     def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state to write.
+        """
         pass
 
     @cached_property
     def write_step_zero(self) -> bool:
+        """Determine whether to write the initial state.
+
+        Returns
+        -------
+        bool
+            True if the initial state should be written, False otherwise.
+        """
         if self._write_step_zero is not None:
             return self._write_step_zero
 
