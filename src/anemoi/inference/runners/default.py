@@ -127,8 +127,8 @@ class DefaultRunner(Runner):
         # post_processors: []   -> accumulate_from_start_of_forecast = False
         # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
 
-        if self.config.pre_processors is None:
-            self.config.pre_processors = ["accumulate_from_start_of_forecast"]
+        if self.config.post_processors is None:
+            self.config.post_processors = ["accumulate_from_start_of_forecast"]
             warnings.warn(
                 """
                 No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
@@ -137,6 +137,14 @@ class DefaultRunner(Runner):
                 Update your config if you wish to keep accumulating from the beginning.
                 https://github.com/ecmwf/anemoi-inference/issues/131
                 """,
+            )
+
+        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
+            warnings.warn(
+                """
+                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
+                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
+                """
             )
 
         result = []
