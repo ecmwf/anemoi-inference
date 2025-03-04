@@ -164,7 +164,7 @@ class DownscalingRunner(DefaultRunner):
 
         self._print_output_tensor("Residual output tensor", residual_output_numpy)
 
-        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw").get("path")):
+        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
             self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
 
         output_tensor_interp = _prepare_high_res_output_tensor(
