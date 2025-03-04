@@ -138,12 +138,12 @@ class Runner(Context):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
 
-        try:
-            yield from self.forecast(lead_time, input_tensor, input_state)
-        except (TypeError, ModuleNotFoundError, AttributeError):
-            if self.report_error:
-                self.checkpoint.report_error()
-            raise
+            try:
+                yield from self.forecast(lead_time, input_tensor, input_state)
+            except (TypeError, ModuleNotFoundError, AttributeError):
+                if self.report_error:
+                    self.checkpoint.report_error()
+                raise
 
     def add_initial_forcings_to_input_state(self, input_state):
         # Should that be alreay a list of dates
