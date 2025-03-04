@@ -69,6 +69,15 @@ class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
     def __init__(self, metadata: dict, supporting_arrays: Dict[str, FloatArray] = {}):
+        """Initialize the Metadata object.
+
+        Parameters
+        ----------
+        metadata : dict
+            The metadata dictionary.
+        supporting_arrays : dict, optional
+            The supporting arrays, by default {}.
+        """
         self._metadata = DotDict(metadata)
         assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
@@ -1252,6 +1261,19 @@ class SourceMetadata(Metadata):
     """
 
     def __init__(self, parent: Metadata, name: str, metadata: dict, supporting_arrays: dict = {}):
+        """Initialize the SourceMetadata object.
+
+        Parameters
+        ----------
+        parent : Metadata
+            The parent metadata object.
+        name : str
+            The name of the source.
+        metadata : dict
+            The metadata dictionary.
+        supporting_arrays : dict, optional
+            The supporting arrays, by default {}.
+        """
         super().__init__(metadata, supporting_arrays)
         self.parent = parent
         self.name = name

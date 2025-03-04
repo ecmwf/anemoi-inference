@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from argparse import ArgumentParser
 from argparse import Namespace
+from typing import Any
 
 from ..config.run import RunConfiguration
 from ..runners import create_runner
@@ -20,7 +21,16 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
-def _run(runner, config):
+def _run(runner: Any, config: RunConfiguration) -> None:
+    """Execute the runner with the given configuration.
+
+    Parameters
+    ----------
+    runner : Any
+        The runner instance to execute.
+    config : RunConfiguration
+        The configuration for the run.
+    """
     input = runner.create_input()
     output = runner.create_output()
 
