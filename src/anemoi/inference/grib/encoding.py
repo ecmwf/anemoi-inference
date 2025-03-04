@@ -124,7 +124,6 @@ def grib_keys(
     previous_step,
     start_steps,
     keys,
-    quiet,
     grib1_keys={},
     grib2_keys={},
 ):
