@@ -113,15 +113,43 @@ class SimpleRunner(Runner):
         return [result]
 
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List:
+        """Create constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List
+            The created constant coupled forcings.
+        """
         # This runner does not support coupled forcings
         # there are supposed to be already in the state dictionary
-        # of managed by the user.
+        # or managed by the user.
         LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
         return []
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List:
+        """Create dynamic coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List
+            The created dynamic coupled forcings.
+        """
         # This runner does not support coupled forcings
         # there are supposed to be already in the state dictionary
-        # of managed by the user.
+        # or managed by the user.
         LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
         return []

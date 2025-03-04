@@ -19,7 +19,7 @@ import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
+from anemoi.inference.types import DataRequest, Date
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -30,12 +30,12 @@ LOG = logging.getLogger(__name__)
 
 
 def retrieve(
-    requests: List[Dict[str, Any]],
+    requests: List[DataRequest],
     grid: Optional[Union[str, List[float]]],
     area: Optional[List[float]],
     dataset: Union[str, Dict[str, Any]],
     **kwargs: Any,
-) -> Any:
+) -> ekd.FieldList:
     """Retrieve data from CDS.
 
     Parameters
