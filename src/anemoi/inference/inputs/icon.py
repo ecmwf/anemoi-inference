@@ -65,6 +65,18 @@ class IconInput(GribInput):
         self.refinement_level_c = refinement_level_c
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
+        """Creates the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Date]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
         from anemoi.transform.grids.icon import icon_grid
 
         latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
@@ -78,6 +90,25 @@ class IconInput(GribInput):
         )
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
+        """Loads the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        dates : List[Date]
+            List of dates for which to load the forcings state.
+        current_state : Any
+            The current state.
+
+        Returns
+        -------
+        Any
+            The loaded forcings state.
+        """
         return self._load_forcings_state(
-            ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
+            ekd.from_source("file", self.path),
+            variables=variables,
+            dates=dates,
+            current_state=current_state,
         )

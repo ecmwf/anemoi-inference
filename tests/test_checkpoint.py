@@ -9,6 +9,7 @@
 
 import os
 from functools import wraps
+from typing import Any
 from typing import Callable
 from unittest.mock import patch
 
@@ -27,7 +28,7 @@ def load_metadata(path, supporting_arrays=True) -> None:
 
 def dummy_checkpoints(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         with patch("anemoi.utils.checkpoints.load_metadata", load_metadata):
             return func(*args, **kwargs)
 

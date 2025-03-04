@@ -94,6 +94,20 @@ class DummyInput(EkdInput):
         )
 
     def _fields(self, dates: Optional[List[Date]] = None, variables: Optional[List[str]] = None):
+        """Generate fields for the given dates and variables.
+
+        Parameters
+        ----------
+        dates : Optional[List[Date]], optional
+            List of dates for which to generate fields, by default None.
+        variables : Optional[List[str]], optional
+            List of variables for which to generate fields, by default None.
+
+        Returns
+        -------
+        SimpleFieldList
+            The generated fields.
+        """
         from earthkit.data.indexing.fieldlist import SimpleFieldList
 
         if variables is None:
@@ -120,5 +134,17 @@ class DummyInput(EkdInput):
         return SimpleFieldList(result)
 
     def template_lookup(self, name: str) -> dict:
+        """Lookup a template by name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template to lookup.
+
+        Returns
+        -------
+        dict
+            The template dictionary.
+        """
         # Unused, but required by the TemplateManager
         return {}

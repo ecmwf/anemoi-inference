@@ -13,6 +13,7 @@ import logging
 import os
 import socket
 import subprocess
+from typing import Any
 from typing import Optional
 from typing import Tuple
 
@@ -65,7 +66,7 @@ class ParallelRunner(DefaultRunner):
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model, input_tensor_torch, fcstep: int, **kwargs) -> torch.Tensor:
+    def predict_step(self, model, input_tensor_torch, fcstep: int, **kwargs: Any) -> torch.Tensor:
         if self.model_comm_group is None:
             return model.predict_step(input_tensor_torch)
         else:

@@ -8,8 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-from typing import Dict
+from typing import Any
 
+from anemoi.inference.config import Configuration
 from anemoi.inference.types import State
 
 from ..context import Context
@@ -29,14 +30,14 @@ class TruthOutput(ForwardOutput):
     the forecasts, effectively only for times in the past.
     """
 
-    def __init__(self, context: Context, output: Dict, **kwargs) -> None:
+    def __init__(self, context: Context, output: Configuration, **kwargs: Any) -> None:
         """Initialize the TruthOutput.
 
         Parameters
         ----------
         context : Context
             The context for the output.
-        output : Dict
+        output : Configuration
             The output configuration.
         kwargs : dict
             Additional keyword arguments.

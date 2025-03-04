@@ -8,8 +8,11 @@
 # nor does it submit to any jurisdiction.
 
 
+from typing import Any
+
+
 def fake_checkpoints(func):
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         from unittest.mock import patch
 
         from .mock_checkpoint import mock_load_metadata

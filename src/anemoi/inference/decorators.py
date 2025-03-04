@@ -9,6 +9,7 @@
 
 
 from functools import wraps
+from typing import Any
 from typing import Callable
 
 MARKER = object()
@@ -60,7 +61,7 @@ class main_argument:
         """
 
         @wraps(f)
-        def decorator(context, main=MARKER, *args, **kwargs):
+        def decorator(context, main=MARKER, *args: Any, **kwargs: Any):
             """Decorator function to set the main argument.
 
             Parameters

@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Any
 from typing import List
 
 from anemoi.inference.types import IntArray
@@ -62,7 +63,7 @@ class NoForcings(Forcings):
 class SimpleRunner(Runner):
     """Use that runner when using the low level API."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         """Initialize the SimpleRunner.
 
         Parameters

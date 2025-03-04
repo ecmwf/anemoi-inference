@@ -18,4 +18,18 @@ input_registry = Registry(__name__)
 
 
 def create_input(context: Context, config: Configuration) -> Any:
+    """Create an input instance from the given context and configuration.
+
+    Parameters
+    ----------
+    context : Context
+        The context in which the input is created.
+    config : Configuration
+        The configuration for the input.
+
+    Returns
+    -------
+    Any
+        The created input instance.
+    """
     return input_registry.from_config(config, context)

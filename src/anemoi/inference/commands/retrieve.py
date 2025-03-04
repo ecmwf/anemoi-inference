@@ -37,6 +37,34 @@ def checkpoint_to_requests(
     extra=None,
     use_scda=False,
 ) -> List[DataRequest]:
+    """Convert a checkpoint to a list of data requests.
+
+    Parameters
+    ----------
+    checkpoint : object
+        The checkpoint object containing the necessary data.
+    date : str
+        The date for the data request.
+    target : str, optional
+        The target path for the data request.
+    include_forcings : bool, optional
+        Whether to include forcings in the data request.
+    retrieve_fields_type : str, optional
+        The type of fields to retrieve.
+    staging_dates : str, optional
+        Path to a file with staging dates.
+    use_grib_paramid : bool, optional
+        Whether to use GRIB parameter IDs.
+    extra : list of str, optional
+        Additional request values.
+    use_scda : bool, optional
+        Whether to use SCDA stream for 6/18 input time.
+
+    Returns
+    -------
+    List[DataRequest]
+        A list of data requests.
+    """
     # TODO: Move this to the runner
 
     variables = checkpoint.variables_from_input(include_forcings=include_forcings)
@@ -153,6 +181,15 @@ class RetrieveCmd(Command):
 
 
 def _patch_scda(base_date, request):
+    """Patch the SCDA stream in the request if necessary.
+
+    Parameters
+    ----------
+    base_date : datetime
+        The base date for the request.
+    request : dict
+        The request dictionary to be patched.
+    """
     if base_date.hour not in (6, 18):
         return
 

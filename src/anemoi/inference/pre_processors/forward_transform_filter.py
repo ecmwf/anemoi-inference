@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Any
 
 import earthkit.data as ekd
 from anemoi.transform.filters import filter_registry
@@ -20,12 +21,47 @@ LOG = logging.getLogger(__name__)
 
 class ForwardTransformFilter(Processor):
 
-    def __init__(self, context, filter, **kwargs):
+    def __init__(self, context: Any, filter: str, **kwargs: Any) -> None:
+        """Initialize the ForwardTransformFilter.
+
+        Parameters
+        ----------
+        context : object
+            The context in which the filter is being used.
+        filter : str
+            The name of the filter to be used.
+        **kwargs : dict
+            Additional keyword arguments to pass to the filter.
+        """
         super().__init__(context)
         self.filter = filter_registry.create(filter, **kwargs)
 
     def process(self, fields: ekd.FieldList) -> ekd.FieldList:
+        """Process the given fields using the forward filter.
+
+        Parameters
+        ----------
+        fields : ekd.FieldList
+            The fields to be processed.
+
+        Returns
+        -------
+        ekd.FieldList
+            The processed fields.
+        """
         return self.filter.forward(fields)
 
-    def patch_data_request(self, data_request):
+    def patch_data_request(self, data_request: Any) -> Any:
+        """Patch the data request using the filter.
+
+        Parameters
+        ----------
+        data_request : object
+            The data request to be patched.
+
+        Returns
+        -------
+        object
+            The patched data request.
+        """
         return self.filter.patch_data_request(data_request)

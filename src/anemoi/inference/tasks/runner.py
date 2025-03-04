@@ -24,16 +24,50 @@ LOG = logging.getLogger(__name__)
 
 
 class CoupledRunner(DefaultRunner):
-
     def __init__(self, config: Dict[str, Any], input: "CoupledInput") -> None:
+        """Initialize the CoupledRunner.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary.
+        input : CoupledInput
+            Coupled input instance.
+        """
         super().__init__(config)
         self.input = input
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
+        """Create dynamic coupled forcings.
+
+        Parameters
+        ----------
+        variables : list of str
+            List of variable names.
+        mask : Any
+            Mask to apply to the variables.
+
+        Returns
+        -------
+        list of CoupledForcings
+            List of coupled forcings.
+        """
         result = CoupledForcings(self, self.input, variables, mask)
         return [result]
 
     def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Dict[str, Any]]) -> List[CoupledForcings]:
+        """Initialize dynamic forcings inputs.
+
+        Parameters
+        ----------
+        dynamic_forcings_inputs : list of dict
+            List of dynamic forcings input dictionaries.
+
+        Returns
+        -------
+        list of CoupledForcings
+            List of coupled forcings.
+        """
         result = []
         for c in dynamic_forcings_inputs:
             result.extend(super().create_dynamic_coupled_forcings(c.variables, c.mask))
@@ -41,10 +75,20 @@ class CoupledRunner(DefaultRunner):
 
 
 class CoupledInput:
-
     trace_name = "coupled"
 
     def __init__(self, task: Task, transport: Any, couplings: List[Any]) -> None:
+        """Initialize the CoupledInput.
+
+        Parameters
+        ----------
+        task : Task
+            Task instance.
+        transport : Any
+            Transport instance.
+        couplings : list of Any
+            List of couplings.
+        """
         self.task = task
         self.transport = transport
         self.couplings = couplings
@@ -54,6 +98,22 @@ class CoupledInput:
     def load_forcings_state(
         self, *, variables: List[str], dates: List[str], current_state: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """Load the forcings state.
+
+        Parameters
+        ----------
+        variables : list of str
+            List of variable names.
+        dates : list of str
+            List of dates.
+        current_state : dict
+            Current state dictionary.
+
+        Returns
+        -------
+        dict
+            Updated state dictionary.
+        """
         LOG.info("Adding dynamic forcings %s %s", variables, dates)
         state = dict(variables=variables, date=dates)
 
@@ -77,6 +137,13 @@ class CoupledInput:
         return state
 
     def initial_state(self, state: Dict[str, Any]) -> None:
+        """Initialize the state.
+
+        Parameters
+        ----------
+        state : dict
+            State dictionary.
+        """
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
         self.constants = state["fields"].copy()
@@ -84,15 +151,34 @@ class CoupledInput:
 
 @task_registry.register("runner")
 class RunnerTask(Task):
-
     def __init__(
         self, name: str, config: Dict[str, Any], overrides: Dict[str, Any] = {}, global_config: Dict[str, Any] = {}
     ) -> None:
+        """Initialize the RunnerTask.
+
+        Parameters
+        ----------
+        name : str
+            Name of the task.
+        config : dict
+            Configuration dictionary.
+        overrides : dict, optional
+            Overrides dictionary.
+        global_config : dict, optional
+            Global configuration dictionary.
+        """
         super().__init__(name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
         self.config = CoupleConfiguration.load(config, overrides=[global_config, overrides])
 
     def run(self, transport: Any) -> None:
+        """Run the task.
+
+        Parameters
+        ----------
+        transport : Any
+            Transport instance.
+        """
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 

@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -19,8 +20,19 @@ from ..metadata.fake_metadata import FakeMetadata
 
 
 @pytest.fixture(scope="session")
-def fake_huggingface_repo(tmp_path_factory):
-    """Create a fake huggingface repo download."""
+def fake_huggingface_repo(tmp_path_factory) -> Path:
+    """Create a fake huggingface repo download.
+
+    Parameters
+    ----------
+    tmp_path_factory : pytest.TempPathFactory
+        Factory for temporary directories.
+
+    Returns
+    -------
+    Path
+        Path to the fake huggingface repo.
+    """
     tmp_dir = tmp_path_factory.mktemp("repo")
     fn = tmp_dir / "model.ckpt"
     fn.write_text("TESTING", encoding="utf-8")
@@ -29,7 +41,18 @@ def fake_huggingface_repo(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def fake_huggingface_ckpt(tmp_path_factory):
-    """Create a fake huggingface ckpt download."""
+    """Create a fake huggingface ckpt download.
+
+    Parameters
+    ----------
+    tmp_path_factory : pytest.TempPathFactory
+        Factory for temporary directories.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the fake huggingface checkpoint.
+    """
     tmp_dir = tmp_path_factory.mktemp("repo")
     fn = tmp_dir / "model.ckpt"
     fn.write_text("TESTING", encoding="utf-8")
@@ -38,8 +61,20 @@ def fake_huggingface_ckpt(tmp_path_factory):
 
 @patch("huggingface_hub.snapshot_download")
 @pytest.mark.parametrize("ckpt", ["organisation/test_repo"])
-def test_huggingface_repo_download_str(huggingface_mock, monkeypatch, ckpt, fake_huggingface_repo):
+def test_huggingface_repo_download_str(huggingface_mock, monkeypatch, ckpt, fake_huggingface_repo) -> None:
+    """Test downloading a huggingface repo using a string identifier.
 
+    Parameters
+    ----------
+    huggingface_mock : unittest.mock.Mock
+        Mock for the huggingface snapshot download.
+    monkeypatch : pytest.MonkeyPatch
+        Monkeypatch fixture for modifying attributes.
+    ckpt : str
+        Checkpoint identifier.
+    fake_huggingface_repo : pathlib.Path
+        Path to the fake huggingface repo.
+    """
     monkeypatch.setattr(anemoi.inference.checkpoint.Checkpoint, "_metadata", FakeMetadata())
     huggingface_mock.return_value = fake_huggingface_repo
 
@@ -52,8 +87,20 @@ def test_huggingface_repo_download_str(huggingface_mock, monkeypatch, ckpt, fake
 
 @patch("huggingface_hub.snapshot_download")
 @pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo"}])
-def test_huggingface_repo_download_dict(huggingface_mock, monkeypatch, ckpt, fake_huggingface_repo):
+def test_huggingface_repo_download_dict(huggingface_mock, monkeypatch, ckpt, fake_huggingface_repo) -> None:
+    """Test downloading a huggingface repo using a dictionary identifier.
 
+    Parameters
+    ----------
+    huggingface_mock : unittest.mock.Mock
+        Mock for the huggingface snapshot download.
+    monkeypatch : pytest.MonkeyPatch
+        Monkeypatch fixture for modifying attributes.
+    ckpt : dict
+        Checkpoint identifier.
+    fake_huggingface_repo : pathlib.Path
+        Path to the fake huggingface repo.
+    """
     monkeypatch.setattr(anemoi.inference.checkpoint.Checkpoint, "_metadata", FakeMetadata())
     huggingface_mock.return_value = fake_huggingface_repo
 
@@ -66,8 +113,20 @@ def test_huggingface_repo_download_dict(huggingface_mock, monkeypatch, ckpt, fak
 
 @patch("huggingface_hub.hf_hub_download")
 @pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo", "filename": "model.ckpt"}])
-def test_huggingface_file_download(huggingface_mock, monkeypatch, ckpt, fake_huggingface_ckpt):
+def test_huggingface_file_download(huggingface_mock, monkeypatch, ckpt, fake_huggingface_ckpt) -> None:
+    """Test downloading a specific file from a huggingface repo.
 
+    Parameters
+    ----------
+    huggingface_mock : unittest.mock.Mock
+        Mock for the huggingface file download.
+    monkeypatch : pytest.MonkeyPatch
+        Monkeypatch fixture for modifying attributes.
+    ckpt : dict
+        Checkpoint identifier.
+    fake_huggingface_ckpt : pathlib.Path
+        Path to the fake huggingface checkpoint.
+    """
     monkeypatch.setattr(anemoi.inference.checkpoint.Checkpoint, "_metadata", FakeMetadata())
     huggingface_mock.return_value = fake_huggingface_ckpt
 

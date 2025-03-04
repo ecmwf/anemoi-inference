@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Any
 from typing import Optional
 
 from ..context import Context
@@ -81,7 +82,7 @@ class CutoutContext(Context):
 class CutoutRunner(Runner):
     """A Runner that for LAMs."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize CutoutRunner."""
         super().__init__(*args, **kwargs)
 

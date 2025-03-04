@@ -12,6 +12,7 @@ import datetime
 import json
 import logging
 from abc import abstractmethod
+from typing import Any
 from typing import Optional
 
 from earthkit.data.utils.dates import to_datetime
@@ -275,7 +276,7 @@ class GribOutput(Output):
                 raise
 
     @abstractmethod
-    def write_message(self, message: FloatArray, *args, **kwargs) -> None:
+    def write_message(self, message: FloatArray, *args: Any, **kwargs: Any) -> None:
         """Write a message to the grib file.
 
         Parameters

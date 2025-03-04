@@ -148,6 +148,13 @@ class Output(ABC):
 
     @cached_property
     def output_frequency(self) -> Optional[datetime.timedelta]:
+        """Get the output frequency.
+
+        Returns
+        -------
+        Optional[datetime.timedelta]
+            The output frequency as a timedelta object, or None if not set.
+        """
         from anemoi.utils.dates import as_timedelta
 
         if self._output_frequency is not None:
@@ -201,4 +208,11 @@ class ForwardOutput(Output):
 
     @cached_property
     def output_frequency(self) -> Optional[datetime.timedelta]:
+        """Get the output frequency.
+
+        Returns
+        -------
+        Optional[datetime.timedelta]
+            The output frequency as a timedelta object, or None if not set.
+        """
         return None

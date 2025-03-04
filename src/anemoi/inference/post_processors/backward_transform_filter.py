@@ -10,11 +10,11 @@
 
 import logging
 from typing import Any
-from typing import Dict
 
 from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from .earthkit_state import unwrap_state
@@ -26,8 +26,31 @@ LOG = logging.getLogger(__name__)
 class BackwardTransformFilter(Processor):
 
     def __init__(self, context: Context, filter: str, **kwargs: Any) -> None:
+        """Initialize the BackwardTransformFilter.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the filter.
+        filter : str
+            The name of the filter to be used.
+        **kwargs : Any
+            Additional keyword arguments for the filter.
+        """
         super().__init__(context)
         self.filter: Any = filter_registry.create(filter, **kwargs)
 
-    def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def process(self, state: State) -> State:
+        """Process the given state using the backward transform filter.
+
+        Parameters
+        ----------
+        state : State
+            The state to be processed.
+
+        Returns
+        -------
+        State
+            The processed state.
+        """
         return unwrap_state(self.filter.backward(wrap_state(state)), state)

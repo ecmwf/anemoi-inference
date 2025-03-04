@@ -280,7 +280,13 @@ class MarsInput(GribInput):
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
 
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
+        return retrieve(
+            requests,
+            self.checkpoint.grid,
+            self.checkpoint.area,
+            self.patch,
+            **kwargs,
+        )
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
         """Load the forcings state for the given variables and dates.

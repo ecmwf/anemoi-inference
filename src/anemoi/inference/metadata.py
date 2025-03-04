@@ -15,8 +15,11 @@ from collections import defaultdict
 from functools import cached_property
 from types import MappingProxyType as frozendict
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterator
+from typing import List
 from typing import Literal
 from typing import Optional
 
@@ -26,6 +29,7 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
+from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 
 from .legacy import LegacyMixin
@@ -466,7 +470,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return FieldArray([f.copy(name=_name) for f in fields])
 
-    def sort_by_name(self, fields: list, namer: Callable = None, *args, **kwargs) -> list:
+    def sort_by_name(self, fields: list, namer: Callable = None, *args: Any, **kwargs: Any) -> list:
         """Sort fields by name.
 
         Parameters
@@ -488,7 +492,7 @@ class Metadata(PatchMixin, LegacyMixin):
     # Default namer
     ###########################################################################
 
-    def default_namer(self, *args, **kwargs) -> Callable:
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
         """Return a callable that can be used to name earthkit-data fields.
 
         Returns
@@ -593,13 +597,13 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def mars_input_requests(self) -> dict:
+    def mars_input_requests(self) -> Iterator[DataRequest]:
         """Generate MARS input requests.
 
-        Yields
-        ------
-        dict
-            The MARS request.
+        Returns
+        -------
+        Iterator[DataRequest]
+            The MARS requests.
         """
         variable_categories = self.variable_categories()
         for variable in self.variables_from_input(include_forcings=True):
@@ -648,7 +652,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables: list) -> dict:
+    def mars_requests(self, *, variables: List[str]) -> Iterator[DataRequest]:
         """Generate MARS requests for the given variables.
 
         Parameters
@@ -656,10 +660,10 @@ class Metadata(PatchMixin, LegacyMixin):
         variables : list
             The list of variables.
 
-        Yields
-        ------
-        dict
-            The MARS request.
+        Returns
+        -------
+        Iterator[DataRequest]
+            The MARS requests.
 
         Raises
         ------

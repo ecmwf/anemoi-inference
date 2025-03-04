@@ -13,6 +13,7 @@ import argparse
 import logging
 import os
 from functools import cached_property
+from typing import Any
 
 from ai_models.model import Model
 
@@ -51,7 +52,7 @@ class CallbackOutput(GribOutput):
         super().__init__(context, encoding=encoding, templates={"source": "templates"})
         self.write = write
 
-    def write_message(self, message, *args, **kwargs):
+    def write_message(self, message, *args: Any, **kwargs: Any):
         self.write(message, *args, **kwargs)
 
 
