@@ -65,7 +65,7 @@ class GribFileInput(GribInput):
         """
         return self._create_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
         """Load the forcings state for the given variables and dates.
 
         Parameters

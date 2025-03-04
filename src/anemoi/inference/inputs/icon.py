@@ -77,7 +77,7 @@ class IconInput(GribInput):
             longitudes=longitudes,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
         return self._load_forcings_state(
             ekd.from_source("file", self.path), variables=variables, dates=dates, current_state=current_state
         )

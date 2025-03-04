@@ -252,7 +252,7 @@ class MarsInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Any]) -> Any:
+    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
@@ -282,7 +282,7 @@ class MarsInput(GribInput):
 
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
         """Load the forcings state for the given variables and dates.
 
         Parameters

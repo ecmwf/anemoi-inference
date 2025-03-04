@@ -198,7 +198,7 @@ class CoupledForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Any], current_state: State) -> FloatArray:
+    def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
         """Load the forcings for the given dates.
 
         Parameters

@@ -22,7 +22,7 @@ from typing import Optional
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.types import DataRequest
+from anemoi.inference.types import DataRequest, Date
 
 from .metadata import Metadata
 
@@ -477,7 +477,7 @@ class Checkpoint:
         self,
         *,
         variables: List[str],
-        dates: List[Any],
+        dates: List[Date],
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Optional[Callable] = None,

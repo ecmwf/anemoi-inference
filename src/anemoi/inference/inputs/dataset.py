@@ -135,7 +135,7 @@ class DatasetInput(Input):
         return input_state
 
     def load_forcings_state(
-        self, *, variables: List[str], dates: List[Any], current_state: Dict[str, Any]
+        self, *, variables: List[str], dates: List[Date], current_state: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Load the forcings state for the given variables and dates.
 
@@ -174,7 +174,7 @@ class DatasetInput(Input):
             longitudes=self.longitudes,
         )
 
-    def _load_dates(self, dates: List[Any]) -> Any:
+    def _load_dates(self, dates: List[Date]) -> Any:
         """Load the data for the given dates.
 
         Parameters

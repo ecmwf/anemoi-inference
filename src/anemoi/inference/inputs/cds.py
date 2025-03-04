@@ -36,6 +36,26 @@ def retrieve(
     dataset: Union[str, Dict[str, Any]],
     **kwargs: Any,
 ) -> Any:
+    """Retrieve data from CDS.
+
+    Parameters
+    ----------
+    requests : List[Dict[str, Any]]
+        List of request dictionaries.
+    grid : Optional[Union[str, List[float]]]
+        Grid specification.
+    area : Optional[List[float]]
+        Area specification.
+    dataset : Union[str, Dict[str, Any]]
+        Dataset to use.
+    **kwargs : Any
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Any
+        Retrieved data.
+    """
 
     def _(r):
         mars = r.copy()
@@ -97,7 +117,7 @@ class CDSInput(GribInput):
 
         Parameters
         ----------
-        context : Any
+        context : Context
             The context in which the input is used.
         dataset : Union[str, Dict[str, Any]]
             The dataset to use.
@@ -140,7 +160,21 @@ class CDSInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Any]) -> Any:
+    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+        """Retrieve data for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variables to retrieve.
+        dates : List[Date]
+            List of dates for which to retrieve data.
+
+        Returns
+        -------
+        Any
+            Retrieved data.
+        """
 
         requests = self.checkpoint.mars_requests(
             variables=variables,
@@ -156,5 +190,19 @@ class CDSInput(GribInput):
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def load_forcings(self, variables: List[str], dates: List[Any]) -> Any:
+    def load_forcings(self, variables: List[str], dates: List[Date]) -> Any:
+        """Load forcings for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variables to load.
+        dates : List[Date]
+            List of dates for which to load forcings.
+
+        Returns
+        -------
+        Any
+            Loaded forcings.
+        """
         return self._load_forcings(self.retrieve(variables, dates), variables, dates)

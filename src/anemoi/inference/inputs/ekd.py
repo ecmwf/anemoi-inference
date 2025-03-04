@@ -321,7 +321,7 @@ class EkdInput(Input):
 
         return input_state
 
-    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
+    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Date], title: str) -> Any:
         """Filter and sort the data.
 
         Parameters
@@ -388,7 +388,7 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         variables: List[str],
-        dates: List[Any],
+        dates: List[Date],
         current_state: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Load the forcings state.
