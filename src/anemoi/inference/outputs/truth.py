@@ -20,7 +20,11 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("truth")
 class TruthOutput(ForwardOutput):
-    """Write the truth state for each output state."""
+    """Write the input state at the same time for each output state.
+
+    Can only be used for inputs with that have access to the time of
+    the forecasts, effectively only for times in the past.
+    """
 
     def __init__(self, context: Context, output: dict, **kwargs):
         super().__init__(context, **kwargs)
@@ -30,13 +34,10 @@ class TruthOutput(ForwardOutput):
     def write_initial_state(self, state):
         self.output.write_initial_state(state)
 
-    def write_state(self, state):
+    def write_step(self, state):
         truth_state = self._input.create_input_state(date=state["date"])
         reduced_state = self.reduce(truth_state)
         self.output.write_state(reduced_state)
-
-    def write_step(self, state):
-        raise NotImplementedError("TruthOutput does not support write_step")
 
     def open(self, state):
         self.output.open(state)
