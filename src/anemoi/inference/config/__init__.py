@@ -35,6 +35,22 @@ class Configuration(BaseModel):
         overrides: Union[List[str], List[dict], str, dict] = [],
         defaults: Optional[Union[str, List[str], dict]] = None,
     ) -> Configuration:
+        """Load the configuration.
+
+        Parameters
+        ----------
+        path : Union[str, dict]
+            Path to the configuration file or a dictionary containing the configuration.
+        overrides : Union[List[str], List[dict], str, dict], optional
+            List of overrides to apply to the configuration, by default [].
+        defaults : Optional[Union[str, List[str], dict]], optional
+            Default values to set in the configuration, by default None.
+
+        Returns
+        -------
+        Configuration
+            The loaded configuration.
+        """
 
         config = {}
 
@@ -84,6 +100,15 @@ class Configuration(BaseModel):
 
     @classmethod
     def _merge_configs(cls, a: dict, b: dict) -> None:
+        """Merge two configurations.
+
+        Parameters
+        ----------
+        a : dict
+            The first configuration.
+        b : dict
+            The second configuration.
+        """
         for key, value in b.items():
             if key in a and isinstance(a[key], dict) and isinstance(value, dict):
                 cls._merge_configs(a[key], value)

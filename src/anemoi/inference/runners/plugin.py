@@ -46,49 +46,25 @@ class PluginRunner(Runner):
 
     @property
     def param_sfc(self) -> List[str]:
-        """Get surface parameters.
-
-        Returns
-        -------
-        List[str]
-            The surface parameters.
-        """
+        """Get surface parameters."""
         params, _ = self.checkpoint.mars_by_levtype("sfc")
         return sorted(params)
 
     @property
     def param_level_pl(self) -> Tuple[List[str], List[int]]:
-        """Get pressure level parameters and levels.
-
-        Returns
-        -------
-        Tuple[List[str], List[int]]
-            The pressure level parameters and levels.
-        """
+        """Get pressure level parameters and levels."""
         params, levels = self.checkpoint.mars_by_levtype("pl")
         return sorted(params), sorted(levels)
 
     @property
     def param_level_ml(self) -> Tuple[List[str], List[int]]:
-        """Get model level parameters and levels.
-
-        Returns
-        -------
-        Tuple[List[str], List[int]]
-            The model level parameters and levels.
-        """
+        """Get model level parameters and levels."""
         params, levels = self.checkpoint.mars_by_levtype("ml")
         return sorted(params), sorted(levels)
 
     @property
     def lagged(self) -> List[int]:
-        """Get lagged times in hours.
-
-        Returns
-        -------
-        List[int]
-            The lagged times in hours.
-        """
+        """Get lagged times in hours."""
         return [s.total_seconds() // 3600 for s in self.checkpoint.lagged]
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:

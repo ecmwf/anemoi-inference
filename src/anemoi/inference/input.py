@@ -44,6 +44,13 @@ class Input(ABC):
         self.checkpoint = context.checkpoint
 
     def __repr__(self) -> str:
+        """Return a string representation of the Input object.
+
+        Returns
+        -------
+        str
+            The string representation of the Input object.
+        """
         return f"{self.__class__.__name__}()"
 
     @abstractmethod

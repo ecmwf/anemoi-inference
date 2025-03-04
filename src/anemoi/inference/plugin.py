@@ -120,6 +120,10 @@ class CallbackOutput(GribOutput):
         ----------
         message : Any
             The message to write.
+        args : Any
+            Additional arguments.
+        kwargs : Any
+            Additional keyword arguments.
         """
         self.write(message, *args, **kwargs)
 
@@ -175,13 +179,7 @@ class AIModelPlugin(Model):
 
     @cached_property
     def runner(self) -> PluginRunner:
-        """Get the PluginRunner instance.
-
-        Returns
-        -------
-        PluginRunner
-            The runner instance.
-        """
+        """Get the PluginRunner instance."""
         return PluginRunner(self._checkpoint, device=self.device)
 
     def run(self) -> None:

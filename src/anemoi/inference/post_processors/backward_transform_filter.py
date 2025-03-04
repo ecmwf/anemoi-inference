@@ -24,6 +24,16 @@ LOG = logging.getLogger(__name__)
 
 
 class BackwardTransformFilter(Processor):
+    """A processor that applies a backward transform filter to a given state.
+
+    This class uses a specified filter from the filter registry to process
+    the state by applying a backward transformation.
+
+    Attributes
+    ----------
+    filter : Any
+        The filter instance used for processing the state.
+    """
 
     def __init__(self, context: Context, filter: str, **kwargs: Any) -> None:
         """Initialize the BackwardTransformFilter.

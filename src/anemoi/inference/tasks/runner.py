@@ -24,6 +24,12 @@ LOG = logging.getLogger(__name__)
 
 
 class CoupledRunner(DefaultRunner):
+    """Runner for coupled models.
+
+    This class handles the initialization and running of coupled models
+    using the provided configuration and input.
+    """
+
     def __init__(self, config: Dict[str, Any], input: "CoupledInput") -> None:
         """Initialize the CoupledRunner.
 
@@ -75,6 +81,12 @@ class CoupledRunner(DefaultRunner):
 
 
 class CoupledInput:
+    """Input handler for coupled models.
+
+    This class manages the input data and state for coupled models,
+    including loading and initializing forcings.
+    """
+
     trace_name = "coupled"
 
     def __init__(self, task: Task, transport: Any, couplings: List[Any]) -> None:
@@ -151,6 +163,12 @@ class CoupledInput:
 
 @task_registry.register("runner")
 class RunnerTask(Task):
+    """Task for running coupled models.
+
+    This task initializes and runs coupled models using the provided
+    configuration, overrides, and global configuration.
+    """
+
     def __init__(
         self, name: str, config: Dict[str, Any], overrides: Dict[str, Any] = {}, global_config: Dict[str, Any] = {}
     ) -> None:

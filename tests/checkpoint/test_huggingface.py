@@ -20,7 +20,7 @@ from ..metadata.fake_metadata import FakeMetadata
 
 
 @pytest.fixture(scope="session")
-def fake_huggingface_repo(tmp_path_factory) -> Path:
+def fake_huggingface_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Create a fake huggingface repo download.
 
     Parameters
@@ -40,13 +40,15 @@ def fake_huggingface_repo(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def fake_huggingface_ckpt(tmp_path_factory):
+def fake_huggingface_ckpt(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Create a fake huggingface ckpt download.
+
+        Factory for temporary directories.
 
     Parameters
     ----------
     tmp_path_factory : pytest.TempPathFactory
-        Factory for temporary directories.
+        Factory for temporary directories
 
     Returns
     -------
@@ -61,7 +63,9 @@ def fake_huggingface_ckpt(tmp_path_factory):
 
 @patch("huggingface_hub.snapshot_download")
 @pytest.mark.parametrize("ckpt", ["organisation/test_repo"])
-def test_huggingface_repo_download_str(huggingface_mock, monkeypatch, ckpt, fake_huggingface_repo) -> None:
+def test_huggingface_repo_download_str(
+    huggingface_mock: patch, monkeypatch: pytest.MonkeyPatch, ckpt: str, fake_huggingface_repo: Path
+) -> None:
     """Test downloading a huggingface repo using a string identifier.
 
     Parameters
@@ -87,7 +91,9 @@ def test_huggingface_repo_download_str(huggingface_mock, monkeypatch, ckpt, fake
 
 @patch("huggingface_hub.snapshot_download")
 @pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo"}])
-def test_huggingface_repo_download_dict(huggingface_mock, monkeypatch, ckpt, fake_huggingface_repo) -> None:
+def test_huggingface_repo_download_dict(
+    huggingface_mock: patch, monkeypatch: pytest.MonkeyPatch, ckpt: dict, fake_huggingface_repo: Path
+) -> None:
     """Test downloading a huggingface repo using a dictionary identifier.
 
     Parameters
@@ -113,7 +119,9 @@ def test_huggingface_repo_download_dict(huggingface_mock, monkeypatch, ckpt, fak
 
 @patch("huggingface_hub.hf_hub_download")
 @pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo", "filename": "model.ckpt"}])
-def test_huggingface_file_download(huggingface_mock, monkeypatch, ckpt, fake_huggingface_ckpt) -> None:
+def test_huggingface_file_download(
+    huggingface_mock: patch, monkeypatch: pytest.MonkeyPatch, ckpt: dict, fake_huggingface_ckpt: Path
+) -> None:
     """Test downloading a specific file from a huggingface repo.
 
     Parameters

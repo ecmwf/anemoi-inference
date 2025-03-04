@@ -18,4 +18,18 @@ post_processor_registry = Registry(__name__)
 
 
 def create_post_processor(context: Context, config: Configuration) -> Processor:
+    """Create a post-processor.
+
+    Parameters
+    ----------
+    context : Context
+        The context for the post-processor.
+    config : Configuration
+        The configuration for the post-processor.
+
+    Returns
+    -------
+    Processor
+        The created post-processor.
+    """
     return post_processor_registry.from_config(config, context)

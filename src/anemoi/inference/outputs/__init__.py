@@ -15,4 +15,18 @@ output_registry = Registry(__name__)
 
 
 def create_output(context: dict, config: Configuration) -> object:
+    """Create an output.
+
+    Parameters
+    ----------
+    context : dict
+        The context for the output.
+    config : Configuration
+        The configuration for the output.
+
+    Returns
+    -------
+    object
+        The created output.
+    """
     return output_registry.from_config(config, context)

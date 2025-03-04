@@ -35,6 +35,11 @@ def patch_function(target: Any, attribute: str, replacement: Any) -> Generator[N
         The name of the attribute to replace.
     replacement : any
         The replacement value for the attribute.
+
+    Returns
+    -------
+    Generator[None, None, None]
+        The context manager.
     """
     original = getattr(target, attribute)
     setattr(target, attribute, replacement)
@@ -96,13 +101,7 @@ class PatchMixin:
 
     @cached_property
     def _from_zarr(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """Open the dataset and fetch metadata and supporting arrays.
-
-        Returns
-        -------
-        tuple
-            The metadata and supporting arrays.
-        """
+        """Open the dataset and fetch metadata and supporting arrays."""
         # We assume that the datasets are reachable via the content of
         # ~/.config/anemoi/settings.toml.
 

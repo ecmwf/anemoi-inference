@@ -20,6 +20,16 @@ LOG = logging.getLogger(__name__)
 
 
 class ForwardTransformFilter(Processor):
+    """A processor that applies a forward transform filter to the given fields.
+
+    This class uses a specified filter from the filter registry to process
+    fields and patch data requests.
+
+    Attributes
+    ----------
+    filter : object
+        The filter instance used for processing fields and patching data requests.
+    """
 
     def __init__(self, context: Any, filter: str, **kwargs: Any) -> None:
         """Initialize the ForwardTransformFilter.

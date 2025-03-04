@@ -172,8 +172,8 @@ class Runner(Context):
         lead_time : str
             The lead time.
 
-        Yields
-        ------
+        Returns
+        -------
         Any
             The forecasted state.
         """
@@ -383,6 +383,8 @@ class Runner(Context):
             The input tensor.
         fcstep : int
             The forecast step.
+        **kwargs : Any
+            Additional keyword arguments
 
         Returns
         -------
@@ -403,8 +405,8 @@ class Runner(Context):
         input_state : State
             The input state.
 
-        Yields
-        ------
+        Returns
+        -------
         Any
             The forecasted state.
         """

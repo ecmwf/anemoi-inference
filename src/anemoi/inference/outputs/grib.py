@@ -78,6 +78,18 @@ MODIFIERS = dict(hindcast=HindcastOutput)
 
 
 def modifier_factory(modifiers: list) -> list:
+    """Create a list of modifier instances.
+
+    Parameters
+    ----------
+    modifiers : list
+        A list of modifier configurations.
+
+    Returns
+    -------
+    list
+        A list of modifier instances.
+    """
 
     if modifiers is None:
         return []
@@ -172,8 +184,8 @@ class GribOutput(Output):
 
         Parameters
         ----------
-        state : dict
-            The state dictionary.
+        state : State
+            The state object.
         """
         # We trust the GribInput class to provide the templates
         # matching the input state
@@ -205,8 +217,8 @@ class GribOutput(Output):
 
         Parameters
         ----------
-        state : dict
-            The state dictionary.
+        state : State
+            The state object.
         """
 
         reference_date = self.reference_date or self.context.reference_date
@@ -295,8 +307,8 @@ class GribOutput(Output):
 
         Parameters
         ----------
-        state : dict
-            The state dictionary.
+        state : State
+            The state object.
         name : str
             The variable name.
 

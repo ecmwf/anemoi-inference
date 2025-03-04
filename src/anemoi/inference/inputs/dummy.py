@@ -93,7 +93,7 @@ class DummyInput(EkdInput):
             current_state=current_state,
         )
 
-    def _fields(self, dates: Optional[List[Date]] = None, variables: Optional[List[str]] = None):
+    def _fields(self, dates: Optional[List[Date]] = None, variables: Optional[List[str]] = None) -> ekd.FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters
@@ -105,7 +105,7 @@ class DummyInput(EkdInput):
 
         Returns
         -------
-        SimpleFieldList
+        ekd.FieldList
             The generated fields.
         """
         from earthkit.data.indexing.fieldlist import SimpleFieldList

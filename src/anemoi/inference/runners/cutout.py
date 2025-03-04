@@ -68,13 +68,7 @@ class CutoutContext(Context):
 
     @property
     def checkpoint(self) -> str:
-        """Get the checkpoint.
-
-        Returns
-        -------
-        str
-            The checkpoint.
-        """
+        """Get the checkpoint."""
         return self._checkpoint
 
 

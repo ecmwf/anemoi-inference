@@ -18,6 +18,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Coupling:
+    """Represents a coupling between a source and a target with specific variables."""
+
     def __init__(self, source: Any, target: Any, variables: List[str]) -> None:
         """Initialize a Coupling instance.
 
@@ -46,6 +48,8 @@ class Coupling:
 
 
 class CouplingSend(Coupling):
+    """Represents a coupling send operation."""
+
     def apply(
         self,
         task: Any,
@@ -84,6 +88,8 @@ class CouplingSend(Coupling):
 
 
 class CouplingRecv(Coupling):
+    """Represents a coupling receive operation."""
+
     def apply(
         self,
         task: Any,
@@ -121,6 +127,8 @@ class CouplingRecv(Coupling):
 
 
 class Transport(ABC):
+    """Abstract base class for transport mechanisms."""
+
     def __init__(self, couplings: List[Dict[str, List[str]]], tasks: Dict[str, Any]) -> None:
         """Initialize a Transport instance.
 

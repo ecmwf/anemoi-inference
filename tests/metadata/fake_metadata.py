@@ -19,4 +19,16 @@ class FakeMetadata:
     """
 
     def __getattr__(self, name: str) -> Any:
+        """Simulate the absence of metadata by returning None for any attribute.
+
+        Parameters
+        ----------
+        name : str
+            The name of the attribute being accessed.
+
+        Returns
+        -------
+        Any
+            Always returns None.
+        """
         return None

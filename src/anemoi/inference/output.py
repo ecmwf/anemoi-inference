@@ -23,6 +23,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Output(ABC):
+    """Abstract base class for output mechanisms."""
 
     def __init__(
         self,
@@ -134,13 +135,7 @@ class Output(ABC):
 
     @cached_property
     def write_step_zero(self) -> bool:
-        """Determine whether to write the initial state.
-
-        Returns
-        -------
-        bool
-            True if the initial state should be written, False otherwise.
-        """
+        """Determine whether to write the initial state."""
         if self._write_step_zero is not None:
             return self._write_step_zero
 
@@ -148,13 +143,7 @@ class Output(ABC):
 
     @cached_property
     def output_frequency(self) -> Optional[datetime.timedelta]:
-        """Get the output frequency.
-
-        Returns
-        -------
-        Optional[datetime.timedelta]
-            The output frequency as a timedelta object, or None if not set.
-        """
+        """Get the output frequency."""
         from anemoi.utils.dates import as_timedelta
 
         if self._output_frequency is not None:
@@ -183,8 +172,9 @@ class Output(ABC):
 
 
 class ForwardOutput(Output):
-    """Subclass of Output that forwards calls to other outputs
-    Subclass from that class to implement the desired behaviour of `output_frequency`
+    """Subclass of Output that forwards calls to other outputs.
+
+    Subclass from this class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves.
     """
 
@@ -208,11 +198,5 @@ class ForwardOutput(Output):
 
     @cached_property
     def output_frequency(self) -> Optional[datetime.timedelta]:
-        """Get the output frequency.
-
-        Returns
-        -------
-        Optional[datetime.timedelta]
-            The output frequency as a timedelta object, or None if not set.
-        """
+        """Get the output frequency."""
         return None

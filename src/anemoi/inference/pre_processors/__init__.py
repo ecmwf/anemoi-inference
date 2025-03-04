@@ -17,4 +17,18 @@ pre_processor_registry = Registry(__name__)
 
 
 def create_pre_processor(context: Context, config: Configuration) -> Processor:
+    """Create a pre-processor.
+
+    Parameters
+    ----------
+    context : Context
+        The context for the pre-processor.
+    config : Configuration
+        The configuration for the pre-processor.
+
+    Returns
+    -------
+    Processor
+        The created pre-processor.
+    """
     return pre_processor_registry.from_config(config, context)

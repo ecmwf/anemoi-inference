@@ -10,6 +10,8 @@
 
 import logging
 import warnings
+from typing import Any
+from typing import Dict
 from typing import List
 
 from anemoi.utils.config import DotDict
@@ -39,7 +41,7 @@ class DefaultRunner(Runner):
     This class provides the default implementation for running inference.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Dict[str, Any]) -> None:
         """Initialize the DefaultRunner.
 
         Parameters
@@ -137,7 +139,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def _input_forcings(self, name):
+    def _input_forcings(self, name: str) -> Dict[str, Any]:
         """Get the input forcings configuration.
 
         Parameters
@@ -257,12 +259,12 @@ class DefaultRunner(Runner):
         LOG.info("Pre processors: %s", result)
         return result
 
-    def create_post_processors(self) -> List[create_post_processor]:
+    def create_post_processors(self) -> List[Processor]:
         """Create post-processors.
 
         Returns
         -------
-        List[create_post_processor]
+        List[Processor]
             The created post-processors.
         """
         result = []
