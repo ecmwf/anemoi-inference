@@ -34,9 +34,19 @@ LOG = logging.getLogger(__name__)
 
 @runner_registry.register("default")
 class DefaultRunner(Runner):
-    """Runner from a configuration file."""
+    """Default runner class for inference.
+
+    This class provides the default implementation for running inference.
+    """
 
     def __init__(self, config):
+        """Initialize the DefaultRunner.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary for the runner.
+        """
 
         if isinstance(config, dict):
             # So we get the dot notation
@@ -89,7 +99,6 @@ class DefaultRunner(Runner):
         output.print_summary()
         return output
 
-    # Computed forcings
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant computed forcings.
 
@@ -128,12 +137,19 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    # Coupled forcings
-    # TODO: Connect them to the Input if needed
-    # Here, by default, we may use the same input "class" as the input
-    # not the same instance. This means that we may call mars several times
-
     def _input_forcings(self, name):
+        """Get the input forcings configuration.
+
+        Parameters
+        ----------
+        name : str
+            The name of the forcings configuration.
+
+        Returns
+        -------
+        dict
+            The input forcings configuration.
+        """
         if self.config.forcings is None:
             # Use the same as the input
             return self.config.input
@@ -214,12 +230,6 @@ class DefaultRunner(Runner):
         List[Processor]
             The created pre-processors.
         """
-        # TODO #131:
-        # For now, implement a three-way switch.
-        # post_processors: None -> accumulate_from_start_of_forecast = True
-        # post_processors: []   -> accumulate_from_start_of_forecast = False
-        # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
-
         if self.config.post_processors is None:
             self.config.post_processors = ["accumulate_from_start_of_forecast"]
             warnings.warn(
@@ -248,6 +258,13 @@ class DefaultRunner(Runner):
         return result
 
     def create_post_processors(self) -> List[create_post_processor]:
+        """Create post-processors.
+
+        Returns
+        -------
+        List[create_post_processor]
+            The created post-processors.
+        """
         result = []
         for processor in self.config.post_processors:
             result.append(create_post_processor(self, processor))

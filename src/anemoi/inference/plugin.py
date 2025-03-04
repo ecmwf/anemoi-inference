@@ -14,6 +14,8 @@ import logging
 import os
 from functools import cached_property
 from typing import Any
+from typing import Dict
+from typing import List
 
 from ai_models.model import Model
 
@@ -28,19 +30,21 @@ LOG = logging.getLogger(__name__)
 class FieldListInput(GribInput):
     """Handles earchkit-data fieldlists input fields."""
 
-    def __init__(self, context, *, input_fields):
+    def __init__(self, context: Any, *, input_fields: Any) -> None:
         super().__init__(context)
         self.input_fields = input_fields
 
-    def create_input_state(self, *, date):
+    def create_input_state(self, *, date: str) -> Any:
         return self._create_input_state(self.input_fields, variables=None, date=date)
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(
+        self, *, variables: List[str], dates: List[str], current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         return self._load_forcings_state(
             self.input_fields, variables=variables, dates=dates, current_state=current_state
         )
 
-    def set_private_attributes(self, state, input_fields):
+    def set_private_attributes(self, state: Dict[str, Any], input_fields: Any) -> None:
         input_fields = input_fields.order_by("valid_datetime")
         state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
 
@@ -48,19 +52,19 @@ class FieldListInput(GribInput):
 class CallbackOutput(GribOutput):
     """Call ai-models write method."""
 
-    def __init__(self, context, *, write, encoding=None):
+    def __init__(self, context: Any, *, write: Any, encoding: Any = None) -> None:
         super().__init__(context, encoding=encoding, templates={"source": "templates"})
         self.write = write
 
-    def write_message(self, message, *args: Any, **kwargs: Any):
+    def write_message(self, message: Any, *args: Any, **kwargs: Any) -> None:
         self.write(message, *args, **kwargs)
 
 
 class AIModelPlugin(Model):
 
-    expver = None
+    expver: Any = None
 
-    def add_model_args(self, parser) -> None:
+    def add_model_args(self, parser: argparse.ArgumentParser) -> None:
         """To be implemented in subclasses to add model-specific arguments to the parser.
 
         Parameters
@@ -70,7 +74,7 @@ class AIModelPlugin(Model):
         """
         pass
 
-    def parse_model_args(self, args):
+    def parse_model_args(self, args: List[str]) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser()
 
         parser.add_argument("--checkpoint", required=not hasattr(self, "download_files"))
@@ -94,10 +98,10 @@ class AIModelPlugin(Model):
         return parser
 
     @cached_property
-    def runner(self):
+    def runner(self) -> PluginRunner:
         return PluginRunner(self._checkpoint, device=self.device)
 
-    def run(self):
+    def run(self) -> None:
 
         if self.deterministic:
             self.torch_deterministic_mode()
@@ -120,31 +124,31 @@ class AIModelPlugin(Model):
     # Below are methods forwarded to the checkpoint
 
     @property
-    def param_sfc(self):
+    def param_sfc(self) -> Any:
         return self.runner.param_sfc
 
     @property
-    def param_level_pl(self):
+    def param_level_pl(self) -> Any:
         return self.runner.param_level_pl
 
     @property
-    def param_level_ml(self):
+    def param_level_ml(self) -> Any:
         return self.runner.param_level_ml
 
     @property
-    def constant_fields(self):
+    def constant_fields(self) -> Any:
         return self.runner.checkpoint.constants_from_input
 
     @property
-    def grid(self):
+    def grid(self) -> Any:
         return self.runner.checkpoint.grid
 
     @property
-    def area(self):
+    def area(self) -> Any:
         return self.runner.checkpoint.area
 
     @property
-    def lagged(self):
+    def lagged(self) -> Any:
         return self.runner.lagged
 
 

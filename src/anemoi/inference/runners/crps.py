@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
 import logging
 from typing import Any
 
@@ -19,5 +18,28 @@ LOG = logging.getLogger(__name__)
 
 @runner_registry.register("crps")
 class CrpsRunner(DefaultRunner):
+    """Runner for CRPS (Continuous Ranked Probability Score).
+
+    Inherits from DefaultRunner.
+    """
+
     def predict_step(self, model, input_tensor_torch, fcstep: int, **kwargs: Any) -> Any:
+        """Perform a prediction step using the model.
+
+        Parameters
+        ----------
+        model : Any
+            The model to use for prediction.
+        input_tensor_torch : torch.Tensor
+            The input tensor for the model.
+        fcstep : int
+            The forecast step.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Any
+            The prediction result.
+        """
         return model.predict_step(input_tensor_torch, fcstep=fcstep)
