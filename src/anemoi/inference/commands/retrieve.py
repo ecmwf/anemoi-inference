@@ -12,7 +12,11 @@ import json
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
+from datetime import datetime
+from typing import Any
+from typing import Dict
 from typing import List
+from typing import Optional
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -26,16 +30,16 @@ from . import Command
 
 
 def checkpoint_to_requests(
-    checkpoint,
+    checkpoint: Any,
     *,
-    date,
-    target=None,
-    include_forcings=True,
-    retrieve_fields_type=None,
-    staging_dates=None,
-    use_grib_paramid=False,
-    extra=None,
-    use_scda=False,
+    date: str,
+    target: Optional[str] = None,
+    include_forcings: bool = True,
+    retrieve_fields_type: Optional[str] = None,
+    staging_dates: Optional[str] = None,
+    use_grib_paramid: bool = False,
+    extra: Optional[List[str]] = None,
+    use_scda: bool = False,
 ) -> List[DataRequest]:
     """Convert a checkpoint to a list of data requests.
 
@@ -180,7 +184,7 @@ class RetrieveCmd(Command):
         json.dump(requests, f, indent=4)
 
 
-def _patch_scda(base_date, request):
+def _patch_scda(base_date: datetime, request: Dict[str, Any]) -> None:
     """Patch the SCDA stream in the request if necessary.
 
     Parameters

@@ -70,19 +70,61 @@ class PluginRunner(Runner):
 
     @property
     def param_level_ml(self) -> Tuple[List[str], List[int]]:
+        """Get model level parameters and levels.
+
+        Returns
+        -------
+        Tuple[List[str], List[int]]
+            The model level parameters and levels.
+        """
         params, levels = self.checkpoint.mars_by_levtype("ml")
         return sorted(params), sorted(levels)
 
     @property
     def lagged(self) -> List[int]:
+        """Get lagged times in hours.
+
+        Returns
+        -------
+        List[int]
+            The lagged times in hours.
+        """
         return [s.total_seconds() // 3600 for s in self.checkpoint.lagged]
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+        """Create constant computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the computed forcings.
+        mask : IntArray
+            The mask for the computed forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The constant computed forcings.
+        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
     def create_dynamic_computed_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+        """Create dynamic computed forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the computed forcings.
+        mask : IntArray
+            The mask for the computed forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The dynamic computed forcings.
+        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
