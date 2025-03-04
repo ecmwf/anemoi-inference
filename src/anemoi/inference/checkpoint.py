@@ -112,11 +112,12 @@ class Checkpoint:
 
     @cached_property
     def _metadata(self) -> Metadata:
-        # try:
-        result = Metadata(*load_metadata(self.path, supporting_arrays=True))
-        # except Exception as e:
-        #     LOG.warning("Version does not support `supporting_arrays` (%s)", e)
-        #     result = Metadata(load_metadata(self.path))
+        """Get the metadata."""
+        try:
+            result = Metadata(*load_metadata(self.path, supporting_arrays=True))
+        except Exception as e:
+            LOG.warning("Version does not support `supporting_arrays` (%s)", e)
+            result = Metadata(load_metadata(self.path))
 
         if self.patch_metadata:
             LOG.warning("Patching metadata with %r", self.patch_metadata)
@@ -503,7 +504,7 @@ class Checkpoint:
 
         Returns
         -------
-        List[MarsRequest]
+        List[DataRequest]
             The list of MARS requests.
         """
         from anemoi.utils.grib import shortname_to_paramid

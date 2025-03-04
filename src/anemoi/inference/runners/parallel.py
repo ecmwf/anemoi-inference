@@ -14,6 +14,7 @@ import os
 import socket
 import subprocess
 from typing import Any
+from typing import Dict
 from typing import Optional
 from typing import Tuple
 
@@ -32,7 +33,7 @@ from .default import DefaultRunner
 LOG = logging.getLogger(__name__)
 
 
-def create_parallel_runner(config, pid):
+def create_parallel_runner(config: Dict[str, Any], pid: int) -> None:
     """Creates and runs a parallel runner.
 
     Parameters
@@ -50,7 +51,7 @@ def create_parallel_runner(config, pid):
 class ParallelRunner(DefaultRunner):
     """Runner which splits a model over multiple devices."""
 
-    def __init__(self, context, pid=0):
+    def __init__(self, context: Any, pid: int = 0) -> None:
         """Initializes the ParallelRunner.
 
         Parameters
@@ -86,7 +87,7 @@ class ParallelRunner(DefaultRunner):
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model, input_tensor_torch, fcstep: int, **kwargs: Any) -> torch.Tensor:
+    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, fcstep: int, **kwargs: Any) -> torch.Tensor:
         """Performs a prediction step.
 
         Parameters
@@ -132,7 +133,7 @@ class ParallelRunner(DefaultRunner):
             output = create_output(self, "none")
             return output
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor to clean up resources."""
         if self.model_comm_group is not None:
             dist.destroy_process_group()

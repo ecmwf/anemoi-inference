@@ -79,7 +79,7 @@ repos:
         - --check-protected  # Check protected methods
         - --check-class      # Check class docstrings
         # - --disable=SIG101,SIG102     # Disable empty docstrings
-        - --disable=SIG505
+        - --disable=SIG505,SIG503
 
 - repo: https://github.com/DanielNoord/pydocstringformatter
   rev: main

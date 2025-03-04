@@ -12,6 +12,10 @@ import logging
 import os
 from contextlib import contextmanager
 from functools import cached_property
+from typing import Any
+from typing import Dict
+from typing import Generator
+from typing import Tuple
 
 from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -20,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 @contextmanager
-def patch_function(target, attribute, replacement):
+def patch_function(target: Any, attribute: str, replacement: Any) -> Generator[None, None, None]:
     """Context manager to temporarily replace an attribute of a target object.
 
     Parameters
@@ -44,7 +48,9 @@ class PatchMixin:
 
     # `self` is a `Metadata` object
 
-    def patch_metadata(self, supporting_arrays, root, force=False):
+    def patch_metadata(
+        self, supporting_arrays: Dict[str, Any], root: str, force: bool = False
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Patch the metadata with supporting arrays and root.
 
         Parameters
@@ -75,7 +81,7 @@ class PatchMixin:
 
         return self._metadata, self._supporting_arrays
 
-    def _patch_variable_metadata(self):
+    def _patch_variable_metadata(self) -> None:
         """Patch the variable metadata."""
 
         try:
@@ -89,7 +95,7 @@ class PatchMixin:
             LOG.exception("_patch_variable_metadata_open_dataset_2 failed")
 
     @cached_property
-    def _from_zarr(self):
+    def _from_zarr(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Open the dataset and fetch metadata and supporting arrays.
 
         Returns
@@ -124,7 +130,7 @@ class PatchMixin:
         ds = open_dataset(*args, **kwargs)
         return ds.metadata(), ds.supporting_arrays()
 
-    def _patch_variable_metadata_open_dataset_1(self):
+    def _patch_variable_metadata_open_dataset_1(self) -> None:
         """Try to open the dataset and re-fetch metadata.
 
         Returns
@@ -145,7 +151,7 @@ class PatchMixin:
                 LOG.info("Updating metadata key `%s` with value `%s`", k, v)
                 dataset[k] = v
 
-    def _patch_variable_metadata_open_dataset_2(self):
+    def _patch_variable_metadata_open_dataset_2(self) -> None:
         """Fetch the metadata from the catalogue."""
 
         import anemoi.datasets.data.stores
@@ -202,7 +208,7 @@ class PatchMixin:
         with patch_function(anemoi.datasets.data.stores, "open_zarr", _open_zarr):
             self._patch_variable_metadata_open_dataset_1()
 
-    def _patch_supporting_arrays(self, supporting_arrays, root):
+    def _patch_supporting_arrays(self, supporting_arrays: Dict[str, Any], root: str) -> Dict[str, Any]:
         """Patch the supporting arrays.
 
         Parameters

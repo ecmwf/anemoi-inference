@@ -13,8 +13,30 @@ LOG = logging.getLogger(__name__)
 
 
 class Task(ABC):
+    """Abstract base class for tasks.
+
+    Parameters
+    ----------
+    name : str
+        The name of the task.
+    """
+
     def __init__(self, name: str) -> None:
+        """Initialize the Task.
+
+        Parameters
+        ----------
+        name : str
+            The name of the task.
+        """
         self.name = name
 
     def __repr__(self) -> str:
+        """Return a string representation of the Task.
+
+        Returns
+        -------
+        str
+            String representation of the Task.
+        """
         return f"{self.__class__.__name__}({self.name})"
