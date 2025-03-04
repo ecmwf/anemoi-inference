@@ -54,6 +54,13 @@ class TaskWrapper:
             self.error = e
 
     def __repr__(self) -> str:
+        """Return a string representation of the TaskWrapper.
+
+        Returns
+        -------
+        str
+            String representation of the TaskWrapper.
+        """
         return repr(self.task)
 
 

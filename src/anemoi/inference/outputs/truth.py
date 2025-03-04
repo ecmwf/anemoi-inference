@@ -56,24 +56,24 @@ class TruthOutput(ForwardOutput):
         """
         self.output.write_initial_state(state)
 
-    def write_step(self, state):
+    def write_step(self, state: State) -> None:
         """Write a step of the state.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state to write.
         """
         truth_state = self._input.create_input_state(date=state["date"])
         reduced_state = self.reduce(truth_state)
         self.output.write_state(reduced_state)
 
-    def open(self, state):
+    def open(self, state: State) -> None:
         """Open the output for writing.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state to open.
         """
         self.output.open(state)

@@ -12,6 +12,19 @@ from typing import Any
 
 
 def fake_checkpoints(func):
+    """Decorator to mock checkpoints for testing.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to be decorated.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+    """
+
     def wrapper(*args: Any, **kwargs: Any):
         from unittest.mock import patch
 

@@ -52,15 +52,46 @@ class RawOutput(Output):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
+        """Initialize the RawOutput class.
+
+        Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        path : str
+            The path to save the raw output.
+        template : str, optional
+            The template for filenames, by default "{date}.npz".
+        strftime : str, optional
+            The date format string, by default "%Y%m%d%H%M%S".
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        """
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.template = template
         self.strftime = strftime
 
     def __repr__(self) -> str:
+        """Return a string representation of the RawOutput object.
+
+        Returns
+        -------
+        str
+            String representation of the RawOutput object.
+        """
         return f"RawOutput({self.path})"
 
     def write_step(self, state: State) -> None:
+        """Write the state to a compressed .npz file.
+
+        Parameters
+        ----------
+        state : State
+            The state to be written.
+        """
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"

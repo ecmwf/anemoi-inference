@@ -220,6 +220,15 @@ class DatasetInputArgsKwargs(DatasetInput):
     trace_name = "dataset/provided"
 
     def __init__(self, context: Context, /, *args: Any, use_original_paths: bool = True, **kwargs: Any) -> None:
+        """Initialize the DatasetInputArgsKwargs.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the input is used.
+        use_original_paths : bool
+            Whether to use original paths.
+        """
         if not args and not kwargs:
             args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
@@ -241,7 +250,17 @@ class DataloaderInput(DatasetInput):
     """Handles `anemoi-datasets` dataset as input."""
 
     def __init__(self, context: Context, /, name: str, use_original_paths: bool = True, **kwargs: Any) -> None:
+        """Initialize the DataloaderInput.
 
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        name : str
+            The name of the dataloader.
+        use_original_paths : bool
+            Whether to use original paths.
+        """
         args, kwargs = context.checkpoint.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=name,
@@ -257,6 +276,15 @@ class TestInput(DataloaderInput):
     trace_name = "dataset/test"
 
     def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
+        """Initialize the TestInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        use_original_paths : bool
+            Whether to use original paths.
+        """
         super().__init__(
             context,
             name="test",

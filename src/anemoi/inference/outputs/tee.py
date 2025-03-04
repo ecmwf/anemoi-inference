@@ -19,6 +19,13 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("tee")
 class TeeOutput(ForwardOutput):
+    """TeeOutput class to manage multiple outputs.
+
+    Attributes
+    ----------
+    outputs : list
+        List of output objects.
+    """
 
     def __init__(
         self,

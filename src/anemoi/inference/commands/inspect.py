@@ -52,6 +52,18 @@ class InspectCmd(Command):
             return
 
         def _(f: Callable) -> Any:
+            """Wrapper function to handle exceptions.
+
+            Parameters
+            ----------
+            f : Callable
+                The function to be called.
+
+            Returns
+            -------
+            Any
+                The result of the function call or the exception message.
+            """
             try:
                 return f()
             except Exception as e:
