@@ -17,6 +17,7 @@ from typing import List
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
+from anemoi.inference.input import Input
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
 
@@ -76,24 +77,24 @@ class DefaultRunner(Runner):
             use_profiler=config.use_profiler,
         )
 
-    def create_input(self) -> create_input:
+    def create_input(self) -> Input:
         """Create the input.
 
         Returns
         -------
-        create_input
+        Input
             The created input.
         """
         input = create_input(self, self.config.input)
         LOG.info("Input: %s", input)
         return input
 
-    def create_output(self) -> create_output:
+    def create_output(self) -> Input:
         """Create the output.
 
         Returns
         -------
-        create_output
+        Input
             The created output.
         """
         output = create_output(self, self.config.output)

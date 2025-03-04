@@ -20,7 +20,9 @@ from typing import Optional
 
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
 
 from ..config.run import RunConfiguration
 from ..inputs.grib import GribInput
@@ -30,9 +32,9 @@ from . import Command
 
 
 def checkpoint_to_requests(
-    checkpoint: Any,
+    checkpoint: Checkpoint,
     *,
-    date: str,
+    date: Date,
     target: Optional[str] = None,
     include_forcings: bool = True,
     retrieve_fields_type: Optional[str] = None,
