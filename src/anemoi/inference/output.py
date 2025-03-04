@@ -30,7 +30,17 @@ class Output(ABC):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):
+        """Initialize the Output object.
 
+        Parameters
+        ----------
+        context : Context
+            The context in which the output operates.
+        output_frequency : Optional[int], optional
+            The frequency at which to output states, by default None.
+        write_initial_state : Optional[bool], optional
+            Whether to write the initial state, by default None.
+        """
         self.context = context
         self.checkpoint = context.checkpoint
         self.reference_date = None
@@ -39,6 +49,13 @@ class Output(ABC):
         self._output_frequency = output_frequency
 
     def __repr__(self) -> str:
+        """Return a string representation of the Output object.
+
+        Returns
+        -------
+        str
+            String representation of the Output object.
+        """
         return f"{self.__class__.__name__}()"
 
     def write_initial_state(self, state: State) -> None:
@@ -142,6 +159,13 @@ class Output(ABC):
         return None
 
     def print_summary(self, depth: int = 0) -> None:
+        """Print a summary of the output configuration.
+
+        Parameters
+        ----------
+        depth : int, optional
+            The indentation depth for the summary, by default 0.
+        """
         LOG.info(
             "%s%s: output_frequency=%s write_initial_state=%s",
             " " * depth,
@@ -157,7 +181,20 @@ class ForwardOutput(Output):
     which should only apply to leaves.
     """
 
-    def __init__(self, context, output_frequency=None, write_initial_state=None):
+    def __init__(
+        self, context: "Context", output_frequency: Optional[int] = None, write_initial_state: Optional[bool] = None
+    ):
+        """Initialize the ForwardOutput object.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the output operates.
+        output_frequency : Optional[int], optional
+            The frequency at which to output states, by default None.
+        write_initial_state : Optional[bool], optional
+            Whether to write the initial state, by default None.
+        """
         super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
         if self.context.output_frequency is not None:
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)

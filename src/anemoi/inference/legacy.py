@@ -11,6 +11,7 @@
 import logging
 import warnings
 from collections import defaultdict
+from functools import wraps
 from typing import Any
 from typing import Dict
 
@@ -18,8 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 def warn(func: Any) -> Any:
-    """
-    Decorator to issue a warning when using legacy functions.
+    """Decorator to issue a warning when using legacy functions.
 
     Parameters
     ----------
@@ -31,6 +31,8 @@ def warn(func: Any) -> Any:
     function
         The wrapped function with a warning.
     """
+
+    @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         warnings.warn(f"Using legacy {func.__name__}, please try to patch your weights.")
         return func(*args, **kwargs)
@@ -44,8 +46,7 @@ class LegacyMixin:
 
     @warn
     def _legacy_variables_metadata(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Generate metadata for legacy variables.
+        """Generate metadata for legacy variables.
 
         Returns
         -------
@@ -120,8 +121,7 @@ class LegacyMixin:
         return result
 
     def _legacy_check_variables_metadata(self, variables: Dict[str, Dict[str, Any]]) -> None:
-        """
-        Check and update metadata for legacy variables.
+        """Check and update metadata for legacy variables.
 
         Parameters
         ----------
@@ -168,8 +168,7 @@ class LegacyMixin:
 
     @warn
     def _legacy_number_of_grid_points(self) -> int:
-        """
-        Get the number of grid points for the legacy grid.
+        """Get the number of grid points for the legacy grid.
 
         Returns
         -------
@@ -182,8 +181,7 @@ class LegacyMixin:
 
     @warn
     def _legacy_data_request(self) -> Dict[str, Any]:
-        """
-        Retrieve the data request from metadata.
+        """Retrieve the data request from metadata.
 
         Returns
         -------

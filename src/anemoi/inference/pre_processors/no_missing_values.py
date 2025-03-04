@@ -9,10 +9,14 @@
 
 
 import logging
+from typing import Any
 
+import earthkit.data as ekd
 import tqdm
 from anemoi.transform.fields import new_field_from_numpy
 from anemoi.transform.fields import new_fieldlist_from_list
+
+from anemoi.inference.context import Context
 
 from ..processor import Processor
 from . import pre_processor_registry
@@ -24,10 +28,31 @@ LOG = logging.getLogger(__name__)
 class NoMissingValues(Processor):
     """Replace NaNs with mean."""
 
-    def __init__(self, context, **kwargs):
+    def __init__(self, context: Context, **kwargs: Any) -> None:
+        """Initialize the NoMissingValues processor.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the processor operates.
+        kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context)
 
-    def process(self, fields):
+    def process(self, fields: ekd.FieldList) -> ekd.FieldList:
+        """Process the fields to replace NaNs with the mean value.
+
+        Parameters
+        ----------
+        fields : list
+            List of fields to process.
+
+        Returns
+        -------
+        list
+            List of processed fields with NaNs replaced by the mean value.
+        """
         result = []
         for field in tqdm.tqdm(fields):
             import numpy as np

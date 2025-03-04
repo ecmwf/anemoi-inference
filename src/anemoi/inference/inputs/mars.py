@@ -253,7 +253,20 @@ class MarsInput(GribInput):
         )
 
     def retrieve(self, variables: List[str], dates: List[Any]) -> Any:
+        """Retrieve data for the given variables and dates.
 
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables to retrieve.
+        dates : List[Any]
+            The list of dates for which to retrieve the data.
+
+        Returns
+        -------
+        Any
+            The retrieved data.
+        """
         requests = self.checkpoint.mars_requests(
             variables=variables,
             dates=dates,
@@ -270,11 +283,39 @@ class MarsInput(GribInput):
         return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, self.patch, **kwargs)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Any], current_state: Any) -> Any:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables for which to load the forcings state.
+        dates : List[Any]
+            The list of dates for which to load the forcings state.
+        current_state : Any
+            The current state to be updated with the loaded forcings state.
+
+        Returns
+        -------
+        Any
+            The loaded forcings state.
+        """
         return self._load_forcings_state(
             self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
         )
 
     def patch(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Patch the given request with predefined patches.
+
+        Parameters
+        ----------
+        request : Dict[str, Any]
+            The request to be patched.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The patched request.
+        """
         for match, keys in self.patches:
             if all(request.get(k) == v for k, v in match.items()):
                 request.update(keys)
