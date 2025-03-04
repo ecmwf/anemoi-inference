@@ -14,6 +14,7 @@ import warnings
 from collections import defaultdict
 from functools import cached_property
 from types import MappingProxyType as frozendict
+from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
 from typing import Literal
@@ -30,12 +31,27 @@ from anemoi.inference.types import FloatArray
 from .legacy import LegacyMixin
 from .patch import PatchMixin
 
+if TYPE_CHECKING:
+    from earthkit.data import FieldList
+
 USE_LEGACY = True
 
 LOG = logging.getLogger(__name__)
 
 
-def _remove_full_paths(x):
+def _remove_full_paths(x: dict | list | str) -> dict | list | str:
+    """Remove full paths from the given data structure.
+
+    Parameters
+    ----------
+    x : dict, list, or str
+        The data structure to process.
+
+    Returns
+    -------
+    dict, list, or str
+        The processed data structure with full paths removed.
+    """
     if isinstance(x, dict):
         return {k: _remove_full_paths(v) for k, v in x.items()}
     if isinstance(x, list):
@@ -48,36 +64,49 @@ def _remove_full_paths(x):
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
-    def __init__(self, metadata, supporting_arrays: Dict[str, FloatArray] = {}):
+    def __init__(self, metadata: dict, supporting_arrays: Dict[str, FloatArray] = {}):
         self._metadata = DotDict(metadata)
         assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
 
     @property
-    def _indices(self):
+    def _indices(self) -> dict:
         return self._metadata.data_indices
 
     @property
-    def _config_data(self):
+    def _config_data(self) -> dict:
         return self._config.data
 
     @property
-    def _config_training(self):
+    def _config_training(self) -> dict:
         return self._config.training
 
     @property
-    def _config_model(self):
+    def _config_model(self) -> dict:
         return self._config.model
 
     @property
-    def _config(self):
+    def _config(self) -> dict:
         return self._metadata.config
 
     ###########################################################################
     # Debugging
     ###########################################################################
 
-    def _print_indices(self, title, indices, naming, skip=set()):
+    def _print_indices(self, title: str, indices: dict, naming: dict, skip: set = set()) -> None:
+        """Print indices for debugging purposes.
+
+        Parameters
+        ----------
+        title : str
+            The title for the indices.
+        indices : dict
+            The indices to print.
+        naming : dict
+            The naming convention for the indices.
+        skip : set, optional
+            The set of indices to skip, by default set().
+        """
         LOG.info("")
         LOG.info("%s:", title)
 
@@ -95,8 +124,8 @@ class Metadata(PatchMixin, LegacyMixin):
                 if not idx:
                     LOG.info("     <empty>")
 
-    def print_indices(self):
-
+    def print_indices(self) -> None:
+        """Print data and model indices for debugging purposes."""
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
@@ -109,24 +138,56 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @cached_property
-    def timestep(self):
-        """Model time stepping timestep."""
+    def timestep(self) -> np.timedelta64:
+        """Model time stepping timestep.
+
+        Returns
+        -------
+        np.timedelta64
+            The model time stepping timestep.
+        """
         # frequency = to_timedelta(self._config_data.frequency)
         timestep = to_timedelta(self._config_data.timestep)
         return timestep
 
     @cached_property
-    def precision(self):
-        """Return the precision of the model (bits per float)."""
+    def precision(self) -> int:
+        """Return the precision of the model (bits per float).
+
+        Returns
+        -------
+        int
+            The precision of the model.
+        """
         return self._config_training.precision
 
-    def _make_indices_mapping(self, indices_from, indices_to):
+    def _make_indices_mapping(self, indices_from: list, indices_to: list) -> frozendict:
+        """Create a mapping between two sets of indices.
+
+        Parameters
+        ----------
+        indices_from : list
+            The source indices.
+        indices_to : list
+            The target indices.
+
+        Returns
+        -------
+        frozendict
+            The mapping between the source and target indices.
+        """
         assert len(indices_from) == len(indices_to), (indices_from, indices_to)
         return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
     @property
-    def variable_to_input_tensor_index(self):
-        """Return the mapping between variable name and input tensor index."""
+    def variable_to_input_tensor_index(self) -> frozendict:
+        """Return the mapping between variable name and input tensor index.
+
+        Returns
+        -------
+        frozendict
+            The mapping between variable name and input tensor index.
+        """
         mapping = self._make_indices_mapping(
             self._indices.data.input.full,
             self._indices.model.input.full,
@@ -135,8 +196,14 @@ class Metadata(PatchMixin, LegacyMixin):
         return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
 
     @cached_property
-    def output_tensor_index_to_variable(self):
-        """Return the mapping between output tensor index and variable name."""
+    def output_tensor_index_to_variable(self) -> frozendict:
+        """Return the mapping between output tensor index and variable name.
+
+        Returns
+        -------
+        frozendict
+            The mapping between output tensor index and variable name.
+        """
         mapping = self._make_indices_mapping(
             self._indices.model.output.full,
             self._indices.data.output.full,
@@ -144,8 +211,14 @@ class Metadata(PatchMixin, LegacyMixin):
         return frozendict({k: self.variables[v] for k, v in mapping.items()})
 
     @cached_property
-    def number_of_grid_points(self):
-        """Return the number of grid points per fields."""
+    def number_of_grid_points(self) -> int:
+        """Return the number of grid points per fields.
+
+        Returns
+        -------
+        int
+            The number of grid points per fields.
+        """
         if "grid_indices" in self._supporting_arrays:
             return len(self.load_supporting_array("grid_indices"))
         try:
@@ -156,31 +229,49 @@ class Metadata(PatchMixin, LegacyMixin):
             return self._legacy_number_of_grid_points()
 
     @cached_property
-    def number_of_input_features(self):
-        """Return the number of input features."""
+    def number_of_input_features(self) -> int:
+        """Return the number of input features.
+
+        Returns
+        -------
+        int
+            The number of input features.
+        """
         return len(self._indices.model.input.full)
 
     @cached_property
-    def model_computed_variables(self):
-        """The initial conditions variables that need to be computed and not retrieved."""
+    def model_computed_variables(self) -> tuple:
+        """The initial conditions variables that need to be computed and not retrieved.
+
+        Returns
+        -------
+        tuple
+            The initial conditions variables that need to be computed.
+        """
         typed_variables = self.typed_variables
         return tuple(name for name, v in typed_variables.items() if v.is_computed_forcing)
 
     @cached_property
-    def multi_step_input(self):
-        """Number of past steps needed for the initial conditions tensor."""
+    def multi_step_input(self) -> int:
+        """Number of past steps needed for the initial conditions tensor.
+
+        Returns
+        -------
+        int
+            The number of past steps needed for the initial conditions tensor.
+        """
         return self._config_training.multistep_input
 
     @cached_property
-    def prognostic_output_mask(self):
+    def prognostic_output_mask(self) -> np.ndarray:
         return np.array(self._indices.model.output.prognostic)
 
     @cached_property
-    def prognostic_input_mask(self):
+    def prognostic_input_mask(self) -> np.ndarray:
         return np.array(self._indices.model.input.prognostic)
 
     @cached_property
-    def computed_time_dependent_forcings(self):
+    def computed_time_dependent_forcings(self) -> tuple[np.ndarray, list]:
         """Return the indices and names of the computed forcings that are not constant in time."""
 
         # Mapping between model and data indices
@@ -205,7 +296,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(indices), variables
 
     @cached_property
-    def computed_constant_forcings(self):
+    def computed_constant_forcings(self) -> tuple[np.ndarray, list]:
         """Return the indices and names of the computed forcings that are  constant in time."""
 
         # Mapping between model and data indices
@@ -234,12 +325,12 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @property
-    def variables(self):
+    def variables(self) -> tuple:
         """Return the variables as found in the training dataset."""
         return tuple(self._metadata.dataset.variables)
 
     @cached_property
-    def variables_metadata(self):
+    def variables_metadata(self) -> dict:
         """Return the variables and their metadata as found in the training dataset."""
         try:
             result = self._metadata.dataset.variables_metadata
@@ -257,22 +348,22 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     @cached_property
-    def diagnostic_variables(self):
+    def diagnostic_variables(self) -> list:
         """Variables that are marked as diagnostic."""
         return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
 
     @cached_property
-    def prognostic_variables(self):
+    def prognostic_variables(self) -> list:
         """Variables that are marked as prognostic."""
         return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]
 
     @cached_property
-    def index_to_variable(self):
+    def index_to_variable(self) -> frozendict:
         """Return a mapping from index to variable name."""
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
-    def typed_variables(self):
+    def typed_variables(self) -> dict:
         """Returns a strongly typed variables."""
         result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
@@ -287,11 +378,25 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     @cached_property
-    def accumulations(self):
+    def accumulations(self) -> list:
         """Return the indices of the variables that are accumulations."""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
-    def name_fields(self, fields, namer=None):
+    def name_fields(self, fields: "FieldList", namer: Callable = None) -> "FieldList":
+        """Name fields using the provided namer.
+
+        Parameters
+        ----------
+        fields : FieldList
+            The fields to name.
+        namer : callable, optional
+            The namer function, by default None.
+
+        Returns
+        -------
+        FieldList
+            The named fields.
+        """
         from earthkit.data.indexing.fieldlist import FieldArray
 
         if namer is None:
@@ -302,7 +407,21 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return FieldArray([f.copy(name=_name) for f in fields])
 
-    def sort_by_name(self, fields, namer=None, *args, **kwargs):
+    def sort_by_name(self, fields: list, namer: Callable = None, *args, **kwargs) -> list:
+        """Sort fields by name.
+
+        Parameters
+        ----------
+        fields : list
+            The fields to sort.
+        namer : callable, optional
+            The namer function, by default None.
+
+        Returns
+        -------
+        list
+            The sorted fields.
+        """
         fields = self.name_fields(fields, namer=namer)
         return fields.order_by("name", *args, **kwargs)
 
@@ -312,14 +431,17 @@ class Metadata(PatchMixin, LegacyMixin):
 
     def default_namer(self, *args, **kwargs) -> Callable:
         """Return a callable that can be used to name earthkit-data fields.
-        In that case, return the namer that was used to create the
-        training dataset.
-        """
 
+        Returns
+        -------
+        Callable
+            The namer function.
+        """
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
         def namer(field, metadata):
+            # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
                 metadata.get("param"),
@@ -343,7 +465,7 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @property
-    def _data_request(self):
+    def _data_request(self) -> dict:
         """Return the data request as encoded in the dataset."""
         try:
             return self._metadata.dataset.data_request
@@ -351,14 +473,26 @@ class Metadata(PatchMixin, LegacyMixin):
             return self._legacy_data_request()
 
     @property
-    def grid(self):
+    def grid(self) -> Optional[str]:
         return self._data_request.get("grid")
 
     @property
-    def area(self):
+    def area(self) -> Optional[str]:
         return self._data_request.get("area")
 
-    def variables_from_input(self, *, include_forcings):
+    def variables_from_input(self, *, include_forcings: bool) -> list:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include_forcings : bool
+            Whether to include forcings.
+
+        Returns
+        -------
+        list
+            The list of variables.
+        """
         variable_categories = self.variable_categories()
         result = []
         for variable, metadata in self.variables_metadata.items():
@@ -380,7 +514,14 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def mars_input_requests(self):
+    def mars_input_requests(self) -> dict:
+        """Generate MARS input requests.
+
+        Yields
+        ------
+        dict
+            The MARS request.
+        """
         variable_categories = self.variable_categories()
         for variable in self.variables_from_input(include_forcings=True):
 
@@ -391,7 +532,19 @@ class Metadata(PatchMixin, LegacyMixin):
 
             yield metadata["mars"].copy()
 
-    def mars_by_levtype(self, levtype):
+    def mars_by_levtype(self, levtype: str) -> tuple[set, set]:
+        """Get MARS parameters and levels by levtype.
+
+        Parameters
+        ----------
+        levtype : str
+            The levtype to filter by.
+
+        Returns
+        -------
+        tuple
+            The parameters and levels.
+        """
         variable_categories = self.variable_categories()
 
         params = set()
@@ -416,9 +569,24 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables):
-        """Return a list of MARS requests for the variables in the dataset."""
+    def mars_requests(self, *, variables: list) -> dict:
+        """Generate MARS requests for the given variables.
 
+        Parameters
+        ----------
+        variables : list
+            The list of variables.
+
+        Yields
+        ------
+        dict
+            The MARS request.
+
+        Raises
+        ------
+        ValueError
+            If no variables are requested or if a variable is not found in the metadata.
+        """
         if len(variables) == 0:
             raise ValueError("No variables requested")
 
@@ -441,8 +609,8 @@ class Metadata(PatchMixin, LegacyMixin):
     # Error reporting
     ###########################################################################
 
-    def report_error(self):
-
+    def report_error(self) -> None:
+        """Report an error with provenance information."""
         provenance = self._metadata.provenance_training
 
         def _print(title, provenance):
@@ -501,10 +669,16 @@ class Metadata(PatchMixin, LegacyMixin):
 
     ###########################################################################
 
-    def _get_datasets_full_paths(self):
-        """This is a temporary method to get the full paths of the datasets used in the training.
-        we need to review what goes in the dataset metadata.
+    def _get_datasets_full_paths(self) -> list:
+        """Get the full paths of the datasets used in the training.
+
+        Returns
+        -------
+        list
+            The list of full paths.
         """
+        # This is a temporary method to get the full paths of the datasets used in the training.
+        # we need to review what goes in the dataset metadata.
 
         result = []
 
@@ -527,8 +701,21 @@ class Metadata(PatchMixin, LegacyMixin):
         _find(self._config.dataloader.training.dataset)
         return result
 
-    def open_dataset_args_kwargs(self, *, use_original_paths, from_dataloader=None):
+    def open_dataset_args_kwargs(self, *, use_original_paths: bool, from_dataloader: Optional[str] = None) -> tuple:
+        """Get the arguments and keyword arguments for opening the dataset.
 
+        Parameters
+        ----------
+        use_original_paths : bool
+            Whether to use the original paths.
+        from_dataloader : str, optional
+            The dataloader to use, by default None.
+
+        Returns
+        -------
+        tuple
+            The arguments and keyword arguments.
+        """
         # Rebuild the full paths
         # Some older checkpoints may not have the full paths
 
@@ -568,7 +755,14 @@ class Metadata(PatchMixin, LegacyMixin):
     # We need factories
     ###########################################################################
 
-    def variable_categories(self):
+    def variable_categories(self) -> dict:
+        """Get the categories of variables.
+
+        Returns
+        -------
+        dict
+            The categories of variables.
+        """
         result = defaultdict(set)
         typed_variables = self.typed_variables
 
@@ -605,7 +799,21 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def constant_forcings_inputs(self, context, input_state):
+    def constant_forcings_inputs(self, context: object, input_state: dict) -> list:
+        """Get the constant forcings inputs.
+
+        Parameters
+        ----------
+        context : object
+            The context object.
+        input_state : dict
+            The input state.
+
+        Returns
+        -------
+        list
+            The list of constant forcings inputs.
+        """
         # TODO: this does not belong here
 
         result = []
@@ -675,8 +883,21 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def dynamic_forcings_inputs(self, context, input_state):
+    def dynamic_forcings_inputs(self, context: object, input_state: dict) -> list:
+        """Get the dynamic forcings inputs.
 
+        Parameters
+        ----------
+        context : object
+            The context object.
+        input_state : dict
+            The input state.
+
+        Returns
+        -------
+        list
+            The list of dynamic forcings inputs.
+        """
         result = []
 
         # This will manage the dynamic forcings that are computed
@@ -721,8 +942,21 @@ class Metadata(PatchMixin, LegacyMixin):
         )
         return result
 
-    def boundary_forcings_inputs(self, context, input_state):
+    def boundary_forcings_inputs(self, context: object, input_state: dict) -> list:
+        """Get the boundary forcings inputs.
 
+        Parameters
+        ----------
+        context : object
+            The context object.
+        input_state : dict
+            The input state.
+
+        Returns
+        -------
+        list
+            The list of boundary forcings inputs.
+        """
         result = []
 
         if "output_mask" in self._supporting_arrays:
@@ -738,7 +972,24 @@ class Metadata(PatchMixin, LegacyMixin):
     # Supporting arrays
     ###########################################################################
 
-    def load_supporting_array(self, name):
+    def load_supporting_array(self, name: str) -> FloatArray:
+        """Load a supporting array by name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the supporting array.
+
+        Returns
+        -------
+        FloatArray
+            The supporting array.
+
+        Raises
+        ------
+        ValueError
+            If the supporting array is not found.
+        """
         if name not in self._supporting_arrays:
             LOG.error("No supporting array named `%s` found.", name)
             LOG.error("Supporting arrays found:")
@@ -748,7 +999,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._supporting_arrays[name]
 
     @property
-    def supporting_arrays(self):
+    def supporting_arrays(self) -> dict:
         return self._supporting_arrays
 
     @property
@@ -760,16 +1011,38 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._supporting_arrays.get("longitudes")
 
     @property
-    def grid_points_mask(self):
+    def grid_points_mask(self) -> Optional[FloatArray]:
         # TODO
         return None
 
-    def provenance_training(self):
-        """Environmental Configuration when trained."""
+    def provenance_training(self) -> dict:
+        """Get the environmental configuration when trained.
+
+        Returns
+        -------
+        dict
+            The environmental configuration.
+        """
         return dict(self._metadata.get("provenance_training", {}))
 
-    def sources(self, path):
+    def sources(self, path: str) -> list:
+        """Get the sources from the metadata.
 
+        Parameters
+        ----------
+        path : str
+            The path to the sources.
+
+        Returns
+        -------
+        list
+            The list of sources.
+
+        Raises
+        ------
+        ValueError
+            If not all paths were fixed.
+        """
         if "sources" not in self._metadata.dataset:
             return []
 
@@ -832,15 +1105,22 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return sources
 
-    def print_variable_categories(self):
+    def print_variable_categories(self) -> None:
+        """Print the variable categories for debugging purposes."""
         length = max(len(name) for name in self.variables)
         for name, categories in sorted(self.variable_categories().items()):
             LOG.info(f"   {name:{length}} => {', '.join(categories)}")
 
     ###########################################################################
 
-    def patch(self, patch):
-        """Patch the metadata with the given patch."""
+    def patch(self, patch: dict) -> None:
+        """Patch the metadata with the given patch.
+
+        Parameters
+        ----------
+        patch : dict
+            The patch to apply.
+        """
 
         def merge(main, patch):
 
@@ -860,21 +1140,21 @@ class SourceMetadata(Metadata):
     The rest is forwarded to the parent metadata object.
     """
 
-    def __init__(self, parent, name, metadata, supporting_arrays={}):
+    def __init__(self, parent: Metadata, name: str, metadata: dict, supporting_arrays: dict = {}):
         super().__init__(metadata, supporting_arrays)
         self.parent = parent
         self.name = name
 
     @property
-    def latitudes(self):
+    def latitudes(self) -> Optional[FloatArray]:
         return self._supporting_arrays.get(f"{self.name}/latitudes")
 
     @property
-    def longitudes(self):
+    def longitudes(self) -> Optional[FloatArray]:
         return self._supporting_arrays.get(f"{self.name}/longitudes")
 
     @property
-    def grid_points_mask(self):
+    def grid_points_mask(self) -> Optional[FloatArray]:
         for k, v in self._supporting_arrays.items():
             # TODO: This is a bit of a hack
             if k.startswith(f"{self.name}/") and "mask" in k:
@@ -886,19 +1166,19 @@ class SourceMetadata(Metadata):
     ###########################################################################
 
     @property
-    def _config_training(self):
+    def _config_training(self) -> dict:
         return self.parent._config_training
 
     @property
-    def _config_data(self):
+    def _config_data(self) -> dict:
         return self.parent._config_data
 
     @property
-    def _indices(self):
+    def _indices(self) -> dict:
         return self.parent._indices
 
     @property
-    def _config(self):
+    def _config(self) -> dict:
         return self.parent._config
 
     ###########################################################################

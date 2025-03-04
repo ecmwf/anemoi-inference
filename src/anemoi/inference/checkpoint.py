@@ -81,7 +81,14 @@ class Checkpoint:
         self._path = path
         self.patch_metadata = patch_metadata
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Represent the Checkpoint as a string.
+
+        Returns
+        -------
+        str
+            String representation of the Checkpoint.
+        """
         return f"Checkpoint({self.path})"
 
     @cached_property
@@ -210,6 +217,7 @@ class Checkpoint:
         return self._metadata.default_namer(*args, **kwargs)
 
     def report_error(self) -> None:
+        """Report an error."""
         self._metadata.report_error()
 
     def validate_environment(
@@ -353,12 +361,32 @@ class Checkpoint:
         return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
 
     def print_indices(self) -> None:
+        """Print the indices."""
         return self._metadata.print_indices()
 
     def variable_categories(self) -> Any:
+        """Get the variable categories.
+
+        Returns
+        -------
+        Any
+            The variable categories.
+        """
         return self._metadata.variable_categories()
 
     def load_supporting_array(self, name: str) -> Any:
+        """Load a supporting array.
+
+        Parameters
+        ----------
+        name : str
+            The name of the supporting array.
+
+        Returns
+        -------
+        Any
+            The supporting array.
+        """
         return self._metadata.load_supporting_array(name)
 
     @property
@@ -379,6 +407,7 @@ class Checkpoint:
         return self._metadata.multi_step_input
 
     def print_variable_categories(self) -> None:
+        """Print the variable categories."""
         return self._metadata.print_variable_categories()
 
     ###########################################################################
@@ -409,6 +438,18 @@ class Checkpoint:
         return self._metadata.area
 
     def mars_by_levtype(self, levtype: str) -> Any:
+        """Get MARS requests by level type.
+
+        Parameters
+        ----------
+        levtype : str
+            The level type.
+
+        Returns
+        -------
+        Any
+            The MARS requests by level type.
+        """
         return self._metadata.mars_by_levtype(levtype)
 
     def mars_requests(
@@ -586,5 +627,12 @@ class SourceCheckpoint(Checkpoint):
         self._owner = owner
         self._metadata = metadata
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Represent the SourceCheckpoint as a string.
+
+        Returns
+        -------
+        str
+            String representation of the SourceCheckpoint.
+        """
         return f"Source({self.name}@{self.path})"

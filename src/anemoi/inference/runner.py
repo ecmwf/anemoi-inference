@@ -37,9 +37,19 @@ class Kind:
     """Used for debugging purposes."""
 
     def __init__(self, **kwargs: Any) -> None:
+        """Parameters
+        -------------
+        **kwargs : Any
+            Keyword arguments representing the kind attributes.
+        """
         self.kwargs = kwargs
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Returns
+        ----------
+        str
+            String representation of the kind.
+        """
         result = []
 
         for k, v in self.kwargs.items():
@@ -57,21 +67,50 @@ class Runner(Context):
 
     def __init__(
         self,
-        checkpoint,
+        checkpoint: str,
         *,
         device: str = "cuda",
         precision: Optional[str] = None,
-        report_error=False,
-        allow_nans=None,  # can be True of False
-        use_grib_paramid=False,
-        verbosity=0,
-        patch_metadata={},
-        development_hacks={},  # For testing purposes, don't use in production
-        trace_path=None,
-        output_frequency=None,
-        write_initial_state=True,
-        use_profiler=False,
-    ):
+        report_error: bool = False,
+        allow_nans: Optional[bool] = None,
+        use_grib_paramid: bool = False,
+        verbosity: int = 0,
+        patch_metadata: dict = {},
+        development_hacks: dict = {},
+        trace_path: Optional[str] = None,
+        output_frequency: Optional[str] = None,
+        write_initial_state: bool = True,
+        use_profiler: bool = False,
+    ) -> None:
+        """Parameters
+        -------------
+        checkpoint : str
+            Path to the checkpoint file.
+        device : str, optional
+            Device to run the model on, by default "cuda".
+        precision : Optional[str], optional
+            Precision to use, by default None.
+        report_error : bool, optional
+            Whether to report errors, by default False.
+        allow_nans : Optional[bool], optional
+            Whether to allow NaNs, by default None.
+        use_grib_paramid : bool, optional
+            Whether to use GRIB paramid, by default False.
+        verbosity : int, optional
+            Verbosity level, by default 0.
+        patch_metadata : dict, optional
+            Metadata for patching, by default {}.
+        development_hacks : dict, optional
+            Development hacks, by default {}.
+        trace_path : Optional[str], optional
+            Path for tracing, by default None.
+        output_frequency : Optional[str], optional
+            Frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default True.
+        use_profiler : bool, optional
+            Whether to use profiler, by default False.
+        """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
         self.trace_path = trace_path
@@ -115,11 +154,29 @@ class Runner(Context):
             self.checkpoint.print_variable_categories()
 
     @property
-    def checkpoint(self):
+    def checkpoint(self) -> Checkpoint:
+        """Returns
+        ----------
+        Checkpoint
+            The checkpoint object.
+        """
         return self._checkpoint
 
-    def run(self, *, input_state, lead_time):
+    def run(self, *, input_state: State, lead_time: str) -> Any:
+        """Run the model.
 
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        lead_time : str
+            The lead time.
+
+        Yields
+        ------
+        Any
+            The forecasted state.
+        """
         # Shallow copy to avoid modifying the user's input state
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
@@ -145,7 +202,14 @@ class Runner(Context):
                     self.checkpoint.report_error()
                 raise
 
-    def add_initial_forcings_to_input_state(self, input_state):
+    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
+        """Add initial forcings to the input state.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        """
         # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
@@ -182,16 +246,51 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs):
-        # Give an opportunity to modify the forcings for the first step
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs: Any) -> Any:
+        """Modify the constant forcings for the first step.
+
+        Parameters
+        ----------
+        constant_forcings_inputs : Any
+            The constant forcings inputs.
+
+        Returns
+        -------
+        Any
+            The modified constant forcings inputs.
+        """
         return constant_forcings_inputs
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs):
-        # Give an opportunity to modify the forcings for the first step
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: Any) -> Any:
+        """Modify the dynamic forcings for the first step.
+
+        Parameters
+        ----------
+        dynamic_forcings_inputs : Any
+            The dynamic forcings inputs.
+
+        Returns
+        -------
+        Any
+            The modified dynamic forcings inputs.
+        """
         return dynamic_forcings_inputs
 
     def prepare_input_tensor(self, input_state: State, dtype=np.float32) -> FloatArray:
+        """Prepare the input tensor.
 
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        dtype : type, optional
+            The data type, by default np.float32.
+
+        Returns
+        -------
+        FloatArray
+            The prepared input tensor.
+        """
         if "latitudes" not in input_state:
             input_state["latitudes"] = self.checkpoint.latitudes
 
@@ -248,7 +347,8 @@ class Runner(Context):
         return input_tensor_numpy
 
     @cached_property
-    def autocast(self):
+    def autocast(self) -> torch.dtype:
+        """The autocast precision."""
         autocast = self.precision
 
         if autocast is None:
@@ -261,18 +361,53 @@ class Runner(Context):
         return PRECISIONS.get(autocast, autocast)
 
     @cached_property
-    def model(self):
+    def model(self) -> torch.nn.Module:
+        """Returns
+        ----------
+        Any
+            The loaded model.
+        """
         with Timer(f"Loading {self.checkpoint}"):
             model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             # model.set_inference_options(**self.inference_options)
             return model
 
-    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
-        # extra args are only used in specific runners
-        # TODO: move this to a Stepper class.
+    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, fcstep: int, **kwargs: Any) -> Any:
+        """Predict the next step.
+
+        Parameters
+        ----------
+        model : Any
+            The model.
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        fcstep : int
+            The forecast step.
+
+        Returns
+        -------
+        Any
+            The predicted step.
+        """
         return model.predict_step(input_tensor_torch)
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
+    def forecast(self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State) -> Any:
+        """Forecast the future states.
+
+        Parameters
+        ----------
+        lead_time : str
+            The lead time.
+        input_tensor_numpy : FloatArray
+            The input tensor.
+        input_state : State
+            The input state.
+
+        Yields
+        ------
+        Any
+            The forecasted state.
+        """
         self.model.eval()
 
         torch.set_grad_enabled(False)
@@ -339,7 +474,6 @@ class Runner(Context):
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                print(output.shape, self.checkpoint.output_tensor_index_to_variable)
                 for i in range(output.shape[1]):
                     result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
@@ -384,8 +518,25 @@ class Runner(Context):
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
 
-    def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
+    def copy_prognostic_fields_to_input_tensor(
+        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: np.ndarray
+    ) -> torch.Tensor:
+        """Copy prognostic fields to the input tensor.
 
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        y_pred : torch.Tensor
+            The predicted tensor.
+        check : np.ndarray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
@@ -409,8 +560,27 @@ class Runner(Context):
 
         return input_tensor_torch
 
-    def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+    def add_dynamic_forcings_to_input_tensor(
+        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: np.ndarray
+    ) -> torch.Tensor:
+        """Add dynamic forcings to the input tensor.
 
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        state : State
+            The state.
+        date : datetime.datetime
+            The date.
+        check : np.ndarray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
                 date = self.development_hacks["dynamic_forcings_date"]
@@ -445,8 +615,27 @@ class Runner(Context):
 
         return input_tensor_torch
 
-    def add_boundary_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+    def add_boundary_forcings_to_input_tensor(
+        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: np.ndarray
+    ) -> torch.Tensor:
+        """Add boundary forcings to the input tensor.
 
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        state : State
+            The state.
+        date : datetime.datetime
+            The date.
+        check : np.ndarray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
         sources = self.boundary_forcings_inputs
@@ -463,8 +652,19 @@ class Runner(Context):
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
-    def validate_input_state(self, input_state):
+    def validate_input_state(self, input_state: State) -> State:
+        """Validate the input state.
 
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        State
+            The validated input state.
+        """
         if not isinstance(input_state, dict):
             raise ValueError("Input state must be a dictionnary")
 
@@ -531,8 +731,20 @@ class Runner(Context):
 
         return input_state
 
-    def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
+    def _print_tensor(self, title: str, tensor_numpy: np.ndarray, tensor_by_name: list, kinds: dict) -> None:
+        """Print the tensor.
 
+        Parameters
+        ----------
+        title : str
+            The title.
+        tensor_numpy : np.ndarray
+            The tensor.
+        tensor_by_name : list
+            The tensor by name.
+        kinds : dict
+            The kinds.
+        """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
@@ -560,8 +772,16 @@ class Runner(Context):
         )
         LOG.info("")
 
-    def _print_input_tensor(self, title, input_tensor_torch):
+    def _print_input_tensor(self, title: str, input_tensor_torch: torch.Tensor) -> None:
+        """Print the input tensor.
 
+        Parameters
+        ----------
+        title : str
+            The title.
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        """
         input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
 
         assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
@@ -572,8 +792,16 @@ class Runner(Context):
 
         self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
 
-    def _print_output_tensor(self, title, output_tensor_numpy):
+    def _print_output_tensor(self, title: str, output_tensor_numpy: np.ndarray) -> None:
+        """Print the output tensor.
 
+        Parameters
+        ----------
+        title : str
+            The title.
+        output_tensor_numpy : np.ndarray
+            The output tensor.
+        """
         LOG.info(
             "%s",
             f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
@@ -596,8 +824,19 @@ class Runner(Context):
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
 
-    def patch_data_request(self, request):
-        """Some of the processores may need to patch the data request (e.g. mars or cds request)."""
+    def patch_data_request(self, request: Any) -> Any:
+        """Patch the data request.
+
+        Parameters
+        ----------
+        request : Any
+            The data request.
+
+        Returns
+        -------
+        Any
+            The patched data request.
+        """
         for p in self.pre_processors:
             request = p.patch_data_request(request)
 

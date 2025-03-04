@@ -45,7 +45,7 @@
 
 # LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
 # retrieve,levtype=sfc,param=lsm,grid=n320,target=data.grib
-- - grid: N320
+- - { grid: N320 }
   - |
     eJzt1LFLw0AYBfB3Z9M6iKBQpOBQxUFEobro4BBEseKkkzhIEQUHBzddhAyKjl10lIL/gIO7xamDg6NO6iK6iIOTS3zf5aqXpo
     T+AeZHw9GEIyTfe4urS3NhqDXM4TV4yitsAkNQuXete/hHyF+fhiKdUaVSaZJ3lruA7oVAK4wiTB6ADmRHWXvresJsf8xFfu9p

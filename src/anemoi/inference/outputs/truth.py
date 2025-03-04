@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import Dict
 
 from anemoi.inference.types import State
 
@@ -28,7 +29,7 @@ class TruthOutput(ForwardOutput):
     the forecasts, effectively only for times in the past.
     """
 
-    def __init__(self, context: Context, output: dict, **kwargs):
+    def __init__(self, context: Context, output: Dict, **kwargs) -> None:
         super().__init__(context, **kwargs)
         self._input = self.context.create_input()
         self.output: Output = create_output(context, output)
@@ -47,7 +48,7 @@ class TruthOutput(ForwardOutput):
     def close(self) -> None:
         self.output.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TruthOutput({self.output})"
 
     def print_summary(self, depth: int = 0) -> None:
