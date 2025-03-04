@@ -54,7 +54,6 @@ class Runner(Context):
         self,
         checkpoint,
         *,
-        accumulate_from_start_of_forecast=False,
         device: str = "cuda",
         precision: str = None,
         report_error=False,
@@ -121,8 +120,6 @@ class Runner(Context):
         # Shallow copy to avoid modifying the user's input state
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
-
-        input_state = self.preprocess(input_state)
 
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
