@@ -9,7 +9,7 @@
 
 
 import logging
-from typing import List
+import warnings
 
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
@@ -56,9 +56,9 @@ class DefaultRunner(Runner):
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
-            trace_path=config.trace_path,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
+            trace_path=config.trace_path,
             use_profiler=config.use_profiler,
         )
 
@@ -121,6 +121,33 @@ class DefaultRunner(Runner):
         return [result]
 
     def create_pre_processors(self) -> List[create_pre_processor]:
+
+        # TODO #131:
+        # For now, implement a three-way switch.
+        # post_processors: None -> accumulate_from_start_of_forecast = True
+        # post_processors: []   -> accumulate_from_start_of_forecast = False
+        # post_processors: ["accumulate_from_start_of_forecast"] -> accumulate_from_start_of_forecast = True
+
+        if self.config.post_processors is None:
+            self.config.post_processors = ["accumulate_from_start_of_forecast"]
+            warnings.warn(
+                """
+                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
+
+                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
+                Update your config if you wish to keep accumulating from the beginning.
+                https://github.com/ecmwf/anemoi-inference/issues/131
+                """,
+            )
+
+        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
+            warnings.warn(
+                """
+                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
+                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
+                """
+            )
+
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))

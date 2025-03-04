@@ -124,8 +124,6 @@ class Runner(Context):
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
 
-        # input_state = self.preprocess(input_state)
-
         self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
         self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
         self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
@@ -140,12 +138,12 @@ class Runner(Context):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
 
-        try:
-            yield from self.forecast(lead_time, input_tensor, input_state)
-        except (TypeError, ModuleNotFoundError, AttributeError):
-            if self.report_error:
-                self.checkpoint.report_error()
-            raise
+            try:
+                yield from self.forecast(lead_time, input_tensor, input_state)
+            except (TypeError, ModuleNotFoundError, AttributeError):
+                if self.report_error:
+                    self.checkpoint.report_error()
+                raise
 
     def add_initial_forcings_to_input_state(self, input_state):
         # Should that be alreay a list of dates
