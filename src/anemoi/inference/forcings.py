@@ -12,7 +12,6 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
-from typing import Dict
 from typing import List
 
 import earthkit.data as ekd
@@ -22,7 +21,10 @@ from earthkit.data.indexing.fieldlist import FieldArray
 
 from anemoi.inference.context import Context
 from anemoi.inference.inputs.dataset import DatasetInput
-from anemoi.inference.types import Date, FloatArray, IntArray, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ class ComputedForcings(Forcings):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Datd], current_state: State) -> FloatArray:
+    def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
 
         LOG.debug("Adding dynamic forcings %s", self.variables)
 

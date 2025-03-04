@@ -7,29 +7,30 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import datetime
 import logging
 from typing import Any
 from typing import List
 from typing import Optional
 
 import earthkit.data as ekd
+import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.grib.encoding import encode_message
+from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
-from ..decorators import main_argument
 from . import input_registry
-from .grib import GribInput
 from .ekd import EkdInput
 
-
 LOG = logging.getLogger(__name__)
+
 
 @input_registry.register("dummy")
 class DummyInput(EkdInput):
     """Dummy input used for testing."""
-
 
     trace_name = "dummy"
 
@@ -47,6 +48,8 @@ class DummyInput(EkdInput):
         """
         super().__init__(context, namer=namer, **kwargs)
 
+        self.templates = TemplateManager(self, "builtin")
+
     def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.
 
@@ -60,7 +63,11 @@ class DummyInput(EkdInput):
         State
             The created input state.
         """
-        return self._create_state(ekd.from_source("file", self.path), variables=None, date=date)
+        if date is None:
+            date = [datetime.datetime(2000, 1, 1)]
+
+        dates = [date + h for h in self.checkpoint.lagged]
+        return self._create_state(self._fields(dates), variables=None, date=date)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -86,8 +93,32 @@ class DummyInput(EkdInput):
             current_state=current_state,
         )
 
-    def _fields(self, date: Optional[Date], variables: Optional[List[str]]):
+    def _fields(self, dates: Optional[List[Date]] = None, variables: Optional[List[str]] = None):
+        from earthkit.data.indexing.fieldlist import SimpleFieldList
+
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
 
-        assert False, variables
+        result = []
+        for v in variables:
+            template = self.templates.template(v, {})
+            for date in dates:
+                handle = encode_message(
+                    values=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
+                    template=template,
+                    metadata=dict(
+                        date=date.strftime("%Y%m%d"),
+                        time=date.strftime("%H%M"),
+                        shortName=v,
+                    ),
+                )
+                result.append(ekd.from_source("memory", handle.get_buffer())[0])
+
+        for f in result:
+            print(f)
+
+        return SimpleFieldList(result)
+
+    def template_lookup(self, name: str) -> dict:
+        # Unused, but required by the TemplateManager
+        return {}

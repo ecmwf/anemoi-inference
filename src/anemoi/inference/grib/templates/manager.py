@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 class TemplateManager:
     """A class to manage GRIB templates."""
 
-    def __init__(self, owner: Any, templates: Optional[Union[List[str], str]]) -> None:
+    def __init__(self, owner: Any, templates: Optional[Union[List[str], str]] = None) -> None:
         self.owner = owner
         self.checkpoint = owner.context.checkpoint
         self.typed_variables = self.checkpoint.typed_variables
@@ -66,7 +66,7 @@ class TemplateManager:
             name=name,
             grid=self._grid(checkpoint.grid),
             time_processing=typed.time_processing,
-            number_of_grid_points=len(state["latitudes"]),
+            number_of_grid_points=checkpoint.number_of_grid_points,
         )
 
         for key, value in typed.grib_keys.items():
