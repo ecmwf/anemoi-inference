@@ -65,7 +65,10 @@ def fake_huggingface_ckpt(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @patch("huggingface_hub.snapshot_download")
 @pytest.mark.parametrize("ckpt", ["organisation/test_repo"])
 def test_huggingface_repo_download_str(
-    huggingface_mock: unittest.mock.Mock, monkeypatch: pytest.MonkeyPatch, ckpt: str, fake_huggingface_repo: Path
+    huggingface_mock: unittest.mock.Mock,
+    monkeypatch: pytest.MonkeyPatch,
+    ckpt: str,
+    fake_huggingface_repo: Path,
 ) -> None:
     """Test downloading a huggingface repo using a string identifier.
 
@@ -93,7 +96,10 @@ def test_huggingface_repo_download_str(
 @patch("huggingface_hub.snapshot_download")
 @pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo"}])
 def test_huggingface_repo_download_dict(
-    huggingface_mock: unittest.mock.Mock, monkeypatch: pytest.MonkeyPatch, ckpt: dict, fake_huggingface_repo: Path
+    huggingface_mock: unittest.mock.Mock,
+    monkeypatch: pytest.MonkeyPatch,
+    ckpt: dict,
+    fake_huggingface_repo: Path,
 ) -> None:
     """Test downloading a huggingface repo using a dictionary identifier.
 
@@ -121,7 +127,10 @@ def test_huggingface_repo_download_dict(
 @patch("huggingface_hub.hf_hub_download")
 @pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo", "filename": "model.ckpt"}])
 def test_huggingface_file_download(
-    huggingface_mock: unittest.mock.Mock, monkeypatch: pytest.MonkeyPatch, ckpt: dict, fake_huggingface_ckpt: Path
+    huggingface_mock: unittest.mock.Mock,
+    monkeypatch: pytest.MonkeyPatch,
+    ckpt: dict,
+    fake_huggingface_ckpt: Path,
 ) -> None:
     """Test downloading a specific file from a huggingface repo.
 

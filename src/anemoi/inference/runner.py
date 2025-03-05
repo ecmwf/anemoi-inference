@@ -13,6 +13,7 @@ import logging
 import warnings
 from functools import cached_property
 from typing import Any
+from typing import Dict
 from typing import Optional
 
 import numpy as np
@@ -75,8 +76,8 @@ class Runner(Context):
         allow_nans: Optional[bool] = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
-        patch_metadata: dict = {},
-        development_hacks: dict = {},
+        patch_metadata: Dict[str, Any] = {},
+        development_hacks: Dict[str, Any] = {},
         trace_path: Optional[str] = None,
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,

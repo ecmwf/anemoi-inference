@@ -46,7 +46,7 @@ class main_argument:
         """
         self.name = name
 
-    def __call__(self, f: Callable) -> Callable:
+    def __call__(self, f: Callable[..., Any]) -> Callable[..., Any]:
         """Decorate the function to set the main argument.
 
         Parameters
@@ -61,7 +61,7 @@ class main_argument:
         """
 
         @wraps(f)
-        def decorator(context, main=MARKER, *args: Any, **kwargs: Any):
+        def decorator(context, main=MARKER, *args: Any, **kwargs: Any) -> Any:
             """Decorator function to set the main argument.
 
             Parameters

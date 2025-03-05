@@ -11,6 +11,7 @@ import os
 from functools import wraps
 from typing import Any
 from typing import Callable
+from typing import Dict
 from unittest.mock import patch
 
 import yaml
@@ -20,7 +21,7 @@ HERE = os.path.dirname(__file__)
 # Do not include any imports that may load that functoin
 
 
-def load_metadata(path, supporting_arrays=True) -> dict:
+def load_metadata(path, supporting_arrays=True) -> Dict[str, Any]:
     """Load metadata from a YAML file.
 
     Parameters
@@ -40,7 +41,7 @@ def load_metadata(path, supporting_arrays=True) -> dict:
         return yaml.safe_load(f)
 
 
-def dummy_checkpoints(func: Callable) -> Callable:
+def dummy_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to mock the load_metadata function.
 
     Parameters
@@ -55,7 +56,7 @@ def dummy_checkpoints(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         with patch("anemoi.utils.checkpoints.load_metadata", load_metadata):
             return func(*args, **kwargs)
 

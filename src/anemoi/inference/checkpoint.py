@@ -482,7 +482,7 @@ class Checkpoint:
         dates: List[Date],
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
-        patch_request: Optional[Callable] = None,
+        patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
         **kwargs: Any,
     ) -> List[DataRequest]:
         """Generate MARS requests for the given variables and dates.

@@ -12,7 +12,7 @@ from typing import Any
 from typing import Callable
 
 
-def fake_checkpoints(func: Callable) -> Callable:
+def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to mock checkpoints for testing.
 
     Parameters
