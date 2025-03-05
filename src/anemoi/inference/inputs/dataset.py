@@ -67,7 +67,7 @@ class DatasetInput(Input):
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
 
     @cached_property
-    def ds(self):
+    def ds(self) -> Any:
         """Return the dataset."""
         from anemoi.datasets import open_dataset
 

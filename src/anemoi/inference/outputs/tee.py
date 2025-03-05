@@ -9,6 +9,12 @@
 
 import datetime
 import logging
+from typing import Any
+from typing import List
+from typing import Optional
+
+from anemoi.inference.config import Configuration
+from anemoi.inference.context import Context
 
 from ..output import ForwardOutput
 from . import create_output
@@ -29,12 +35,12 @@ class TeeOutput(ForwardOutput):
 
     def __init__(
         self,
-        context: object,
+        context: Context,
         *args: tuple,
-        outputs: list | tuple | None = None,
-        output_frequency: int | None = None,
-        write_initial_state: bool | None = None,
-        **kwargs: dict,
+        outputs: List[Configuration],
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
+        **kwargs: Any,
     ):
         """Initialize the TeeOutput.
 

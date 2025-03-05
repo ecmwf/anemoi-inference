@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 import logging
 import os
 import warnings
@@ -22,6 +23,8 @@ from typing import Iterator
 from typing import List
 from typing import Literal
 from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
@@ -69,7 +72,7 @@ def _remove_full_paths(x: Any) -> Any:
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
-    def __init__(self, metadata: dict, supporting_arrays: Dict[str, FloatArray] = {}):
+    def __init__(self, metadata: Dict[str, Any], supporting_arrays: Dict[str, FloatArray] = {}):
         """Initialize the Metadata object.
 
         Parameters
@@ -157,14 +160,14 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @cached_property
-    def timestep(self) -> np.timedelta64:
+    def timestep(self) -> datetime.timedelta:
         """Model time stepping timestep."""
         # frequency = to_timedelta(self._config_data.frequency)
         timestep = to_timedelta(self._config_data.timestep)
         return timestep
 
     @cached_property
-    def precision(self) -> int:
+    def precision(self) -> Union[str, int]:
         """Return the precision of the model (bits per float)."""
         return self._config_training.precision
 
@@ -244,7 +247,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(self._indices.model.input.prognostic)
 
     @cached_property
-    def computed_time_dependent_forcings(self) -> tuple[np.ndarray, list]:
+    def computed_time_dependent_forcings(self) -> Tuple[np.ndarray, list]:
         """Return the indices and names of the computed forcings that are not constant in time."""
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -268,7 +271,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(indices), variables
 
     @cached_property
-    def computed_constant_forcings(self) -> tuple[np.ndarray, list]:
+    def computed_constant_forcings(self) -> Tuple[FloatArray, List[str]]:
         """Return the indices and names of the computed forcings that are  constant in time."""
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -301,7 +304,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return tuple(self._metadata.dataset.variables)
 
     @cached_property
-    def variables_metadata(self) -> dict:
+    def variables_metadata(self) -> Dict[str, Any]:
         """Return the variables and their metadata as found in the training dataset."""
         try:
             result = self._metadata.dataset.variables_metadata
@@ -422,7 +425,7 @@ class Metadata(PatchMixin, LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
-        def namer(field: ekd.Field, metadata: ekd.Metadata) -> str:
+        def namer(field: ekd.Field, metadata: Dict[str, Any]) -> str:
             # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
@@ -516,7 +519,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             yield metadata["mars"].copy()
 
-    def mars_by_levtype(self, levtype: str) -> tuple[set, set]:
+    def mars_by_levtype(self, levtype: str) -> Tuple[set, set]:
         """Get MARS parameters and levels by levtype.
 
         Parameters
@@ -983,7 +986,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._supporting_arrays[name]
 
     @property
-    def supporting_arrays(self) -> dict:
+    def supporting_arrays(self) -> Dict[str, FloatArray]:
         """Return the supporting arrays."""
         return self._supporting_arrays
 
@@ -1003,7 +1006,7 @@ class Metadata(PatchMixin, LegacyMixin):
         # TODO
         return None
 
-    def provenance_training(self) -> dict:
+    def provenance_training(self) -> Dict[str, Any]:
         """Get the environmental configuration when trained.
 
         Returns
@@ -1170,22 +1173,22 @@ class SourceMetadata(Metadata):
     ###########################################################################
 
     @property
-    def _config_training(self) -> dict:
+    def _config_training(self) -> DotDict:
         """Return the training configuration."""
         return self.parent._config_training
 
     @property
-    def _config_data(self) -> dict:
+    def _config_data(self) -> DotDict:
         """Return the data configuration."""
         return self.parent._config_data
 
     @property
-    def _indices(self) -> dict:
+    def _indices(self) -> DotDict:
         """Return the indices."""
         return self.parent._indices
 
     @property
-    def _config(self) -> dict:
+    def _config(self) -> DotDict:
         """Return the configuration."""
         return self.parent._config
 

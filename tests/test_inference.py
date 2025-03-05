@@ -20,7 +20,7 @@ HERE = os.path.dirname(__file__)
 
 
 @fake_checkpoints
-def test_inference() -> None:
+def test_inference_dummy() -> None:
     """Test the inference process using a fake checkpoint.
 
     This function loads a configuration, creates a runner, and runs the inference
@@ -34,5 +34,39 @@ def test_inference() -> None:
     runner.execute()
 
 
+@fake_checkpoints
+def test_inference_mars() -> None:
+    """Test the inference process using a fake checkpoint.
+
+    This function loads a configuration, creates a runner, and runs the inference
+    process to ensure that the system works as expected with the provided configuration.
+    """
+    config = RunConfiguration.load(
+        os.path.join(HERE, "configs/simple.yaml"),
+        overrides=dict(device="cpu", input="mars"),
+    )
+    runner = create_runner(config)
+    runner.execute()
+
+
+@fake_checkpoints
+def test_inference_cds() -> None:
+    """Test the inference process using a fake checkpoint.
+
+    This function loads a configuration, creates a runner, and runs the inference
+    process to ensure that the system works as expected with the provided configuration.
+    """
+    config = RunConfiguration.load(
+        os.path.join(HERE, "configs/simple.yaml"),
+        overrides=dict(device="cpu", input={"cds": dict(dataset="reanalysis-era5-complete")}),
+    )
+    runner = create_runner(config)
+    runner.execute()
+
+
 if __name__ == "__main__":
-    test_inference()
+    test_inference_cds()
+    for name, obj in list(globals().items()):
+        if name.startswith("test_") and callable(obj):
+            print(f"Running {name}...")
+            obj()

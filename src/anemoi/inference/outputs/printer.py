@@ -66,6 +66,9 @@ def print_state(state: State, print=print, max_lines: int = 4, variables: Option
         variables = names
         max_lines = 0
 
+    if variables is None:
+        variables = names
+
     if not isinstance(variables, (list, tuple, set)):
         variables = [variables]
 

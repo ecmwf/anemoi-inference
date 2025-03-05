@@ -100,6 +100,11 @@ def retrieve(
         r.update(kwargs)
 
         LOG.debug("%s", _(r))
+
+        print("++++++++++++++++")
+        print(_(r))
+        print("++++++++++++++++")
+
         result += ekd.from_source("cds", d, r)
 
     return result
@@ -191,19 +196,23 @@ class CDSInput(GribInput):
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def load_forcings(self, variables: List[str], dates: List[Date]) -> Any:
-        """Load forcings for the given variables and dates.
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+        """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
         variables : List[str]
-            List of variables to load.
+            The list of variables for which to load the forcings state.
         dates : List[Date]
-            List of dates for which to load forcings.
+            The list of dates for which to load the forcings state.
+        current_state : State
+            The current state to be updated with the loaded forcings state.
 
         Returns
         -------
         Any
-            Loaded forcings.
+            The loaded forcings state.
         """
-        return self._load_forcings(self.retrieve(variables, dates), variables, dates)
+        return self._load_forcings_state(
+            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+        )

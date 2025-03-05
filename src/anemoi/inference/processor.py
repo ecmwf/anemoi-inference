@@ -8,10 +8,13 @@
 #
 from abc import ABC
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
-from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import State
+
+if TYPE_CHECKING:
+    from anemoi.inference.context import Context
 
 
 class Processor(ABC):
@@ -23,7 +26,7 @@ class Processor(ABC):
         The context in which the processor operates.
     """
 
-    def __init__(self, context: Context) -> None:
+    def __init__(self, context: "Context") -> None:
         self.context = context
         self.checkpoint = context.checkpoint
 
