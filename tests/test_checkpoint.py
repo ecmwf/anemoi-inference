@@ -73,8 +73,8 @@ def test_checkpoint() -> None:
     """
     from anemoi.inference.checkpoint import Checkpoint
 
-    c = Checkpoint("model.ckpt")
-    c.accumulations
+    c = Checkpoint("model.chkpt")
+    c.variables_from_input
 
 
 if __name__ == "__main__":
