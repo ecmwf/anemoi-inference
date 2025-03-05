@@ -16,6 +16,7 @@ from typing import List
 from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.task import Task
+from anemoi.inference.transport import Transport
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class CouplingSend(Coupling):
     def apply(
         self,
         task: Any,
-        transport: "Transport",
+        transport: Transport,
         *,
         input_state: State,
         output_state: State,
@@ -96,13 +97,13 @@ class CouplingRecv(Coupling):
 
     def apply(
         self,
-        task: Any,
-        transport: "Transport",
+        task: Task,
+        transport: Transport,
         *,
         input_state: State,
         output_state: State,
         constants: State,
-        tag: str,
+        tag: int,
     ) -> None:
         """Apply the coupling receive operation.
 
@@ -282,7 +283,7 @@ class Transport(ABC):
         for f, v in fields.items():
             assert len(v.shape) == 1, f"Expected  got {v.shape}"
 
-        state: Dict[str, Any] = input_state.copy()
+        state: State = input_state.copy()
         state["fields"] = fields
 
         # Don't send unnecessary data

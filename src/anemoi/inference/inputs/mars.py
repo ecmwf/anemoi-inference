@@ -19,6 +19,7 @@ from typing import Union
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -158,7 +159,7 @@ def retrieve(
     """
     import earthkit.data as ekd
 
-    def _(r):
+    def _(r: DataRequest) -> str:
         mars = r.copy()
         for k, v in r.items():
             if isinstance(v, (list, tuple)):
@@ -288,16 +289,16 @@ class MarsInput(GribInput):
             **kwargs,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
         variables : List[str]
             The list of variables for which to load the forcings state.
-        dates : List[Any]
+        dates : List[Date]
             The list of dates for which to load the forcings state.
-        current_state : Any
+        current_state : State
             The current state to be updated with the loaded forcings state.
 
         Returns

@@ -389,7 +389,7 @@ class EkdInput(Input):
         fields: ekd.FieldList,
         variables: List[str],
         dates: List[Any],
-        current_state: Dict[str, Any],
+        current_state: State,
     ) -> Dict[str, Any]:
         """Load the forcings state.
 

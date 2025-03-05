@@ -16,6 +16,8 @@ from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
+from anemoi.inference.task import Task
+
 from ..transport import Transport
 from . import transport_registry
 
@@ -68,7 +70,7 @@ class TaskWrapper:
 class ThreadsTransport(Transport):
     """Transport implementation using threads."""
 
-    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, couplings: Any, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
         """Initialize the ThreadsTransport.
 
         Parameters

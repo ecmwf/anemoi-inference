@@ -27,7 +27,7 @@ class Output(ABC):
 
     def __init__(
         self,
-        context: "Context",
+        context: Context,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):

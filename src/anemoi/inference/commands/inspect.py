@@ -47,7 +47,7 @@ class InspectCmd(Command):
             c.validate_environment()
             return
 
-        def _(f: Callable) -> Any:
+        def _(f: Callable[[], Any]) -> Any:
             """Wrapper function to handle exceptions.
 
             Parameters

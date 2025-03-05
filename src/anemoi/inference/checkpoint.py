@@ -19,6 +19,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
@@ -217,7 +218,7 @@ class Checkpoint:
         """Get the sources."""
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
-    def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[[ekd.Field, Any], str]:
         """Return a callable that can be used to name fields.
 
         Parameters

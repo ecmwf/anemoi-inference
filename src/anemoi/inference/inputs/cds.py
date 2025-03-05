@@ -58,7 +58,7 @@ def retrieve(
         Retrieved data.
     """
 
-    def _(r):
+    def _(r: DataRequest) -> str:
         mars = r.copy()
         for k, v in r.items():
             if isinstance(v, (list, tuple)):

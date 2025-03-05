@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 class CutoutInput(Input):
     """An Input object that combines two inputs."""
 
-    def __init__(self, context, lam, globe):
+    def __init__(self, context: Context, lam: Input, globe: Input) -> None:
         """Initialize CutoutInput.
 
         Parameters

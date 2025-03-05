@@ -89,7 +89,7 @@ class IconInput(GribInput):
             longitudes=longitudes,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: Any) -> Any:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Loads the forcings state for the given variables and dates.
 
         Parameters
@@ -98,7 +98,7 @@ class IconInput(GribInput):
             List of variable names.
         dates : List[Date]
             List of dates for which to load the forcings state.
-        current_state : Any
+        current_state : State
             The current state.
 
         Returns

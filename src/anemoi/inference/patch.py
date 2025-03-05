@@ -110,7 +110,7 @@ class PatchMixin:
         dataset = self._metadata["dataset"]
         arguments = dataset["arguments"]
 
-        def _(x):
+        def _(x: Any) -> Any:
             if isinstance(x, dict):
                 return {k: _(v) for k, v in x.items()}
             if isinstance(x, list):
@@ -166,7 +166,7 @@ class PatchMixin:
             dates.append(start_date)
             start_date += frequency
 
-        def _open_zarr(name):
+        def _open_zarr(name: str) -> zarr.hierarchy.Group:
             nonlocal dates
             name = os.path.basename(name)
             name = os.path.splitext(name)[0]

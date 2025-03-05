@@ -14,6 +14,7 @@ from typing import Optional
 
 import numpy as np
 
+from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -46,14 +47,17 @@ class NetCDFOutput(Output):
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         path: str,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+
+        from netCDF4 import Dataset
+
         self.path = path
-        self.ncfile = None
+        self.ncfile: Optional[Dataset] = None
         self.float_size = "f4"
 
     def __repr__(self) -> str:

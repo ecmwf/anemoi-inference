@@ -22,6 +22,8 @@ from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
 
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import Shape
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -39,9 +41,9 @@ class StateFieldGeography:
         self._field = field
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> Shape:
         """Tuple: Shape of the geographical field."""
-        return self.field.shape
+        return self._field.shape
 
 
 class StateFieldMetadata(RawMetadata):
@@ -100,7 +102,7 @@ class StateField(ekd.Field):
         The state information associated with the field.
     """
 
-    def __init__(self, name: str, values: FloatArray, state: Dict[str, Any]) -> None:
+    def __init__(self, name: str, values: FloatArray, state: State) -> None:
         self.name = name
         self.__values = values
         self.state = state
@@ -121,7 +123,7 @@ class StateField(ekd.Field):
         return self.__values.astype(dtype)
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> Shape:
         """Tuple: Shape of the field."""
         return self.__values.shape
 
@@ -135,7 +137,7 @@ class StateField(ekd.Field):
         return f"{self.__class__.__name__ }({self._metadata})"
 
 
-def wrap_state(state: Dict[str, Any]) -> SimpleFieldList:
+def wrap_state(state: State) -> SimpleFieldList:
     """Transform a state dictionary into an earthkit.data field list.
 
     Parameters
@@ -153,7 +155,7 @@ def wrap_state(state: Dict[str, Any]) -> SimpleFieldList:
     return SimpleFieldList(fields)
 
 
-def unwrap_state(fields: SimpleFieldList, state: Dict[str, Any]) -> Dict[str, Any]:
+def unwrap_state(fields: SimpleFieldList, state: State) -> Dict[str, Any]:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters

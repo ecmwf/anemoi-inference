@@ -12,6 +12,8 @@ from functools import wraps
 from typing import Any
 from typing import Callable
 
+from anemoi.inference.context import Context
+
 MARKER = object()
 
 
@@ -46,22 +48,22 @@ class main_argument:
         """
         self.name = name
 
-    def __call__(self, f: Callable[..., Any]) -> Callable[..., Any]:
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Decorate the function to set the main argument.
 
         Parameters
         ----------
-        f : Callable
+        func : Callable[..., Any]
             The function to decorate.
 
         Returns
         -------
-        Callable
+        Callable[..., Any]
             The decorated function.
         """
 
-        @wraps(f)
-        def decorator(context, main=MARKER, *args: Any, **kwargs: Any) -> Any:
+        @wraps(func)
+        def wrapped(context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
             """Decorator function to set the main argument.
 
             Parameters
@@ -82,6 +84,7 @@ class main_argument:
             """
             if main is not MARKER:
                 kwargs[self.name] = main
-            return f(context, *args, **kwargs)
 
-        return decorator
+            return func(context, *args, **kwargs)
+
+        return wrapped

@@ -311,7 +311,7 @@ def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> Non
         If the GRIB field could not be encoded.
     """
 
-    def same(w, v, k):
+    def same(w: Any, v: Any, k: str) -> bool:
         if type(v) is type(w):
             return v == w
         return str(w) == str(v)

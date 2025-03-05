@@ -23,6 +23,7 @@ from anemoi.inference.inputs.grib import GribInput
 from anemoi.inference.outputs.grib import GribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -59,7 +60,11 @@ class FieldListInput(GribInput):
         return self._create_state(self.input_fields, variables=None, date=date)
 
     def load_forcings_state(
-        self, *, variables: List[str], dates: List[str], current_state: Dict[str, Any]
+        self,
+        *,
+        variables: List[str],
+        dates: List[str],
+        current_state: State,
     ) -> Dict[str, Any]:
         """Load the forcings state.
 
@@ -78,10 +83,13 @@ class FieldListInput(GribInput):
             The updated state with loaded forcings.
         """
         return self._load_forcings_state(
-            self.input_fields, variables=variables, dates=dates, current_state=current_state
+            self.input_fields,
+            variables=variables,
+            dates=dates,
+            current_state=current_state,
         )
 
-    def set_private_attributes(self, state: Dict[str, Any], input_fields: Any) -> None:
+    def set_private_attributes(self, state: State, input_fields: Any) -> None:
         """Set private attributes for the state.
 
         Parameters

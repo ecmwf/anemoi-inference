@@ -23,6 +23,7 @@ from typing import List
 from typing import Literal
 from typing import Optional
 
+import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
@@ -43,17 +44,17 @@ USE_LEGACY = True
 LOG = logging.getLogger(__name__)
 
 
-def _remove_full_paths(x: dict | list | str) -> dict | list | str:
+def _remove_full_paths(x: Any) -> Any:
     """Remove full paths from the given data structure.
 
     Parameters
     ----------
-    x : dict, list, or str
+    x : Any
         The data structure to process.
 
     Returns
     -------
-    dict, list, or str
+    Any
         The processed data structure with full paths removed.
     """
     if isinstance(x, dict):
@@ -83,27 +84,27 @@ class Metadata(PatchMixin, LegacyMixin):
         self._supporting_arrays = supporting_arrays
 
     @property
-    def _indices(self) -> dict:
+    def _indices(self) -> DotDict:
         """Return the data indices."""
         return self._metadata.data_indices
 
     @property
-    def _config_data(self) -> dict:
+    def _config_data(self) -> DotDict:
         """Return the data configuration."""
         return self._config.data
 
     @property
-    def _config_training(self) -> dict:
+    def _config_training(self) -> DotDict:
         """Return the training configuration."""
         return self._config.training
 
     @property
-    def _config_model(self) -> dict:
+    def _config_model(self) -> DotDict:
         """Return the model configuration."""
         return self._config.model
 
     @property
-    def _config(self) -> dict:
+    def _config(self) -> DotDict:
         """Return the configuration."""
         return self._metadata.config
 
@@ -377,12 +378,12 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return FieldArray([f.copy(name=_name) for f in fields])
 
-    def sort_by_name(self, fields: list, namer: Callable = None, *args: Any, **kwargs: Any) -> list:
+    def sort_by_name(self, fields: ekd.FieldList, namer: Callable = None, *args: Any, **kwargs: Any) -> ekd.FieldList:
         """Sort fields by name.
 
         Parameters
         ----------
-        fields : list
+        fields : ekd.FieldList
             The fields to sort.
         namer : callable, optional
             The namer function, by default None.
@@ -393,7 +394,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         Returns
         -------
-        list
+        ekd.FieldList
             The sorted fields.
         """
         fields = self.name_fields(fields, namer=namer)
@@ -421,7 +422,7 @@ class Metadata(PatchMixin, LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
-        def namer(field, metadata):
+        def namer(field: ekd.Field, metadata: ekd.Metadata) -> str:
             # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
@@ -446,7 +447,7 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     @property
-    def _data_request(self) -> dict:
+    def _data_request(self) -> DataRequest:
         """Return the data request as encoded in the dataset."""
         try:
             return self._metadata.dataset.data_request

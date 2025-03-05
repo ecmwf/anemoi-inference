@@ -22,6 +22,7 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
+from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
 from ..input import Input
@@ -73,16 +74,16 @@ class DatasetInput(Input):
         return open_dataset(*self.args, **self.kwargs)
 
     @cached_property
-    def latitudes(self):
+    def latitudes(self) -> FloatArray:
         """Return the latitudes."""
         return self.ds.latitudes
 
     @cached_property
-    def longitudes(self):
+    def longitudes(self) -> FloatArray:
         """Return the longitudes."""
         return self.ds.longitudes
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.args}, {self.kwargs})"
 
@@ -134,9 +135,7 @@ class DatasetInput(Input):
 
         return input_state
 
-    def load_forcings_state(
-        self, *, variables: List[str], dates: List[Date], current_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
@@ -145,12 +144,12 @@ class DatasetInput(Input):
             List of variables to load.
         dates : List[Any]
             List of dates for which to load the forcings.
-        current_state : Dict[str, Any]
+        current_state : State
             The current state of the input.
 
         Returns
         -------
-        Dict[str, Any]
+        State
             The loaded forcings state.
         """
         data = self._load_dates(dates)  # (date, variables, ensemble, values)

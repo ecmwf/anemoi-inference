@@ -21,7 +21,7 @@ HERE = os.path.dirname(__file__)
 # Do not include any imports that may load that functoin
 
 
-def load_metadata(path, supporting_arrays=True) -> Dict[str, Any]:
+def load_metadata(path: str, supporting_arrays: bool = True) -> Dict[str, Any]:
     """Load metadata from a YAML file.
 
     Parameters

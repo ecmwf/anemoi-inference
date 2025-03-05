@@ -15,7 +15,13 @@ from typing import List
 
 from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.forcings import CoupledForcings
+from anemoi.inference.forcings import Forcings
+from anemoi.inference.input import Input
+from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
+from anemoi.inference.transport import Transport
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..task import Task
 from . import task_registry
@@ -30,7 +36,7 @@ class CoupledRunner(DefaultRunner):
     using the provided configuration and input.
     """
 
-    def __init__(self, config: Dict[str, Any], input: "CoupledInput") -> None:
+    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
         """Initialize the CoupledRunner.
 
         Parameters
@@ -41,7 +47,7 @@ class CoupledRunner(DefaultRunner):
             Coupled input instance.
         """
         super().__init__(config)
-        self.input = input
+        self.coupled_input = coupled_input
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
         """Create dynamic coupled forcings.
@@ -58,10 +64,10 @@ class CoupledRunner(DefaultRunner):
         list of CoupledForcings
             List of coupled forcings.
         """
-        result = CoupledForcings(self, self.input, variables, mask)
+        result = CoupledForcings(self, self.coupled_input, variables, mask)
         return [result]
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Dict[str, Any]]) -> List[CoupledForcings]:
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
         """Initialize dynamic forcings inputs.
 
         Parameters
@@ -77,7 +83,34 @@ class CoupledRunner(DefaultRunner):
         result = []
         for c in dynamic_forcings_inputs:
             result.extend(super().create_dynamic_coupled_forcings(c.variables, c.mask))
+
         return result
+
+    def create_input(self) -> Input:
+        """Create the input.
+
+        Returns
+        """
+
+        # We need to wrap the input so we can send the initional state to the coupler
+
+        class WrappedInput(Input):
+
+            def __init__(self, wrapped_input: Input, coupled_input: Any) -> None:
+                self.wrapped_input = wrapped_input
+                self.coupled_input = coupled_input
+
+            def create_input_state(self, date: str) -> State:
+                # Override the create_input_state method to send the initial state to the coupler
+                input_state = self.wrapped_input.create_input_state(date=date)
+                # Send the initial state to the coupler
+                self.coupled_input.initial_state(Output.reduce(input_state))
+                return input_state
+
+        return WrappedInput(
+            super().create_input(),
+            self.coupled_input,
+        )
 
 
 class CoupledInput:
@@ -107,9 +140,7 @@ class CoupledInput:
         self.constants = {}
         self.tag = 0
 
-    def load_forcings_state(
-        self, *, variables: List[str], dates: List[str], current_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state.
 
         Parameters
@@ -148,7 +179,7 @@ class CoupledInput:
 
         return state
 
-    def initial_state(self, state: Dict[str, Any]) -> None:
+    def initial_state(self, state: State) -> None:
         """Initialize the state.
 
         Parameters
@@ -189,12 +220,12 @@ class RunnerTask(Task):
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
         self.config = CoupleConfiguration.load(config, overrides=[global_config, overrides])
 
-    def run(self, transport: Any) -> None:
+    def run(self, transport: Transport) -> None:
         """Run the task.
 
         Parameters
         ----------
-        transport : Any
+        transport : Transport
             Transport instance.
         """
         LOG.info("Running task %s", self.name)
@@ -202,18 +233,4 @@ class RunnerTask(Task):
 
         coupler = CoupledInput(self, transport, couplings)
         runner = CoupledRunner(self.config, coupler)
-
-        # TODO: Forctorise with the similar code in commands/run.py
-        input = runner.create_input()
-        output = runner.create_output()
-
-        input_state = input.create_input_state(date=self.config.date)
-        coupler.initial_state(output.reduce(input_state))
-
-        if self.config.write_initial_state:
-            output.write_initial_state(input_state)
-
-        for state in runner.run(input_state=input_state, lead_time=self.config.lead_time):
-            output.write_state(state)
-
-        output.close()
+        runner.execute()

@@ -15,13 +15,16 @@ from functools import cached_property
 from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import Union
 
 import numpy as np
 import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
-from anemoi.utils.timer import Timer  # , Timers
+from anemoi.utils.timer import Timer
+from numpy.typing import DTypeLike
 
+from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
@@ -277,7 +280,7 @@ class Runner(Context):
         """
         return dynamic_forcings_inputs
 
-    def prepare_input_tensor(self, input_state: State, dtype=np.float32) -> FloatArray:
+    def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
         """Prepare the input tensor.
 
         Parameters
@@ -348,7 +351,7 @@ class Runner(Context):
         return input_tensor_numpy
 
     @cached_property
-    def autocast(self) -> torch.dtype:
+    def autocast(self) -> Union[torch.dtype, str]:
         """The autocast precision."""
         autocast = self.precision
 
@@ -373,12 +376,14 @@ class Runner(Context):
             # model.set_inference_options(**self.inference_options)
             return model
 
-    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, fcstep: int, **kwargs: Any) -> Any:
+    def predict_step(
+        self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, fcstep: int, **kwargs: Any
+    ) -> torch.Tensor:
         """Predict the next step.
 
         Parameters
         ----------
-        model : Any
+        model : torch.nn.Module
             The model.
         input_tensor_torch : torch.Tensor
             The input tensor.
@@ -389,7 +394,7 @@ class Runner(Context):
 
         Returns
         -------
-        Any
+        torch.Tensor
             The predicted step.
         """
         return model.predict_step(input_tensor_torch)
@@ -522,7 +527,7 @@ class Runner(Context):
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: np.ndarray
+        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
     ) -> torch.Tensor:
         """Copy prognostic fields to the input tensor.
 
@@ -564,7 +569,7 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: np.ndarray
+        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
     ) -> torch.Tensor:
         """Add dynamic forcings to the input tensor.
 
@@ -619,7 +624,7 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: np.ndarray
+        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
     ) -> torch.Tensor:
         """Add boundary forcings to the input tensor.
 

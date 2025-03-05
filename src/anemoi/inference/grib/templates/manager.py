@@ -11,13 +11,14 @@
 import json
 import logging
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
 
 import earthkit.data as ekd
+
+from anemoi.inference.types import State
 
 from . import create_template_provider
 
@@ -54,7 +55,7 @@ class TemplateManager:
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
-    def template(self, name: str, state: Dict[str, Any]) -> Optional[ekd.Field]:
+    def template(self, name: str, state: State) -> Optional[ekd.Field]:
         """Get the template for a given name and state.
 
         Parameters
@@ -79,7 +80,7 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: Dict[str, Any]) -> Optional[ekd.Field]:
+    def load_template(self, name: str, state: State) -> Optional[ekd.Field]:
         """Load the template for a given name and state.
 
         Parameters

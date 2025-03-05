@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 from typing import Any
+from typing import Dict
 
 from anemoi.utils.config import DotDict
 
@@ -15,7 +16,7 @@ from anemoi.utils.config import DotDict
 #   0,   1,     2,     3,     4,    5,    6,      7,        8,            9
 
 
-def mock_load_metadata(path: str, *, supporting_arrays=True, name: Any = None) -> dict:
+def mock_load_metadata(path: str, *, supporting_arrays: bool = True, name: Any = None) -> Dict[str, Any]:
     """Load mock metadata for testing purposes.
 
     Parameters
@@ -34,7 +35,7 @@ def mock_load_metadata(path: str, *, supporting_arrays=True, name: Any = None) -
     dict, optional
         The supporting arrays if `supporting_arrays` is True.
     """
-    metadata = {
+    metadata: Dict[str, Any] = {
         "config": {
             "training": {
                 "multistep_input": 2,
@@ -75,7 +76,7 @@ def mock_load_metadata(path: str, *, supporting_arrays=True, name: Any = None) -
         },
     }
 
-    arrays = {}
+    arrays: Dict[str, Any] = {}
 
     if supporting_arrays:
         return metadata, arrays
@@ -104,7 +105,7 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     assert weights_only is False, "Not implemented"
 
     class MockModel(torch.nn.Module):
-        def __init__(self, medatada, supporting_arrays):
+        def __init__(self, medatada: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
             """Initialize the mock model.
 
             Parameters

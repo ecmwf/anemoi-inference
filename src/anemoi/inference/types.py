@@ -10,6 +10,7 @@
 import datetime
 from typing import Any
 from typing import Dict
+from typing import Tuple
 from typing import Union
 
 from numpy.typing import NDArray
@@ -32,3 +33,9 @@ IntArray = NDArray[Any]
 
 FloatArray = NDArray[Any]
 """A numpy array of floats."""
+
+BoolArray = NDArray[Any]
+"""A numpy array of booleans."""
+
+Shape = Tuple[int, ...]
+"""A tuple of integers representing the shape of an array."""
