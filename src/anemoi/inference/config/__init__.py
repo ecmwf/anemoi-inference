@@ -13,6 +13,8 @@ import json
 import logging
 import os
 from copy import deepcopy
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
@@ -31,7 +33,7 @@ class Configuration(BaseModel):
     @classmethod
     def load(
         cls,
-        path: Union[str, dict],
+        path: Union[str, Dict[str, Any]],
         overrides: Union[List[str], List[dict], str, dict] = [],
         defaults: Optional[Union[str, List[str], dict]] = None,
     ) -> Configuration:

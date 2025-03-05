@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import json
 from argparse import ArgumentParser
 from argparse import Namespace
 from typing import Any
@@ -28,7 +29,6 @@ class InspectCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.add_argument("path", help="Path to the checkpoint.")
-        command_parser.add_argument("--dump", action="store_true", help="Print internal information")
         command_parser.add_argument(
             "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
         )
@@ -45,10 +45,6 @@ class InspectCmd(Command):
 
         if args.validate:
             c.validate_environment()
-            return
-
-        if args.dump:
-            c.dump()
             return
 
         def _(f: Callable) -> Any:
@@ -69,38 +65,14 @@ class InspectCmd(Command):
             except Exception as e:
                 return str(e)
 
-        print("area:", _(lambda: c.area))
-        print("computed_constants_mask:", _(lambda: c.computed_constants_mask))
-        print("computed_constants:", _(lambda: c.computed_constants))
-        print("computed_forcings_mask:", _(lambda: c.computed_forcings_mask))
-        print("computed_forcings:", _(lambda: c.computed_forcings))
-        print("constant_data_from_input_mask:", _(lambda: c.constant_data_from_input_mask))
-        print("constants_from_input_mask:", _(lambda: c.constants_from_input_mask))
-        print("constants_from_input:", _(lambda: c.constants_from_input))
-        print("data_to_model:", _(lambda: c.data_to_model))
-        print("diagnostic_output_mask:", _(lambda: c.diagnostic_output_mask))
-        print("diagnostic_params:", _(lambda: c.diagnostic_params))
-        print("grid:", _(lambda: c.grid))
-        print("frequency:", _(lambda: c.frequency))
-        print("imputable_variables:", _(lambda: c.imputable_variables))
-        print("index_to_variable:", _(lambda: c.index_to_variable))
-        print("model_to_data:", _(lambda: c.model_to_data))
-        print("multi_step:", _(lambda: c.multi_step))
-        print("number_of_input_features:", _(lambda: c.number_of_input_features))
-        print("operational_config:", _(lambda: c.operational_config))
-        print("order_by:", _(lambda: c.order_by))
-        print("param_level_ml:", _(lambda: c.param_level_ml))
-        print("param_level_pl:", _(lambda: c.param_level_pl))
-        print("param_sfc:", _(lambda: c.param_sfc))
-        print("precision:", _(lambda: c.precision))
-        print("prognostic_data_input_mask:", _(lambda: c.prognostic_data_input_mask))
-        print("prognostic_input_mask:", _(lambda: c.prognostic_input_mask))
-        print("prognostic_output_mask:", _(lambda: c.prognostic_output_mask))
-        print("prognostic_params:", _(lambda: c.prognostic_params))
-        print("select:", _(lambda: c.select))
-        print("variable_to_index:", _(lambda: c.variable_to_index))
-        print("variables_with_nans:", _(lambda: c.variables_with_nans))
-        print("variables:", _(lambda: c.variables))
+        for name in sorted(dir(c)):
+
+            if name.startswith("_"):
+                continue
+
+            print(name, ":")
+            print("  ", json.dumps(_(lambda: getattr(c, name)), indent=4, default=str))
+            print()
 
 
 command = InspectCmd

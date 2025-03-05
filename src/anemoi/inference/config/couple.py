@@ -14,12 +14,12 @@ import logging
 from typing import Any
 from typing import Dict
 
-from pydantic import BaseModel
+from anemoi.inference.config import Configuration
 
 LOG = logging.getLogger(__name__)
 
 
-class CoupleConfiguration(BaseModel):
+class CoupleConfiguration(Configuration):
 
     class Config:
         extra = "forbid"

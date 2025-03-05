@@ -10,6 +10,8 @@
 import logging
 from typing import Optional
 
+from anemoi.inference.config import Configuration
+from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
 from ..output import ForwardOutput
@@ -39,10 +41,10 @@ class ApplyMaskOutput(ForwardOutput):
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         *,
         mask: str,
-        output: dict,
+        output: Configuration,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:

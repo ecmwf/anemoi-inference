@@ -56,7 +56,7 @@ class FieldListInput(GribInput):
         Any
             The created input state.
         """
-        return self._create_input_state(self.input_fields, variables=None, date=date)
+        return self._create_state(self.input_fields, variables=None, date=date)
 
     def load_forcings_state(
         self, *, variables: List[str], dates: List[str], current_state: Dict[str, Any]

@@ -9,7 +9,6 @@
 
 import os
 
-from anemoi.inference.commands.run import _run
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
@@ -32,7 +31,7 @@ def test_inference() -> None:
         overrides=dict(device="cpu", input="dummy"),
     )
     runner = create_runner(config)
-    _run(runner, config)
+    runner.execute()
 
 
 if __name__ == "__main__":

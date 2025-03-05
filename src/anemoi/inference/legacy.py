@@ -15,6 +15,8 @@ from functools import wraps
 from typing import Any
 from typing import Dict
 
+from anemoi.inference.types import DataRequest
+
 LOG = logging.getLogger(__name__)
 
 
@@ -180,12 +182,12 @@ class LegacyMixin:
         return POINTS[self.grid.lower()]
 
     @warn
-    def _legacy_data_request(self) -> Dict[str, Any]:
+    def _legacy_data_request(self) -> DataRequest:
         """Retrieve the data request from metadata.
 
         Returns
         -------
-        Dict[str, Any]
+        DataRequest
             The data request information.
 
         Raises

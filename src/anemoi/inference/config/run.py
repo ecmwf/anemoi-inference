@@ -56,13 +56,13 @@ class RunConfiguration(Configuration):
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error."""
 
-    input: Union[str, Dict, None] = "test"
-    output: Union[str, Dict, None] = "printer"
+    input: Union[str, Dict[str, Any]] = "test"
+    output: Union[str, Dict[str, Any]] = "printer"
 
-    pre_processors: List[Union[str, Dict]] = []
-    post_processors: List[Union[str, Dict]] = []
+    pre_processors: List[Union[str, Dict[str, Any]]] = []
+    post_processors: List[Union[str, Dict[str, Any]]] = []
 
-    forcings: Union[Dict[str, Dict], None] = None
+    forcings: Optional[Dict[str, Dict[str, Any]]] = None
     """Where to find the forcings."""
 
     device: str = "cuda"
@@ -103,11 +103,8 @@ class RunConfiguration(Configuration):
     development_hacks: dict = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around."""
 
-    trace_path: str | None = None
+    trace_path: Optional[str] = None
     """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
 
     debugging_info: dict = {}
     """A dictionary to store debug information. This is ignored."""
-
-    trace_path: str | None = None
-    """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""

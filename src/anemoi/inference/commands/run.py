@@ -12,42 +12,12 @@ from __future__ import annotations
 import logging
 from argparse import ArgumentParser
 from argparse import Namespace
-from typing import Any
 
 from ..config.run import RunConfiguration
 from ..runners import create_runner
 from . import Command
 
 LOG = logging.getLogger(__name__)
-
-
-def _run(runner: Any, config: RunConfiguration) -> None:
-    """Execute the runner with the given configuration.
-
-    Parameters
-    ----------
-    runner : Any
-        The runner instance to execute.
-    config : RunConfiguration
-        The configuration for the run.
-    """
-    input = runner.create_input()
-    output = runner.create_output()
-
-    # pre_processors = runner.pre_processors
-    post_processors = runner.post_processors
-
-    input_state = input.create_input_state(date=config.date)
-
-    output.open(input_state)
-    output.write_initial_state(input_state)
-
-    for state in runner.run(input_state=input_state, lead_time=config.lead_time):
-        for processor in post_processors:
-            state = processor.process(state)
-        output.write_state(state)
-
-    output.close()
 
 
 class RunCmd(Command):
@@ -74,14 +44,13 @@ class RunCmd(Command):
             The arguments passed to the command.
         """
         config = RunConfiguration.load(
-            args.config, args.overrides, defaults=args.defaults, Configuration=RunConfiguration
+            args.config,
+            args.overrides,
+            defaults=args.defaults,
         )
 
-        if config.description is not None:
-            LOG.info("%s", config.description)
-
         runner = create_runner(config)
-        _run(runner, config)
+        runner.execute()
 
 
 command = RunCmd

@@ -88,11 +88,12 @@ entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 version_file = "src/anemoi/inference/_version.py"
 
 [tool.mypy]
+exclude = [ "docs/" ]
 strict = true
 ignore_missing_imports = true
 disable_error_code = [
   # "arg-type",
-  # "assignment",
+  "assignment",
   # "attr-defined",
   # "call-arg",
   # # "comparison-overlap",
@@ -101,7 +102,7 @@ disable_error_code = [
   # "import-untyped",
   # # "index",
   # "list-item",
-  # "misc",
+  "misc",
   # "name-defined",
   # "no-any-return",
   # "no-redef",
@@ -113,7 +114,7 @@ disable_error_code = [
   # "union-attr",
   # # "used-before-def",
   # "valid-type",
-  # "var-annotated",
+  "var-annotated",
 ]
 
 [setuptools.package-data]

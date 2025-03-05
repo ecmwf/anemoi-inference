@@ -24,7 +24,6 @@ import torch.distributed as dist
 from anemoi.inference.config import Configuration
 from anemoi.inference.output import Output
 
-from ..commands.run import _run
 from ..outputs import create_output
 from ..runners import create_runner
 from . import runner_registry
@@ -44,7 +43,7 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
         Process ID.
     """
     runner = create_runner(config, pid=pid)
-    _run(runner, config)
+    runner.execute()
 
 
 @runner_registry.register("parallel")

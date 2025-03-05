@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.input import Input
+from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
 
@@ -78,6 +79,30 @@ class DefaultRunner(Runner):
             use_profiler=config.use_profiler,
         )
 
+    def execute(self) -> None:
+        """Execute the runner."""
+
+        if self.config.description is not None:
+            LOG.info("%s", self.config.description)
+
+        input = self.create_input()
+        output = self.create_output()
+
+        # pre_processors = self.pre_processors
+        post_processors = self.post_processors
+
+        input_state = input.create_input_state(date=self.config.date)
+
+        output.open(input_state)
+        output.write_initial_state(input_state)
+
+        for state in self.run(input_state=input_state, lead_time=self.config.lead_time):
+            for processor in post_processors:
+                state = processor.process(state)
+            output.write_state(state)
+
+        output.close()
+
     def create_input(self) -> Input:
         """Create the input.
 
@@ -90,12 +115,12 @@ class DefaultRunner(Runner):
         LOG.info("Input: %s", input)
         return input
 
-    def create_output(self) -> Input:
+    def create_output(self) -> Output:
         """Create the output.
 
         Returns
         -------
-        Input
+        Output
             The created output.
         """
         output = create_output(self, self.config.output)

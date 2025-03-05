@@ -154,7 +154,7 @@ class RetrieveCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
+        config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
 
