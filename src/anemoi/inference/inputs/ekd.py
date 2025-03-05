@@ -38,17 +38,17 @@ LOG = logging.getLogger(__name__)
 class NoMask:
     """No mask to apply."""
 
-    def apply(self, field: Any) -> Any:
+    def apply(self, field: FloatArray) -> FloatArray:
         """Apply the mask.
 
         Parameters
         ----------
-        field : Any
+        field : FloatArray
             The field to which the mask is applied.
 
         Returns
         -------
-        Any
+        FloatArray
             The field with the mask applied.
         """
         return field
@@ -67,12 +67,12 @@ class ApplyMask:
         """
         self.mask = mask
 
-    def apply(self, field: Any) -> Any:
+    def apply(self, field: FloatArray) -> FloatArray:
         """Apply the mask.
 
         Parameters
         ----------
-        field : Any
+        field : FloatArray
             The field to which the mask is applied.
 
         Returns
@@ -321,7 +321,7 @@ class EkdInput(Input):
 
         return input_state
 
-    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Date], title: str) -> Any:
+    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
         """Filter and sort the data.
 
         Parameters
@@ -388,7 +388,7 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         variables: List[str],
-        dates: List[Date],
+        dates: List[Any],
         current_state: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Load the forcings state.
