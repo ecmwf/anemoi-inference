@@ -14,6 +14,9 @@ from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
+from anemoi.inference.task import Task
+from anemoi.inference.types import State
+
 from ..transport import Transport
 from . import transport_registry
 
@@ -24,7 +27,7 @@ LOG = logging.getLogger(__name__)
 class MPITransport(Transport):
     """Transport implementation using MPI."""
 
-    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, couplings: Any, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
         """Initialize the MPITransport.
 
         Parameters
@@ -61,16 +64,16 @@ class MPITransport(Transport):
         """Wait for all MPI tasks to complete."""
         self.comm.barrier()
 
-    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
+    def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send a state from the sender to the target.
 
         Parameters
         ----------
-        sender : Any
+        sender : Task
             The task sending the state.
-        target : Any
+        target : Task
             The task receiving the state.
-        state : Any
+        state : State
             The state to be sent.
         tag : int
             The tag associated with the state.
