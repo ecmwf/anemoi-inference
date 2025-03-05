@@ -38,13 +38,18 @@ class Processor(ABC):
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def process(self, state: State) -> None:
+    def process(self, state: State) -> State:
         """Process the given state.
 
         Parameters
         ----------
         state : State
             The state to be processed.
+
+        Returns
+        -------
+        State
+            The processed state.
         """
         pass
 

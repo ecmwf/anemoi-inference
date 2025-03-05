@@ -596,7 +596,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """Report an error with provenance information."""
         provenance = self._metadata.provenance_training
 
-        def _print(title, provenance):
+        def _print(title: str, provenance: Dict[str, Any]) -> None:
             LOG.info("")
             LOG.info("%s:", title)
             for package, git in sorted(provenance.get("git_versions", {}).items()):
@@ -1046,7 +1046,7 @@ class Metadata(PatchMixin, LegacyMixin):
         print(full_paths)
         n = 0
 
-        def _fix(x):
+        def _fix(x: Any) -> Any:
             nonlocal n
 
             if isinstance(x, list):

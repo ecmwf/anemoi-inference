@@ -125,7 +125,7 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
             self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
             self.output_shape = (1, 1, self.grid_size, self.features_out)
 
-        def predict_step(self, x):
+        def predict_step(self, x: torch.Tensor) -> torch.Tensor:
             """Perform a prediction step.
 
             Parameters

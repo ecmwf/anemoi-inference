@@ -14,7 +14,6 @@ import os
 import socket
 import subprocess
 from typing import Any
-from typing import Dict
 from typing import Optional
 from typing import Tuple
 
@@ -22,6 +21,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from anemoi.inference.config import Configuration
 from anemoi.inference.output import Output
 
 from ..commands.run import _run
@@ -33,13 +33,13 @@ from .default import DefaultRunner
 LOG = logging.getLogger(__name__)
 
 
-def create_parallel_runner(config: Dict[str, Any], pid: int) -> None:
+def create_parallel_runner(config: Configuration, pid: int) -> None:
     """Creates and runs a parallel runner.
 
     Parameters
     ----------
-    config : dict
-        Configuration dictionary.
+    config : Configuration
+        Configuration.
     pid : int
         Process ID.
     """

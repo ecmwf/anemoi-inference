@@ -13,6 +13,7 @@ import json
 import logging
 from abc import abstractmethod
 from typing import Any
+from typing import List
 from typing import Optional
 
 from earthkit.data.utils.dates import to_datetime
@@ -144,7 +145,7 @@ class GribOutput(Output):
         modifiers: list = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
-        variables: list = None,
+        variables: Optional[List[str]] = None,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True

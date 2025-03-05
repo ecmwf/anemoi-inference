@@ -17,6 +17,7 @@ from typing import List
 from anemoi.utils.config import DotDict
 from pydantic import BaseModel
 
+from anemoi.inference.config import Configuration
 from anemoi.inference.input import Input
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
@@ -42,13 +43,13 @@ class DefaultRunner(Runner):
     This class provides the default implementation for running inference.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: Configuration) -> None:
         """Initialize the DefaultRunner.
 
         Parameters
         ----------
-        config : dict
-            Configuration dictionary for the runner.
+        config : Configuration
+            Configuration for the runner.
         """
 
         if isinstance(config, dict):
@@ -165,7 +166,7 @@ class DefaultRunner(Runner):
 
         return self.config.forcings
 
-    def create_constant_coupled_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+    def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant coupled forcings.
 
         Parameters
@@ -185,7 +186,7 @@ class DefaultRunner(Runner):
         LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create dynamic coupled forcings.
 
         Parameters
@@ -205,7 +206,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+    def create_boundary_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create boundary forcings.
 
         Parameters

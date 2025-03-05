@@ -86,7 +86,7 @@ class PluginRunner(Runner):
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: list, mask: IntArray) -> List[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create dynamic computed forcings.
 
         Parameters

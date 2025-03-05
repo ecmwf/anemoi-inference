@@ -13,6 +13,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 
 import earthkit.data as ekd
@@ -150,7 +151,7 @@ class GribFileOutput(GribOutput):
         modifiers: list = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
-        variables: list = None,
+        variables: Optional[List[str]] = None,
         split_output: bool = True,
     ) -> None:
         super().__init__(

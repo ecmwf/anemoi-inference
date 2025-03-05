@@ -80,7 +80,7 @@ class PlotOutput(Output):
         template: str = "plot_{variable}_{date}.{format}",
         dpi: int = 300,
         format: str = "png",
-        missing_value: float = None,
+        missing_value: Optional[float] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
