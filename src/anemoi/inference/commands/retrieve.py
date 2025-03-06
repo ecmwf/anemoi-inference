@@ -30,6 +30,7 @@ def checkpoint_to_requests(
     staging_dates=None,
     use_grib_paramid=False,
     extra=None,
+    patch_request=None,
     use_scda=False,
 ):
     # TODO: Move this to the runner
@@ -72,6 +73,7 @@ def checkpoint_to_requests(
         dates=dates,
         variables=variables,
         use_grib_paramid=use_grib_paramid,
+        patch_request=patch_request,
         always_split_time=use_scda,
     ):
         r = r.copy()
@@ -123,7 +125,6 @@ class RetrieveCmd(Command):
             retrieve_fields_type=args.retrieve_fields_type,
             staging_dates=args.staging_dates,
             use_grib_paramid=config.use_grib_paramid,
-            always_split_time=args.use_scda,
             patch_request=runner.patch_data_request,
             use_scda=args.use_scda,
         )
