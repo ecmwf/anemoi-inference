@@ -1,0 +1,43 @@
+# (C) Copyright 2024 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+import os
+
+from anemoi.inference.config.couple import CoupleConfiguration
+from anemoi.inference.tasks import create_task
+from anemoi.inference.testing import fake_checkpoints
+from anemoi.inference.transports import create_transport
+
+HERE = os.path.dirname(__file__)
+
+
+@fake_checkpoints
+def test_threads() -> None:
+    """Test the inference process using a fake checkpoint.
+
+    This function loads a configuration, creates a runner, and runs the inference
+    process to ensure that the system works as expected with the provided configuration.
+    """
+    config = CoupleConfiguration.load(os.path.join(HERE, "configs/coupled.yaml"))
+
+    global_config = {}
+
+    tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}
+
+    transport = create_transport(config.transport, config.couplings, tasks)
+
+    transport.start()
+    transport.wait()
+
+
+if __name__ == "__main__":
+    for name, obj in list(globals().items()):
+        if name.startswith("test_") and callable(obj):
+            print(f"Running {name}...")
+            obj()
