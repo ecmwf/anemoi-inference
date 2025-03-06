@@ -12,6 +12,7 @@ import datetime
 import logging
 import warnings
 from functools import cached_property
+from typing import Generator
 
 import numpy as np
 import torch
@@ -257,6 +258,38 @@ class Runner(Context):
         # TODO: move this to a Stepper class.
         return model.predict_step(input_tensor_torch)
 
+    def forecast_stepper(self, start_date, lead_time) -> Generator:
+        """Generate step and date variables for the forecast loop
+
+        Parameters
+        ----------
+        start_date : datetime.datetime
+            Start date of the forecast
+        lead_time : datetime.timedelta
+            Lead time of the forecast
+
+        Returns
+        ------
+        step : datetime.timedelta
+            Time delta since beginning of forecast
+        valid_date : datetime.datetime
+            Date of the forecast
+        next_date : datetime.datetime
+            Date used to prepare the next input tensor
+        is_last_step : bool
+            True if it's the last step of the forecast
+        """
+        steps = lead_time // self.checkpoint.timestep
+
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+
+        for s in range(steps):
+            step = (s + 1) * self.checkpoint.timestep
+            valid_date = start_date + step
+            next_date = valid_date
+            is_last_step = s == steps - 1
+            yield step, valid_date, next_date, is_last_step
+
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         self.model.eval()
 
@@ -268,10 +301,6 @@ class Runner(Context):
         LOG.info("Using autocast %s", self.autocast)
 
         lead_time = to_timedelta(lead_time)
-        steps = lead_time // self.checkpoint.timestep
-
-        LOG.info("Using autocast %s", self.autocast)
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
         result = input_state.copy()  # We should not modify the input state
         result["fields"] = dict()
@@ -295,9 +324,7 @@ class Runner(Context):
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
-        for s in range(steps):
-            step = (s + 1) * self.checkpoint.timestep
-            date = start + step
+        for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
             title = f"Forecasting step {step} ({date})"
 
             result["date"] = date
@@ -333,8 +360,8 @@ class Runner(Context):
             yield result
 
             # No need to prepare next input tensor if we are at the last step
-            if s == steps - 1:
-                continue
+            if is_last_step:
+                break
 
             # Update  tensor for next iteration
             with ProfilingLabel("Update tensor for next step", self.use_profiler):
@@ -347,10 +374,10 @@ class Runner(Context):
                 del y_pred  # Recover memory
 
                 input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                    input_tensor_torch, input_state, date, check
+                    input_tensor_torch, input_state, next_date, check
                 )
                 input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                    input_tensor_torch, input_state, date, check
+                    input_tensor_torch, input_state, next_date, check
                 )
 
             if not check.all():
