@@ -77,11 +77,11 @@ def checkpoint_to_requests(
         always_split_time=use_scda,
     ):
         r = r.copy()
+        if target is not None:
+            r["target"] = target
         r.update(more)
         if use_scda:
             _patch_scda(date, r)
-        if target is not None:
-            r["target"] = target
         requests.append(r)
 
     return requests
