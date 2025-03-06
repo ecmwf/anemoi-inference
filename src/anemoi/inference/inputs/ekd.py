@@ -186,6 +186,7 @@ class EkdInput(Input):
         longitudes: Optional[FloatArray] = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        title: str = "Create state",
     ) -> State:
         """Create the input state.
 
@@ -409,4 +410,5 @@ class EkdInput(Input):
             longitudes=current_state["longitudes"],
             dtype=np.float32,
             flatten=True,
+            title="Load forcings state",
         )

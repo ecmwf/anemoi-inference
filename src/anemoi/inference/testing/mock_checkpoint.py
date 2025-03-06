@@ -232,6 +232,5 @@ if __name__ == "__main__":
     import json
     import sys
 
-    # path= sys.argv[1]
-    path = "/Users/mab/git/anemoi-inference/tests/checkpoints/ocean.json"
-    print(json.dump(minimum_mock_checkpoint(json.load(open(path)))))
+    path = sys.argv[1]
+    print(json.dumps(minimum_mock_checkpoint(json.load(open(path)))))
