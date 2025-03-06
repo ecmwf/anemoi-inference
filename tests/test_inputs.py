@@ -10,6 +10,8 @@
 import logging
 import os
 
+import pytest
+
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
@@ -24,8 +26,9 @@ HERE = os.path.dirname(__file__)
 os.chdir(HERE)
 
 
+@pytest.mark.skip(reason="Slow test")
 @fake_checkpoints
-def test_inference_simple() -> None:
+def test_inference_mars() -> None:
     """Test the inference process using a fake checkpoint.
 
     This function loads a configuration, creates a runner, and runs the inference
@@ -33,22 +36,23 @@ def test_inference_simple() -> None:
     """
     config = RunConfiguration.load(
         os.path.join(HERE, "configs/simple.yaml"),
-        overrides=dict(device="cpu", input="dummy"),
+        overrides=dict(device="cpu", input="mars"),
     )
     runner = create_runner(config)
     runner.execute()
 
 
+@pytest.mark.skip(reason="Slow test")
 @fake_checkpoints
-def test_inference_mwd() -> None:
+def test_inference_cds() -> None:
     """Test the inference process using a fake checkpoint.
 
     This function loads a configuration, creates a runner, and runs the inference
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        os.path.join(HERE, "configs/mwd.yaml"),
-        overrides=dict(device="cpu", input="dummy"),
+        os.path.join(HERE, "configs/simple.yaml"),
+        overrides=dict(device="cpu", input={"cds": dict(dataset="reanalysis-era5-complete")}),
     )
     runner = create_runner(config)
     runner.execute()
