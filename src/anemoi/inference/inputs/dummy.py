@@ -17,8 +17,6 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.grib.encoding import encode_message
-from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -26,6 +24,7 @@ from . import input_registry
 from .ekd import EkdInput
 
 LOG = logging.getLogger(__name__)
+SKIP_KEYS = ["date", "time"]
 
 
 @input_registry.register("dummy")
@@ -47,8 +46,6 @@ class DummyInput(EkdInput):
             Additional keyword arguments.
         """
         super().__init__(context, namer=namer, **kwargs)
-
-        self.templates = TemplateManager(self, "builtin")
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.
@@ -87,7 +84,7 @@ class DummyInput(EkdInput):
             The loaded forcings state.
         """
         return self._load_forcings_state(
-            ekd.from_source("file", self.path),
+            self._fields(dates),
             variables=variables,
             dates=dates,
             current_state=current_state,
@@ -108,30 +105,30 @@ class DummyInput(EkdInput):
         ekd.FieldList
             The generated fields.
         """
-        from earthkit.data.indexing.fieldlist import SimpleFieldList
 
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
 
+        typed_variables = self.checkpoint.typed_variables
+
         result = []
-        for v in variables:
-            template = self.templates.template(v, {})
+        for variable in variables:
+
+            keys = {k: v for k, v in typed_variables[variable].grib_keys.items() if k not in SKIP_KEYS}
+
             for date in dates:
-                handle = encode_message(
+                handle = dict(
                     values=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
-                    template=template,
-                    metadata=dict(
-                        date=date.strftime("%Y%m%d"),
-                        time=date.strftime("%H%M"),
-                        shortName=v,
-                    ),
+                    latitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
+                    longitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
+                    date=date.strftime("%Y%m%d"),
+                    time=date.strftime("%H%M"),
+                    name=variable,
+                    **keys,
                 )
-                result.append(ekd.from_source("memory", handle.get_buffer())[0])
+                result.append(handle)
 
-        for f in result:
-            print(f)
-
-        return SimpleFieldList(result)
+        return ekd.from_source("list-of-dicts", result)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup a template by name.

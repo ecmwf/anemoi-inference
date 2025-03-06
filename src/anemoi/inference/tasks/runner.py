@@ -13,7 +13,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 
-from anemoi.inference.config.couple import CoupleConfiguration
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.input import Input
@@ -106,6 +106,11 @@ class CoupledRunner(DefaultRunner):
                 # Send the initial state to the coupler
                 self.coupled_input.initial_state(Output.reduce(input_state))
                 return input_state
+
+            def load_forcings_state(self, variables: List[str], dates: List[Date], current_state: State) -> State:
+                return self.wrapped_input.load_forcings_state(
+                    variables=variables, dates=dates, current_state=current_state
+                )
 
         return WrappedInput(
             super().create_input(),
@@ -218,7 +223,7 @@ class RunnerTask(Task):
         """
         super().__init__(name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
-        self.config = CoupleConfiguration.load(config, overrides=[global_config, overrides])
+        self.config = RunConfiguration.load(config, overrides=[global_config, overrides])
 
     def run(self, transport: Transport) -> None:
         """Run the task.

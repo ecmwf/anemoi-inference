@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import os
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -89,7 +90,12 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
     else:
         path = os.path.basename(path)
         name, _ = os.path.splitext(path)
-        with open(os.path.join(TEST_CHECKPOINTS, f"{name}.yaml")) as f:
+        for ext in (".yaml", ".json"):
+            path = os.path.join(TEST_CHECKPOINTS, f"{name}{ext}")
+            if os.path.exists(os.path.join(TEST_CHECKPOINTS, f"{name}{ext}")):
+                break
+
+        with open(path) as f:
             metadata = yaml.safe_load(f)
 
     arrays: Dict[str, Any] = {}
@@ -163,3 +169,69 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
             return y
 
     return MockModel(*mock_load_metadata(path))
+
+
+def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a minimum mock checkpoint from the given metadata.
+
+    Parameters
+    ----------
+    metadata : dict
+        The metadata to create the mock checkpoint from.
+
+    Returns
+    -------
+    dict
+        The minimum mock checkpoint.
+    """
+
+    KEEP = {"dataset.variables_metadata", "data_indices.data", "data_indices.model"}
+
+    metadata = deepcopy(metadata)
+
+    def drop(metadata: Dict[str, Any], reference: Dict[str, Any], *path: str) -> None:
+        """Recursively drop keys from metadata that are not in the reference.
+
+        Parameters
+        ----------
+        metadata : dict
+            The metadata to modify.
+        reference : dict
+            The reference metadata to compare against.
+        path : str
+            The current path in the metadata.
+        """
+
+        for k, v in list(metadata.items()):
+            key = path + (k,)
+            if k not in reference:
+                print("Dropping", key, file=sys.stderr)
+                del metadata[k]
+            else:
+
+                if isinstance(v, dict) and ".".join(key) not in KEEP:
+                    drop(metadata[k], reference[k], *path, k)
+
+    drop(metadata, SIMPLE_METADATA)
+
+    variables_metadata = metadata["dataset"]["variables_metadata"]
+
+    for k, v in variables_metadata.items():
+        mars = v.get("mars", {})
+        for key in ("class", "date", "time", "hdate", "domain", "expver"):
+            mars.pop(key, None)
+
+    for k, v in list(metadata["dataset"]["variables_metadata"].items()):
+        if k not in SIMPLE_METADATA["dataset"]["variables_metadata"]:
+            del metadata["dataset"]["variables_metadata"][k]
+
+    return metadata
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+
+    # path= sys.argv[1]
+    path = "/Users/mab/git/anemoi-inference/tests/checkpoints/ocean.json"
+    print(json.dump(minimum_mock_checkpoint(json.load(open(path)))))

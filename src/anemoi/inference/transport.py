@@ -9,6 +9,7 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -16,8 +17,10 @@ from typing import List
 from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.task import Task
-from anemoi.inference.transport import Transport
 from anemoi.inference.types import State
+
+if TYPE_CHECKING:
+    from anemoi.inference.transport import Transport
 
 LOG = logging.getLogger(__name__)
 
@@ -58,7 +61,7 @@ class CouplingSend(Coupling):
     def apply(
         self,
         task: Any,
-        transport: Transport,
+        transport: "Transport",
         *,
         input_state: State,
         output_state: State,
@@ -98,7 +101,7 @@ class CouplingRecv(Coupling):
     def apply(
         self,
         task: Task,
-        transport: Transport,
+        transport: "Transport",
         *,
         input_state: State,
         output_state: State,

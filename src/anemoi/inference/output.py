@@ -88,7 +88,8 @@ class Output(ABC):
 
         return self.write_step(state)
 
-    def reduce(self, state: State) -> State:
+    @classmethod
+    def reduce(cls, state: State) -> State:
         """Create a new state which is a projection of the original state on the last step in the multi-steps dimension.
 
         Parameters
