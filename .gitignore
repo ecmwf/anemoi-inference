@@ -119,7 +119,7 @@ tmp/
 temp/
 logs/
 _dev/
-outputs/
+/outputs/
 *tmp_data/
 
 # Project specific
