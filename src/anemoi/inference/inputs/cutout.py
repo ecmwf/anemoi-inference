@@ -21,9 +21,18 @@ LOG = logging.getLogger(__name__)
 
 @input_registry.register("cutout")
 class Cutout(Input):
-    """An input that extracts a cutout from a field"""
+    """Combines one or more LAMs into a global source using cutouts."""
 
     def __init__(self, context, **sources):
+        """Create a cutout input from a list of sources.
+
+        Parameters
+        ----------
+        context : dict
+            The context runner.
+        sources : dict of sources
+            A dictionary of sources to combine.
+        """
         super().__init__(context)
 
         self.sources: dict[str, Input] = {}
