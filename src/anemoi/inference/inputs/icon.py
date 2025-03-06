@@ -81,7 +81,7 @@ class IconInput(GribInput):
 
         latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
 
-        return self._create_state(
+        return self._create_input_state(
             ekd.from_source("file", self.path),
             variables=None,
             date=date,

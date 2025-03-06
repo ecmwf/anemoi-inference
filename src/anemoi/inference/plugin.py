@@ -16,6 +16,7 @@ from functools import cached_property
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 from ai_models.model import Model
 
@@ -23,6 +24,7 @@ from anemoi.inference.inputs.grib import GribInput
 from anemoi.inference.outputs.grib import GribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
+from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
@@ -44,7 +46,7 @@ class FieldListInput(GribInput):
         super().__init__(context)
         self.input_fields = input_fields
 
-    def create_input_state(self, *, date: str) -> Any:
+    def create_input_state(self, *, date: Optional[Date]) -> Any:
         """Create the input state for the given date.
 
         Parameters
@@ -57,7 +59,7 @@ class FieldListInput(GribInput):
         Any
             The created input state.
         """
-        return self._create_state(self.input_fields, variables=None, date=date)
+        return self._create_input_state(self.input_fields, variables=None, date=date)
 
     def load_forcings_state(
         self,

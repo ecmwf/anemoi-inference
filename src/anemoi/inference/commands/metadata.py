@@ -92,6 +92,12 @@ class Metadata(Command):
             help="Navigate the metadata via dot-separated path.",
         )
 
+        group.add_argument(
+            "--pytest",
+            action="store_true",
+            help=("Extract the metadata from the checkpoint so it can be added to the test suite."),
+        )
+
         command_parser.add_argument(
             "--name",
             default=DEFAULT_NAME,
@@ -152,7 +158,7 @@ class Metadata(Command):
         if args.remove:
             return self.remove(args)
 
-        if args.dump:
+        if args.dump or args.pytest:
             return self.dump(args)
 
         if args.load:
@@ -200,7 +206,10 @@ class Metadata(Command):
             ext = "json"
             dump = json.dump
             load = json.load
-            kwargs = {"indent": 4, "sort_keys": True}
+            if args.test:
+                kwargs = {"sort_keys": True}
+            else:
+                kwargs = {"indent": 4, "sort_keys": True}
         else:
             ext = "yaml"
             dump = yaml.dump
@@ -254,13 +263,21 @@ class Metadata(Command):
             file = None
 
         metadata = load_metadata(args.path)
+        if args.pytest:
+            from anemoi.inference.testing.mock_checkpoint import minimum_mock_checkpoint
+
+            # We remove all unessential metadata for testing purposes
+            metadata = minimum_mock_checkpoint(metadata)
 
         if args.yaml:
             print(yaml.dump(metadata, indent=2, sort_keys=True), file=file)
             return
 
         if args.json or True:
-            print(json.dumps(metadata, indent=4, sort_keys=True), file=file)
+            if args.pytest:
+                print(json.dumps(metadata, sort_keys=True), file=file)
+            else:
+                print(json.dumps(metadata, indent=4, sort_keys=True), file=file)
             return
 
     def get(self, args: Namespace) -> None:

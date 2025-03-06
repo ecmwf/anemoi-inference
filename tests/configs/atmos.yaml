@@ -1,5 +1,4 @@
 checkpoint: atmos.ckpt
-
 lead_time: 480
 date: 2022-01-02
 

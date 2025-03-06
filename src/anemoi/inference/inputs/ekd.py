@@ -176,140 +176,6 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _create_state(
-        self,
-        input_fields: ekd.FieldList,
-        *,
-        variables: Optional[List[str]] = None,
-        dates: List[Date],
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
-        dtype: DTypeLike = np.float32,
-        flatten: bool = True,
-        title: str = "Create state",
-    ) -> State:
-        """Create the input state.
-
-        Parameters
-        ----------
-        input_fields : ekd.FieldList
-            The input fields.
-        variables : Optional[List[str]]
-            List of variables.
-        dates : List[Date]
-            The dates for which to create the input state.
-        latitudes : Optional[FloatArray]
-            The latitudes.
-        longitudes : Optional[FloatArray]
-            The longitudes.
-        dtype : DTypeLike
-            The data type.
-        flatten : bool
-            Whether to flatten the data.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
-        for processor in self.context.pre_processors:
-            LOG.info("Processing with %s", processor)
-            input_fields = processor.process(input_fields)
-
-        if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
-
-        if len(input_fields) == 0:
-            raise ValueError("No input fields provided")
-
-        # Newer checkpoints may have latitudes and longitudes
-        if latitudes is None:
-            latitudes = self.checkpoint.latitudes
-            if latitudes is not None:
-                LOG.info(
-                    "%s: using `latitudes` found in the checkpoint.",
-                    self.__class__.__name__,
-                )
-
-        if longitudes is None:
-            longitudes = self.checkpoint.longitudes
-            if longitudes is not None:
-                LOG.info(
-                    "%s: using `longitudes` found in the checkpoint.git.",
-                    self.__class__.__name__,
-                )
-
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        input_state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-
-        fields = input_state["fields"]
-
-        input_fields = self._filter_and_sort(
-            input_fields,
-            variables=variables,
-            dates=dates,
-            title="Create input state",
-        )
-        mask = self.checkpoint.grid_points_mask
-        mask = ApplyMask(mask) if mask is not None else NoMask()
-
-        check = defaultdict(set)
-
-        for field in input_fields:
-
-            if input_state["latitudes"] is None:
-                input_state["latitudes"], input_state["longitudes"] = field.grid_points()
-                LOG.info(
-                    "%s: using `latitudes` and `longitudes` from the first input field",
-                    self.__class__.__name__,
-                )
-
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
-            if name not in fields:
-                fields[name] = np.full(
-                    shape=(len(dates), self.checkpoint.number_of_grid_points),
-                    fill_value=np.nan,
-                    dtype=dtype,
-                )
-
-            date_idx = date_to_index[valid_datetime]
-
-            try:
-                fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
-            except ValueError:
-                LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
-                LOG.error("dates %s", dates)
-                LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
-                raise
-
-            if date_idx in check[name]:
-                LOG.error("Duplicate dates for %s: %s", name, date_idx)
-                LOG.error("Expected %s", list(date_to_index.keys()))
-                LOG.error("Got %s", list(check[name]))
-                raise ValueError(f"Duplicate dates for {name}")
-
-            check[name].add(date_idx)
-
-        for name, idx in check.items():
-            if len(idx) != len(dates):
-                LOG.error("Missing dates for %s: %s", name, idx)
-                LOG.error("Expected %s", list(date_to_index.keys()))
-                LOG.error("Got %s", list(idx))
-                raise ValueError(f"Missing dates for {name}")
-
-        if self.context.trace:
-            for name in check.keys():
-                self.context.trace.from_input(name, self)
-
-        # This is our chance to communicate output object
-        # This is useful for GRIB that requires a template field
-        # to be used as output
-        self.set_private_attributes(input_state, input_fields)
-
-        return input_state
-
     def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
         """Filter and sort the data.
 
@@ -373,11 +239,195 @@ class EkdInput(Input):
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
+    def _create_state(
+        self,
+        fields: ekd.FieldList,
+        *,
+        variables: Optional[List[str]] = None,
+        dates: List[Date],
+        latitudes: Optional[FloatArray] = None,
+        longitudes: Optional[FloatArray] = None,
+        dtype: DTypeLike = np.float32,
+        flatten: bool = True,
+        title: str = "Create state",
+    ) -> State:
+        """Create a state from an ekd.FieldList.
+
+        Parameters
+        ----------
+        fields : ekd.FieldList
+            The ekd fields.
+        variables : Optional[List[str]]
+            List of variables.
+        dates : List[Date]
+            The dates for which to create the input state.
+        latitudes : Optional[FloatArray]
+            The latitudes.
+        longitudes : Optional[FloatArray]
+            The longitudes.
+        dtype : DTypeLike
+            The data type.
+        flatten : bool
+            Whether to flatten the data.
+        title : str
+            The title for logging.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
+        for processor in self.context.pre_processors:
+            LOG.info("Processing with %s", processor)
+            fields = processor.process(fields)
+
+        if variables is None:
+            variables = self.checkpoint.variables_from_input(include_forcings=True)
+
+        if len(fields) == 0:
+            raise ValueError("No input fields provided")
+
+        # Newer checkpoints may have latitudes and longitudes
+        if latitudes is None:
+            latitudes = self.checkpoint.latitudes
+            if latitudes is not None:
+                LOG.info(
+                    "%s: using `latitudes` found in the checkpoint.",
+                    self.__class__.__name__,
+                )
+
+        if longitudes is None:
+            longitudes = self.checkpoint.longitudes
+            if longitudes is not None:
+                LOG.info(
+                    "%s: using `longitudes` found in the checkpoint.git.",
+                    self.__class__.__name__,
+                )
+
+        dates = sorted([to_datetime(d) for d in dates])
+        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+
+        state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
+
+        fields = state["fields"]
+
+        fields = self._filter_and_sort(
+            fields,
+            variables=variables,
+            dates=dates,
+            title=title,
+        )
+        mask = self.checkpoint.grid_points_mask
+        mask = ApplyMask(mask) if mask is not None else NoMask()
+
+        check = defaultdict(set)
+
+        for field in fields:
+
+            if state["latitudes"] is None:
+                state["latitudes"], state["longitudes"] = field.grid_points()
+                LOG.info(
+                    "%s: using `latitudes` and `longitudes` from the first input field",
+                    self.__class__.__name__,
+                )
+
+            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
+            if name not in fields:
+                fields[name] = np.full(
+                    shape=(len(dates), self.checkpoint.number_of_grid_points),
+                    fill_value=np.nan,
+                    dtype=dtype,
+                )
+
+            date_idx = date_to_index[valid_datetime]
+
+            try:
+                fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
+            except ValueError:
+                LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
+                LOG.error("dates %s", dates)
+                LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
+                raise
+
+            if date_idx in check[name]:
+                LOG.error("Duplicate dates for %s: %s", name, date_idx)
+                LOG.error("Expected %s", list(date_to_index.keys()))
+                LOG.error("Got %s", list(check[name]))
+                raise ValueError(f"Duplicate dates for {name}")
+
+            check[name].add(date_idx)
+
+        for name, idx in check.items():
+            if len(idx) != len(dates):
+                LOG.error("Missing dates for %s: %s", name, idx)
+                LOG.error("Expected %s", list(date_to_index.keys()))
+                LOG.error("Got %s", list(idx))
+                raise ValueError(f"Missing dates for {name}")
+
+        if self.context.trace:
+            for name in check.keys():
+                self.context.trace.from_input(name, self)
+
+        # This is our chance to communicate output object
+        # This is useful for GRIB that requires a template field
+        # to be used as output
+        self.set_private_attributes(state, fields)
+
+        return state
+
+    def _create_input_state(
+        self,
+        input_fields: ekd.FieldList,
+        *,
+        date: Date,
+        variables: Optional[List[str]] = None,
+        latitudes: Optional[FloatArray] = None,
+        longitudes: Optional[FloatArray] = None,
+        dtype: DTypeLike = np.float32,
+        flatten: bool = True,
+    ) -> State:
+        """Create the input state.
+
+        Parameters
+        ----------
+        input_fields : ekd.FieldList
+            The input fields.
+        date : Date
+            The date for which to create the input state.
+        variables : Optional[List[str]]
+            List of variables.
+        latitudes : Optional[FloatArray]
+            The latitudes.
+        longitudes : Optional[FloatArray]
+            The longitudes.
+        dtype : DTypeLike
+            The data type.
+        flatten : bool
+            Whether to flatten the data.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
+        dates = [date + h for h in self.checkpoint.lagged]
+        return self._create_state(
+            input_fields,
+            variables=variables,
+            dates=dates,
+            latitudes=latitudes,
+            longitudes=longitudes,
+            dtype=dtype,
+            flatten=flatten,
+            title="Create input state",
+        )
+
     def _load_forcings_state(
         self,
         fields: ekd.FieldList,
+        *,
         variables: List[str],
-        dates: List[Any],
+        dates: List[Date],
         current_state: State,
     ) -> Dict[str, Any]:
         """Load the forcings state.

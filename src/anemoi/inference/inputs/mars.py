@@ -244,7 +244,7 @@ class MarsInput(GribInput):
 
         date = to_datetime(date)
 
-        return self._create_state(
+        return self._create_input_state(
             self.retrieve(
                 self.variables,
                 [date + h for h in self.checkpoint.lagged],

@@ -61,10 +61,10 @@ class DummyInput(EkdInput):
             The created input state.
         """
         if date is None:
-            date = [datetime.datetime(2000, 1, 1)]
+            date = datetime.datetime(2000, 1, 1)
 
         dates = [date + h for h in self.checkpoint.lagged]
-        return self._create_state(self._fields(dates), variables=None, dates=dates)
+        return self._create_input_state(self._fields(dates), variables=None, date=date)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
