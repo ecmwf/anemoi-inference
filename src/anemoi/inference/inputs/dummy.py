@@ -24,7 +24,7 @@ from . import input_registry
 from .ekd import EkdInput
 
 LOG = logging.getLogger(__name__)
-SKIP_KEYS = ["date", "time"]
+SKIP_KEYS = ["date", "time", "step"]
 
 
 @input_registry.register("dummy")
@@ -64,7 +64,7 @@ class DummyInput(EkdInput):
             date = [datetime.datetime(2000, 1, 1)]
 
         dates = [date + h for h in self.checkpoint.lagged]
-        return self._create_state(self._fields(dates), variables=None, date=date)
+        return self._create_state(self._fields(dates), variables=None, dates=dates)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -108,6 +108,8 @@ class DummyInput(EkdInput):
 
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
+
+        LOG.info("Generating fields for %s", variables)
 
         typed_variables = self.checkpoint.typed_variables
 

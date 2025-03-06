@@ -22,6 +22,7 @@ from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
@@ -93,6 +94,9 @@ class DefaultRunner(Runner):
 
         input_state = input.create_input_state(date=self.config.date)
 
+        # This hook is needed for the coupled runner
+        self.input_state_hook(input_state)
+
         output.open(input_state)
         output.write_initial_state(input_state)
 
@@ -102,6 +106,10 @@ class DefaultRunner(Runner):
             output.write_state(state)
 
         output.close()
+
+    def input_state_hook(self, input_state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass
 
     def create_input(self) -> Input:
         """Create the input.

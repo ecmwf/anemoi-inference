@@ -16,7 +16,6 @@ from typing import List
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.transport import Transport
@@ -48,6 +47,10 @@ class CoupledRunner(DefaultRunner):
         """
         super().__init__(config)
         self.coupled_input = coupled_input
+
+    def input_state_hook(self, input_state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        self.coupled_input.initial_state(Output.reduce(input_state))
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
         """Create dynamic coupled forcings.
@@ -85,37 +88,6 @@ class CoupledRunner(DefaultRunner):
             result.extend(super().create_dynamic_coupled_forcings(c.variables, c.mask))
 
         return result
-
-    def create_input(self) -> Input:
-        """Create the input.
-
-        Returns
-        """
-
-        # We need to wrap the input so we can send the initional state to the coupler
-
-        class WrappedInput(Input):
-
-            def __init__(self, wrapped_input: Input, coupled_input: Any) -> None:
-                self.wrapped_input = wrapped_input
-                self.coupled_input = coupled_input
-
-            def create_input_state(self, date: str) -> State:
-                # Override the create_input_state method to send the initial state to the coupler
-                input_state = self.wrapped_input.create_input_state(date=date)
-                # Send the initial state to the coupler
-                self.coupled_input.initial_state(Output.reduce(input_state))
-                return input_state
-
-            def load_forcings_state(self, variables: List[str], dates: List[Date], current_state: State) -> State:
-                return self.wrapped_input.load_forcings_state(
-                    variables=variables, dates=dates, current_state=current_state
-                )
-
-        return WrappedInput(
-            super().create_input(),
-            self.coupled_input,
-        )
 
 
 class CoupledInput:

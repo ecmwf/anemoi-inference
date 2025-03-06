@@ -181,7 +181,7 @@ class EkdInput(Input):
         input_fields: ekd.FieldList,
         *,
         variables: Optional[List[str]] = None,
-        date: Optional[Date] = None,
+        dates: List[Date],
         latitudes: Optional[FloatArray] = None,
         longitudes: Optional[FloatArray] = None,
         dtype: DTypeLike = np.float32,
@@ -195,8 +195,8 @@ class EkdInput(Input):
             The input fields.
         variables : Optional[List[str]]
             List of variables.
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : List[Date]
+            The dates for which to create the input state.
         latitudes : Optional[FloatArray]
             The latitudes.
         longitudes : Optional[FloatArray]
@@ -238,22 +238,10 @@ class EkdInput(Input):
                     self.__class__.__name__,
                 )
 
-        if date is None:
-            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
-            LOG.info(
-                "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
-            )
-
-        if isinstance(date, list):
-            # FIXME: find out why we have a list of dates
-            dates = [date[-1] + h for h in self.checkpoint.lagged]
-            assert date == dates, (date, dates)
-        else:
-            date = to_datetime(date)
-            dates = [date + h for h in self.checkpoint.lagged]
+        dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
-        input_state = dict(date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
+        input_state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
 
         fields = input_state["fields"]
 
@@ -416,7 +404,7 @@ class EkdInput(Input):
         return self._create_state(
             fields,
             variables=variables,
-            date=dates,
+            dates=dates,
             latitudes=current_state["latitudes"],
             longitudes=current_state["longitudes"],
             dtype=np.float32,

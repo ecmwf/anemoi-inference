@@ -7,14 +7,47 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import logging
 import os
 
 from anemoi.inference.config.couple import CoupleConfiguration
+from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.runners import create_runner
 from anemoi.inference.tasks import create_task
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.transports import create_transport
 
 HERE = os.path.dirname(__file__)
+
+
+@fake_checkpoints
+def test_atmos() -> None:
+    """Test the inference process using a fake checkpoint.
+
+    This function loads a configuration, creates a runner, and runs the inference
+    process to ensure that the system works as expected with the provided configuration.
+    """
+    config = RunConfiguration.load(
+        os.path.join(HERE, "configs/atmos.yaml"),
+        overrides=dict(device="cpu", input="dummy"),
+    )
+    runner = create_runner(config)
+    runner.execute()
+
+
+@fake_checkpoints
+def test_ocean() -> None:
+    """Test the inference process using a fake checkpoint.
+
+    This function loads a configuration, creates a runner, and runs the inference
+    process to ensure that the system works as expected with the provided configuration.
+    """
+    config = RunConfiguration.load(
+        os.path.join(HERE, "configs/ocean.yaml"),
+        overrides=dict(device="cpu", input="dummy"),
+    )
+    runner = create_runner(config)
+    runner.execute()
 
 
 @fake_checkpoints
@@ -37,6 +70,7 @@ def test_threads() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):
             print(f"Running {name}...")

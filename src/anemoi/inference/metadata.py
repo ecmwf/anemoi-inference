@@ -82,7 +82,6 @@ class Metadata(PatchMixin, LegacyMixin):
         supporting_arrays : dict, optional
             The supporting arrays, by default {}.
         """
-        print("Metadata.__init__", metadata, supporting_arrays)
         self._metadata = DotDict(metadata)
         assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
