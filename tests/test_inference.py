@@ -19,6 +19,10 @@ from anemoi.inference.testing import fake_checkpoints
 
 HERE = os.path.dirname(__file__)
 
+# Set the current working directory to the location of this script.
+# So we access the configuration files relative to this script.
+os.chdir(HERE)
+
 
 @fake_checkpoints
 def test_inference_dummy() -> None:

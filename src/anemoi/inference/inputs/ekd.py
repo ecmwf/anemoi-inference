@@ -309,7 +309,7 @@ class EkdInput(Input):
 
         state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
 
-        fields = state["fields"]
+        state_fields = state["fields"]
 
         fields = self._filter_and_sort(
             fields,
@@ -333,7 +333,7 @@ class EkdInput(Input):
 
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
-                fields[name] = np.full(
+                state_fields[name] = np.full(
                     shape=(len(dates), self.checkpoint.number_of_grid_points),
                     fill_value=np.nan,
                     dtype=dtype,
@@ -342,9 +342,11 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
+                state_fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
             except ValueError:
-                LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
+                LOG.error(
+                    "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
+                )
                 LOG.error("dates %s", dates)
                 LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
                 raise
