@@ -65,7 +65,6 @@ def test_inference_cds() -> None:
 
 
 if __name__ == "__main__":
-    test_inference_cds()
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):
             print(f"Running {name}...")

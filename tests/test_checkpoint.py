@@ -7,63 +7,11 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import os
-from functools import wraps
-from typing import Any
-from typing import Callable
-from typing import Dict
-from unittest.mock import patch
 
-import yaml
-
-HERE = os.path.dirname(__file__)
-
-# Do not include any imports that may load that functoin
+from anemoi.inference.testing import fake_checkpoints
 
 
-def load_metadata(path: str, supporting_arrays: bool = True) -> Dict[str, Any]:
-    """Load metadata from a YAML file.
-
-    Parameters
-    ----------
-    path : str
-        The path to the checkpoint file.
-    supporting_arrays : bool, optional
-        Whether to include supporting arrays, by default True.
-
-    Returns
-    -------
-    dict
-        The loaded metadata.
-    """
-    name, _ = os.path.splitext(path)
-    with open(os.path.join(HERE, "checkpoints", f"{name}.yaml")) as f:
-        return yaml.safe_load(f)
-
-
-def dummy_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to mock the load_metadata function.
-
-    Parameters
-    ----------
-    func : Callable
-        The function to be decorated.
-
-    Returns
-    -------
-    Callable
-        The wrapped function.
-    """
-
-    @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        with patch("anemoi.utils.checkpoints.load_metadata", load_metadata):
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
-@dummy_checkpoints
+@fake_checkpoints
 def test_checkpoint() -> None:
     """Test the Checkpoint class.
 
@@ -73,7 +21,7 @@ def test_checkpoint() -> None:
     """
     from anemoi.inference.checkpoint import Checkpoint
 
-    c = Checkpoint("model.chkpt")
+    c = Checkpoint("simple.chkpt")
     c.variables_from_input
 
 

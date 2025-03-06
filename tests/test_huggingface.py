@@ -17,7 +17,7 @@ import pytest
 import anemoi.inference.checkpoint
 from anemoi.inference.runner import Runner
 
-from ..metadata.fake_metadata import FakeMetadata
+from .fake_metadata import FakeMetadata
 
 
 @pytest.fixture(scope="session")
