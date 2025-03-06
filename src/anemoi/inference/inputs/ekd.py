@@ -22,23 +22,6 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
-class NoMask:
-    """No mask to apply"""
-
-    def apply(self, field):
-        return field
-
-
-class ApplyMask:
-    """Apply a mask to a field"""
-
-    def __init__(self, mask):
-        self.mask = mask
-
-    def apply(self, field):
-        return field[self.mask]
-
-
 class RulesNamer:
     """A namer that uses rules to generate names"""
 
@@ -89,6 +72,7 @@ class EkdInput(Input):
         longitudes=None,
         dtype=np.float32,
         flatten=True,
+        mask=None,
     ):
 
         for processor in self.context.pre_processors:
@@ -133,15 +117,24 @@ class EkdInput(Input):
         fields = input_state["fields"]
 
         input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates, title="Create input state")
-        mask = self.checkpoint.grid_points_mask
-        mask = ApplyMask(mask) if mask is not None else NoMask()
 
+        # target information
+        if mask is not None:
+            LOG.info("Applying mask from supporting arrays: %s", mask)
+            mask = self.checkpoint.load_supporting_array(mask)
+            n_points = mask.sum()
+        else:
+            n_points = self.checkpoint.number_of_grid_points
+            mask = self.checkpoint.grid_points_mask or slice(None)
         check = defaultdict(set)
 
         for field in input_fields:
 
             if input_state["latitudes"] is None:
-                input_state["latitudes"], input_state["longitudes"] = field.grid_points()
+                lat, lon = field.grid_points()
+                if mask is not None:
+                    lat, lon = lat[mask], lon[mask]
+                input_state["latitudes"], input_state["longitudes"] = lat, lon
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -150,7 +143,7 @@ class EkdInput(Input):
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
                 fields[name] = np.full(
-                    shape=(len(dates), self.checkpoint.number_of_grid_points),
+                    shape=(len(dates), n_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -158,7 +151,7 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
+                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)[mask]
             except ValueError:
                 LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
                 LOG.error("dates %s", dates)
@@ -199,7 +192,6 @@ class EkdInput(Input):
 
         # for f in data:
         #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
-
         data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
             name=variables, valid_datetime="ascending"
         )
@@ -218,11 +210,16 @@ class EkdInput(Input):
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
-    def _load_forcings(self, fields, variables, dates):
+    def _load_forcings(self, fields, variables, dates, mask=None):
 
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
 
         data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
-        return data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
+        data = data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
+
+        if mask is not None:
+            mask = self.checkpoint.load_supporting_array(mask)
+            data = data[..., mask]
+        return data
