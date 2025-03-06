@@ -13,6 +13,7 @@ import re
 from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import Set
 from typing import Union
 
 import earthkit.data as ekd
@@ -53,7 +54,7 @@ def _ordering(item: tuple) -> int:
     return ORDERING.get(item[0], 999)
 
 
-def _param(param: str) -> str:
+def _param(param: Any) -> str:
     """Determine the parameter type based on its value.
 
     Parameters
@@ -187,7 +188,7 @@ def grib_keys(
     previous_step: Optional[Any],
     start_steps: Dict[Any, Any],
     keys: Dict[str, Any],
-    quiet: bool,
+    quiet: Set[str],
     grib1_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
     grib2_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
 ) -> Dict[str, Any]:

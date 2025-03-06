@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class NoForcings(Forcings):
     """No forcings."""
 
-    def __init__(self, context, variables, mask):
+    def __init__(self, context: Any, variables: List[str], mask: IntArray) -> None:
         """Initialize the NoForcings.
 
         Parameters
@@ -63,7 +63,7 @@ class NoForcings(Forcings):
 class SimpleRunner(Runner):
     """Use that runner when using the low level API."""
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the SimpleRunner.
 
         Parameters

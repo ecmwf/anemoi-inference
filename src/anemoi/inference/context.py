@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from typing import List
 from typing import Optional
 
+from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
@@ -49,7 +50,7 @@ class Context(ABC):
 
     @property
     @abstractmethod
-    def checkpoint(self):
+    def checkpoint(self) -> Checkpoint:
         """Returns the checkpoint used for the inference."""
         pass
 

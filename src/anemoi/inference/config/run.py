@@ -95,16 +95,16 @@ class RunConfiguration(Configuration):
     is already loaded when the runner is configured.
     """
 
-    patch_metadata: dict = {}
+    patch_metadata: Dict[str, Any] = {}
     """A dictionary of metadata to patch the checkpoint metadata with. This is used to test new features or to work around
     issues with the checkpoint metadata.
     """
 
-    development_hacks: dict = {}
+    development_hacks: Dict[str, Any] = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around."""
 
     trace_path: Optional[str] = None
     """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
 
-    debugging_info: dict = {}
+    debugging_info: Dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""

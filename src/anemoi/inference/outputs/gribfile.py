@@ -19,6 +19,7 @@ from typing import Optional
 import earthkit.data as ekd
 import numpy as np
 
+from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 
 from ..decorators import main_argument
@@ -192,11 +193,11 @@ class GribFileOutput(GribOutput):
         if template is not None and template.metadata("name", default=None) is not None:
             # We cannot clear the metadata...
             class Dummy:
-                def __init__(self, template):
+                def __init__(self, template: ekd.Field) -> None:
                     self.template = template
                     self.handle = template.handle
 
-                def __repr__(self):
+                def __repr__(self) -> str:
                     return f"Dummy({self.template})"
 
             template = Dummy(template)
@@ -279,7 +280,7 @@ class GribFileOutput(GribOutput):
         patch = self.archive_requests.get("patch", {})
         indent = self.archive_requests.get("indent", None)
 
-        def _patch(r):
+        def _patch(r: DataRequest) -> DataRequest:
             if self.context.config.use_grib_paramid:
                 from anemoi.utils.grib import shortname_to_paramid
 

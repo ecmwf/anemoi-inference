@@ -10,6 +10,8 @@
 import datetime
 import logging
 from functools import partial
+from typing import Any
+from typing import Callable
 from typing import List
 from typing import Literal
 from typing import Optional
@@ -17,6 +19,7 @@ from typing import Union
 
 import numpy as np
 
+from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -28,7 +31,12 @@ LOG = logging.getLogger(__name__)
 ListOrAll = Union[List[str], Literal["all"]]
 
 
-def print_state(state: State, print=print, max_lines: int = 4, variables: Optional[ListOrAll] = None) -> None:
+def print_state(
+    state: State,
+    print: Callable[..., None] = print,
+    max_lines: int = 4,
+    variables: Optional[ListOrAll] = None,
+) -> None:
     """Print the state.
 
     Parameters
@@ -100,23 +108,29 @@ def print_state(state: State, print=print, max_lines: int = 4, variables: Option
 @output_registry.register("printer")
 @main_argument("max_lines")
 class PrinterOutput(Output):
-    """Printer output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    path : str, optional
-        The path to save the printed output, by default None.
-    variables : list, optional
-        The list of variables to print, by default None.
-    **kwargs : Any
-        Additional keyword arguments.
-    """
+    """Printer output class."""
 
     def __init__(
-        self, context: dict, path: Optional[str] = None, variables: Optional[ListOrAll] = None, **kwargs
+        self,
+        context: Context,
+        path: Optional[str] = None,
+        variables: Optional[ListOrAll] = None,
+        **kwargs: Any,
     ) -> None:
+        """Initialize the PrinterOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str, optional
+            The path to save the printed output, by default None.
+        variables : list, optional
+            The list of variables to print, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+
         super().__init__(context)
         self.print = print
         self.variables = variables

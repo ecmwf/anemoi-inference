@@ -17,6 +17,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Literal
 from typing import Optional
 
 import earthkit.data as ekd
@@ -244,7 +245,7 @@ class Checkpoint:
         self,
         *,
         all_packages: bool = False,
-        on_difference: str = "warn",
+        on_difference: Literal["warn", "error", "ignore"] = "warn",
         exempt_packages: Optional[List[str]] = None,
     ) -> bool:
         """Validate the environment.
@@ -417,8 +418,8 @@ class Checkpoint:
     ###########################################################################
 
     @cached_property
-    def lagged(self) -> List[datetime.timedelta]:
-        """Return the list of timedelta for the `multi_step_input` fields."""
+    def lagged(self) -> List[int]:
+        """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
         result = [-s * self._metadata.timestep for s in result]
         return sorted(result)

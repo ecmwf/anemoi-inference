@@ -12,6 +12,7 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
+from typing import Dict
 from typing import List
 
 import earthkit.data as ekd
@@ -158,7 +159,7 @@ class ComputedForcings(Forcings):
 
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
 
-        def rename(f, _, metadata):
+        def rename(field: ekd.Field, _: str, metadata: Dict[str, Any]) -> str:
             return metadata["param"]
 
         ds = FieldArray([f.clone(name=rename) for f in ds])
@@ -174,7 +175,7 @@ class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
 
     @property
-    def trace_name(self):
+    def trace_name(self) -> str:
         """Return the trace name of the input."""
         return self.input.trace_name
 
@@ -198,7 +199,7 @@ class CoupledForcings(Forcings):
         self.input = input
         self.kinds = dict(retrieved=True)  # Used for debugging
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a string representation of the CoupledForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
@@ -256,7 +257,7 @@ class BoundaryForcings(Forcings):
             self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)
         self.kinds = dict(retrieved=True)  # Used for debugging
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a string representation of the BoundaryForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 

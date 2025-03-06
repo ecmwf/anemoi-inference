@@ -8,7 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 import os
-import sys
 from copy import deepcopy
 from typing import Any
 from typing import Dict
@@ -204,16 +203,12 @@ def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
 
         if ".".join(path) in KEEP:
-            print("Keeping", ".".join(path), file=sys.stderr)
             return
 
         for k, v in list(metadata.items()):
-            key = path + (k,)
             if k not in reference:
-                print("Dropping", key, file=sys.stderr)
                 del metadata[k]
             else:
-
                 if isinstance(v, dict):
                     drop(metadata[k], reference[k], *path, k)
 
@@ -227,11 +222,3 @@ def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
             mars.pop(key, None)
 
     return metadata
-
-
-if __name__ == "__main__":
-    import json
-    import sys
-
-    path = sys.argv[1]
-    print(json.dumps(minimum_mock_checkpoint(json.load(open(path)))))

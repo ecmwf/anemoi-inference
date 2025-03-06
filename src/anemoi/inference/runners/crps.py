@@ -23,7 +23,7 @@ class CrpsRunner(DefaultRunner):
     Inherits from DefaultRunner.
     """
 
-    def predict_step(self, model, input_tensor_torch, fcstep: int, **kwargs: Any) -> Any:
+    def predict_step(self, model: Any, input_tensor_torch: Any, fcstep: int, **kwargs: Any) -> Any:
         """Perform a prediction step using the model.
 
         Parameters

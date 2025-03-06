@@ -9,7 +9,6 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,9 +17,6 @@ from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.task import Task
 from anemoi.inference.types import State
-
-if TYPE_CHECKING:
-    from anemoi.inference.transport import Transport
 
 LOG = logging.getLogger(__name__)
 

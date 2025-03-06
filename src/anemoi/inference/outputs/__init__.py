@@ -11,11 +11,12 @@ from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
+from anemoi.inference.output import Output
 
 output_registry = Registry(__name__)
 
 
-def create_output(context: Context, config: Configuration) -> object:
+def create_output(context: Context, config: Configuration) -> Output:
     """Create an output.
 
     Parameters

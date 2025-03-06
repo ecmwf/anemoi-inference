@@ -33,8 +33,10 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
@@ -115,14 +117,14 @@ class Metadata(PatchMixin, LegacyMixin):
     # Debugging
     ###########################################################################
 
-    def _print_indices(self, title: str, indices: dict, naming: dict, skip: set = set()) -> None:
+    def _print_indices(self, title: str, indices: Dict[str, List[int]], naming: Dict, skip: List[str] = []) -> None:
         """Print indices for debugging purposes.
 
         Parameters
         ----------
         title : str
             The title for the indices.
-        indices : dict
+        indices : Dict[str, List[int]]
             The indices to print.
         naming : dict
             The naming convention for the indices.
@@ -356,7 +358,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the indices of the variables that are accumulations."""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
-    def name_fields(self, fields: "FieldList", namer: Callable = None) -> "FieldList":
+    def name_fields(self, fields: ekd.FieldList, namer: Optional[Callable[..., Any]] = None) -> "FieldList":
         """Name fields using the provided namer.
 
         Parameters
@@ -376,7 +378,7 @@ class Metadata(PatchMixin, LegacyMixin):
         if namer is None:
             namer = self.default_namer()
 
-        def _name(field, _, original_metadata):
+        def _name(field: ekd.Field, _: str, original_metadata: Dict[str, Any]) -> str:
             return namer(field, original_metadata)
 
         return FieldArray([f.copy(name=_name) for f in fields])
@@ -407,7 +409,7 @@ class Metadata(PatchMixin, LegacyMixin):
     # Default namer
     ###########################################################################
 
-    def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[..., Any]:
         """Return a callable that can be used to name earthkit-data fields.
 
         Parameters
@@ -669,7 +671,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         result = []
 
-        def _find(x):
+        def _find(x: Any) -> None:
 
             if isinstance(x, list):
                 for y in x:
@@ -688,7 +690,9 @@ class Metadata(PatchMixin, LegacyMixin):
         _find(self._config.dataloader.training.dataset)
         return result
 
-    def open_dataset_args_kwargs(self, *, use_original_paths: bool, from_dataloader: Optional[str] = None) -> tuple:
+    def open_dataset_args_kwargs(
+        self, *, use_original_paths: bool, from_dataloader: Optional[str] = None
+    ) -> Tuple[Any, Any]:
         """Get the arguments and keyword arguments for opening the dataset.
 
         Parameters
@@ -713,7 +717,7 @@ class Metadata(PatchMixin, LegacyMixin):
             mapping[os.path.basename(path)] = path
             mapping[os.path.splitext(os.path.basename(path))[0]] = path
 
-        def _fix(x):
+        def _fix(x: Any) -> Any:
             if isinstance(x, list):
                 return [_fix(a) for a in x]
 
@@ -870,7 +874,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def dynamic_forcings_inputs(self, context: object, input_state: dict) -> list:
+    def dynamic_forcings_inputs(self, context: object, input_state: State) -> List[Forcings]:
         """Get the dynamic forcings inputs.
 
         Parameters
@@ -1113,7 +1117,7 @@ class Metadata(PatchMixin, LegacyMixin):
             The patch to apply.
         """
 
-        def merge(main, patch):
+        def merge(main: Dict[str, Any], patch: Dict[str, Any]) -> None:
 
             for k, v in patch.items():
                 if isinstance(v, dict):

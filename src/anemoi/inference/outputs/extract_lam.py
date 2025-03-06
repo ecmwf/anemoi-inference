@@ -12,6 +12,7 @@ from typing import Optional
 
 import numpy as np
 
+from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
@@ -44,7 +45,7 @@ class ExtractLamOutput(ForwardOutput):
         self,
         context: Context,
         *,
-        output: dict,
+        output: Configuration,
         lam: str = "lam_0",
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,

@@ -14,6 +14,7 @@ from argparse import ArgumentParser
 from argparse import Namespace
 from datetime import datetime
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -41,15 +42,16 @@ def checkpoint_to_requests(
     staging_dates: Optional[str] = None,
     use_grib_paramid: bool = False,
     extra: Optional[List[str]] = None,
+    patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
     use_scda: bool = False,
 ) -> List[DataRequest]:
     """Convert a checkpoint to a list of data requests.
 
     Parameters
     ----------
-    checkpoint : object
+    checkpoint : Checkpoint
         The checkpoint object containing the necessary data.
-    date : str
+    date : Date
         The date for the data request.
     target : str, optional
         The target path for the data request.
@@ -63,6 +65,8 @@ def checkpoint_to_requests(
         Whether to use GRIB parameter IDs.
     extra : list of str, optional
         Additional request values.
+    patch_request : Callable[[DataRequest], DataRequest], optional
+        Function to patch the data request.
     use_scda : bool, optional
         Whether to use SCDA stream for 6/18 input time.
 
@@ -112,6 +116,7 @@ def checkpoint_to_requests(
         variables=variables,
         use_grib_paramid=use_grib_paramid,
         always_split_time=use_scda,
+        patch_request=patch_request,
     ):
         r = r.copy()
         r.update(more)
@@ -173,7 +178,6 @@ class RetrieveCmd(Command):
             retrieve_fields_type=args.retrieve_fields_type,
             staging_dates=args.staging_dates,
             use_grib_paramid=config.use_grib_paramid,
-            always_split_time=args.use_scda,
             patch_request=runner.patch_data_request,
             use_scda=args.use_scda,
         )
