@@ -332,7 +332,7 @@ class EkdInput(Input):
                 )
 
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
-            if name not in fields:
+            if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), self.checkpoint.number_of_grid_points),
                     fill_value=np.nan,
