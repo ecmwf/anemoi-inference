@@ -27,6 +27,22 @@ LOG = logging.getLogger(__name__)
 SKIP_KEYS = ["date", "time", "step"]
 
 
+def string_to_float_hash(s: str) -> float:
+    """Hash a string to a float.
+
+    Parameters
+    ----------
+    s : str
+        The string to hash.
+
+    Returns
+    -------
+    float
+        The hashed float value.
+    """
+    return float(int.from_bytes(s.encode(), "little") % 1_000_000) / 1_000_000
+
+
 @input_registry.register("dummy")
 class DummyInput(EkdInput):
     """Dummy input used for testing."""
@@ -120,7 +136,8 @@ class DummyInput(EkdInput):
 
             for date in dates:
                 handle = dict(
-                    values=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
+                    values=np.ones(self.checkpoint.number_of_grid_points, dtype=np.float32)
+                    * string_to_float_hash(variable + date.isoformat()),
                     latitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
                     longitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
                     date=date.strftime("%Y%m%d"),

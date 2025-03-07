@@ -36,6 +36,7 @@ from anemoi.utils.provenance import gather_provenance_info
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
 from .legacy import LegacyMixin
@@ -239,12 +240,12 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._config_training.multistep_input
 
     @cached_property
-    def prognostic_output_mask(self) -> np.ndarray:
+    def prognostic_output_mask(self) -> IntArray:
         """Return the prognostic output mask."""
         return np.array(self._indices.model.output.prognostic)
 
     @cached_property
-    def prognostic_input_mask(self) -> np.ndarray:
+    def prognostic_input_mask(self) -> IntArray:
         """Return the prognostic input mask."""
         return np.array(self._indices.model.input.prognostic)
 
@@ -384,7 +385,11 @@ class Metadata(PatchMixin, LegacyMixin):
         return FieldArray([f.copy(name=_name) for f in fields])
 
     def sort_by_name(
-        self, fields: ekd.FieldList, namer: Optional[Callable[..., Any]] = None, *args: Any, **kwargs: Any
+        self,
+        fields: ekd.FieldList,
+        *args: Any,
+        namer: Optional[Callable[..., Any]] = None,
+        **kwargs: Any,
     ) -> ekd.FieldList:
         """Sort fields by name.
 
@@ -392,10 +397,10 @@ class Metadata(PatchMixin, LegacyMixin):
         ----------
         fields : ekd.FieldList
             The fields to sort.
-        namer : callable, optional
-            The namer function, by default None.
         args : Any
             Additional arguments.
+        namer : callable, optional
+            The namer function, by default None.
         kwargs : Any
             Additional keyword arguments.
 

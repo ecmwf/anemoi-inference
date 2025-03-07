@@ -359,28 +359,28 @@ class Checkpoint:
         """
         return self._metadata.name_fields(fields, namer=namer)
 
-    def sort_by_name(self, fields: Any, namer: Optional[Callable[..., str]] = None, *args: Any, **kwargs: Any) -> Any:
+    def sort_by_name(
+        self, fields: ekd.FieldList, *args: Any, namer: Optional[Callable[..., str]] = None, **kwargs: Any
+    ) -> ekd.FieldList:
         """Sort fields by name.
 
         Parameters
         ----------
-        fields : Any
+        fields : ekd.FieldList
             The fields to sort.
-        namer : Optional[Callable[...,str]], optional
-            The namer, by default None.
-
         *args : Any
             Additional arguments.
-
+        namer : Optional[Callable[...,str]], optional
+            The namer, by default None.
         **kwargs : Any
             Additional keyword arguments.
 
         Returns
         -------
-        Any
+        ekd.FieldList
             The sorted fields.
         """
-        return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
+        return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
 
     def print_indices(self) -> None:
         """Print the indices."""

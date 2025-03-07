@@ -18,6 +18,7 @@ from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
+from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -99,7 +100,7 @@ class CoupledInput:
 
     trace_name = "coupled"
 
-    def __init__(self, task: Task, transport: Any, couplings: List[Any]) -> None:
+    def __init__(self, task: Task, transport: Any, couplings: List[Coupling]) -> None:
         """Initialize the CoupledInput.
 
         Parameters
