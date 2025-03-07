@@ -27,12 +27,11 @@ class GribFileInput(GribInput):
     trace_name = "grib file"
 
     def __init__(self, context, path, *, namer=None, **kwargs):
-        super().__init__(context, namer=namer)
+        super().__init__(context, namer=namer, **kwargs)
         self.path = path
-        self.kwargs = kwargs
 
     def create_input_state(self, *, date):
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date, **self.kwargs)
+        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
 
     def load_forcings(self, *, variables, dates):
-        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates, **self.kwargs)
+        return self._load_forcings(ekd.from_source("file", self.path), variables=variables, dates=dates)

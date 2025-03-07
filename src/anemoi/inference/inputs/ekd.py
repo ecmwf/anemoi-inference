@@ -50,7 +50,7 @@ class RulesNamer:
 class EkdInput(Input):
     """Handles earthkit-data FieldList as input"""
 
-    def __init__(self, context, *, namer=None):
+    def __init__(self, context, *, namer=None, mask=None):
         super().__init__(context)
 
         if isinstance(namer, dict):
@@ -62,6 +62,14 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
+        if mask is not None:
+            LOG.info("Using mask from supporting arrays: %s", mask)
+            self.mask = self.checkpoint.load_supporting_array(mask)
+            self.n_points = self.mask.sum()
+        else:
+            self.n_points = self.checkpoint.number_of_grid_points
+            self.mask = self.checkpoint.grid_points_mask or slice(None)
+
     def _create_input_state(
         self,
         input_fields,
@@ -72,7 +80,6 @@ class EkdInput(Input):
         longitudes=None,
         dtype=np.float32,
         flatten=True,
-        mask=None,
     ):
 
         for processor in self.context.pre_processors:
@@ -118,22 +125,14 @@ class EkdInput(Input):
 
         input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates, title="Create input state")
 
-        # target information
-        if mask is not None:
-            LOG.info("Applying mask from supporting arrays: %s", mask)
-            mask = self.checkpoint.load_supporting_array(mask)
-            n_points = mask.sum()
-        else:
-            n_points = self.checkpoint.number_of_grid_points
-            mask = self.checkpoint.grid_points_mask or slice(None)
         check = defaultdict(set)
 
         for field in input_fields:
 
             if input_state["latitudes"] is None:
                 lat, lon = field.grid_points()
-                if mask is not None:
-                    lat, lon = lat[mask], lon[mask]
+                if self.mask is not None:
+                    lat, lon = lat[self.mask], lon[self.mask]
                 input_state["latitudes"], input_state["longitudes"] = lat, lon
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
@@ -143,7 +142,7 @@ class EkdInput(Input):
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
                 fields[name] = np.full(
-                    shape=(len(dates), n_points),
+                    shape=(len(dates), self.n_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -151,7 +150,7 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)[mask]
+                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)[self.mask]
             except ValueError:
                 LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
                 LOG.error("dates %s", dates)
@@ -210,16 +209,12 @@ class EkdInput(Input):
         data = FieldArray([f.clone(name=_name) for f in data])
         return data.sel(name=name, **kwargs)
 
-    def _load_forcings(self, fields, variables, dates, mask=None):
+    def _load_forcings(self, fields, variables, dates):
 
         for processor in self.context.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
 
+        out_shape = (len(variables), len(dates), -1)
         data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
-        data = data.to_numpy(dtype=np.float32, flatten=True).reshape(len(variables), len(dates), -1)
-
-        if mask is not None:
-            mask = self.checkpoint.load_supporting_array(mask)
-            data = data[..., mask]
-        return data
+        return data.to_numpy(dtype=np.float32, flatten=True).reshape(out_shape)[..., self.mask]
