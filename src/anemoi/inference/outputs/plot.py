@@ -16,6 +16,7 @@ from typing import Union
 
 import numpy as np
 
+from anemoi.inference.context import Context
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
@@ -45,35 +46,11 @@ def fix(lons: FloatArray) -> FloatArray:
 
 @output_registry.register("plot")
 class PlotOutput(Output):
-    """Plot output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    path : str
-        The path to save the plots.
-    variables : list, optional
-        The list of variables to plot, by default all.
-    strftime : str, optional
-        The date format string, by default "%Y%m%d%H%M%S".
-    template : str, optional
-        The template for plot filenames, by default "plot_{variable}_{date}.{format}".
-    dpi : int, optional
-        The resolution of the plot, by default 300.
-    format : str, optional
-        The format of the plot, by default "png".
-    missing_value : float, optional
-        The value to use for missing data, by default None.
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    """
+    """Plot output class."""
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         path: str,
         variables: ListOrAll = "all",
         strftime: str = "%Y%m%d%H%M%S",
@@ -84,6 +61,32 @@ class PlotOutput(Output):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
+        """Initialize the PlotOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str
+            The path to save the plots.
+        variables : list, optional
+            The list of variables to plot, by default all.
+        strftime : str, optional
+            The date format string, by default "%Y%m%d%H%M%S".
+        template : str, optional
+            The template for plot filenames, by default "plot_{variable}_{date}.{format}".
+        dpi : int, optional
+            The resolution of the plot, by default 300.
+        format : str, optional
+            The format of the plot, by default "png".
+        missing_value : float, optional
+            The value to use for missing data, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        """
+
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.format = format

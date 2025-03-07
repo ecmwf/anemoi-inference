@@ -26,18 +26,12 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("tee")
 class TeeOutput(ForwardOutput):
-    """TeeOutput class to manage multiple outputs.
-
-    Attributes
-    ----------
-    outputs : list
-        List of output objects.
-    """
+    """TeeOutput class to manage multiple outputs."""
 
     def __init__(
         self,
         context: Context,
-        *args: tuple,
+        *args: Any,
         outputs: List[Configuration],
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
@@ -49,7 +43,7 @@ class TeeOutput(ForwardOutput):
         ----------
         context : object
             The context object.
-        *args : tuple
+        *args : Any
             Additional positional arguments.
         outputs : list or tuple, optional
             List of outputs to be created.
@@ -57,7 +51,7 @@ class TeeOutput(ForwardOutput):
             Frequency of output.
         write_initial_state : bool, optional
             Flag to write the initial state.
-        **kwargs : dict
+        **kwargs : Any
             Additional keyword arguments.
         """
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)

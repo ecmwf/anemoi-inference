@@ -14,6 +14,7 @@ from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
+from anemoi.inference.config import Configuration
 from anemoi.inference.task import Task
 from anemoi.inference.types import State
 
@@ -27,12 +28,12 @@ LOG = logging.getLogger(__name__)
 class MPITransport(Transport):
     """Transport implementation using MPI."""
 
-    def __init__(self, couplings: Any, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, couplings: Configuration, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
         """Initialize the MPITransport.
 
         Parameters
         ----------
-        couplings : Any
+        couplings : Configuration
             The couplings for the transport.
         tasks : Dict[str, Any]
             The tasks to be executed.

@@ -27,9 +27,9 @@ LOG = logging.getLogger(__name__)
 
 @input_registry.register("icon_grib_file")
 class IconInput(GribInput):
-    """Handles grib files from ICON
-    WARNING: this code will become a pugin in the future.
-    """
+    """Handles grib files from ICON."""
+
+    # TODO: this code will become a pugin in the future.
 
     trace_name = "icon file"
 

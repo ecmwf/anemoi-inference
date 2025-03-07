@@ -13,6 +13,7 @@ from typing import Optional
 
 import numpy as np
 
+from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -25,27 +26,11 @@ LOG = logging.getLogger(__name__)
 @output_registry.register("raw")
 @main_argument("path")
 class RawOutput(Output):
-    """Raw output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    path : str
-        The path to save the raw output.
-    template : str, optional
-        The template for filenames, by default "{date}.npz".
-    strftime : str, optional
-        The date format string, by default "%Y%m%d%H%M%S".
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    """
+    """Raw output class."""
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         path: str,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
@@ -57,7 +42,7 @@ class RawOutput(Output):
         Parameters
         ----------
         context : dict
-            The context dictionary.
+            The context.
         path : str
             The path to save the raw output.
         template : str, optional

@@ -24,6 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 class RunConfiguration(Configuration):
+    """Configuration class for a default runner."""
 
     description: Optional[str] = None
 

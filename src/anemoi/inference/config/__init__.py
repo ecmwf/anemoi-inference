@@ -26,6 +26,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Configuration(BaseModel):
+    """Configuration class."""
 
     class Config:
         extra = "forbid"

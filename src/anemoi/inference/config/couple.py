@@ -13,35 +13,39 @@ import datetime
 import logging
 from typing import Any
 from typing import Dict
+from typing import Optional
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.types import Couplings
+from anemoi.inference.types import Date
 
 LOG = logging.getLogger(__name__)
 
 
 class CoupleConfiguration(Configuration):
+    """Configuration class for the couple runner."""
 
     class Config:
         extra = "forbid"
 
-    description: str | None = None
+    description: Optional[str] = None
 
-    date: str | int | datetime.datetime | None = None
+    date: Optional[Date] = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
-    lead_time: str | int | datetime.timedelta = None
+    lead_time: Optional[str, int, datetime.timedelta] = None
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
 
-    name: str | None = None
+    name: Optional[str] = None
     """Used by prepml."""
 
     transport: str
-    couplings: list[dict[str, list[str]]]
-    tasks: dict[str, dict[str, dict[str, Any]]]
+    couplings: Couplings
+    tasks: Dict[str, Configuration]
 
-    env: Dict[str, str | int] = {}
+    env: Dict[str, Any] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured.

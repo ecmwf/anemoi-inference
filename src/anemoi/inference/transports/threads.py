@@ -36,7 +36,7 @@ class TaskWrapper:
             The task to be wrapped.
         """
         self.task: Any = task
-        self.queue: queue.Queue = queue.Queue(maxsize=1)
+        self.queue: queue.Queue[Any] = queue.Queue(maxsize=1)
         self.error: Exception | None = None
         self.name: str = task.name
 
@@ -82,8 +82,8 @@ class ThreadsTransport(Transport):
         """
         super().__init__(couplings, tasks)
         self.threads: Dict[str, threading.Thread] = {}
-        self.lock: threading.Lock = threading.Lock()
-        self.backlogs: Dict[str, Dict[tuple, Any]] = {name: {} for name in tasks}
+        self.lock = threading.Lock()
+        self.backlogs: Dict[str, Any] = {name: {} for name in tasks}
 
     def start(self) -> None:
         """Start the transport by initializing and starting threads for each task."""

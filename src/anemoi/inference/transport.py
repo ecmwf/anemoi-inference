@@ -138,13 +138,13 @@ class Transport(ABC):
 
         Parameters
         ----------
-        couplings : List[Dict[str, List[str]]]
-            The list of couplings.
+        couplings : List[Dict[str,str]]
+            The list of dict representing the couplings.
         tasks : Dict[str, Task]
             The dictionary of tasks.
         """
         enable_logging_name("main")
-        self._couplings: List[Dict[str, List[str]]] = couplings
+        self._couplings = couplings
         self.tasks: Dict[str, Task] = tasks
 
     @abstractmethod

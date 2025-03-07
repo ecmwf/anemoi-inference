@@ -16,6 +16,7 @@ from typing import Union
 
 import numpy as np
 
+from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 
 LOG = logging.getLogger(__name__)
@@ -210,7 +211,7 @@ class Trace:
         """
         self.from_source(name, InputSource(input))
 
-    def reset_sources(self, reset: list[bool], variable_to_input_tensor_index: Dict[str, int]) -> None:
+    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: Dict[str, int]) -> None:
         """Reset the sources in the trace.
 
         Parameters
