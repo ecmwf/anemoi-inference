@@ -1,4 +1,4 @@
-transport: processes
+transport: threads
 
 couplings:
 - atmos -> ocean:

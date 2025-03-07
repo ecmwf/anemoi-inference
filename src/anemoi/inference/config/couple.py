@@ -26,9 +26,6 @@ LOG = logging.getLogger(__name__)
 class CoupleConfiguration(Configuration):
     """Configuration class for the couple runner."""
 
-    class Config:
-        extra = "forbid"
-
     description: Optional[str] = None
 
     date: Optional[Date] = None

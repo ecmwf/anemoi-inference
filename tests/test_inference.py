@@ -56,6 +56,8 @@ def test_inference_mwd() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    test_inference_simple()
+    exit()
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):
             print(f"Running {name}...")

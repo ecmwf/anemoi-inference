@@ -21,6 +21,7 @@ from typing import Union
 
 import yaml
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 LOG = logging.getLogger(__name__)
 
@@ -28,8 +29,7 @@ LOG = logging.getLogger(__name__)
 class Configuration(BaseModel):
     """Configuration class."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     @classmethod
     def load(
