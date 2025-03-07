@@ -69,14 +69,14 @@ class NetCDFOutput(Output):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         from netCDF4 import Dataset
 
         with LOCK:
             if self.ncfile is not None:
-                return self.ncfile
+                return
 
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
@@ -124,14 +124,13 @@ class NetCDFOutput(Output):
         self.ensure_variables(state)
 
         self.n = 0
-        return self.ncfile
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         values = len(state["latitudes"])
@@ -160,7 +159,7 @@ class NetCDFOutput(Output):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
 

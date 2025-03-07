@@ -53,25 +53,6 @@ class CutoutInput(Input):
         assert False, (state1, state2)
 
 
-class CutoutContext(Context):
-    """A Context object for CutoutRunner."""
-
-    def __init__(self, checkpoint: str) -> None:
-        """Initialize CutoutContext.
-
-        Parameters
-        ----------
-        checkpoint : str
-            The checkpoint for the context.
-        """
-        self._checkpoint = checkpoint
-
-    @property
-    def checkpoint(self) -> str:
-        """Get the checkpoint."""
-        return self._checkpoint
-
-
 @runner_registry.register("cutout")
 class CutoutRunner(Runner):
     """A Runner that for LAMs."""

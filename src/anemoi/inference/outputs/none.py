@@ -26,7 +26,7 @@ class NoneOutput(Output):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         pass

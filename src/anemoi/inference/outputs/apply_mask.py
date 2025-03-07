@@ -61,7 +61,7 @@ class ApplyMaskOutput(ForwardOutput):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         # Note: we foreward to 'state', so we write-up options again
@@ -72,23 +72,23 @@ class ApplyMaskOutput(ForwardOutput):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
-    def _apply_mask(self, state: State) -> dict:
+    def _apply_mask(self, state: State) -> State:
         """Apply the mask to the state.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
 
         Returns
         -------
-        dict
+        State
             The masked state dictionary.
         """
         state = state.copy()

@@ -79,7 +79,7 @@ class ExtractLamOutput(ForwardOutput):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         # Note: we foreward to 'state', so we write-up options again
@@ -90,7 +90,7 @@ class ExtractLamOutput(ForwardOutput):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         # Note: we foreward to 'state', so we write-up options again
@@ -101,7 +101,7 @@ class ExtractLamOutput(ForwardOutput):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
 
         Returns

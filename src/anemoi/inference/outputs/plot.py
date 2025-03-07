@@ -102,7 +102,7 @@ class PlotOutput(Output):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         import cartopy.crs as ccrs

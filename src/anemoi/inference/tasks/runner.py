@@ -161,7 +161,7 @@ class CoupledInput:
 
         Parameters
         ----------
-        state : dict
+        state : State
             State dictionary.
         """
         # We want to copy the constants that may be requested by the other tasks

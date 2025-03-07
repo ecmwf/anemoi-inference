@@ -61,7 +61,7 @@ class PluginRunner(Runner):
     @property
     def lagged(self) -> List[int]:
         """Get lagged times in hours."""
-        return [s.total_seconds() // 3600 for s in self.checkpoint.lagged]
+        return self.checkpoint.lagged
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant computed forcings.

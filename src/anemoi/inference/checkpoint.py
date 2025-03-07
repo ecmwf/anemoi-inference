@@ -19,6 +19,7 @@ from typing import Dict
 from typing import List
 from typing import Literal
 from typing import Optional
+from typing import Tuple
 
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
@@ -270,7 +271,7 @@ class Checkpoint:
 
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Any, Any]:
         """Get arguments and keyword arguments for opening the dataset.
 
         Parameters
@@ -282,7 +283,7 @@ class Checkpoint:
 
         Returns
         -------
-        Dict[str, Any]
+        Tuple[Any, Any]
             Arguments and keyword arguments for opening the dataset.
         """
         return self._metadata.open_dataset_args_kwargs(
@@ -341,14 +342,14 @@ class Checkpoint:
         """
         return self._metadata.boundary_forcings_inputs(runner, input_state)
 
-    def name_fields(self, fields: Any, namer: Optional[Callable] = None) -> Any:
+    def name_fields(self, fields: Any, namer: Optional[Callable[..., str]] = None) -> Any:
         """Name fields.
 
         Parameters
         ----------
         fields : Any
             The fields to name.
-        namer : Optional[Callable], optional
+        namer : Optional[Callable[...,str]], optional
             The namer, by default None.
 
         Returns
@@ -358,14 +359,14 @@ class Checkpoint:
         """
         return self._metadata.name_fields(fields, namer=namer)
 
-    def sort_by_name(self, fields: Any, namer: Optional[Callable] = None, *args: Any, **kwargs: Any) -> Any:
+    def sort_by_name(self, fields: Any, namer: Optional[Callable[..., str]] = None, *args: Any, **kwargs: Any) -> Any:
         """Sort fields by name.
 
         Parameters
         ----------
         fields : Any
             The fields to sort.
-        namer : Optional[Callable], optional
+        namer : Optional[Callable[...,str]], optional
             The namer, by default None.
 
         *args : Any

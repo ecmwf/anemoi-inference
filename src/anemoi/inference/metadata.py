@@ -383,7 +383,9 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return FieldArray([f.copy(name=_name) for f in fields])
 
-    def sort_by_name(self, fields: ekd.FieldList, namer: Callable = None, *args: Any, **kwargs: Any) -> ekd.FieldList:
+    def sort_by_name(
+        self, fields: ekd.FieldList, namer: Optional[Callable[..., Any]] = None, *args: Any, **kwargs: Any
+    ) -> ekd.FieldList:
         """Sort fields by name.
 
         Parameters

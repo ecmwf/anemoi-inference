@@ -47,14 +47,14 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _is_valid(mars: dict, keys: dict) -> bool:
+def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
     """Check if the mars dictionary contains valid keys.
 
     Parameters
     ----------
-    mars : dict
+    mars : Dict[str,Any]
         The mars dictionary.
-    keys : dict
+    keys : Dict[str,Any]
         The keys dictionary.
 
     Returns
@@ -82,12 +82,12 @@ class ArchiveCollector:
         self.expect = 0
         self._request = defaultdict(set)
 
-    def add(self, field: dict) -> None:
+    def add(self, field: Dict[str, Any]) -> None:
         """Add a field to the archive request.
 
         Parameters
         ----------
-        field : dict
+        field : Dict[str,Any]
             The field dictionary.
         """
         self.expect += 1
@@ -98,7 +98,7 @@ class ArchiveCollector:
                     raise ValueError(f"Field {field} has different values for {k}: {self._request[k]}")
 
     @property
-    def request(self) -> dict:
+    def request(self) -> DataRequest:
         """Get the archive request."""
         return {k: sorted(v) for k, v in self._request.items()}
 

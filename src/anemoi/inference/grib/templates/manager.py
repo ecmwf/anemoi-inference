@@ -132,7 +132,7 @@ class TemplateManager:
         LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
-    def _grid(self, grid: Union[str, List[int], Tuple[int, int]]) -> Union[str, int]:
+    def _grid(self, grid: Union[str, List[float], Tuple[int, int]]) -> Union[str, List[float]]:
         """Convert the grid information to a standardized format.
 
         Parameters

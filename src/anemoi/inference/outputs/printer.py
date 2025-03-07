@@ -41,7 +41,7 @@ def print_state(
 
     Parameters
     ----------
-    state : dict
+    state : State
         The state dictionary.
     print : function, optional
         The print function to use, by default print.
@@ -144,7 +144,7 @@ class PrinterOutput(Output):
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         print_state(state, print=self.print, variables=self.variables)

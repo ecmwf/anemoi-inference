@@ -431,7 +431,7 @@ class EkdInput(Input):
         variables: List[str],
         dates: List[Date],
         current_state: State,
-    ) -> Dict[str, Any]:
+    ) -> State:
         """Load the forcings state.
 
         Parameters
@@ -447,7 +447,7 @@ class EkdInput(Input):
 
         Returns
         -------
-        Dict[str, Any]
+        State
             The loaded forcings state.
         """
         for processor in self.context.pre_processors:

@@ -24,8 +24,7 @@ class CosSinMeanWaveDirection(BackwardTransformFilter):
     """Post-processor for calculating the mean wave direction using cosine and sine components."""
 
     def __init__(self, context: Context, **kwargs: Any):
-        """
-        Initialize the CosSinMeanWaveDirection post-processor.
+        """Initialize the CosSinMeanWaveDirection post-processor.
 
         Parameters
         ----------

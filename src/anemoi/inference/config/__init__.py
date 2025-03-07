@@ -101,14 +101,14 @@ class Configuration(BaseModel):
         return config
 
     @classmethod
-    def _merge_configs(cls, a: dict, b: dict) -> None:
+    def _merge_configs(cls, a: Dict[Any, Any], b: Dict[Any, Any]) -> None:
         """Merge two configurations.
 
         Parameters
         ----------
-        a : dict
+        a : Dict[Any, Any]
             The first configuration.
-        b : dict
+        b : Dict[Any, Any]
             The second configuration.
         """
         for key, value in b.items():

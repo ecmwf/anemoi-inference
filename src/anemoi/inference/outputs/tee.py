@@ -15,6 +15,7 @@ from typing import Optional
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..output import ForwardOutput
 from . import create_output
@@ -69,45 +70,45 @@ class TeeOutput(ForwardOutput):
 
     # We override write_initial_state and write_state
     # so users can configures each levels independently
-    def write_initial_state(self, state: dict) -> None:
+    def write_initial_state(self, state: State) -> None:
         """Write the initial state to all outputs.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         state.setdefault("step", datetime.timedelta(0))
         for output in self.outputs:
             output.write_initial_state(state)
 
-    def write_state(self, state: dict) -> None:
+    def write_state(self, state: State) -> None:
         """Write the state to all outputs.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         for output in self.outputs:
             output.write_state(state)
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
         """Raise NotImplementedError as TeeOutput does not support write_step.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         raise NotImplementedError("TeeOutput does not support write_step")
 
-    def open(self, state: dict) -> None:
+    def open(self, state: State) -> None:
         """Open all outputs.
 
         Parameters
         ----------
-        state : dict
+        state : State
             The state dictionary.
         """
         for output in self.outputs:

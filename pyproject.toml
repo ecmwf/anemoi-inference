@@ -91,6 +91,9 @@ version_file = "src/anemoi/inference/_version.py"
 exclude = [ "docs/" ]
 strict = true
 ignore_missing_imports = true
+
+allow_redefinition = true
+
 disable_error_code = [
   # "arg-type",
   "assignment",
