@@ -131,8 +131,7 @@ class EkdInput(Input):
 
             if input_state["latitudes"] is None:
                 lat, lon = field.grid_points()
-                if self.mask is not None:
-                    lat, lon = lat[self.mask], lon[self.mask]
+                lat, lon = lat[self.mask], lon[self.mask]
                 input_state["latitudes"], input_state["longitudes"] = lat, lon
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
