@@ -15,10 +15,12 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
 
+from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 
@@ -52,9 +54,9 @@ def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
 
     Parameters
     ----------
-    mars : Dict[str,Any]
+    mars : Dict[str, Any]
         The mars dictionary.
-    keys : Dict[str,Any]
+    keys : Dict[str, Any]
         The keys dictionary.
 
     Returns
@@ -106,55 +108,56 @@ class ArchiveCollector:
 @output_registry.register("grib")
 @main_argument("path")
 class GribFileOutput(GribOutput):
-    """Handles grib files.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    path : str
-        The path to save the grib files.
-    encoding : dict, optional
-        The encoding dictionary, by default None.
-    archive_requests : dict, optional
-        The archive requests dictionary, by default None.
-    check_encoding : bool, optional
-        Whether to check encoding, by default True.
-    templates : dict, optional
-        The templates dictionary, by default None.
-    grib1_keys : dict, optional
-        The grib1 keys dictionary, by default None.
-    grib2_keys : dict, optional
-        The grib2 keys dictionary, by default None.
-    modifiers : list, optional
-        The list of modifiers, by default None.
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    variables : list, optional
-        The list of variables, by default None.
-    split_output : bool, optional
-        Whether to split the output, by default True.
-    """
+    """Handles grib files."""
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         *,
         path: str,
-        encoding: dict = None,
-        archive_requests: dict = None,
+        encoding: Optional[Dict[str, Any]] = None,
+        archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
-        templates: dict = None,
-        grib1_keys: dict = None,
-        grib2_keys: dict = None,
-        modifiers: list = None,
+        templates: Optional[Union[List[str], str]] = None,
+        grib1_keys: Optional[Dict[str, Any]] = None,
+        grib2_keys: Optional[Dict[str, Any]] = None,
+        modifiers: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
         variables: Optional[List[str]] = None,
         split_output: bool = True,
     ) -> None:
+        """Initialize the GribFileOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str
+            The path to save the grib files.
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        archive_requests : dict, optional
+            The archive requests dictionary, by default None.
+        check_encoding : bool, optional
+            Whether to check encoding, by default True.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        split_output : bool, optional
+            Whether to split the output, by default True.
+        """
         super().__init__(
             context,
             encoding=encoding,
@@ -225,7 +228,7 @@ class GribFileOutput(GribOutput):
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
-    def collect_archive_requests(self, written: tuple, template: object, **keys: dict) -> None:
+    def collect_archive_requests(self, written: tuple, template: object, **keys: Any) -> None:
         """Collect archive requests.
 
         Parameters
@@ -234,7 +237,7 @@ class GribFileOutput(GribOutput):
             The written tuple.
         template : object
             The template object.
-        **keys : dict
+        **keys : Any
             Additional keys for the archive requests.
         """
         if not self.archive_requests and not self.check_encoding:

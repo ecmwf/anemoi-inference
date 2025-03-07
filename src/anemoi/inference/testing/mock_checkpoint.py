@@ -12,6 +12,7 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import Tuple
 
 import yaml
 from anemoi.utils.config import DotDict
@@ -69,7 +70,7 @@ TEST_CHECKPOINTS = os.path.join(
 )
 
 
-def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -> Dict[str, Any]:
+def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Load metadata from a YAML file.
 
     Parameters
@@ -168,7 +169,9 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
 
             return y
 
-    return MockModel(*mock_load_metadata(path))
+    metadata, arrays = mock_load_metadata(path)
+
+    return MockModel(metadata, arrays)
 
 
 def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:

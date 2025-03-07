@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 import logging
 from typing import List
 from typing import Tuple
@@ -59,7 +60,7 @@ class PluginRunner(Runner):
         return sorted(params), sorted(levels)
 
     @property
-    def lagged(self) -> List[int]:
+    def lagged(self) -> List[datetime.timedelta]:
         """Get lagged times in hours."""
         return self.checkpoint.lagged
 

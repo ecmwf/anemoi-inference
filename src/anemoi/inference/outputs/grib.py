@@ -13,8 +13,10 @@ import json
 import logging
 from abc import abstractmethod
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -29,15 +31,17 @@ LOG = logging.getLogger(__name__)
 
 
 class HindcastOutput:
-    """Hindcast output class.
-
-    Parameters
-    ----------
-    reference_year : int
-        The reference year.
-    """
+    """Hindcast output class."""
 
     def __init__(self, reference_year: int) -> None:
+        """Initialize the HindcastOutput object.
+
+        Parameters
+        ----------
+        reference_year : int
+            The reference year.
+        """
+
         self.reference_year = reference_year
 
     def __call__(self, values: FloatArray, template: object, keys: dict) -> tuple:
@@ -110,43 +114,45 @@ def modifier_factory(modifiers: list) -> list:
 
 
 class GribOutput(Output):
-    """Handles grib.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    encoding : dict, optional
-        The encoding dictionary, by default None.
-    templates : dict, optional
-        The templates dictionary, by default None.
-    grib1_keys : dict, optional
-        The grib1 keys dictionary, by default None.
-    grib2_keys : dict, optional
-        The grib2 keys dictionary, by default None.
-    modifiers : list, optional
-        The list of modifiers, by default None.
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    variables : list, optional
-        The list of variables, by default None.
-    """
+    """Handles grib."""
 
     def __init__(
         self,
         context: dict,
         *,
-        encoding: dict = None,
-        templates: dict = None,
-        grib1_keys: dict = None,
-        grib2_keys: dict = None,
-        modifiers: list = None,
+        encoding: Optional[Dict[str, Any]] = None,
+        templates: Optional[Union[List[str], str]] = None,
+        grib1_keys: Optional[Dict[str, Any]] = None,
+        grib2_keys: Optional[Dict[str, Any]] = None,
+        modifiers: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
         variables: Optional[List[str]] = None,
     ) -> None:
+        """Initialize the GribOutput object.
+
+        Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        """
+
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
@@ -299,7 +305,7 @@ class GribOutput(Output):
         *args : Any
             Additional arguments.
         **kwargs : Any
-            Additional keyword arguments
+            Additional keyword arguments.
         """
         pass
 

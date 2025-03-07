@@ -419,7 +419,7 @@ class Checkpoint:
     ###########################################################################
 
     @cached_property
-    def lagged(self) -> List[int]:
+    def lagged(self) -> List[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
         result = [-s * self._metadata.timestep for s in result]

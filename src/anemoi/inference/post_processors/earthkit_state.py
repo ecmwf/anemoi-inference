@@ -175,4 +175,5 @@ def unwrap_state(fields: SimpleFieldList, state: State) -> Dict[str, Any]:
         new_fields[n.metadata("name")] = n.to_numpy(flatten=True)
     state = state.copy()
     state["fields"] = new_fields
+
     return state
