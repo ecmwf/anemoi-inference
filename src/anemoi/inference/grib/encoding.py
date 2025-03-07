@@ -124,7 +124,6 @@ def grib_keys(
     previous_step,
     start_steps,
     keys,
-    quiet,
     grib1_keys={},
     grib2_keys={},
 ):
@@ -179,7 +178,7 @@ def grib_keys(
     )
 
     for k, v in variable.grib_keys.items():
-        if k not in ("domain", "type", "stream", "expver", "class", "param", "number", "step", "date", "time"):
+        if k not in ("domain", "type", "stream", "expver", "class", "param", "number", "step", "date", "hdate", "time"):
             if k == "levtype":
                 v = LEVTYPES.get(v)
                 if v is None:
