@@ -12,6 +12,7 @@ import functools
 import logging
 from os import PathLike
 from typing import Any
+from typing import Literal
 
 import numpy as np
 from anemoi.transform.fields import new_field_from_numpy
@@ -38,30 +39,48 @@ try:
 except ImportError:
     pass
 
-TARGET_RESOLUTION = (721, 1440)
+VALID_METHODS = Literal["add", "multiply", "replace"]
 
 
-@pre_processor_registry.register("image_overlay")
-class ImageOverlay(Processor):
-    """Overlay an image to a field.
+@pre_processor_registry.register("overlay")
+class ArrayOverlay(Processor):
+    """Overlay an array/image to a field.
 
-    Usage:
-        Provide an image to overlay to the field.
+    Pads the overlay to the 1440x721 aspect ratio, and regrids from 0.25,0.25
+    to the field grid.
+
+    Usage
+    ------
+        Provide an array to overlay to the field.
+
         RGB channels are averaged and regridded to the field grid.
-        The image is then rescaled and added to the field.
+
+        The overlay is then rescaled and added to the field.
 
         If white is to be transparent, set invert=True.
+
+    Example
+    --------
+    ```yaml
+    pre_processors:
+        - overlay:
+            overlay: "https://get.ecmwf.int/repository/anemoi/assets/duck.jpg"
+            fields:
+                - {"level": 850, "shortName": "t"}
+            rescale: 10
+            method: "add"
+            invert: true
+    ```
     """
 
     def __init__(
         self,
         context,
-        image: PathLike,
+        overlay: PathLike,
         fields: list[dict[str, Any]],
         rescale: float = 1,
-        method: str = "add",
+        method: VALID_METHODS = "add",
         invert: bool = False,
-        **kwargs,
     ):
         if not _PILLOW_AVAILABLE:
             raise ImportError("Pillow is required for this pre-processor.")
@@ -70,28 +89,27 @@ class ImageOverlay(Processor):
 
         super().__init__(context)
 
-        self._image = image
+        self._overlay = overlay
         self._fields = fields
         self._rescale = rescale
         self._method = method
         self._invert = invert
 
     @functools.cached_property
-    def image(self) -> "Image":
-        """Load the image and pad it to the target aspect ratio."""
+    def overlay(self) -> "Image":
+        """Load the overlay."""
 
-        image = self._image
-        if str(image).startswith("http"):
+        overlay = self._overlay
+        if str(overlay).startswith("http"):
             from urllib.request import urlopen
 
-            image = urlopen(image)
+            overlay = urlopen(overlay)
 
-        image = Image.open(image)
-        return self._pad_image_to_aspect_ratio(image, TARGET_RESOLUTION[1] / TARGET_RESOLUTION[0])
+        return Image.open(overlay)
 
-    def _pad_image_to_aspect_ratio(self, image: "Image", target_aspect_ratio: float):
-        """Pad an image to a target aspect ratio."""
-        width, height = image.size
+    def _pad_overlay_to_aspect_ratio(self, overlay: "Image", target_aspect_ratio: float):
+        """Pad an overlay to a target aspect ratio."""
+        width, height = overlay.size
         current_aspect_ratio = width / height
 
         if current_aspect_ratio > target_aspect_ratio:
@@ -102,22 +120,28 @@ class ImageOverlay(Processor):
             padding = ((new_width - width) // 2, 0)
 
         new_size = (width + 2 * padding[0], height + 2 * padding[1])
-        new_image = Image.new("RGB", new_size, (255, 255, 255) if self._invert else (0, 0, 0))
-        new_image.paste(image, padding)
+        new_overlay = Image.new("RGB", new_size, (255, 255, 255) if self._invert else (0, 0, 0))
+        new_overlay.paste(overlay, padding)
 
-        return new_image
+        return new_overlay
 
-    def _image_to_array(self, image: "Image", grid) -> np.ndarray:
+    def _overlay_to_array(self, overlay: "Image", grid) -> np.ndarray:
         """Regrid an image to field gridspec, and average the RGB channels."""
 
-        image = image.resize(reversed(TARGET_RESOLUTION), Image.Resampling.BILINEAR)
+        overlay = overlay.resize((1440, 721), Image.Resampling.BILINEAR)
 
-        image_array = np.array(image).copy()
+        overlay_array = np.array(overlay).copy()
 
-        image_array = np.mean(image_array, axis=-1)  # .swapaxes(-1, 0)
-        image_array = np.nan_to_num(image_array, 0)
+        overlay_array = np.mean(overlay_array, axis=-1)  # .swapaxes(-1, 0)
+        overlay_array = np.nan_to_num(overlay_array, 0)
 
-        return earthkit.regrid.interpolate(image_array, {"grid": (0.25, 0.25)}, {"grid": grid})
+        return earthkit.regrid.interpolate(overlay_array, {"grid": (0.25, 0.25)}, {"grid": grid})
+
+    @functools.lru_cache
+    def prepare_overlay(self, grid):
+        """Prepare the overlay for the field grid."""
+        padded_overlay = self._pad_overlay_to_aspect_ratio(self.image, 1440 / 721)
+        return self._overlay_to_array(padded_overlay, grid)
 
     def process(self, fields):
         result = []
@@ -133,9 +157,8 @@ class ImageOverlay(Processor):
             LOG.info("ImageOverlay: Applying image overlay to %s.", field)
 
             data = field.to_numpy()
-            outgrid = self.checkpoint.grid
-            image_array = self._image_to_array(self.image, outgrid) / 255.0
 
+            image_array = self.prepare_overlay(self.checkpoint.grid) / 255.0
             rescaled_array = ((1 - image_array) if self._invert else image_array) * self._rescale
 
             if self._method == "add":
@@ -153,4 +176,6 @@ class ImageOverlay(Processor):
         return new_fieldlist_from_list(result)
 
     def __repr__(self):
-        return f"ImageOverlay(image='{self._image}', fields={list(map(dict, self._fields))}, rescale={self._rescale})"
+        return (
+            f"ArrayOverlay(overlay='{self._overlay}', fields={list(map(dict, self._fields))}, rescale={self._rescale})"
+        )
