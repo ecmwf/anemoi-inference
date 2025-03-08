@@ -1,4 +1,6 @@
 checkpoint: ocean.ckpt
+runner: testing
+
 allow_nans: true
 use_grib_paramid: true
 

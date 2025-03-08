@@ -19,6 +19,8 @@ from anemoi.inference.transports import create_transport
 
 HERE = os.path.dirname(__file__)
 
+os.chdir(HERE)
+
 
 @fake_checkpoints
 def test_atmos() -> None:
@@ -71,8 +73,8 @@ def test_threads() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # test_threads()
-    test_ocean()
+    test_threads()
+    # test_ocean()
     exit()
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):

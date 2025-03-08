@@ -81,7 +81,7 @@ class MPITransport(Transport):
         """
         self.comm.send(state, dest=self.ranks[target.name], tag=tag)
 
-    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
+    def receive(self, receiver: Task, source: Task, tag: int) -> State:
         """Receive a state from the source to the receiver.
 
         Parameters

@@ -19,6 +19,9 @@ from typing import Tuple
 from anemoi.utils.logs import enable_logging_name
 from anemoi.utils.logs import set_logging_name
 
+from anemoi.inference.task import Task
+from anemoi.inference.types import State
+
 from ..transport import Transport
 from . import transport_registry
 
@@ -109,7 +112,7 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
-    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
+    def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send a state from the sender to the target.
 
         Parameters
@@ -131,7 +134,7 @@ class ProcessesTransport(Transport):
         os.write(write_fd, struct.pack("!Q", len(pickle_data)))
         os.write(write_fd, pickle_data)
 
-    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
+    def receive(self, receiver: Task, source: Task, tag: int) -> State:
         """Receive a state from the source to the receiver.
 
         Parameters

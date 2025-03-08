@@ -40,7 +40,7 @@ class Coupling:
         self.target = target
         self.variables: List[str] = variables
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         """Return a string representation of the coupling.
 
         Returns
@@ -48,7 +48,7 @@ class Coupling:
         str
             The string representation of the coupling.
         """
-        return f"{self.source}->{self.target}"
+        return f"{self.source}->{self.target}(variables={self.variables})"
 
 
 class CouplingSend(Coupling):
@@ -56,7 +56,7 @@ class CouplingSend(Coupling):
 
     def apply(
         self,
-        task: Any,
+        task: Task,
         transport: "Transport",
         *,
         input_state: State,
@@ -68,7 +68,7 @@ class CouplingSend(Coupling):
 
         Parameters
         ----------
-        task : Any
+        task : Task
             The task to apply the coupling to.
         transport : Transport
             The transport instance to use.
@@ -322,7 +322,7 @@ class Transport(ABC):
 
         state: State = self.receive(receiver, source, tag)
 
-        assert isinstance(state, dict)
+        assert isinstance(state, dict), state
         assert "fields" in state
         assert isinstance(state["fields"], dict), f"Expected dict got {type(state['fields'])}"
 

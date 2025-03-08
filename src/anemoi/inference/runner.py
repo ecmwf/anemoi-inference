@@ -24,6 +24,7 @@ from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -185,9 +186,9 @@ class Runner(Context):
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
 
-        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
-        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
-        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
+        self.constant_forcings_inputs = self.create_constant_forcings_inputs(input_state)
+        self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
+        self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
 
         lead_time = to_timedelta(lead_time)
 
@@ -205,6 +206,51 @@ class Runner(Context):
                 if self.report_error:
                     self.checkpoint.report_error()
                 raise
+
+    def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
+        """Create constant forcings inputs.
+
+        Parameters
+        ----------
+        constant_forcings_inputs : Any
+            The constant forcings inputs.
+
+        Returns
+        -------
+        Any
+            The created constant forcings inputs.
+        """
+        return self.checkpoint.constant_forcings_inputs(self, input_state)
+
+    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
+        """Create dynamic forcings inputs.
+
+        Parameters
+        ----------
+        dynamic_forcings_inputs : Any
+            The dynamic forcings inputs.
+
+        Returns
+        -------
+        Any
+            The created dynamic forcings inputs.
+        """
+        return self.checkpoint.dynamic_forcings_inputs(self, input_state)
+
+    def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
+        """Create boundary forcings inputs.
+
+        Parameters
+        ----------
+        boundary_forcings_inputs : Any
+            The boundary forcings inputs.
+
+        Returns
+        -------
+        Any
+            The created boundary forcings inputs.
+        """
+        return self.checkpoint.boundary_forcings_inputs(self, input_state)
 
     def add_initial_forcings_to_input_state(self, input_state: State) -> None:
         """Add initial forcings to the input state.

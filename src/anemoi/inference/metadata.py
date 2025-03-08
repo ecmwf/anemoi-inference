@@ -888,7 +888,7 @@ class Metadata(PatchMixin, LegacyMixin):
         ----------
         context : object
             The context object.
-        input_state : dict
+        input_state : State
             The input state.
 
         Returns

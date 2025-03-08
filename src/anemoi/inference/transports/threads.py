@@ -17,6 +17,7 @@ from typing import Dict
 from anemoi.utils.logs import set_logging_name
 
 from anemoi.inference.task import Task
+from anemoi.inference.types import State
 
 from ..transport import Transport
 from . import transport_registry
@@ -27,15 +28,15 @@ LOG = logging.getLogger(__name__)
 class TaskWrapper:
     """Wraps a task to be executed in a thread."""
 
-    def __init__(self, task: Any) -> None:
+    def __init__(self, task: Task) -> None:
         """Initialize the TaskWrapper.
 
         Parameters
         ----------
-        task : Any
+        task : Task
             The task to be wrapped.
         """
-        self.task: Any = task
+        self.task: Task = task
         self.queue: queue.Queue[Any] = queue.Queue(maxsize=1)
         self.error: Exception | None = None
         self.name: str = task.name
@@ -104,7 +105,7 @@ class ThreadsTransport(Transport):
             if wrapped_task.error:
                 raise wrapped_task.error
 
-    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
+    def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send a state from the sender to the target.
 
         Parameters
@@ -120,7 +121,7 @@ class ThreadsTransport(Transport):
         """
         self.wrapped_tasks[target.name].queue.put((sender.name, tag, state.copy()))
 
-    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
+    def receive(self, receiver: Task, source: Task, tag: int) -> State:
         """Receive a state from the source to the receiver.
 
         Parameters
