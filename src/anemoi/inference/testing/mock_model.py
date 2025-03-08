@@ -50,17 +50,90 @@ class MockModel(torch.nn.Module):
         self.lagged = checkpoint.lagged
 
         self.typed_variables = checkpoint.typed_variables
+        self.timestep = checkpoint.timestep
 
         self.first = True
+        self.constant_in_time: Dict[int, torch.Tensor] = {}
+
+    def _check(
+        self,
+        x: torch.Tensor,
+        lag: int,
+        feature: int,
+        date: datetime.datetime,
+        step: datetime.timedelta,
+        tensor_dates: list[datetime.datetime],
+        value: float,
+        expect: torch.Tensor,
+    ) -> None:
+        """Check if the tensor values are as expected.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input tensor.
+        lag : int
+            The lag index.
+        feature : int
+            The feature index.
+        date : datetime.datetime
+            The current date.
+        step : datetime.timedelta
+            The time step.
+        tensor_dates : list of datetime.datetime
+            The list of tensor dates.
+        value : float
+            The expected value.
+        expect : torch.Tensor
+            The expected tensor.
+        """
+        if not torch.isclose(x[:, lag, :, feature], expect).all():
+            LOG.error(
+                "Feature: %s (%s), lag: %s (%s)",
+                feature,
+                self.input_variables[feature],
+                lag,
+                tensor_dates[lag],
+            )
+            LOG.error("Date: %s, Step: %s, Tensor dates: %s", date, step, tensor_dates)
+            LOG.error(
+                "Expected %s for %s at lag %s, got %s",
+                value,
+                self.input_variables[feature],
+                tensor_dates[lag],
+                x[:, lag, :, feature][..., 0],
+            )
+            LOG.error("x: %s", x[:, :, :, feature])
+
+            raise ValueError(
+                f"Expected {expect} for {self.input_variables[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
+            )
 
     def predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
-        """Perform a prediction step."""
+        """Perform a prediction step.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input tensor.
+        date : datetime.datetime
+            The current date.
+        step : datetime.timedelta
+            The time step.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The output tensor.
+        """
         assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
 
         # Date of the data
-        tensor_dates = [(date - step) + h for h in self.lagged]
+        tensor_dates = [(date - self.timestep) + h for h in self.lagged]
 
         for lag in range(x.shape[1]):
             for feature in range(x.shape[3]):
@@ -70,34 +143,36 @@ class MockModel(torch.nn.Module):
 
                 if not variable.is_computed_forcing and not variable.is_constant_in_time:
                     # Normal prognostice variable
-                    if not torch.isclose(x[:, lag, :, feature], expect).all():
-                        LOG.error(
-                            "Feature: %s (%s), lag: %s (%s)",
-                            feature,
-                            self.input_variables[feature],
-                            lag,
-                            tensor_dates[lag],
-                        )
-                        LOG.error("Date: %s, Step: %s, Tensor dates: %s", date, step, tensor_dates)
-                        LOG.error(
-                            "Expected %s for %s at lag %s, got %s",
-                            value,
-                            self.input_variables[feature],
-                            tensor_dates[lag],
-                            x[:, lag, :, feature][..., 0],
-                        )
-                        LOG.error("x: %s", x[:, :, :, feature])
+                    self._check(x, lag, feature, date, step, tensor_dates, value, expect)
+                    continue
 
-                        raise ValueError(
-                            f"Expected {expect} for {self.input_variables[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
-                        )
+                if variable.is_constant_in_time:
+                    # Constant in from input, like lsm, only check the first time
+                    if self.first:
+                        if variable.is_computed_forcing:
+                            # Computed forcing, such as cos_latitude. We trust the value to be correct
+                            pass
+                        else:
+                            # Input constant, such as LSM
+                            self._check(x, lag, feature, date, step, tensor_dates, value, expect)
+                        self.constant_in_time[feature] = x[:, lag, :, feature]
+                    else:
+                        # Check that the value is the same as the first time
+                        assert torch.isclose(x[:, lag, :, feature], self.constant_in_time[feature]).all()
+                    continue
+
+                if variable.is_computed_forcing:
+                    # Computed forcing, such as insolation. We trust the value to be correct
+                    continue
+
+                assert False, f"Unknown variable type {variable}"
+
+            self.first = False
 
         y = torch.zeros(self.output_shape)
 
         for feature in range(y.shape[3]):
             value = float_hash(self.output_variables[feature], date)
             y[:, :, :, feature] = torch.ones(y[:, :, :, feature].shape) * value
-
-        self.first = False
 
         return y

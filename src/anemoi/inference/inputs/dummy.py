@@ -91,12 +91,12 @@ class DummyInput(EkdInput):
             current_state=current_state,
         )
 
-    def _fields(self, dates: Optional[List[Date]] = None, variables: Optional[List[str]] = None) -> ekd.FieldList:
+    def _fields(self, dates: List[Date], variables: Optional[List[str]] = None) -> ekd.FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters
         ----------
-        dates : Optional[List[Date]], optional
+        dates : List[Date]
             List of dates for which to generate fields, by default None.
         variables : Optional[List[str]], optional
             List of variables for which to generate fields, by default None.
@@ -116,11 +116,12 @@ class DummyInput(EkdInput):
 
         result = []
         for variable in variables:
+            is_constant_in_time = typed_variables[variable].is_constant_in_time
 
             keys = {k: v for k, v in typed_variables[variable].grib_keys.items() if k not in SKIP_KEYS}
 
             for date in dates:
-                x = float_hash(variable, date)
+                x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
                 handle = dict(
                     values=np.ones(self.checkpoint.number_of_grid_points, dtype=np.float32) * x,
