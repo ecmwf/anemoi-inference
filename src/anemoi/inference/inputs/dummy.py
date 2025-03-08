@@ -17,6 +17,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -25,22 +26,6 @@ from .ekd import EkdInput
 
 LOG = logging.getLogger(__name__)
 SKIP_KEYS = ["date", "time", "step"]
-
-
-def string_to_float_hash(s: str) -> float:
-    """Hash a string to a float.
-
-    Parameters
-    ----------
-    s : str
-        The string to hash.
-
-    Returns
-    -------
-    float
-        The hashed float value.
-    """
-    return float(int.from_bytes(s.encode(), "little") % 1_000_000) / 1_000_000
 
 
 @input_registry.register("dummy")
@@ -135,9 +120,10 @@ class DummyInput(EkdInput):
             keys = {k: v for k, v in typed_variables[variable].grib_keys.items() if k not in SKIP_KEYS}
 
             for date in dates:
+                x = float_hash(variable, date)
+
                 handle = dict(
-                    values=np.ones(self.checkpoint.number_of_grid_points, dtype=np.float32)
-                    * string_to_float_hash(variable + date.isoformat()),
+                    values=np.ones(self.checkpoint.number_of_grid_points, dtype=np.float32) * x,
                     latitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
                     longitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
                     date=date.strftime("%Y%m%d"),

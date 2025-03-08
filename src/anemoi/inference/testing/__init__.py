@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 from typing import Any
 from typing import Callable
 
@@ -40,3 +41,9 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
             return func(*args, **kwargs)
 
     return wrapper
+
+
+def float_hash(s: str, date: datetime.datetime, offset: int = 0, accuracy=1_000_000) -> float:
+    """Hash a string and date to a float."""
+    h = s + date.isoformat()
+    return float(int.from_bytes(h.encode(), "little") % accuracy) / accuracy + offset

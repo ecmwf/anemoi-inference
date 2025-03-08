@@ -374,11 +374,11 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}"):
             model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             # model.set_inference_options(**self.inference_options)
+            assert getattr(model, "runner", None) is None, model.runner
+            model.runner = self
             return model
 
-    def predict_step(
-        self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, fcstep: int, **kwargs: Any
-    ) -> torch.Tensor:
+    def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         """Predict the next step.
 
         Parameters
@@ -387,8 +387,6 @@ class Runner(Context):
             The model.
         input_tensor_torch : torch.Tensor
             The input tensor.
-        fcstep : int
-            The forecast step.
         **kwargs : Any
             Additional keyword arguments
 
@@ -463,7 +461,9 @@ class Runner(Context):
             result["step"] = step
 
             if self.trace:
-                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
+                self.trace.write_input_tensor(
+                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                )
 
             # Predict next state of atmosphere
             with (
@@ -471,14 +471,11 @@ class Runner(Context):
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
-                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
+                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
-
-            if self.trace:
-                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -489,7 +486,9 @@ class Runner(Context):
                 self._print_output_tensor("Output tensor", output)
 
             if self.trace:
-                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
+                self.trace.write_output_tensor(
+                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                )
 
             yield result
 

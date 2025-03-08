@@ -66,9 +66,10 @@ class Trace:
     def write_input_tensor(
         self,
         date: datetime.datetime,
-        step: int,
+        fcstep: int,
         input_tensor: FloatArray,
         variable_to_input_tensor_index: Dict[str, int],
+        timestep: datetime.timedelta,
     ) -> None:
         """Write the input tensor details to the trace file.
 
@@ -76,14 +77,16 @@ class Trace:
         ----------
         date : datetime.datetime
             The date associated with the input tensor.
-        step : int
+        fcstep : int
             The step number.
         input_tensor : FloatArray
             The input tensor.
         variable_to_input_tensor_index : Dict[str, int]
             Mapping from variable names to input tensor indices.
+        timestep : datetime.timedelta
+            The timestep.
         """
-        print("Input tensor:", date, input_tensor.shape, file=self.file)
+        print(f"Input tensor to forecast date {date-timestep} => {date}", input_tensor.shape, file=self.file)
         names = {v: k for k, v in variable_to_input_tensor_index.items()}
         assert len(input_tensor.shape) == 4
         assert input_tensor.shape[0] == 1
@@ -116,9 +119,10 @@ class Trace:
     def write_output_tensor(
         self,
         date: datetime.datetime,
-        step: int,
+        fcstep: int,
         output_tensor: FloatArray,
         output_tensor_index_to_variable: Dict[int, str],
+        timestep: datetime.timedelta,
     ) -> None:
         """Write the output tensor details to the trace file.
 
@@ -126,14 +130,16 @@ class Trace:
         ----------
         date : datetime.datetime
             The date associated with the output tensor.
-        step : int
+        fcstep : int
             The step number.
         output_tensor : FloatArray
             The output tensor.
         output_tensor_index_to_variable : Dict[int, str]
             Mapping from output tensor indices to variable names.
+        timestep : datetime.timedelta
+            The timestep.
         """
-        print("Output tensor:", output_tensor.shape, file=self.file)
+        print(f"Output tensor for {date}:", output_tensor.shape, file=self.file)
         assert len(output_tensor.shape) == 2
         names = output_tensor_index_to_variable
         lines = []

@@ -20,6 +20,7 @@ from typing import List
 from typing import Literal
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
@@ -72,7 +73,12 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path: str, *, patch_metadata: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        source: Union[str, Metadata, Dict[str, Any]],
+        *,
+        patch_metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Initialize the Checkpoint.
 
         Parameters
@@ -82,7 +88,7 @@ class Checkpoint:
         patch_metadata : Optional[Dict[str, Any]], optional
             Metadata to patch the checkpoint with, by default None.
         """
-        self._path = path
+        self._source = source
         self.patch_metadata = patch_metadata
 
     def __repr__(self) -> str:
@@ -101,9 +107,9 @@ class Checkpoint:
         import json
 
         try:
-            path = json.loads(self._path)
+            path = json.loads(self._source)
         except Exception:
-            path = self._path
+            path = self._source
 
         if isinstance(path, (Path, str)):
             return str(path)
@@ -116,6 +122,10 @@ class Checkpoint:
     @cached_property
     def _metadata(self) -> Metadata:
         """Get the metadata."""
+
+        if isinstance(self._source, Metadata):
+            return self._source
+
         try:
             result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:

@@ -15,7 +15,6 @@ from typing import Optional
 from typing import Tuple
 
 import yaml
-from anemoi.utils.config import DotDict
 
 # "2t", "10u", "10v", "msl", "lsm", "z", "tcc", "tp", "cos_latitudes", "insolation"
 #   0,   1,     2,     3,     4,    5,    6,      7,        8,            9
@@ -107,73 +106,6 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
     return metadata
 
 
-def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
-    """Load a mock torch model for testing purposes.
-
-    Parameters
-    ----------
-    path : str
-        The path to the model file.
-    map_location : Any
-        The device on which to load the model.
-    weights_only : bool
-        Whether to load only the weights.
-
-    Returns
-    -------
-    Any
-        The mock torch model.
-    """
-    import torch
-
-    assert weights_only is False, "Not implemented"
-
-    class MockModel(torch.nn.Module):
-        def __init__(self, medatada: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
-            """Initialize the mock model.
-
-            Parameters
-            ----------
-            medatada : dict
-                The metadata for the model.
-            supporting_arrays : dict
-                The supporting arrays for the model.
-            """
-            super().__init__()
-            metadata = DotDict(medatada)
-
-            self.features_in = len(metadata.data_indices.model.input.full)
-            self.features_out = len(metadata.data_indices.model.output.full)
-            self.roll_window = metadata.config.training.multistep_input
-            self.grid_size = metadata.dataset.shape[-1]
-
-            self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
-            self.output_shape = (1, 1, self.grid_size, self.features_out)
-
-        def predict_step(self, x: torch.Tensor) -> torch.Tensor:
-            """Perform a prediction step.
-
-            Parameters
-            ----------
-            x : torch.Tensor
-                The input tensor.
-
-            Returns
-            -------
-            torch.Tensor
-                The output tensor.
-            """
-            assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
-
-            y = torch.zeros(self.output_shape)
-
-            return y
-
-    metadata, arrays = mock_load_metadata(path)
-
-    return MockModel(metadata, arrays)
-
-
 def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """Create a minimum mock checkpoint from the given metadata.
 
@@ -225,3 +157,29 @@ def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
             mars.pop(key, None)
 
     return metadata
+
+
+def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
+    """Load a mock torch model for testing purposes.
+
+    Parameters
+    ----------
+    path : str
+        The path to the model file.
+    map_location : Any
+        The device on which to load the model.
+    weights_only : bool
+        Whether to load only the weights.
+
+    Returns
+    -------
+    Any
+        The mock torch model.
+    """
+    from .mock_model import MockModel
+
+    assert weights_only is False, "Not implemented"
+
+    metadata, arrays = mock_load_metadata(path)
+
+    return MockModel(metadata, arrays)

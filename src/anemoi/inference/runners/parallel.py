@@ -86,7 +86,7 @@ class ParallelRunner(DefaultRunner):
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, fcstep: int, **kwargs: Any) -> torch.Tensor:
+    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         """Performs a prediction step.
 
         Parameters
@@ -95,8 +95,6 @@ class ParallelRunner(DefaultRunner):
             The model to use for prediction.
         input_tensor_torch : torch.Tensor
             The input tensor for the model.
-        fcstep : int
-            The forecast step.
         **kwargs : Any
             Additional arguments.
 
