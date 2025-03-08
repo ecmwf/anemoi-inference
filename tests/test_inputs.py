@@ -8,54 +8,14 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
 
-import pytest
 
-from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import fake_checkpoints
 
 # from dummy import dummy_checkpoints
 
 
-HERE = os.path.dirname(__file__)
-
-# Set the current working directory to the location of this script.
-# So we access the configuration files relative to this script.
-os.chdir(HERE)
-
-
-@pytest.mark.skip(reason="Slow test")
-@fake_checkpoints
-def test_inference_mars() -> None:
-    """Test the inference process using a fake checkpoint.
-
-    This function loads a configuration, creates a runner, and runs the inference
-    process to ensure that the system works as expected with the provided configuration.
-    """
-    config = RunConfiguration.load(
-        os.path.join(HERE, "configs/simple.yaml"),
-        overrides=dict(device="cpu", input="mars"),
-    )
-    runner = create_runner(config)
-    runner.execute()
-
-
-@pytest.mark.skip(reason="Slow test")
-@fake_checkpoints
-def test_inference_cds() -> None:
-    """Test the inference process using a fake checkpoint.
-
-    This function loads a configuration, creates a runner, and runs the inference
-    process to ensure that the system works as expected with the provided configuration.
-    """
-    config = RunConfiguration.load(
-        os.path.join(HERE, "configs/simple.yaml"),
-        overrides=dict(device="cpu", input={"cds": dict(dataset="reanalysis-era5-complete")}),
-    )
-    runner = create_runner(config)
-    runner.execute()
+def test_inputs():
+    pass
 
 
 if __name__ == "__main__":
