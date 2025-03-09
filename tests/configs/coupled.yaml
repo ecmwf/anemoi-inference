@@ -1,6 +1,6 @@
-transport: coroutines
+# transport: coroutines
 # transport: processes
-# transport: threads
+transport: threads
 # device: cpu
 
 couplings:

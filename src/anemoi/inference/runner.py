@@ -502,9 +502,9 @@ class Runner(Context):
         LOG.info("Using autocast %s", self.autocast)
         LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
-        result = input_state.copy()  # We should not modify the input state
-        result["fields"] = dict()
-        result["step"] = to_timedelta(0)
+        new_state = input_state.copy()  # We should not modify the input state
+        new_state["fields"] = dict()
+        new_state["step"] = to_timedelta(0)
 
         start = input_state["date"]
 
@@ -529,9 +529,9 @@ class Runner(Context):
             date = start + step
             title = f"Forecasting step {step} ({date})"
 
-            result["date"] = date
-            result["previous_step"] = result.get("step")
-            result["step"] = step
+            new_state["date"] = date
+            new_state["previous_step"] = new_state.get("step")
+            new_state["step"] = step
 
             if self.trace:
                 self.trace.write_input_tensor(
@@ -553,7 +553,7 @@ class Runner(Context):
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                 for i in range(output.shape[1]):
-                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                    new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)
@@ -563,7 +563,7 @@ class Runner(Context):
                     date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
                 )
 
-            yield result
+            yield new_state
 
             # No need to prepare next input tensor if we are at the last step
             if s == steps - 1:
@@ -579,10 +579,8 @@ class Runner(Context):
 
                 del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, input_state, date, check
-            )
+            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, new_state, date, check)
+            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(input_tensor_torch, new_state, date, check)
 
             if not check.all():
                 # Not all variables have been updated

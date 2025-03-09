@@ -31,6 +31,10 @@ from . import task_registry
 LOG = logging.getLogger(__name__)
 
 
+class CouplingForcings(CoupledForcings):
+    """Just to have a different __repr__."""
+
+
 class CoupledRunner(DefaultRunner):
     """Runner for coupled models.
 
@@ -70,7 +74,7 @@ class CoupledRunner(DefaultRunner):
         list of CoupledForcings
             List of coupled forcings.
         """
-        result = CoupledForcings(self, self.coupled_input, variables, mask)
+        result = CouplingForcings(self, self.coupled_input, variables, mask)
         return [result]
 
     def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
@@ -115,7 +119,7 @@ class CoupledRunner(DefaultRunner):
             if isinstance(f, CoupledForcings):
                 # Substituting the CoupledForcings input with the coupled input
                 # TODO: review this
-                f = CoupledForcings(self, self.coupled_input, f.variables, f.mask)
+                f = CouplingForcings(self, self.coupled_input, f.variables, f.mask)
 
             result.append(f)
 
