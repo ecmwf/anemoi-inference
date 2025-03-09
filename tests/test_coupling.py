@@ -9,6 +9,8 @@
 
 import logging
 import os
+from typing import Any
+from typing import Dict
 
 from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.config.run import RunConfiguration
@@ -53,7 +55,7 @@ def test_ocean() -> None:
 
 
 @fake_checkpoints
-def test_threads() -> None:
+def test_coupled() -> None:
     """Test the inference process using a fake checkpoint.
 
     This function loads a configuration, creates a runner, and runs the inference
@@ -61,7 +63,7 @@ def test_threads() -> None:
     """
     config = CoupleConfiguration.load(os.path.join(HERE, "configs/coupled.yaml"))
 
-    global_config = {}
+    global_config: Dict[str, Any] = {}
 
     tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}
 
@@ -73,8 +75,9 @@ def test_threads() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    test_threads()
+    test_coupled()
     # test_ocean()
+    # test_atmos()
     exit()
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):

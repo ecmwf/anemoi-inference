@@ -16,13 +16,7 @@ from .default import DefaultRunner
 LOG = logging.getLogger(__name__)
 
 
-@runner_registry.register("testing")
-class TestingRunner(DefaultRunner):
-    """Runner for running tests.
-
-    Inherits from DefaultRunner.
-    """
-
+class TestingMixing:
     def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
         """Perform a prediction step using the model.
 
@@ -41,3 +35,11 @@ class TestingRunner(DefaultRunner):
             The prediction result.
         """
         return model.predict_step(input_tensor_torch, **kwargs)
+
+
+@runner_registry.register("testing")
+class TestingRunner(TestingMixing, DefaultRunner):
+    """Runner for running tests.
+
+    Inherits from DefaultRunner.
+    """

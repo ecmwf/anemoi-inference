@@ -18,9 +18,11 @@ from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
+from anemoi.inference.runners.testing import TestingMixing
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
 from anemoi.inference.types import Date
+from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
 from ..task import Task
@@ -43,7 +45,7 @@ class CoupledRunner(DefaultRunner):
         ----------
         config : dict
             Configuration dictionary.
-        input : CoupledInput
+        coupled_input : CoupledInput
             Coupled input instance.
         """
         super().__init__(config)
@@ -71,22 +73,51 @@ class CoupledRunner(DefaultRunner):
         result = CoupledForcings(self, self.coupled_input, variables, mask)
         return [result]
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
-        """Initialize dynamic forcings inputs.
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings inputs for the first step.
 
         Parameters
         ----------
-        dynamic_forcings_inputs : list of dict
-            List of dynamic forcings input dictionaries.
+        dynamic_forcings_inputs : list of Forcings
+            The dynamic forcings inputs.
 
         Returns
         -------
-        list of CoupledForcings
-            List of coupled forcings.
+        list[Forcings]
+            The modified dynamic forcings inputs.
         """
+        # For the initial state we need to load the forcings
+        # from the default input.
         result = []
-        for c in dynamic_forcings_inputs:
-            result.extend(super().create_dynamic_coupled_forcings(c.variables, c.mask))
+        for f in dynamic_forcings_inputs:
+            if isinstance(f, CoupledForcings):
+                result.extend(super().create_dynamic_coupled_forcings(f.variables, f.mask))
+            else:
+                result.append(f)
+        return result
+
+    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
+        """Create dynamic forcings inputs.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        list[Forcings]
+            The created dynamic forcings inputs.
+        """
+        forcings = super().create_dynamic_forcings_inputs(input_state)
+        result = []
+        for f in forcings:
+            if isinstance(f, CoupledForcings):
+                # Substituting the CoupledForcings input with the coupled input
+                # TODO: review this
+                f = CoupledForcings(self, self.coupled_input, f.variables, f.mask)
+
+            result.append(f)
 
         return result
 
@@ -109,13 +140,13 @@ class CoupledInput:
             Task instance.
         transport : Any
             Transport instance.
-        couplings : list of Any
+        couplings : list of Coupling
             List of couplings.
         """
         self.task = task
         self.transport = transport
         self.couplings = couplings
-        self.constants = {}
+        self.constants: Dict[str, FloatArray] = {}
         self.tag = 0
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
@@ -125,14 +156,14 @@ class CoupledInput:
         ----------
         variables : list of str
             List of variable names.
-        dates : list of str
+        dates : list of Date
             List of dates.
-        current_state : dict
+        current_state : State
             Current state dictionary.
 
         Returns
         -------
-        dict
+        State
             Updated state dictionary.
         """
         LOG.info("Adding dynamic forcings %s %s", variables, dates)
@@ -168,6 +199,10 @@ class CoupledInput:
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
         self.constants = state["fields"].copy()
+
+
+class TestCoupledRunner(TestingMixing, CoupledRunner):
+    """Runner for testing coupled models."""
 
 
 @task_registry.register("runner")
@@ -209,6 +244,13 @@ class RunnerTask(Task):
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 
+        assert self.config.runner in ("default", "testing"), self.config.runner
+
         coupler = CoupledInput(self, transport, couplings)
-        runner = CoupledRunner(self.config, coupler)
+
+        if self.config.runner == "testing":
+            runner = TestCoupledRunner(self.config, coupler)
+        else:
+            runner = CoupledRunner(self.config, coupler)
+
         runner.execute()

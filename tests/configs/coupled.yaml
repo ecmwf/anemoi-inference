@@ -1,4 +1,7 @@
-transport: threads
+transport: coroutines
+# transport: processes
+# transport: threads
+# device: cpu
 
 couplings:
 - atmos -> ocean:
@@ -11,7 +14,6 @@ couplings:
   - strd
   - tp
   - msl
-
 
 - ocean -> atmos:
   - avg_tos

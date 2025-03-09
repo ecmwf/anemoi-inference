@@ -26,8 +26,10 @@ import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from .metadata import Metadata
 
@@ -301,53 +303,53 @@ class Checkpoint:
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+    def constant_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
         """Get constant forcings inputs.
 
         Parameters
         ----------
         runner : Any
             The runner.
-        input_state : Dict[str, Any]
+        input_state : State
             The input state.
 
         Returns
         -------
-        Any
+        List[Forcings]
             The constant forcings inputs.
         """
         return self._metadata.constant_forcings_inputs(runner, input_state)
 
-    def dynamic_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+    def dynamic_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
         """Get dynamic forcings inputs.
 
         Parameters
         ----------
         runner : Any
             The runner.
-        input_state : Dict[str, Any]
+        input_state : State
             The input state.
 
         Returns
         -------
-        Any
+        List[Forcings]
             The dynamic forcings inputs.
         """
         return self._metadata.dynamic_forcings_inputs(runner, input_state)
 
-    def boundary_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+    def boundary_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
         """Get boundary forcings inputs.
 
         Parameters
         ----------
         runner : Any
             The runner.
-        input_state : Dict[str, Any]
+        input_state : State
             The input state.
 
         Returns
         -------
-        Any
+        List[Forcings]
             The boundary forcings inputs.
         """
         return self._metadata.boundary_forcings_inputs(runner, input_state)

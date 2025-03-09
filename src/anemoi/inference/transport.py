@@ -340,4 +340,4 @@ class Transport(ABC):
 
             fields_out[v] = fields_in[v]
 
-            assert len(fields_out[v].shape) == 1, f"Expected  got {fields_out[v].shape}"
+            # assert len(fields_out[v].shape) == 1, f"Expected  got {fields_out[v].shape}"

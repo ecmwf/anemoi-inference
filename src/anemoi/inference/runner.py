@@ -190,6 +190,23 @@ class Runner(Context):
         self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
         self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
 
+        LOG.info("-" * 80)
+        LOG.info("Input state:")
+        LOG.info(f"  {list(input_state['fields'].keys())}")
+
+        LOG.info("Constant forcings inputs:")
+        for f in self.constant_forcings_inputs:
+            LOG.info(f"  {f}")
+
+        LOG.info("Dynamic forcings inputs:")
+        for f in self.dynamic_forcings_inputs:
+            LOG.info(f"  {f}")
+
+        LOG.info("Boundary forcings inputs:")
+        for f in self.boundary_forcings_inputs:
+            LOG.info(f"  {f}")
+        LOG.info("-" * 80)
+
         lead_time = to_timedelta(lead_time)
 
         # This may be used but Output objects to compute the step
@@ -212,12 +229,12 @@ class Runner(Context):
 
         Parameters
         ----------
-        constant_forcings_inputs : Any
-            The constant forcings inputs.
+        input_state : State
+            The input state.
 
         Returns
         -------
-        Any
+        list[Forcings]
             The created constant forcings inputs.
         """
         return self.checkpoint.constant_forcings_inputs(self, input_state)
@@ -227,12 +244,12 @@ class Runner(Context):
 
         Parameters
         ----------
-        dynamic_forcings_inputs : Any
-            The dynamic forcings inputs.
+        input_state : State
+            The input state.
 
         Returns
         -------
-        Any
+        list[Forcings]
             The created dynamic forcings inputs.
         """
         return self.checkpoint.dynamic_forcings_inputs(self, input_state)
@@ -242,12 +259,12 @@ class Runner(Context):
 
         Parameters
         ----------
-        boundary_forcings_inputs : Any
-            The boundary forcings inputs.
+        input_state : State
+            The input state.
 
         Returns
         -------
-        Any
+        list[Forcings]
             The created boundary forcings inputs.
         """
         return self.checkpoint.boundary_forcings_inputs(self, input_state)
@@ -276,6 +293,16 @@ class Runner(Context):
         initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
         initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
 
+        LOG.info("-" * 80)
+        LOG.info("Initial forcings:")
+        LOG.info("  Constant forcings inputs:")
+        for f in initial_constant_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("  Dynamic forcings inputs:")
+        for f in initial_dynamic_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("-" * 80)
+
         for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(dates, input_state)
@@ -296,34 +323,36 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs: Any) -> Any:
-        """Modify the constant forcings for the first step.
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
+        """Modify the constant forcings inputs for the first step.
 
         Parameters
         ----------
-        constant_forcings_inputs : Any
+        constant_forcings_inputs : list of Forcings
             The constant forcings inputs.
 
         Returns
         -------
-        Any
+        list[Forcings]
             The modified constant forcings inputs.
         """
+        # Give an opportunity to modify the forcings for the first step
         return constant_forcings_inputs
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: Any) -> Any:
-        """Modify the dynamic forcings for the first step.
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings inputs for the first step.
 
         Parameters
         ----------
-        dynamic_forcings_inputs : Any
+        dynamic_forcings_inputs : list of Forcings
             The dynamic forcings inputs.
 
         Returns
         -------
-        Any
+        list[Forcings]
             The modified dynamic forcings inputs.
         """
+        # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
 
     def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
@@ -466,8 +495,6 @@ class Runner(Context):
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
-
-        LOG.info("Using autocast %s", self.autocast)
 
         lead_time = to_timedelta(lead_time)
         steps = lead_time // self.checkpoint.timestep
