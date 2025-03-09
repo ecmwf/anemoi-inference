@@ -14,7 +14,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Set
 from typing import Union
 
 import earthkit.data as ekd
@@ -189,7 +188,6 @@ def grib_keys(
     previous_step: Optional[Any],
     start_steps: Dict[Any, Any],
     keys: Dict[str, Any],
-    quiet: Set[str],
     grib1_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
     grib2_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
 ) -> Dict[str, Any]:
@@ -219,8 +217,6 @@ def grib_keys(
         The start steps dictionary.
     keys : Dict[str, Any]
         The initial keys dictionary.
-    quiet : bool
-        Whether to suppress warnings.
     grib1_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
         Additional GRIB1 keys.
     grib2_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
