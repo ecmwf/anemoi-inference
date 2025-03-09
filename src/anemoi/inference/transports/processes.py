@@ -19,6 +19,9 @@ from typing import Tuple
 from anemoi.utils.logs import enable_logging_name
 from anemoi.utils.logs import set_logging_name
 
+from anemoi.inference.task import Task
+from anemoi.inference.types import State
+
 from ..transport import Transport
 from . import transport_registry
 
@@ -27,14 +30,36 @@ LOG = logging.getLogger(__name__)
 
 @transport_registry.register("processes")
 class ProcessesTransport(Transport):
+    """Transport implementation using processes."""
 
     def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
+        """Initialize the ProcessesTransport.
+
+        Parameters
+        ----------
+        couplings : Any
+            The couplings for the transport.
+        tasks : Dict[str, Any]
+            The tasks to be executed.
+        """
         super().__init__(couplings, tasks)
         self.children: Dict[int, str] = {}
         self.pipes: Dict[Tuple[str, str], Tuple[int, int]] = {}
         enable_logging_name("main")
 
     def child_process(self, task: Any) -> int:
+        """Run the task in a child process.
+
+        Parameters
+        ----------
+        task : Any
+            The task to be run.
+
+        Returns
+        -------
+        int
+            The exit status of the child process.
+        """
         set_logging_name(task.name)
 
         # Close all the pipes that are not needed
@@ -51,6 +76,7 @@ class ProcessesTransport(Transport):
         return 0
 
     def start(self) -> None:
+        """Start the transport by forking processes for each task."""
 
         # Many to many pipes. May not scale well
         # We can use the couplings to reduce the number of pipes
@@ -76,6 +102,7 @@ class ProcessesTransport(Transport):
             os.close(write_fd)
 
     def wait(self) -> None:
+        """Wait for all child processes to complete and handle any errors."""
         while self.children:
             (pid, status) = os.wait()
             LOG.info(f"Child process {pid} ({self.children[pid]}) exited with status {status}")
@@ -85,7 +112,20 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
-    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
+    def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
+        """Send a state from the sender to the target.
+
+        Parameters
+        ----------
+        sender : Any
+            The task sending the state.
+        target : Any
+            The task receiving the state.
+        state : Any
+            The state to be sent.
+        tag : int
+            The tag associated with the state.
+        """
         # TODO: something more efficient than pickle
         _, write_fd = self.pipes[(sender.name, target.name)]
         pickle_data = pickle.dumps(state)
@@ -94,7 +134,23 @@ class ProcessesTransport(Transport):
         os.write(write_fd, struct.pack("!Q", len(pickle_data)))
         os.write(write_fd, pickle_data)
 
-    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
+    def receive(self, receiver: Task, source: Task, tag: int) -> State:
+        """Receive a state from the source to the receiver.
+
+        Parameters
+        ----------
+        receiver : Any
+            The task receiving the state.
+        source : Any
+            The task sending the state.
+        tag : int
+            The tag associated with the state.
+
+        Returns
+        -------
+        Any
+            The received state.
+        """
         read_fd, _ = self.pipes[(source.name, receiver.name)]
 
         recieved_tag = struct.unpack("!Q", os.read(read_fd, 8))[0]

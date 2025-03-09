@@ -10,11 +10,13 @@
 
 import logging
 from datetime import timedelta
-from typing import Any
-from typing import Dict
+from typing import List
 from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
@@ -24,9 +26,18 @@ LOG = logging.getLogger(__name__)
 
 @post_processor_registry.register("accumulate_from_start_of_forecast")
 class Accumulate(Processor):
-    """Accumulate fields from zero and return the accumulated fields."""
+    """Accumulate fields from zero and return the accumulated fields.
 
-    def __init__(self, context: Any, accumulations: Optional[list] = None):
+    Parameters
+    ----------
+    context : Any
+        The context in which the processor is running.
+    accumulations : Optional[List[str]], optional
+        List of fields to accumulate, by default None.
+        If None, the fields are taken from the context's checkpoint.
+    """
+
+    def __init__(self, context: Context, accumulations: Optional[List[str]] = None) -> None:
         super().__init__(context)
         if accumulations is None:
             accumulations = context.checkpoint.accumulations
@@ -37,7 +48,19 @@ class Accumulate(Processor):
         self.accumulators = {}
         self.step_zero = timedelta(0)
 
-    def process(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def process(self, state: State) -> State:
+        """Process the state to accumulate specified fields.
+
+        Parameters
+        ----------
+        state : State
+            The state containing fields to be accumulated.
+
+        Returns
+        -------
+        State
+            The updated state with accumulated fields.
+        """
         state = state.copy()
         state.setdefault("start_steps", {})
         for accumulation in self.accumulations:
@@ -51,4 +74,11 @@ class Accumulate(Processor):
         return state
 
     def __repr__(self) -> str:
+        """Return a string representation of the Accumulate object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
         return f"Accumulate({self.accumulations})"

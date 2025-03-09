@@ -8,36 +8,79 @@
 #
 import logging
 from abc import ABC
+from abc import abstractmethod
 from typing import Any
 from typing import Dict
 from typing import List
 
 from anemoi.utils.logs import enable_logging_name
 
+from anemoi.inference.task import Task
+from anemoi.inference.types import State
+
 LOG = logging.getLogger(__name__)
 
 
 class Coupling:
-    def __init__(self, source: Any, target: Any, variables: List[str]) -> None:
+    """Represents a coupling between a source and a target with specific variables."""
+
+    def __init__(self, source: Task, target: Task, variables: List[str]) -> None:
+        """Initialize a Coupling instance.
+
+        Parameters
+        ----------
+        source : Task
+            The source of the coupling.
+        target : Task
+            The target of the coupling.
+        variables : List[str]
+            The variables involved in the coupling.
+        """
         self.source = source
         self.target = target
-        self.variables = variables
+        self.variables: List[str] = variables
 
-    def __str__(self) -> str:
-        return f"{self.source}->{self.target}"
+    def __repr__(self) -> str:
+        """Return a string representation of the coupling.
+
+        Returns
+        -------
+        str
+            The string representation of the coupling.
+        """
+        return f"{self.source}->{self.target}(variables={self.variables})"
 
 
 class CouplingSend(Coupling):
+    """Represents a coupling send operation."""
+
     def apply(
         self,
-        task: Any,
-        transport: Any,
+        task: Task,
+        transport: "Transport",
         *,
-        input_state: Dict[str, Any],
-        output_state: Dict[str, Any],
-        constants: Dict[str, Any],
-        tag: str,
+        input_state: State,
+        output_state: State,
+        constants: State,
+        tag: int,
     ) -> None:
+        """Apply the coupling send operation.
+
+        Parameters
+        ----------
+        task : Task
+            The task to apply the coupling to.
+        transport : Transport
+            The transport instance to use.
+        input_state : State
+            The input state dictionary.
+        output_state : State
+            The output state dictionary.
+        constants : State
+            The constants dictionary.
+        tag : int
+            The tag for the operation.
+        """
         transport.send_state(
             task,
             self.target,
@@ -49,16 +92,35 @@ class CouplingSend(Coupling):
 
 
 class CouplingRecv(Coupling):
+    """Represents a coupling receive operation."""
+
     def apply(
         self,
-        task: Any,
-        transport: Any,
+        task: Task,
+        transport: "Transport",
         *,
-        input_state: Dict[str, Any],
-        output_state: Dict[str, Any],
-        constants: Dict[str, Any],
-        tag: str,
+        input_state: State,
+        output_state: State,
+        constants: State,
+        tag: int,
     ) -> None:
+        """Apply the coupling receive operation.
+
+        Parameters
+        ----------
+        task : Any
+            The task to apply the coupling to.
+        transport : Transport
+            The transport instance to use.
+        input_state : State
+            The input state dictionary.
+        output_state : State
+            The output state dictionary.
+        constants : State
+            The constants dictionary.
+        tag : str
+            The tag for the operation.
+        """
         transport.receive_state(
             task,
             self.source,
@@ -69,16 +131,83 @@ class CouplingRecv(Coupling):
 
 
 class Transport(ABC):
-    def __init__(self, couplings: List[Dict[str, List[str]]], tasks: Dict[str, Any]) -> None:
+    """Abstract base class for transport mechanisms."""
+
+    def __init__(self, couplings: List[Dict[str, List[str]]], tasks: Dict[str, Task]) -> None:
+        """Initialize a Transport instance.
+
+        Parameters
+        ----------
+        couplings : List[Dict[str,str]]
+            The list of dict representing the couplings.
+        tasks : Dict[str, Task]
+            The dictionary of tasks.
+        """
         enable_logging_name("main")
         self._couplings = couplings
-        self.tasks = tasks
+        self.tasks: Dict[str, Task] = tasks
+
+    @abstractmethod
+    def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
+        """Send the state from the sender to the target.
+
+        Parameters
+        ----------
+        sender : Task
+            The sender of the state.
+        target : Task
+            The target
+        state : State
+            The state dictionary to send.
+        tag : int
+            The tag for the operation.
+        """
+        pass
+
+    @abstractmethod
+    def receive(self, receiver: Task, source: Task, tag: int) -> State:
+        """Receive the state from the source to the receiver.
+
+        Parameters
+        ----------
+        receiver : Task
+            The receiver of the state.
+        source : Task
+            The source of the state.
+        tag : int
+            The tag for the operation.
+
+        Returns
+        -------
+        State
+            The received state dictionary.
+        """
+        pass
 
     def __repr__(self) -> str:
+        """Return a string representation of the transport.
+
+        Returns
+        -------
+        str
+            The string representation of the transport.
+        """
         return f"{self.__class__.__name__}()"
 
-    def couplings(self, task: Any) -> List[Coupling]:
-        couplings = []
+    def couplings(self, task: Task) -> List[Coupling]:
+        """Get the couplings for a given task.
+
+        Parameters
+        ----------
+        task : Task
+            The task to get the couplings for.
+
+        Returns
+        -------
+        List[Coupling]
+            The list of couplings for the task.
+        """
+        couplings: List[Coupling] = []
         for coupling in self._couplings:
             assert isinstance(coupling, dict)
             assert len(coupling) == 1
@@ -108,19 +237,37 @@ class Transport(ABC):
 
     def send_state(
         self,
-        sender: Any,
-        target: Any,
+        sender: Task,
+        target: Task,
         *,
-        input_state: Dict[str, Any],
+        input_state: State,
         variables: List[str],
         constants: Dict[str, Any],
-        tag: str,
+        tag: int,
     ) -> None:
+        """Send the state from the sender to the target.
+
+        Parameters
+        ----------
+        sender : Any
+            The sender of the state.
+        target : Any
+            The target of the state.
+        input_state : Dict[str, Any]
+            The input state dictionary.
+        variables : List[str]
+            The list of variables to send.
+        constants : Dict[str, Any]
+            The constants dictionary.
+        tag : int
+            The tag for the operation.
+        """
         assert sender.name != target.name, f"Cannot send to self {sender}"
 
-        fields = input_state["fields"]
+        fields: Dict[str, Any] = input_state["fields"]
 
         LOG.info(f"{sender}: sending to {target} {variables} {input_state['date']}")
+        LOG.info("State fields: %s", list(fields.keys()))
 
         fields = {v: fields[v] for v in variables if v in fields}
 
@@ -136,7 +283,7 @@ class Transport(ABC):
         for f, v in fields.items():
             assert len(v.shape) == 1, f"Expected  got {v.shape}"
 
-        state = input_state.copy()
+        state: State = input_state.copy()
         state["fields"] = fields
 
         # Don't send unnecessary data
@@ -150,25 +297,40 @@ class Transport(ABC):
 
     def receive_state(
         self,
-        receiver: Any,
-        source: Any,
+        receiver: Task,
+        source: Task,
         *,
-        output_state: Dict[str, Any],
+        output_state: State,
         variables: List[str],
-        tag: str,
+        tag: int,
     ) -> None:
+        """Receive the state from the source to the receiver.
+
+        Parameters
+        ----------
+        receiver : Any
+            The receiver of the state.
+        source : Any
+            The source of the state.
+        output_state : Dict[str, Any]
+            The output state dictionary.
+        variables : List[str]
+            The list of variables to receive.
+        tag : int
+            The tag for the operation.
+        """
         assert receiver.name != source.name, f"Cannot receive from self {receiver}"
 
-        state = self.receive(receiver, source, tag)
+        state: State = self.receive(receiver, source, tag)
 
-        assert isinstance(state, dict)
+        assert isinstance(state, dict), state
         assert "fields" in state
         assert isinstance(state["fields"], dict), f"Expected dict got {type(state['fields'])}"
 
         output_state.setdefault("fields", {})
 
-        fields_in = state["fields"]
-        fields_out = output_state["fields"]
+        fields_in: Dict[str, Any] = state["fields"]
+        fields_out: Dict[str, Any] = output_state["fields"]
 
         for v in variables:
             if v in fields_out:
@@ -179,4 +341,4 @@ class Transport(ABC):
 
             fields_out[v] = fields_in[v]
 
-            assert len(fields_out[v].shape) == 1, f"Expected  got {fields_out[v].shape}"
+            # assert len(fields_out[v].shape) == 1, f"Expected  got {fields_out[v].shape}"

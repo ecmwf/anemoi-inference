@@ -11,14 +11,31 @@
 import logging
 import warnings
 from collections import defaultdict
+from functools import wraps
 from typing import Any
 from typing import Dict
+
+from anemoi.inference.types import DataRequest
 
 LOG = logging.getLogger(__name__)
 
 
-def warn(func):
-    def wrapper(*args, **kwargs):
+def warn(func: Any) -> Any:
+    """Decorator to issue a warning when using legacy functions.
+
+    Parameters
+    ----------
+    func : function
+        The legacy function to be wrapped.
+
+    Returns
+    -------
+    function
+        The wrapped function with a warning.
+    """
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         warnings.warn(f"Using legacy {func.__name__}, please try to patch your weights.")
         return func(*args, **kwargs)
 
@@ -31,8 +48,13 @@ class LegacyMixin:
 
     @warn
     def _legacy_variables_metadata(self) -> Dict[str, Dict[str, Any]]:
+        """Generate metadata for legacy variables.
 
-        # Assumes ECMWF data from MARS
+        Returns
+        -------
+        Dict[str, Dict[str, Any]]
+            Metadata for each variable.
+        """
         result = {}
         unkowns = []
         for variable in self.variables:
@@ -101,7 +123,13 @@ class LegacyMixin:
         return result
 
     def _legacy_check_variables_metadata(self, variables: Dict[str, Dict[str, Any]]) -> None:
+        """Check and update metadata for legacy variables.
 
+        Parameters
+        ----------
+        variables : Dict[str, Dict[str, Any]]
+            The metadata dictionary to be checked and updated.
+        """
         if variables == {}:
             variables.update(self._legacy_variables_metadata())
             return
@@ -142,13 +170,31 @@ class LegacyMixin:
 
     @warn
     def _legacy_number_of_grid_points(self) -> int:
+        """Get the number of grid points for the legacy grid.
 
+        Returns
+        -------
+        int
+            Number of grid points.
+        """
         POINTS = {"o96": 40_320, "n320": 542_080}
 
         return POINTS[self.grid.lower()]
 
     @warn
-    def _legacy_data_request(self) -> Dict[str, Any]:
+    def _legacy_data_request(self) -> DataRequest:
+        """Retrieve the data request from metadata.
+
+        Returns
+        -------
+        DataRequest
+            The data request information.
+
+        Raises
+        ------
+        ValueError
+            If no data request is found in metadata.
+        """
         from anemoi.utils.config import find
 
         result = find(self._metadata["dataset"], "data_request")

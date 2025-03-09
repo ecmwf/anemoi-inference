@@ -7,11 +7,16 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+"""This is an `ai-models` plugin that can run anemoi.inference models."""
 
 import argparse
 import logging
 import os
 from functools import cached_property
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 from ai_models.model import Model
 
@@ -19,6 +24,8 @@ from anemoi.inference.inputs.grib import GribInput
 from anemoi.inference.outputs.grib import GribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -26,19 +33,74 @@ LOG = logging.getLogger(__name__)
 class FieldListInput(GribInput):
     """Handles earchkit-data fieldlists input fields."""
 
-    def __init__(self, context, *, input_fields):
+    def __init__(self, context: Any, *, input_fields: Any) -> None:
+        """Initialize FieldListInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context for the input.
+        input_fields : Any
+            The input fields to be processed.
+        """
         super().__init__(context)
         self.input_fields = input_fields
 
-    def create_input_state(self, *, date):
+    def create_input_state(self, *, date: Optional[Date]) -> Any:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : str
+            The date for which to create the input state.
+
+        Returns
+        -------
+        Any
+            The created input state.
+        """
         return self._create_input_state(self.input_fields, variables=None, date=date)
 
-    def load_forcings_state(self, *, variables, dates, current_state):
+    def load_forcings_state(
+        self,
+        *,
+        variables: List[str],
+        dates: List[str],
+        current_state: State,
+    ) -> Dict[str, Any]:
+        """Load the forcings state.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables to load.
+        dates : List[str]
+            The dates for which to load the forcings.
+        current_state : Dict[str, Any]
+            The current state to update.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The updated state with loaded forcings.
+        """
         return self._load_forcings_state(
-            self.input_fields, variables=variables, dates=dates, current_state=current_state
+            self.input_fields,
+            variables=variables,
+            dates=dates,
+            current_state=current_state,
         )
 
-    def set_private_attributes(self, state, input_fields):
+    def set_private_attributes(self, state: State, input_fields: Any) -> None:
+        """Set private attributes for the state.
+
+        Parameters
+        ----------
+        state : Dict[str, Any]
+            The state to update.
+        input_fields : Any
+            The input fields to use for setting attributes.
+        """
         input_fields = input_fields.order_by("valid_datetime")
         state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
 
@@ -46,19 +108,41 @@ class FieldListInput(GribInput):
 class CallbackOutput(GribOutput):
     """Call ai-models write method."""
 
-    def __init__(self, context, *, write, encoding=None):
+    def __init__(self, context: Any, *, write: Any, encoding: Any = None) -> None:
+        """Initialize CallbackOutput.
+
+        Parameters
+        ----------
+        context : Any
+            The context for the output.
+        write : Any
+            The write method to call.
+        encoding : Any, optional
+            The encoding to use, by default None.
+        """
         super().__init__(context, encoding=encoding, templates={"source": "templates"})
         self.write = write
 
-    def write_message(self, message, *args, **kwargs):
+    def write_message(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Write a message using the write method.
+
+        Parameters
+        ----------
+        message : Any
+            The message to write.
+        args : Any
+            Additional arguments.
+        kwargs : Any
+            Additional keyword arguments.
+        """
         self.write(message, *args, **kwargs)
 
 
 class AIModelPlugin(Model):
 
-    expver = None
+    expver: Any = None
 
-    def add_model_args(self, parser) -> None:
+    def add_model_args(self, parser: argparse.ArgumentParser) -> None:
         """To be implemented in subclasses to add model-specific arguments to the parser.
 
         Parameters
@@ -68,7 +152,19 @@ class AIModelPlugin(Model):
         """
         pass
 
-    def parse_model_args(self, args):
+    def parse_model_args(self, args: List[str]) -> argparse.ArgumentParser:
+        """Parse model-specific arguments.
+
+        Parameters
+        ----------
+        args : List[str]
+            The list of arguments to parse.
+
+        Returns
+        -------
+        argparse.ArgumentParser
+            The parser with parsed arguments.
+        """
         parser = argparse.ArgumentParser()
 
         parser.add_argument("--checkpoint", required=not hasattr(self, "download_files"))
@@ -92,11 +188,12 @@ class AIModelPlugin(Model):
         return parser
 
     @cached_property
-    def runner(self):
+    def runner(self) -> PluginRunner:
+        """Get the PluginRunner instance."""
         return PluginRunner(self._checkpoint, device=self.device)
 
-    def run(self):
-
+    def run(self) -> None:
+        """Run the model inference."""
         if self.deterministic:
             self.torch_deterministic_mode()
 
@@ -118,31 +215,38 @@ class AIModelPlugin(Model):
     # Below are methods forwarded to the checkpoint
 
     @property
-    def param_sfc(self):
+    def param_sfc(self) -> Any:
+        """Surface parameters."""
         return self.runner.param_sfc
 
     @property
-    def param_level_pl(self):
+    def param_level_pl(self) -> Any:
+        """Pressure level parameters."""
         return self.runner.param_level_pl
 
     @property
-    def param_level_ml(self):
+    def param_level_ml(self) -> Any:
+        """Model level parameters."""
         return self.runner.param_level_ml
 
     @property
-    def constant_fields(self):
+    def constant_fields(self) -> Any:
+        """Constant fields from input."""
         return self.runner.checkpoint.constants_from_input
 
     @property
-    def grid(self):
+    def grid(self) -> Any:
+        """Grid information."""
         return self.runner.checkpoint.grid
 
     @property
-    def area(self):
+    def area(self) -> Any:
+        """Area information."""
         return self.runner.checkpoint.area
 
     @property
-    def lagged(self):
+    def lagged(self) -> Any:
+        """Lagged information."""
         return self.runner.lagged
 
 

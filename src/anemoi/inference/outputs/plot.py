@@ -9,35 +9,84 @@
 
 import logging
 import os
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Union
 
 import numpy as np
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+ListOrAll = Union[List[str], Literal["all"]]
 
-def fix(lons: np.ndarray) -> np.ndarray:
+
+def fix(lons: FloatArray) -> FloatArray:
+    """Fix longitudes greater than 180 degrees.
+
+    Parameters
+    ----------
+    lons : FloatArray
+        Array of longitudes.
+
+    Returns
+    -------
+    FloatArray
+        Fixed array of longitudes.
+    """
     return np.where(lons > 180, lons - 360, lons)
 
 
 @output_registry.register("plot")
 class PlotOutput(Output):
+    """Plot output class."""
 
     def __init__(
         self,
-        context: dict,
+        context: Context,
         path: str,
-        variables: list = all,
+        variables: ListOrAll = "all",
         strftime: str = "%Y%m%d%H%M%S",
         template: str = "plot_{variable}_{date}.{format}",
         dpi: int = 300,
         format: str = "png",
-        missing_value: float = None,
-        output_frequency: int = None,
-        write_initial_state: bool = None,
+        missing_value: Optional[float] = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ) -> None:
+        """Initialize the PlotOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str
+            The path to save the plots.
+        variables : list, optional
+            The list of variables to plot, by default all.
+        strftime : str, optional
+            The date format string, by default "%Y%m%d%H%M%S".
+        template : str, optional
+            The template for plot filenames, by default "plot_{variable}_{date}.{format}".
+        dpi : int, optional
+            The resolution of the plot, by default 300.
+        format : str, optional
+            The format of the plot, by default "png".
+        missing_value : float, optional
+            The value to use for missing data, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        """
+
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.path = path
         self.format = format
@@ -47,11 +96,18 @@ class PlotOutput(Output):
         self.dpi = dpi
         self.missing_value = missing_value
 
-        if self.variables is not all:
+        if self.variables != "all":
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-    def write_step(self, state: dict) -> None:
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
         import matplotlib.pyplot as plt
@@ -65,7 +121,7 @@ class PlotOutput(Output):
 
         for name, values in state["fields"].items():
 
-            if self.variables is not all and name not in self.variables:
+            if self.variables != "all" and name not in self.variables:
                 continue
 
             _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})

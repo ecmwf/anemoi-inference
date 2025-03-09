@@ -78,6 +78,8 @@ dmypy.json
 
 # Data files
 *.grib
+*.grib1
+*.grib2
 *.onnx
 *.ckpt
 *.npy
@@ -132,5 +134,5 @@ _version.py
 *.to_upload
 tempCodeRunnerFile.python
 Untitled-*.py
-*.grib1
-*.grib2
+*.json
+*.txt

@@ -24,11 +24,25 @@ class PatchCmd(Command):
     _cache = {}
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
+
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.add_argument("path", help="Path to the checkpoint.")
         command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
         command_parser.add_argument("--force", action="store_true", help="Force the patching.")
 
     def run(self, args: Namespace) -> None:
+        """Run the patch command.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata

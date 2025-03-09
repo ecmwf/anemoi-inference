@@ -17,18 +17,38 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Literal
 from typing import Optional
+from typing import Tuple
+from typing import Union
 
+import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
+
+from anemoi.inference.forcings import Forcings
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from .metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
 
-def _download_huggingfacehub(huggingface_config) -> str:
-    """Download model from huggingface."""
+def _download_huggingfacehub(huggingface_config: Any) -> str:
+    """Download model from huggingface.
+
+    Parameters
+    ----------
+    huggingface_config : dict or str
+        Configuration for downloading from huggingface.
+
+    Returns
+    -------
+    str
+        Path to the downloaded model.
+    """
     try:
         from huggingface_hub import hf_hub_download
         from huggingface_hub import snapshot_download
@@ -55,21 +75,43 @@ def _download_huggingfacehub(huggingface_config) -> str:
 class Checkpoint:
     """Represents an inference checkpoint."""
 
-    def __init__(self, path: str, *, patch_metadata: Optional[Dict[str, Any]] = None):
-        self._path = path
+    def __init__(
+        self,
+        source: Union[str, Metadata, Dict[str, Any]],
+        *,
+        patch_metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Initialize the Checkpoint.
+
+        Parameters
+        ----------
+        path : str
+            The path to the checkpoint.
+        patch_metadata : Optional[Dict[str, Any]], optional
+            Metadata to patch the checkpoint with, by default None.
+        """
+        self._source = source
         self.patch_metadata = patch_metadata
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Represent the Checkpoint as a string.
+
+        Returns
+        -------
+        str
+            String representation of the Checkpoint.
+        """
         return f"Checkpoint({self.path})"
 
     @cached_property
     def path(self) -> str:
+        """Get the path to the checkpoint."""
         import json
 
         try:
-            path = json.loads(self._path)
+            path = json.loads(self._source)
         except Exception:
-            path = self._path
+            path = self._source
 
         if isinstance(path, (Path, str)):
             return str(path)
@@ -80,11 +122,16 @@ class Checkpoint:
         raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
     @cached_property
-    def _metadata(self):
+    def _metadata(self) -> Metadata:
+        """Get the metadata."""
+
+        if isinstance(self._source, Metadata):
+            return self._source
+
         try:
             result = Metadata(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
-            LOG.warning("Version for not support `supporting_arrays` (%s)", e)
+            LOG.warning("Version does not support `supporting_arrays` (%s)", e)
             result = Metadata(load_metadata(self.path))
 
         if self.patch_metadata:
@@ -101,144 +148,302 @@ class Checkpoint:
     ###########################################################################
 
     @property
-    def timestep(self):
+    def timestep(self) -> Any:
+        """Get the timestep."""
         return self._metadata.timestep
 
     @property
-    def precision(self):
+    def precision(self) -> Any:
+        """Get the precision."""
         return self._metadata.precision
 
     @property
-    def number_of_grid_points(self):
+    def number_of_grid_points(self) -> Any:
+        """Get the number of grid points."""
         return self._metadata.number_of_grid_points
 
     @property
-    def number_of_input_features(self):
+    def number_of_input_features(self) -> Any:
+        """Get the number of input features."""
         return self._metadata.number_of_input_features
 
     @property
-    def variable_to_input_tensor_index(self):
+    def variable_to_input_tensor_index(self) -> Any:
+        """Get the variable to input tensor index."""
         return self._metadata.variable_to_input_tensor_index
 
     @property
-    def model_computed_variables(self):
+    def model_computed_variables(self) -> Any:
+        """Get the model computed variables."""
         return self._metadata.model_computed_variables
 
     @property
-    def typed_variables(self):
+    def typed_variables(self) -> Any:
+        """Get the typed variables."""
         return self._metadata.typed_variables
 
     @property
-    def diagnostic_variables(self):
+    def diagnostic_variables(self) -> Any:
+        """Get the diagnostic variables."""
         return self._metadata.diagnostic_variables
 
     @property
-    def prognostic_variables(self):
+    def prognostic_variables(self) -> Any:
+        """Get the prognostic variables."""
         return self._metadata.prognostic_variables
 
     @property
-    def prognostic_output_mask(self):
+    def prognostic_output_mask(self) -> Any:
+        """Get the prognostic output mask."""
         return self._metadata.prognostic_output_mask
 
     @property
-    def prognostic_input_mask(self):
+    def prognostic_input_mask(self) -> Any:
+        """Get the prognostic input mask."""
         return self._metadata.prognostic_input_mask
 
     @property
-    def output_tensor_index_to_variable(self):
+    def output_tensor_index_to_variable(self) -> Any:
+        """Get the output tensor index to variable."""
         return self._metadata.output_tensor_index_to_variable
 
     @property
-    def accumulations(self):
+    def accumulations(self) -> Any:
+        """Get the accumulations."""
         return self._metadata.accumulations
 
     @property
-    def latitudes(self):
+    def latitudes(self) -> Any:
+        """Get the latitudes."""
         return self._metadata.latitudes
 
     @property
-    def longitudes(self):
+    def longitudes(self) -> Any:
+        """Get the longitudes."""
         return self._metadata.longitudes
 
     @property
-    def grid_points_mask(self):
+    def grid_points_mask(self) -> Any:
+        """Get the grid points mask."""
         return self._metadata.grid_points_mask
 
     @cached_property
-    def sources(self):
+    def sources(self) -> List["SourceCheckpoint"]:
+        """Get the sources."""
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
-    def default_namer(self, *args: Any, **kwargs: Any) -> Callable:
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[[ekd.Field, Any], str]:
         """Return a callable that can be used to name fields.
-        In that case, return the namer that was used to create the
-        training dataset.
+
+        Parameters
+        ----------
+        *args : Any
+            Additional arguments.
+
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Callable
+            The namer that was used to create the training dataset.
         """
         return self._metadata.default_namer(*args, **kwargs)
 
     def report_error(self) -> None:
+        """Report an error."""
         self._metadata.report_error()
 
     def validate_environment(
         self,
         *,
         all_packages: bool = False,
-        on_difference: str = "warn",
+        on_difference: Literal["warn", "error", "ignore"] = "warn",
         exempt_packages: Optional[List[str]] = None,
     ) -> bool:
+        """Validate the environment.
+
+        Parameters
+        ----------
+        all_packages : bool, optional
+            Whether to validate all packages, by default False.
+        on_difference : str, optional
+            Action to take on difference, by default "warn".
+        exempt_packages : Optional[List[str]], optional
+            List of packages to exempt, by default None.
+
+        Returns
+        -------
+        bool
+            True if the environment is valid, False otherwise.
+        """
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
 
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Any, Any]:
+        """Get arguments and keyword arguments for opening the dataset.
+
+        Parameters
+        ----------
+        use_original_paths : bool
+            Whether to use original paths.
+        from_dataloader : Optional[Any], optional
+            Data loader, by default None.
+
+        Returns
+        -------
+        Tuple[Any, Any]
+            Arguments and keyword arguments for opening the dataset.
+        """
         return self._metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+    def constant_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
+        """Get constant forcings inputs.
+
+        Parameters
+        ----------
+        runner : Any
+            The runner.
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        List[Forcings]
+            The constant forcings inputs.
+        """
         return self._metadata.constant_forcings_inputs(runner, input_state)
 
-    def dynamic_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+    def dynamic_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
+        """Get dynamic forcings inputs.
+
+        Parameters
+        ----------
+        runner : Any
+            The runner.
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        List[Forcings]
+            The dynamic forcings inputs.
+        """
         return self._metadata.dynamic_forcings_inputs(runner, input_state)
 
-    def boundary_forcings_inputs(self, runner: Any, input_state: Dict[str, Any]) -> Any:
+    def boundary_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
+        """Get boundary forcings inputs.
+
+        Parameters
+        ----------
+        runner : Any
+            The runner.
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        List[Forcings]
+            The boundary forcings inputs.
+        """
         return self._metadata.boundary_forcings_inputs(runner, input_state)
 
-    def name_fields(self, fields: Any, namer: Optional[Callable] = None) -> Any:
+    def name_fields(self, fields: Any, namer: Optional[Callable[..., str]] = None) -> Any:
+        """Name fields.
+
+        Parameters
+        ----------
+        fields : Any
+            The fields to name.
+        namer : Optional[Callable[...,str]], optional
+            The namer, by default None.
+
+        Returns
+        -------
+        Any
+            The named fields.
+        """
         return self._metadata.name_fields(fields, namer=namer)
 
-    def sort_by_name(self, fields: Any, namer: Optional[Callable] = None, *args: Any, **kwargs: Any) -> Any:
-        return self._metadata.sort_by_name(fields, namer=namer, *args, **kwargs)
+    def sort_by_name(
+        self, fields: ekd.FieldList, *args: Any, namer: Optional[Callable[..., str]] = None, **kwargs: Any
+    ) -> ekd.FieldList:
+        """Sort fields by name.
+
+        Parameters
+        ----------
+        fields : ekd.FieldList
+            The fields to sort.
+        *args : Any
+            Additional arguments.
+        namer : Optional[Callable[...,str]], optional
+            The namer, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        ekd.FieldList
+            The sorted fields.
+        """
+        return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
 
     def print_indices(self) -> None:
+        """Print the indices."""
         return self._metadata.print_indices()
 
     def variable_categories(self) -> Any:
+        """Get the variable categories.
+
+        Returns
+        -------
+        Any
+            The variable categories.
+        """
         return self._metadata.variable_categories()
 
     def load_supporting_array(self, name: str) -> Any:
+        """Load a supporting array.
+
+        Parameters
+        ----------
+        name : str
+            The name of the supporting array.
+
+        Returns
+        -------
+        Any
+            The supporting array.
+        """
         return self._metadata.load_supporting_array(name)
 
     @property
-    def supporting_arrays(self):
+    def supporting_arrays(self) -> Any:
+        """Get the supporting arrays."""
         return self._metadata.supporting_arrays
 
     ###########################################################################
 
     @cached_property
     def lagged(self) -> List[datetime.timedelta]:
-        """Return the list of timedelta for the `multi_step_input` fields."""
+        """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
         result = [-s * self._metadata.timestep for s in result]
         return sorted(result)
 
     @property
-    def multi_step_input(self):
+    def multi_step_input(self) -> Any:
+        """Get the multi-step input."""
         return self._metadata.multi_step_input
 
     def print_variable_categories(self) -> None:
+        """Print the variable categories."""
         return self._metadata.print_variable_categories()
 
     ###########################################################################
@@ -246,30 +451,77 @@ class Checkpoint:
     ###########################################################################
 
     def variables_from_input(self, *, include_forcings: bool) -> Any:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include_forcings : bool
+            Whether to include forcings.
+
+        Returns
+        -------
+        Any
+            The variables from input.
+        """
         return self._metadata.variables_from_input(include_forcings=include_forcings)
 
     @property
-    def grid(self):
+    def grid(self) -> Any:
+        """Get the grid."""
         return self._metadata.grid
 
     @property
-    def area(self):
+    def area(self) -> Any:
+        """Get the area."""
         return self._metadata.area
 
     def mars_by_levtype(self, levtype: str) -> Any:
+        """Get MARS requests by level type.
+
+        Parameters
+        ----------
+        levtype : str
+            The level type.
+
+        Returns
+        -------
+        Any
+            The MARS requests by level type.
+        """
         return self._metadata.mars_by_levtype(levtype)
 
     def mars_requests(
         self,
         *,
         variables: List[str],
-        dates: List[Any],
+        dates: List[Date],
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
-        patch_request: Optional[Callable] = None,
+        patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[DataRequest]:
+        """Generate MARS requests for the given variables and dates.
 
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables.
+        dates : List[Any]
+            The list of dates.
+        use_grib_paramid : bool, optional
+            Whether to use GRIB paramid, by default False.
+        always_split_time : bool, optional
+            Whether to always split time, by default False.
+        patch_request : Optional[Callable], optional
+            A callable to patch the request, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        List[DataRequest]
+            The list of MARS requests.
+        """
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
@@ -374,11 +626,13 @@ class Checkpoint:
     ###########################################################################
 
     @cached_property
-    def _supporting_arrays(self):
+    def _supporting_arrays(self) -> Any:
+        """Get the supporting arrays."""
         return self._metadata._supporting_arrays
 
     @property
-    def name(self):
+    def name(self) -> Any:
+        """Get the name."""
         return self._metadata.name
 
     ###########################################################################
@@ -386,16 +640,39 @@ class Checkpoint:
     ###########################################################################
 
     def provenance_training(self) -> Any:
+        """Get the provenance of the training.
+
+        Returns
+        -------
+        Any
+            The provenance of the training.
+        """
         return self._metadata.provenance_training()
 
 
 class SourceCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""
 
-    def __init__(self, owner: Checkpoint, metadata: Any):
+    def __init__(self, owner: Checkpoint, metadata: Any) -> None:
+        """Initialize the SourceCheckpoint.
+
+        Parameters
+        ----------
+        owner : Checkpoint
+            The owner checkpoint.
+        metadata : Any
+            The metadata for the source checkpoint.
+        """
         super().__init__(owner.path)
         self._owner = owner
         self._metadata = metadata
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Represent the SourceCheckpoint as a string.
+
+        Returns
+        -------
+        str
+            String representation of the SourceCheckpoint.
+        """
         return f"Source({self.name}@{self.path})"

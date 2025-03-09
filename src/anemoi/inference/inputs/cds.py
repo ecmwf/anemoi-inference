@@ -15,7 +15,13 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -25,15 +31,34 @@ LOG = logging.getLogger(__name__)
 
 
 def retrieve(
-    requests: List[Dict[str, Any]],
+    requests: List[DataRequest],
     grid: Optional[Union[str, List[float]]],
     area: Optional[List[float]],
     dataset: Union[str, Dict[str, Any]],
     **kwargs: Any,
-) -> Any:
-    import earthkit.data as ekd
+) -> ekd.FieldList:
+    """Retrieve data from CDS.
 
-    def _(r):
+    Parameters
+    ----------
+    requests : List[Dict[str, Any]]
+        List of request dictionaries.
+    grid : Optional[Union[str, List[float]]]
+        Grid specification.
+    area : Optional[List[float]]
+        Area specification.
+    dataset : Union[str, Dict[str, Any]]
+        Dataset to use.
+    **kwargs : Any
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Any
+        Retrieved data.
+    """
+
+    def _(r: DataRequest) -> str:
         mars = r.copy()
         for k, v in r.items():
             if isinstance(v, (list, tuple)):
@@ -75,6 +100,11 @@ def retrieve(
         r.update(kwargs)
 
         LOG.debug("%s", _(r))
+
+        print("++++++++++++++++")
+        print(_(r))
+        print("++++++++++++++++")
+
         result += ekd.from_source("cds", d, r)
 
     return result
@@ -87,15 +117,40 @@ class CDSInput(GribInput):
     trace_name = "cds"
 
     def __init__(
-        self, context: Any, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
+        self, context: Context, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
     ) -> None:
+        """Initialize the CDSInput.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the input is used.
+        dataset : Union[str, Dict[str, Any]]
+            The dataset to use.
+        namer : Optional[Any]
+            Optional namer for the input.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         super().__init__(context, namer=namer)
 
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date: Optional[Any]) -> Any:
+    def create_input_state(self, *, date: Optional[Date]) -> State:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Date]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
         if date is None:
             date = to_datetime(-1)
             LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
@@ -111,7 +166,21 @@ class CDSInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Any]) -> Any:
+    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+        """Retrieve data for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variables to retrieve.
+        dates : List[Date]
+            List of dates for which to retrieve data.
+
+        Returns
+        -------
+        Any
+            Retrieved data.
+        """
 
         requests = self.checkpoint.mars_requests(
             variables=variables,
@@ -127,5 +196,23 @@ class CDSInput(GribInput):
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def load_forcings(self, variables: List[str], dates: List[Any]) -> Any:
-        return self._load_forcings(self.retrieve(variables, dates), variables, dates)
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables for which to load the forcings state.
+        dates : List[Date]
+            The list of dates for which to load the forcings state.
+        current_state : State
+            The current state to be updated with the loaded forcings state.
+
+        Returns
+        -------
+        Any
+            The loaded forcings state.
+        """
+        return self._load_forcings_state(
+            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+        )

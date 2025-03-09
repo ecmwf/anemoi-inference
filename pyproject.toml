@@ -40,7 +40,7 @@ classifiers = [
 
 dynamic = [ "version" ]
 dependencies = [
-  "anemoi-transform>=0.1",
+  "anemoi-transform>=0.1.3",
   "anemoi-utils[text,provenance]>=0.4.9",
   "aniso8601",
   "anytree",
@@ -81,11 +81,44 @@ scripts.anemoi-inference = "anemoi.inference.__main__:main"
 
 entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 
+[tool.setuptools.package-data]
+"anemoi.inference.grib.templates" = [ "*.yaml" ]
+
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
 
 [tool.mypy]
-strict = false
+exclude = [ "docs/" ]
+strict = true
+ignore_missing_imports = true
+
+allow_redefinition = true
+
+disable_error_code = [
+  # "arg-type",
+  # "assignment",
+  # "attr-defined",
+  # "call-arg",
+  # "comparison-overlap",
+  # "dict-item",
+  # "has-type",
+  # "import-untyped",
+  # "index",
+  # "list-item",
+  "misc",
+  # "name-defined",
+  # "no-any-return",
+  # "no-redef",
+  # "no-untyped-call",
+  # "no-untyped-def",
+  # "override",
+  # "return-value",
+  "type-arg",
+  # "union-attr",
+  # "used-before-def",
+  # "valid-type",
+  # "var-annotated",
+]
 
 [setuptools.package-data]
 "anemoi.inference.grib.templates" = [ "*.yaml" ]

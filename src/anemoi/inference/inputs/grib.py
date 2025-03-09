@@ -21,6 +21,15 @@ class GribInput(EkdInput):
     """Handles GRIB input fields."""
 
     def set_private_attributes(self, state: Any, input_fields: List[Any]) -> None:
+        """Set private attributes for the state.
+
+        Parameters
+        ----------
+        state : Any
+            The state to set private attributes for.
+        input_fields : List[Any]
+            The input fields.
+        """
         # For now we just pass all the fields
         # Later, we can select a relevant subset (e.g. only one
         # level), to save memory

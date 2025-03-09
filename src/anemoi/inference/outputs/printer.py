@@ -10,8 +10,17 @@
 import datetime
 import logging
 from functools import partial
+from typing import Any
+from typing import Callable
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Union
 
 import numpy as np
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..decorators import main_argument
 from ..output import Output
@@ -19,8 +28,28 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+ListOrAll = Union[List[str], Literal["all"]]
 
-def print_state(state: dict, print=print, max_lines: int = 4, variables: list = None) -> None:
+
+def print_state(
+    state: State,
+    print: Callable[..., None] = print,
+    max_lines: int = 4,
+    variables: Optional[ListOrAll] = None,
+) -> None:
+    """Print the state.
+
+    Parameters
+    ----------
+    state : State
+        The state dictionary.
+    print : function, optional
+        The print function to use, by default print.
+    max_lines : int, optional
+        The maximum number of lines to print, by default 4.
+    variables : list, optional
+        The list of variables to print, by default None.
+    """
     print()
     print("😀", end=" ")
     for key, value in state.items():
@@ -44,6 +73,9 @@ def print_state(state: dict, print=print, max_lines: int = 4, variables: list = 
     if variables == "all":
         variables = names
         max_lines = 0
+
+    if variables is None:
+        variables = names
 
     if not isinstance(variables, (list, tuple, set)):
         variables = [variables]
@@ -76,8 +108,29 @@ def print_state(state: dict, print=print, max_lines: int = 4, variables: list = 
 @output_registry.register("printer")
 @main_argument("max_lines")
 class PrinterOutput(Output):
+    """Printer output class."""
 
-    def __init__(self, context: dict, path: str = None, variables: list = None, **kwargs) -> None:
+    def __init__(
+        self,
+        context: Context,
+        path: Optional[str] = None,
+        variables: Optional[ListOrAll] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the PrinterOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str, optional
+            The path to save the printed output, by default None.
+        variables : list, optional
+            The list of variables to print, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+
         super().__init__(context)
         self.print = print
         self.variables = variables
@@ -86,8 +139,12 @@ class PrinterOutput(Output):
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 
-    def write_initial_state(self, state: dict) -> None:
-        self.write_state(state)
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
 
-    def write_state(self, state: dict) -> None:
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
         print_state(state, print=self.print, variables=self.variables)
