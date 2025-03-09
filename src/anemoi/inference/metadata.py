@@ -596,7 +596,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             mars = self.variables_metadata[variable]["mars"].copy()
 
-            for k in ("date", "time"):
+            for k in ("date", "hdate", "time"):
                 mars.pop(k, None)
 
             yield mars
