@@ -14,7 +14,6 @@ import logging
 import os
 from functools import cached_property
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 
@@ -67,7 +66,7 @@ class FieldListInput(GribInput):
         variables: List[str],
         dates: List[str],
         current_state: State,
-    ) -> Dict[str, Any]:
+    ) -> State:
         """Load the forcings state.
 
         Parameters
@@ -76,12 +75,12 @@ class FieldListInput(GribInput):
             The variables to load.
         dates : List[str]
             The dates for which to load the forcings.
-        current_state : Dict[str, Any]
+        current_state : State
             The current state to update.
 
         Returns
         -------
-        Dict[str, Any]
+        State
             The updated state with loaded forcings.
         """
         return self._load_forcings_state(

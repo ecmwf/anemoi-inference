@@ -10,12 +10,14 @@
 
 import logging
 from datetime import timedelta
+from typing import Dict
 from typing import List
 from typing import Optional
 
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -45,7 +47,7 @@ class Accumulate(Processor):
         self.accumulations = accumulations
         LOG.info("Accumulating fields %s", self.accumulations)
 
-        self.accumulators = {}
+        self.accumulators: Dict[str, FloatArray] = {}
         self.step_zero = timedelta(0)
 
     def process(self, state: State) -> State:

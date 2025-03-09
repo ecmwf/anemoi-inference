@@ -13,6 +13,8 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 
@@ -35,7 +37,7 @@ class Context(ABC):
     allow_nans = (None,)  # can be True of False
     use_grib_paramid = False
     verbosity = 0
-    development_hacks = {}  # For testing purposes, don't use in production
+    development_hacks: Dict[str, Any] = {}  # For testing purposes, don't use in production
 
     # Some runners will set these values, which can be queried by Output objects,
     # but may remain as None

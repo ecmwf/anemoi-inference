@@ -10,11 +10,8 @@
 import logging
 
 
-
-# from dummy import dummy_checkpoints
-
-
-def test_inputs():
+def test_inputs() -> None:
+    """Test the inputs module."""
     pass
 
 

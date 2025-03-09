@@ -53,7 +53,7 @@ def check_data(title: str, data: Any, variables: List[str], dates: List[datetime
 
         cols = {}
         rows = {}
-        t = []
+        t: List[List[str]] = []
         for i, d in enumerate(sorted(dates)):
             cols[d.isoformat()] = i + 1
 

@@ -16,8 +16,10 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
+import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import FloatArray
@@ -44,21 +46,23 @@ class HindcastOutput:
 
         self.reference_year = reference_year
 
-    def __call__(self, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(
+        self, values: FloatArray, template: ekd.Field, keys: Dict[str, Any]
+    ) -> Tuple[FloatArray, ekd.Field, Dict[str, Any]]:
         """Call the HindcastOutput object.
 
         Parameters
         ----------
         values : FloatArray
             The values array.
-        template : object
+        template : ekd.Field
             The template object.
-        keys : dict
+        keys : Dict[str, Any]
             The keys dictionary.
 
         Returns
         -------
-        tuple
+        Tuple[FloatArray, ekd.Field, Dict[str, Any]]
             The modified values, template, and keys.
         """
 

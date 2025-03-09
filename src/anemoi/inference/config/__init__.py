@@ -17,6 +17,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Type
+from typing import TypeVar
 from typing import Union
 
 import yaml
@@ -24,6 +26,8 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 LOG = logging.getLogger(__name__)
+
+T = TypeVar("T", bound="Configuration")
 
 
 class Configuration(BaseModel):
@@ -33,11 +37,11 @@ class Configuration(BaseModel):
 
     @classmethod
     def load(
-        cls,
+        cls: Type[T],
         path: Union[str, Dict[str, Any]],
         overrides: Union[List[str], List[dict], str, dict] = [],
         defaults: Optional[Union[str, List[str], dict]] = None,
-    ) -> Configuration:
+    ) -> T:
         """Load the configuration.
 
         Parameters

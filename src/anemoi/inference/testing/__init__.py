@@ -43,7 +43,22 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def float_hash(s: str, date: datetime.datetime, offset: int = 0, accuracy=1_000_000) -> float:
-    """Hash a string and date to a float."""
+def float_hash(s: str, date: datetime.datetime, accuracy: int = 1_000_000) -> float:
+    """Hash a string and date to a float.
+
+    Parameters
+    ----------
+    s : str
+        The string to be hashed.
+    date : datetime.datetime
+        The date to be hashed.
+    accuracy : int, optional
+        The accuracy of the hash, by default 1_000_000
+
+    Returns
+    -------
+    float
+        The resulting hash as a float.
+    """
     h = s + date.isoformat()
-    return float(int.from_bytes(h.encode(), "little") % accuracy) / accuracy + offset
+    return float(int.from_bytes(h.encode(), "little") % accuracy) / accuracy

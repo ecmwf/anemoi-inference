@@ -534,7 +534,7 @@ class Checkpoint:
 
         assert dates, "No dates provided"
 
-        result = []
+        result: List[DataRequest] = []
 
         DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
         DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")

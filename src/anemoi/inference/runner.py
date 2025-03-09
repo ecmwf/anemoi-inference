@@ -15,7 +15,9 @@ from functools import cached_property
 from typing import Any
 from typing import Dict
 from typing import Generator
+from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -168,19 +170,21 @@ class Runner(Context):
         """
         return self._checkpoint
 
-    def run(self, *, input_state: State, lead_time: str) -> Any:
+    def run(
+        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta]
+    ) -> Generator[State, None, None]:
         """Run the model.
 
         Parameters
         ----------
         input_state : State
             The input state.
-        lead_time : str
+        lead_time : Union[str, int, datetime.timedelta]
             The lead time.
 
         Returns
         -------
-        Any
+        Generator[State, None, None]
             The forecasted state.
         """
         # Shallow copy to avoid modifying the user's input state
@@ -225,7 +229,7 @@ class Runner(Context):
                     self.checkpoint.report_error()
                 raise
 
-    def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
+    def create_constant_forcings_inputs(self, input_state: State) -> List[Forcings]:
         """Create constant forcings inputs.
 
         Parameters
@@ -240,7 +244,7 @@ class Runner(Context):
         """
         return self.checkpoint.constant_forcings_inputs(self, input_state)
 
-    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
+    def create_dynamic_forcings_inputs(self, input_state: State) -> List[Forcings]:
         """Create dynamic forcings inputs.
 
         Parameters
@@ -255,7 +259,7 @@ class Runner(Context):
         """
         return self.checkpoint.dynamic_forcings_inputs(self, input_state)
 
-    def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
+    def create_boundary_forcings_inputs(self, input_state: State) -> List[Forcings]:
         """Create boundary forcings inputs.
 
         Parameters
@@ -324,7 +328,7 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs: List[Forcings]) -> List[Forcings]:
         """Modify the constant forcings inputs for the first step.
 
         Parameters
@@ -340,7 +344,7 @@ class Runner(Context):
         # Give an opportunity to modify the forcings for the first step
         return constant_forcings_inputs
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
         """Modify the dynamic forcings inputs for the first step.
 
         Parameters
@@ -473,7 +477,9 @@ class Runner(Context):
         """
         return model.predict_step(input_tensor_torch)
 
-    def forecast_stepper(self, start_date, lead_time) -> Generator:
+    def forecast_stepper(
+        self, start_date: datetime.datetime, lead_time: datetime.timedelta
+    ) -> Generator[Tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -505,7 +511,9 @@ class Runner(Context):
             is_last_step = s == steps - 1
             yield step, valid_date, next_date, is_last_step
 
-    def forecast(self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State) -> Any:
+    def forecast(
+        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+    ) -> Generator[State, None, None]:
         """Forecast the future states.
 
         Parameters
@@ -638,7 +646,7 @@ class Runner(Context):
             The input tensor.
         y_pred : torch.Tensor
             The predicted tensor.
-        check : np.ndarray
+        check : BoolArray
             The check array.
 
         Returns
@@ -682,7 +690,7 @@ class Runner(Context):
             The state.
         date : datetime.datetime
             The date.
-        check : np.ndarray
+        check : BoolArray
             The check array.
 
         Returns
@@ -737,7 +745,7 @@ class Runner(Context):
             The state.
         date : datetime.datetime
             The date.
-        check : np.ndarray
+        check : BoolArray
             The check array.
 
         Returns
@@ -781,7 +789,7 @@ class Runner(Context):
 
         for key, klass in EXPECT.items():
             if key not in input_state:
-                raise ValueError(f"Input state must contain a `{key}` enytry")
+                raise ValueError(f"Input state must contain a `{key}` entry")
 
             if not isinstance(input_state[key], klass):
                 raise ValueError(
@@ -840,14 +848,16 @@ class Runner(Context):
 
         return input_state
 
-    def _print_tensor(self, title: str, tensor_numpy: np.ndarray, tensor_by_name: list, kinds: dict) -> None:
+    def _print_tensor(
+        self, title: str, tensor_numpy: FloatArray, tensor_by_name: List[str], kinds: Dict[str, Kind]
+    ) -> None:
         """Print the tensor.
 
         Parameters
         ----------
         title : str
             The title.
-        tensor_numpy : np.ndarray
+        tensor_numpy : FloatArray
             The tensor.
         tensor_by_name : list
             The tensor by name.
@@ -901,14 +911,14 @@ class Runner(Context):
 
         self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
 
-    def _print_output_tensor(self, title: str, output_tensor_numpy: np.ndarray) -> None:
+    def _print_output_tensor(self, title: str, output_tensor_numpy: FloatArray) -> None:
         """Print the output tensor.
 
         Parameters
         ----------
         title : str
             The title.
-        output_tensor_numpy : np.ndarray
+        output_tensor_numpy : FloatArray
             The output tensor.
         """
         LOG.info(

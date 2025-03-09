@@ -12,6 +12,7 @@ import logging
 import re
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Set
 from typing import Union
@@ -21,9 +22,9 @@ import earthkit.data as ekd
 LOG = logging.getLogger(__name__)
 
 
-GRIB1_ONLY = []
+GRIB1_ONLY: List[str] = []
 
-GRIB2_ONLY = ["typeOfGeneratingProcess"]
+GRIB2_ONLY: List[str] = ["typeOfGeneratingProcess"]
 
 
 ORDERING = (
@@ -449,11 +450,10 @@ class GribWriter:
         """
         self._files: Dict[str, Any] = {}
         self.filename = path
+        self.split_output: Optional[List[str]] = None
 
         if split_output:
             self.split_output = re.findall(r"\{(.*?)\}", self.filename)
-        else:
-            self.split_output = None
 
     def close(self) -> None:
         """Close all open files."""
