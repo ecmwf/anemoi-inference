@@ -533,6 +533,7 @@
                 "constant_in_time": false
             },
             "lsm": {
+                "constant_in_time": true,
                 "mars": {
                     "levtype": "sfc",
                     "param": "lsm",

@@ -65,6 +65,7 @@ class MockModel(torch.nn.Module):
         tensor_dates: list[datetime.datetime],
         value: float,
         expect: torch.Tensor,
+        title: str,
     ) -> None:
         """Check if the tensor values are as expected.
 
@@ -86,6 +87,8 @@ class MockModel(torch.nn.Module):
             The expected value.
         expect : torch.Tensor
             The expected tensor.
+        title : str
+            The title of the check.
         """
         if not torch.isclose(x[:, lag, :, feature], expect).all():
             LOG.error(
@@ -97,7 +100,8 @@ class MockModel(torch.nn.Module):
             )
             LOG.error("Date: %s, Step: %s, Tensor dates: %s", date, step, tensor_dates)
             LOG.error(
-                "Expected %s for %s at lag %s, got %s",
+                "%s: expected %s for %s at lag %s, got %s",
+                title,
                 value,
                 self.input_variables[feature],
                 tensor_dates[lag],
@@ -106,7 +110,7 @@ class MockModel(torch.nn.Module):
             LOG.error("x: %s", x[:, :, :, feature])
 
             raise ValueError(
-                f"Expected {expect} for {self.input_variables[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
+                f"{title}: expected {expect} for {self.input_variables[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
             )
 
     def predict_step(
@@ -143,7 +147,7 @@ class MockModel(torch.nn.Module):
 
                 if not variable.is_computed_forcing and not variable.is_constant_in_time:
                     # Normal prognostice variable
-                    self._check(x, lag, feature, date, step, tensor_dates, value, expect)
+                    self._check(x, lag, feature, date, step, tensor_dates, value, expect, "Prognostics")
                     continue
 
                 if variable.is_constant_in_time:
@@ -154,7 +158,7 @@ class MockModel(torch.nn.Module):
                             pass
                         else:
                             # Input constant, such as LSM
-                            self._check(x, lag, feature, date, step, tensor_dates, value, expect)
+                            self._check(x, lag, feature, date, step, tensor_dates, value, expect, "Constants")
                         self.constant_in_time[feature] = x[:, lag, :, feature]
                     else:
                         # Check that the value is the same as the first time
