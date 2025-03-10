@@ -13,6 +13,7 @@ import warnings
 from collections import defaultdict
 from functools import wraps
 from typing import Any
+from typing import Callable
 from typing import Dict
 
 from anemoi.inference.types import DataRequest
@@ -22,7 +23,7 @@ from .protocol import MetadataProtocol
 LOG = logging.getLogger(__name__)
 
 
-def warn(func: Any) -> Any:
+def warn(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to issue a warning when using legacy functions.
 
     Parameters

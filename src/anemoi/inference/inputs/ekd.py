@@ -87,9 +87,7 @@ class ApplyMask:
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
-    def __init__(
-        self, rules: List[List[Dict[str, Any], Dict[str, Any]]], default_namer: Callable[[Any, Dict[str, Any]], str]
-    ) -> None:
+    def __init__(self, rules: Any, default_namer: Callable[[Any, Dict[str, Any]], str]) -> None:
         """Initialize the RulesNamer.
 
         Parameters

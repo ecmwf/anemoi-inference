@@ -137,7 +137,7 @@ class StateField(ekd.Field):
         return f"{self.__class__.__name__ }({self._metadata})"
 
 
-def wrap_state(state: State) -> SimpleFieldList:
+def wrap_state(state: State) -> ekd.FieldList:
     """Transform a state dictionary into an earthkit.data field list.
 
     Parameters
@@ -147,7 +147,7 @@ def wrap_state(state: State) -> SimpleFieldList:
 
     Returns
     -------
-    SimpleFieldList
+    ekd.FieldList
         The transformed field list.
     """
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
@@ -155,14 +155,14 @@ def wrap_state(state: State) -> SimpleFieldList:
     return SimpleFieldList(fields)
 
 
-def unwrap_state(fields: SimpleFieldList, state: State) -> Dict[str, Any]:
+def unwrap_state(fields: ekd.FieldList, state: State) -> State:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters
     ----------
-    fields : SimpleFieldList
+    fields : ekd.FieldList
         The field list to be transformed.
-    state : Dict[str, Any]
+    state : State
         The original state dictionary.
 
     Returns

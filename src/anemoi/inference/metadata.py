@@ -359,7 +359,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the indices of the variables that are accumulations."""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
-    def name_fields(self, fields: ekd.FieldList, namer: Optional[Callable[..., Any]] = None) -> "FieldList":
+    def name_fields(self, fields: ekd.FieldList, namer: Optional[Callable[..., str]] = None) -> "FieldList":
         """Name fields using the provided namer.
 
         Parameters
@@ -416,7 +416,7 @@ class Metadata(PatchMixin, LegacyMixin):
     # Default namer
     ###########################################################################
 
-    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[..., Any]:
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[..., str]:
         """Return a callable that can be used to name earthkit-data fields.
 
         Parameters
@@ -660,7 +660,10 @@ class Metadata(PatchMixin, LegacyMixin):
         from anemoi.inference.provenance import validate_environment
 
         return validate_environment(
-            self, all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+            self,
+            all_packages=all_packages,
+            on_difference=on_difference,
+            exempt_packages=exempt_packages,
         )
 
     ###########################################################################
