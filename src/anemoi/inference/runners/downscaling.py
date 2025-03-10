@@ -15,6 +15,7 @@ from types import MappingProxyType as frozendict
 import numpy as np
 import torch
 from anemoi.utils.checkpoints import load_metadata
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.forcings import ComputedForcings
 
@@ -63,6 +64,12 @@ class DsMetadata(Metadata):
         self._config.data.forcing = self.low_res_input_variables
         self._metadata.data_indices.data.input.prognostic = []
         self._metadata.data_indices.data.input.diagnostic = []
+        self._metadata.data_indices.model.input.prognostic = []
+        self._metadata.data_indices.model.input.prognostic = []
+
+        # treat all high res outputs as diagnostics
+        self._metadata.data_indices.model.output.diagnostic = self._indices.model.output.full
+        self._metadata.data_indices.model.output.prognostic = []
 
     @property
     def low_res_input_variables(self):
@@ -105,6 +112,9 @@ class DsMetadata(Metadata):
 
 
 class DsCheckpoint(Checkpoint):
+    # timestep is not read from the metadata, but set by us
+    timestep = None
+
     @cached_property
     def _metadata(self):
         return DsMetadata(load_metadata(self.path))
@@ -120,13 +130,18 @@ class DownscalingRunner(DefaultRunner):
         super().__init__(*args, **kwargs)
         self._checkpoint = DsCheckpoint(self._checkpoint.path)
 
+        self.time_step = to_timedelta(self.config.development_hacks.time_step)
+        self.lead_time = to_timedelta(self.config.lead_time)
+        # some parts of the runner call the checkpoint directly so also overwrite it here
+        self._checkpoint.timestep = self.time_step
+
         self.checkpoint.print_indices()
         self.checkpoint.print_variable_categories()
         self.verbosity = 3
 
     @cached_property
     def constant_high_res_focings(self):
-        file = np.load(self.config.development_hacks.high_res_forcings_npz)
+        file = np.load(self.config.development_hacks.constant_high_res_forcings_npz)
         high_res = np.stack([file[forcing] for forcing in CONSTANT_HIGH_RES_FORCINGS], axis=1)
 
         return high_res[np.newaxis, np.newaxis, ...]  # shape: (1, 1, values, variables)
@@ -139,10 +154,32 @@ class DownscalingRunner(DefaultRunner):
     def high_res_longitudes(self):
         return np.load(self.config.development_hacks.high_res_lat_lon_npz)["longitudes"]
 
-    def run(self, *, input_state, lead_time):
-        if lead_time != 1:
-            LOG.info("Forcing lead_time to 1 for downscaling.")
-        return super().run(input_state=input_state, lead_time=1)
+    def patch_data_request(self, request):
+        # patch initial condition request to include all steps
+        request = super().patch_data_request(request)
+
+        lead_hours = int(self.lead_time.total_seconds() // 3600)
+        step_hours = int(self.time_step.total_seconds() // 3600)
+        request["step"] = f"0/to/{lead_hours}/by/{step_hours}"
+        return request
+
+    def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
+        # there are no prognostic fields to copy during rollout, so just pass through
+        # the full input tensor is retrieved from the input at each step (as dynamic forcings)
+        return input_tensor_torch
+
+    def forecast_stepper(self, start_date, lead_time):
+        # for downscaling we do a prediction for each step of the input
+        steps = (lead_time // self.time_step) + 1  # include step 0
+
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.time_step, steps)
+
+        for s in range(steps):
+            step = s * self.time_step
+            valid_date = start_date + step
+            next_date = valid_date + self.time_step
+            is_last_step = s == steps - 1
+            yield step, valid_date, next_date, is_last_step
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
