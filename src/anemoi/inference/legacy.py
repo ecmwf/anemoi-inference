@@ -17,6 +17,8 @@ from typing import Dict
 
 from anemoi.inference.types import DataRequest
 
+from .protocol import MetadataProtocol
+
 LOG = logging.getLogger(__name__)
 
 
@@ -42,7 +44,7 @@ def warn(func: Any) -> Any:
     return wrapper
 
 
-class LegacyMixin:
+class LegacyMixin(MetadataProtocol):
 
     # `self` is a `Metadata` object
 
@@ -55,7 +57,7 @@ class LegacyMixin:
         Dict[str, Dict[str, Any]]
             Metadata for each variable.
         """
-        result = {}
+        result: Dict[str, Any] = {}
         unkowns = []
         for variable in self.variables:
             if variable in (

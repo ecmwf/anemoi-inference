@@ -16,6 +16,7 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Union
 
 import earthkit.data as ekd
@@ -86,12 +87,14 @@ class ApplyMask:
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
-    def __init__(self, rules: List[Dict[str, Any]], default_namer: Callable[[Any, Dict[str, Any]], str]) -> None:
+    def __init__(
+        self, rules: List[List[Dict[str, Any], Dict[str, Any]]], default_namer: Callable[[Any, Dict[str, Any]], str]
+    ) -> None:
         """Initialize the RulesNamer.
 
         Parameters
         ----------
-        rules : List[Dict[str, Any]]
+        rules : List[List[Dict[str, Any], Dict[str, Any]]]
             The rules for naming.
         default_namer : Callable[[Any, Dict[str, Any]], str]
             The default namer to use if no rules match.
@@ -320,7 +323,7 @@ class EkdInput(Input):
         mask = self.checkpoint.grid_points_mask
         mask = ApplyMask(mask) if mask is not None else NoMask()
 
-        check = defaultdict(set)
+        check: Dict[str, Set[int]] = defaultdict(set)
 
         for field in fields:
 

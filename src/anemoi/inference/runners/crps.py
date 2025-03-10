@@ -23,7 +23,7 @@ class CrpsRunner(DefaultRunner):
     Inherits from DefaultRunner.
     """
 
-    def predict_step(self, model: Any, input_tensor_torch: Any, fcstep: int, **kwargs: Any) -> Any:
+    def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
         """Perform a prediction step using the model.
 
         Parameters
@@ -32,8 +32,6 @@ class CrpsRunner(DefaultRunner):
             The model to use for prediction.
         input_tensor_torch : torch.Tensor
             The input tensor for the model.
-        fcstep : int
-            The forecast step.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -42,4 +40,4 @@ class CrpsRunner(DefaultRunner):
         Any
             The prediction result.
         """
-        return model.predict_step(input_tensor_torch, fcstep=fcstep)
+        return model.predict_step(input_tensor_torch, kwargs["fcstep"])

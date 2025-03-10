@@ -20,6 +20,8 @@ from typing import Tuple
 from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
+from .protocol import MetadataProtocol
+
 LOG = logging.getLogger(__name__)
 
 
@@ -49,7 +51,7 @@ def patch_function(target: Any, attribute: str, replacement: Any) -> Generator[N
         setattr(target, attribute, original)
 
 
-class PatchMixin:
+class PatchMixin(MetadataProtocol):
 
     # `self` is a `Metadata` object
 
@@ -162,6 +164,7 @@ class PatchMixin:
         end_date = as_datetime(self._metadata["dataset"]["end_date"])
         frequency = to_timedelta(self._metadata["dataset"]["frequency"])
         dates = []
+
         while start_date <= end_date:
             dates.append(start_date)
             start_date += frequency
