@@ -27,31 +27,6 @@ from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
 
-CONSTANT_HIGH_RES_FORCINGS = [
-    "cos_latitude",
-    "cos_longitude",
-    "lsm",
-    "sin_latitude",
-    "sin_longitude",
-    "z",
-]
-
-ALL_HIGH_RES_FORCINGS = [
-    "cos_julian_day",
-    "cos_latitude",
-    "cos_local_time",
-    "cos_longitude",
-    "insolation",
-    "lsm",
-    "sin_julian_day",
-    "sin_latitude",
-    "sin_local_time",
-    "sin_longitude",
-    "z",
-]
-
-COMPUTED_HIGH_RES_FORCINGS = [forcing for forcing in ALL_HIGH_RES_FORCINGS if forcing not in CONSTANT_HIGH_RES_FORCINGS]
-
 
 class DsMetadata(Metadata):
     def __init__(self, *args, **kwargs):
@@ -138,7 +113,7 @@ class DownscalingRunner(DefaultRunner):
         super().__init__(*args, **kwargs)
         self._checkpoint = DsCheckpoint(self._checkpoint.path)
 
-        self.time_step = to_timedelta(self.config.development_hacks.time_step)
+        self.time_step = to_timedelta(self.extra_config.time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
         # some parts of the runner call the checkpoint directly so also overwrite it here
         self._checkpoint.timestep = self.time_step
@@ -148,19 +123,30 @@ class DownscalingRunner(DefaultRunner):
         self.verbosity = 3
 
     @cached_property
-    def constant_high_res_focings(self):
-        file = np.load(self.config.development_hacks.constant_high_res_forcings_npz)
-        high_res = np.stack([file[forcing] for forcing in CONSTANT_HIGH_RES_FORCINGS], axis=1)
+    def extra_config(self):
+        return self.config.development_hacks
+
+    @cached_property
+    def constant_high_res_focings_numpy(self):
+        file = np.load(self.extra_config.constant_high_res_forcings_npz)
+        high_res = np.stack([file[forcing] for forcing in self.extra_config.constant_high_res_forcings], axis=1)
 
         return high_res[np.newaxis, np.newaxis, ...]  # shape: (1, 1, values, variables)
 
     @cached_property
-    def high_res_latitudes(self):
-        return np.load(self.config.development_hacks.high_res_lat_lon_npz)["latitudes"]
+    def computed_high_res_forcings(self):
+        computed_forcings = [
+            var for var in self.extra_config.high_res_input if var not in self.extra_config.constant_high_res_forcings
+        ]
+        return ComputedForcings(self, computed_forcings, [])
 
     @cached_property
-    def high_res_longitudes(self):
-        return np.load(self.config.development_hacks.high_res_lat_lon_npz)["longitudes"]
+    def high_res_latitudes_numpy(self):
+        return np.load(self.extra_config.high_res_lat_lon_npz)["latitudes"]
+
+    @cached_property
+    def high_res_longitudes_numpy(self):
+        return np.load(self.extra_config.high_res_lat_lon_npz)["longitudes"]
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
@@ -190,12 +176,12 @@ class DownscalingRunner(DefaultRunner):
             yield step, valid_date, next_date, is_last_step
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
-        template = ekd.from_source("file", self.development_hacks.output_template)[0]
+        template = ekd.from_source("file", self.extra_config.output_template)[0]
 
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
-            state["latitudes"] = self.high_res_latitudes
-            state["longitudes"] = self.high_res_longitudes
+            state["latitudes"] = self.high_res_latitudes_numpy
+            state["longitudes"] = self.high_res_longitudes_numpy
             state["_grib_templates_for_output"] = {name: template for name in state["fields"].keys()}
             yield state
 
@@ -226,34 +212,32 @@ class DownscalingRunner(DefaultRunner):
 
     def _prepare_high_res_input_tensor(self, input_date):
         state = {
-            "latitudes": self.high_res_latitudes,
-            "longitudes": self.high_res_longitudes,
+            "latitudes": self.high_res_latitudes_numpy,
+            "longitudes": self.high_res_longitudes_numpy,
         }
 
-        computed_high_res_forcings = ComputedForcings(self, COMPUTED_HIGH_RES_FORCINGS, []).load_forcings(
-            state, input_date
-        )
+        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings(state, input_date)
         computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
         computed_high_res_forcings = np.swapaxes(
             computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
         )  # shape: (1, 1, values, variables)
 
-        # Merge high res computed and constant forcings so that they are ordered according to ALL_HIGH_RES_FORCINGS
-        forcings_dict = {name: None for name in ALL_HIGH_RES_FORCINGS}
+        # Merge high res computed and constant forcings so that they are ordered according to high_res_input
+        forcings_dict = {name: None for name in self.extra_config.high_res_input}
 
-        # Fill in the high resolution forcings
-        for i, name in enumerate(CONSTANT_HIGH_RES_FORCINGS):
-            forcings_dict[name] = self.constant_high_res_focings[..., i]
+        # Fill in the constant forcings from disk
+        for i, name in enumerate(self.extra_config.constant_high_res_forcings):
+            forcings_dict[name] = self.constant_high_res_focings_numpy[..., i]
 
         # Fill in the computed forcings
-        for i, name in enumerate(COMPUTED_HIGH_RES_FORCINGS):
+        for i, name in enumerate(self.computed_high_res_forcings.variables):
             forcings_dict[name] = computed_high_res_forcings[..., i]
 
         assert all(forcing is not None for forcing in forcings_dict.values())
-        assert set(forcings_dict.keys()) == set(ALL_HIGH_RES_FORCINGS)
+        assert set(forcings_dict.keys()) == set(self.extra_config.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
-        high_res_numpy = np.stack([forcings_dict[name] for name in ALL_HIGH_RES_FORCINGS], axis=-1)
+        high_res_numpy = np.stack([forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1)
 
         # print expects shape (step, variables, values)
         self._print_tensor("High res input tensor", np.swapaxes(high_res_numpy[0], -2, -1), forcings_dict.keys(), {})
