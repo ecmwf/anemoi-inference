@@ -12,6 +12,7 @@ import logging
 from functools import cached_property
 from types import MappingProxyType as frozendict
 
+import earthkit.data as ekd
 import numpy as np
 import torch
 from anemoi.utils.checkpoints import load_metadata
@@ -78,6 +79,13 @@ class DsMetadata(Metadata):
     @property
     def high_res_output_variables(self):
         return self._metadata.dataset.specific.zip[2]["variables"]
+
+    # @cached_property
+    # def grid(self):
+    #     from anemoi.utils.config import find
+
+    #     result = find(self._metadata.dataset.specific.zip[2], "data_request")
+    #     return result[0]["grid"]
 
     @cached_property
     def output_tensor_index_to_variable(self):
@@ -182,11 +190,13 @@ class DownscalingRunner(DefaultRunner):
             yield step, valid_date, next_date, is_last_step
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
+        template = ekd.from_source("file", self.development_hacks.output_template)[0]
+
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"] = self.high_res_latitudes
             state["longitudes"] = self.high_res_longitudes
-            state.pop("_grib_templates_for_output", None)
+            state["_grib_templates_for_output"] = {name: template for name in state["fields"].keys()}
             yield state
 
     def predict_step(self, model, input_tensor_torch, input_date, **kwargs):
