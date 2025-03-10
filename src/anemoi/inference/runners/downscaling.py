@@ -113,6 +113,7 @@ class DownscalingRunner(DefaultRunner):
         super().__init__(*args, **kwargs)
         self._checkpoint = DsCheckpoint(self._checkpoint.path)
 
+        self.write_initial_state = False
         self.time_step = to_timedelta(self.extra_config.time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
         # some parts of the runner call the checkpoint directly so also overwrite it here
