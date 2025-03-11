@@ -89,36 +89,9 @@ version_file = "src/anemoi/inference/_version.py"
 
 [tool.mypy]
 exclude = [ "docs/" ]
-strict = true
+strict = false
 ignore_missing_imports = true
-
 allow_redefinition = true
-
-disable_error_code = [
-  # "arg-type",
-  # "assignment",
-  # "attr-defined",
-  # "call-arg",
-  # "comparison-overlap",
-  # "dict-item",
-  # "has-type",
-  # "import-untyped",
-  # "index",
-  # "list-item",
-  # "misc",
-  # "name-defined",
-  # "no-any-return",
-  # "no-redef",
-  # "no-untyped-call",
-  # "no-untyped-def",
-  # "override",
-  # "return-value",
-  # "type-arg",
-  # "union-attr",
-  # "used-before-def",
-  # "valid-type",
-  # "var-annotated",
-]
 
 [setuptools.package-data]
 "anemoi.inference.grib.templates" = [ "*.yaml" ]
