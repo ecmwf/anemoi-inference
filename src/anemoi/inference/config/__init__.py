@@ -9,77 +9,115 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from copy import deepcopy
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Type
+from typing import TypeVar
 from typing import Union
 
 import yaml
-
-from .couple import CoupleConfiguration as CoupleConfiguration
-from .run import RunConfiguration as RunConfiguration
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 LOG = logging.getLogger(__name__)
 
+T = TypeVar("T", bound="Configuration")
 
-def _merge_configs(a: dict, b: dict) -> None:
-    for key, value in b.items():
-        if key in a and isinstance(a[key], dict) and isinstance(value, dict):
-            _merge_configs(a[key], value)
+
+class Configuration(BaseModel):
+    """Configuration class."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    @classmethod
+    def load(
+        cls: Type[T],
+        path: Union[str, Dict[str, Any]],
+        overrides: Union[List[str], List[dict], str, dict] = [],
+        defaults: Optional[Union[str, List[str], dict]] = None,
+    ) -> T:
+        """Load the configuration.
+
+        Parameters
+        ----------
+        path : Union[str, dict]
+            Path to the configuration file or a dictionary containing the configuration.
+        overrides : Union[List[str], List[dict], str, dict], optional
+            List of overrides to apply to the configuration, by default [].
+        defaults : Optional[Union[str, List[str], dict]], optional
+            Default values to set in the configuration, by default None.
+
+        Returns
+        -------
+        Configuration
+            The loaded configuration.
+        """
+
+        config = {}
+
+        # Set default values
+        if defaults is not None:
+            if not isinstance(defaults, list):
+                defaults = [defaults]
+            for d in defaults:
+                if isinstance(d, str):
+                    with open(d) as f:
+                        d = yaml.safe_load(f)
+                config.update(d)
+
+        # Load the configuration
+        if isinstance(path, dict):
+            config = deepcopy(path)
         else:
-            a[key] = value
+            with open(path) as f:
+                config.update(yaml.safe_load(f))
 
+        # Apply overrides
+        if not isinstance(overrides, list):
+            overrides = [overrides]
 
-def load_config(
-    path: Union[str, dict],
-    overrides: Union[List[str], List[dict], str, dict] = [],
-    defaults: Optional[Union[str, List[str], dict]] = None,
-    Configuration: type = RunConfiguration,
-) -> Any:
+        for override in overrides:
+            if isinstance(override, dict):
+                cls._merge_configs(config, override)
+            else:
+                path = config
+                key, value = override.split("=")
+                keys = key.split(".")
+                for key in keys[:-1]:
+                    path = path.setdefault(key, {})
+                path[keys[-1]] = value
 
-    config = {}
+        print(json.dumps(config, indent=4, default=str))
 
-    # Set default values
-    if defaults is not None:
-        if not isinstance(defaults, list):
-            defaults = [defaults]
-        for d in defaults:
-            if isinstance(d, str):
-                with open(d) as f:
-                    d = yaml.safe_load(f)
-            config.update(d)
+        # Validate the configuration
+        config = cls(**config)
 
-    # Load the configuration
-    if isinstance(path, dict):
-        config = deepcopy(path)
-    else:
-        with open(path) as f:
-            config.update(yaml.safe_load(f))
+        # Set environment variables found in the configuration
+        # as soon as possible
+        for key, value in config.env.items():
+            os.environ[key] = str(value)
 
-    # Apply overrides
-    if not isinstance(overrides, list):
-        overrides = [overrides]
+        return config
 
-    for override in overrides:
-        if isinstance(override, dict):
-            _merge_configs(config, override)
-        else:
-            path = config
-            key, value = override.split("=")
-            keys = key.split(".")
-            for key in keys[:-1]:
-                path = path.setdefault(key, {})
-            path[keys[-1]] = value
+    @classmethod
+    def _merge_configs(cls, a: Dict[Any, Any], b: Dict[Any, Any]) -> None:
+        """Merge two configurations.
 
-    # Validate the configuration
-    config = Configuration(**config)
-
-    # Set environment variables found in the configuration
-    # as soon as possible
-    for key, value in config.env.items():
-        os.environ[key] = str(value)
-
-    return config
+        Parameters
+        ----------
+        a : Dict[Any, Any]
+            The first configuration.
+        b : Dict[Any, Any]
+            The second configuration.
+        """
+        for key, value in b.items():
+            if key in a and isinstance(a[key], dict) and isinstance(value, dict):
+                cls._merge_configs(a[key], value)
+            else:
+                a[key] = value

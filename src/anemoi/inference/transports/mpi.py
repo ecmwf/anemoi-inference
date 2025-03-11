@@ -14,6 +14,10 @@ from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
+from anemoi.inference.config import Configuration
+from anemoi.inference.task import Task
+from anemoi.inference.types import State
+
 from ..transport import Transport
 from . import transport_registry
 
@@ -22,7 +26,18 @@ LOG = logging.getLogger(__name__)
 
 @transport_registry.register("mpi")
 class MPITransport(Transport):
-    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
+    """Transport implementation using MPI."""
+
+    def __init__(self, couplings: Configuration, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
+        """Initialize the MPITransport.
+
+        Parameters
+        ----------
+        couplings : Configuration
+            The couplings for the transport.
+        tasks : Dict[str, Any]
+            The tasks to be executed.
+        """
         from mpi4py import MPI
 
         super().__init__(couplings, tasks)
@@ -35,6 +50,7 @@ class MPITransport(Transport):
         ), f"Number of tasks ({len(tasks)}) must match number of MPI processes ({self.size})"
 
     def start(self) -> None:
+        """Start the transport by initializing MPI tasks."""
 
         tasks = list(self.tasks.values())
         self.ranks = {task.name: i for i, task in enumerate(tasks)}
@@ -46,11 +62,40 @@ class MPITransport(Transport):
         task.run(self)
 
     def wait(self) -> None:
+        """Wait for all MPI tasks to complete."""
         self.comm.barrier()
 
-    def send(self, sender: Any, target: Any, state: Any, tag: int) -> None:
-        # TODO: use Send() to send numpy arrays, if faster
+    def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
+        """Send a state from the sender to the target.
+
+        Parameters
+        ----------
+        sender : Task
+            The task sending the state.
+        target : Task
+            The task receiving the state.
+        state : State
+            The state to be sent.
+        tag : int
+            The tag associated with the state.
+        """
         self.comm.send(state, dest=self.ranks[target.name], tag=tag)
 
-    def receive(self, receiver: Any, source: Any, tag: int) -> Any:
+    def receive(self, receiver: Task, source: Task, tag: int) -> State:
+        """Receive a state from the source to the receiver.
+
+        Parameters
+        ----------
+        receiver : Any
+            The task receiving the state.
+        source : Any
+            The task sending the state.
+        tag : int
+            The tag associated with the state.
+
+        Returns
+        -------
+        Any
+            The received state.
+        """
         return self.comm.recv(source=self.ranks[source.name], tag=tag)

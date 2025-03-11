@@ -6,18 +6,42 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
+import datetime
 import logging
 from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
+from typing import TYPE_CHECKING
+from typing import Optional
+
+from anemoi.inference.types import State
+
+if TYPE_CHECKING:
+    from anemoi.inference.context import Context
 
 LOG = logging.getLogger(__name__)
 
 
 class Output(ABC):
+    """Abstract base class for output mechanisms."""
 
-    def __init__(self, context, output_frequency=None, write_initial_state=None):
+    def __init__(
+        self,
+        context: "Context",
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
+    ):
+        """Initialize the Output object.
 
+        Parameters
+        ----------
+        context : Context
+            The context in which the output operates.
+        output_frequency : Optional[int], optional
+            The frequency at which to output states, by default None.
+        write_initial_state : Optional[bool], optional
+            Whether to write the initial state, by default None.
+        """
         self.context = context
         self.checkpoint = context.checkpoint
         self.reference_date = None
@@ -25,14 +49,36 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a string representation of the Output object.
+
+        Returns
+        -------
+        str
+            String representation of the Output object.
+        """
         return f"{self.__class__.__name__}()"
 
-    def write_initial_state(self, state):
-        if self.write_step_zero:
-            return self.write_state(state)
+    def write_initial_state(self, state: State) -> None:
+        """Write the initial state.
 
-    def write_state(self, state):
+        Parameters
+        ----------
+        state : State
+            The initial state to write.
+        """
+        state.setdefault("step", datetime.timedelta(0))
+        if self.write_step_zero:
+            self.write_state(state)
+
+    def write_state(self, state: State) -> None:
+        """Write the state.
+
+        Parameters
+        ----------
+        state : State
+            The state to write.
+        """
         self.open(state)
 
         step = state["step"]
@@ -42,34 +88,63 @@ class Output(ABC):
 
         return self.write_step(state)
 
-    def reduce(self, state):
-        """Creates new state which is projection of original state on the last step in the multi-steps dimension."""
+    @classmethod
+    def reduce(cls, state: State) -> State:
+        """Create a new state which is a projection of the original state on the last step in the multi-steps dimension.
+
+        Parameters
+        ----------
+        state : State
+            The original state.
+
+        Returns
+        -------
+        State
+            The reduced state.
+        """
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
             reduced_state["fields"][field] = values[-1, :]
         return reduced_state
 
-    def open(self, state):
+    def open(self, state: State) -> None:
+        """Open the output for writing.
+
+        Parameters
+        ----------
+        state : State
+            The state to open.
+        """
         # Override this method when initialisation is needed
         pass
 
-    def close(self):
+    def close(self) -> None:
+        """Close the output."""
         pass
 
     @abstractmethod
-    def write_step(self, state):
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state to write.
+        """
         pass
 
     @cached_property
-    def write_step_zero(self):
+    def write_step_zero(self) -> bool:
+        """Determine whether to write the initial state."""
         if self._write_step_zero is not None:
             return self._write_step_zero
 
         return self.context.write_initial_state
 
     @cached_property
-    def output_frequency(self):
+    def output_frequency(self) -> Optional[datetime.timedelta]:
+        """Get the output frequency."""
         from anemoi.utils.dates import as_timedelta
 
         if self._output_frequency is not None:
@@ -80,7 +155,14 @@ class Output(ABC):
 
         return None
 
-    def print_summary(self, depth=0):
+    def print_summary(self, depth: int = 0) -> None:
+        """Print a summary of the output configuration.
+
+        Parameters
+        ----------
+        depth : int, optional
+            The indentation depth for the summary, by default 0.
+        """
         LOG.info(
             "%s%s: output_frequency=%s write_initial_state=%s",
             " " * depth,
@@ -91,16 +173,31 @@ class Output(ABC):
 
 
 class ForwardOutput(Output):
-    """Subclass of Output that forwards calls to other outputs
-    Subclass from that class to implement the desired behaviour of `output_frequency`
+    """Subclass of Output that forwards calls to other outputs.
+
+    Subclass from this class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves.
     """
 
-    def __init__(self, context, output_frequency=None, write_initial_state=None):
+    def __init__(
+        self, context: "Context", output_frequency: Optional[int] = None, write_initial_state: Optional[bool] = None
+    ):
+        """Initialize the ForwardOutput object.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the output operates.
+        output_frequency : Optional[int], optional
+            The frequency at which to output states, by default None.
+        write_initial_state : Optional[bool], optional
+            Whether to write the initial state, by default None.
+        """
         super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
         if self.context.output_frequency is not None:
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)
 
     @cached_property
-    def output_frequency(self):
+    def output_frequency(self) -> Optional[datetime.timedelta]:
+        """Get the output frequency."""
         return None

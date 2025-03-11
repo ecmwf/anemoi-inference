@@ -13,8 +13,7 @@ import logging
 from argparse import ArgumentParser
 from argparse import Namespace
 
-from ..config import CoupleConfiguration
-from ..config import load_config
+from ..config.couple import CoupleConfiguration
 from ..tasks import create_task
 from ..transports import create_transport
 from . import Command
@@ -30,16 +29,29 @@ COPY_ATTRIBUTES = (
 
 
 class CoupleCmd(Command):
-    """Inspect the contents of a checkpoint file."""
+    """Couple tasks based on a configuration file."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
+
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("config", help="Path to config file.")
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args: Namespace) -> None:
+        """Run the couple command.
 
-        config = load_config(args.config, args.overrides, defaults=args.defaults, Configuration=CoupleConfiguration)
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
+        config = CoupleConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         if config.description is not None:
             LOG.info("%s", config.description)

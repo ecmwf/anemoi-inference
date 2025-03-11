@@ -22,13 +22,26 @@ class RequestCmd(Command):
     """MARS request utility."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
+
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.description = self.__doc__
         command_parser.add_argument("--mars", action="store_true", help="Print the MARS request.")
         command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args: Namespace) -> None:
+        """Run the request command.
 
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         c = Checkpoint(args.path)
         for r in checkpoint_to_requests(c, date=-1, use_grib_paramid=args.use_grib_paramid):
             if args.mars:

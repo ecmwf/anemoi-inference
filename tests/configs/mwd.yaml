@@ -1,0 +1,15 @@
+checkpoint: mwd.ckpt
+
+date: 2022-09-01
+lead_time: 48
+
+report_error: true
+
+pre_processors:
+- cos_sin_mean_wave_direction
+- no_missing_values
+
+post_processors:
+- cos_sin_mean_wave_direction
+
+use_grib_paramid: true
