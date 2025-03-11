@@ -50,7 +50,7 @@ class RulesNamer:
 class EkdInput(Input):
     """Handles earthkit-data FieldList as input"""
 
-    def __init__(self, context, *, namer=None, mask=None):
+    def __init__(self, context, *, namer=None):
         super().__init__(context)
 
         if isinstance(namer, dict):
@@ -61,14 +61,6 @@ class EkdInput(Input):
 
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
-
-        if mask is not None:
-            LOG.info("Using mask from supporting arrays: %s", mask)
-            self.mask = self.checkpoint.load_supporting_array(mask)
-            self.n_points = self.mask.sum()
-        else:
-            self.n_points = self.checkpoint.number_of_grid_points
-            self.mask = self.checkpoint.grid_points_mask or slice(None)
 
     def _create_input_state(
         self,
@@ -92,23 +84,6 @@ class EkdInput(Input):
         if len(input_fields) == 0:
             raise ValueError("No input fields provided")
 
-        # Newer checkpoints may have latitudes and longitudes
-        if latitudes is None:
-            latitudes = self.checkpoint.latitudes
-            if latitudes is not None:
-                LOG.info(
-                    "%s: using `latitudes` found in the checkpoint.",
-                    self.__class__.__name__,
-                )
-
-        if longitudes is None:
-            longitudes = self.checkpoint.longitudes
-            if longitudes is not None:
-                LOG.info(
-                    "%s: using `longitudes` found in the checkpoint.git.",
-                    self.__class__.__name__,
-                )
-
         if date is None:
             date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
             LOG.info(
@@ -120,19 +95,44 @@ class EkdInput(Input):
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         input_state = dict(date=date, latitudes=latitudes, longitudes=longitudes, fields=dict())
-
         fields = input_state["fields"]
 
         input_fields = self._filter_and_sort(input_fields, variables=variables, dates=dates, title="Create input state")
+
+        if latitudes is None and longitudes is None:
+            try:
+                input_state["latitudes"], input_state["longitudes"] = input_fields[0].grid_points()
+                LOG.info(
+                    "%s: using `latitudes` and `longitudes` from the first input field",
+                    self.__class__.__name__,
+                )
+            except Exception as e:
+                LOG.info(
+                    "%s: could not get `latitudes` and `longitudes` from the input fields.",
+                    self.__class__.__name__,
+                )
+                latitudes = self.checkpoint.latitudes
+                longitudes = self.checkpoint.longitudes
+                if latitudes is not None and longitudes is not None:
+                    input_state["latitudes"] = latitudes
+                    input_state["longitudes"] = longitudes
+                    LOG.info(
+                        "%s: using `latitudes` and `longitudes` found in the checkpoint.",
+                        self.__class__.__name__,
+                    )
+                else:
+                    LOG.error(
+                        "%s: could not find `latitudes` and `longitudes` in the input fields or the checkpoint.",
+                        self.__class__.__name__,
+                    )
+                    raise e
 
         check = defaultdict(set)
 
         for field in input_fields:
 
             if input_state["latitudes"] is None:
-                lat, lon = field.grid_points()
-                lat, lon = lat[self.mask], lon[self.mask]
-                input_state["latitudes"], input_state["longitudes"] = lat, lon
+                input_state["latitudes"], input_state["longitudes"] = field.grid_points()
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -141,7 +141,7 @@ class EkdInput(Input):
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
                 fields[name] = np.full(
-                    shape=(len(dates), self.n_points),
+                    shape=(len(dates), field.metadata("numberOfPoints")),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -149,7 +149,7 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)[self.mask]
+                fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
             except ValueError:
                 LOG.error("Error with field %s: expected shape=%s, got shape=%s", name, fields[name].shape, field.shape)
                 LOG.error("dates %s", dates)
@@ -216,4 +216,4 @@ class EkdInput(Input):
 
         out_shape = (len(variables), len(dates), -1)
         data = self._filter_and_sort(fields, variables=variables, dates=dates, title="Load forcings")
-        return data.to_numpy(dtype=np.float32, flatten=True).reshape(out_shape)[..., self.mask]
+        return data.to_numpy(dtype=np.float32, flatten=True).reshape(out_shape)

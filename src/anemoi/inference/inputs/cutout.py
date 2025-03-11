@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 class Cutout(Input):
     """Combines one or more LAMs into a global source using cutouts."""
 
-    def __init__(self, context, **sources):
+    def __init__(self, context, **sources: dict[str, dict]):
         """Create a cutout input from a list of sources.
 
         Parameters
@@ -36,8 +36,11 @@ class Cutout(Input):
         super().__init__(context)
 
         self.sources: dict[str, Input] = {}
+        self.masks: dict[str, np.ndarray] = {}
         for src, cfg in sources.items():
+            mask = cfg.pop("mask", f"{src}/cutout_mask")
             self.sources[src] = create_input(context, cfg)
+            self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
 
     def __repr__(self):
         return f"Cutout({self.sources})"
@@ -46,27 +49,26 @@ class Cutout(Input):
         """Create the input state dictionary."""
 
         LOG.info(f"Concatenating states from {self.sources}")
-        src = list(self.sources.keys())
-        state = self.sources[src[0]].create_input_state(date=date)
-        for i, source in enumerate(src[1:]):
+        sources = list(self.sources.keys())
+
+        state = self.sources[sources[0]].create_input_state(date=date)
+        for source in sources[1:]:
+            mask = self.masks[source]
             _state = self.sources[source].create_input_state(date=date)
 
-            # NOTE: we must decide whether these come from the checkpoint or the input
-            # state["latitudes"] = np.concatenate(
-            #     [state["latitudes"], _state["latitudes"]], axis=-1
-            # )
-            # state["longitudes"] = np.concatenate(
-            #     [state["longitudes"], _state["longitudes"]], axis=-1
-            # )
+            state["latitudes"] = np.concatenate([state["latitudes"], _state["latitudes"][..., mask]], axis=-1)
+            state["longitudes"] = np.concatenate([state["longitudes"], _state["longitudes"][..., mask]], axis=-1)
             for field, values in state["fields"].items():
-                state["fields"][field] = np.concatenate([values, _state["fields"][field]], axis=-1)
+                state["fields"][field] = np.concatenate([values, _state["fields"][field][..., mask]], axis=-1)
 
         return state
 
     def load_forcings(self, *, variables, dates):
         """Load forcings (constant and dynamic)."""
         forcings = []
-        for source in self.sources.values():
-            forcings.append(source.load_forcings(variables=variables, dates=dates))
+        for source in self.sources:
+            forcings.append(
+                self.sources[source].load_forcings(variables=variables, dates=dates)[..., self.masks[source]]
+            )
         forcings = np.concatenate(forcings, axis=-1)
         return forcings
