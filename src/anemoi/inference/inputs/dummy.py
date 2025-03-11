@@ -7,6 +7,12 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+"""Dummy input used for testing.
+
+It will generate fields with constant values for each variable and date.
+These values are then tested in the mock model.
+"""
+
 import datetime
 import logging
 from typing import Any
@@ -39,7 +45,7 @@ class DummyInput(EkdInput):
 
         Parameters
         ----------
-        context : Any
+        context : Context
             The context in which the input is used.
         namer : Optional[Any]
             Optional namer for the input.

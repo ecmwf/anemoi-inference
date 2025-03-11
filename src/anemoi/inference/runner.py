@@ -324,7 +324,7 @@ class Runner(Context):
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
