@@ -149,4 +149,5 @@ as the data is stored on a 0.25 degree regular grid.
 If data is to be regridded to a grid which the builtin templates do not
 support, ``templates`` can be set to configure the template provider.
 
-.. literalinclude:: inputs_11.yaml ::language: yaml
+.. literalinclude:: inputs_11.yaml
+   :language: yaml
