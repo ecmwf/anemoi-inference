@@ -131,3 +131,22 @@ for ERA5 data, `product_type: 'reanalysis'` is needed.
 
 .. literalinclude:: inputs_10.yaml
    :language: yaml
+
+**********
+ opendata
+**********
+
+You can also specify the input as ``opendata`` to read the data from
+ECMWF's `Open Data
+<https://www.ecmwf.int/en/forecasts/datasets/open-data>`_ archive. This
+archive only stores data for the last 4 days and is free to use, with no
+need for an ECMWF account.
+
+The archive also only stores a subset of the IFS outputs, so some params
+may be missing, Data also needs to be regridded to the model resolution,
+as the data is stored on a 0.25 degree regular grid.
+
+If data is to be regridded to a grid which the builtin templates do not
+support, ``templates`` can be set to configure the template provider.
+
+.. literalinclude:: inputs_11.yaml ::language: yaml
