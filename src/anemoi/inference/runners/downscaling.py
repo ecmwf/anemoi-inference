@@ -141,14 +141,6 @@ class DownscalingRunner(DefaultRunner):
         ]
         return ComputedForcings(self, computed_forcings, [])
 
-    @cached_property
-    def high_res_latitudes_numpy(self):
-        return np.load(self.extra_config.high_res_lat_lon_npz)["latitudes"]
-
-    @cached_property
-    def high_res_longitudes_numpy(self):
-        return np.load(self.extra_config.high_res_lat_lon_npz)["longitudes"]
-
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
         request = super().patch_data_request(request)
@@ -181,8 +173,7 @@ class DownscalingRunner(DefaultRunner):
 
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
-            state["latitudes"] = self.high_res_latitudes_numpy
-            state["longitudes"] = self.high_res_longitudes_numpy
+            state["latitudes"], state["longitudes"] = template.grid_points()
             state["_grib_templates_for_output"] = {name: template for name in state["fields"].keys()}
             yield state
 
