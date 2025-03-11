@@ -14,6 +14,7 @@ import earthkit.data as ekd
 from anemoi.utils.grib import shortname_to_paramid
 from earthkit.data.utils.dates import to_datetime
 
+from ..grib.templates import create_template_provider
 from . import input_registry
 from .grib import GribInput
 
@@ -57,7 +58,7 @@ def regridding(fields: ekd.FieldList, grid: str, template):
 
     r = ekd.FieldList()
 
-    f_md = template.template(variable="tp", date=None).metadata()
+    f_md = template.metadata()
 
     for f in fields:
         rolled_values = np.roll(f.to_numpy(), -f.shape[1] // 2, axis=1)
@@ -77,7 +78,7 @@ def regridding(fields: ekd.FieldList, grid: str, template):
     return r
 
 
-def retrieve(requests, grid, area, template, **kwargs):
+def retrieve(requests, grid, area, template_provider, **kwargs):
 
     def _(r):
         mars = r.copy()
@@ -99,6 +100,7 @@ def retrieve(requests, grid, area, template, **kwargs):
 
         # r.update(pproc)
         r.update(kwargs)
+        template = template_provider.template(None, {"grid": grid, "levtype": r["levtype"]})
 
         if any(k in r["param"] for k in SOIL_MAPPING.keys()):
             requested_soil_variables = [k for k in SOIL_MAPPING.keys() if k in r["param"]]
@@ -120,11 +122,13 @@ def retrieve(requests, grid, area, template, **kwargs):
 class OpenDataInput(GribInput):
     """Get input fields from ECMWF open-data"""
 
-    def __init__(self, context, *, namer=None, **kwargs):
+    def __init__(self, context, *, namer=None, templates=None, **kwargs):
         super().__init__(context, namer=namer)
 
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.kwargs = kwargs
+
+        self.template_provider = create_template_provider(self, templates or "builtin")
 
     def create_input_state(self, *, date):
         if date is None:
@@ -155,10 +159,8 @@ class OpenDataInput(GribInput):
 
         kwargs = self.kwargs.copy()
 
-        from .templates import TemplatesInput
-
         return retrieve(
-            requests, self.checkpoint.grid, self.checkpoint.area, template=TemplatesInput(self.context), **kwargs
+            requests, self.checkpoint.grid, self.checkpoint.area, template_provider=self.template_provider, **kwargs
         )
 
     def template(self, variable, date, **kwargs):
