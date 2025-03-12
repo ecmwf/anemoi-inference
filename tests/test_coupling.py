@@ -8,7 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
 from typing import Any
 from typing import Dict
 
@@ -17,11 +16,8 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.tasks import create_task
 from anemoi.inference.testing import fake_checkpoints
+from anemoi.inference.testing import files_for_tests
 from anemoi.inference.transports import create_transport
-
-HERE = os.path.dirname(__file__)
-
-os.chdir(HERE)
 
 
 @fake_checkpoints
@@ -32,7 +28,7 @@ def test_atmos() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        os.path.join(HERE, "configs/atmos.yaml"),
+        files_for_tests("configs/atmos.yaml"),
         overrides=dict(device="cpu", input="dummy"),
     )
     runner = create_runner(config)
@@ -47,7 +43,7 @@ def test_ocean() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        os.path.join(HERE, "configs/ocean.yaml"),
+        files_for_tests("configs/ocean.yaml"),
         overrides=dict(device="cpu", input="dummy"),
     )
     runner = create_runner(config)
@@ -61,7 +57,7 @@ def test_coupled() -> None:
     This function loads a configuration, creates a runner, and runs the inference
     process to ensure that the system works as expected with the provided configuration.
     """
-    config = CoupleConfiguration.load(os.path.join(HERE, "configs/coupled.yaml"))
+    config = CoupleConfiguration.load(files_for_tests("configs/coupled.yaml"))
 
     global_config: Dict[str, Any] = {}
 
@@ -75,10 +71,6 @@ def test_coupled() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    test_coupled()
-    # test_ocean()
-    # test_atmos()
-    exit()
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):
             print(f"Running {name}...")

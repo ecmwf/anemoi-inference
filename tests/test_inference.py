@@ -8,20 +8,11 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
-
-# from dummy import dummy_checkpoints
-
-
-HERE = os.path.dirname(__file__)
-
-# Set the current working directory to the location of this script.
-# So we access the configuration files relative to this script.
-os.chdir(HERE)
+from anemoi.inference.testing import files_for_tests
 
 
 @fake_checkpoints
@@ -32,7 +23,7 @@ def test_inference_simple() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        os.path.join(HERE, "configs/simple.yaml"),
+        files_for_tests("configs/simple.yaml"),
         overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
     )
     runner = create_runner(config)
@@ -47,7 +38,7 @@ def test_inference_mwd() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        os.path.join(HERE, "configs/mwd.yaml"),
+        files_for_tests("configs/mwd.yaml"),
         overrides=dict(runner="testing", device="cpu", input="dummy"),
     )
     runner = create_runner(config)
@@ -56,8 +47,6 @@ def test_inference_mwd() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # test_inference_simple()
-    # exit()
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):
             print(f"Running {name}...")

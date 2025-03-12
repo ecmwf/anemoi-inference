@@ -16,10 +16,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
-import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import FloatArray
@@ -46,23 +44,21 @@ class HindcastOutput:
 
         self.reference_year = reference_year
 
-    def __call__(
-        self, values: FloatArray, template: ekd.Field, keys: Dict[str, Any]
-    ) -> Tuple[FloatArray, ekd.Field, Dict[str, Any]]:
+    def __call__(self, values: FloatArray, template: object, keys: dict) -> tuple:
         """Call the HindcastOutput object.
 
         Parameters
         ----------
         values : FloatArray
             The values array.
-        template : ekd.Field
+        template : object
             The template object.
-        keys : Dict[str, Any]
+        keys : dict
             The keys dictionary.
 
         Returns
         -------
-        Tuple[FloatArray, ekd.Field, Dict[str, Any]]
+        tuple
             The modified values, template, and keys.
         """
 
@@ -126,8 +122,8 @@ class GribOutput(Output):
         *,
         encoding: Optional[Dict[str, Any]] = None,
         templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[Union[int, float, str], Dict[str, Any]]] = None,
-        grib2_keys: Optional[Dict[Union[int, float, str], Dict[str, Any]]] = None,
+        grib1_keys: Optional[Dict[str, Any]] = None,
+        grib2_keys: Optional[Dict[str, Any]] = None,
         modifiers: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
@@ -160,6 +156,7 @@ class GribOutput(Output):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
+        self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
@@ -250,6 +247,20 @@ class GribOutput(Output):
 
             template = self.template(state, name)
 
+            if template is None:
+                if name not in self.quiet:
+                    LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
+                    self.quiet.add(name)
+
+                variable_keys = variable.grib_keys.copy()
+
+                forbidden_keys = ("class", "type", "stream", "expver", "date", "time", "step", "domain")
+
+                for key in forbidden_keys:
+                    variable_keys.pop(key, None)
+
+                keys.update(variable_keys)
+
             keys.update(self.encoding)
 
             keys = grib_keys(
@@ -264,6 +275,7 @@ class GribOutput(Output):
                 keys=keys,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
+                quiet=self.quiet,
                 previous_step=previous_step,
                 start_steps=start_steps,
             )

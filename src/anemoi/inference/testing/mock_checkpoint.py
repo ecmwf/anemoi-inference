@@ -16,6 +16,8 @@ from typing import Tuple
 
 import yaml
 
+from anemoi.inference.testing import files_for_tests
+
 # "2t", "10u", "10v", "msl", "lsm", "z", "tcc", "tp", "cos_latitudes", "insolation"
 #   0,   1,     2,     3,     4,    5,    6,      7,        8,            9
 
@@ -60,14 +62,6 @@ SIMPLE_METADATA = {
     },
 }
 
-HERE = os.path.dirname(__file__)
-
-TEST_CHECKPOINTS = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(HERE)))),
-    "tests",
-    "checkpoints",
-)
-
 
 def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Load metadata from a YAML file.
@@ -88,11 +82,11 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
     if path is None:
         metadata = SIMPLE_METADATA
     else:
-        path = os.path.basename(path)
+        path = files_for_tests(os.path.join("checkpoints", path))
         name, _ = os.path.splitext(path)
         for ext in (".yaml", ".json"):
-            path = os.path.join(TEST_CHECKPOINTS, f"{name}{ext}")
-            if os.path.exists(os.path.join(TEST_CHECKPOINTS, f"{name}{ext}")):
+            path = f"{name}{ext}"
+            if os.path.exists(path):
                 break
 
         with open(path) as f:
@@ -183,3 +177,32 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     metadata, arrays = mock_load_metadata(path)
 
     return MockModel(metadata, arrays)
+
+
+class MockRunConfiguration:
+    """Mock class for loading run configurations from `files_for_tests`."""
+
+    @classmethod
+    def load(cls, path: str, *args, **kwargs) -> Dict[str, Any]:
+        """Load a run configuration from a given path.
+
+        Parameters
+        ----------
+        path : str
+            The path to the run configuration file.
+        *args : tuple
+            Additional positional arguments.
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            The loaded run configuration.
+        """
+        from anemoi.inference.config.run import RunConfiguration
+
+        if not os.path.isabs(path):
+            path = files_for_tests(path)
+
+        return RunConfiguration.load(path, *args, **kwargs)

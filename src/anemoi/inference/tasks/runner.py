@@ -208,6 +208,19 @@ class CoupledInput:
 class TestCoupledRunner(TestingMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
+    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
+        """Initialize the TestCoupledRunner.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary.
+        coupled_input : CoupledInput
+            Coupled input instance.
+        """
+
+        super().__init__(config, coupled_input)
+
 
 @task_registry.register("runner")
 class RunnerTask(Task):
