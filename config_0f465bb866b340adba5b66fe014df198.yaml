@@ -1,0 +1,60 @@
+description: Downscaling ensemble test
+
+dates:
+  start: 2025-02-01
+  end: 2025-02-05
+  frequency: 24  # hours
+
+ensemble:
+  loop:
+    number: 1/to/2
+
+input:
+  class: od
+  stream: eefo
+  type: pf
+  number: "{number}"   
+  # number: 2   # you can hard code this to initialise from 1 member
+  grid: O96 
+
+output:
+  class: rd
+  stream: enfo
+  type: pf
+  number: "{member_number}"
+  # number: 2
+
+runner:
+  name: anemoi-dev
+  venv: /hpcperm/ecm5702/.ds
+
+model:
+  name: anemoi
+  runner: downscaling
+  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/0f465bb866b340adba5b66fe014df198/inference-anemoi-by_time-epoch_029-step_149734.ckpt
+  lead_time: 48h
+  development_hacks:
+    time_step: 12h
+    output_template: /home/ecm5702/hpcperm/data/o320-template.grib
+    constant_high_res_forcings_npz: /home/ecm5702/hpcperm/data/o320-forcings.npz
+    constant_high_res_forcings:  # order is not important
+      - cos_latitude
+      - cos_longitude
+      - lsm
+      - sin_latitude
+      - sin_longitude
+      - z
+    high_res_input:  # same order as the input tensor !!!
+      - cos_julian_day
+      - cos_latitude
+      - cos_local_time
+      - cos_longitude
+      - insolation
+      - lsm
+      - sin_julian_day
+      - sin_latitude
+      - sin_local_time
+      - sin_longitude
+      - z
+
+evaluation: False
