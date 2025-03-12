@@ -28,7 +28,7 @@ class RunConfiguration(Configuration):
 
     description: Optional[str] = None
 
-    checkpoint: str | Dict[Literal["huggingface"], Dict[str, Any] | str]
+    checkpoint: Union[str, Dict[Literal["huggingface"], Union[Dict[str, Any], str]]]
     """A path to an Anemoi checkpoint file."""
 
     runner: str = "default"
@@ -37,7 +37,7 @@ class RunConfiguration(Configuration):
     date: Union[str, int, datetime.datetime, None] = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
-    lead_time: str | int | datetime.timedelta = "10d"
+    lead_time: Union[str, int, datetime.timedelta] = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
@@ -90,7 +90,7 @@ class RunConfiguration(Configuration):
     output_frequency: Optional[str] = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
 
-    env: Dict[str, str | int] = {}
+    env: Dict[str, Union[str, int]] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured.

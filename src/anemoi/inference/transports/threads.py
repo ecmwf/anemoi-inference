@@ -13,6 +13,7 @@ import queue
 import threading
 from typing import Any
 from typing import Dict
+from typing import Optional
 
 from anemoi.utils.logs import set_logging_name
 
@@ -38,7 +39,7 @@ class TaskWrapper:
         """
         self.task: Task = task
         self.queue: queue.Queue[Any] = queue.Queue(maxsize=1)
-        self.error: Exception | None = None
+        self.error: Optional[Exception] = None
         self.name: str = task.name
 
     def run(self, transport: "ThreadsTransport") -> None:
