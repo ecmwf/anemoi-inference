@@ -1,0 +1,35 @@
+[
+    {
+        "date": "2022-01-02",
+        "levtype": "sfc",
+        "time": "0000",
+        "param": [
+            "10u",
+            "10v",
+            "2t"
+        ],
+        "grid": "O48",
+        "area": [
+            88.573,
+            0.0,
+            -88.573,
+            358.27
+        ],
+        "target": "input.grib"
+    },
+    {
+        "date": "2022-01-02",
+        "levelist": 850,
+        "levtype": "pl",
+        "param": "t",
+        "time": "0000",
+        "grid": "O48",
+        "area": [
+            88.573,
+            0.0,
+            -88.573,
+            358.27
+        ],
+        "target": "input.grib"
+    }
+]
