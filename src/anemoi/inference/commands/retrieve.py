@@ -200,6 +200,9 @@ def _patch_scda(base_date: datetime, request: Dict[str, Any]) -> None:
     request : dict
         The request dictionary to be patched.
     """
+
+    # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
+
     if base_date.hour not in (6, 18):
         return
 

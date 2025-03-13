@@ -539,6 +539,7 @@ class Checkpoint:
         DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
         DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
 
+        # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
         # The split oper/scda is a bit special
         KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 

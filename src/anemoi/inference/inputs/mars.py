@@ -176,6 +176,8 @@ def retrieve(
         if r.get("class") in ("rd", "ea"):
             r["class"] = "od"
 
+        # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
+
         if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
             r["stream"] = "scda"
 

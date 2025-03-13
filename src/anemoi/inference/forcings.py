@@ -95,6 +95,8 @@ class Forcings(ABC):
         else:
             result = np.stack([fields[v] for v in variables], axis=0)
 
+        # Assert that the shape is correct: (variables, dates, values)
+
         assert len(result.shape) == 3 and result.shape[0] == len(variables) and result.shape[1] == len(dates), (
             result.shape,
             variables,
