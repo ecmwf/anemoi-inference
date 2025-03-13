@@ -141,6 +141,10 @@ class DownscalingRunner(DefaultRunner):
         ]
         return ComputedForcings(self, computed_forcings, [])
 
+    @cached_property
+    def template(self):
+        return ekd.from_source("file", self.extra_config.output_template)[0]
+
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
         request = super().patch_data_request(request)
@@ -169,12 +173,10 @@ class DownscalingRunner(DefaultRunner):
             yield step, valid_date, next_date, is_last_step
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):
-        template = ekd.from_source("file", self.extra_config.output_template)[0]
-
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
-            state["latitudes"], state["longitudes"] = template.grid_points()
-            state["_grib_templates_for_output"] = {name: template for name in state["fields"].keys()}
+            state["latitudes"], state["longitudes"] = self.template.grid_points()
+            state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
             yield state
 
     def predict_step(self, model, input_tensor_torch, input_date, **kwargs):
@@ -203,10 +205,8 @@ class DownscalingRunner(DefaultRunner):
         return output_tensor_interp
 
     def _prepare_high_res_input_tensor(self, input_date):
-        state = {
-            "latitudes": self.high_res_latitudes_numpy,
-            "longitudes": self.high_res_longitudes_numpy,
-        }
+        state = {}
+        state["latitudes"], state["longitudes"] = self.template.grid_points()
 
         computed_high_res_forcings = self.computed_high_res_forcings.load_forcings(state, input_date)
         computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
