@@ -199,13 +199,17 @@ class GribFileOutput(GribOutput):
 
         def _patch(r):
             if self.context.config.use_grib_paramid:
-                from anemoi.utils.grib import shortname_to_paramid
-
                 param = r.get("param", [])
                 if not isinstance(param, list):
                     param = [param]
-                param = [shortname_to_paramid(p) for p in param]
-                r["param"] = param
+
+                # Check if we're using param ids already
+                try:
+                    float(next(iter(param)))
+                except ValueError:
+                    from anemoi.utils.grib import shortname_to_paramid
+
+                    r["param"] = [shortname_to_paramid(p) for p in param]
 
             for k, v in patch.items():
                 if v is None:
