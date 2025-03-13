@@ -129,19 +129,13 @@ class EkdInput(Input):
 
         check = defaultdict(set)
 
+        n_points = input_fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in input_fields:
-
-            if input_state["latitudes"] is None:
-                input_state["latitudes"], input_state["longitudes"] = field.grid_points()
-                LOG.info(
-                    "%s: using `latitudes` and `longitudes` from the first input field",
-                    self.__class__.__name__,
-                )
 
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in fields:
                 fields[name] = np.full(
-                    shape=(len(dates), field.metadata("numberOfPoints")),
+                    shape=(len(dates), n_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
