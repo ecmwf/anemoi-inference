@@ -2,7 +2,7 @@ description: Downscaling ensemble test
 
 dates:
   start: 2025-02-01
-  end: 2025-02-05
+  end: 2025-02-02
   frequency: 24  # hours
 
 ensemble:
@@ -32,10 +32,11 @@ model:
   name: anemoi
   runner: downscaling
   checkpoint: /home/ecm5702/scratch/aifs/checkpoint/0f465bb866b340adba5b66fe014df198/inference-anemoi-by_time-epoch_029-step_149734.ckpt
-  lead_time: 48h
+  lead_time: 24h
   development_hacks:
     time_step: 12h
     output_template: /home/ecm5702/hpcperm/data/o320-template.grib
+    high_res_lat_lon_npz: /hpcperm/ecm0672/pub/ds/o320-latlon.npz
     constant_high_res_forcings_npz: /home/ecm5702/hpcperm/data/o320-forcings.npz
     constant_high_res_forcings:  # order is not important
       - cos_latitude
