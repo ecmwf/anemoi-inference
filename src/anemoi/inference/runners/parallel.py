@@ -36,7 +36,7 @@ def create_parallel_runner(config, pid):
 class ParallelRunner(DefaultRunner):
     """Runner which splits a model over multiple devices"""
 
-    def __new__(cls, context, pid=0):
+    def __new__(cls, context, *args, **kwargs):
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
