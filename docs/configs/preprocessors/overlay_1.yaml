@@ -1,0 +1,7 @@
+pre_processors:
+  - image_overlay:
+      image: https://get.ecmwf.int/repository/anemoi/assets/duck.jpg
+      fields:
+        - shortName: 2t
+      rescale: 100
+      invert: true
