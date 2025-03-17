@@ -275,7 +275,6 @@ class GribOutput(Output):
                 keys=keys,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
-                quiet=self.quiet,
                 previous_step=previous_step,
                 start_steps=start_steps,
             )
