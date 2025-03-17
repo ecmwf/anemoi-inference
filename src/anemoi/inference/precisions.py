@@ -13,7 +13,7 @@
 
 import torch
 
-PRECISIONS = {
+PRECISIONS: dict[str, torch.dtype] = {
     "16-mixed": torch.float16,
     "16": torch.float16,
     "32": torch.float32,

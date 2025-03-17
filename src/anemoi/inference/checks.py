@@ -19,6 +19,24 @@ LOG = logging.getLogger(__name__)
 
 
 def check_data(title: str, data: Any, variables: List[str], dates: List[datetime.datetime]) -> None:
+    """Check if the data matches the expected number of fields based on variables and dates.
+
+    Parameters
+    ----------
+    title : str
+        The title for the data check.
+    data : Any
+        The data to be checked.
+    variables : List[str]
+        The list of variable names.
+    dates : List[datetime.datetime]
+        The list of dates.
+
+    Raises
+    ------
+    ValueError
+        If the data does not match the expected number of fields.
+    """
     expected = len(variables) * len(dates)
 
     if len(data) != expected:
@@ -35,7 +53,7 @@ def check_data(title: str, data: Any, variables: List[str], dates: List[datetime
 
         cols = {}
         rows = {}
-        t = []
+        t: List[List[str]] = []
         for i, d in enumerate(sorted(dates)):
             cols[d.isoformat()] = i + 1
 

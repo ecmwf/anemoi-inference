@@ -10,6 +10,8 @@
 
 import logging
 from typing import TYPE_CHECKING
+from typing import Dict
+from typing import List
 from typing import Literal
 from typing import Optional
 
@@ -87,7 +89,7 @@ def validate_environment(
     exempt_packages = exempt_packages or []
     exempt_packages.extend(EXEMPT_PACKAGES)
 
-    invalid_messages = {
+    invalid_messages: Dict[str, List[str]] = {
         "python": [],
         "missing": [],
         "mismatch": [],

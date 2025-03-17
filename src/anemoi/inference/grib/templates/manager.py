@@ -10,6 +10,15 @@
 
 import json
 import logging
+from typing import Any
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
+import earthkit.data as ekd
+
+from anemoi.inference.types import State
 
 from . import create_template_provider
 
@@ -19,7 +28,16 @@ LOG = logging.getLogger(__name__)
 class TemplateManager:
     """A class to manage GRIB templates."""
 
-    def __init__(self, owner, templates):
+    def __init__(self, owner: Any, templates: Optional[Union[List[str], str]] = None) -> None:
+        """Initialize the TemplateManager.
+
+        Parameters
+        ----------
+        owner : Any
+            The owner of the TemplateManager.
+        templates : Optional[Union[List[str], str]], optional
+            A list of template names or a single template name, by default None.
+        """
         self.owner = owner
         self.checkpoint = owner.context.checkpoint
         self.typed_variables = self.checkpoint.typed_variables
@@ -37,7 +55,21 @@ class TemplateManager:
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
-    def template(self, name, state):
+    def template(self, name: str, state: State) -> Optional[ekd.Field]:
+        """Get the template for a given name and state.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template.
+        state : Dict[str, Any]
+            The state dictionary containing template information.
+
+        Returns
+        -------
+        Optional[ekd.Field]
+            The template field if found, otherwise None.
+        """
         assert name is not None, name
 
         # Use input fields as templates
@@ -48,7 +80,21 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name, state):
+    def load_template(self, name: str, state: State) -> Optional[ekd.Field]:
+        """Load the template for a given name and state.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template.
+        state : Dict[str, Any]
+            The state dictionary containing template information.
+
+        Returns
+        -------
+        Optional[ekd.Field]
+            The template field if found, otherwise None.
+        """
 
         checkpoint = self.owner.context.checkpoint
 
@@ -58,7 +104,7 @@ class TemplateManager:
             name=name,
             grid=self._grid(checkpoint.grid),
             time_processing=typed.time_processing,
-            number_of_grid_points=len(state["latitudes"]),
+            number_of_grid_points=checkpoint.number_of_grid_points,
         )
 
         for key, value in typed.grib_keys.items():
@@ -86,11 +132,26 @@ class TemplateManager:
         LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
-    def _grid(self, grid):
+    def _grid(self, grid: Union[str, List[float], Tuple[int, int]]) -> Union[str, List[float]]:
+        """Convert the grid information to a standardized format.
+
+        Parameters
+        ----------
+        grid : Union[str, List[int], Tuple[int, int]]
+            The grid information.
+
+        Returns
+        -------
+        Union[str, int]
+            The standardized grid format.
+        """
+
         if isinstance(grid, str):
             return grid.upper()
+
         if isinstance(grid, (tuple, list)) and len(grid) == 2:
             if grid[0] == grid[1]:
                 return grid[0]
             return f"{grid[0]}x{grid[1]}"
+
         return grid

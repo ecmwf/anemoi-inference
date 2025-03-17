@@ -9,16 +9,47 @@
 
 import datetime
 import logging
+from functools import partial
+from typing import Any
+from typing import Callable
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Union
 
 import numpy as np
 
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
+
+from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+ListOrAll = Union[List[str], Literal["all"]]
 
-def print_state(state, print=print):
+
+def print_state(
+    state: State,
+    print: Callable[..., None] = print,
+    max_lines: int = 4,
+    variables: Optional[ListOrAll] = None,
+) -> None:
+    """Print the state.
+
+    Parameters
+    ----------
+    state : State
+        The state dictionary.
+    print : function, optional
+        The print function to use, by default print.
+    max_lines : int, optional
+        The maximum number of lines to print, by default 4.
+    variables : list, optional
+        The list of variables to print, by default None.
+    """
     print()
     print("😀", end=" ")
     for key, value in state.items():
@@ -38,16 +69,34 @@ def print_state(state, print=print):
     print()
 
     names = list(fields.keys())
-    n = 4
 
-    idx = list(range(0, len(names), max(1, len(names) // n)))
-    idx.append(len(names) - 1)
-    idx = sorted(set(idx))
+    if variables == "all":
+        variables = names
+        max_lines = 0
+
+    if variables is None:
+        variables = names
+
+    if not isinstance(variables, (list, tuple, set)):
+        variables = [variables]
+
+    variables = set(variables)
+
+    n = max_lines
+
+    if max_lines == 0 or max_lines >= len(names):
+        idx = list(range(len(names)))
+    else:
+        idx = list(range(0, len(names), len(names) // n))
+        idx.append(len(names) - 1)
+        idx = sorted(set(idx))
 
     length = max(len(name) for name in names)
 
     for i in idx:
         name = names[i]
+        if name not in variables:
+            continue
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
         max_value = f"max={np.nanmax(field):g}"
@@ -57,8 +106,45 @@ def print_state(state, print=print):
 
 
 @output_registry.register("printer")
+@main_argument("max_lines")
 class PrinterOutput(Output):
-    """_summary_"""
+    """Printer output class."""
 
-    def write_step(self, state):
-        print_state(state)
+    def __init__(
+        self,
+        context: Context,
+        path: Optional[str] = None,
+        variables: Optional[ListOrAll] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the PrinterOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str, optional
+            The path to save the printed output, by default None.
+        variables : list, optional
+            The list of variables to print, by default None.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+
+        super().__init__(context)
+        self.print = print
+        self.variables = variables
+
+        if path is not None:
+            self.f = open(path, "w")
+            self.print = partial(print, file=self.f)
+
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
+        print_state(state, print=self.print, variables=self.variables)
