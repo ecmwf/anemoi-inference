@@ -1,2 +1,5 @@
 input:
   opendata
+
+pre_processors:
+  - geopotential_height

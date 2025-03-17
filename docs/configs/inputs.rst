@@ -151,3 +151,6 @@ support, ``templates`` can be set to configure the template provider.
 
 .. literalinclude:: inputs_11.yaml
    :language: yaml
+
+As opendata stores ``gh`` (GeoPotential Height) instead of ``z``
+(Geopotential) the ``geopotential_height`` preprocessor must be used.
