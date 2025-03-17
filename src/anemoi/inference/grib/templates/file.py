@@ -8,6 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import Any
+from typing import Dict
 
 import earthkit.data as ekd
 
@@ -21,9 +23,32 @@ LOG = logging.getLogger(__name__)
 class FileTemplates(TemplateProvider):
     """Template provider using a single GRIB file."""
 
-    def __init__(self, manager, path):
+    def __init__(self, manager: Any, path: str) -> None:
+        """Initialize the FileTemplates instance.
+
+        Parameters
+        ----------
+        manager : Any
+            The manager instance.
+        path : str
+            The path to the GRIB file.
+        """
         self.manager = manager
         self.path = path
 
-    def template(self, grib, lookup):
+    def template(self, grib: str, lookup: Dict[str, Any]) -> ekd.Field:
+        """Retrieve the template from the GRIB file.
+
+        Parameters
+        ----------
+        grib : str
+            The GRIB string.
+        lookup : Dict[str, Any]
+            The lookup dictionary.
+
+        Returns
+        -------
+        ekd.Field
+            The field from the GRIB file.
+        """
         return ekd.from_source("file", self.path)[0]

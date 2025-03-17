@@ -44,7 +44,7 @@ dependencies = [
   "anemoi-utils[text,provenance]>=0.4.9",
   "aniso8601",
   "anytree",
-  "earthkit-data>=0.11.2",
+  "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
   "numpy",
   "packaging",
@@ -86,3 +86,12 @@ entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
+
+[tool.mypy]
+exclude = [ "docs/" ]
+strict = false
+ignore_missing_imports = true
+allow_redefinition = true
+
+[setuptools.package-data]
+"anemoi.inference.grib.templates" = [ "*.yaml" ]

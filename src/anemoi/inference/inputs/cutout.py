@@ -63,12 +63,12 @@ class Cutout(Input):
 
         return state
 
-    def load_forcings(self, *, variables, dates):
+    def load_forcings_state(self, *, variables, dates):
         """Load forcings (constant and dynamic)."""
         forcings = []
         for source in self.sources:
             forcings.append(
-                self.sources[source].load_forcings(variables=variables, dates=dates)[..., self.masks[source]]
+                self.sources[source].load_forcings_state(variables=variables, dates=dates)[..., self.masks[source]]
             )
         forcings = np.concatenate(forcings, axis=-1)
         return forcings
