@@ -34,28 +34,6 @@ LOG = logging.getLogger(__name__)
 SOIL_MAPPING = {"stl1": "sot", "stl2": "sot", "stl3": "sot", "swvl1": "vsw", "swvl2": "vsw", "swvl3": "vsw"}
 
 
-def postprocess_geopotential_height(fields: ekd.FieldList) -> ekd.FieldList:
-    """Change geopotential height to meters and rename to `z`.
-
-    Parameters
-    ----------
-    fields : ekd.FieldList
-        Fields to be post-processed.
-
-    Returns
-    -------
-    ekd.FieldList
-        Post-processed fields.
-    """
-    r = ekd.FieldList()
-    for field in fields:
-        if field.metadata()["param"] == "gh":
-            r += r.from_numpy(field.to_numpy() * 9.80665, field.metadata().override(paramId=shortname_to_paramid("z")))
-        else:
-            r += r.from_numpy(field.to_numpy(), field.metadata())
-    return r
-
-
 def _retrieve_soil(request: dict, soil_params: list[str]) -> ekd.FieldList:
     """Retrieve soil data.
 
@@ -141,6 +119,7 @@ def retrieve(
     grid: Optional[Union[str, List[float]]],
     area: Optional[List[float]],
     template_provider: TemplateProvider,
+    patch: Optional[Any] = None,
     **kwargs: Any,
 ) -> ekd.FieldList:
     """Retrieve data from ECMWF Opendata.
@@ -155,6 +134,8 @@ def retrieve(
         The area for the retrieval.
     template_provider : TemplateProvider
         Template provider for the regridding.
+    patch : Optional[Any], optional
+        Optional patch for the request, by default None.
     **kwargs : Any
         Additional keyword arguments.
 
@@ -174,16 +155,13 @@ def retrieve(
 
         return ",".join(f"{k}={v}" for k, v in mars.items())
 
-    post_processing_functions = []
-
     result = ekd.from_source("empty")
     for r in requests:
-        if "z" in r["param"] and r["levtype"] == "pl":
-            r["param"] = ("gh", *(p for p in r.get("param") if p != "z"))
-            post_processing_functions.append(postprocess_geopotential_height)
-
-        # r.update(pproc)
         r.update(kwargs)
+
+        if patch:
+            r = patch(r)
+
         template = template_provider.template(None, {"grid": grid, "levtype": r["levtype"]})
 
         if any(k in r["param"] for k in SOIL_MAPPING.keys()):
@@ -192,19 +170,22 @@ def retrieve(
             result += regridding(_retrieve_soil(r.copy(), requested_soil_variables), grid, area, template)
 
         LOG.debug("%s", _(r))
-
-        returned_data = ekd.from_source("ecmwf-open-data", r)
-        for func in post_processing_functions:
-            returned_data = func(returned_data)
-
-        result += regridding(returned_data, grid, area, template)
+        result += regridding(ekd.from_source("ecmwf-open-data", r), grid, area, template)
 
     return result
 
 
 @input_registry.register("opendata")
 class OpenDataInput(GribInput):
-    """Get input fields from ECMWF open-data"""
+    """Get input fields from ECMWF open-data.
+
+    This will require the use of the `geopotential_height` pre-processor to
+    rename any requests for `z` to `gh` and change the geopotential height to meters.
+    ```yaml
+    pre_processors:
+      - geopotential_height
+    ```
+    """
 
     trace_name = "opendata"
 
@@ -285,7 +266,12 @@ class OpenDataInput(GribInput):
         kwargs = self.kwargs.copy()
 
         return retrieve(
-            requests, self.checkpoint.grid, self.checkpoint.area, template_provider=self.template_provider, **kwargs
+            requests,
+            self.checkpoint.grid,
+            self.checkpoint.area,
+            template_provider=self.template_provider,
+            patch=self.context.patch_data_request,
+            **kwargs,
         )
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
