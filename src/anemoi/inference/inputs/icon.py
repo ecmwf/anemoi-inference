@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class IconInput(GribInput):
     """Handles grib files from ICON."""
 
-    # TODO: this code will become a pugin in the future.
+    # TODO: this code will become a plugin in the future.
 
     trace_name = "icon file"
 
