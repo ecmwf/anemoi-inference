@@ -185,7 +185,7 @@ class GribOutput(Output):
 
         self.template_manager = TemplateManager(self, templates)
 
-    def write_initial_step(self, state: State) -> None:
+    def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters
