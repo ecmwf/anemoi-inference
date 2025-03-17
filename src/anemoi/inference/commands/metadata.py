@@ -12,7 +12,11 @@ import json
 import logging
 import os
 import subprocess
+from argparse import ArgumentParser
+from argparse import Namespace
 from tempfile import TemporaryDirectory
+from typing import Any
+from typing import Dict
 
 import yaml
 
@@ -24,7 +28,14 @@ LOG = logging.getLogger(__name__)
 class Metadata(Command):
     """Edit, remove, dump or load metadata from a checkpoint file."""
 
-    def add_arguments(self, command_parser):
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add command line arguments to the parser.
+
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         from anemoi.utils.checkpoints import DEFAULT_NAME
 
         command_parser.add_argument("path", help="Path to the checkpoint.")
@@ -83,6 +94,12 @@ class Metadata(Command):
             help="Navigate the metadata via dot-separated path.",
         )
 
+        group.add_argument(
+            "--pytest",
+            action="store_true",
+            help=("Extract the metadata from the checkpoint so it can be added to the test suite."),
+        )
+
         command_parser.add_argument(
             "--name",
             default=DEFAULT_NAME,
@@ -123,7 +140,14 @@ class Metadata(Command):
             help="Use the YAML format with ``--dump``, ``--view`` and ``--edit``.",
         )
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
+        """Execute the command based on the provided arguments.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         if args.edit:
             return self.edit(args)
 
@@ -136,7 +160,7 @@ class Metadata(Command):
         if args.remove:
             return self.remove(args)
 
-        if args.dump:
+        if args.dump or args.pytest:
             return self.dump(args)
 
         if args.load:
@@ -145,22 +169,51 @@ class Metadata(Command):
         if args.supporting_arrays:
             return self.supporting_arrays(args)
 
-    def edit(self, args):
+    def edit(self, args: Namespace) -> None:
+        """Edit the metadata in place using the specified editor.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         return self._edit(args, view=False, cmd=args.editor)
 
-    def view(self, args):
+    def view(self, args: Namespace) -> None:
+        """View the metadata in place using the specified pager.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         return self._edit(args, view=True, cmd=args.pager)
 
-    def _edit(self, args, view, cmd):
+    def _edit(self, args: Namespace, view: bool, cmd: str) -> None:
+        """Internal method to edit or view the metadata.
 
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        view : bool
+            If True, view the metadata; otherwise, edit it.
+        cmd : str
+            The command to use for editing or viewing.
+        """
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import replace_metadata
+
+        kwargs: Dict[str, Any] = {}
 
         if args.json:
             ext = "json"
             dump = json.dump
             load = json.load
-            kwargs = {"indent": 4, "sort_keys": True}
+            if args.test:
+                kwargs = {"sort_keys": True}
+            else:
+                kwargs = {"indent": 4, "sort_keys": True}
         else:
             ext = "yaml"
             dump = yaml.dump
@@ -186,12 +239,26 @@ class Metadata(Command):
                 else:
                     LOG.info("No changes made.")
 
-    def remove(self, args):
+    def remove(self, args: Namespace) -> None:
+        """Remove the metadata from the checkpoint.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import remove_metadata
 
         remove_metadata(args.path, args.name)
 
-    def dump(self, args):
+    def dump(self, args: Namespace) -> None:
+        """Dump the metadata from the checkpoint to a file or standard output.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import load_metadata
 
         if args.output:
@@ -200,16 +267,31 @@ class Metadata(Command):
             file = None
 
         metadata = load_metadata(args.path)
+        if args.pytest:
+            from anemoi.inference.testing.mock_checkpoint import minimum_mock_checkpoint
+
+            # We remove all unessential metadata for testing purposes
+            metadata = minimum_mock_checkpoint(metadata)
 
         if args.yaml:
             print(yaml.dump(metadata, indent=2, sort_keys=True), file=file)
             return
 
         if args.json or True:
-            print(json.dumps(metadata, indent=4, sort_keys=True), file=file)
+            if args.pytest:
+                print(json.dumps(metadata, sort_keys=True), file=file)
+            else:
+                print(json.dumps(metadata, indent=4, sort_keys=True), file=file)
             return
 
-    def get(self, args):
+    def get(self, args: Namespace) -> None:
+        """Navigate and print the metadata via a dot-separated path.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from pprint import pprint
 
         from anemoi.utils.checkpoints import load_metadata
@@ -234,7 +316,14 @@ class Metadata(Command):
         else:
             print(metadata)
 
-    def load(self, args):
+    def load(self, args: Namespace) -> None:
+        """Load metadata into the checkpoint from a specified file.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import has_metadata
         from anemoi.utils.checkpoints import replace_metadata
         from anemoi.utils.checkpoints import save_metadata
@@ -259,7 +348,14 @@ class Metadata(Command):
         else:
             save_metadata(args.path, metadata, name=args.name)
 
-    def supporting_arrays(self, args):
+    def supporting_arrays(self, args: Namespace) -> None:
+        """Print the supporting arrays from the metadata.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import load_metadata
 
         _, supporting_arrays = load_metadata(args.path, supporting_arrays=True)

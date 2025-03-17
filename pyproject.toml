@@ -86,3 +86,12 @@ entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
+
+[tool.mypy]
+exclude = [ "docs/" ]
+strict = false
+ignore_missing_imports = true
+allow_redefinition = true
+
+[setuptools.package-data]
+"anemoi.inference.grib.templates" = [ "*.yaml" ]
