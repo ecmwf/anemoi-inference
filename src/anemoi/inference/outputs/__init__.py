@@ -9,8 +9,26 @@
 
 from anemoi.utils.registry import Registry
 
+from anemoi.inference.config import Configuration
+from anemoi.inference.context import Context
+from anemoi.inference.output import Output
+
 output_registry = Registry(__name__)
 
 
-def create_output(context, config):
+def create_output(context: Context, config: Configuration) -> Output:
+    """Create an output.
+
+    Parameters
+    ----------
+    context : Context
+        The context for the output.
+    config : Configuration
+        The configuration for the output.
+
+    Returns
+    -------
+    object
+        The created output.
+    """
     return output_registry.from_config(config, context)

@@ -13,12 +13,17 @@ import logging
 import os
 import socket
 import subprocess
+from typing import Any
+from typing import Optional
+from typing import Tuple
 
 import numpy as np
 import torch
 import torch.distributed as dist
 
-from ..commands.run import _run
+from anemoi.inference.config import Configuration
+from anemoi.inference.output import Output
+
 from ..outputs import create_output
 from ..runners import create_runner
 from . import runner_registry
@@ -27,14 +32,23 @@ from .default import DefaultRunner
 LOG = logging.getLogger(__name__)
 
 
-def create_parallel_runner(config, pid):
+def create_parallel_runner(config: Configuration, pid: int) -> None:
+    """Creates and runs a parallel runner.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration.
+    pid : int
+        Process ID.
+    """
     runner = create_runner(config, pid=pid)
-    _run(runner, config)
+    runner.execute()
 
 
 @runner_registry.register("parallel")
 class ParallelRunner(DefaultRunner):
-    """Runner which splits a model over multiple devices"""
+    """Runner which splits a model over multiple devices."""
 
     def __new__(cls, context, *args, **kwargs):
         if torch.cuda.is_available():
@@ -43,7 +57,16 @@ class ParallelRunner(DefaultRunner):
             LOG.warning("CUDA is not available. Falling back to DefaultRunner")
             return DefaultRunner(context)
 
-    def __init__(self, context, pid=0):
+    def __init__(self, context: Any, pid: int = 0) -> None:
+        """Initializes the ParallelRunner.
+
+        Parameters
+        ----------
+        context : Any
+            The context for the runner.
+        pid : int, optional
+            Process ID, by default 0.
+        """
         super().__init__(context)
 
         self.model_comm_group = None
@@ -70,7 +93,23 @@ class ParallelRunner(DefaultRunner):
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model, input_tensor_torch, fcstep, **kwargs):
+    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+        """Performs a prediction step.
+
+        Parameters
+        ----------
+        model : Any
+            The model to use for prediction.
+        input_tensor_torch : torch.Tensor
+            The input tensor for the model.
+        **kwargs : Any
+            Additional arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The prediction result.
+        """
         if self.model_comm_group is None:
             return model.predict_step(input_tensor_torch)
         else:
@@ -82,7 +121,14 @@ class ParallelRunner(DefaultRunner):
                 )
                 raise err
 
-    def create_output(self):
+    def create_output(self) -> Output:
+        """Creates the output.
+
+        Returns
+        -------
+        Output
+            The created output.
+        """
         if self.global_rank == 0:
             output = create_output(self, self.config.output)
             LOG.info("Output: %s", output)
@@ -91,16 +137,16 @@ class ParallelRunner(DefaultRunner):
             output = create_output(self, "none")
             return output
 
-    def __del__(self):
+    def __del__(self) -> None:
+        """Destructor to clean up resources."""
         if self.model_comm_group is not None:
             dist.destroy_process_group()
 
-    def _seed_procs(self):
+    def _seed_procs(self) -> None:
         """Ensures each process uses the same seed.
-        Will try read 'ANEMOI_BASE_SEED' from the environment
-        Otherwise, the seed of process 0 will be shared to all processes
+        Will try read 'ANEMOI_BASE_SEED' from the environment.
+        Otherwise, the seed of process 0 will be shared to all processes.
         """
-
         seed = None
         seed_threshold = 1000
         env_var_list = ["ANEMOI_BASE_SEED"]
@@ -121,15 +167,26 @@ class ParallelRunner(DefaultRunner):
             seed = msg_buffer[0]
             torch.manual_seed(seed)
 
-    def _srun_used(self):
-        """returns true if anemoi-inference was launched with srun"""
+    def _srun_used(self) -> bool:
+        """Returns true if anemoi-inference was launched with srun.
 
+        Returns
+        -------
+        bool
+            True if srun is used, False otherwise.
+        """
         # from pytorch lightning
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
         return "SLURM_NTASKS" in os.environ and os.environ.get("SLURM_JOB_NAME") not in ("bash", "interactive")
 
-    def _spawn_parallel_procs(self, num_procs):
-        """When srun is not available, this method creates N-1 child processes within the same node for parallel inference"""
+    def _spawn_parallel_procs(self, num_procs: int) -> None:
+        """When srun is not available, this method creates N-1 child processes within the same node for parallel inference.
+
+        Parameters
+        ----------
+        num_procs : int
+            Number of processes to spawn.
+        """
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
@@ -148,10 +205,10 @@ class ParallelRunner(DefaultRunner):
         for pid in range(1, num_procs):
             mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 
-    def _bootstrap_processes(self):
-        """initalises processes and their network information
+    def _bootstrap_processes(self) -> None:
+        """Initializes processes and their network information.
         If srun is available, slurm variables are read to determine network settings.
-        Otherwise, local processes are spawned and network info is infered from config
+        Otherwise, local processes are spawned and network info is inferred from config.
         """
         using_slurm = self._srun_used()
         if using_slurm:
@@ -185,7 +242,7 @@ class ParallelRunner(DefaultRunner):
                 )
             if self.world_size <= 0:
                 raise ValueError(
-                    f"Error. 'world_size' must be greater then 1 to use parallel inference. {world_size=} set in the config is invalid."
+                    f"Error. 'world_size' must be greater then 1 to use parallel inference. {self.config.world_size=} set in the config is invalid."
                 )
 
             # since we are running within a node, 'localhost' and any port can be used
@@ -201,9 +258,14 @@ class ParallelRunner(DefaultRunner):
             if self.local_rank == 0:
                 self._spawn_parallel_procs(self.world_size)
 
-    def _init_network_from_slurm(self):
-        """Reads Slurm environment to set master address and port for parallel communication"""
+    def _init_network_from_slurm(self) -> Tuple[str, str]:
+        """Reads Slurm environment to set master address and port for parallel communication.
 
+        Returns
+        -------
+        Tuple[str, str]
+            The master address and port.
+        """
         # Get the master address from the SLURM_NODELIST environment variable
         slurm_nodelist = os.environ.get("SLURM_NODELIST")
         if not slurm_nodelist:
@@ -247,9 +309,14 @@ class ParallelRunner(DefaultRunner):
 
         return master_addr, master_port
 
-    def _init_parallel(self):
-        """Creates a model communication group to be used for parallel inference"""
+    def _init_parallel(self) -> Optional[dist.ProcessGroup]:
+        """Creates a model communication group to be used for parallel inference.
 
+        Returns
+        -------
+        Optional[dist.ProcessGroup]
+            The model communication group.
+        """
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'
@@ -277,8 +344,14 @@ class ParallelRunner(DefaultRunner):
 
         return model_comm_group
 
-    def _get_parallel_info_from_slurm(self):
-        """Reads Slurm env vars, if they exist, to determine if inference is running in parallel"""
+    def _get_parallel_info_from_slurm(self) -> Tuple[int, int, int]:
+        """Reads Slurm env vars, if they exist, to determine if inference is running in parallel.
+
+        Returns
+        -------
+        Tuple[int, int, int]
+            The global rank, local rank, and world size.
+        """
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))  # Rank within a node, between 0 and num_gpus
         global_rank = int(os.environ.get("SLURM_PROCID", 0))  # Rank within all nodes
         world_size = int(os.environ.get("SLURM_NTASKS", 1))  # Total number of processes

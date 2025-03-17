@@ -10,13 +10,20 @@
 
 import logging
 import re
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
+
+import earthkit.data as ekd
 
 LOG = logging.getLogger(__name__)
 
 
-GRIB1_ONLY = []
+GRIB1_ONLY: List[str] = []
 
-GRIB2_ONLY = ["typeOfGeneratingProcess"]
+GRIB2_ONLY: List[str] = ["typeOfGeneratingProcess"]
 
 
 ORDERING = (
@@ -31,11 +38,35 @@ ORDERING = (
 ORDERING = {k: i for i, k in enumerate(ORDERING)}
 
 
-def _ordering(item):
+def _ordering(item: tuple) -> int:
+    """Get the ordering index for a given item.
+
+    Parameters
+    ----------
+    item : tuple
+        The item to get the ordering index for.
+
+    Returns
+    -------
+    int
+        The ordering index.
+    """
     return ORDERING.get(item[0], 999)
 
 
-def _param(param):
+def _param(param: Any) -> str:
+    """Determine the parameter type based on its value.
+
+    Parameters
+    ----------
+    param : str
+        The parameter value.
+
+    Returns
+    -------
+    str
+        The parameter type.
+    """
     try:
         int(param)
         return "paramId"
@@ -47,7 +78,19 @@ def _param(param):
             return "shortName"
 
 
-def _step_in_hours(step):
+def _step_in_hours(step: Any) -> int:
+    """Convert a step to hours.
+
+    Parameters
+    ----------
+    step : Any
+        The step to convert.
+
+    Returns
+    -------
+    int
+        The step in hours.
+    """
     step = step.total_seconds() / 3600
     assert int(step) == step
     return int(step)
@@ -64,15 +107,36 @@ STEP_TYPE = {
 
 def encode_time_processing(
     *,
-    result,
-    template,
-    variable,
-    step,
-    previous_step,
-    start_steps,
-    edition,
-    ensemble,
-):
+    result: Dict[str, Any],
+    template: ekd.Field,
+    variable: Any,
+    step: Any,
+    previous_step: Optional[Any],
+    start_steps: Dict[Any, Any],
+    edition: int,
+    ensemble: bool,
+) -> None:
+    """Encode time processing information into the result dictionary.
+
+    Parameters
+    ----------
+    result : Dict[str, Any]
+        The result dictionary to update.
+    template : ekd.Field
+        The template field.
+    variable : Any
+        The variable containing time processing information.
+    step : Any
+        The current step.
+    previous_step : Optional[Any]
+        The previous step.
+    start_steps : Dict[Any, Any]
+        The start steps dictionary.
+    edition : int
+        The GRIB edition.
+    ensemble : bool
+        Whether the data is part of an ensemble.
+    """
     assert edition in (1, 2)
 
     if variable.time_processing is None:
@@ -113,20 +177,56 @@ LEVTYPES = {
 
 def grib_keys(
     *,
-    values,
-    template,
-    variable,
-    ensemble,
-    param,
-    date,
-    time,
-    step,
-    previous_step,
-    start_steps,
-    keys,
-    grib1_keys={},
-    grib2_keys={},
-):
+    values: Any,
+    template: Any,
+    variable: Any,
+    ensemble: bool,
+    param: Optional[Union[int, float, str]],
+    date: int,
+    time: int,
+    step: Any,
+    previous_step: Optional[Any],
+    start_steps: Dict[Any, Any],
+    keys: Dict[str, Any],
+    grib1_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
+    grib2_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
+) -> Dict[str, Any]:
+    """Generate GRIB keys for encoding.
+
+    Parameters
+    ----------
+    values : Any
+        The values to encode.
+    template : Any
+        The template to use.
+    variable : Any
+        The variable containing GRIB keys.
+    ensemble : bool
+        Whether the data is part of an ensemble.
+    param : Optional[Union[int, float, str]]
+        The parameter value.
+    date : int
+        The date value.
+    time : int
+        The time value.
+    step : Any
+        The current step.
+    previous_step : Optional[Any]
+        The previous step.
+    start_steps : Dict[Any, Any]
+        The start steps dictionary.
+    keys : Dict[str, Any]
+        The initial keys dictionary.
+    grib1_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
+        Additional GRIB1 keys.
+    grib2_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
+        Additional GRIB2 keys.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The generated GRIB keys.
+    """
     result = keys.copy()
 
     edition = keys.get("edition")
@@ -191,10 +291,29 @@ def grib_keys(
     return result
 
 
-def check_encoding(handle, keys, first=True):
-    def same(w, v, k):
+def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> None:
+    """Check if the GRIB encoding matches the expected keys.
+
+    Parameters
+    ----------
+    handle : Any
+        The GRIB handle.
+    keys : Dict[str, Any]
+        The expected keys.
+    first : bool, optional
+        Whether this is the first check.
+
+    Raises
+    ------
+    ValueError
+        If the GRIB field could not be encoded.
+    """
+
+    def same(w: Any, v: Any, k: str) -> bool:
         if type(v) is type(w):
-            return v == w
+            # Keep `mypy` happy
+            equal: bool = v == w
+            return equal
         return str(w) == str(v)
 
     mismatches = {}
@@ -238,7 +357,34 @@ def check_encoding(handle, keys, first=True):
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
 
 
-def encode_message(*, values, template, metadata, check_nans=False, missing_value=9999):
+def encode_message(
+    *,
+    values: Optional[Any],
+    template: Any,
+    metadata: Dict[str, Any],
+    check_nans: bool = False,
+    missing_value: Union[int, float] = 9999,
+) -> Any:
+    """Encode a GRIB message.
+
+    Parameters
+    ----------
+    values : Optional[Any]
+        The values to encode.
+    template : Any
+        The template to use.
+    metadata : Dict[str, Any]
+        The metadata for the GRIB message.
+    check_nans : bool, optional
+        Whether to check for NaNs in the values.
+    missing_value : Union[int, float], optional
+        The value to use for missing data.
+
+    Returns
+    -------
+    Any
+        The encoded GRIB handle.
+    """
     metadata = metadata.copy()  # avoid modifying the original metadata
     handle = template.handle.clone()
 
@@ -290,34 +436,81 @@ def encode_message(*, values, template, metadata, check_nans=False, missing_valu
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, path, split_output=False):
-        self._files = {}
+    def __init__(self, path: str, split_output: bool = False) -> None:
+        """Initialize the GribWriter.
+
+        Parameters
+        ----------
+        path : str
+            The path to the output file.
+        split_output : bool, optional
+            Whether to split the output into multiple files.
+        """
+        self._files: Dict[str, Any] = {}
         self.filename = path
+        self.split_output: Optional[List[str]] = None
 
         if split_output:
             self.split_output = re.findall(r"\{(.*?)\}", self.filename)
-        else:
-            self.split_output = None
 
-    def close(self):
+    def close(self) -> None:
+        """Close all open files."""
         for f in self._files.values():
             f.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "GribWriter":
+        """Enter the runtime context related to this object.
+
+        Returns
+        -------
+        GribWriter
+            The GribWriter instance.
+        """
         return self
 
-    def __exit__(self, exc_type, exc_value, trace):
+    def __exit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], trace: Optional[Any]) -> None:
+        """Exit the runtime context related to this object.
+
+        Parameters
+        ----------
+        exc_type : Optional[type]
+            The exception type.
+        exc_value : Optional[BaseException]
+            The exception value.
+        trace : Optional[Any]
+            The traceback object.
+        """
         self.close()
 
     def write(
         self,
         *,
-        values,
-        template,
-        metadata,
-        check_nans=False,
-        missing_value=9999,
-    ):
+        values: Optional[Any],
+        template: Any,
+        metadata: Dict[str, Any],
+        check_nans: bool = False,
+        missing_value: Union[int, float] = 9999,
+    ) -> tuple:
+        """Write a GRIB message to the target file.
+
+        Parameters
+        ----------
+        values : Optional[Any]
+            The values to encode.
+        template : Any
+            The template to use.
+        metadata : Dict[str, Any]
+            The metadata for the GRIB message.
+        check_nans : bool, optional
+            Whether to check for NaNs in the values.
+        missing_value : Union[int, float], optional
+            The value to use for missing data.
+
+        Returns
+        -------
+        tuple
+            The encoded GRIB handle and the file path.
+        """
         handle = encode_message(
             values=values,
             check_nans=check_nans,
@@ -331,8 +524,19 @@ class GribWriter:
 
         return handle, path
 
-    def target(self, handle):
+    def target(self, handle: Any) -> tuple:
+        """Determine the target file for the GRIB message.
 
+        Parameters
+        ----------
+        handle : Any
+            The GRIB handle.
+
+        Returns
+        -------
+        tuple
+            The file object and the file path.
+        """
         if self.split_output:
             path = self.filename.format(**{k: handle.get(k) for k in self.split_output})
         else:
