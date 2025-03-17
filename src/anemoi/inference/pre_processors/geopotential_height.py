@@ -24,6 +24,12 @@ from . import pre_processor_registry
 
 LOG = logging.getLogger(__name__)
 
+try:
+    from earthkit.meteo.constants import g as G
+except ImportError:
+    LOG.warning("Could not import g from earthkit.meteo.constants. Using default value.")
+    G = 9.80665
+
 
 @pre_processor_registry.register("geopotential_height")
 class GeopotentialHeight(Processor):
@@ -57,9 +63,7 @@ class GeopotentialHeight(Processor):
         result = ekd.FieldList()
         for field in tqdm.tqdm(fields):
             if field.metadata()["param"] == "gh":
-                result += from_array(
-                    field.to_numpy() * 9.80665, field.metadata().override(paramId=shortname_to_paramid("z"))
-                )
+                result += from_array(field.to_numpy() * G, field.metadata().override(paramId=shortname_to_paramid("z")))
             else:
                 result += from_array(field.to_numpy(), field.metadata())
 
