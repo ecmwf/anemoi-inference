@@ -42,7 +42,7 @@ except ImportError:
 VALID_METHODS = Literal["add", "multiply", "replace"]
 
 
-@pre_processor_registry.register("overlay")
+@pre_processor_registry.register("array_overlay")
 class ArrayOverlay(Processor):
     """Overlay an array/image to a field.
 
@@ -83,7 +83,8 @@ class ArrayOverlay(Processor):
         invert: bool = False,
     ):
         if not _PILLOW_AVAILABLE:
-            raise ImportError("Pillow is required for this pre-processor.")
+            raise ImportError("Pillow is required for this pre-processor to work with images.")
+
         if not _EARTHKIT_REGRID_AVAILABLE:
             raise ImportError("earthkit.regrid is required for this pre-processor.")
 
@@ -96,7 +97,7 @@ class ArrayOverlay(Processor):
         self._invert = invert
 
     @functools.cached_property
-    def overlay(self) -> "Image":
+    def overlay(self) -> np.ndarray:
         """Load the overlay."""
 
         overlay = self._overlay
@@ -105,42 +106,47 @@ class ArrayOverlay(Processor):
 
             overlay = urlopen(overlay)
 
-        return Image.open(overlay)
+        if str(overlay).endswith(".npy"):
+            overlay_loaded = np.load(overlay)
+        else:
+            overlay_loaded = Image.open(overlay)
 
-    def _pad_overlay_to_aspect_ratio(self, overlay: "Image", target_aspect_ratio: float):
+        return np.array(overlay_loaded)
+
+    def _pad_overlay_to_aspect_ratio(self, overlay: np.ndarray, target_aspect_ratio: float) -> np.ndarray:
         """Pad an overlay to a target aspect ratio."""
-        width, height = overlay.size
+        height, width, _ = overlay.shape
         current_aspect_ratio = width / height
 
         if current_aspect_ratio > target_aspect_ratio:
             new_height = int(width / target_aspect_ratio)
-            padding = (0, (new_height - height) // 2)
+            padding = ((new_height - height) // 2, 0)
         else:
             new_width = int(height * target_aspect_ratio)
-            padding = ((new_width - width) // 2, 0)
+            padding = (0, (new_width - width) // 2)
 
-        new_size = (width + 2 * padding[0], height + 2 * padding[1])
-        new_overlay = Image.new("RGB", new_size, (255, 255, 255) if self._invert else (0, 0, 0))
-        new_overlay.paste(overlay, padding)
+        new_size = (height + 2 * padding[0], width + 2 * padding[1], 3)
+        new_overlay_array = np.full(new_size, 255 if self._invert else 0, dtype=np.uint8)
+        new_overlay_array[padding[0] : padding[0] + height, padding[1] : padding[1] + width] = overlay
 
-        return new_overlay
+        return new_overlay_array
 
-    def _overlay_to_array(self, overlay: "Image", grid) -> np.ndarray:
-        """Regrid an image to field gridspec, and average the RGB channels."""
+    def _overlay_to_array(self, overlay: np.ndarray, grid) -> np.ndarray:
+        """Regrid an image to field gridspec, and average the RGB channels if exists."""
 
-        overlay = overlay.resize((1440, 721), Image.Resampling.BILINEAR)
+        if len(overlay.shape) == 3:
+            overlay = np.mean(overlay, axis=-1)
 
-        overlay_array = np.array(overlay).copy()
+        # TODO Harrison Cook: Remove when regrid can go from arbitrary to arbitrary grids.
+        overlay = np.array(Image.fromarray(overlay).resize((1440, 721), Image.Resampling.BILINEAR))
+        overlay = np.nan_to_num(overlay, nan=0)
 
-        overlay_array = np.mean(overlay_array, axis=-1)  # .swapaxes(-1, 0)
-        overlay_array = np.nan_to_num(overlay_array, 0)
-
-        return earthkit.regrid.interpolate(overlay_array, {"grid": (0.25, 0.25)}, {"grid": grid})
+        return earthkit.regrid.interpolate(overlay, {"grid": (0.25, 0.25)}, {"grid": grid})
 
     @functools.lru_cache
     def prepare_overlay(self, grid):
         """Prepare the overlay for the field grid."""
-        padded_overlay = self._pad_overlay_to_aspect_ratio(self.image, 1440 / 721)
+        padded_overlay = self._pad_overlay_to_aspect_ratio(self.overlay, 1440 / 721)
         return self._overlay_to_array(padded_overlay, grid)
 
     def process(self, fields):
@@ -170,7 +176,6 @@ class ArrayOverlay(Processor):
             else:
                 raise ValueError(f"Unknown method {self._method}.")
 
-            np.save("overlay.npy", data)
             result.append(new_field_from_numpy(data, template=field))
 
         return new_fieldlist_from_list(result)
