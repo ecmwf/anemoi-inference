@@ -12,15 +12,37 @@ import logging
 import os
 from contextlib import contextmanager
 from functools import cached_property
+from typing import Any
+from typing import Dict
+from typing import Generator
+from typing import Tuple
 
 from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+
+from .protocol import MetadataProtocol
 
 LOG = logging.getLogger(__name__)
 
 
 @contextmanager
-def patch_function(target, attribute, replacement):
+def patch_function(target: Any, attribute: str, replacement: Any) -> Generator[None, None, None]:
+    """Context manager to temporarily replace an attribute of a target object.
+
+    Parameters
+    ----------
+    target : object
+        The target object whose attribute will be replaced.
+    attribute : str
+        The name of the attribute to replace.
+    replacement : any
+        The replacement value for the attribute.
+
+    Returns
+    -------
+    Generator[None, None, None]
+        The context manager.
+    """
     original = getattr(target, attribute)
     setattr(target, attribute, replacement)
     try:
@@ -29,11 +51,29 @@ def patch_function(target, attribute, replacement):
         setattr(target, attribute, original)
 
 
-class PatchMixin:
+class PatchMixin(MetadataProtocol):
 
     # `self` is a `Metadata` object
 
-    def patch_metadata(self, supporting_arrays, root, force=False):
+    def patch_metadata(
+        self, supporting_arrays: Dict[str, Any], root: str, force: bool = False
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Patch the metadata with supporting arrays and root.
+
+        Parameters
+        ----------
+        supporting_arrays : dict
+            The supporting arrays to patch.
+        root : str
+            The root path for the supporting arrays.
+        force : bool, optional
+            Whether to force the patching, by default False.
+
+        Returns
+        -------
+        tuple
+            The patched metadata and supporting arrays.
+        """
         dataset = self._metadata["dataset"]
 
         if (
@@ -48,7 +88,8 @@ class PatchMixin:
 
         return self._metadata, self._supporting_arrays
 
-    def _patch_variable_metadata(self):
+    def _patch_variable_metadata(self) -> None:
+        """Patch the variable metadata."""
 
         try:
             return self._patch_variable_metadata_open_dataset_1()
@@ -61,16 +102,17 @@ class PatchMixin:
             LOG.exception("_patch_variable_metadata_open_dataset_2 failed")
 
     @cached_property
-    def _from_zarr(self):
-        """We assume that the datasets are reachable via the content of
-        ~/.config/anemoi/settings.toml
-        """
+    def _from_zarr(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Open the dataset and fetch metadata and supporting arrays."""
+        # We assume that the datasets are reachable via the content of
+        # ~/.config/anemoi/settings.toml.
+
         from anemoi.datasets import open_dataset
 
         dataset = self._metadata["dataset"]
         arguments = dataset["arguments"]
 
-        def _(x):
+        def _(x: Any) -> Any:
             if isinstance(x, dict):
                 return {k: _(v) for k, v in x.items()}
             if isinstance(x, list):
@@ -89,10 +131,15 @@ class PatchMixin:
         ds = open_dataset(*args, **kwargs)
         return ds.metadata(), ds.supporting_arrays()
 
-    def _patch_variable_metadata_open_dataset_1(self):
-        """Try to open the dataset(s) and re-fetch metadata.
-        In the checkpoint we keep track of the arguments used to open the dataset.
+    def _patch_variable_metadata_open_dataset_1(self) -> None:
+        """Try to open the dataset and re-fetch metadata.
+
+        Returns
+        -------
+        None
         """
+        # Try to open the dataset(s) and re-fetch metadata.
+        # In the checkpoint we keep track of the arguments used to open the dataset.
 
         # First attempt, try to open the dataset
 
@@ -105,8 +152,8 @@ class PatchMixin:
                 LOG.info("Updating metadata key `%s` with value `%s`", k, v)
                 dataset[k] = v
 
-    def _patch_variable_metadata_open_dataset_2(self):
-        """That version fetches the metadata from the catalogue."""
+    def _patch_variable_metadata_open_dataset_2(self) -> None:
+        """Fetch the metadata from the catalogue."""
 
         import anemoi.datasets.data.stores
         import numpy as np
@@ -117,11 +164,12 @@ class PatchMixin:
         end_date = as_datetime(self._metadata["dataset"]["end_date"])
         frequency = to_timedelta(self._metadata["dataset"]["frequency"])
         dates = []
+
         while start_date <= end_date:
             dates.append(start_date)
             start_date += frequency
 
-        def _open_zarr(name):
+        def _open_zarr(name: str) -> zarr.hierarchy.Group:
             nonlocal dates
             name = os.path.basename(name)
             name = os.path.splitext(name)[0]
@@ -162,8 +210,21 @@ class PatchMixin:
         with patch_function(anemoi.datasets.data.stores, "open_zarr", _open_zarr):
             self._patch_variable_metadata_open_dataset_1()
 
-    def _patch_supporting_arrays(self, supporting_arrays, root):
+    def _patch_supporting_arrays(self, supporting_arrays: Dict[str, Any], root: str) -> Dict[str, Any]:
+        """Patch the supporting arrays.
 
+        Parameters
+        ----------
+        supporting_arrays : dict
+            The supporting arrays to patch.
+        root : str
+            The root path for the supporting arrays.
+
+        Returns
+        -------
+        dict
+            The patched supporting arrays.
+        """
         metadata, supporting_arrays = self._from_zarr
 
         # assert False, metadata['sources']

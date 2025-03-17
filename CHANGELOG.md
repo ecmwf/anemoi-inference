@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.4.11](https://github.com/ecmwf/anemoi-inference/compare/0.4.10...0.4.11) (2025-03-07)
+
+
+### Features
+
+* Add metadata --get functionality ([#154](https://github.com/ecmwf/anemoi-inference/issues/154)) ([6821905](https://github.com/ecmwf/anemoi-inference/commit/68219051664a1be955b7ae800e1052eb69feb79c))
+* add time and memory profiler to runner ([#143](https://github.com/ecmwf/anemoi-inference/issues/143)) ([a0c4bb4](https://github.com/ecmwf/anemoi-inference/commit/a0c4bb4e1629df3e475772839fe71be94e6b5b9f))
+* adding post-processors ([#116](https://github.com/ecmwf/anemoi-inference/issues/116)) ([9e240fa](https://github.com/ecmwf/anemoi-inference/commit/9e240fa536b43c2d405c934965bd6bd2463fd8f1))
+* **runner:** Forecast loop step generator ([#168](https://github.com/ecmwf/anemoi-inference/issues/168)) ([cc7fed5](https://github.com/ecmwf/anemoi-inference/commit/cc7fed54aa5f1923da7ef08649b102e2e690a3bf))
+
+
+### Bug Fixes
+
+* fix pyproject.toml ([#163](https://github.com/ecmwf/anemoi-inference/issues/163)) ([104016b](https://github.com/ecmwf/anemoi-inference/commit/104016b93294fb0f767add1b218929734d740383))
+* Post processors ([#164](https://github.com/ecmwf/anemoi-inference/issues/164)) ([c5bd6a9](https://github.com/ecmwf/anemoi-inference/commit/c5bd6a9559c1306bfbbf7aee10a1e681211b1f73))
+* Remove `hdate` from variable keys ([#165](https://github.com/ecmwf/anemoi-inference/issues/165)) ([c024ddf](https://github.com/ecmwf/anemoi-inference/commit/c024ddf0dcc5b18acf6e9949b2444b559b00d423))
+* **retrieve:** Missing arguments ([8d7b174](https://github.com/ecmwf/anemoi-inference/commit/8d7b174bb45259ed2dda48b11a748323f6ca8afe))
+* **retrieve:** Set target from config before extras ([8b22ea7](https://github.com/ecmwf/anemoi-inference/commit/8b22ea73755c05a61d48aa2c7506565df4864f45))
+* Rework Truth Output ([#159](https://github.com/ecmwf/anemoi-inference/issues/159)) ([7601c2e](https://github.com/ecmwf/anemoi-inference/commit/7601c2e1d39a42cf5b9d8dee9b7a1a0345fe478a))
+* **run:** Add processors to `_run` wrapper ([e4261e7](https://github.com/ecmwf/anemoi-inference/commit/e4261e7346cd95d63036fdd827f094701187c990))
+* Update Profiler ([#160](https://github.com/ecmwf/anemoi-inference/issues/160)) ([6cfa021](https://github.com/ecmwf/anemoi-inference/commit/6cfa021ec8cdfc9b18a5bc51a7937759e4c73e28))
+
+
+### Documentation
+
+* Add validation info ([#151](https://github.com/ecmwf/anemoi-inference/issues/151)) ([f132803](https://github.com/ecmwf/anemoi-inference/commit/f132803fd368ee1148b6ba207570b796fe79e285))
+* use new logo ([#142](https://github.com/ecmwf/anemoi-inference/issues/142)) ([9a3a2fb](https://github.com/ecmwf/anemoi-inference/commit/9a3a2fba058422c075d86f9f71cc91a1a68617b6))
+
 ## [0.4.10](https://github.com/ecmwf/anemoi-inference/compare/0.4.9...0.4.10) (2025-02-25)
 
 

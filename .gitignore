@@ -119,7 +119,6 @@ tmp/
 temp/
 logs/
 _dev/
-/outputs/
 *tmp_data/
 
 # Project specific
@@ -135,3 +134,5 @@ _version.py
 *.to_upload
 tempCodeRunnerFile.python
 Untitled-*.py
+*.json
+*.txt

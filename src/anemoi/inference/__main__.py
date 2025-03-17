@@ -7,6 +7,8 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from typing import Any
+
 from anemoi.utils.cli import cli_main
 from anemoi.utils.cli import make_parser
 
@@ -15,11 +17,24 @@ from .commands import COMMANDS
 
 
 # For read-the-docs
-def create_parser():
+def create_parser() -> Any:
+    """Create a command-line argument parser.
+
+    Returns
+    -------
+    Any
+        The command-line argument parser.
+    """
     return make_parser(__doc__, COMMANDS)
 
 
-def main():
+def main() -> None:
+    """Execute the main command-line interface.
+
+    Returns
+    -------
+    None
+    """
     cli_main(__version__, __doc__, COMMANDS)
 
 
