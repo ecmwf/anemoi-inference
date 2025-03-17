@@ -101,10 +101,6 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        print("++++++++++++++++")
-        print(_(r))
-        print("++++++++++++++++")
-
         result += ekd.from_source("cds", d, r)
 
     return result
