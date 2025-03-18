@@ -362,6 +362,9 @@ class EkdInput(Input):
         State
             The created input state.
         """
+        # TODO: where we do this might change in the future
+        date = to_datetime(date)
+
         dates = [date + h for h in self.checkpoint.lagged]
         return self._create_state(
             input_fields,
