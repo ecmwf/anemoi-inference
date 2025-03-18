@@ -9,11 +9,16 @@
 
 
 import logging
+from typing import List
+from typing import Optional
 
 import numpy as np
 
-from ..input import Input
-from . import create_input
+from anemoi.inference.input import Input
+from anemoi.inference.inputs import create_input
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
+
 from . import input_registry
 
 LOG = logging.getLogger(__name__)
@@ -45,8 +50,19 @@ class Cutout(Input):
     def __repr__(self):
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date=None):
-        """Create the input state dictionary."""
+    def create_input_state(self, *, date: Optional[Date]) -> State:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Date]
+            The date for which to create the input state.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
 
         LOG.info(f"Concatenating states from {self.sources}")
         sources = list(self.sources.keys())
@@ -63,12 +79,35 @@ class Cutout(Input):
 
         return state
 
-    def load_forcings_state(self, *, variables, dates):
-        """Load forcings (constant and dynamic)."""
-        forcings = []
-        for source in self.sources:
-            forcings.append(
-                self.sources[source].load_forcings_state(variables=variables, dates=dates)[..., self.masks[source]]
-            )
-        forcings = np.concatenate(forcings, axis=-1)
-        return forcings
+    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variables to load.
+        dates : List[Date]
+            List of dates for which to load the forcings.
+        current_state : State
+            The current state of the input.
+
+        Returns
+        -------
+        State
+            The loaded forcings state.
+        """
+
+        sources = list(self.sources.keys())
+        fields = self.sources[sources[0]].load_forcings_state(
+            variables=variables, dates=dates, current_state=current_state
+        )["fields"]
+        for source in sources[1:]:
+            mask = self.masks[source]
+            _fields = self.sources[source].load_forcings_state(
+                variables=variables, dates=dates, current_state=current_state
+            )["fields"]
+            for field in fields:
+                fields[field] = np.concatenate([fields[field], _fields[field][..., mask]], axis=-1)
+
+        current_state["fields"] |= fields
+        return current_state
