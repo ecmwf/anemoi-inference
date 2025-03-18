@@ -23,6 +23,7 @@ This package provides a series of utility functions for used by the rest
 of the *Anemoi* packages.
 
 -  :doc:`overview`
+-  :doc:`getting-started/getting-started`
 -  :doc:`installing`
 -  :doc:`parallel`
 
@@ -31,6 +32,7 @@ of the *Anemoi* packages.
    :hidden:
 
    overview
+   getting-started/getting-started
    installing
    parallel
 
