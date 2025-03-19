@@ -11,6 +11,7 @@ import datetime
 from typing import Any
 from typing import Dict
 from typing import Tuple
+from typing import TypedDict
 from typing import Union
 
 from numpy.typing import NDArray
@@ -19,8 +20,16 @@ from numpy.typing import NDArray
 Some of these type could be moved to anemoi.utils.types or anemoi.transform.types.
 """
 
-State = Dict[str, Any]
-"""A dictionary that represents the state of a model."""
+
+class State(TypedDict):
+    """A dictionary that represents the state of a model."""
+
+    date: datetime.datetime
+    step: datetime.timedelta
+    latitudes: NDArray[Any]
+    longitudes: NDArray[Any]
+    fields: Dict[str, NDArray[Any]]
+
 
 DataRequest = Dict[str, Any]
 """A dictionary that represent a data request, like MARS, CDS, OpenData, ..."""
