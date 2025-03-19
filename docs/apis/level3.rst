@@ -5,7 +5,7 @@
 ##################
 
 You can run the inference from the command line using the
-:ref:`anemoi-inference run <run-cli>` command.
+:ref:`anemoi-inference run <run_command>` command.
 
 You must first create a configuration file in YAML format. The simplest
 configuration must contain the path to the checkpoint:

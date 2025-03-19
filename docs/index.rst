@@ -23,9 +23,8 @@ This package provides a series of utility functions for used by the rest
 of the *Anemoi* packages.
 
 -  :doc:`overview`
--  :doc:`cli`
+-  :doc:`cli/introduction`
 -  :doc:`installing`
--  :doc:`parallel`
 
 .. toctree::
    :maxdepth: 1
@@ -34,7 +33,6 @@ of the *Anemoi* packages.
    overview
    cli/introduction
    installing
-   parallel
 
 *****************
  Recipe Examples
@@ -47,6 +45,16 @@ of the *Anemoi* packages.
    :hidden:
 
    getting-started/getting-started
+
+
+
+************
+ User Guide
+************
+
+-  :doc:`inference/parallel`
+
+   inference/parallel
 
 *********************
  Tree levels of APIs
@@ -99,6 +107,29 @@ of the *Anemoi* packages.
    configs/inputs
    configs/outputs
    configs/forcings
+   configs/grib-input
+   configs/grib-output
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Modules
+
+   modules/runner
+   modules/checkpoint
+   modules/forcings
+   modules/inputs
+   modules/metadata
+   modules/outputs
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Developing Anemoi Graphs
+
+   dev/contributing
+   dev/code_structure
+   dev/testing
 
 *****************
  Anemoi packages
