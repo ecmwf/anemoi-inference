@@ -1,4 +1,4 @@
-.. _config_introduction:   
+.. _config_introduction:
 
 #########
  Configs

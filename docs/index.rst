@@ -74,7 +74,6 @@ models from existing recipes but with their own data.
 
 .. __: http://www.apache.org/licenses/LICENSE-2.0.html
 
-
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -132,5 +131,3 @@ models from existing recipes but with their own data.
    dev/contributing
    dev/code_structure
    dev/testing
-
-

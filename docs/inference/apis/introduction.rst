@@ -1,4 +1,4 @@
-.. _api_introduction:   
+.. _api_introduction:
 
 ######
  APIs
