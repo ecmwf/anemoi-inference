@@ -45,7 +45,7 @@ of the *Anemoi* packages.
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
+
    getting-started/getting-started
 
 *********************

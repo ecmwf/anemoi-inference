@@ -1,6 +1,6 @@
 .. _validate_command:
 
-Validate Command 
+Validate Command
 ================
 
 It is possible to investigate a checkpoint file and determine if the environment matches,
