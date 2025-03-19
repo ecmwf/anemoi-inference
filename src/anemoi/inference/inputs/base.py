@@ -1,11 +1,12 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2024 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-#
+
 import logging
 from abc import ABC
 from abc import abstractmethod
@@ -22,15 +23,11 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
-# TODO: only one method is need: `load_data`.
-# The other methods can be implemenneted concreetly
-# using the `load_data` method.
-
 
 class Input(ABC):
     """Abstract base class for input handling."""
 
-    trace_name = "????"  # Override in subclass
+    trace_name: str
 
     def __init__(self, context: "Context"):
         """Initialize the Input object.
@@ -54,7 +51,7 @@ class Input(ABC):
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_state(self, *, date: Optional[Date] = None) -> State:
         """Create the input state dictionary.
 
         Parameters
@@ -89,15 +86,10 @@ class Input(ABC):
         """
         pass
 
-    def input_variables(self) -> List[str]:
-        """Return the list of input variables.
-
-        Returns
-        -------
-        List[str]
-            The list of input variables.
-        """
-        return list(self.checkpoint.variable_to_input_tensor_index.keys())
+    @property
+    def checkpoint_variables(self) -> List[str]:
+        """Return the list of input variables."""
+        return list(self.checkpoint.variable_to_tensor_index.keys())
 
     def set_private_attributes(self, state: State, value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state
