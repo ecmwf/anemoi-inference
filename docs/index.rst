@@ -46,7 +46,6 @@ of the *Anemoi* packages.
 
    usage/getting-started
 
-
 ************
  User Guide
 ************
@@ -54,7 +53,6 @@ of the *Anemoi* packages.
 -  :doc:`inference/parallel`
 
    inference/parallel
-
 
 .. toctree::
    :maxdepth: 1
