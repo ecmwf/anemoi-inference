@@ -10,13 +10,12 @@
 
 import logging
 from typing import Any
-from typing import List
+from typing import Callable
 from typing import Optional
 
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -33,8 +32,14 @@ class GribFileInput(GribInput):
 
     trace_name = "grib file"
 
-    def __init__(self, context: Context, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
-        """Initialize the GribFileInput.
+    def __init__(
+        self,
+        context: Context,
+        path: str,
+        *,
+        namer: Optional[Callable[[Any, Any], str]] = None,
+    ) -> None:
+        """Initialize the GribInput.
 
         Parameters
         ----------
@@ -44,47 +49,65 @@ class GribFileInput(GribInput):
             The path to the GRIB file.
         namer : Optional[Any]
             Optional namer for the input.
-        **kwargs : Any
-            Additional keyword arguments.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, namer)
         self.path = path
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
-        """Create the input state for the given date.
+    # TODO: we might also implement the file-pattern source
+    def _earthkit_reader(self, path):
+        return ekd.from_source(path)
+
+
+@input_registry.register("icon_grib_file")
+class IconInput(GribFileInput):
+    """Handles grib files from ICON."""
+
+    # TODO: this code will become a plugin in the future.
+
+    trace_name = "icon file"
+
+    def __init__(
+        self,
+        context: Context,
+        path: str,
+        grid: str,
+        refinement_level_c: int,
+        namer: Optional[Any] = None,
+    ) -> None:
+        """Initialize the IconInput.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
-
-        Returns
-        -------
-        State
-            The created input state.
+        context : Any
+            The context in which the input is used.
+        path : str
+            The path to the ICON grib file.
+        grid : str
+            The grid type.
+        refinement_level_c : int
+            The refinement level.
+        namer : Optional[Any]
+            Optional namer for the input.
         """
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
+        super().__init__(context, path, namer=namer)
+        self.grid = grid
+        self.refinement_level_c = refinement_level_c
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        """Load the forcings state for the given variables and dates.
+    def fieldlist_to_state(self, fieldlist: ekd.FieldList) -> State:
+        """Convert a fieldlist to a state.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
-        dates : List[Date]
-            List of dates for which to load the forcings.
-        current_state : State
-            The current state of the input.
+        fieldlist : ekd.FieldList
+            The fieldlist to convert.
 
         Returns
         -------
-        State
-            The loaded forcings state.
+        xr.Dataset
+            The converted state.
         """
-        return self._load_forcings_state(
-            ekd.from_source("file", self.path),
-            variables=variables,
-            dates=dates,
-            current_state=current_state,
-        )
+        # from anemoi.transform.grids.icon import icon_grid
+
+        # latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
+
+        raise NotImplementedError

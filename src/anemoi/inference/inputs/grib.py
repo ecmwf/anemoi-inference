@@ -17,7 +17,7 @@ import earthkit.data as ekd
 from earthkit.data.indexing.fieldlist import FieldArray
 from earthkit.data.readers import Reader
 
-from ._ekd import EarthKitInput
+from .ekd import EarthKitInput
 
 LOG = logging.getLogger(__name__)
 
