@@ -39,7 +39,7 @@ checkpoint that was trained with one the ICON grid:
 .. literalinclude:: code/level3_3.yaml
    :language: yaml
 
-See :ref:`run-config` for more details on the configuration file.
+See :ref:`run_command` for more details on the configuration file.
 
 .. warning::
 

@@ -90,27 +90,6 @@ models from existing recipes but with their own data.
 
    usage/getting-started
 
-************
- User Guide
-************
-
--  :doc:`inference/parallel`
-
-   inference/parallel
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Configurations
-
-   inference/configs/introduction
-   inference/configs/top-level
-   inference/configs/inputs
-   inference/configs/outputs
-   inference/configs/forcings
-   inference/configs/icon-input
-   inference/configs/grib-input
-   inference/configs/grib-output
-
 .. toctree::
    :maxdepth: 1
    :hidden:
