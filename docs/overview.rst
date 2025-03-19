@@ -6,7 +6,7 @@
 
 .. _data-flow:
 
-.. figure:: schemas/overview.png
+.. figure:: _static/schemas/overview.png
    :alt: Overview
    :align: center
    :target: javascript:void(window.open('_images/overview.png'))

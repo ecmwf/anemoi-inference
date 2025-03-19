@@ -1,5 +1,7 @@
-requests
-==========
+.. _requests_command:
+
+Requests Command
+================
 
 .. argparse::
     :module: anemoi.inference.__main__
