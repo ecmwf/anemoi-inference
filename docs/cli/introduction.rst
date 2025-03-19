@@ -19,4 +19,3 @@ The commands are:
 - :ref:`Validate Command <validate_command>`
 - :ref:`Patch Command <patch_command>`
 - :ref:`Requests Command <requests_command>`
-

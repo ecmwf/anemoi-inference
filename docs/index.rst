@@ -46,8 +46,6 @@ of the *Anemoi* packages.
 
    getting-started/getting-started
 
-
-
 ************
  User Guide
 ************
