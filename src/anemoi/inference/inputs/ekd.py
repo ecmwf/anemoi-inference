@@ -7,81 +7,24 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
+import abc
+import datetime
 import logging
 import re
-from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Set
-from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
-from earthkit.data.indexing.fieldlist import FieldArray
-from earthkit.data.utils.dates import to_datetime
-from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
 
-from ..checks import check_data
-from ..input import Input
+from ..types import State
+from .base import Input
 
 LOG = logging.getLogger(__name__)
-
-
-class NoMask:
-    """No mask to apply."""
-
-    def apply(self, field: FloatArray) -> FloatArray:
-        """Apply the mask.
-
-        Parameters
-        ----------
-        field : FloatArray
-            The field to which the mask is applied.
-
-        Returns
-        -------
-        FloatArray
-            The field with the mask applied.
-        """
-        return field
-
-
-class ApplyMask:
-    """Apply a mask to a field."""
-
-    def __init__(self, mask: Any) -> None:
-        """Initialize the ApplyMask.
-
-        Parameters
-        ----------
-        mask : Any
-            The mask to apply.
-        """
-        self.mask = mask
-
-    def apply(self, field: FloatArray) -> FloatArray:
-        """Apply the mask.
-
-        Parameters
-        ----------
-        field : FloatArray
-            The field to which the mask is applied.
-
-        Returns
-        -------
-        Any
-            The field with the mask applied.
-        """
-        return field[self.mask]
 
 
 class RulesNamer:
@@ -148,24 +91,10 @@ class RulesNamer:
         return template.format(**matches)
 
 
-class EkdInput(Input):
+class EarthKitInput(Input):
     """Handles earthkit-data FieldList as input."""
 
-    def __init__(
-        self,
-        context: Context,
-        *,
-        namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
-    ) -> None:
-        """Initialize the EkdInput.
-
-        Parameters
-        ----------
-        context : Any
-            The context in which the input is used.
-        namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
-            Optional namer for the input.
-        """
+    def __init__(self, context: Context, namer: Optional[Callable[[Any, Any], str]] = None) -> None:
         super().__init__(context)
 
         if isinstance(namer, dict):
@@ -177,291 +106,92 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
-        """Filter and sort the data.
+    def create_state(self, *, date=None) -> State:
+        # NOTE: all logic involing the checkpoint should take place here
 
-        Parameters
-        ----------
-        data : Any
-            The data to filter and sort.
-        variables : List[str]
-            The list of variables to select.
-        dates : List[Any]
-            The list of dates to select.
-        title : str
-            The title for logging.
-
-        Returns
-        -------
-        Any
-            The filtered and sorted data.
-        """
-
-        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
-            return self._namer(field, original_metadata)
-
-        data = FieldArray([f.clone(name=_name) for f in data])
-
-        valid_datetime = [_.isoformat() for _ in dates]
-        LOG.info("Selecting fields %s %s", len(data), valid_datetime)
-
-        # for f in data:
-        #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
-
-        data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
-            name=variables, valid_datetime="ascending"
-        )
-
-        check_data(title, data, variables, dates)
-
-        return data
-
-    def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
-        """Find a variable in the data.
-
-        Parameters
-        ----------
-        data : Any
-            The data to search.
-        name : str
-            The name of the variable to find.
-        **kwargs : Any
-            Additional arguments for selecting the variable.
-
-        Returns
-        -------
-        Any
-            The selected variable.
-        """
-
-        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
-            return self._namer(field, original_metadata)
-
-        data = FieldArray([f.clone(name=_name) for f in data])
-        return data.sel(name=name, **kwargs)
-
-    def _create_state(
-        self,
-        fields: ekd.FieldList,
-        *,
-        variables: Optional[List[str]] = None,
-        dates: List[Date],
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
-        dtype: DTypeLike = np.float32,
-        flatten: bool = True,
-        title: str = "Create state",
-    ) -> State:
-        """Create a state from an ekd.FieldList.
-
-        Parameters
-        ----------
-        fields : ekd.FieldList
-            The ekd fields.
-        variables : Optional[List[str]]
-            List of variables.
-        dates : List[Date]
-            The dates for which to create the input state.
-        latitudes : Optional[FloatArray]
-            The latitudes.
-        longitudes : Optional[FloatArray]
-            The longitudes.
-        dtype : DTypeLike
-            The data type.
-        flatten : bool
-            Whether to flatten the data.
-        title : str
-            The title for logging.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
-        for processor in self.context.pre_processors:
-            LOG.info("Processing with %s", processor)
-            fields = processor.process(fields)
-
-        if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
-
-        if len(fields) == 0:
-            raise ValueError("No input fields provided")
-
-        # Newer checkpoints may have latitudes and longitudes
-        if latitudes is None:
-            latitudes = self.checkpoint.latitudes
-            if latitudes is not None:
-                LOG.info(
-                    "%s: using `latitudes` found in the checkpoint.",
-                    self.__class__.__name__,
-                )
-
-        if longitudes is None:
-            longitudes = self.checkpoint.longitudes
-            if longitudes is not None:
-                LOG.info(
-                    "%s: using `longitudes` found in the checkpoint.git.",
-                    self.__class__.__name__,
-                )
-
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-
-        state_fields = state["fields"]
-
-        fields = self._filter_and_sort(
-            fields,
-            variables=variables,
-            dates=dates,
-            title=title,
-        )
-        mask = self.checkpoint.grid_points_mask
-        mask = ApplyMask(mask) if mask is not None else NoMask()
-
-        check: Dict[str, Set[int]] = defaultdict(set)
-
-        for field in fields:
-
-            if state["latitudes"] is None:
-                state["latitudes"], state["longitudes"] = field.grid_points()
-                LOG.info(
-                    "%s: using `latitudes` and `longitudes` from the first input field",
-                    self.__class__.__name__,
-                )
-
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
-            if name not in state_fields:
-                state_fields[name] = np.full(
-                    shape=(len(dates), self.checkpoint.number_of_grid_points),
-                    fill_value=np.nan,
-                    dtype=dtype,
-                )
-
-            date_idx = date_to_index[valid_datetime]
-
-            try:
-                state_fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
-            except ValueError:
-                LOG.error(
-                    "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
-                )
-                LOG.error("dates %s", dates)
-                LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
-                raise
-
-            if date_idx in check[name]:
-                LOG.error("Duplicate dates for %s: %s", name, date_idx)
-                LOG.error("Expected %s", list(date_to_index.keys()))
-                LOG.error("Got %s", list(check[name]))
-                raise ValueError(f"Duplicate dates for {name}")
-
-            check[name].add(date_idx)
-
-        for name, idx in check.items():
-            if len(idx) != len(dates):
-                LOG.error("Missing dates for %s: %s", name, idx)
-                LOG.error("Expected %s", list(date_to_index.keys()))
-                LOG.error("Got %s", list(idx))
-                raise ValueError(f"Missing dates for {name}")
-
-        if self.context.trace:
-            for name in check.keys():
-                self.context.trace.from_input(name, self)
-
-        # This is our chance to communicate output object
-        # This is useful for GRIB that requires a template field
-        # to be used as output
-        self.set_private_attributes(state, fields)
-
-        return state
-
-    def _create_input_state(
-        self,
-        input_fields: ekd.FieldList,
-        *,
-        date: Date,
-        variables: Optional[List[str]] = None,
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
-        dtype: DTypeLike = np.float32,
-        flatten: bool = True,
-    ) -> State:
-        """Create the input state.
-
-        Parameters
-        ----------
-        input_fields : ekd.FieldList
-            The input fields.
-        date : Date
-            The date for which to create the input state.
-        variables : Optional[List[str]]
-            List of variables.
-        latitudes : Optional[FloatArray]
-            The latitudes.
-        longitudes : Optional[FloatArray]
-            The longitudes.
-        dtype : DTypeLike
-            The data type.
-        flatten : bool
-            Whether to flatten the data.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
+        # define request (using checkpoint)
+        variables = self.checkpoint_variables
+        date = np.datetime64(date).astype(datetime.datetime)
         dates = [date + h for h in self.checkpoint.lagged]
-        return self._create_state(
-            input_fields,
-            variables=variables,
-            dates=dates,
-            latitudes=latitudes,
-            longitudes=longitudes,
-            dtype=dtype,
-            flatten=flatten,
-            title="Create input state",
-        )
 
-    def _load_forcings_state(
-        self,
-        fields: ekd.FieldList,
-        *,
-        variables: List[str],
-        dates: List[Date],
-        current_state: State,
-    ) -> State:
-        """Load the forcings state.
+        # get raw state fieldlist
+        state = self._raw_state_fieldlist(dates=dates, variables=variables)
+
+        # pre-process state fieldlist
+        for processor in self.context.pre_processors:
+            LOG.info("Processing with %s", processor)
+            state = processor.process(state)
+
+        return self.fieldlist_to_state(state)
+
+    def load_forcings_state(self, *, variables, dates, current_state):
+        # NOTE: all logic involing the checkpoint should take place here
+
+        # define request (using checkpoint)
+        variables = self.checkpoint_variables
+
+        # get raw state
+        state = self._raw_state_fieldlist(dates=dates, variables=variables)
+
+        # pre-process state
+        for processor in self.context.pre_processors:
+            LOG.info("Processing with %s", processor)
+            state = processor.process(state)
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _raw_state_fieldlist(self, dates: list[datetime.datetime], variables: list[str]) -> ekd.FieldList:
+        """Load the raw state fieldlist for the given dates and variables.
 
         Parameters
         ----------
-        fields : ekd.FieldList
-            The fields to load.
-        variables : List[str]
-            The list of variables to load.
-        dates : List[Any]
-            The list of dates to load.
-        current_state : Dict[str, Any]
-            The current state.
+        dates : list[datetime.datetime]
+            List of dates for which to load the raw state.
+        variables : list[str]
+            List of variables to load.
 
         Returns
         -------
-        State
-            The loaded forcings state.
+        ekd.FieldList
+            The raw state fieldlist.
         """
-        for processor in self.context.pre_processors:
-            LOG.info("Processing with %s", processor)
-            fields = processor.process(fields)
+        pass
 
-        return self._create_state(
-            fields,
-            variables=variables,
-            dates=dates,
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
-            dtype=np.float32,
-            flatten=True,
-            title="Load forcings state",
-        )
+    def fieldlist_to_state(self, fieldlist: ekd.FieldList) -> State:
+        """Convert a fieldlist to a state.
+
+        Parameters
+        ----------
+        fieldlist : ekd.FieldList
+            The fieldlist to convert.
+
+        Returns
+        -------
+        xr.Dataset
+            The converted state.
+        """
+        raise NotImplementedError
+
+
+# def _rename_map(field: ekd.Field):
+#     md = field.metadata()
+#     name = md.get("param")
+#     if md.get("levtype") == "sfc":
+#         fieldname = name
+#     elif md.get("levtype") in ["pl", "ml"]:
+#         level = md.get("levelist")
+#         fieldname = f"{name}_{level}"
+#     return name, fieldname
+
+
+def _time_profile(field: ekd.Field):
+    res = {}
+    md = field.metadata()
+    if md.get("type") == "fc":
+        res["time_dim_mode"] = "forecast"
+        res["ensure_dims"] = ["forecast_reference_time", "step"]
+    elif md.get("type") == "an":
+        res["time_dim_mode"] = "valid_time"
+        res["ensure_dims"] = ["valid_time"]
+    return res
