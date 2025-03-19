@@ -1,6 +1,8 @@
-##############
- Introduction
-##############
+.. _config_introduction:   
+
+#########
+ Configs
+#########
 
 This document provides an overview of the configuration to provide to
 the :ref:`anemoi-inference run <run_command>` command line tool.
@@ -36,3 +38,15 @@ or if it expects a single argument, it can be simplified as:
 
 .. literalinclude:: yaml/introduction_4.yaml
    :language: yaml
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Configurations
+
+   top-level
+   inputs
+   outputs
+   forcings
+   icon-input
+   grib-input
+   grib-output

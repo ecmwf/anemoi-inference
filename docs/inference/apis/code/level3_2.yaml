@@ -1,0 +1,3 @@
+checkpoint: inference-aifs-0.2.1-anemoi.ckpt
+dataset: true
+date: 2021-09-01
