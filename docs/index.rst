@@ -23,7 +23,7 @@ This package provides a series of utility functions for used by the rest
 of the *Anemoi* packages.
 
 -  :doc:`overview`
--  :doc:`getting-started/getting-started`
+-  :doc:`cli`
 -  :doc:`installing`
 -  :doc:`parallel`
 
@@ -32,9 +32,21 @@ of the *Anemoi* packages.
    :hidden:
 
    overview
-   getting-started/getting-started
+   cli/introduction
    installing
    parallel
+
+*****************
+ Recipe Examples
+*****************
+
+-  :doc:`getting-started/getting-started`
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   getting-started/getting-started
 
 *********************
  Tree levels of APIs
@@ -60,6 +72,10 @@ of the *Anemoi* packages.
 -  :doc:`cli/introduction`
 -  :doc:`cli/run`
 -  :doc:`cli/metadata`
+-  :doc:`cli/validate`
+-  :doc:`cli/inspect`
+-  :doc:`cli/patch`
+-  :doc:`cli/requests`
 
 .. toctree::
    :maxdepth: 1
@@ -70,6 +86,9 @@ of the *Anemoi* packages.
    cli/run
    cli/metadata
    cli/validate
+   cli/inspect
+   cli/patch
+   cli/requests
 
 .. toctree::
    :maxdepth: 1

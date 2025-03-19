@@ -1,6 +1,6 @@
-.. _run-cli:
+.. _run_command:
 
-run
+Run Command
 ==========
 
 .. argparse::
