@@ -12,7 +12,7 @@ This is the default output. It prints the values minimum and maximum
 values of a few fields for each forecasting time step. It does not take
 any parameters.
 
-.. literalinclude:: outputs_1.yaml
+.. literalinclude:: yaml/outputs_1.yaml
    :language: yaml
 
 ``printer`` is the default output if no output is specified.
@@ -35,7 +35,7 @@ Example of output:
 
 The `grib` output writes the output to a GRIB file.
 
-.. literalinclude:: outputs_2.yaml
+.. literalinclude:: yaml/outputs_2.yaml
    :language: yaml
 
 The path to the output file is actually a template.
@@ -61,7 +61,7 @@ basic, and the code does not attempt rebuild 3D fields from 2D fields.
 The only coordinates are `latitude`, `longitude` and `time`. Each state
 variable is written in its own NetCDF variable.
 
-.. literalinclude:: outputs_3.yaml
+.. literalinclude:: yaml/outputs_3.yaml
    :language: yaml
 
 ******
@@ -73,7 +73,7 @@ are produced in a directory, and the file are name according to a
 template. Dates are formatted using the `strftime` function before being
 used by the template. You can select which variables to plot.
 
-.. literalinclude:: outputs_4.yaml
+.. literalinclude:: yaml/outputs_4.yaml
    :language: yaml
 
 .. warning::
@@ -89,7 +89,7 @@ used by the template. You can select which variables to plot.
 The raw output writes the state variables collection of ``npz`` files in
 the given directory.
 
-.. literalinclude:: outputs_5.yaml
+.. literalinclude:: yaml/outputs_5.yaml
    :language: yaml
 
 .. note::
@@ -103,7 +103,7 @@ the given directory.
 
 The ``tee`` output writes the state to several outputs at once.
 
-.. literalinclude:: outputs_6.yaml
+.. literalinclude:: yaml/outputs_6.yaml
    :language: yaml
 
 ************
@@ -115,7 +115,7 @@ is found in the checkpoint file. This is experimental and is intended to
 be used to undo some merging of fields that was done in the input. The
 result is passed to the next output.
 
-.. literalinclude:: outputs_7.yaml
+.. literalinclude:: yaml/outputs_7.yaml
 
 *************
  extract_lam
@@ -126,7 +126,7 @@ from the output fields. The LAM domain is found in the checkpoint file,
 and is based on `anemoi-datasets's` :ref:`cutout feature
 <anemoi-datasets:combining-datasets>`.
 
-.. literalinclude:: outputs_8.yaml
+.. literalinclude:: yaml/outputs_8.yaml
 
 *******
  truth
@@ -140,4 +140,4 @@ It is best used with the ``tee`` output, as it will write out the
 ``truth`` data to a separate file. It is capable of using any of the
 outputs that are available to the ``output`` class.
 
-.. literalinclude:: outputs_9.yaml
+.. literalinclude:: yaml/outputs_9.yaml

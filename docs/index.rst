@@ -38,13 +38,14 @@ of the *Anemoi* packages.
  Recipe Examples
 *****************
 
--  :doc:`getting-started/getting-started`
+-  :doc:`usage/getting-started`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   getting-started/getting-started
+   usage/getting-started
+
 
 ************
  User Guide
@@ -54,13 +55,19 @@ of the *Anemoi* packages.
 
    inference/parallel
 
-*********************
- Tree levels of APIs
-*********************
 
--  :doc:`apis/level1`
--  :doc:`apis/level2`
--  :doc:`apis/level3`
+.. toctree::
+   :maxdepth: 1
+   :caption: Configurations
+
+   inference/configs/introduction
+   inference/configs/top-level
+   inference/configs/inputs
+   inference/configs/outputs
+   inference/configs/forcings
+   inference/configs/icon-input
+   inference/configs/grib-input
+   inference/configs/grib-output
 
 .. toctree::
    :maxdepth: 1
@@ -95,18 +102,6 @@ of the *Anemoi* packages.
    cli/inspect
    cli/patch
    cli/requests
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Configurations
-
-   configs/introduction
-   configs/top-level
-   configs/inputs
-   configs/outputs
-   configs/forcings
-   configs/grib-input
-   configs/grib-output
 
 .. toctree::
    :maxdepth: 1
