@@ -21,11 +21,13 @@ from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
 
 from anemoi.inference.context import Context
-from anemoi.inference.inputs.dataset import DatasetInput
+from anemoi.inference.input import Input
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
+
+from .inputs.dataset import DatasetInput
 
 LOG = logging.getLogger(__name__)
 
@@ -46,15 +48,15 @@ class Forcings(ABC):
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
-    def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
+    def load_forcings_array(self, date: Date, *, initial: bool) -> FloatArray:
         """Load the forcings for the given dates.
 
         Parameters
         ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
+        date : Date
+            The date for which to load the forcings.
+        initial : bool
+            Whether the forcings are for the initial conditions.
 
         Returns
         -------
@@ -132,29 +134,14 @@ class ComputedForcings(Forcings):
         """Return a string representation of the ComputedForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
-        """Load the computed forcings for the given dates.
+    def load_forcings_array(self, date: Date, *, initial: bool) -> FloatArray:
 
-        Parameters
-        ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
-
-        Returns
-        -------
-        FloatArray
-            The loaded forcings as a numpy array.
-        """
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
-        if not isinstance(dates, (list, tuple)):
-            dates = [dates]
-
+        dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
         source = UnstructuredGridFieldList.from_values(
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
+            latitudes=self.checkpoint.latitudes,
+            longitudes=self.checkpoint.longitudes,
         )
 
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
@@ -181,7 +168,7 @@ class CoupledForcings(Forcings):
         """Return the trace name of the input."""
         return self.input.trace_name
 
-    def __init__(self, context: Context, input: Any, variables: List[str], mask: IntArray):
+    def __init__(self, context: Context, input: Input, variables: List[str], mask: IntArray):
         """Initialize the CoupledForcings object.
 
         Parameters
@@ -205,29 +192,16 @@ class CoupledForcings(Forcings):
         """Return a string representation of the CoupledForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
-        """Load the forcings for the given dates.
+    def load_forcings_array(self, date: Date, initial=True) -> FloatArray:
 
-        Parameters
-        ----------
-        dates : List[Any]
-            The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
-
-        Returns
-        -------
-        FloatArray
-            The loaded forcings as a numpy array.
-        """
         return self._state_to_numpy(
             self.input.load_forcings_state(
+                date=date,
                 variables=self.variables,
-                dates=dates,
-                current_state=current_state,
+                initial=initial,
             ),
             self.variables,
-            dates,
+            [date],
         )
 
 
@@ -263,29 +237,16 @@ class BoundaryForcings(Forcings):
         """Return a string representation of the BoundaryForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, dates: List[Date], current_state: State) -> FloatArray:
-        """Load the boundary forcings for the given dates.
+    def load_forcings_array(self, date: Date, initial: bool) -> FloatArray:
 
-        Parameters
-        ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
-
-        Returns
-        -------
-        FloatArray
-            The loaded forcings as a numpy array.
-        """
         data = self._state_to_numpy(
-            self.input.load_forcings_state(variables=self.variables, dates=dates, current_state=current_state),
+            self.input.load_forcings_state(date=date, variables=self.variables, initial=initial),
             self.variables,
-            dates,
+            [date],
         )
         data = data[..., self.spatial_mask]
 
-        expected_shape = (len(self.variables), len(dates), current_state["latitudes"][self.spatial_mask].size)
+        expected_shape = (len(self.variables), 1, self.checkpoint.latitudes[self.spatial_mask].size)
         assert data.shape == expected_shape, (data.shape, expected_shape)
 
         return data
