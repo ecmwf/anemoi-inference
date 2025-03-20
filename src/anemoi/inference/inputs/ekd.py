@@ -16,7 +16,6 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Set
 from typing import Union
 
 import earthkit.data as ekd
@@ -34,54 +33,6 @@ from ..checks import check_data
 from ..input import Input
 
 LOG = logging.getLogger(__name__)
-
-
-class NoMask:
-    """No mask to apply."""
-
-    def apply(self, field: FloatArray) -> FloatArray:
-        """Apply the mask.
-
-        Parameters
-        ----------
-        field : FloatArray
-            The field to which the mask is applied.
-
-        Returns
-        -------
-        FloatArray
-            The field with the mask applied.
-        """
-        return field
-
-
-class ApplyMask:
-    """Apply a mask to a field."""
-
-    def __init__(self, mask: Any) -> None:
-        """Initialize the ApplyMask.
-
-        Parameters
-        ----------
-        mask : Any
-            The mask to apply.
-        """
-        self.mask = mask
-
-    def apply(self, field: FloatArray) -> FloatArray:
-        """Apply the mask.
-
-        Parameters
-        ----------
-        field : FloatArray
-            The field to which the mask is applied.
-
-        Returns
-        -------
-        Any
-            The field with the mask applied.
-        """
-        return field[self.mask]
 
 
 class RulesNamer:
@@ -288,23 +239,6 @@ class EkdInput(Input):
         if len(fields) == 0:
             raise ValueError("No input fields provided")
 
-        # Newer checkpoints may have latitudes and longitudes
-        if latitudes is None:
-            latitudes = self.checkpoint.latitudes
-            if latitudes is not None:
-                LOG.info(
-                    "%s: using `latitudes` found in the checkpoint.",
-                    self.__class__.__name__,
-                )
-
-        if longitudes is None:
-            longitudes = self.checkpoint.longitudes
-            if longitudes is not None:
-                LOG.info(
-                    "%s: using `longitudes` found in the checkpoint.git.",
-                    self.__class__.__name__,
-                )
-
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
@@ -312,30 +246,45 @@ class EkdInput(Input):
 
         state_fields = state["fields"]
 
-        fields = self._filter_and_sort(
-            fields,
-            variables=variables,
-            dates=dates,
-            title=title,
-        )
-        mask = self.checkpoint.grid_points_mask
-        mask = ApplyMask(mask) if mask is not None else NoMask()
+        fields = self._filter_and_sort(fields, variables=variables, dates=dates, title="Create input state")
 
-        check: Dict[str, Set[int]] = defaultdict(set)
-
-        for field in fields:
-
-            if state["latitudes"] is None:
-                state["latitudes"], state["longitudes"] = field.grid_points()
+        if latitudes is None and longitudes is None:
+            try:
+                state["latitudes"], state["longitudes"] = fields[0].grid_points()
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
                 )
+            except Exception as e:
+                LOG.info(
+                    "%s: could not get `latitudes` and `longitudes` from the input fields.",
+                    self.__class__.__name__,
+                )
+                latitudes = self.checkpoint.latitudes
+                longitudes = self.checkpoint.longitudes
+                if latitudes is not None and longitudes is not None:
+                    state["latitudes"] = latitudes
+                    state["longitudes"] = longitudes
+                    LOG.info(
+                        "%s: using `latitudes` and `longitudes` found in the checkpoint.",
+                        self.__class__.__name__,
+                    )
+                else:
+                    LOG.error(
+                        "%s: could not find `latitudes` and `longitudes` in the input fields or the checkpoint.",
+                        self.__class__.__name__,
+                    )
+                    raise e
+
+        check = defaultdict(set)
+
+        n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
+        for field in fields:
 
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in state_fields:
                 state_fields[name] = np.full(
-                    shape=(len(dates), self.checkpoint.number_of_grid_points),
+                    shape=(len(dates), n_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -343,7 +292,7 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                state_fields[name][date_idx] = mask.apply(field.to_numpy(dtype=dtype, flatten=flatten))
+                state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
             except ValueError:
                 LOG.error(
                     "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
@@ -413,6 +362,9 @@ class EkdInput(Input):
         State
             The created input state.
         """
+        # TODO: where we do this might change in the future
+        date = to_datetime(date)
+
         dates = [date + h for h in self.checkpoint.lagged]
         return self._create_state(
             input_fields,
