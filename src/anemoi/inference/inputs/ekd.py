@@ -162,5 +162,5 @@ class EarthKitInput(Input):
             state["fields"][name] = fields.values
         date = fieldlist.metadata("valid_datetime")[-1]
         state["date"] = np.datetime64(date).astype(datetime.datetime)
-        state["latitidues"], state["longitudes"] = fields[-1].grid_points()
+        state["latitudes"], state["longitudes"] = fields[-1].grid_points()
         return state

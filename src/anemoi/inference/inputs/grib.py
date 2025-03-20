@@ -32,7 +32,7 @@ class GribInput(EarthKitInput):
         def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
-        data = ekd.from_source(self.path)
+        data = self._earthkit_reader(dates, variables)
         data = FieldArray([f.clone(name=_name) for f in data])
 
         valid_datetime = [_.isoformat() for _ in dates]
@@ -46,6 +46,6 @@ class GribInput(EarthKitInput):
         return data
 
     @abc.abstractmethod
-    def _earthkit_reader(self, *args, **kwargs) -> Reader:
+    def _earthkit_reader(self, dates: datetime.datetime, variables: list[str]) -> Reader:
         """Return the earthkit reader for the input."""
         pass

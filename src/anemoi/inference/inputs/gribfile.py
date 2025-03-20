@@ -55,8 +55,8 @@ class GribFileInput(GribInput):
         self.path = path
 
     # TODO: we might also implement the file-pattern source
-    def _earthkit_reader(self, path):
-        return ekd.from_source(path)
+    def _earthkit_reader(self, *args, **kwargs) -> ekd.FieldList:
+        return ekd.from_source("file", self.path)
 
 
 @input_registry.register("icon_grib_file")
