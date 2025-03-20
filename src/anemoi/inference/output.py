@@ -69,7 +69,7 @@ class Output(ABC):
         """
         state.setdefault("step", datetime.timedelta(0))
         if self.write_step_zero:
-            self.write_state(state)
+            self.write_step(state)
 
     def write_state(self, state: State) -> None:
         """Write the state.

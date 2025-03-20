@@ -131,3 +131,38 @@ for ERA5 data, `product_type: 'reanalysis'` is needed.
 
 .. literalinclude:: inputs_10.yaml
    :language: yaml
+
+********
+ cutout
+********
+
+``cutout`` is a special type of input that combines one or more Limited
+Area Model (LAM) sources into a global source using a nested cutout
+approach. This is also known as the "stretched-grid" method, see Nipen
+et al. (2024). The ``cutout`` input contains multiple sources, each with
+its own input type (e.g. 'grib', 'mars', etc.), and the order of the
+sources determines the nesting order. The first source is the innermost
+domain, and the last source is the outermost, global domain,
+consistently with what is done in ``anemoi-datasets``, see `here
+<https://anemoi.readthedocs.io/projects/datasets/en/latest/using/combining.html#cutout>`_.
+
+An important prerequisite is that your checkpoint must contain the
+cutout masks as supporting arrays. You can check this by running the
+``anemoi-inference metadata --supporting-arrays <your_checkpoint>``
+command. You should be able to see some cutout masks in the output:
+
+.. code:: output
+
+   lam_0/cutout_mask: shape=(226980,) dtype=bool
+   global/cutout_mask: shape=(542080,) dtype=bool
+
+If these are not present, you can try to add them to your checkpoint by
+running ``anemoi-inference patch <your_checkpoint>``.
+
+An example configuration for the ``cutout`` input is shown below:
+
+.. literalinclude:: inputs_11.yaml
+   :language: yaml
+
+The different sources are specified exactly as you would for a single
+source, as shown in the previous sections.
