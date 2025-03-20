@@ -413,7 +413,14 @@ class EkdInput(Input):
         State
             The created input state.
         """
+        if date is None:
+            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+            LOG.info(
+                "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
+            )
+
         dates = [date + h for h in self.checkpoint.lagged]
+
         return self._create_state(
             input_fields,
             variables=variables,
