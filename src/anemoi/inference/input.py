@@ -51,13 +51,18 @@ class Input(ABC):
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def create_state(self, *, date: Optional[Date] = None) -> State:
+    def create_state(self, *, date: Optional[Date], variables: Optional[List[str]], initial: bool) -> State:
         """Create the input state dictionary.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        variables : Optional[List[str]]
+            The list of variables to include in the input state.
+        initial : bool
+            Whether the state is the initial state, in which case date expands to a list of dates
+            according to the model's input time window lag.
 
         Returns
         -------
@@ -66,30 +71,30 @@ class Input(ABC):
         """
         pass
 
-    @abstractmethod
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: Date, variables: List[str], initial: bool) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables to load.
         dates : List[Date]
             The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
+        variables : List[str]
+            The list of variables to load.
+        initial : bool
+            Whether the state is the initial state, in which case date expands to a list of dates
+            according to the model's input time window lag.
 
         Returns
         -------
         State
             The updated state with the loaded forcings.
         """
-        pass
+        return self.create_state(date=dates, variables=variables, initial=initial)
 
     @property
     def checkpoint_variables(self) -> List[str]:
         """Return the list of input variables."""
-        return list(self.checkpoint.variable_to_tensor_index.keys())
+        return list(self.checkpoint.variable_to_input_tensor_index.keys())
 
     def set_private_attributes(self, state: State, value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state
