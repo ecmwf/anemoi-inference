@@ -382,7 +382,7 @@ class EkdInput(Input):
         self,
         input_fields: ekd.FieldList,
         *,
-        date: Date,
+        date: Optional[Date] = None,
         variables: Optional[List[str]] = None,
         latitudes: Optional[FloatArray] = None,
         longitudes: Optional[FloatArray] = None,
