@@ -7,13 +7,14 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
+import datetime
 import logging
 from typing import Any
 from typing import Callable
 from typing import Optional
 
 import earthkit.data as ekd
+import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
@@ -94,20 +95,30 @@ class IconInput(GribFileInput):
         self.refinement_level_c = refinement_level_c
 
     def fieldlist_to_state(self, fieldlist: ekd.FieldList) -> State:
-        """Convert a fieldlist to a state.
+        """Convert a fieldlist to a state dictionary.
 
         Parameters
         ----------
-        fieldlist : ekd.FieldList
+        fieldlist : earthkit.data.FieldList
             The fieldlist to convert.
 
         Returns
         -------
-        xr.Dataset
+        State
             The converted state.
         """
-        # from anemoi.transform.grids.icon import icon_grid
+        from anemoi.transform.grids.icon import icon_grid
 
-        # latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
+        state = {"fields": {}}
+        for field in fieldlist.group_by("name"):
+            name = field.metadata("name")
+            state["fields"][name] = field.values
 
-        raise NotImplementedError
+        date = fieldlist.metadata("valid_datetime")[-1]
+        state["date"] = np.datetime64(date).astype(datetime.datetime)
+
+        latitudes, longitudes = icon_grid(self.grid, self.refinement_level_c)
+        state["latitudes"] = latitudes
+        state["longitudes"] = longitudes
+
+        return state

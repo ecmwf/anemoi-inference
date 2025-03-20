@@ -20,9 +20,9 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.input import Input
 
 from ..types import State
-from .base import Input
 
 LOG = logging.getLogger(__name__)
 
@@ -106,13 +106,13 @@ class EarthKitInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def create_state(self, *, date=None) -> State:
+    def create_state(self, *, date=None, variables=None, initial: bool = True) -> State:
         # NOTE: all logic involing the checkpoint should take place here
 
         # define request (using checkpoint)
-        variables = self.checkpoint_variables
+        variables = self.checkpoint_variables if variables is None else variables
         date = np.datetime64(date).astype(datetime.datetime)
-        dates = [date + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
 
         # get raw state fieldlist
         state = self._raw_state_fieldlist(dates=dates, variables=variables)
@@ -123,22 +123,6 @@ class EarthKitInput(Input):
             state = processor.process(state)
 
         return self.fieldlist_to_state(state)
-
-    def load_forcings_state(self, *, variables, dates, current_state):
-        # NOTE: all logic involing the checkpoint should take place here
-
-        # define request (using checkpoint)
-        variables = self.checkpoint_variables
-
-        # get raw state
-        state = self._raw_state_fieldlist(dates=dates, variables=variables)
-
-        # pre-process state
-        for processor in self.context.pre_processors:
-            LOG.info("Processing with %s", processor)
-            state = processor.process(state)
-
-        raise NotImplementedError
 
     @abc.abstractmethod
     def _raw_state_fieldlist(self, dates: list[datetime.datetime], variables: list[str]) -> ekd.FieldList:
@@ -159,39 +143,24 @@ class EarthKitInput(Input):
         pass
 
     def fieldlist_to_state(self, fieldlist: ekd.FieldList) -> State:
-        """Convert a fieldlist to a state.
+        """Convert a fieldlist to a state dictionary.
 
         Parameters
         ----------
-        fieldlist : ekd.FieldList
+        fieldlist : earthkit.data.FieldList
             The fieldlist to convert.
 
         Returns
         -------
-        xr.Dataset
+        State
             The converted state.
         """
-        raise NotImplementedError
 
-
-# def _rename_map(field: ekd.Field):
-#     md = field.metadata()
-#     name = md.get("param")
-#     if md.get("levtype") == "sfc":
-#         fieldname = name
-#     elif md.get("levtype") in ["pl", "ml"]:
-#         level = md.get("levelist")
-#         fieldname = f"{name}_{level}"
-#     return name, fieldname
-
-
-def _time_profile(field: ekd.Field):
-    res = {}
-    md = field.metadata()
-    if md.get("type") == "fc":
-        res["time_dim_mode"] = "forecast"
-        res["ensure_dims"] = ["forecast_reference_time", "step"]
-    elif md.get("type") == "an":
-        res["time_dim_mode"] = "valid_time"
-        res["ensure_dims"] = ["valid_time"]
-    return res
+        state = {"fields": {}}
+        for fields in fieldlist.group_by("name"):
+            name = fields[-1].metadata("name")
+            state["fields"][name] = fields.values
+        date = fieldlist.metadata("valid_datetime")[-1]
+        state["date"] = np.datetime64(date).astype(datetime.datetime)
+        state["latitidues"], state["longitudes"] = fields[-1].grid_points()
+        return state

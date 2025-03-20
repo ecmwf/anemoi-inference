@@ -20,7 +20,6 @@ from typing import Optional
 
 import earthkit.data as ekd
 import numpy as np
-from earthkit.data.readers import Reader
 
 from anemoi.inference.context import Context
 from anemoi.inference.testing import float_hash
@@ -53,7 +52,7 @@ class DummyInput(EarthKitInput):
         """
         super().__init__(context, namer=namer, **kwargs)
 
-    def _earthkit_reader(self, dates: List[Date], variables: Optional[List[str]] = None) -> Reader:
+    def _raw_state_fieldlist(self, dates: List[Date], variables: Optional[List[str]] = None) -> ekd.FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters
