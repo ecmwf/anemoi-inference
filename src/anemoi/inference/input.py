@@ -71,13 +71,13 @@ class Input(ABC):
         """
         pass
 
-    def load_forcings_state(self, *, dates: Date, variables: List[str], initial: bool) -> State:
+    def load_forcings_state(self, *, date: Date, variables: List[str], initial: bool) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
         ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings.
+        date : Date
+            The date for which to load the forcings.
         variables : List[str]
             The list of variables to load.
         initial : bool
@@ -89,7 +89,7 @@ class Input(ABC):
         State
             The updated state with the loaded forcings.
         """
-        return self.create_state(date=dates, variables=variables, initial=initial)
+        return self.create_state(date=date, variables=variables, initial=initial)
 
     @property
     def checkpoint_variables(self) -> List[str]:
