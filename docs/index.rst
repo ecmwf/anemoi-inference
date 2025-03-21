@@ -39,18 +39,31 @@ models from existing recipes but with their own data.
  Quick overview
 ****************
 
-The anemoi-inference package provides a framework for running inference with data-driven weather forecasting models within the Anemoi ecosystem. It is designed to efficiently handle model execution and streamline input data processing.
+The anemoi-inference package provides a framework for running inference
+with data-driven weather forecasting models within the Anemoi ecosystem.
+It is designed to efficiently handle model execution and streamline
+input data processing.
 
-anemoi-inference offers a high-level interface that integrates seamlessly with trained machine learning models. The package allows you to:
+anemoi-inference offers a high-level interface that integrates
+seamlessly with trained machine learning models. The package allows you
+to:
 
-- Load and preprocess input data from anemoi-datasets, ensuring compatibility with the trained model.
-- Run inference using machine learning-based weather forecasting models.
-- Save and manage forecast outputs in a variety of formats.
-- Run inference tasks either using programmatic or via a command-line APIs.
+-  Load and preprocess input data from anemoi-datasets, ensuring
+   compatibility with the trained model.
+-  Run inference using machine learning-based weather forecasting
+   models.
+-  Save and manage forecast outputs in a variety of formats.
+-  Run inference tasks either using programmatic or via a command-line
+   APIs.
 
-
-Inference configurations are specified using a YAML file, which defines model parameters, input datasets, and output formats. The command-line tool allows users to run inference tasks, inspect results, and manage forecast outputs.
-In the rest of this documentation, you will learn how to configure and execute inference workflows using anemoi-inference. A complete example of running a forecast with a trained model can be found in the :ref:` Generating your first forecast <usage-getting-started>` section.
+Inference configurations are specified using a YAML file, which defines
+model parameters, input datasets, and output formats. The command-line
+tool allows users to run inference tasks, inspect results, and manage
+forecast outputs. In the rest of this documentation, you will learn how
+to configure and execute inference workflows using anemoi-inference. A
+complete example of running a forecast with a trained model can be found
+in the :ref:` Generating your first forecast <usage-getting-started>`
+section.
 
 ************
  Installing
