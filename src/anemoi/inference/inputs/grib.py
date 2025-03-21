@@ -9,6 +9,9 @@
 
 
 import logging
+from typing import Any
+
+import earthkit.data as ekd
 
 from .ekd import EkdInput
 
@@ -18,7 +21,16 @@ LOG = logging.getLogger(__name__)
 class GribInput(EkdInput):
     """Handles GRIB input fields."""
 
-    def set_private_attributes(self, state, input_fields):
+    def set_private_attributes(self, state: Any, input_fields: ekd.FieldList) -> None:
+        """Set private attributes for the state.
+
+        Parameters
+        ----------
+        state : Any
+            The state to set private attributes for.
+        input_fields : ekd.FieldList
+            The input fields.
+        """
         # For now we just pass all the fields
         # Later, we can select a relevant subset (e.g. only one
         # level), to save memory

@@ -12,6 +12,7 @@ import logging
 import socket
 import time
 from contextlib import contextmanager
+from typing import Generator
 
 import torch
 
@@ -19,7 +20,7 @@ LOG = logging.getLogger(__name__)
 
 
 @contextmanager
-def ProfilingLabel(label: str, use_profiler: bool) -> None:
+def ProfilingLabel(label: str, use_profiler: bool) -> Generator[None, None, None]:
     """Add label to function so that the profiler can recognize it, only if the use_profiler option is True.
 
     Parameters
@@ -29,6 +30,10 @@ def ProfilingLabel(label: str, use_profiler: bool) -> None:
     use_profiler : bool
         Wrap the function with the label if True, otherwise just execute the function as it is.
 
+    Returns
+    -------
+    Generator[None, None, None]
+        Yields to the caller.
     """
     if use_profiler:
         with torch.autograd.profiler.record_function(label):
@@ -40,14 +45,18 @@ def ProfilingLabel(label: str, use_profiler: bool) -> None:
 
 
 @contextmanager
-def ProfilingRunner(use_profiler: bool) -> None:
+def ProfilingRunner(use_profiler: bool) -> Generator[None, None, None]:
     """Perform time and memory usage profiles of the wrapped code.
 
     Parameters
     ----------
     use_profiler : bool
-        Weither to profile the wrapped code (True) or not (False).
+        Whether to profile the wrapped code (True) or not (False).
 
+    Returns
+    -------
+    Generator[None, None, None]
+        Yields to the caller.
     """
     dirname = f"profiling-output/{socket.gethostname()}-{int(time.time())}"
     if use_profiler:

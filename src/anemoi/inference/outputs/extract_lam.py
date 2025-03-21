@@ -8,8 +8,13 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import Optional
 
 import numpy as np
+
+from anemoi.inference.config import Configuration
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
 
 from ..output import ForwardOutput
 from . import create_output
@@ -20,9 +25,31 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("extract_lam")
 class ExtractLamOutput(ForwardOutput):
-    """_summary_"""
+    """Extract LAM output class.
 
-    def __init__(self, context, *, output, lam="lam_0", output_frequency=None, write_initial_state=None):
+    Parameters
+    ----------
+    context : dict
+        The context dictionary.
+    output : dict
+        The output configuration dictionary.
+    lam : str, optional
+        The LAM identifier, by default "lam_0".
+    output_frequency : int, optional
+        The frequency of output, by default None.
+    write_initial_state : bool, optional
+        Whether to write the initial state, by default None.
+    """
+
+    def __init__(
+        self,
+        context: Context,
+        *,
+        output: Configuration,
+        lam: str = "lam_0",
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
+    ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         if "cutout_mask" in self.checkpoint.supporting_arrays:
@@ -43,19 +70,45 @@ class ExtractLamOutput(ForwardOutput):
         self.points = points
         self.output = create_output(context, output)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a string representation of the ExtractLamOutput object."""
         return f"ExtractLamOutput({self.points}, {self.output})"
 
-    def write_initial_step(self, state):
+    def write_initial_state(self, state: State) -> None:
+        """Write the initial step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_initial_state(self._apply_mask(state))
 
-    def write_step(self, state):
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
         # Note: we foreward to 'state', so we write-up options again
         self.output.write_state(self._apply_mask(state))
 
-    def _apply_mask(self, state):
+    def _apply_mask(self, state: State) -> State:
+        """Apply the mask to the state.
 
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+
+        Returns
+        -------
+        State
+            The masked state dictionary.
+        """
         state = state.copy()
         state["fields"] = state["fields"].copy()
         state["latitudes"] = state["latitudes"][self.points]
@@ -71,9 +124,17 @@ class ExtractLamOutput(ForwardOutput):
 
         return state
 
-    def close(self):
+    def close(self) -> None:
+        """Close the output."""
         self.output.close()
 
-    def print_summary(self, depth=0):
+    def print_summary(self, depth: int = 0) -> None:
+        """Print the summary of the output.
+
+        Parameters
+        ----------
+        depth : int, optional
+            The depth of the summary, by default 0.
+        """
         super().print_summary(depth)
         self.output.print_summary(depth + 1)

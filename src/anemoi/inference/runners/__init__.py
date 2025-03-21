@@ -6,10 +6,28 @@
 # nor does it submit to any jurisdiction.
 
 
+from typing import Any
+
 from anemoi.utils.registry import Registry
+
+from anemoi.inference.config import Configuration
 
 runner_registry = Registry(__name__)
 
 
-def create_runner(config, **kwargs):
+def create_runner(config: Configuration, **kwargs: Any) -> Any:
+    """Create a runner instance based on the given configuration.
+
+    Parameters
+    ----------
+    config : Configuration
+        The configuration for the runner.
+    kwargs : dict
+        Additional arguments for the runner.
+
+    Returns
+    -------
+    Any
+        The created runner instance.
+    """
     return runner_registry.create(config.runner, config, **kwargs)
