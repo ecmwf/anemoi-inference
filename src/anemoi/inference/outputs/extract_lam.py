@@ -74,7 +74,7 @@ class ExtractLamOutput(ForwardOutput):
         """Return a string representation of the ExtractLamOutput object."""
         return f"ExtractLamOutput({self.points}, {self.output})"
 
-    def write_initial_step(self, state: State) -> None:
+    def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters

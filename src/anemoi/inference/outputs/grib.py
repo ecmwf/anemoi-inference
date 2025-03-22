@@ -156,7 +156,6 @@ class GribOutput(Output):
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
-        self.quiet = set()
         self.encoding = encoding if encoding is not None else {}
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
@@ -186,7 +185,7 @@ class GribOutput(Output):
 
         self.template_manager = TemplateManager(self, templates)
 
-    def write_initial_step(self, state: State) -> None:
+    def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters
@@ -247,20 +246,6 @@ class GribOutput(Output):
 
             template = self.template(state, name)
 
-            if template is None:
-                if name not in self.quiet:
-                    LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
-                    self.quiet.add(name)
-
-                variable_keys = variable.grib_keys.copy()
-
-                forbidden_keys = ("class", "type", "stream", "expver", "date", "time", "step", "domain")
-
-                for key in forbidden_keys:
-                    variable_keys.pop(key, None)
-
-                keys.update(variable_keys)
-
             keys.update(self.encoding)
 
             keys = grib_keys(
@@ -275,7 +260,6 @@ class GribOutput(Output):
                 keys=keys,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
-                quiet=self.quiet,
                 previous_step=previous_step,
                 start_steps=start_steps,
             )

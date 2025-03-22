@@ -103,6 +103,6 @@ def files_for_tests(name: str) -> str:
 
 
 class TestingContext:
-    """A context for testing."""
+    """A context for testing plugins."""
 
     pass
