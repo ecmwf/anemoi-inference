@@ -8,6 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 [build-system]
+build-backend = "setuptools.build_meta"
+
 requires = [ "setuptools>=60", "setuptools-scm>=8" ]
 
 [project]
@@ -87,11 +89,14 @@ entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
 
+[tool.pytest.ini_options]
+markers = [
+  "skip_on_hpc: mark a test that should not be run on HPC",
+]
+testpaths = "tests"
+
 [tool.mypy]
 exclude = [ "docs/" ]
 strict = false
 ignore_missing_imports = true
 allow_redefinition = true
-
-[setuptools.package-data]
-"anemoi.inference.grib.templates" = [ "*.yaml" ]
