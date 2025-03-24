@@ -16,6 +16,8 @@ requires = [ "setuptools>=60", "setuptools-scm>=8" ]
 name = "anemoi-inference"
 
 description = "A package to run inference from data-driven forecasts weather models."
+readme = "README.md"
+
 keywords = [ "ai", "inference", "tools" ]
 
 license = { file = "LICENSE" }
