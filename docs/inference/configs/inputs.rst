@@ -18,7 +18,7 @@ be ``test``, ``training`` or ``validation``, corresponding to the
 entries given during training as ``dataloader.test``,
 ``dataloader.training`` and ``dataloader.validation`` respectively.
 
-.. literalinclude:: inputs_1.yaml
+.. literalinclude:: yaml/inputs_1.yaml
    :language: yaml
 
 ``test`` is the default input if no input is specified.
@@ -29,12 +29,12 @@ are not available on the current computer, you can use
 search path to the datasets. To enable this, you have set the
 ``use_original_paths`` option to ``false``.
 
-.. literalinclude:: inputs_2.yaml
+.. literalinclude:: yaml/inputs_2.yaml
    :language: yaml
 
 You can also provide a full dataset specification as follows:
 
-.. literalinclude:: inputs_3.yaml
+.. literalinclude:: yaml/inputs_3.yaml
    :language: yaml
 
 See :ref:`anemoi-datasets:opening-datasets` in the documentation of the
@@ -46,7 +46,7 @@ See :ref:`anemoi-datasets:opening-datasets` in the documentation of the
 
 You can specify the input as ``grib`` to read the data from a GRIB file.
 
-.. literalinclude:: inputs_4.yaml
+.. literalinclude:: yaml/inputs_4.yaml
    :language: yaml
 
 For more options, see :ref:`grib-input`.
@@ -58,7 +58,7 @@ For more options, see :ref:`grib-input`.
 The ``icon_grib_file`` input is a class dedicated to reading ICON GRIB
 files. It is
 
-.. literalinclude:: inputs_5.yaml
+.. literalinclude:: yaml/inputs_5.yaml
    :language: yaml
 
 The ``grid`` entry refers to a NetCDF file that contains the definition
@@ -83,14 +83,14 @@ You can also specify the input as ``mars`` to read the data from ECMWF's
 MARS archive. This requires the `ecmwf-api-client` package to be
 installed, and the user to have an ECMWF account.
 
-.. literalinclude:: inputs_6.yaml
+.. literalinclude:: yaml/inputs_6.yaml
    :language: yaml
 
 You can also specify some of the MARS keywords as options. The default
 is to retrieve the data from the operational analysis (``class=od``).
 You can change that to use ERA5 reanalysis data (``class=ea``).
 
-.. literalinclude:: inputs_7.yaml
+.. literalinclude:: yaml/inputs_7.yaml
    :language: yaml
 
 The ``mars`` input also accepts the ``namer`` parameter of the GRIB
@@ -105,7 +105,7 @@ You can also specify the input as ``cds`` to read the data from the
 requires the `cdsapi` package to be installed, and the user to have a
 CDS account.
 
-.. literalinclude:: inputs_8.yaml
+.. literalinclude:: yaml/inputs_8.yaml
    :language: yaml
 
 As the CDS contains a plethora of `datasets
@@ -119,7 +119,7 @@ key/values for each request.
 You can use `*` to represent any not given value for a key, i.e. set a
 dataset for `param: 2t`. and `param: *` to represent any other param.
 
-.. literalinclude:: inputs_9.yaml
+.. literalinclude:: yaml/inputs_9.yaml
    :language: yaml
 
 In the above example, the dataset `reanalysis-era5-pressure-levels` is
@@ -129,7 +129,7 @@ for all with `levtype: sfc`.
 Additionally, any kwarg can be passed to be added to all requests, i.e.
 for ERA5 data, `product_type: 'reanalysis'` is needed.
 
-.. literalinclude:: inputs_10.yaml
+.. literalinclude:: yaml/inputs_10.yaml
    :language: yaml
 
 ********

@@ -19,7 +19,7 @@
 
 The ``grib`` output can be used to specify many more options:
 
-.. literalinclude:: grib-output_1.yaml
+.. literalinclude:: yaml/grib-output_1.yaml
 
 ***********
  encoding:

@@ -10,20 +10,12 @@ The tools can provide help with the ``--help`` options:
 
     % anemoi-inference --help
 
+
 The commands are:
 
-.. toctree::
-    :maxdepth: 1
-
-    run
-    metadata
-    inspect
-    patch
-    requests
-
-
-.. argparse::
-    :module: anemoi.inference.__main__
-    :func: create_parser
-    :prog: anemoi-inference
-    :nosubcommands:
+- :ref:`Run Command <run_command>`
+- :ref:`Metadata Command <metadata_command>`
+- :ref:`Inspect Command <inspect_command>`
+- :ref:`Validate Command <validate_command>`
+- :ref:`Patch Command <patch_command>`
+- :ref:`Requests Command <requests_command>`
