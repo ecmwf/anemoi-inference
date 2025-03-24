@@ -1,0 +1,6 @@
+input:
+  cutout:
+    lam_0:
+      grib: <path_to_your_grib_file>
+    global:
+      grib: <path_to_your_grib_file>
