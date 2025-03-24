@@ -166,7 +166,7 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Developing Anemoi Graphs
+   :caption: Developing Anemoi Inference
 
    dev/contributing
    dev/code_structure
