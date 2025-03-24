@@ -1,6 +1,6 @@
-########
+#########
  outputs
-########
+#########
 
 .. automodule:: anemoi.inference.output
    :members:
@@ -8,5 +8,3 @@
    :show-inheritance:
 
 .. include:: ../_api/inference.outputs.rst
-
-   

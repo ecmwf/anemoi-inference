@@ -8,5 +8,3 @@
    :show-inheritance:
 
 .. include:: ../_api/inference.inputs.rst
-
-   
