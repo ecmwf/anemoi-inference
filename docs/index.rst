@@ -162,6 +162,7 @@ You may also have to install pandoc on MacOS:
    modules/inputs
    modules/metadata
    modules/outputs
+   modules/processor
 
 .. toctree::
    :maxdepth: 1
