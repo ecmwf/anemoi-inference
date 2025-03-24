@@ -12,4 +12,4 @@
 Use the ``namer`` parameter to specify how to rename fields to match the
 names in the checkpoints.
 
-.. literalinclude:: grib-input_1.yaml
+.. literalinclude:: yaml/grib-input_1.yaml
