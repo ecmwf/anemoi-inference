@@ -63,6 +63,7 @@ class FDBInput(GribInput):
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         self.fdb_config = fdb_config
         self.fdb_userconfig = fdb_userconfig
+        self.param_id_map = kwargs.pop("param_id_map", None)  # TODO: this is a temporary workaround for #191
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
@@ -84,6 +85,9 @@ class FDBInput(GribInput):
             patch_request=self.context.patch_data_request,
         )
         requests = [self.request_template | r for r in requests]
+        # TODO: this is a temporary workaround for #191
+        for request in requests:
+            request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
         sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
         ds = ekd.from_source("multi", sources)
         return ds
