@@ -15,6 +15,7 @@ name = "anemoi-inference"
 
 description = "A package to run inference from data-driven forecasts weather models."
 keywords = [ "ai", "inference", "tools" ]
+readme = "README.md"
 
 license = { file = "LICENSE" }
 authors = [
