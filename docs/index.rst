@@ -125,7 +125,7 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Recibe Examples
+   :caption: Recipe Examples
 
    usage/getting-started
 
