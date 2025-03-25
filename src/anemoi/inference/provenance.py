@@ -14,6 +14,8 @@ from typing import Dict
 from typing import List
 from typing import Literal
 from typing import Optional
+from typing import Union
+from typing import overload
 
 from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
@@ -25,8 +27,10 @@ if TYPE_CHECKING:
 # Complete package name to be exempt
 EXEMPT_PACKAGES = [
     "anemoi.training",
+    "anemoi.inference",
     "hydra",
     "hydra_plugins",
+    "hydra_plugins.anemoi_searchpath",
     "lightning",
     "pytorch_lightning",
     "lightning_fabric",
@@ -41,13 +45,33 @@ EXEMPT_NAMESPACES = [
 LOG = logging.getLogger(__name__)
 
 
+@overload
 def validate_environment(
     metadata: "Metadata",
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore"] = "warn",
-    exempt_packages: Optional[list[str]] = None,
-) -> bool:
+    exempt_packages: Optional[List[str]] = None,
+) -> bool: ...
+
+
+@overload
+def validate_environment(
+    metadata: "Metadata",
+    *,
+    all_packages: bool = False,
+    on_difference: Literal["return"] = "return",
+    exempt_packages: Optional[List[str]] = None,
+) -> str: ...
+
+
+def validate_environment(
+    metadata: "Metadata",
+    *,
+    all_packages: bool = False,
+    on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
+    exempt_packages: Optional[List[str]] = None,
+) -> Union[bool, str]:
     """Validate environment of the checkpoint against the current environment.
 
     Parameters
@@ -58,12 +82,13 @@ def validate_environment(
         Check all packages in environment or just `anemoi`'s, by default False
     on_difference : Literal['warn', 'error', 'ignore'], optional
         What to do on difference, by default "warn"
-    exempt_packages : list[str], optional
+    exempt_packages : List[str], optional
         List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
     Returns
     -------
-    bool
+    Union[bool, str]
+        boolean if `on_difference` is not 'return', otherwise formatted text of the differences
         True if environment is valid, False otherwise
 
     Raises
@@ -105,6 +130,7 @@ def validate_environment(
     for module in train_environment["module_versions"].keys():
         inference_module_name = module  # Due to package name differences between retrieval methods this may change
 
+        train_module_version_str = train_environment["module_versions"][module]
         if not all_packages and "anemoi" not in module:
             continue
         elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
@@ -122,7 +148,9 @@ def validate_environment(
                     continue
                 except (ModuleNotFoundError, ImportError):
                     pass
-                invalid_messages["missing"].append(f"Missing module in inference environment: {module}")
+                invalid_messages["missing"].append(
+                    f"Missing module in inference environment: {module}=={train_module_version_str}"
+                )
                 continue
 
         train_environment_version = Version(train_environment["module_versions"][module])
@@ -139,7 +167,7 @@ def validate_environment(
 
     for git_record in train_environment["git_versions"].keys():
         file_record = train_environment["git_versions"][git_record]["git"]
-        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
+        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0 or git_record in exempt_packages:
             continue
 
         if git_record not in inference_environment["git_versions"]:
@@ -156,7 +184,7 @@ def validate_environment(
 
     for git_record in inference_environment["git_versions"].keys():
         file_record = inference_environment["git_versions"][git_record]["git"]
-        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
+        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0 or git_record in exempt_packages:
             continue
 
         if git_record not in train_environment["git_versions"]:
@@ -174,6 +202,8 @@ def validate_environment(
             raise RuntimeError(text)
         elif on_difference == "ignore":
             pass
+        elif on_difference == "return":
+            return text
         else:
             raise ValueError(f"Invalid value for `on_difference`: {on_difference}")
         return False

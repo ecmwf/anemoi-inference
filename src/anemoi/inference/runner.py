@@ -454,9 +454,9 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}"):
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
-            except (AttributeError, ValueError) as e:
-                self.checkpoint.validate_environment(on_difference="warn")
-                raise RuntimeError("Error loading model, check the logs to see if the environment is valid.") from e
+            except Exception as e:  # Wildcard exception to catch all errors
+                error_msg = f"Error loading model - {self.checkpoint.validate_environment(on_difference='return')}"
+                raise RuntimeError(error_msg) from e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
