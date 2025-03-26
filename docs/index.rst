@@ -117,6 +117,7 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :caption: Introduction
 
    overview
    cli/introduction
@@ -132,7 +133,7 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Using Anemoi Inference
+   :caption: User Guide
 
    inference/parallel
    inference/apis/introduction
@@ -154,7 +155,7 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Modules
+   :caption: API Reference
 
    modules/runner
    modules/checkpoint
@@ -167,6 +168,6 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Developing Anemoi Inference
+   :caption: Contributing
 
    dev/contributing
