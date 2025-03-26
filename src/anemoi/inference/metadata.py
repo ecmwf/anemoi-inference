@@ -639,7 +639,7 @@ class Metadata(PatchMixin, LegacyMixin):
         Parameters
         ----------
         all_packages : bool, optional
-            Check all packages in environment or just `anemoi`'s, by default False
+            Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
             What to do on difference, by default "warn"
         exempt_packages : list[str], optional

@@ -167,7 +167,10 @@ def validate_environment(
 
     for git_record in train_environment["git_versions"].keys():
         file_record = train_environment["git_versions"][git_record]["git"]
-        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0 or git_record in exempt_packages:
+        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
+            continue
+
+        if git_record in exempt_packages:
             continue
 
         if git_record not in inference_environment["git_versions"]:
@@ -184,7 +187,10 @@ def validate_environment(
 
     for git_record in inference_environment["git_versions"].keys():
         file_record = inference_environment["git_versions"][git_record]["git"]
-        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0 or git_record in exempt_packages:
+        if file_record["modified_files"] == 0 and file_record["untracked_files"] == 0:
+            continue
+
+        if git_record in exempt_packages:
             continue
 
         if git_record not in train_environment["git_versions"]:
