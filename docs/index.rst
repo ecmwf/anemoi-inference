@@ -10,17 +10,9 @@
 
    This documentation is work in progress.
 
-*Anemoi* is a framework for developing machine learning weather
-forecasting models. It comprises of components or packages for preparing
-training datasets, conducting ML model training and a registry for
-datasets and trained models. *Anemoi* provides tools for operational
-inference, including interfacing to verification software. As a
-framework it seeks to handle many of the complexities that
-meteorological organisations will share, allowing them to easily train
-models from existing recipes but with their own data.
-
-This package provides a series of utility functions for used by the rest
-of the *Anemoi* packages.
+The `anemoi-inference` package provides a framework for running
+inference with data-driven weather forecasting models. It is one of the
+packages within the :ref:`anemoi framework <anemoi-docs:index>`.
 
 **************
  About Anemoi
@@ -62,8 +54,7 @@ tool allows users to run inference tasks, inspect results, and manage
 forecast outputs. In the rest of this documentation, you will learn how
 to configure and execute inference workflows using anemoi-inference. A
 complete example of running a forecast with a trained model can be found
-in the :ref:` Generating your first forecast <usage-getting-started>`
-section.
+in the :ref:`usage-getting-started` section.
 
 ************
  Installing
