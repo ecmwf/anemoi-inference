@@ -84,9 +84,9 @@ You may also have to install pandoc on MacOS:
 
    brew install pandoc
 
-*****************
- Anemoi packages
-*****************
+***********************
+ Other Anemoi packages
+***********************
 
 -  :ref:`anemoi-utils <anemoi-utils:index-page>`
 -  :ref:`anemoi-transform <anemoi-transform:index-page>`
@@ -96,6 +96,7 @@ You may also have to install pandoc on MacOS:
 -  :ref:`anemoi-training <anemoi-training:index-page>`
 -  :ref:`anemoi-inference <anemoi-inference:index-page>`
 -  :ref:`anemoi-registry <anemoi-registry:index-page>`
+-  :ref:`anemoi-plugins <anemoi-plugins:index-page>`
 
 *********
  License

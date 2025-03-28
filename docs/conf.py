@@ -112,6 +112,10 @@ intersphinx_mapping = {
         "https://anemoi-transform.readthedocs.io/en/latest/",
         ("../../anemoi-transform/docs/_build/html/objects.inv", None),
     ),
+    "anemoi-plugins": (
+        "https://anemoi-plugins.readthedocs.io/en/latest/",
+        ("../../anemoi-plugins/docs/_build/html/objects.inv", None),
+    ),
 }
 
 
@@ -148,3 +152,10 @@ autodoc_member_order = "bysource"  # Keep file order
 autodoc_pydantic_model_show_json = True
 autodoc_pydantic_model_show_field_summary = False
 autodoc_pydantic_model_member_order = "bysource"
+
+html_context = {
+    "display_github": True,
+    "github_user": "ecmwf",
+    "github_repo": "anemoi-inference",
+    "github_version": "main/docs/",
+}
