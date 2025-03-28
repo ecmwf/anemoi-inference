@@ -258,24 +258,25 @@ class Checkpoint:
         self,
         *,
         all_packages: bool = False,
-        on_difference: Literal["warn", "error", "ignore"] = "warn",
-        exempt_packages: Optional[List[str]] = None,
-    ) -> bool:
+        on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
+        exempt_packages: Optional[list[str]] = None,
+    ) -> Union[bool, str]:
         """Validate the environment.
 
         Parameters
         ----------
         all_packages : bool, optional
-            Whether to validate all packages, by default False.
-        on_difference : str, optional
-            Action to take on difference, by default "warn".
-        exempt_packages : Optional[List[str]], optional
-            List of packages to exempt, by default None.
+            Check all packages in the environment (True) or just anemoi's (False), by default False.
+        on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
+            What to do on difference, by default "warn"
+        exempt_packages : list[str], optional
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
-        bool
-            True if the environment is valid, False otherwise.
+        Union[bool, str]
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
+            True if environment is valid, False otherwise
         """
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
