@@ -6,10 +6,11 @@ lead_time: 48
 report_error: true
 
 pre_processors:
-- cos_sin_mean_wave_direction
+- forward_transform_filter: cos_sin_mean_wave_direction
 - no_missing_values
 
 post_processors:
-- cos_sin_mean_wave_direction
+- backward_transform_filter: cos_sin_mean_wave_direction
+
 
 use_grib_paramid: true

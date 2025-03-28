@@ -14,11 +14,16 @@ from typing import Any
 import earthkit.data as ekd
 from anemoi.transform.filters import filter_registry
 
+from anemoi.inference.decorators import main_argument
+
 from ..processor import Processor
+from . import pre_processor_registry
 
 LOG = logging.getLogger(__name__)
 
 
+@pre_processor_registry.register("forward_transform_filter")
+@main_argument("filter")
 class ForwardTransformFilter(Processor):
     """A processor that applies a forward transform filter to the given fields.
 
