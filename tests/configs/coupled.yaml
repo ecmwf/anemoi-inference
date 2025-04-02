@@ -1,7 +1,4 @@
-# transport: coroutines
-# transport: processes
-transport: threads
-# device: cpu
+transport: processes
 
 couplings:
 - atmos -> ocean:

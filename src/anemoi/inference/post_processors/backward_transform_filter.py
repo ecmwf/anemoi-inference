@@ -14,15 +14,19 @@ from typing import Any
 from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.context import Context
+from anemoi.inference.decorators import main_argument
 from anemoi.inference.types import State
 
 from ..processor import Processor
+from . import post_processor_registry
 from .earthkit_state import unwrap_state
 from .earthkit_state import wrap_state
 
 LOG = logging.getLogger(__name__)
 
 
+@post_processor_registry.register("backward_transform_filter")
+@main_argument("filter")
 class BackwardTransformFilter(Processor):
     """A processor that applies a backward transform filter to a given state.
 
@@ -63,4 +67,7 @@ class BackwardTransformFilter(Processor):
         State
             The processed state.
         """
-        return unwrap_state(self.filter.backward(wrap_state(state)), state)
+
+        fields = self.filter.backward(wrap_state(state))
+
+        return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())

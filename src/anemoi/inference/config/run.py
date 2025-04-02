@@ -61,7 +61,7 @@ class RunConfiguration(Configuration):
     output: Union[str, Dict[str, Any]] = "printer"
 
     pre_processors: List[Union[str, Dict[str, Any]]] = []
-    post_processors: List[Union[str, Dict[str, Any]]] = []
+    post_processors: Optional[List[Union[str, Dict[str, Any]]]] = None  # temporary, default accum from start #131
 
     forcings: Optional[Dict[str, Dict[str, Any]]] = None
     """Where to find the forcings."""
