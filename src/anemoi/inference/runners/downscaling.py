@@ -186,7 +186,9 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
-        residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor)
+        extra_args = self.extra_config.get("extra_args", {})
+
+        residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args)
         residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
 
         self._print_output_tensor("Residual output tensor", residual_output_numpy)
