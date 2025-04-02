@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
 import json
 import logging
 from functools import cached_property
@@ -21,11 +20,11 @@ import numpy as np
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.input import Input
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
-from ..input import Input
 from . import input_registry
 
 LOG = logging.getLogger(__name__)
@@ -87,129 +86,88 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.args}, {self.kwargs})"
 
-    def create_input_state(self, *, date: Optional[Date] = None) -> State:
+    def create_state(
+        self, *, date: Optional[Date], variables: Optional[List[str]] = None, initial: bool = True
+    ) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Any]
             The date for which to create the input state.
-
-        Returns
-        -------
-        Dict[str, Any]
-            The created input state.
-        """
-        if date is None:
-            raise ValueError("`date` must be provided")
-
-        date = to_datetime(date)
-        latitudes = self.ds.latitudes
-        longitudes = self.ds.longitudes
-
-        input_state = dict(
-            date=date,
-            latitudes=latitudes[self.grid_indices],
-            longitudes=longitudes[self.grid_indices],
-            fields=dict(),
-        )
-
-        fields = input_state["fields"]
-
-        date = np.datetime64(date)
-        data = self._load_dates([date + np.timedelta64(h) for h in self.checkpoint.lagged])
-
-        if data.shape[2] != 1:
-            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
-
-        requested_variables = set(self.input_variables())
-        for i, variable in enumerate(self.ds.variables):
-            if variable not in requested_variables:
-                continue
-            # Squeeze the data to remove the ensemble dimension
-            values = np.squeeze(data[:, i], axis=1)
-            fields[variable] = values[:, self.grid_indices]
-
-            if self.context.trace:
-                self.context.trace.from_input(variable, self)
-
-        return input_state
-
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        """Load the forcings state for the given variables and dates.
-
-        Parameters
-        ----------
-        variables : List[str]
-            List of variables to load.
-        dates : List[Any]
-            List of dates for which to load the forcings.
-        current_state : State
-            The current state of the input.
+        variables : Optional[List[str]]
+            The list of variables to include in the input state.
+        initial : bool
+            Whether the state is the initial state, in which case date expands to a list of dates
+            according to the model's input time window lag.
 
         Returns
         -------
         State
-            The loaded forcings state.
+            The created input state.
         """
-        data = self._load_dates(dates)  # (date, variables, ensemble, values)
 
-        requested_variables = np.array([self.ds.name_to_index[v] for v in variables])
-        data = data[:, requested_variables]
-        # Squeeze the data to remove the ensemble dimension
-        data = np.squeeze(data, axis=2)
-        # Reorder the dimensions to (variable, date, values)
-        data = np.swapaxes(data, 0, 1)
+        # prepare request to zarr store
+        date = to_datetime(date)
+        latitudes = self.ds.latitudes[self.grid_indices]
+        longitudes = self.ds.longitudes[self.grid_indices]
+        variables = self.checkpoint_variables if variables is None else variables
+        variables_indexer = [self.ds.variables.index(v) for v in variables]
+        dates = [date + lag for lag in self.checkpoint.lagged] if initial else [date]
+        dates_indexer = self._dates_idx(dates)
 
-        # apply reduction to `grid_indices`
-        data = data[..., self.grid_indices]
+        # get data from zarr store
+        data = self.ds[dates_indexer]
+        data = data[:, variables_indexer]
+        if data.shape[2] != 1:
+            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
+        data = np.squeeze(data, axis=2)  # squeeze ensemble dimension
 
-        fields = {v: data[i] for i, v in enumerate(variables)}
+        # create the state
+        state = {"date": date, "latitudes": latitudes, "longitudes": longitudes, "fields": {}}
+        for i, variable in enumerate(variables):
+            state["fields"][variable] = data[:, i]
+            if self.context.trace:
+                self.context.trace.from_input(variable, self)
 
-        return dict(
-            fields=fields,
-            dates=dates,
-            latitudes=self.latitudes,
-            longitudes=self.longitudes,
-        )
+        return state
 
-    def _load_dates(self, dates: List[Date]) -> Any:
-        """Load the data for the given dates.
+    def _dates_idx(self, dates: List[Date]) -> slice:
+        """Return the slice corresponding to provided dates within the dataset.
 
         Parameters
         ----------
-        dates : List[Any]
-            List of dates for which to load the data.
+        dates : List[Date]
+            Sorted list of dates to find in the dataset.
 
         Returns
         -------
-        Any
-            The loaded data.
-        """
-        # TODO: use the fact that the dates are sorted
+        slice
+            Slice object representing indices of the dates.
 
+        Raises
+        ------
+        ValueError
+            If a date is not found in the dataset, or if dates do not form a regular interval.
+        """
         dataset_dates = self.ds.dates
 
-        idx = []
-        for d in dates:
-            (i,) = np.where(dataset_dates == d)
-            if len(i) == 0:
-                raise ValueError(
-                    f"Date {d} not found in the dataset, available dates: {dataset_dates[0]}...{dataset_dates[-1]} by {self.ds.frequency}"
-                )
-            assert len(i) == 1, f"Multiple dates found for {d}"
-            idx.append(int(i[0]))
+        # Map dates to their indices using np.searchsorted (efficient for sorted arrays)
+        dates_idx = np.searchsorted(dataset_dates, dates)
+        missing_dates = [d for idx, d in zip(dates_idx, dates) if idx == len(dataset_dates)]
+        if missing_dates != []:
+            raise ValueError(f"Dates not found in dataset: {missing_dates}")
 
-        if len(idx) == 1:
-            s = slice(idx[0], idx[0] + 1)
-        else:
-            diff = idx[1] - idx[0]
-            if not all(i == diff for i in np.diff(idx)):
-                # TODO: remove that restriction
-                raise ValueError("Dates do not have the same frequency")
-            s = slice(idx[0], idx[-1] + 1, diff)
+        if len(dates_idx) == 1:
+            return slice(dates_idx[0], dates_idx[0] + 1)
 
-        return self.ds[s]
+        steps = np.diff(dates_idx)
+        step = steps[0]
+
+        if not np.all(steps == step):
+            raise ValueError(f"Dates do not have regular intervals: indices {dates_idx}")
+
+        return slice(dates_idx[0], dates_idx[-1] + 1, step)
 
 
 @input_registry.register("dataset")
