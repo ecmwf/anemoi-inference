@@ -196,7 +196,7 @@ class GribOutput(Output):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
-        state = state.copy()
+        state = self.reduce(state)
 
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
@@ -215,15 +215,6 @@ class GribOutput(Output):
                 raise ValueError(
                     "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
                 )
-
-        # avoid modifying the input fields (the shallow copy still contains references to original numpy arrays)
-        fields = state.pop("fields")
-        state["fields"] = {}
-
-        # only write the values of t0
-        for param, values in fields.items():
-            if values.ndim == 2:
-                state["fields"][param] = values[-1]
 
         return self.write_step(state)
 
