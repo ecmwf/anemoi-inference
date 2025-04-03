@@ -382,7 +382,7 @@ class Metadata(PatchMixin, LegacyMixin):
         def _name(field: ekd.Field, _: str, original_metadata: Dict[str, Any]) -> str:
             return namer(field, original_metadata)
 
-        return FieldArray([f.copy(name=_name) for f in fields])
+        return FieldArray([f.clone(name=_name) for f in fields])
 
     def sort_by_name(
         self,

@@ -67,4 +67,7 @@ class BackwardTransformFilter(Processor):
         State
             The processed state.
         """
-        return unwrap_state(self.filter.backward(wrap_state(state)), state)
+
+        fields = self.filter.backward(wrap_state(state))
+
+        return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
