@@ -14,6 +14,7 @@ import datetime
 import logging
 from functools import cached_property
 from typing import Any
+from typing import Callable
 from typing import Dict
 
 import earthkit.data as ekd
@@ -155,7 +156,7 @@ def wrap_state(state: State) -> ekd.FieldList:
     return SimpleFieldList(fields)
 
 
-def unwrap_state(fields: ekd.FieldList, state: State) -> State:
+def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters
@@ -164,6 +165,8 @@ def unwrap_state(fields: ekd.FieldList, state: State) -> State:
         The field list to be transformed.
     state : State
         The original state dictionary.
+    namer : Callable
+        A function to generate new field names.
 
     Returns
     -------
@@ -171,8 +174,13 @@ def unwrap_state(fields: ekd.FieldList, state: State) -> State:
         The transformed state dictionary.
     """
     new_fields = {}
+
+    # namer(field: ekd.Field, metadata: Dict[str, Any]) -> str:
+
     for n in fields:
-        new_fields[n.metadata("name")] = n.to_numpy(flatten=True)
+        name = namer(n, n.metadata())
+        new_fields[name] = n.to_numpy(flatten=True)
+
     state = state.copy()
     state["fields"] = new_fields
 

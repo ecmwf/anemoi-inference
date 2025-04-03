@@ -10,6 +10,14 @@
 
    This documentation is work in progress.
 
+The `anemoi-inference` package provides a framework for running
+inference with data-driven weather forecasting models. It is one of the
+packages within the :ref:`anemoi framework <anemoi-docs:index>`.
+
+**************
+ About Anemoi
+**************
+
 *Anemoi* is a framework for developing machine learning weather
 forecasting models. It comprises of components or packages for preparing
 training datasets, conducting ML model training and a registry for
@@ -19,45 +27,109 @@ framework it seeks to handle many of the complexities that
 meteorological organisations will share, allowing them to easily train
 models from existing recipes but with their own data.
 
-This package provides a series of utility functions for used by the rest
-of the *Anemoi* packages.
+****************
+ Quick overview
+****************
 
--  :doc:`overview`
--  :doc:`installing`
--  :doc:`parallel`
+The anemoi-inference package provides a framework for running inference
+with data-driven weather forecasting models within the Anemoi ecosystem.
+It is designed to efficiently handle model execution and streamline
+input data processing.
+
+anemoi-inference offers a high-level interface that integrates
+seamlessly with trained machine learning models. The package allows you
+to:
+
+-  Load and preprocess input data from anemoi-datasets, ensuring
+   compatibility with the trained model.
+-  Run inference using machine learning-based weather forecasting
+   models.
+-  Save and manage forecast outputs in a variety of formats.
+-  Run inference tasks either using programmatic or via a command-line
+   APIs.
+
+Inference configurations are specified using a YAML file, which defines
+model parameters, input datasets, and output formats. The command-line
+tool allows users to run inference tasks, inspect results, and manage
+forecast outputs. In the rest of this documentation, you will learn how
+to configure and execute inference workflows using anemoi-inference. A
+complete example of running a forecast with a trained model can be found
+in the :ref:`usage-getting-started` section.
+
+************
+ Installing
+************
+
+To install the package, you can use the following command:
+
+.. code:: bash
+
+   pip install anemoi-inference
+
+Get more information in the :ref:`installing <installing>` section.
+
+**************
+ Contributing
+**************
+
+.. code:: bash
+
+   git clone ...
+   cd anemoi-inference
+   pip install .[dev]
+
+You may also have to install pandoc on MacOS:
+
+.. code:: bash
+
+   brew install pandoc
+
+***********************
+ Other Anemoi packages
+***********************
+
+-  :ref:`anemoi-utils <anemoi-utils:index-page>`
+-  :ref:`anemoi-transform <anemoi-transform:index-page>`
+-  :ref:`anemoi-datasets <anemoi-datasets:index-page>`
+-  :ref:`anemoi-models <anemoi-models:index-page>`
+-  :ref:`anemoi-graphs <anemoi-graphs:index-page>`
+-  :ref:`anemoi-training <anemoi-training:index-page>`
+-  :ref:`anemoi-inference <anemoi-inference:index-page>`
+-  :ref:`anemoi-registry <anemoi-registry:index-page>`
+-  :ref:`anemoi-plugins <anemoi-plugins:index-page>`
+
+*********
+ License
+*********
+
+*Anemoi* is available under the open source `Apache License`__.
+
+.. __: http://www.apache.org/licenses/LICENSE-2.0.html
 
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :caption: Introduction
 
    overview
+   cli/introduction
    installing
-   parallel
-
-*********************
- Tree levels of APIs
-*********************
-
--  :doc:`apis/level1`
--  :doc:`apis/level2`
--  :doc:`apis/level3`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: APIs
+   :caption: Recipe Examples
 
-   apis/level1
-   apis/level2
-   apis/level3
+   usage/getting-started
 
-********************
- Command line tools
-********************
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: User Guide
 
--  :doc:`cli/introduction`
--  :doc:`cli/run`
--  :doc:`cli/metadata`
+   inference/parallel
+   inference/apis/introduction
+   inference/configs/introduction
 
 .. toctree::
    :maxdepth: 1
@@ -68,34 +140,26 @@ of the *Anemoi* packages.
    cli/run
    cli/metadata
    cli/validate
+   cli/inspect
+   cli/patch
+   cli/requests
 
 .. toctree::
    :maxdepth: 1
-   :caption: Configurations
+   :hidden:
+   :caption: API Reference
 
-   configs/introduction
-   configs/top-level
-   configs/inputs
-   configs/outputs
-   configs/forcings
+   modules/runner
+   modules/checkpoint
+   modules/forcings
+   modules/inputs
+   modules/metadata
+   modules/outputs
+   modules/processor
 
-*****************
- Anemoi packages
-*****************
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Contributing
 
--  :ref:`anemoi-utils <anemoi-utils:index-page>`
--  :ref:`anemoi-transform <anemoi-transform:index-page>`
--  :ref:`anemoi-datasets <anemoi-datasets:index-page>`
--  :ref:`anemoi-models <anemoi-models:index-page>`
--  :ref:`anemoi-graphs <anemoi-graphs:index-page>`
--  :ref:`anemoi-training <anemoi-training:index-page>`
--  :ref:`anemoi-inference <anemoi-inference:index-page>`
--  :ref:`anemoi-registry <anemoi-registry:index-page>`
-
-*********
- License
-*********
-
-*Anemoi* is available under the open source `Apache License`__.
-
-.. __: http://www.apache.org/licenses/LICENSE-2.0.html
+   dev/contributing

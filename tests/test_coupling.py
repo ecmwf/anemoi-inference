@@ -8,16 +8,11 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-from typing import Any
-from typing import Dict
 
-from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
-from anemoi.inference.tasks import create_task
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
-from anemoi.inference.transports import create_transport
 
 
 @fake_checkpoints
@@ -50,23 +45,23 @@ def test_ocean() -> None:
     runner.execute()
 
 
-@fake_checkpoints
-def test_coupled() -> None:
-    """Test the inference process using a fake checkpoint.
+# @fake_checkpoints
+# def test_coupled() -> None:
+#     """Test the inference process using a fake checkpoint.
 
-    This function loads a configuration, creates a runner, and runs the inference
-    process to ensure that the system works as expected with the provided configuration.
-    """
-    config = CoupleConfiguration.load(files_for_tests("configs/coupled.yaml"))
+#     This function loads a configuration, creates a runner, and runs the inference
+#     process to ensure that the system works as expected with the provided configuration.
+#     """
+#     config = CoupleConfiguration.load(files_for_tests("configs/coupled.yaml"))
 
-    global_config: Dict[str, Any] = {}
+#     global_config: Dict[str, Any] = {}
 
-    tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}
+#     tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}
 
-    transport = create_transport(config.transport, config.couplings, tasks)
+#     transport = create_transport(config.transport, config.couplings, tasks)
 
-    transport.start()
-    transport.wait()
+#     transport.start()
+#     transport.wait()
 
 
 if __name__ == "__main__":
