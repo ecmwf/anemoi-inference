@@ -60,7 +60,7 @@ class FDBInput(GribInput):
         self.fdb_config = fdb_config
         self.fdb_userconfig = fdb_userconfig
         # NOTE: this is a temporary workaround for #191 thus not documented
-        self.param_id_map = kwargs.pop("param_id_map", None)
+        self.param_id_map = kwargs.pop("param_id_map", {})
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
