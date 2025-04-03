@@ -1,13 +1,13 @@
-description: Downscaling ensemble test
+description: 5cfa2a40fa214167847fb1d9b5161812 - febr 2024 - 10 members - o96->o320
 
 dates:
-  start: 2025-02-01
-  end: 2025-03-01
+  start: 2024-02-01
+  end: 2024-03-01
   frequency: 24  # hours
 
 ensemble:
   loop:
-    number: 1/to/2
+    number: 1/to/10
 
 input:
   class: od
@@ -31,10 +31,10 @@ runner:
 model:
   name: anemoi
   runner: downscaling
-  checkpoint: /hpcperm/ecm0672/pub/ds/o320-inference.ckpt
-  lead_time: 48h
+  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/5cfa2a40fa214167847fb1d9b5161812/inference-anemoi-by_time-epoch_309-step_893541.ckpt
+  lead_time: 240h
   development_hacks:
-    time_step: 12h
+    time_step: 24h
     output_template: /home/ecm5702/hpcperm/data/o320-template.grib
     constant_high_res_forcings_npz: /home/ecm5702/hpcperm/data/o320-forcings.npz
     constant_high_res_forcings:  # order is not important
@@ -57,7 +57,5 @@ model:
       - sin_longitude
       - z
 
-evaluation: 
- name: quaver
- scores: basic
- kind: probabilistic
+evaluation: False
+
