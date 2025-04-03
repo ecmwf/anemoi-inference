@@ -6,3 +6,5 @@
    :members:
    :no-undoc-members:
    :show-inheritance:
+
+.. include:: ../_api/inference.runners.rst

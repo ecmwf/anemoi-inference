@@ -1,9 +1,11 @@
-##############
- Introduction
-##############
+.. _config_introduction:
+
+#########
+ Configs
+#########
 
 This document provides an overview of the configuration to provide to
-the :ref:`anemoi-inference run <run-cli>` command line tool.
+the :ref:`anemoi-inference run <run_command>` command line tool.
 
 The configuration file is a YAML file that specifies various options. It
 is composed of :ref:`top level <top-level>` options which are usually
@@ -18,21 +20,33 @@ underlying Python class that will be used to process the input, output
 or any other polymorphic behaviour, followed by arguments specific to
 that class.
 
-.. literalinclude:: introduction_1.yaml
+.. literalinclude:: yaml/introduction_1.yaml
    :language: yaml
 
 or:
 
-.. literalinclude:: introduction_2.yaml
+.. literalinclude:: yaml/introduction_2.yaml
    :language: yaml
 
 If the underlying class does not require any arguments, or you wish to
 use the default parameters, then configuration can be simplified as:
 
-.. literalinclude:: introduction_3.yaml
+.. literalinclude:: yaml/introduction_3.yaml
    :language: yaml
 
 or if it expects a single argument, it can be simplified as:
 
-.. literalinclude:: introduction_4.yaml
+.. literalinclude:: yaml/introduction_4.yaml
    :language: yaml
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Configurations
+
+   top-level
+   inputs
+   outputs
+   forcings
+   icon-input
+   grib-input
+   grib-output

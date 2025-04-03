@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.5.0](https://github.com/ecmwf/anemoi-inference/compare/0.4.11...0.5.0) (2025-03-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Implement coupling of two or more models ([#76](https://github.com/ecmwf/anemoi-inference/issues/76))
+
+### Features
+
+* Implement coupling of two or more models ([#76](https://github.com/ecmwf/anemoi-inference/issues/76)) ([94e6a7c](https://github.com/ecmwf/anemoi-inference/commit/94e6a7cbc796294d76a05efa1d9281ede0ba0501))
+* support for cutout input ([#169](https://github.com/ecmwf/anemoi-inference/issues/169)) ([7f38095](https://github.com/ecmwf/anemoi-inference/commit/7f3809501e8ae8b603fa9dd94d5d224898b7f920))
+
+
+### Bug Fixes
+
+* Add check for date is None with earthkit-data GRIB input ([#184](https://github.com/ecmwf/anemoi-inference/issues/184)) ([6bfe48f](https://github.com/ecmwf/anemoi-inference/commit/6bfe48fa890311f64edf521be66ac0818b7838a5))
+* **grib:** Remove duplicate grib key logic ([#177](https://github.com/ecmwf/anemoi-inference/issues/177)) ([3156e0f](https://github.com/ecmwf/anemoi-inference/commit/3156e0fc9ac38bd2181d12c70f0c6578e632ff4c))
+* ParallelRunner without GPU ([#174](https://github.com/ecmwf/anemoi-inference/issues/174)) ([9313155](https://github.com/ecmwf/anemoi-inference/commit/9313155e7bc19b0fce51f6330c98761343ccfb54))
+* param id handling at archive JSON output ([#172](https://github.com/ecmwf/anemoi-inference/issues/172)) ([ca3c500](https://github.com/ecmwf/anemoi-inference/commit/ca3c500df8d75c0706e525d5f98173d82af344fc))
+* pyproject dependency on ai-models ([#192](https://github.com/ecmwf/anemoi-inference/issues/192)) ([f59d926](https://github.com/ecmwf/anemoi-inference/commit/f59d926f7e6fbe932295178296f5bbefb94bbe61))
+* Restore default accumulation behaviour ([#131](https://github.com/ecmwf/anemoi-inference/issues/131)) ([c645fb2](https://github.com/ecmwf/anemoi-inference/commit/c645fb219ed40ea60389affafe0f4f6c3b799ee9))
+* unused parameter ([#175](https://github.com/ecmwf/anemoi-inference/issues/175)) ([3d7c507](https://github.com/ecmwf/anemoi-inference/commit/3d7c507b2c0927be21e08819776b4e9b456e39ef))
+* use processes in coupling tests ([#193](https://github.com/ecmwf/anemoi-inference/issues/193)) ([30b65df](https://github.com/ecmwf/anemoi-inference/commit/30b65df112c072a887fba02daf0994bcf5b5bc25))
+
+
+### Documentation
+
+* Docathon ([#183](https://github.com/ecmwf/anemoi-inference/issues/183)) ([cbecfc9](https://github.com/ecmwf/anemoi-inference/commit/cbecfc9198bf462b65402b266d5b3c6c469eb755))
+
 ## [0.4.11](https://github.com/ecmwf/anemoi-inference/compare/0.4.10...0.4.11) (2025-03-07)
 
 
