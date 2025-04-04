@@ -196,7 +196,7 @@ class GribOutput(Output):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
-        state = state.copy()
+        state = self.reduce(state)
 
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
