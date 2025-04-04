@@ -89,7 +89,12 @@ class Configuration(BaseModel):
                 key, value = override.split("=")
                 keys = key.split(".")
                 for key in keys[:-1]:
-                    path = path.setdefault(key, {})
+                    try:
+                        index = int(key)
+                        LOG.debug(f"key {key} is used as list index in {path}")
+                        path = path[index]
+                    except ValueError:
+                        path = path.setdefault(key, {})
                 path[keys[-1]] = value
 
         # Validate the configuration
