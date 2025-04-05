@@ -10,6 +10,7 @@
 import logging
 import os
 import threading
+from typing import List
 from typing import Optional
 
 import numpy as np
@@ -49,10 +50,16 @@ class NetCDFOutput(Output):
         self,
         context: Context,
         path: str,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
 
         from netCDF4 import Dataset
 
@@ -138,8 +145,13 @@ class NetCDFOutput(Output):
         compression = {}  # dict(zlib=False, complevel=0)
 
         for name in state["fields"].keys():
+
+            if self.skip_variable(name):
+                continue
+
             if name in self.vars:
                 continue
+
             chunksizes = (1, values)
 
             while np.prod(chunksizes) > 1000000:
@@ -169,6 +181,10 @@ class NetCDFOutput(Output):
         self.time_var[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
+
+            if self.skip_variable(name):
+                continue
+
             with LOCK:
                 self.vars[name][self.n] = value
 
