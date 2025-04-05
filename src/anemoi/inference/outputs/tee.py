@@ -56,7 +56,10 @@ class TeeOutput(ForwardOutput):
             Additional keyword arguments.
         """
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         if outputs is None:

@@ -57,7 +57,10 @@ class RawOutput(Output):
             Whether to write the initial state, by default None.
         """
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
         self.path = path
         self.template = template
@@ -84,9 +87,12 @@ class RawOutput(Output):
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"
-        restate = {f"field_{key}": val for key, val in state["fields"].items()}
+        restate = {f"field_{key}": val for key, val in state["fields"].items() if not self.skip_variable(key)}
+
         for key in ["date"]:
             restate[key] = np.array(state[key], dtype=str)
+
         for key in ["latitudes", "longitudes"]:
             restate[key] = np.array(state[key])
+
         np.savez_compressed(fn_state, **restate)

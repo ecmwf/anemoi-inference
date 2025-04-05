@@ -50,10 +50,29 @@ class Output(ABC):
 
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
-        self._variables = variables
+
+        self.variables = variables
+        if self.variables is not None:
+            if not isinstance(self.variables, (list, tuple)):
+                self.variables = [self.variables]
 
         self.typed_variables = self.checkpoint.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
+
+    def skip_variable(self, variable: str) -> bool:
+        """Check if a variable should be skipped.
+
+        Parameters
+        ----------
+        variable : str
+            The variable to check.
+
+        Returns
+        -------
+        bool
+            True if the variable should be skipped, False otherwise.
+        """
+        return self.variables is not None and variable not in self.variables
 
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -116,34 +135,6 @@ class Output(ABC):
             else:
                 reduced_state["fields"][field] = values
         return reduced_state
-
-    # @classmethod
-    # def update_typed_variables(cls, typed_variables: List[Any], state: State) -> List[Any]:
-    #     """Update the typed variables.
-
-    #     Parameters
-    #     ----------
-    #     typed_variables : list of Any
-    #         The list of typed variables.
-    #     state : State
-    #         The state object.
-
-    #     Returns
-    #     -------
-    #     list of Any
-    #         The updated list of typed variables.
-    #     """
-    #     # Update the typed variables with the current state
-
-    #     typed_variables = typed_variables.copy()
-
-    #     for name in state["fields"]:
-    #         if name not in typed_variables:
-    #             LOG.warning("Variable `%s` not found in typed variables, assuming result of a post-processor", name)
-
-    #             typed_variables[name] = PostProcessedVariable(name=name, data={})
-
-    #     return typed_variables
 
     def open(self, state: State) -> None:
         """Open the output for writing.

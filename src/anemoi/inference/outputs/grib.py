@@ -154,7 +154,10 @@ class GribOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
         self._first = True
 
@@ -203,9 +206,11 @@ class GribOutput(Output):
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
 
-        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+        for name in state["fields"].keys():
 
-        for name in out_vars:
+            if self.skip_variable(name):
+                continue
+
             variable = self.typed_variables[name]
 
             if variable.is_computed_forcing:
@@ -234,9 +239,11 @@ class GribOutput(Output):
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
 
-        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+        for name in state["fields"].keys():
 
-        for name in out_vars:
+            if self.skip_variable(name):
+                continue
+
             values = state["fields"][name]
             keys = {}
 

@@ -84,7 +84,10 @@ class PlotOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
         self.path = path
         self.format = format
@@ -93,10 +96,6 @@ class PlotOutput(Output):
         self.template = template
         self.dpi = dpi
         self.missing_value = missing_value
-
-        if self.variables != "all":
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
@@ -119,7 +118,7 @@ class PlotOutput(Output):
 
         for name, values in state["fields"].items():
 
-            if self.variables != "all" and name not in self.variables:
+            if self.skip_variable(name):
                 continue
 
             _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
