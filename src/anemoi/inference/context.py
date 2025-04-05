@@ -47,6 +47,7 @@ class Context(ABC):
     lead_time = None
     output_frequency: Optional[int] = None
     write_initial_state: bool = True
+    variable: Optional[List[str]] = None
 
     ##################################################################
 

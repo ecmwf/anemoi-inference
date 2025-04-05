@@ -10,6 +10,7 @@
 import logging
 import os
 import threading
+from typing import List
 from typing import Optional
 
 import numpy as np
@@ -49,10 +50,13 @@ class NetCDFOutput(Output):
         self,
         context: Context,
         path: str,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
 
         from netCDF4 import Dataset
 

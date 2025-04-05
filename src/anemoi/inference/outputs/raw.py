@@ -9,6 +9,7 @@
 
 import logging
 import os
+from typing import List
 from typing import Optional
 
 import numpy as np
@@ -34,6 +35,7 @@ class RawOutput(Output):
         path: str,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
@@ -54,7 +56,9 @@ class RawOutput(Output):
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
         """
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
         self.path = path
         self.template = template
         self.strftime = strftime

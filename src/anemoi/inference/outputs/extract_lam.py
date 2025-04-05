@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import List
 from typing import Optional
 
 import numpy as np
@@ -47,10 +48,13 @@ class ExtractLamOutput(ForwardOutput):
         *,
         output: Configuration,
         lam: str = "lam_0",
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
 
         if "cutout_mask" in self.checkpoint.supporting_arrays:
             # Backwards compatibility

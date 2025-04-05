@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import List
 from typing import Optional
 
 from anemoi.inference.config import Configuration
@@ -45,10 +46,13 @@ class ApplyMaskOutput(ForwardOutput):
         *,
         mask: str,
         output: Configuration,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
         self.mask = self.checkpoint.load_supporting_array(mask)
         self.output = create_output(context, output)
 

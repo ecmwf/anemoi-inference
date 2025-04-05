@@ -78,6 +78,7 @@ class DefaultRunner(Runner):
             write_initial_state=config.write_initial_state,
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
+            typed_variables=config.typed_variables,
         )
 
     def execute(self) -> None:
@@ -99,9 +100,11 @@ class DefaultRunner(Runner):
 
         state = Output.reduce(input_state)
         for processor in post_processors:
+            LOG.info("Post processor: %s", processor)
             state = processor.process(state)
 
         output.open(state)
+        LOG.info("write_initial_state: %s", output)
         output.write_initial_state(state)
 
         for state in self.run(input_state=input_state, lead_time=self.config.lead_time):
