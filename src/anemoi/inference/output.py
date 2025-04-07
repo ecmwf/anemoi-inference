@@ -105,7 +105,10 @@ class Output(ABC):
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
-            reduced_state["fields"][field] = values[-1, :]
+            if len(values.shape) > 1:
+                reduced_state["fields"][field] = values[-1, :]
+            else:
+                reduced_state["fields"][field] = values
         return reduced_state
 
     def open(self, state: State) -> None:
