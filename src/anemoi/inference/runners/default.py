@@ -15,6 +15,7 @@ from typing import Dict
 from typing import List
 
 from anemoi.utils.config import DotDict
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from pydantic import BaseModel
 
 from anemoi.inference.config import Configuration
@@ -86,6 +87,12 @@ class DefaultRunner(Runner):
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
+        lead_time = to_timedelta(self.config.lead_time)
+
+        # This may be used by Output objects to compute the step
+        self.lead_time = lead_time
+        self.time_step = self.checkpoint.timestep
+
         input = self.create_input()
         output = self.create_output()
 
@@ -104,7 +111,7 @@ class DefaultRunner(Runner):
         output.open(state)
         output.write_initial_state(state)
 
-        for state in self.run(input_state=input_state, lead_time=self.config.lead_time):
+        for state in self.run(input_state=input_state, lead_time=lead_time):
             for processor in post_processors:
                 LOG.info("Post processor: %s", processor)
                 state = processor.process(state)

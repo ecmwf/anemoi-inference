@@ -214,10 +214,6 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
-        # This may be used but Output objects to compute the step
-        self.lead_time = lead_time
-        self.time_step = self.checkpoint.timestep
-
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)

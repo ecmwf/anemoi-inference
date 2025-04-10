@@ -91,10 +91,12 @@ class NetCDFOutput(Output):
 
         time = 0
         self.reference_date = state["date"]
-        if hasattr(self.context, "time_step") and hasattr(self.context, "lead_time"):
-            time = self.context.lead_time // self.context.time_step
-        if hasattr(self.context, "reference_date"):
-            self.reference_date = self.context.reference_date
+        if (time_step := getattr(self.context, "time_step", None)) and (
+            lead_time := getattr(self.context, "lead_time", None)
+        ):
+            time = lead_time // time_step
+        if reference_date := getattr(self.context, "reference_date", None):
+            self.reference_date = reference_date
 
         with LOCK:
             self.values_dim = self.ncfile.createDimension("values", values)
