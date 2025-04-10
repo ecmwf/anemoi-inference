@@ -140,7 +140,11 @@ class RetrieveCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.description = self.__doc__
-        command_parser.add_argument("config", type=str, help="Path to config file")
+        command_parser.add_argument(
+            "config",
+            type=str,
+            help="Path to config file. If an empty string is provided, config can be passed with overrides and defaults.",
+        )
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
         command_parser.add_argument("--output", type=str, default=None, help="Output file")
