@@ -40,8 +40,11 @@ class CoupleCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
-        command_parser.add_argument("config", help="Path to config file.")
-        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
+        command_parser.add_argument(
+            "config",
+            help="Path to config file. Can be omitted to pass config with overrides and defaults.",
+        )
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the couple command.
@@ -51,7 +54,15 @@ class CoupleCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config = CoupleConfiguration.load(args.config, args.overrides, defaults=args.defaults)
+        if "=" in args.config:
+            args.overrides.append(args.config)
+            args.config = {}
+
+        config = CoupleConfiguration.load(
+            args.config,
+            args.overrides,
+            defaults=args.defaults,
+        )
 
         if config.description is not None:
             LOG.info("%s", config.description)
