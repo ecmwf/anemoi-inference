@@ -32,7 +32,10 @@ class RunCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
-        command_parser.add_argument("config", help="Path to config file.")
+        command_parser.add_argument(
+            "config",
+            help="Path to config file. If an empty string is provided, config can be passed with overrides and defaults.",
+        )
         command_parser.add_argument("overrides", nargs="*", help="Overrides.")
 
     def run(self, args: Namespace) -> None:
