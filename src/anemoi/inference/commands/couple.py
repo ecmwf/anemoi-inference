@@ -42,9 +42,9 @@ class CoupleCmd(Command):
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument(
             "config",
-            help="Path to config file. If an empty string is provided, config can be passed with overrides and defaults.",
+            help="Path to config file. Can be omitted to pass config with overrides and defaults.",
         )
-        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the couple command.
@@ -54,8 +54,12 @@ class CoupleCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
+        if "=" in args.config:
+            args.overrides.append(args.config)
+            args.config = {}
+
         config = CoupleConfiguration.load(
-            args.config if args.config else {},
+            args.config,
             args.overrides,
             defaults=args.defaults,
         )

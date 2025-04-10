@@ -152,7 +152,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--retrieve-fields-type", type=str, help="Type of fields to retrieve")
         command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
-        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the retrieve command.
@@ -162,9 +162,11 @@ class RetrieveCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config: RunConfiguration = RunConfiguration.load(
-            args.config if args.config else {}, args.overrides, defaults=args.defaults
-        )
+        if "=" in args.config:
+            args.overrides.append(args.config)
+            args.config = {}
+
+        config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
 
