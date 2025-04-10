@@ -44,7 +44,7 @@ class RunCmd(Command):
             The arguments passed to the command.
         """
         config = RunConfiguration.load(
-            args.config,
+            args.config if args.config else {},
             args.overrides,
             defaults=args.defaults,
         )

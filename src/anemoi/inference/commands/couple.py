@@ -51,7 +51,11 @@ class CoupleCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        config = CoupleConfiguration.load(args.config, args.overrides, defaults=args.defaults)
+        config = CoupleConfiguration.load(
+            args.config if args.config else {},
+            args.overrides,
+            defaults=args.defaults,
+        )
 
         if config.description is not None:
             LOG.info("%s", config.description)
