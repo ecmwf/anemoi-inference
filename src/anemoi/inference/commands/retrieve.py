@@ -143,7 +143,7 @@ class RetrieveCmd(Command):
         command_parser.add_argument(
             "config",
             type=str,
-            help="Path to config file. If an empty string is provided, config can be passed with overrides and defaults.",
+            help="Path to config file. Can be omitted to pass config with overrides and defaults.",
         )
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
