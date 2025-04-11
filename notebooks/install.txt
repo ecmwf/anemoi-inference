@@ -1,0 +1,16 @@
+module load python3/new
+
+python3 -m venv /home/erpl/venvs/aifs-inference
+source /home/erpl/venvs/aifs-inference/bin/activate
+
+pip install ipykernel
+pip install anemoi-inference[huggingface]==0.4.9 anemoi-models==0.3.1
+pip install earthkit-regrid==0.4.0 ecmwf-opendata 
+
+pip install psutil
+pip install flash_attn==2.7.2.post1 --no-build-isolation
+
+pip install matplotlib
+pip install cartopy
+
+python -m ipykernel install --user --name=kernel-aifs-inference
