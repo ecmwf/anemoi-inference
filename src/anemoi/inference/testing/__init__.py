@@ -100,3 +100,9 @@ def files_for_tests(name: str) -> str:
     bits.append("tests")
     bits.append(name)
     return os.path.sep.join(bits)
+
+
+class TestingContext:
+    """A context for testing plugins."""
+
+    pass
