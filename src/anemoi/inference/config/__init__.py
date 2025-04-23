@@ -89,11 +89,20 @@ class Configuration(BaseModel):
                 key, value = override.split("=")
                 keys = key.split(".")
                 for key in keys[:-1]:
-                    try:
+                    if key.isdigit() and isinstance(path, list):
                         index = int(key)
-                        LOG.debug(f"key {key} is used as list index in {path}")
-                        path = path[index]
-                    except ValueError:
+                        if index < len(path):                       
+                            LOG.debug(f"key {key} is used as list index in list{path}")
+                            path = path[index]
+                        elif index == len(path):
+                            LOG.debug(f"key {key} is used to append to list {path}")
+                            path.append({})
+                            path = path[index]
+                        else:  
+                            raise IndexError(
+                                f"Index {index} out of range for list {path} of length {len(path)}"
+                            )
+                    else:
                         path = path.setdefault(key, {})
                 path[keys[-1]] = value
 
