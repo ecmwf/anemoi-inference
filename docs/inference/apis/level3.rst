@@ -39,9 +39,9 @@ that was used to train the model, by setting ``dataset`` entry to
 .. literalinclude:: code/level3_2.yaml
    :language: yaml
 
-It is also possible to override list entries and append to lists 
-on the command line by using the list indices as key. 
-Running inference with following command:
+It is also possible to override list entries and append to lists on the
+command line by using the list indices as key. Running inference with
+following command:
 
 .. literalinclude:: code/level3_3.sh
    :language: bash
@@ -52,7 +52,7 @@ with configuration file:
    :language: yaml
 
 will overide the first entry in the ``input.dataset.cutout`` list with
-the dictionary ``{"dataset": "./analysis_20240131_00.zarr"}`` and will 
+the dictionary ``{"dataset": "./analysis_20240131_00.zarr"}`` and will
 append the dictionary ``{"dataset": "./lbc_20240131_00.zarr"}`` to it.
 
 The configuration below shows how to provide run the inference for a
