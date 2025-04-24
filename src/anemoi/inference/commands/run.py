@@ -32,8 +32,11 @@ class RunCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
-        command_parser.add_argument("config", help="Path to config file.")
-        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
+        command_parser.add_argument(
+            "config",
+            help="Path to config file. Can be omitted to pass config with overrides and defaults.",
+        )
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the inference command.
@@ -43,6 +46,10 @@ class RunCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
+        if "=" in args.config:
+            args.overrides.append(args.config)
+            args.config = {}
+
         config = RunConfiguration.load(
             args.config,
             args.overrides,
