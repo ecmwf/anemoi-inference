@@ -46,7 +46,7 @@ following command:
 .. literalinclude:: code/level3_3.sh
    :language: bash
 
-with configuration file:
+together with configuration file:
 
 .. literalinclude:: code/level3_3.yaml
    :language: yaml
