@@ -39,10 +39,26 @@ that was used to train the model, by setting ``dataset`` entry to
 .. literalinclude:: code/level3_2.yaml
    :language: yaml
 
+It is also possible to override list entries and append to lists on the
+command line by using the list indices as key. Running inference with
+following command:
+
+.. literalinclude:: code/level3_4.sh
+   :language: bash
+
+together with configuration file:
+
+.. literalinclude:: code/level3_3.yaml
+   :language: yaml
+
+will overide the first entry in the ``input.dataset.cutout`` list with
+the dictionary ``{"dataset": "./analysis_20240131_00.zarr"}`` and will
+append the dictionary ``{"dataset": "./lbc_20240131_00.zarr"}`` to it.
+
 The configuration below shows how to provide run the inference for a
 checkpoint that was trained with one the ICON grid:
 
-.. literalinclude:: code/level3_3.yaml
+.. literalinclude:: code/level3_4.yaml
    :language: yaml
 
 See :ref:`run_command` for more details on the configuration file.
