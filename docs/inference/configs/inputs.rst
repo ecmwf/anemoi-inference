@@ -161,7 +161,7 @@ running ``anemoi-inference patch <your_checkpoint>``.
 
 An example configuration for the ``cutout`` input is shown below:
 
-.. literalinclude:: inputs_11.yaml
+.. literalinclude:: yaml/inputs_11.yaml
    :language: yaml
 
 The different sources are specified exactly as you would for a single
