@@ -219,10 +219,6 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
-        # This may be used but Output objects to compute the step
-        self.lead_time = lead_time
-        self.time_step = self.checkpoint.timestep
-
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
@@ -459,7 +455,13 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
-            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+
+            try:
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            except Exception as e:  # Wildcard exception to catch all errors
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                error_msg = f"Error loading model - {validation_result}"
+                raise RuntimeError(error_msg) from e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self

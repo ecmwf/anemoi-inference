@@ -631,23 +631,24 @@ class Metadata(PatchMixin, LegacyMixin):
         self,
         *,
         all_packages: bool = False,
-        on_difference: Literal["warn", "error", "ignore"] = "warn",
+        on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
         exempt_packages: Optional[list[str]] = None,
-    ) -> bool:
+    ) -> Union[bool, str]:
         """Validate environment of the checkpoint against the current environment.
 
         Parameters
         ----------
         all_packages : bool, optional
-            Check all packages in environment or just `anemoi`'s, by default False
-        on_difference : Literal['warn', 'error', 'ignore'], optional
+            Check all packages in the environment (True) or just anemoi's (False), by default False.
+        on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
             What to do on difference, by default "warn"
         exempt_packages : list[str], optional
             List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
-        bool
+        Union[bool, str]
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
             True if environment is valid, False otherwise
 
         Raises
