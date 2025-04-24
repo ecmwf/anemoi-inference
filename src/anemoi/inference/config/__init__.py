@@ -72,7 +72,7 @@ class Configuration(BaseModel):
 
         # Load the configuration
         if isinstance(path, dict):
-            config = deepcopy(path)
+            config.update(deepcopy(path))
         else:
             with open(path) as f:
                 config.update(yaml.safe_load(f))

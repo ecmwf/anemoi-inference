@@ -26,6 +26,12 @@ You can also override values by providing them on the command line:
 .. literalinclude:: code/level3_2.sh
    :language: bash
 
+You can also run entirely from the command line without a config file,
+by passing all required options as an override:
+
+.. literalinclude:: code/level3_3.sh
+   :language: bash
+
 The configuration below shows how to run the inference from the data
 that was used to train the model, by setting ``dataset`` entry to
 ``true``:
