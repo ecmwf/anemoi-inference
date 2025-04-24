@@ -43,7 +43,7 @@ It is also possible to override list entries and append to lists on the
 command line by using the list indices as key. Running inference with
 following command:
 
-.. literalinclude:: code/level3_3.sh
+.. literalinclude:: code/level3_4.sh
    :language: bash
 
 together with configuration file:
