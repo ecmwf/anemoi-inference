@@ -9,7 +9,6 @@
 
 
 import logging
-import os
 from contextlib import contextmanager
 from functools import cached_property
 from typing import Any
@@ -83,26 +82,5 @@ class PatchMixin(MetadataProtocol):
         # We assume that the datasets are reachable via the content of
         # ~/.config/anemoi/settings.toml.
 
-        from anemoi.datasets import open_dataset
-
-        dataset = self._metadata["dataset"]
-        arguments = dataset["arguments"]
-
-        def _(x: Any) -> Any:
-            if isinstance(x, dict):
-                return {k: _(v) for k, v in x.items()}
-            if isinstance(x, list):
-                return [_(v) for v in x]
-
-            if isinstance(x, str):
-                if x.endswith(".zarr"):
-                    x = os.path.basename(x)
-                    x = os.path.splitext(x)[0]
-
-            return x
-
-        args, kwargs = _(arguments["args"]), _(arguments["kwargs"])
-
-        LOG.info(f"Opening dataset with args {args} and kwargs {kwargs}")
-        ds = open_dataset(*args, **kwargs)
+        ds = self.open_dataset()
         return ds.metadata(), ds.supporting_arrays()

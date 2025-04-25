@@ -700,6 +700,57 @@ class Metadata(PatchMixin, LegacyMixin):
         _find(self._config.dataloader.training.dataset)
         return result
 
+    def open_dataset(
+        self, *, use_original_paths: Optional[bool] = None, from_dataloader: Optional[str] = None
+    ) -> Tuple[Any, Any]:
+        """Open the dataset.
+
+        Parameters
+        ----------
+        use_original_paths : bool
+            Whether to use the original paths.
+        from_dataloader : str, optional
+            The dataloader to use, by default None.
+
+        Returns
+        -------
+        tuple
+            The opened dataset and its arguments.
+        """
+        from anemoi.datasets import open_dataset
+        from anemoi.utils.config import temporary_config
+
+        if use_original_paths is not None:
+            args, kwargs = self.open_dataset_args_kwargs(
+                use_original_paths=use_original_paths, from_dataloader=from_dataloader
+            )
+            return open_dataset(*args, **kwargs)
+
+        args, kwargs = self.open_dataset_args_kwargs(use_original_paths=True, from_dataloader=from_dataloader)
+
+        #  Extract paths
+
+        paths = []
+
+        def _(x: Any) -> Any:
+            if isinstance(x, dict):
+                return {k: _(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [_(v) for v in x]
+
+            if isinstance(x, str):
+                if x.endswith(".zarr"):
+                    paths.append(os.path.basename(x))
+                    x = os.path.basename(x)
+                    x = os.path.splitext(x)[0]
+
+            return x
+
+        args, kwargs = _((args, kwargs))
+
+        with temporary_config(dict(datasets=dict(use_search_path_not_found=True))):
+            return open_dataset(*args, **kwargs)
+
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: Optional[str] = None
     ) -> Tuple[Any, Any]:
