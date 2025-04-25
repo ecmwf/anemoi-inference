@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.5.2](https://github.com/ecmwf/anemoi-inference/compare/0.5.1...0.5.2) (2025-04-25)
+
+
+### Features
+
+* Add version validation if model fails to load ([#194](https://github.com/ecmwf/anemoi-inference/issues/194)) ([bfd890f](https://github.com/ecmwf/anemoi-inference/commit/bfd890f3f656d8e91cacbcb2cd4f5e7c93853879))
+* Allow empty config path to run from overrides ([#206](https://github.com/ecmwf/anemoi-inference/issues/206)) ([a5177d3](https://github.com/ecmwf/anemoi-inference/commit/a5177d3fce8abb6d93ad0c9e1b2b4066c8b3fc06))
+* Allow hydra-like override of config list elements ([#201](https://github.com/ecmwf/anemoi-inference/issues/201)) ([ff0c607](https://github.com/ecmwf/anemoi-inference/commit/ff0c6077ae49ea4e873bba9575565e1b132cb912))
+
+
+### Bug Fixes
+
+* Hindcast encoding ([217d81e](https://github.com/ecmwf/anemoi-inference/commit/217d81e966ecba830ded4d9c6f6634e965b824ed))
+* Improve Testing Decorators ([#209](https://github.com/ecmwf/anemoi-inference/issues/209)) ([03a7f65](https://github.com/ecmwf/anemoi-inference/commit/03a7f65dc0f983d9194c1471ec10c1e3bb20adc2))
+
+
+### Documentation
+
+* Fix cutout example ([ff9715c](https://github.com/ecmwf/anemoi-inference/commit/ff9715cec988c011fe58d2c60bd630bf4d746822))
+
 ## [0.5.1](https://github.com/ecmwf/anemoi-inference/compare/0.5.0...0.5.1) (2025-04-09)
 
 
