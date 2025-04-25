@@ -68,7 +68,7 @@ class HindcastOutput:
         else:
             date = keys.pop("date")
 
-        for k in ("date", "hdate"):
+        for k in ("date", "hdate", "eps", "productDefinitionTemplateNumber"):
             keys.pop(k, None)
 
         keys["edition"] = 1
