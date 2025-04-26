@@ -51,6 +51,8 @@ class NetCDFOutput(Output):
         path: str,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
+        float_size: str = "f4",
+        missing_value: Optional[float] = np.nan,
     ) -> None:
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
@@ -58,7 +60,8 @@ class NetCDFOutput(Output):
 
         self.path = path
         self.ncfile: Optional[Dataset] = None
-        self.float_size = "f4"
+        self.float_size = float_size
+        self.missing_value = missing_value
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -123,7 +126,6 @@ class NetCDFOutput(Output):
         self.longitude_var[:] = longitudes
 
         self.vars = {}
-        self.ensure_variables(state)
 
         self.n = 0
 
@@ -135,6 +137,7 @@ class NetCDFOutput(Output):
         state : State
             The state dictionary.
         """
+
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)
@@ -148,13 +151,19 @@ class NetCDFOutput(Output):
                 chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
 
             with LOCK:
+                missing_value = self.missing_value
+
                 self.vars[name] = self.ncfile.createVariable(
                     name,
                     self.float_size,
                     ("time", "values"),
                     chunksizes=chunksizes,
+                    fill_value=missing_value,
                     **compression,
                 )
+
+                self.vars[name].fill_value = missing_value
+                self.vars[name].missing_value = missing_value
 
     def write_step(self, state: State) -> None:
         """Write the state.
