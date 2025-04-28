@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import warnings
 from typing import Any
 
 from . import runner_registry
@@ -40,4 +41,5 @@ class CrpsRunner(DefaultRunner):
         Any
             The prediction result.
         """
-        return model.predict_step(input_tensor_torch, fcstep=kwargs["fcstep"])
+        warnings.warn("CRPS runner is deprecated, use DefaultRunner instead")
+        return model.predict_step(input_tensor_torch, kwargs["fcstep"])
