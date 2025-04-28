@@ -40,4 +40,4 @@ class CrpsRunner(DefaultRunner):
         Any
             The prediction result.
         """
-        return model.predict_step(input_tensor_torch, kwargs["fcstep"])
+        return model.predict_step(input_tensor_torch, fcstep=kwargs["fcstep"])

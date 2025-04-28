@@ -476,7 +476,7 @@ class Runner(Context):
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch, **kwargs)
+        return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
