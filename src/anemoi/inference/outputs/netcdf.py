@@ -62,6 +62,10 @@ class NetCDFOutput(Output):
         self.ncfile: Optional[Dataset] = None
         self.float_size = float_size
         self.missing_value = missing_value
+        if self.write_step_zero:
+            self.extra_time = 1
+        else:
+            self.extra_time = 0
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -98,6 +102,8 @@ class NetCDFOutput(Output):
             lead_time := getattr(self.context, "lead_time", None)
         ):
             time = lead_time // time_step
+            time += self.extra_time
+
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
