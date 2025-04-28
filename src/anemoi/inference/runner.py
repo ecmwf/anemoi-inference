@@ -478,7 +478,12 @@ class Runner(Context):
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch)
+        try:
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
