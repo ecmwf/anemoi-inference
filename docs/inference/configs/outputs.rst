@@ -122,11 +122,21 @@ result is passed to the next output.
 *************
 
 Similar to the previous one, ``extract_lam`` will extract the LAM domain
-from the output fields. The LAM domain is found in the checkpoint file,
-and is based on `anemoi-datasets's` :ref:`cutout feature
-<anemoi-datasets:combining-datasets>`.
+from the output fields. The LAM domain is found in the checkpoint file
+as supporting array, and is based on the `cutout_mask` associated to
+`anemoi-datasets's` :ref:`cutout feature
+<anemoi-datasets:combining-datasets>`. The default mask that is used is
+`lam_0` and does not need to be specified. In that case the config takes
+the simple form
 
-.. literalinclude:: yaml/outputs_8.yaml
+.. literalinclude:: yaml/outputs_8a.yaml
+
+In the case of more complicated datasets, e.g. those formed using the
+`join` operation, there can be multiple cutout masks present and the
+relevant one needs to be specified. A more elaborate config could for
+example be
+
+.. literalinclude:: yaml/outputs_8b.yaml
 
 *******
  truth
