@@ -109,3 +109,7 @@ class RunConfiguration(Configuration):
 
     debugging_info: Dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
+
+    graph: Optional[str]=None
+    """Path to a graph on disk to use during inference. This is optional and intended to be used with the external_graph runner only."""
+    # TODO: move this to a separate configuration class for the external_graph runner?
