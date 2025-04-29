@@ -19,28 +19,30 @@ class ExternalGraphRunner(DefaultRunner):
 
     def __init__(self, config):
         super().__init__(config)
-        # Check if the external graph has the 'indices_connected_nodes' attribute 
+        # Check if the external graph has the 'indices_connected_nodes' attribute
         data = self.checkpoint._metadata._config.graph.data
         assert data in self.graph.node_types, f"Node type {data} not found in external graph."
-        if 'indices_connected_nodes' in self.graph[data]:
-            LOG.info("The external graph has the 'indices_connected_nodes' attribute." \
-                    " Patching metadata with MaskedGrid grid_indices.")
+        if "indices_connected_nodes" in self.graph[data]:
+            LOG.info(
+                "The external graph has the 'indices_connected_nodes' attribute."
+                " Patching metadata with MaskedGrid grid_indices."
+            )
             self.checkpoint._metadata.patch(
-            {"config": {
-                "dataloader" : {
-                    "grid_indices" : {
-                        "_target_": "anemoi.training.data.grid_indices.MaskedGrid",
-                        "nodes_name": data,
-                        "node_attribute_name": "indices_connected_nodes",
+                {
+                    "config": {
+                        "dataloader": {
+                            "grid_indices": {
+                                "_target_": "anemoi.training.data.grid_indices.MaskedGrid",
+                                "nodes_name": data,
+                                "node_attribute_name": "indices_connected_nodes",
+                            }
+                        }
                     }
                 }
-            }
-            }
             )
             LOG.info("Moving 'grid_indices' from external graph to supporting arrays.")
-            indices_connected_nodes = self.graph[data]['indices_connected_nodes'].numpy()
-            self.checkpoint._supporting_arrays['grid_indices'] = indices_connected_nodes.squeeze()
-
+            indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
+            self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
 
     @cached_property
     def graph(self):
@@ -58,7 +60,7 @@ class ExternalGraphRunner(DefaultRunner):
 
         model_instance.graph_data = self.graph
         model_instance.config = self.checkpoint._metadata._config
-        
+
         model_instance._build_model()
 
         new_state_dict = model_instance.state_dict()
