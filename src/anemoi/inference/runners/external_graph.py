@@ -74,5 +74,5 @@ class ExternalGraphRunner(DefaultRunner):
                 new_state_dict[key] = state_dict[key]
 
         LOG.info("Successfully built model with external graph and reassigning model weights!")
-        # model_instance.load_state_dict(new_state_dict)
+        model_instance.load_state_dict(new_state_dict)
         return model_instance.to(self.device)
