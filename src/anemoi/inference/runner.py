@@ -451,6 +451,8 @@ class Runner(Context):
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except Exception as e:  # Wildcard exception to catch all errors
+                if self.report_error:
+                    self.checkpoint.report_error()
                 validation_result = self.checkpoint.validate_environment(on_difference="return")
                 error_msg = f"Error loading model - {validation_result}"
                 raise RuntimeError(error_msg) from e
@@ -476,7 +478,12 @@ class Runner(Context):
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch)
+        try:
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
