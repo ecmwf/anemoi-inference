@@ -8,6 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.5.2](https://github.com/ecmwf/anemoi-inference/compare/0.5.1...0.5.2) (2025-04-25)
+
+
+### Features
+
+* Add version validation if model fails to load ([#194](https://github.com/ecmwf/anemoi-inference/issues/194)) ([bfd890f](https://github.com/ecmwf/anemoi-inference/commit/bfd890f3f656d8e91cacbcb2cd4f5e7c93853879))
+* Allow empty config path to run from overrides ([#206](https://github.com/ecmwf/anemoi-inference/issues/206)) ([a5177d3](https://github.com/ecmwf/anemoi-inference/commit/a5177d3fce8abb6d93ad0c9e1b2b4066c8b3fc06))
+* Allow hydra-like override of config list elements ([#201](https://github.com/ecmwf/anemoi-inference/issues/201)) ([ff0c607](https://github.com/ecmwf/anemoi-inference/commit/ff0c6077ae49ea4e873bba9575565e1b132cb912))
+
+
+### Bug Fixes
+
+* Hindcast encoding ([217d81e](https://github.com/ecmwf/anemoi-inference/commit/217d81e966ecba830ded4d9c6f6634e965b824ed))
+* Improve Testing Decorators ([#209](https://github.com/ecmwf/anemoi-inference/issues/209)) ([03a7f65](https://github.com/ecmwf/anemoi-inference/commit/03a7f65dc0f983d9194c1471ec10c1e3bb20adc2))
+
+
+### Documentation
+
+* Fix cutout example ([ff9715c](https://github.com/ecmwf/anemoi-inference/commit/ff9715cec988c011fe58d2c60bd630bf4d746822))
+
+## [0.5.1](https://github.com/ecmwf/anemoi-inference/compare/0.5.0...0.5.1) (2025-04-09)
+
+
+### Features
+
+* plugin support ([#187](https://github.com/ecmwf/anemoi-inference/issues/187)) ([531e2ad](https://github.com/ecmwf/anemoi-inference/commit/531e2ad1c11b946f8e37448fea9449eb5f798cbd))
+
+
+### Bug Fixes
+
+* Disable coupled test to fix runners ([8190dc0](https://github.com/ecmwf/anemoi-inference/commit/8190dc0d41d4bedc89f0ebfce82f0237bf96f720))
+* naming of pre/post processed fields ([#198](https://github.com/ecmwf/anemoi-inference/issues/198)) ([a082af4](https://github.com/ecmwf/anemoi-inference/commit/a082af43ee214ad956315ef357f5d8d68842a662))
+* **netcdf:** Fix context time attributes ([#204](https://github.com/ecmwf/anemoi-inference/issues/204)) ([d6fd430](https://github.com/ecmwf/anemoi-inference/commit/d6fd4304779f074fe2cc3f00d1b777ac7c6f02d8))
+* **retrieve:** Patch scda regardless of start date ([b67562a](https://github.com/ecmwf/anemoi-inference/commit/b67562a9325eca223e35818c8b15d6edd87ca465))
+* Write correct values at step 0 ([#186](https://github.com/ecmwf/anemoi-inference/issues/186)) ([7923860](https://github.com/ecmwf/anemoi-inference/commit/7923860abd237b463d035a5522975547b54f619d))
+
+
+### Documentation
+
+* align docs with template ([#195](https://github.com/ecmwf/anemoi-inference/issues/195)) ([f444c52](https://github.com/ecmwf/anemoi-inference/commit/f444c5282f9bdb36bceb9be3316eb49356d8c24e))
+
 ## [0.5.0](https://github.com/ecmwf/anemoi-inference/compare/0.4.11...0.5.0) (2025-03-24)
 
 

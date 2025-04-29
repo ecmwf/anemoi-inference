@@ -57,7 +57,7 @@ class ExtractLamOutput(ForwardOutput):
             mask = self.checkpoint.load_supporting_array("cutout_mask")
             points = slice(None, -np.sum(mask))
         else:
-            if lam != "lam_0":
+            if "lam_0" not in lam:
                 raise NotImplementedError("Only lam_0 is supported")
 
             if "lam_1/cutout_mask" in self.checkpoint.supporting_arrays:

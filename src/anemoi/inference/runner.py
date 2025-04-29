@@ -214,10 +214,6 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
-        # This may be used but Output objects to compute the step
-        self.lead_time = lead_time
-        self.time_step = self.checkpoint.timestep
-
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
@@ -449,7 +445,14 @@ class Runner(Context):
             The loaded model.
         """
         with Timer(f"Loading {self.checkpoint}"):
-            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            try:
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            except Exception as e:  # Wildcard exception to catch all errors
+                if self.report_error:
+                    self.checkpoint.report_error()
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                error_msg = f"Error loading model - {validation_result}"
+                raise RuntimeError(error_msg) from e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
@@ -472,7 +475,12 @@ class Runner(Context):
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch)
+        try:
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta

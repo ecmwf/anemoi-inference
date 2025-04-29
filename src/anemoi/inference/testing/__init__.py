@@ -9,6 +9,7 @@
 
 
 import datetime
+import functools
 import os
 from typing import Any
 from typing import Callable
@@ -28,6 +29,7 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
         The decorated function.
     """
 
+    @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         from unittest.mock import patch
 
