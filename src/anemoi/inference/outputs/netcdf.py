@@ -31,19 +31,7 @@ LOCK = threading.RLock()
 @output_registry.register("netcdf")
 @main_argument("path")
 class NetCDFOutput(Output):
-    """NetCDF output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    path : str
-        The path to save the NetCDF file.
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    """
+    """NetCDF output class."""
 
     def __init__(
         self,
@@ -54,6 +42,24 @@ class NetCDFOutput(Output):
         float_size: str = "f4",
         missing_value: Optional[float] = np.nan,
     ) -> None:
+        """Initialize the NetCDF output object.
+
+        Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        path : str
+            The path to save the NetCDF file.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        float_size : str, optional
+            The size of the float, by default "f4".
+        missing_value : float, optional
+            The missing value, by default np.nan.
+        """
+
         super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         from netCDF4 import Dataset
@@ -187,6 +193,7 @@ class NetCDFOutput(Output):
 
         for name, value in state["fields"].items():
             with LOCK:
+                LOG.info(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
                 self.vars[name][self.n] = value
 
         self.n += 1
