@@ -99,7 +99,7 @@ class DefaultRunner(Runner):
         # pre_processors = self.pre_processors
         post_processors = self.post_processors
 
-        input_state = input.create_state(date=self.config.date)
+        input_state = input.create_state(date=self.config.date, initial=True)
 
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)

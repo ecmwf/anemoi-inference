@@ -18,10 +18,12 @@ from typing import Optional
 
 import earthkit.data as ekd
 import numpy as np
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.input import Input
 
+from ..types import Date
 from ..types import State
 
 LOG = logging.getLogger(__name__)
@@ -106,16 +108,24 @@ class EarthKitInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def create_state(self, *, date=None, variables=None, initial: bool = True) -> State:
-        # NOTE: all logic involing the checkpoint should take place here
+    def create_state(self, *, date: Date | None = None, variables=None, initial: bool = False) -> State:
 
         # define request (using checkpoint)
-        variables = self.checkpoint_variables if variables is None else variables
-        date = np.datetime64(date).astype(datetime.datetime)
-        dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
+        if variables is None:
+            variables = self.checkpoint.variables_from_input(include_forcings=True)
 
-        # get raw state fieldlist
-        state = self._raw_state_fieldlist(dates=dates, variables=variables)
+        if date is None:
+            state = self._raw_state_fieldlist(date, variables)
+            date = state.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+            LOG.info(
+                "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
+            )
+            dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
+            state = state.sel(valid_datetime=dates)
+        else:
+            date = to_datetime(date) if date is not None else None
+            dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
+            state = self._raw_state_fieldlist(dates=dates, variables=variables)
 
         # pre-process state fieldlist
         for processor in self.context.pre_processors:
@@ -125,7 +135,7 @@ class EarthKitInput(Input):
         return self.fieldlist_to_state(state)
 
     @abc.abstractmethod
-    def _raw_state_fieldlist(self, dates: list[datetime.datetime], variables: list[str]) -> ekd.FieldList:
+    def _raw_state_fieldlist(self, dates: list[datetime.datetime] | None, variables: list[str]) -> ekd.FieldList:
         """Load the raw state fieldlist for the given dates and variables.
 
         Parameters

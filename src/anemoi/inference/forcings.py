@@ -134,14 +134,14 @@ class ComputedForcings(Forcings):
         """Return a string representation of the ComputedForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, date: Date, *, initial: bool) -> FloatArray:
+    def load_forcings_array(self, date: Date, current_state: State, *, initial: bool) -> FloatArray:
 
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
         dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
         source = UnstructuredGridFieldList.from_values(
-            latitudes=self.checkpoint.latitudes,
-            longitudes=self.checkpoint.longitudes,
+            latitudes=current_state.get("latitudes", self.checkpoint.latitudes),
+            longitudes=current_state.get("longitudes", self.checkpoint.longitudes),
         )
 
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
@@ -192,8 +192,8 @@ class CoupledForcings(Forcings):
         """Return a string representation of the CoupledForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, date: Date, initial=True) -> FloatArray:
-
+    def load_forcings_array(self, date: Date, current_state: State, initial=False) -> FloatArray:
+        dates = [date + h for h in self.checkpoint.lagged] if initial else [date]
         return self._state_to_numpy(
             self.input.load_forcings_state(
                 date=date,
@@ -201,7 +201,7 @@ class CoupledForcings(Forcings):
                 initial=initial,
             ),
             self.variables,
-            [date],
+            dates,
         )
 
 
@@ -237,7 +237,7 @@ class BoundaryForcings(Forcings):
         """Return a string representation of the BoundaryForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(self, date: Date, initial: bool) -> FloatArray:
+    def load_forcings_array(self, date: Date, current_state: State, *, initial: bool) -> FloatArray:
 
         data = self._state_to_numpy(
             self.input.load_forcings_state(date=date, variables=self.variables, initial=initial),
@@ -246,7 +246,9 @@ class BoundaryForcings(Forcings):
         )
         data = data[..., self.spatial_mask]
 
-        expected_shape = (len(self.variables), 1, self.checkpoint.latitudes[self.spatial_mask].size)
+        expected_shape = (len(self.variables), 1, current_state.get("latitudes"), self.checkpoint.latitudes)[
+            self.spatial_mask
+        ].size
         assert data.shape == expected_shape, (data.shape, expected_shape)
 
         return data

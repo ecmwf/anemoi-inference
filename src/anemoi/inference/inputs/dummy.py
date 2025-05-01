@@ -94,7 +94,6 @@ class DummyInput(EarthKitInput):
                     **keys,
                 )
                 result.append(handle)
-
         return ekd.from_source("list-of-dicts", result)
 
     def template_lookup(self, name: str) -> dict:

@@ -303,7 +303,7 @@ class Runner(Context):
 
         for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, date)
-            arrays = source.load_forcings_array(date, initial=True)
+            arrays = source.load_forcings_array(date, input_state, initial=True)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -313,7 +313,7 @@ class Runner(Context):
 
         for source in initial_dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, date)
-            arrays = source.load_forcings_array(date, initial=True)
+            arrays = source.load_forcings_array(date, input_state, initial=True)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -715,7 +715,7 @@ class Runner(Context):
 
         for source in self.dynamic_forcings_inputs:
 
-            forcings = source.load_forcings_array(date, initial=False)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(date, state, initial=False)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
