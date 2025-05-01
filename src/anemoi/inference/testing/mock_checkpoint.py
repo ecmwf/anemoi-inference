@@ -83,7 +83,7 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
         metadata = SIMPLE_METADATA
     else:
         if not os.path.isabs(path):
-            path = files_for_tests(os.path.join("checkpoints", path))
+            path = files_for_tests(path)
         name, _ = os.path.splitext(path)
         for ext in (".yaml", ".json"):
             path = f"{name}{ext}"

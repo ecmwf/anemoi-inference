@@ -1,4 +1,4 @@
-checkpoint: atmos.ckpt
+checkpoint: unit/checkpoints/atmos.ckpt
 runner: testing
 device: cpu
 
