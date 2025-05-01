@@ -224,15 +224,15 @@ class MarsInput(GribInput):
         self.kwargs = kwargs
         self.patches = patches or []
 
-    def _earthkit_reader(self, variables: List[str], dates: List[Date]) -> Any:
+    def _earthkit_reader(self, dates: Optional[List[Date]], variables: List[str]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
         ----------
+        dates : List[Date]
+            The list of dates for which to retrieve the data.
         variables : List[str]
             The list of variables to retrieve.
-        dates : List[Any]
-            The list of dates for which to retrieve the data.
 
         Returns
         -------

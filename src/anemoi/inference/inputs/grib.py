@@ -12,6 +12,7 @@ import datetime
 import logging
 from typing import Any
 from typing import Dict
+from typing import List
 
 import earthkit.data as ekd
 from earthkit.data.indexing.fieldlist import FieldArray
@@ -25,7 +26,7 @@ LOG = logging.getLogger(__name__)
 class GribInput(EarthKitInput):
     """Handles grib files."""
 
-    def _raw_state_fieldlist(self, dates: list[datetime.datetime], variables: list[str]) -> ekd.FieldList:
+    def _raw_state_fieldlist(self, dates: List[datetime.datetime], variables: List[str]) -> ekd.FieldList:
         """Load the raw state fieldlist for the given dates and variables."""
 
         # NOTE: this is deferred because it's only passed as a callable
@@ -46,6 +47,6 @@ class GribInput(EarthKitInput):
         return data
 
     @abc.abstractmethod
-    def _earthkit_reader(self, dates: datetime.datetime, variables: list[str]) -> Reader:
+    def _earthkit_reader(self, dates: datetime.datetime, variables: List[str]) -> Reader:
         """Return the earthkit reader for the input."""
         pass

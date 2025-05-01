@@ -108,7 +108,7 @@ class EarthKitInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def create_state(self, *, date: Date | None = None, variables=None, initial: bool = False) -> State:
+    def create_state(self, *, date: Optional[Date] = None, variables=None, initial: bool = False) -> State:
 
         # define request (using checkpoint)
         if variables is None:
@@ -135,7 +135,7 @@ class EarthKitInput(Input):
         return self.fieldlist_to_state(state)
 
     @abc.abstractmethod
-    def _raw_state_fieldlist(self, dates: list[datetime.datetime] | None, variables: list[str]) -> ekd.FieldList:
+    def _raw_state_fieldlist(self, dates: Optional[list[datetime.datetime]], variables: list[str]) -> ekd.FieldList:
         """Load the raw state fieldlist for the given dates and variables.
 
         Parameters
