@@ -10,9 +10,7 @@
 import logging
 import os
 from typing import List
-from typing import Literal
 from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -24,8 +22,6 @@ from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
-
-ListOrAll = Union[List[str], Literal["all"]]
 
 
 def fix(lons: FloatArray) -> FloatArray:
@@ -52,11 +48,11 @@ class PlotOutput(Output):
         self,
         context: Context,
         path: str,
-        variables: ListOrAll = "all",
         strftime: str = "%Y%m%d%H%M%S",
         template: str = "plot_{variable}_{date}.{format}",
         dpi: int = 300,
         format: str = "png",
+        variables: Optional[List[str]] = None,
         missing_value: Optional[float] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
@@ -87,7 +83,12 @@ class PlotOutput(Output):
             Whether to write the initial state, by default None.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
         self.path = path
         self.format = format
         self.variables = variables
@@ -95,10 +96,6 @@ class PlotOutput(Output):
         self.template = template
         self.dpi = dpi
         self.missing_value = missing_value
-
-        if self.variables != "all":
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
@@ -121,7 +118,7 @@ class PlotOutput(Output):
 
         for name, values in state["fields"].items():
 
-            if self.variables != "all" and name not in self.variables:
+            if self.skip_variable(name):
                 continue
 
             _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})

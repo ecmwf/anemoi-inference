@@ -87,6 +87,9 @@ class RunConfiguration(Configuration):
     written.
     """
 
+    typed_variables: Dict[str, Dict] = {}
+    """A list of typed variables to support the encoding of outputs."""
+
     output_frequency: Optional[str] = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
 

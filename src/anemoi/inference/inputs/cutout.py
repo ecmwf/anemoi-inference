@@ -48,6 +48,7 @@ class Cutout(Input):
             self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
 
     def __repr__(self):
+        """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
     def create_input_state(self, *, date: Optional[Date]) -> State:

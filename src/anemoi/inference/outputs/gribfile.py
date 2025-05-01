@@ -122,9 +122,9 @@ class GribFileOutput(GribOutput):
         grib1_keys: Optional[Dict[str, Any]] = None,
         grib2_keys: Optional[Dict[str, Any]] = None,
         modifiers: Optional[List[str]] = None,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
-        variables: Optional[List[str]] = None,
         split_output: bool = True,
     ) -> None:
         """Initialize the GribFileOutput.
