@@ -1,5 +1,6 @@
 output:
   extract_lam:
+    lam: '0/lam_0' #selects the cutout mask of the first dataset used in join
     output:
       tee:
       - netcdf:

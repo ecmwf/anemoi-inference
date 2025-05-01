@@ -31,6 +31,7 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        from unittest.mock import MagicMock
         from unittest.mock import patch
 
         from .mock_checkpoint import MockRunConfiguration
@@ -39,6 +40,7 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
 
         with (
             patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata),
+            patch("anemoi.inference.provenance.validate_environment", MagicMock()),
             patch("torch.load", mock_torch_load),
             patch("anemoi.inference.metadata.USE_LEGACY", True),
             patch("anemoi.inference.tasks.runner.RunConfiguration", MockRunConfiguration),
