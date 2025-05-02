@@ -71,7 +71,7 @@ class AssignMask(ForwardOutput):
 
     def __repr__(self) -> str:
         """Return a string representation of the ExtractLamOutput object."""
-        return f"AssignMask({self.points}, {self.output})"
+        return f"AssignMask({self.output})"
 
     def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
