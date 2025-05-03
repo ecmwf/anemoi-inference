@@ -114,6 +114,9 @@ class EarthKitInput(Input):
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
 
+        if date is None and self.trace_name in ["mars", "cds"]:
+            date = -1
+
         if date is None:
             state = self._raw_state_fieldlist(date, variables)
             date = state.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
