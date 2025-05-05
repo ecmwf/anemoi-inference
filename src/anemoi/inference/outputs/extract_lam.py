@@ -60,7 +60,7 @@ class ExtractLamOutput(MaskedOutput):
             if "lam_1/cutout_mask" in context.checkpoint.supporting_arrays:
                 raise NotImplementedError("Only lam_0 is supported")
 
-            mask = self.checkpoint.load_supporting_array(f"{lam}/cutout_mask")
+            mask = context.checkpoint.load_supporting_array(f"{lam}/cutout_mask")
 
             assert len(mask) == np.sum(mask)
             points = slice(None, np.sum(mask))
