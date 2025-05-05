@@ -246,8 +246,6 @@ def grib_keys(
 
     result["edition"] = edition
 
-    result["eps"] = 1 if ensemble else 0
-
     if param is not None:
         result.setdefault(_param(param), param)
 
