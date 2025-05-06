@@ -961,11 +961,11 @@ class Metadata(PatchMixin, LegacyMixin):
         """
         if "output_mask" not in self._supporting_arrays:
             return []
-            
+
         return context.create_boundary_forcings(
-                    self.prognostic_variables,
-                    self.prognostic_input_mask,
-                )
+            self.prognostic_variables,
+            self.prognostic_input_mask,
+        )
 
     ###########################################################################
     # Supporting arrays
