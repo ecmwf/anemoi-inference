@@ -50,3 +50,23 @@ class GribInput(EarthKitInput):
     def _earthkit_reader(self, dates: datetime.datetime, variables: List[str]) -> Reader:
         """Return the earthkit reader for the input."""
         pass
+
+    def set_private_attributes(self, state: Any, input_fields: ekd.FieldList) -> None:
+        """Set private attributes for the state.
+
+        Parameters
+        ----------
+        state : Any
+            The state to set private attributes for.
+        input_fields : ekd.FieldList
+            The input fields.
+        """
+        # For now we just pass all the fields
+        # Later, we can select a relevant subset (e.g. only one
+        # level), to save memory
+
+        # By sorting, we will have the most recent field last
+        # no we can also use that list to write step 0
+        input_fields = input_fields.order_by("valid_datetime")
+
+        state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
