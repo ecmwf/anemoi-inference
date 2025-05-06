@@ -7,30 +7,27 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import torch
+import datetime
 import logging
 from typing import Any
-from typing import Dict
+from typing import Generator
 from typing import List
+from typing import Tuple
+
 import numpy as np
+import torch
+import torch.nn.functional
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.timer import Timer
 
 from anemoi.inference.runner import Kind
-
-from anemoi.utils.timer import Timer
-from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.inference.types import State
-import torch.nn.functional
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
-from .simple import SimpleRunner
-from . import runner_registry
 from ..profiler import ProfilingLabel
-from typing import Tuple
-import datetime
-
-
-from typing import Generator
+from . import runner_registry
+from .simple import SimpleRunner
 
 LOG = logging.getLogger(__name__)
 
@@ -50,13 +47,16 @@ class InterpolatorRunner(SimpleRunner):
             Keyword arguments.
         """
         super().__init__(*args, **kwargs)
-        self.target_forcings = self.target_computed_forcings(self.checkpoint._metadata._config_training.target_forcing.data)
+        self.target_forcings = self.target_computed_forcings(
+            self.checkpoint._metadata._config_training.target_forcing.data
+        )
         # check that model is an Interpolator
-    
-    def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor) -> torch.Tensor:
+
+    def predict_step(
+        self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
+    ) -> torch.Tensor:
         return model.predict_step(input_tensor_torch, target_forcing)
 
-    
     def target_computed_forcings(self, variables: List[str], mask=None) -> List[Forcings]:
         """Create dynamic computed forcings.
 
@@ -83,7 +83,7 @@ class InterpolatorRunner(SimpleRunner):
         ----------
         start_date : datetime.datetime
             Input start date
-            
+
         Returns
         -------
         step : datetime.timedelta
@@ -101,7 +101,7 @@ class InterpolatorRunner(SimpleRunner):
         LOG.info("%s, time stepping: %s Interpolating %s steps", self.checkpoint.timestep, steps)
 
         for s in range(steps):
-            step = target_steps[s]  * self.checkpoint.timestep
+            step = target_steps[s] * self.checkpoint.timestep
             date = start_date + step
             is_last_step = s == steps - 1
             yield step, date, target_steps[s], is_last_step
@@ -117,13 +117,13 @@ class InterpolatorRunner(SimpleRunner):
             The date.
 
         state : State
-            The state dictionary. 
+            The state dictionary.
 
         Returns
         -------
         torch.Tensor
             the target forcings.
-            
+
         """
         batch_size, _, grid, n_vars = input_tensor_torch.shape
 
@@ -131,12 +131,21 @@ class InterpolatorRunner(SimpleRunner):
         use_time_fraction = True
 
         # 1 for ensemble size but not needed for the other input??
-        target_forcings = torch.empty(batch_size, 1, grid, len(self.target_forcings) + use_time_fraction, device=input_tensor_torch.device, dtype=input_tensor_torch.dtype)
+        target_forcings = torch.empty(
+            batch_size,
+            1,
+            grid,
+            len(self.target_forcings) + use_time_fraction,
+            device=input_tensor_torch.device,
+            dtype=input_tensor_torch.dtype,
+        )
         for idx, source in enumerate(self.target_forcings):
             arrays = source.load_forcings_array(dates, state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
-                target_forcings[..., idx]  = torch.tensor(forcing, device=input_tensor_torch.device, dtype=input_tensor_torch.dtype)
+                target_forcings[..., idx] = torch.tensor(
+                    forcing, device=input_tensor_torch.device, dtype=input_tensor_torch.dtype
+                )
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
                 if self.trace:
                     self.trace.from_source(name, source, "target forcings")
@@ -145,8 +154,8 @@ class InterpolatorRunner(SimpleRunner):
             boundary_times = self.checkpoint._metadata._config_training.explicit_times.input
             # this only works with two boundary times?
             target_forcings[..., -1] = (interpolation_step - boundary_times[-2]) / (
-                    boundary_times[-1] - boundary_times[-2]
-                )
+                boundary_times[-1] - boundary_times[-2]
+            )
         return target_forcings
 
     def forecast(self, lead_time, input_tensor_numpy, input_state):

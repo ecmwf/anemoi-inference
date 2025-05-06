@@ -119,13 +119,13 @@ class DatasetInput(Input):
         date = np.datetime64(date)
 
         # We should be able to use `explicit_times` in this way for every model in the future
-        # However it was introduced with the interpolator 
+        # However it was introduced with the interpolator
         # Thus we keep the else branch for backward compatibility
-        if hasattr(self.checkpoint._metadata._config_training, 'explicit_times'):
+        if hasattr(self.checkpoint._metadata._config_training, "explicit_times"):
             timestep = self.checkpoint._metadata.timestep
             input_explicit_times = self.checkpoint._metadata._config_training.explicit_times.input
             dates = [date + (h * timestep) for h in input_explicit_times]
-        
+
         else:
             dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
 
