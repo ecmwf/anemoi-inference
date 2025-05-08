@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.0](https://github.com/ecmwf/anemoi-inference/compare/0.5.4...0.6.0) (2025-05-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* do not set 'eps' key in grib encoding ([#222](https://github.com/ecmwf/anemoi-inference/issues/222))
+
+### Bug Fixes
+
+* do not set 'eps' key in grib encoding ([#222](https://github.com/ecmwf/anemoi-inference/issues/222)) ([3b32025](https://github.com/ecmwf/anemoi-inference/commit/3b32025c93d3046cf6294939ac12424cefd506d8))
+
 ## [0.5.4](https://github.com/ecmwf/anemoi-inference/compare/0.5.3...0.5.4) (2025-05-08)
 
 
