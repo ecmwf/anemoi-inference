@@ -16,12 +16,9 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from earthkit.data.utils.dates import to_datetime
-
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
-from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -219,7 +216,7 @@ class MarsInput(GribInput):
         patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
             Optional list of patches for the input.
         **kwargs : Any
-            Additional keyword arguments.
+            Additional keyword arguments for the mars request.
         """
         super().__init__(context, namer=namer)
         self.kwargs = kwargs
@@ -227,43 +224,15 @@ class MarsInput(GribInput):
         self.kwargs = kwargs
         self.patches = patches or []
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
-        """Create the input state for the given date.
-
-        Parameters
-        ----------
-        date : Optional[Date]
-            The date for which to create the input state.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
-        if date is None:
-            date = to_datetime(-1)
-            LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
-
-        date = to_datetime(date)
-
-        return self._create_input_state(
-            self.retrieve(
-                self.variables,
-                [date + h for h in self.checkpoint.lagged],
-            ),
-            variables=self.variables,
-            date=date,
-        )
-
-    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+    def _earthkit_reader(self, dates: Optional[List[Date]], variables: List[str]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
         ----------
+        dates : List[Date]
+            The list of dates for which to retrieve the data.
         variables : List[str]
             The list of variables to retrieve.
-        dates : List[Any]
-            The list of dates for which to retrieve the data.
 
         Returns
         -------
@@ -289,27 +258,6 @@ class MarsInput(GribInput):
             self.checkpoint.area,
             self.patch,
             **kwargs,
-        )
-
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        """Load the forcings state for the given variables and dates.
-
-        Parameters
-        ----------
-        variables : List[str]
-            The list of variables for which to load the forcings state.
-        dates : List[Date]
-            The list of dates for which to load the forcings state.
-        current_state : State
-            The current state to be updated with the loaded forcings state.
-
-        Returns
-        -------
-        Any
-            The loaded forcings state.
-        """
-        return self._load_forcings_state(
-            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
         )
 
     def patch(self, request: Dict[str, Any]) -> Dict[str, Any]:
