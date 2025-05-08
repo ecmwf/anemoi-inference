@@ -10,6 +10,32 @@ from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
+# Possibly move the function below to anemoi-models or anemoi-utils since it could be used in transfer learning.
+def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers = False, ignore_additional_layers = False):
+    # select weights and biases from state_dict
+    weight_bias_dict = { k : v for k, v in state_dict.items() if "bias" in k or 'weight' in k}
+    model_state_dict = model.state_dict()
+    
+    # check layers and their shapes
+    for key in weight_bias_dict.copy():
+        if key not in model_state_dict:
+            if ignore_additional_layers:
+                LOG.info(f"Skipping injection of {key}, which is not in the model.")
+                del weight_bias_dict[key]
+            else:
+                raise AssertionError (f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.") 
+        elif weight_bias_dict[key].shape != model_state_dict[key].shape:
+            if ignore_mismatched_layers:
+                LOG.info(f"Skipping injection {key} due to shape mismatch.")
+                LOG.info(f"Model shape: {model_state_dict[key].shape}")
+                LOG.info(f"Provided shape: {weight_bias_dict[key].shape}")
+                del weight_bias_dict[key]
+            else:
+                raise AssertionError (f"Mismatch in shape of {key}. Consider setting 'ignore_mismatched_layers = True'.")
+    
+    #inject
+    model.load_state_dict(weight_bias_dict, strict=False)
+    return model
 
 @runner_registry.register("external_graph")
 class ExternalGraphRunner(DefaultRunner):
@@ -55,24 +81,21 @@ class ExternalGraphRunner(DefaultRunner):
 
     @cached_property
     def model(self):
+        # load the model from the checkpoint
         model_instance = super().model.to("cpu")
-        state_dict = deepcopy(model_instance.state_dict())
-
+        state_dict_ckpt = deepcopy(model_instance.state_dict())
+        
+        # rebuild the model with the new graph
         model_instance.graph_data = self.graph
         model_instance.config = self.checkpoint._metadata._config
-
         model_instance._build_model()
-
-        new_state_dict = model_instance.state_dict()
-
-        for key in new_state_dict:
-            if key in state_dict and state_dict[key].shape != new_state_dict[key].shape:
-                # These are parameters like data_latlon, which are different now because of the graph
-                pass
-            else:
-                # Overwrite with the old parameters
-                new_state_dict[key] = state_dict[key]
-
+        
+        # inject the weights and biases from the checkpoint
+        model_instance = inject_weights_and_biases(
+            model_instance,
+            state_dict_ckpt,
+            )
         LOG.info("Successfully built model with external graph and reassigning model weights!")
-        model_instance.load_state_dict(new_state_dict)
+        
         return model_instance.to(self.device)
+
