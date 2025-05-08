@@ -13,6 +13,7 @@ LOG = logging.getLogger(__name__)
 
 # Possibly move the function below to anemoi-models or anemoi-utils since it could be used in transfer learning.
 def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False, ignore_additional_layers=False):
+    LOG.info(f"Updating model weights and biases by injection from an external state dictionary.")
     # select weights and biases from state_dict
     weight_bias_dict = {k: v for k, v in state_dict.items() if "bias" in k or "weight" in k}
     model_state_dict = model.state_dict()
@@ -27,7 +28,7 @@ def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False,
                 raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
         elif weight_bias_dict[key].shape != model_state_dict[key].shape:
             if ignore_mismatched_layers:
-                LOG.info(f"Skipping injection {key} due to shape mismatch.")
+                LOG.info(f"Skipping injection of {key} due to shape mismatch.")
                 LOG.info(f"Model shape: {model_state_dict[key].shape}")
                 LOG.info(f"Provided shape: {weight_bias_dict[key].shape}")
                 del weight_bias_dict[key]
@@ -97,6 +98,6 @@ class ExternalGraphRunner(DefaultRunner):
             model_instance,
             state_dict_ckpt,
         )
-        LOG.info("Successfully built model with external graph and reassigning model weights!")
+        LOG.info("Successfully built model with external graph and reassiged model weights!")
 
         return model_instance.to(self.device)
