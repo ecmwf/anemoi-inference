@@ -1,0 +1,102 @@
+import logging
+import os
+from copy import deepcopy
+from functools import cached_property
+
+import torch
+
+from ..runners.default import DefaultRunner
+from . import runner_registry
+
+LOG = logging.getLogger(__name__)
+
+
+# Possibly move the function below to anemoi-models or anemoi-utils since it could be used in transfer learning.
+def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False, ignore_additional_layers=False):
+    # select weights and biases from state_dict
+    weight_bias_dict = {k: v for k, v in state_dict.items() if "bias" in k or "weight" in k}
+    model_state_dict = model.state_dict()
+
+    # check layers and their shapes
+    for key in weight_bias_dict.copy():
+        if key not in model_state_dict:
+            if ignore_additional_layers:
+                LOG.info(f"Skipping injection of {key}, which is not in the model.")
+                del weight_bias_dict[key]
+            else:
+                raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
+        elif weight_bias_dict[key].shape != model_state_dict[key].shape:
+            if ignore_mismatched_layers:
+                LOG.info(f"Skipping injection {key} due to shape mismatch.")
+                LOG.info(f"Model shape: {model_state_dict[key].shape}")
+                LOG.info(f"Provided shape: {weight_bias_dict[key].shape}")
+                del weight_bias_dict[key]
+            else:
+                raise AssertionError(f"Mismatch in shape of {key}. Consider setting 'ignore_mismatched_layers = True'.")
+
+    # inject
+    model.load_state_dict(weight_bias_dict, strict=False)
+    return model
+
+
+@runner_registry.register("external_graph")
+class ExternalGraphRunner(DefaultRunner):
+    """Runner where the graph saved in the checkpoint is replaced by an externally provided one.
+    Currently only supported as an extension of the default runner.
+    """
+
+    def __init__(self, config):
+        super().__init__(config)
+        # Check if the external graph has the 'indices_connected_nodes' attribute
+        data = self.checkpoint._metadata._config.graph.data
+        assert data in self.graph.node_types, f"Node type {data} not found in external graph."
+        if "indices_connected_nodes" in self.graph[data]:
+            LOG.info(
+                "The external graph has the 'indices_connected_nodes' attribute."
+                " Patching metadata with MaskedGrid grid_indices."
+            )
+            self.checkpoint._metadata.patch(
+                {
+                    "config": {
+                        "dataloader": {
+                            "grid_indices": {
+                                "_target_": "anemoi.training.data.grid_indices.MaskedGrid",
+                                "nodes_name": data,
+                                "node_attribute_name": "indices_connected_nodes",
+                            }
+                        }
+                    }
+                }
+            )
+            LOG.info("Moving 'grid_indices' from external graph to supporting arrays.")
+            indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
+            self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
+
+    @cached_property
+    def graph(self):
+        graph_path = self.config.graph
+        assert os.path.isfile(
+            graph_path
+        ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        LOG.info("Loading external graph from path {graph_path}.")
+        return torch.load(graph_path, map_location="cpu", weights_only=False)
+
+    @cached_property
+    def model(self):
+        # load the model from the checkpoint
+        model_instance = super().model.to("cpu")
+        state_dict_ckpt = deepcopy(model_instance.state_dict())
+
+        # rebuild the model with the new graph
+        model_instance.graph_data = self.graph
+        model_instance.config = self.checkpoint._metadata._config
+        model_instance._build_model()
+
+        # inject the weights and biases from the checkpoint
+        model_instance = inject_weights_and_biases(
+            model_instance,
+            state_dict_ckpt,
+        )
+        LOG.info("Successfully built model with external graph and reassigning model weights!")
+
+        return model_instance.to(self.device)
