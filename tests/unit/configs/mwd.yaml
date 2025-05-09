@@ -1,4 +1,4 @@
-checkpoint: mwd.ckpt
+checkpoint: unit/checkpoints/mwd.ckpt
 
 date: 2022-09-01
 lead_time: 48

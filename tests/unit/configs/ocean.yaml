@@ -1,4 +1,4 @@
-checkpoint: ocean.ckpt
+checkpoint: unit/checkpoints/ocean.ckpt
 runner: testing
 device: cpu
 

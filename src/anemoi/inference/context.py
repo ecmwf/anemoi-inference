@@ -18,15 +18,15 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from anemoi.inference.input import Input
-from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
 
 if TYPE_CHECKING:
+    from anemoi.inference.input import Input
+    from anemoi.inference.output import Output
+
     from .checkpoint import Checkpoint
     from .forcings import Forcings
-
 
 LOG = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class Context(ABC):
     # expected to provide the forcings directly as input to the runner.
     ##################################################################
 
-    def create_input(self) -> Input:
+    def create_input(self) -> "Input":
         """Creates an input object for the inference.
 
         Returns
@@ -74,7 +74,7 @@ class Context(ABC):
         """
         raise NotImplementedError()
 
-    def create_output(self) -> Output:
+    def create_output(self) -> "Output":
         """Creates an output object for the inference.
 
         Returns

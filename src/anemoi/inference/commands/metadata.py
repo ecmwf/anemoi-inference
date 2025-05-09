@@ -24,6 +24,8 @@ from . import Command
 
 LOG = logging.getLogger(__name__)
 
+EDITOR_OPTIONS = {"code": ["--wait"]}
+
 
 class Metadata(Command):
     """Edit, remove, dump or load metadata from a checkpoint file."""
@@ -228,7 +230,7 @@ class Metadata(Command):
             with open(path, "w") as f:
                 dump(metadata, f, **kwargs)
 
-            subprocess.check_call([cmd, path])
+            subprocess.check_call([cmd, *EDITOR_OPTIONS.get(cmd, []), path])
 
             if not view:
                 with open(path) as f:

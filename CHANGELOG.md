@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.5.4](https://github.com/ecmwf/anemoi-inference/compare/0.5.3...0.5.4) (2025-05-08)
+
+
+### Features
+
+* Support vscode metadata editor ([#228](https://github.com/ecmwf/anemoi-inference/issues/228)) ([e3dc9bb](https://github.com/ecmwf/anemoi-inference/commit/e3dc9bb520bd3ebec6fa7c70ccdbdfc25a62e2a4))
+
+
+### Bug Fixes
+
+* boundary forcings inputs ([#226](https://github.com/ecmwf/anemoi-inference/issues/226)) ([02eaa6b](https://github.com/ecmwf/anemoi-inference/commit/02eaa6b4dd2227a049860aa16f89bcb0762a63a3))
+* support for netcdf missing values ([#214](https://github.com/ecmwf/anemoi-inference/issues/214)) ([4e78971](https://github.com/ecmwf/anemoi-inference/commit/4e78971e8affcb345c2ec7cd880e2f4d0d5d673a))
+
+## [0.5.3](https://github.com/ecmwf/anemoi-inference/compare/0.5.2...0.5.3) (2025-04-30)
+
+
+### Features
+
+* **input:** add FDB input class ([#190](https://github.com/ecmwf/anemoi-inference/issues/190)) ([ca6d37f](https://github.com/ecmwf/anemoi-inference/commit/ca6d37f9d15a608b2b63b8ec05544dd051d4d7d2))
+* more flexible supporting array path for extract lam ([#219](https://github.com/ecmwf/anemoi-inference/issues/219)) ([edd176f](https://github.com/ecmwf/anemoi-inference/commit/edd176fd75d0700b3a3a5faf247fca23b03ced60))
+
+
+### Bug Fixes
+
+* Allow for downstream tests to provide checkpoint mocks ([#211](https://github.com/ecmwf/anemoi-inference/issues/211)) ([fbc3399](https://github.com/ecmwf/anemoi-inference/commit/fbc33992844cdda01d91396427ec5b8d220fe28f))
+* better error messages ([#213](https://github.com/ecmwf/anemoi-inference/issues/213)) ([746ecfe](https://github.com/ecmwf/anemoi-inference/commit/746ecfe0cb7c8045cea5e7dcaefd68f7943f0c7d))
+* extract-lam ([#217](https://github.com/ecmwf/anemoi-inference/issues/217)) ([db81c4c](https://github.com/ecmwf/anemoi-inference/commit/db81c4c0f92a3d3428d4b68f9dce6c4bd5861aaf))
+* Inference with crps requires additional arguments in predict_step ([#212](https://github.com/ecmwf/anemoi-inference/issues/212)) ([7917d53](https://github.com/ecmwf/anemoi-inference/commit/7917d5368ba8518bab0f8848c4f4981250af9ab2))
+
 ## [0.5.2](https://github.com/ecmwf/anemoi-inference/compare/0.5.1...0.5.2) (2025-04-25)
 
 

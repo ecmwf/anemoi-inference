@@ -144,8 +144,7 @@ class DefaultRunner(Runner):
             The created output.
         """
         output = create_output(self, self.config.output)
-        LOG.info("Output:")
-        output.print_summary()
+        LOG.info("Output: %s", output)
         return output
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:

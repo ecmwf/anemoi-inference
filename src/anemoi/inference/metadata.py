@@ -959,16 +959,13 @@ class Metadata(PatchMixin, LegacyMixin):
         list
             The list of boundary forcings inputs.
         """
-        result = []
+        if "output_mask" not in self._supporting_arrays:
+            return []
 
-        if "output_mask" in self._supporting_arrays:
-            result.append(
-                context.create_boundary_forcings(
-                    self.prognostic_variables,
-                    self.prognostic_input_mask,
-                )
-            )
-        return result
+        return context.create_boundary_forcings(
+            self.prognostic_variables,
+            self.prognostic_input_mask,
+        )
 
     ###########################################################################
     # Supporting arrays

@@ -23,7 +23,7 @@ def test_inference_simple() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        files_for_tests("configs/simple.yaml"),
+        files_for_tests("unit/configs/simple.yaml"),
         overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
     )
     runner = create_runner(config)
@@ -38,7 +38,7 @@ def test_inference_mwd() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        files_for_tests("configs/mwd.yaml"),
+        files_for_tests("unit/configs/mwd.yaml"),
         overrides=dict(runner="testing", device="cpu", input="dummy"),
     )
     runner = create_runner(config)

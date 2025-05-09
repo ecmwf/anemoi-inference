@@ -12,17 +12,15 @@ from typing import Optional
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
-from anemoi.inference.types import State
 
-from ..output import ForwardOutput
-from . import create_output
 from . import output_registry
+from .masked import MaskedOutput
 
 LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("apply_mask")
-class ApplyMaskOutput(ForwardOutput):
+class ApplyMaskOutput(MaskedOutput):
     """Apply mask output class.
 
     Parameters
@@ -48,75 +46,10 @@ class ApplyMaskOutput(ForwardOutput):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
-        self.mask = self.checkpoint.load_supporting_array(mask)
-        self.output = create_output(context, output)
-
-    def __repr__(self) -> str:
-        """Return a string representation of the ApplyMaskOutput object."""
-        return f"ApplyMaskOutput({self.mask}, {self.output})"
-
-    def write_initial_step(self, state: State) -> None:
-        """Write the initial step of the state.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-        # Note: we foreward to 'state', so we write-up options again
-        self.output.write_initial_state(self._apply_mask(state))
-
-    def write_step(self, state: State) -> None:
-        """Write a step of the state.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-        # Note: we foreward to 'state', so we write-up options again
-        self.output.write_state(self._apply_mask(state))
-
-    def _apply_mask(self, state: State) -> State:
-        """Apply the mask to the state.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-
-        Returns
-        -------
-        State
-            The masked state dictionary.
-        """
-        state = state.copy()
-        state["fields"] = state["fields"].copy()
-        state["latitudes"] = state["latitudes"][self.mask]
-        state["longitudes"] = state["longitudes"][self.mask]
-
-        for field in state["fields"]:
-            data = state["fields"][field]
-            if data.ndim == 1:
-                data = data[self.mask]
-            else:
-                data = data[..., self.mask]
-            state["fields"][field] = data
-
-        return state
-
-    def close(self) -> None:
-        """Close the output."""
-        self.output.close()
-
-    def print_summary(self, depth: int = 0) -> None:
-        """Print the summary of the output.
-
-        Parameters
-        ----------
-        depth : int, optional
-            The depth of the summary, by default 0.
-        """
-        super().print_summary(depth)
-        self.output.print_summary(depth + 1)
+        super().__init__(
+            context,
+            mask=self.checkpoint.load_supporting_array(mask),
+            output=output,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
