@@ -1,0 +1,6 @@
+
+            checkpoint: checkpoint.pth
+            input:
+                grib: input.grib
+            output:
+                grib: output.grib
