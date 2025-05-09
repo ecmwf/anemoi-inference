@@ -46,7 +46,7 @@ class MockModel(torch.nn.Module):
 
         checkpoint = Checkpoint(Metadata(metadata))
         self.input_variables = {v: k for k, v in checkpoint.variable_to_input_tensor_index.items()}
-        self.output_variables = checkpoint.output_tensor_index_to_variable
+        self.output_variables = dict(checkpoint.output_tensor_index_to_variable)
         self.lagged = checkpoint.lagged
 
         self.typed_variables = checkpoint.typed_variables
