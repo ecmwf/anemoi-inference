@@ -13,7 +13,7 @@ LOG = logging.getLogger(__name__)
 
 # Possibly move the function below to anemoi-models or anemoi-utils since it could be used in transfer learning.
 def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False, ignore_additional_layers=False):
-    LOG.info(f"Updating model weights and biases by injection from an external state dictionary.")
+    LOG.info("Updating model weights and biases by injection from an external state dictionary.")
     # select weights and biases from state_dict
     weight_bias_dict = {k: v for k, v in state_dict.items() if "bias" in k or "weight" in k}
     model_state_dict = model.state_dict()
@@ -73,11 +73,13 @@ class ExternalGraphRunner(DefaultRunner):
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
             self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
         output_mask_config = self.config.output_mask
-        if  output_mask_config:
+        if output_mask_config:
             nodes = output_mask_config["nodes_name"]
-            attribute = output_mask_config["attribute_name"] 
+            attribute = output_mask_config["attribute_name"]
             self.checkpoint._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
-            LOG.info(f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph as 'output_mask' to supporting arrays.")
+            LOG.info(
+                f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph as 'output_mask' to supporting arrays."
+            )
 
     @cached_property
     def graph(self):
