@@ -72,6 +72,12 @@ class ExternalGraphRunner(DefaultRunner):
             LOG.info("Moving 'grid_indices' from external graph to supporting arrays.")
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
             self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
+        output_mask_config = self.config.output_mask
+        if  output_mask_config:
+            nodes = output_mask_config["nodes_name"]
+            attribute = output_mask_config["attribute_name"] 
+            self.checkpoint._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
+            LOG.info(f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph as 'output_mask' to supporting arrays.")
 
     @cached_property
     def graph(self):
@@ -79,7 +85,7 @@ class ExternalGraphRunner(DefaultRunner):
         assert os.path.isfile(
             graph_path
         ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
-        LOG.info("Loading external graph from path {graph_path}.")
+        LOG.info(f"Loading external graph from path {graph_path}.")
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 
     @cached_property

@@ -113,3 +113,7 @@ class RunConfiguration(Configuration):
     graph: Optional[str] = None
     """Path to a graph on disk to use during inference. This is optional and intended to be used with the external_graph runner only."""
     # TODO: move this to a separate configuration class for the external_graph runner?
+
+    output_mask: Dict[str, str] = {}
+    """Dictionary specifying 'nodes_name' and 'attribute_name' in the graph to be used as an output mask during inference. This is for use with the external_graph runner only."""
+    # TODO: move this to a separate configuration class for the external_graph runner?
