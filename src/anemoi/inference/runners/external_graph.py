@@ -46,7 +46,7 @@ class ExternalGraphRunner(DefaultRunner):
     Currently only supported as an extension of the default runner.
     """
 
-    def __init__(self, config, graph: str, output_mask: dict | None={}) -> None:
+    def __init__(self, config, graph: str, output_mask: dict | None = {}) -> None:
         """Initialize the ExternalGraphRunner.
 
         Parameters
@@ -60,7 +60,7 @@ class ExternalGraphRunner(DefaultRunner):
         """
         super().__init__(config)
         self.graph_path = graph
-        
+
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array
         data = self.checkpoint._metadata._config.graph.data
@@ -86,7 +86,7 @@ class ExternalGraphRunner(DefaultRunner):
             LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
             self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
-        
+
         if output_mask:
             nodes = output_mask["nodes_name"]
             attribute = output_mask["attribute_name"]
