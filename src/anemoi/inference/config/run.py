@@ -31,7 +31,7 @@ class RunConfiguration(Configuration):
     checkpoint: Union[str, Dict[Literal["huggingface"], Union[Dict[str, Any], str]]]
     """A path to an Anemoi checkpoint file."""
 
-    runner: str = "default"
+    runner: Union[str, Dict[str, Any]] =  "default",
     """The runner to use."""
 
     date: Union[str, int, datetime.datetime, None] = None
@@ -109,11 +109,3 @@ class RunConfiguration(Configuration):
 
     debugging_info: Dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
-
-    graph: Optional[str] = None
-    """Path to a graph on disk to use during inference. This is optional and intended to be used with the external_graph runner only."""
-    # TODO: move this to a separate configuration class for the external_graph runner?
-
-    output_mask: Dict[str, str] = {}
-    """Dictionary specifying 'nodes_name' and 'attribute_name' in the graph to be used as an output mask during inference. This is for use with the external_graph runner only."""
-    # TODO: move this to a separate configuration class for the external_graph runner?

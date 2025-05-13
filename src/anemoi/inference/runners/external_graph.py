@@ -46,15 +46,29 @@ class ExternalGraphRunner(DefaultRunner):
     Currently only supported as an extension of the default runner.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, graph: str, output_mask: dict | None={}) -> None:
+        """Initialize the ExternalGraphRunner.
+
+        Parameters
+        ----------
+        config : Configuration
+            Configuration for the runner.
+        graph : str
+            Path to the external graph.
+        output_mask : dict | None
+            Dictionary specifying the output mask.
+        """
         super().__init__(config)
+        self.graph_path = graph
+        
         # Check if the external graph has the 'indices_connected_nodes' attribute
+        # If so adapt dataloader and add supporting array
         data = self.checkpoint._metadata._config.graph.data
         assert data in self.graph.node_types, f"Node type {data} not found in external graph."
         if "indices_connected_nodes" in self.graph[data]:
             LOG.info(
                 "The external graph has the 'indices_connected_nodes' attribute."
-                " Patching metadata with MaskedGrid grid_indices."
+                "Patching metadata with MaskedGrid 'grid_indices' to ensure correct data loading."
             )
             self.checkpoint._metadata.patch(
                 {
@@ -69,21 +83,21 @@ class ExternalGraphRunner(DefaultRunner):
                     }
                 }
             )
-            LOG.info("Moving 'grid_indices' from external graph to supporting arrays.")
+            LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
             self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
-        output_mask_config = self.config.output_mask
-        if output_mask_config:
-            nodes = output_mask_config["nodes_name"]
-            attribute = output_mask_config["attribute_name"]
+        
+        if output_mask:
+            nodes = output_mask["nodes_name"]
+            attribute = output_mask["attribute_name"]
             self.checkpoint._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
             LOG.info(
-                f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph as 'output_mask' to supporting arrays."
+                f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph as to supporting arrays 'output_mask'."
             )
 
     @cached_property
     def graph(self):
-        graph_path = self.config.graph
+        graph_path = self.graph_path
         assert os.path.isfile(
             graph_path
         ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
