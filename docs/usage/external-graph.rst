@@ -29,12 +29,13 @@ file as follows:
    :language: yaml
 
 In case one wants to run a model trained on a global dataset on a graph
-supported only on a limited area one needs to specify the ``output_mask``
-to be used. This mask selects the region on which the model will
-forecast and triggers boundary forcings to be applied when forecasting
-autoregressively towards later lead times. As in training, also in
-inference the output mask orginates from an attribute of the output
-nodes of the graph. It can be specified in the config file as follows:
+supported only on a limited area one needs to specify the
+``output_mask`` to be used. This mask selects the region on which the
+model will forecast and triggers boundary forcings to be applied when
+forecasting autoregressively towards later lead times. As in training,
+also in inference the output mask orginates from an attribute of the
+output nodes of the graph. It can be specified in the config file as
+follows:
 
 .. literalinclude:: yaml/external-graph2.yaml
    :language: yaml
@@ -43,5 +44,5 @@ For LAM models the limited area among the input nodes of a larger
 dataset is often specified by the ``indices_connected_nodes`` attribute
 of the input nodes. Anemoi-inference will automatically update the
 dataloader to load only data in the limited area in case the external
-graph contains this attribute and was build using the same dataset as 
+graph contains this attribute and was build using the same dataset as
 the one in the checkpoint.
