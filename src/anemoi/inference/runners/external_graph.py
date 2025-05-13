@@ -107,7 +107,9 @@ class ExternalGraphRunner(DefaultRunner):
     @cached_property
     def model(self):
         # load the model from the checkpoint
-        model_instance = super().model.to("cpu")
+        device = self.device
+        self.device = "cpu"
+        model_instance = super().model
         state_dict_ckpt = deepcopy(model_instance.state_dict())
 
         # rebuild the model with the new graph
@@ -121,5 +123,5 @@ class ExternalGraphRunner(DefaultRunner):
             state_dict_ckpt,
         )
         LOG.info("Successfully built model with external graph and reassiged model weights!")
-
+        self.device = device
         return model_instance.to(self.device)
