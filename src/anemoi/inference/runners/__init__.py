@@ -31,6 +31,7 @@ def create_runner(config: Configuration, **kwargs: Any) -> Any:
         The created runner instance.
     """
     runner = config.runner
+    runner_kwargs = {}
     if isinstance(runner, dict):
         runner_kwargs = list(runner.values())[0]
         runner = list(runner)[0]
