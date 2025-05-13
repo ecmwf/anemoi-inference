@@ -20,12 +20,12 @@ performance before starting fine tuning through transfer learning.
 
 The ability to do inference with an alternative graph, or more precisely
 one 'external' to the checkpoint created in training, is supported by
-anemoi-inference through the `external_graph` runner.
+anemoi-inference through the ``external_graph`` runner.
 
 This runner, and the graph it will use, can be specified in the config
 file as follows:
 
-.. literalinclude:: yaml/external_graph1.yaml
+.. literalinclude:: yaml/external-graph1.yaml
    :language: yaml
 
 In case one wants to run a model trained on a global dataset on a graph
@@ -36,7 +36,7 @@ autoregressively towards later lead times. As in training, also in
 inference the output mask orginates from an attribute of the output
 nodes of the graph. It can be specified in the config file as follows:
 
-.. literalinclude:: yaml/external_graph2.yaml
+.. literalinclude:: yaml/external-graph2.yaml
    :language: yaml
 
 For LAM models the limited area among the input nodes of a larger
