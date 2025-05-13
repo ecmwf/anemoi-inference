@@ -40,7 +40,7 @@ nodes of the graph. It can be specified in the config file as follows:
    :language: yaml
 
 For LAM models the limited area among the input nodes of a larger
-dataset is often specified by the ``indices_connected_nodes`` attribute of
-the input nodes. Anemoi-inference will automatically update the
+dataset is often specified by the ``indices_connected_nodes`` attribute
+of the input nodes. Anemoi-inference will automatically update the
 dataloader to load only data in the limited area in case the external
 graph was build using the same dataset as the one in the checkpoint.
