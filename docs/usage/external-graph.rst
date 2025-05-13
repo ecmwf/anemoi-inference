@@ -1,8 +1,8 @@
-.. _usage-getting-started:
+.. _usage-external-graph:
 
-#################################
-Inference using an external graph
-#################################
+###################################
+ Inference using an external graph
+###################################
 
 Anemoi is a framework for building and running machine learning models based on graph neural networks (GNNs).
 One of the key features of such GNNS is that they can operate on arbitrary graphs. In particular it means one can train
@@ -17,12 +17,14 @@ The ability to do inference with an alternative graph, or more precisely one 'ex
 anemoi-inference through the `external_graph` runner.
 
 This runner, and the graph it will use, can be specified in the config file as follows:
+
 .. literalinclude:: yaml/external_graph1.yaml
    :language: yaml
 
 In case one wants to run a model trained on a global dataset on a graph supported only on a limited area one needs to specify the `output_mask` to be used.
 This mask selects the region on which the model will forecast and triggers boundary forcings to be applied when forecasting autoregressively towards later lead times.
 As in training, also in inference the output mask orginates from an attribute of the output nodes of the graph. It can be specified in the config file as follows:
+
 .. literalinclude:: yaml/external_graph2.yaml
    :language: yaml
 
