@@ -19,7 +19,7 @@ def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False,
     model_state_dict = model.state_dict()
 
     # check layers and their shapes
-    for key in weight_bias_dict.copy():
+    for key in list(weight_bias_dict):
         if key not in model_state_dict:
             if ignore_additional_layers:
                 LOG.info(f"Skipping injection of {key}, which is not in the model.")
