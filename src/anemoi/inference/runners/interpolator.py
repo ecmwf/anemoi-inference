@@ -118,7 +118,7 @@ class InterpolatorRunner(SimpleRunner):
         dates : datetime.datetime
             The dates.
         state : State
-            The state dictionary. 
+            The state dictionary.
         input_tensor_torch : torch.Tensor
             The input tensor.
         interpolation_step : int
