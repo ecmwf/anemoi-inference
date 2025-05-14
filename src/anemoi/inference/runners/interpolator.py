@@ -34,7 +34,9 @@ LOG = logging.getLogger(__name__)
 
 @runner_registry.register("interpolator")
 class InterpolatorRunner(SimpleRunner):
-    """Use that runner when using the low level API."""
+    """A runner to be used for inference of a trained interpolator directly on analysis data
+    without being coupled to a forecasting model.
+    """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the InterpolatorRunner.
@@ -58,7 +60,7 @@ class InterpolatorRunner(SimpleRunner):
         return model.predict_step(input_tensor_torch, target_forcing)
 
     def target_computed_forcings(self, variables: List[str], mask=None) -> List[Forcings]:
-        """Create dynamic computed forcings.
+        """Create forcings for the bounding target state.
 
         Parameters
         ----------
@@ -68,7 +70,7 @@ class InterpolatorRunner(SimpleRunner):
         Returns
         -------
         List[Forcings]
-            The created dynamic computed forcings.
+            The created bounding target forcings.
         """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
@@ -76,7 +78,7 @@ class InterpolatorRunner(SimpleRunner):
 
     def interpolator_stepper(
         self, start_date: datetime.datetime
-    ) -> Generator[Tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    ) -> Generator[Tuple[datetime.timedelta, datetime.datetime, int, bool], None, None]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -87,13 +89,13 @@ class InterpolatorRunner(SimpleRunner):
         Returns
         -------
         step : datetime.timedelta
-            Time delta since beginning of forecast
-        valid_date : datetime.datetime
-            Date of the forecast
-        next_date : datetime.datetime
+            Time delta between the target index date and the start date
+        date : datetime.datetime
+            Date of the zeroth index of the input tensor
+        target_index : int
             Date used to prepare the next input tensor
         is_last_step : bool
-            True if it's the last step of the forecast
+            True if it's the last step of interpolation
         """
         target_steps = self.checkpoint._metadata._config_training.explicit_times.target
         steps = len(target_steps)
@@ -113,12 +115,14 @@ class InterpolatorRunner(SimpleRunner):
 
         Parameters
         ----------
-        date : datetime.datetime
-            The date.
-
+        dates : datetime.datetime
+            The dates.
         state : State
-            The state dictionary.
-
+            The state dictionary. 
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        interpolation_step : int
+            The current interpolation step index
         Returns
         -------
         torch.Tensor
