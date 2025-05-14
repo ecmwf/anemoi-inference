@@ -17,6 +17,7 @@ from typing import Tuple
 import numpy as np
 import torch
 import torch.nn.functional
+from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
@@ -51,10 +52,13 @@ class InterpolatorRunner(SimpleRunner):
         """
         super().__init__(*args, **kwargs)
 
+        assert isinstance(
+            self.model, AnemoiModelEncProcDecInterpolator
+        ), "Model must be an interpolator model for this runner"
+
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
-        
 
     def predict_step(
         self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
