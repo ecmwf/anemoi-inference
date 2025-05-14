@@ -13,6 +13,8 @@ from typing import Any
 from typing import Generator
 from typing import List
 from typing import Tuple
+from numpy.typing import NDArray
+
 
 import numpy as np
 import torch
@@ -30,10 +32,6 @@ from . import runner_registry
 from .simple import SimpleRunner
 
 LOG = logging.getLogger(__name__)
-from typing import NoneType
-
-from numpy.typing import NDArray
-
 
 @runner_registry.register("interpolator")
 class InterpolatorRunner(SimpleRunner):
@@ -55,6 +53,7 @@ class InterpolatorRunner(SimpleRunner):
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
+        breakpoint()
         # check that model is an Interpolator
 
     def predict_step(
@@ -167,7 +166,7 @@ class InterpolatorRunner(SimpleRunner):
 
     def forecast(
         self, lead_time: None, input_tensor_numpy: NDArray, input_state: State
-    ) -> Generator[State, NoneType, NoneType]:
+    ) -> Generator[State, None, None]:
         """Interpolate between the current and future state in the input tensor.
 
         Parameters
