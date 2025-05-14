@@ -13,14 +13,13 @@ from typing import Any
 from typing import Generator
 from typing import List
 from typing import Tuple
-from numpy.typing import NDArray
-
 
 import numpy as np
 import torch
 import torch.nn.functional
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
+from numpy.typing import NDArray
 
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
@@ -32,6 +31,7 @@ from . import runner_registry
 from .simple import SimpleRunner
 
 LOG = logging.getLogger(__name__)
+
 
 @runner_registry.register("interpolator")
 class InterpolatorRunner(SimpleRunner):
