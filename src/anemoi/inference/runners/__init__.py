@@ -30,10 +30,4 @@ def create_runner(config: Configuration, **kwargs: Any) -> Any:
     Any
         The created runner instance.
     """
-    runner = config.runner
-    runner_kwargs = {}
-    if isinstance(runner, dict):
-        runner_kwargs = list(runner.values())[0]
-        runner = list(runner)[0]
-
-    return runner_registry.create(runner, config, **runner_kwargs, **kwargs)
+    return runner_registry.from_config(config.runner, config, **kwargs)
