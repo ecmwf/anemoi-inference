@@ -30,6 +30,8 @@ from . import runner_registry
 from .simple import SimpleRunner
 
 LOG = logging.getLogger(__name__)
+from typing import NoneType
+from numpy.typing import NDArray
 
 
 @runner_registry.register("interpolator")
@@ -109,7 +111,7 @@ class InterpolatorRunner(SimpleRunner):
             yield step, date, target_steps[s], is_last_step
 
     def create_target_forcings(
-        self, dates, state: State, input_tensor_torch: torch.Tensor, interpolation_step: int
+        self, dates: datetime.datetime, state: State, input_tensor_torch: torch.Tensor, interpolation_step: int
     ) -> torch.tensor:
         """Create target forcings tensor.
 
@@ -162,7 +164,23 @@ class InterpolatorRunner(SimpleRunner):
             )
         return target_forcings
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
+    def forecast(self, lead_time: None, input_tensor_numpy: NDArray, input_state: State) -> Generator[State, NoneType, NoneType]:
+        """Interpolate between the current and future state in the input tensor.
+
+        Parameters
+        ----------
+        lead_time : None
+            Lead time is not used for interpolation.
+        input_tensor_numpy : NDArray
+            The input tensor.
+        input_state : State
+            The input state. It contains both input dates defined by the config explicit_times.input
+
+        Returns
+        -------
+        Any
+            The forecasted state.
+        """
         # This does interpolation but called forecast so we can reuse run()
         self.model.eval()
         torch.set_grad_enabled(False)
@@ -178,18 +196,12 @@ class InterpolatorRunner(SimpleRunner):
 
         start = input_state["date"]
 
-        # The variable `check` is used to keep track of which variables have been updated
-        # In the input tensor. `reset` is used to reset `check` to False except
-        # when the values are of the constant in time variables
-
         reset = np.full((input_tensor_torch.shape[-1],), False)
         variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
         typed_variables = self.checkpoint.typed_variables
         for variable, i in variable_to_input_tensor_index.items():
             if typed_variables[variable].is_constant_in_time:
                 reset[i] = True
-
-        check = reset.copy()
 
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
