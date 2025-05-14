@@ -23,6 +23,7 @@ from numpy.typing import NDArray
 
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
+from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
@@ -50,11 +51,13 @@ class InterpolatorRunner(SimpleRunner):
             Keyword arguments.
         """
         super().__init__(*args, **kwargs)
+
+        assert isinstance(self.model, AnemoiModelEncProcDecInterpolator), "Model must be an interpolator model for this runner"
+
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
-        breakpoint()
-        # check that model is an Interpolator
+        
 
     def predict_step(
         self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
