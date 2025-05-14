@@ -31,6 +31,7 @@ from .simple import SimpleRunner
 
 LOG = logging.getLogger(__name__)
 from typing import NoneType
+
 from numpy.typing import NDArray
 
 
@@ -164,7 +165,9 @@ class InterpolatorRunner(SimpleRunner):
             )
         return target_forcings
 
-    def forecast(self, lead_time: None, input_tensor_numpy: NDArray, input_state: State) -> Generator[State, NoneType, NoneType]:
+    def forecast(
+        self, lead_time: None, input_tensor_numpy: NDArray, input_state: State
+    ) -> Generator[State, NoneType, NoneType]:
         """Interpolate between the current and future state in the input tensor.
 
         Parameters
