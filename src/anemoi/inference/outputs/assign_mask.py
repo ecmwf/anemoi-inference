@@ -17,7 +17,6 @@ from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
 from ..output import ForwardOutput
-from . import create_output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -60,14 +59,13 @@ class AssignMask(ForwardOutput):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(context, output, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         if mask not in self.checkpoint.supporting_arrays:
             raise ValueError(f"Assignment mask '{mask}' not found in supporting arrays.")
 
         self.mask = self.checkpoint.load_supporting_array(mask)
         self.fill_value = fill_value
-        self.output = create_output(context, output)
 
     def __repr__(self) -> str:
         """Return a string representation of the ExtractLamOutput object."""
