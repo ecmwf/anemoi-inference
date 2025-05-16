@@ -243,7 +243,7 @@ class ForwardOutput(Output):
 
         self.output.close()
 
-    def write_initial_step(self, state: State) -> None:
+    def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters
