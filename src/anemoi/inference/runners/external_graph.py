@@ -6,6 +6,7 @@ from typing import Any
 
 import torch
 from anemoi.datasets import open_dataset
+
 from ..runners.default import DefaultRunner
 from . import runner_registry
 
@@ -69,17 +70,11 @@ class ExternalGraphRunner(DefaultRunner):
             LOG.info(
                 "The external graph was built using a different anemoi-dataset than that in the checkpoint."
                 "Patching metadata to ensure correct data loading."
-            ) 
+            )
             self.checkpoint._metadata.patch(
                 {
-                    "config": {
-                        "dataloader": {
-                            "dataset": graph_dataset
-                        }
-                    },
-                    "dataset": {
-                        "shape" : open_dataset(graph_dataset).shape
-                        }
+                    "config": {"dataloader": {"dataset": graph_dataset}},
+                    "dataset": {"shape": open_dataset(graph_dataset).shape},
                 }
             )
         # Check if the external graph has the 'indices_connected_nodes' attribute
