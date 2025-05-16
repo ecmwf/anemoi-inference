@@ -2,9 +2,10 @@ import logging
 import os
 from copy import deepcopy
 from functools import cached_property
+from typing import Any
 
 import torch
-
+from anemoi.datasets import open_dataset
 from ..runners.default import DefaultRunner
 from . import runner_registry
 
@@ -46,7 +47,7 @@ class ExternalGraphRunner(DefaultRunner):
     Currently only supported as an extension of the default runner.
     """
 
-    def __init__(self, config, graph: str, output_mask: dict | None = {}) -> None:
+    def __init__(self, config, graph: str, output_mask: dict | None = {}, graph_dataset: Any | None = None) -> None:
         """Initialize the ExternalGraphRunner.
 
         Parameters
@@ -57,10 +58,30 @@ class ExternalGraphRunner(DefaultRunner):
             Path to the external graph.
         output_mask : dict | None
             Dictionary specifying the output mask.
+        graph_dataset : Any | None
+            Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes of the graph.
         """
         super().__init__(config)
         self.graph_path = graph
 
+        # If graph was build on other dataset, we need to adapt the dataloader
+        if graph_dataset is not None:
+            LOG.info(
+                "The external graph was built using a different anemoi-dataset than that in the checkpoint."
+                "Patching metadata to ensure correct data loading."
+            ) 
+            self.checkpoint._metadata.patch(
+                {
+                    "config": {
+                        "dataloader": {
+                            "dataset": graph_dataset
+                        }
+                    },
+                    "dataset": {
+                        "shape" : open_dataset(graph_dataset).shape
+                        }
+                }
+            )
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array
         data = self.checkpoint._metadata._config.graph.data
