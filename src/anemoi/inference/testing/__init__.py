@@ -10,6 +10,7 @@
 
 import datetime
 import functools
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -53,27 +54,31 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def save_fake_checkpoint(save_path: Path) -> None:
+def save_fake_checkpoint(metadata_path: Path, save_path: Path) -> None:
     """Create a fake PyTorch checkpoint.
 
     Parameters
     ----------
+    metadata_path : Path
+        The path to the metadata file.
     save_path : Path
         The path to the checkpoint file.
     """
     import torch
 
-    from anemoi.inference.testing.mock_checkpoint import SIMPLE_METADATA
     from anemoi.inference.testing.mock_model import MockModel
 
     supporting_arrays = {}
-    model = MockModel(SIMPLE_METADATA, supporting_arrays)
+    with open(metadata_path, "r") as f:
+        metadata = json.load(f)
+
+    model = MockModel(metadata, supporting_arrays)
 
     torch.save(model, save_path)
 
     save_metadata(
         save_path,
-        SIMPLE_METADATA,
+        metadata,
         supporting_arrays=supporting_arrays,
     )
 

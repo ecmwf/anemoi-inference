@@ -8,17 +8,31 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import os
+
+import pytest
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import save_fake_checkpoint
 
 
+@pytest.fixture(autouse=True)
+def set_working_directory() -> None:
+    """Automatically set the working directory to the repo root."""
+    repo_root = Path(__file__).resolve().parent
+    while not (repo_root / ".git").exists() and repo_root != repo_root.parent:
+        repo_root = repo_root.parent
+
+    os.chdir(repo_root)
+
+
 # @pytest.fixture()
 def checkpoint_path(tmp_path):
     """Fixture to create a fake checkpoint for testing."""
     path = tmp_path / "checkpoint.pth"
-    save_fake_checkpoint(path)
+    metadata_path = Path("tests/checkpoints/atmos.json")
+    save_fake_checkpoint(metadata_path, path)
     return path
 
 
@@ -61,7 +75,7 @@ if __name__ == "__main__":
     checkpoint_path(Path(""))
 
     config = RunConfiguration.load(
-        "config.yaml",
+        "integration_test.yaml",
         overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
     )
     runner = create_runner(config)
