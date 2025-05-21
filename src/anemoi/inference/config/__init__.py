@@ -70,12 +70,14 @@ class Configuration(BaseModel):
                         d = yaml.safe_load(f)
                 config.update(d)
 
-        # Load the configuration
+        # Load the user configuration
         if isinstance(path, dict):
-            config.update(deepcopy(path))
+            user_config = deepcopy(path)
         else:
             with open(path) as f:
-                config.update(yaml.safe_load(f))
+                user_config = yaml.safe_load(f)
+
+        cls._merge_configs(config, user_config)
 
         # Apply overrides
         if not isinstance(overrides, list):
