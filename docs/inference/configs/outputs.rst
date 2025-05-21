@@ -118,6 +118,19 @@ result is passed to the next output.
 .. literalinclude:: yaml/outputs_7.yaml
 
 *************
+ assign_mask
+*************
+
+This operation can be seen as the opposite of `apply_mask`. Instead of
+extracting a smaller area from a larger one, it assigns the current
+output to a portion of a larger area using a mask. This is useful when
+you want to restore the original state of the model after applying a
+mask to it. The portion of the state that is not covered by the mask
+will be set to a fill value (NaN by default).
+
+.. literalinclude:: yaml/outputs_assign.yaml
+
+*************
  extract_lam
 *************
 
