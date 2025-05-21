@@ -536,7 +536,9 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            path = self.filename.format(**{k: handle.get(k) for k in self.split_output})
+            split_output_specified = [el.split(":") if ":" in el else [el, ""] for el in self.split_output]
+            keys = {k[0]: format(handle.get(k[0]), k[1]) for k in split_output_specified}
+            path = self.filename.format(**keys)
         else:
             path = self.filename
 
