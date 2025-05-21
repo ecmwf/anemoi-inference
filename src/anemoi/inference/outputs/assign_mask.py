@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -71,27 +71,7 @@ class AssignMask(ForwardOutput):
         """Return a string representation of the ExtractLamOutput object."""
         return f"AssignMask({self.output})"
 
-    def write_initial_state(self, state: State) -> None:
-        """Write the initial step of the state.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-        self.output.write_initial_state(self.assign_mask(state))
-
-    def write_step(self, state: State) -> None:
-        """Write a step of the state.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-        self.output.write_state(self.assign_mask(state))
-
-    def assign_mask(self, state: State) -> State:
+    def modify_state(self, state: State) -> State:
         """Assign the state to the mask.
 
         Parameters
@@ -121,18 +101,3 @@ class AssignMask(ForwardOutput):
         else:
             res[..., self.mask] = array
         return res
-
-    def close(self) -> None:
-        """Close the output."""
-        self.output.close()
-
-    def print_summary(self, depth: int = 0) -> None:
-        """Print the summary of the output.
-
-        Parameters
-        ----------
-        depth : int, optional
-            The depth of the summary, by default 0.
-        """
-        super().print_summary(depth)
-        self.output.print_summary(depth + 1)
