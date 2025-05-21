@@ -79,8 +79,6 @@ class Output(ABC):
         state : State
             The state to write.
         """
-        self.open(state)
-
         step = state["step"]
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
