@@ -54,7 +54,6 @@ class InterpolatorRunner(SimpleRunner):
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
-        
 
     def predict_step(
         self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
