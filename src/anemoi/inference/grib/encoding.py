@@ -434,7 +434,7 @@ def encode_message(
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, path: str, split_output: bool = False) -> None:
+    def __init__(self, path: str, split_output: bool = True) -> None:
         """Initialize the GribWriter.
 
         Parameters
@@ -446,10 +446,7 @@ class GribWriter:
         """
         self._files: Dict[str, Any] = {}
         self.filename = path
-        self.split_output: Optional[List[str]] = None
-
-        if split_output:
-            self.split_output = re.findall(r"\{(.*?)\}", self.filename)
+        self.split_output = split_output
 
     def close(self) -> None:
         """Close all open files."""
@@ -536,7 +533,7 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            path = self.filename.format(**{k: handle.get(k) for k in self.split_output})
+            path = render_template(self.filename, handle)
         else:
             path = self.filename
 
@@ -544,3 +541,37 @@ class GribWriter:
             self._files[path] = open(path, "wb")
 
         return self._files[path], path
+
+
+_TEMPLATE_EXPRESSION_PATTERN = re.compile(r"\{(.*?)\}")
+
+
+def render_template(template: str, handle: Dict) -> str:
+    """Render a template string with the given keyword arguments.
+
+    Given a template string such as '{dateTime}_{step:03}.grib' and
+    the GRIB handle, this function will replace the expressions in the
+    template with the corresponding values from the handle, formatted
+    according to the optional format specifier.
+
+    For example, the template '{dateTime}_{step:03}.grib' with a handle
+    containing 'dateTime' as '202501011200' and 'step' as 6 will
+    produce '202501011200_006.grib'.
+
+    Parameters
+    ----------
+    template : str
+        The template string to render.
+    handle : Dict
+        The earthkit.data handle manager.
+
+    Returns
+    -------
+    str
+        The rendered template string.
+    """
+    expressions = _TEMPLATE_EXPRESSION_PATTERN.findall(template)
+    expr_format = [el.split(":") if ":" in el else [el, ""] for el in expressions]
+    keys = {k[0]: format(handle.get(k[0]), k[1]) for k in expr_format}
+    path = template.format(**keys)
+    return path
