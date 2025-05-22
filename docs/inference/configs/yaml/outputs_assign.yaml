@@ -1,0 +1,6 @@
+output:
+  extract_lam:
+    output:
+      assign_mask:
+        mask: "source0/trimedge_mask"
+        output: printer

@@ -79,8 +79,6 @@ class Output(ABC):
         state : State
             The state to write.
         """
-        self.open(state)
-
         step = state["step"]
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
@@ -243,7 +241,7 @@ class ForwardOutput(Output):
 
         self.output.close()
 
-    def write_initial_step(self, state: State) -> None:
+    def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
 
         Parameters

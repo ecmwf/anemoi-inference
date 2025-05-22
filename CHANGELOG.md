@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.0](https://github.com/ecmwf/anemoi-inference/compare/0.5.4...0.6.0) (2025-05-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* do not set 'eps' key in grib encoding ([#222](https://github.com/ecmwf/anemoi-inference/issues/222))
+
+### Bug Fixes
+
+* **config:** Regression when merging user config with defaults ([ebaf4dc](https://github.com/ecmwf/anemoi-inference/commit/ebaf4dc1423838ca3f09eb54ac026756f97c6cec))
+* do not set 'eps' key in grib encoding ([#222](https://github.com/ecmwf/anemoi-inference/issues/222)) ([3b32025](https://github.com/ecmwf/anemoi-inference/commit/3b32025c93d3046cf6294939ac12424cefd506d8))
+* **metadata:** Check for empty grid ([#230](https://github.com/ecmwf/anemoi-inference/issues/230)) ([fa9d5a8](https://github.com/ecmwf/anemoi-inference/commit/fa9d5a87c896228aabd16b48baaacd8bad6fff08))
+* rename `write_initial_step` on ForwardOutput class ([#231](https://github.com/ecmwf/anemoi-inference/issues/231)) ([19e2e58](https://github.com/ecmwf/anemoi-inference/commit/19e2e580c3ea5e5c94ce2d1f90712daf13d844ec))
+
+## [0.5.4](https://github.com/ecmwf/anemoi-inference/compare/0.5.3...0.5.4) (2025-05-08)
+
+
+### Features
+
+* Support vscode metadata editor ([#228](https://github.com/ecmwf/anemoi-inference/issues/228)) ([e3dc9bb](https://github.com/ecmwf/anemoi-inference/commit/e3dc9bb520bd3ebec6fa7c70ccdbdfc25a62e2a4))
+
+
+### Bug Fixes
+
+* boundary forcings inputs ([#226](https://github.com/ecmwf/anemoi-inference/issues/226)) ([02eaa6b](https://github.com/ecmwf/anemoi-inference/commit/02eaa6b4dd2227a049860aa16f89bcb0762a63a3))
+* support for netcdf missing values ([#214](https://github.com/ecmwf/anemoi-inference/issues/214)) ([4e78971](https://github.com/ecmwf/anemoi-inference/commit/4e78971e8affcb345c2ec7cd880e2f4d0d5d673a))
+
 ## [0.5.3](https://github.com/ecmwf/anemoi-inference/compare/0.5.2...0.5.3) (2025-04-30)
 
 
