@@ -1,8 +1,14 @@
+import sys
+
 import pytest
 
 from anemoi.inference.grib.encoding import render_template
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10),
+    reason="Format specifier requires python 3.10 or higher.",
+)
 @pytest.mark.parametrize(
     "template, handle, expected",
     [
