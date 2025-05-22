@@ -113,7 +113,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def _config(self) -> DotDict:
         """Return the configuration."""
         return self._metadata.config
-    
+
     @property
     def input_explicit_times(self) -> Any:
         """Return the input explicit times from the training configuration."""

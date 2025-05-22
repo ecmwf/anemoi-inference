@@ -151,7 +151,7 @@ class Checkpoint:
     def timestep(self) -> Any:
         """Get the timestep."""
         return self._metadata.timestep
-    
+
     @property
     def input_explicit_times(self) -> Any:
         """Get the input explicit times from metadata."""
