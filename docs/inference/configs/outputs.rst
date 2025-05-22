@@ -46,7 +46,15 @@ The path to the output file is actually a template.
 
 For each field, the output path will be constructed by substituting the
 string between curly braces with the corresponding value, based on the
-GRIB's eccodes keys.
+GRIB's eccodes keys. Optionally, string format specifiers can be used to
+format the values. For example,
+
+.. code:: yaml
+
+   path: "output-{date}-{time}-{step:03}.grib"
+
+will apply zero-padding to the 'step' value, so that it is always 3
+digits long.
 
 It relies heavily on having a GRIB input, but will nevertheless attempt
 to encode the data as GRIB messages when this is not the case. For more
