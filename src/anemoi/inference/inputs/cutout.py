@@ -43,7 +43,10 @@ class Cutout(Input):
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray] = {}
         for src, cfg in sources.items():
-            mask = cfg.pop("mask", f"{src}/cutout_mask")
+            if isinstance(cfg, str):
+                mask = f"{src}/cutout_mask"
+            else:
+                mask = cfg.pop("mask", f"{src}/cutout_mask")
             self.sources[src] = create_input(context, cfg)
             self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
 
