@@ -47,17 +47,19 @@ dataloader to load only data in the limited area in case the external
 graph contains this attribute and was build using the same dataset as
 the one in the checkpoint.
 
-In case one wants to work with a graph that was built on another dataset than
-that used in training, on should specify this in the config file as well:
+In case one wants to work with a graph that was built on another dataset
+than that used in training, on should specify this in the config file as
+well:
 
 .. literalinclude:: yaml/external-graph3.yaml
    :language: yaml
 
-It should be emphasized that by using this runner the model will be rebuilt and
-for this reason will differ from the model stored in the checkpoint. To avoid
-unexpected results, there is a default check that ensures the model used in inference
-has the same weights, biases and normalizer values as that stored in the checkpoint.
-In case of a more adventurous use-case this check can be disabled through the config as:
+It should be emphasized that by using this runner the model will be
+rebuilt and for this reason will differ from the model stored in the
+checkpoint. To avoid unexpected results, there is a default check that
+ensures the model used in inference has the same weights, biases and
+normalizer values as that stored in the checkpoint. In case of a more
+adventurous use-case this check can be disabled through the config as:
 
 .. literalinclude:: yaml/external-graph4.yaml
    :language: yaml
