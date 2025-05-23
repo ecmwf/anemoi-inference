@@ -1,0 +1,4 @@
+runner:
+  external_graph:
+    graph: path/to/graph.pt
+    graph_dataset: path/to/graph_dataset.zarr
