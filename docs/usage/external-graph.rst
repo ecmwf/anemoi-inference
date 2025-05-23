@@ -58,5 +58,6 @@ for this reason will differ from the model stored in the checkpoint. To avoid
 unexpected results, there is a default check that ensures the model used in inference
 has the same weights, biases and normalizer values as that stored in the checkpoint.
 In case of a more adventurous use-case this check can be disabled through the config as:
+
 .. literalinclude:: yaml/external-graph4.yaml
    :language: yaml
