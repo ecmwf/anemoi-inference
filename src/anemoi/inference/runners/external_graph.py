@@ -41,6 +41,7 @@ def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False,
     model.load_state_dict(weight_bias_dict, strict=False)
     return model
 
+
 def contains(key, specifications):
     contained = False
     for specification in specifications:
@@ -49,12 +50,13 @@ def contains(key, specifications):
             break
     return contained
 
+
 def equal_entries(state_dict_1, state_dict_2, layer_specifications):
     equal = True
     keys_1 = [key for key in state_dict_1 if contains(key, layer_specifications)]
     keys_2 = [key for key in state_dict_2 if contains(key, layer_specifications)]
     if not set(keys_1) == set(keys_2):
-         equal = False
+        equal = False
     else:
         for key in keys_1:
             if not torch.equal(state_dict_1[key], state_dict_2[key]):
@@ -62,19 +64,21 @@ def equal_entries(state_dict_1, state_dict_2, layer_specifications):
                 break
     return equal
 
+
 @runner_registry.register("external_graph")
 class ExternalGraphRunner(DefaultRunner):
     """Runner where the graph saved in the checkpoint is replaced by an externally provided one.
     Currently only supported as an extension of the default runner.
     """
 
-    def __init__(self, 
-                config: dict, 
-                graph: str, 
-                output_mask: dict | None = {}, 
-                graph_dataset: Any | None = None,
-                check_state_dict: bool | None = True,
-                ) -> None:
+    def __init__(
+        self,
+        config: dict,
+        graph: str,
+        output_mask: dict | None = {},
+        graph_dataset: Any | None = None,
+        check_state_dict: bool | None = True,
+    ) -> None:
         """Initialize the ExternalGraphRunner.
 
         Parameters
@@ -169,11 +173,10 @@ class ExternalGraphRunner(DefaultRunner):
         )
 
         if self.check_state_dict:
-            assert equal_entries(model_instance.state_dict(), 
-                                state_dict_ckpt, 
-                                ['bias', 'weight', 'processors.normalizer']), (
-                                "Model incorrectly built.")
-        
+            assert equal_entries(
+                model_instance.state_dict(), state_dict_ckpt, ["bias", "weight", "processors.normalizer"]
+            ), "Model incorrectly built."
+
         LOG.info("Successfully built model with external graph and reassiged model weights!")
         self.device = device
         return model_instance.to(self.device)
