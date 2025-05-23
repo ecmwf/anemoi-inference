@@ -13,7 +13,7 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-# Possibly move the function below to anemoi-models or anemoi-utils since it could be used in transfer learning.
+# Possibly move the function(s) below to anemoi-models or anemoi-utils since it could be used in transfer learning.
 def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False, ignore_additional_layers=False):
     LOG.info("Updating model weights and biases by injection from an external state dictionary.")
     # select weights and biases from state_dict
@@ -41,6 +41,26 @@ def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False,
     model.load_state_dict(weight_bias_dict, strict=False)
     return model
 
+def contains(key, specifications):
+    contained = False
+    for specification in specifications:
+        if specification in key:
+            contained = True
+            break
+    return contained
+
+def equal_entries(state_dict_1, state_dict_2, layer_specifications):
+    equal = True
+    keys_1 = [key for key in state_dict_1 if contains(key, layer_specifications)]
+    keys_2 = [key for key in state_dict_2 if contains(key, layer_specifications)]
+    if not set(keys_1) == set(keys_2):
+         equal = False
+    else:
+        for key in keys_1:
+            if not torch.equal(state_dict_1[key], state_dict_2[key]):
+                equal = False
+                break
+    return equal
 
 @runner_registry.register("external_graph")
 class ExternalGraphRunner(DefaultRunner):
@@ -48,7 +68,13 @@ class ExternalGraphRunner(DefaultRunner):
     Currently only supported as an extension of the default runner.
     """
 
-    def __init__(self, config, graph: str, output_mask: dict | None = {}, graph_dataset: Any | None = None) -> None:
+    def __init__(self, 
+                config: dict, 
+                graph: str, 
+                output_mask: dict | None = {}, 
+                graph_dataset: Any | None = None,
+                check_state_dict: bool | None = True,
+                ) -> None:
         """Initialize the ExternalGraphRunner.
 
         Parameters
@@ -61,8 +87,11 @@ class ExternalGraphRunner(DefaultRunner):
             Dictionary specifying the output mask.
         graph_dataset : Any | None
             Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes of the graph.
+        check_state_dict: bool | None
+            Boolean specifying if reconstruction of statedict happens as expeceted.
         """
         super().__init__(config)
+        self.check_state_dict = check_state_dict
         self.graph_path = graph
 
         # If graph was build on other dataset, we need to adapt the dataloader
@@ -138,6 +167,13 @@ class ExternalGraphRunner(DefaultRunner):
             model_instance,
             state_dict_ckpt,
         )
+
+        if self.check_state_dict:
+            assert equal_entries(model_instance.state_dict(), 
+                                state_dict_ckpt, 
+                                ['bias', 'weight', 'processors.normalizer']), (
+                                "Model incorrectly built.")
+        
         LOG.info("Successfully built model with external graph and reassiged model weights!")
         self.device = device
         return model_instance.to(self.device)
