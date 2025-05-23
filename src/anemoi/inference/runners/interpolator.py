@@ -58,7 +58,7 @@ class InterpolatorRunner(SimpleRunner):
     def predict_step(
         self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
     ) -> torch.Tensor:
-        return model.predict_step(input_tensor_torch, target_forcing)
+        return model.predict_step(input_tensor_torch, target_forcing=target_forcing)
 
     def target_computed_forcings(self, variables: List[str], mask=None) -> List[Forcings]:
         """Create forcings for the bounding target state.

@@ -124,7 +124,7 @@ class DatasetInput(Input):
         if hasattr(self.checkpoint, "input_explicit_times"):
             timestep = self.checkpoint.timestep
             input_explicit_times = self.checkpoint.input_explicit_times
-            dates = [date + (h * timestep) for h in input_explicit_times]
+            dates = [date + np.timedelta64(h * timestep) for h in input_explicit_times]
 
         else:
             dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
