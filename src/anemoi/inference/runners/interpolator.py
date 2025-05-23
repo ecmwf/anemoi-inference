@@ -67,6 +67,8 @@ class InterpolatorRunner(SimpleRunner):
         ----------
         variables : List[str]
             The variables for the forcings
+        mask : optional
+            A mask to apply to the forcings. Defaults to None.
 
         Returns
         -------
@@ -101,7 +103,7 @@ class InterpolatorRunner(SimpleRunner):
         target_steps = self.checkpoint._metadata._config_training.explicit_times.target
         steps = len(target_steps)
 
-        LOG.info("%s, time stepping: %s Interpolating %s steps", self.checkpoint.timestep, steps)
+        LOG.info("Time stepping: %s Interpolating %s steps", self.checkpoint.timestep, steps)
 
         for s in range(steps):
             step = target_steps[s] * self.checkpoint.timestep
