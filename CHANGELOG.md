@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.1](https://github.com/ecmwf/anemoi-inference/compare/0.6.0...0.6.1) (2025-05-23)
+
+
+### Features
+
+* Add `assign_mask` output ([#221](https://github.com/ecmwf/anemoi-inference/issues/221)) ([053e750](https://github.com/ecmwf/anemoi-inference/commit/053e7500fa4263141a2aa810359bffc0388d229f))
+* **grib output:** support string format specification for output filename ([#233](https://github.com/ecmwf/anemoi-inference/issues/233)) ([be00edf](https://github.com/ecmwf/anemoi-inference/commit/be00edf602154d210550319e1de1cccb623b924f))
+
+
+### Bug Fixes
+
+* **output:** Remove open call at each write ([#221](https://github.com/ecmwf/anemoi-inference/issues/221)) ([053e750](https://github.com/ecmwf/anemoi-inference/commit/053e7500fa4263141a2aa810359bffc0388d229f))
+
 ## [0.6.0](https://github.com/ecmwf/anemoi-inference/compare/0.5.4...0.6.0) (2025-05-21)
 
 
