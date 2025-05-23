@@ -285,8 +285,8 @@ class MarsInput(GribInput):
 
         return retrieve(
             requests,
-            kwargs.pop('grid', self.checkpoint.grid),
-            kwargs.pop('area', self.checkpoint.area),
+            kwargs.pop("grid", self.checkpoint.grid),
+            kwargs.pop("area", self.checkpoint.area),
             self.patch,
             **kwargs,
         )
