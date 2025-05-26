@@ -110,6 +110,10 @@ class ExternalGraphRunner(DefaultRunner):
                     "dataset": {"shape": open_dataset(graph_dataset).shape},
                 }
             )
+
+        # had to use private attributes because cached properties cause problems
+        self.checkpoint._metadata._supporting_arrays = open_dataset(graph_dataset).supporting_arrays()
+
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array
         data = self.checkpoint._metadata._config.graph.data
@@ -135,9 +139,6 @@ class ExternalGraphRunner(DefaultRunner):
             LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
             self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
-
-        # had to use private attributes because cached properties cause problems
-        self.checkpoint._metadata._supporting_arrays = open_dataset(graph_dataset).supporting_arrays()
 
         if output_mask:
             nodes = output_mask["nodes_name"]
