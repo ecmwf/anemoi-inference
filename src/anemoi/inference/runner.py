@@ -388,7 +388,6 @@ class Runner(Context):
         # Add initial forcings to input state if needed
 
         self.add_initial_forcings_to_input_state(input_state)
-
         input_state = self.validate_input_state(input_state)
 
         input_fields = input_state["fields"]
@@ -397,7 +396,7 @@ class Runner(Context):
             shape=(
                 self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
@@ -819,7 +818,9 @@ class Runner(Context):
             raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
 
         if nlat != number_of_grid_points:
-            raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
+            LOG.warning(
+                "Size mismatch latitudes=%s, number_of_grid_points (checkpoint)=%s", nlat, number_of_grid_points
+            )
 
         multi_step = self.checkpoint.multi_step_input
 
@@ -837,7 +838,12 @@ class Runner(Context):
                 field = fields[name] = field.reshape(1, field.shape[0])
 
             if field.shape != expected_shape:
-                raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
+                LOG.warning(
+                    "Field `%s` has the shape %s, expected %s",
+                    name,
+                    field.shape,
+                    expected_shape,
+                )
 
             if np.isinf(field).any():
                 raise ValueError(f"Field `{name}` contains infinities")

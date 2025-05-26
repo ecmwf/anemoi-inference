@@ -136,6 +136,9 @@ class ExternalGraphRunner(DefaultRunner):
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
             self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
 
+        # had to use private attributes because cached properties cause problems
+        self.checkpoint._metadata._supporting_arrays = open_dataset(graph_dataset).supporting_arrays()
+
         if output_mask:
             nodes = output_mask["nodes_name"]
             attribute = output_mask["attribute_name"]
