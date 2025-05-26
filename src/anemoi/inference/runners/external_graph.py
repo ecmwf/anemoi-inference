@@ -111,8 +111,8 @@ class ExternalGraphRunner(DefaultRunner):
                 }
             )
 
-        # had to use private attributes because cached properties cause problems
-        self.checkpoint._metadata._supporting_arrays = open_dataset(graph_dataset).supporting_arrays()
+            # had to use private attributes because cached properties cause problems
+            self.checkpoint._metadata._supporting_arrays = open_dataset(graph_dataset).supporting_arrays()
 
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array
