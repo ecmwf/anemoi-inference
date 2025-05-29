@@ -154,6 +154,10 @@ class Runner(Context):
         self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
+            logging.basicConfig(level=logging.DEBUG)
+            for logger_name in logging.root.manager.loggerDict:
+                logging.getLogger(logger_name).setLevel(logging.DEBUG)
+
             self.checkpoint.print_indices()
 
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
