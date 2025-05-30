@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.1](https://github.com/ecmwf/anemoi-inference/compare/0.6.0...0.6.1) (2025-05-30)
+
+
+### Features
+
+* Add `assign_mask` output ([#221](https://github.com/ecmwf/anemoi-inference/issues/221)) ([053e750](https://github.com/ecmwf/anemoi-inference/commit/053e7500fa4263141a2aa810359bffc0388d229f))
+* **grib output:** support string format specification for output filename ([#233](https://github.com/ecmwf/anemoi-inference/issues/233)) ([be00edf](https://github.com/ecmwf/anemoi-inference/commit/be00edf602154d210550319e1de1cccb623b924f))
+* Set debug log level on verbosity &gt; 2 ([#239](https://github.com/ecmwf/anemoi-inference/issues/239)) ([532d070](https://github.com/ecmwf/anemoi-inference/commit/532d0709af90b5eb60a6aa5071178091099cca39))
+
+
+### Bug Fixes
+
+* **grib output:** Respect `write_initial_state` option ([#238](https://github.com/ecmwf/anemoi-inference/issues/238)) ([bab2dbe](https://github.com/ecmwf/anemoi-inference/commit/bab2dbe70f1d7a7739b0228f93dd4632e8f8d41d))
+* **output:** Remove open call at each write ([#221](https://github.com/ecmwf/anemoi-inference/issues/221)) ([053e750](https://github.com/ecmwf/anemoi-inference/commit/053e7500fa4263141a2aa810359bffc0388d229f))
+
 ## [0.6.0](https://github.com/ecmwf/anemoi-inference/compare/0.5.4...0.6.0) (2025-05-21)
 
 
