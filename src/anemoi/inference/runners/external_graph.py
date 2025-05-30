@@ -12,37 +12,10 @@ from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
-
 # Possibly move the function(s) below to anemoi-models or anemoi-utils since it could be used in transfer learning.
-def inject_weights_and_biases(model, state_dict, ignore_mismatched_layers=False, ignore_additional_layers=False):
-    LOG.info("Updating model weights and biases by injection from an external state dictionary.")
-    # select weights and biases from state_dict
-    weight_bias_dict = {k: v for k, v in state_dict.items() if "bias" in k or "weight" in k}
-    model_state_dict = model.state_dict()
-
-    # check layers and their shapes
-    for key in list(weight_bias_dict):
-        if key not in model_state_dict:
-            if ignore_additional_layers:
-                LOG.info(f"Skipping injection of {key}, which is not in the model.")
-                del weight_bias_dict[key]
-            else:
-                raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
-        elif weight_bias_dict[key].shape != model_state_dict[key].shape:
-            if ignore_mismatched_layers:
-                LOG.info(f"Skipping injection of {key} due to shape mismatch.")
-                LOG.info(f"Model shape: {model_state_dict[key].shape}")
-                LOG.info(f"Provided shape: {weight_bias_dict[key].shape}")
-                del weight_bias_dict[key]
-            else:
-                raise AssertionError(f"Mismatch in shape of {key}. Consider setting 'ignore_mismatched_layers = True'.")
-
-    # inject
-    model.load_state_dict(weight_bias_dict, strict=False)
-    return model
 
 
-def contains(key, specifications):
+def contains_any(key, specifications):
     contained = False
     for specification in specifications:
         if specification in key:
@@ -51,18 +24,40 @@ def contains(key, specifications):
     return contained
 
 
-def equal_entries(state_dict_1, state_dict_2, layer_specifications):
-    equal = True
-    keys_1 = [key for key in state_dict_1 if contains(key, layer_specifications)]
-    keys_2 = [key for key in state_dict_2 if contains(key, layer_specifications)]
-    if not set(keys_1) == set(keys_2):
-        equal = False
-    else:
-        for key in keys_1:
-            if not torch.equal(state_dict_1[key], state_dict_2[key]):
-                equal = False
-                break
-    return equal
+def update_state_dict(
+    model, external_state_dict, keywords="", ignore_mismatched_layers=False, ignore_additional_layers=False
+):
+    """Update the model's stated_dict with entries from an external state_dict. Only entries whose keys contain the specified keywords are considered."""
+
+    LOG.info("Updating model state dictionary.")
+
+    if isinstance(keywords, str):
+        keywords = [keywords]
+
+    # select relevant part of external_state_dict
+    reduced_state_dict = {k: v for k, v in external_state_dict.items() if contains_any(k, keywords)}
+    model_state_dict = model.state_dict()
+
+    # check layers and their shapes
+    for key in list(reduced_state_dict):
+        if key not in model_state_dict:
+            if ignore_additional_layers:
+                LOG.info(f"Skipping injection of {key}, which is not in the model.")
+                del reduced_state_dict[key]
+            else:
+                raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
+        elif reduced_state_dict[key].shape != model_state_dict[key].shape:
+            if ignore_mismatched_layers:
+                LOG.info(f"Skipping injection of {key} due to shape mismatch.")
+                LOG.info(f"Model shape: {model_state_dict[key].shape}")
+                LOG.info(f"Provided shape: {reduced_state_dict[key].shape}")
+                del reduced_state_dict[key]
+            else:
+                raise AssertionError(f"Mismatch in shape of {key}. Consider setting 'ignore_mismatched_layers = True'.")
+
+    # update
+    model.load_state_dict(reduced_state_dict, strict=False)
+    return model
 
 
 @runner_registry.register("external_graph")
@@ -151,7 +146,7 @@ class ExternalGraphRunner(DefaultRunner):
             attribute = output_mask["attribute_name"]
             self.checkpoint._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
             LOG.info(
-                f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph as to supporting arrays 'output_mask'."
+                f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph to supporting arrays as 'output_mask'."
             )
 
     @cached_property
@@ -176,17 +171,14 @@ class ExternalGraphRunner(DefaultRunner):
         model_instance.config = self.checkpoint._metadata._config
         model_instance._build_model()
 
-        # inject the weights and biases from the checkpoint
-        model_instance = inject_weights_and_biases(
-            model_instance,
-            state_dict_ckpt,
+        # reinstate the weights, biases and normalizer from the checkpoint
+        # reinstating the normalizer is necessary for checkpoints that were created
+        # using transfer learning, where the statistics as stored in the checkpoint
+        # do not match the statistics used to build the normalizer in the checkpoint.
+        model_instance = update_state_dict(
+            model_instance, state_dict_ckpt, keywords=["bias", "weight", "processors.normalizer"]
         )
 
-        if self.check_state_dict:
-            assert equal_entries(
-                model_instance.state_dict(), state_dict_ckpt, ["bias", "weight", "processors.normalizer"]
-            ), "Model incorrectly built."
-
-        LOG.info("Successfully built model with external graph and reassiged model weights!")
+        LOG.info("Successfully built model with external graph and reassigned model weights!")
         self.device = device
         return model_instance.to(self.device)
