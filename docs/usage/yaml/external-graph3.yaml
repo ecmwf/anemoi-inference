@@ -1,0 +1,6 @@
+runner:
+  external_graph:
+    graph: path/to/graph.pt
+    graph_dataset: path/to/graph_dataset.zarr
+    # the above can be an anemoi-datasets.open_dataset argument as well,
+    # rather than simply a path
