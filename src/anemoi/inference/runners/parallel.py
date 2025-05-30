@@ -98,7 +98,7 @@ class ParallelRunnerMixin:
         self.pid = pid
 
         # give the base class an opportunity to modify the parallel runner
-        super()._configure_parallel_runner(self)
+        super()._configure_parallel_runner()
 
         self._bootstrap_processes()
 

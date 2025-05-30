@@ -976,15 +976,10 @@ class Runner(Context):
 
         return request
 
-    def _configure_parallel_runner(self, parallel_runner: "ParallelRunnerMixin") -> None:
+    def _configure_parallel_runner(self: "ParallelRunnerMixin") -> None:
         """Configure the parallel runner (only applies when using the `parallel` runner).
 
         This method is called by the parallel runner on initialisation.
-        Derived classes can implement this method to modify the parallel runner if needed.
-
-        Parameters
-        ----------
-        parallel_runner : ParallelRunner | ParallelRunnerMixin
-            The parallel runner to configure.
+        Derived classes can implement this method to modify itself for parallel operation.
         """
         pass
