@@ -114,6 +114,11 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the configuration."""
         return self._metadata.config
 
+    @property
+    def input_explicit_times(self) -> Any:
+        """Return the input explicit times from the training configuration."""
+        return self._config_training.explicit_times.input
+
     ###########################################################################
     # Debugging
     ###########################################################################
