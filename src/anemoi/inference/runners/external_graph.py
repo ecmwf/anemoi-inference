@@ -100,6 +100,7 @@ class ExternalGraphRunner(DefaultRunner):
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
+            graph_ds = open_dataset(graph_dataset)
             LOG.info(
                 "The external graph was built using a different anemoi-dataset than that in the checkpoint."
                 "Patching metadata to ensure correct data loading."
@@ -107,12 +108,17 @@ class ExternalGraphRunner(DefaultRunner):
             self.checkpoint._metadata.patch(
                 {
                     "config": {"dataloader": {"dataset": graph_dataset}},
-                    "dataset": {"shape": open_dataset(graph_dataset).shape},
+                    "dataset": {"shape": graph_ds.shape},
                 }
             )
 
             # had to use private attributes because cached properties cause problems
-            self.checkpoint._metadata._supporting_arrays = open_dataset(graph_dataset).supporting_arrays()
+            self.checkpoint._metadata._supporting_arrays = graph_ds.supporting_arrays()
+            if "grid_indices" in self.checkpoint._metadata._supporting_arrays:
+                num_grid_points = len(self.checkpoint._metadata._supporting_arrays["grid_indices"])
+            else:
+                num_grid_points = graph_ds.shape[-1]
+            self.checkpoint._metadata.number_of_grid_points = num_grid_points
 
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array

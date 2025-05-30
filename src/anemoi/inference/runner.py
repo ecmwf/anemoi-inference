@@ -397,7 +397,7 @@ class Runner(Context):
             shape=(
                 self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
