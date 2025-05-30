@@ -153,7 +153,7 @@ class ParallelRunnerMixin:
                 raise err
 
     def create_output(self) -> Output:
-        """Creates the output.
+        """Creates the real output on rank 0 and a `none` on the others.
 
         Returns
         -------
@@ -161,9 +161,7 @@ class ParallelRunnerMixin:
             The created output.
         """
         if self.global_rank == 0:
-            output = create_output(self, self.config.output)
-            LOG.info("Output: %s", output)
-            return output
+            return super().create_output()
         else:
             output = create_output(self, "none")
             return output
