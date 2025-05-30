@@ -12,6 +12,7 @@ import datetime
 import logging
 import warnings
 from functools import cached_property
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -37,6 +38,9 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+
+if TYPE_CHECKING:
+    from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
 
@@ -471,7 +475,7 @@ class Runner(Context):
         input_tensor_torch : torch.Tensor
             The input tensor.
         **kwargs : Any
-            Additional keyword arguments
+            Additional keyword arguments that will be passed to the model's predict_step method.
 
         Returns
         -------
@@ -971,3 +975,16 @@ class Runner(Context):
             request = p.patch_data_request(request)
 
         return request
+
+    def _configure_parallel_runner(self, parallel_runner: "ParallelRunnerMixin") -> None:
+        """Configure the parallel runner (only applies when using the `parallel` runner).
+
+        This method is called by the parallel runner on initialisation.
+        Derived classes can implement this method to modify the parallel runner if needed.
+
+        Parameters
+        ----------
+        parallel_runner : ParallelRunner | ParallelRunnerMixin
+            The parallel runner to configure.
+        """
+        pass

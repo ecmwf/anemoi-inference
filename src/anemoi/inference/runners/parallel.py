@@ -25,6 +25,7 @@ from anemoi.inference.config import Configuration
 from anemoi.inference.output import Output
 
 from ..outputs import create_output
+from ..runner import Runner
 from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
@@ -47,30 +48,57 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
 
 
 @runner_registry.register("parallel")
-class ParallelRunner(DefaultRunner):
-    """Runner which splits a model over multiple devices."""
+class ParallelRunnerFactory:
+    """Creates a ParallelRunner with a dynamic base class."""
 
-    def __new__(cls, context, *args, **kwargs):
+    def __new__(cls, config: Any, base_runner: str = "default", *args, **kwargs):
+        assert base_runner != "parallel", "Base runner cannot be `parallel` itself."
+
+        try:
+            base_class = runner_registry.lookup(base_runner)
+        except ValueError:
+            raise ValueError(f"Base runner '{base_runner}' not found in the registry.")
+
+        assert issubclass(base_class, Runner), f"Base runner '{base_runner}' must be a subclass of Runner."
+
+        LOG.info(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
+
+        ParallelRunner = cls.get_class(base_class)
+        return ParallelRunner(config, *args, **kwargs)
+
+    @staticmethod
+    def get_class(base_class: Runner):
+        """Returns a ParallelRunner class object of the given base class."""
+        return type("ParallelRunner", (ParallelRunnerMixin, base_class), {})
+
+
+class ParallelRunnerMixin:
+    """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
+
+    def __new__(cls, config, *args, **kwargs):
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
             LOG.warning("CUDA is not available. Falling back to DefaultRunner")
-            return DefaultRunner(context)
+            return DefaultRunner(config)
 
-    def __init__(self, context: Any, pid: int = 0) -> None:
+    def __init__(self, config: Any, pid: int = 0, **kwargs) -> None:
         """Initializes the ParallelRunner.
 
         Parameters
         ----------
-        context : Any
-            The context for the runner.
+        config : Any
+            The config for the runner.
         pid : int, optional
             Process ID, by default 0.
         """
-        super().__init__(context)
+        super().__init__(config, **kwargs)
 
         self.model_comm_group = None
         self.pid = pid
+
+        # give the base class an opportunity to modify the parallel runner
+        super()._configure_parallel_runner(self)
 
         self._bootstrap_processes()
 
@@ -110,11 +138,14 @@ class ParallelRunner(DefaultRunner):
         torch.Tensor
             The prediction result.
         """
+        # call the predict_step of the base class since it might do some modifications
+        # the base class is expected to forward the kwargs (including the comm group) to the model's predict_step method
+
         if self.model_comm_group is None:
-            return model.predict_step(input_tensor_torch)
+            return super().predict_step(model, input_tensor_torch, **kwargs)
         else:
             try:
-                return model.predict_step(input_tensor_torch, self.model_comm_group)
+                return super().predict_step(model, input_tensor_torch, model_comm_group=self.model_comm_group, **kwargs)
             except TypeError as err:
                 LOG.error(
                     "Please upgrade to a newer version of anemoi-models (at least version v0.4.2) to use parallel inference. If updating breaks your checkpoints, you can try reverting to your original version of anemoi-models and cherry-picking 'https://github.com/ecmwf/anemoi-core/pull/77'"

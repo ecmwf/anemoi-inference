@@ -48,6 +48,20 @@ number of GPUs on a single node.
    output:
      grib: /path/to/output.grib
 
+By default, the `parallel` runner inherits from the `default` runner
+(:class:`anemoi.inference.runners.default.DefaultRunner`). If you want
+to run a different runner in parallel, you can pass the ``base_runner``
+option:
+
+.. code:: yaml
+
+   runner:
+     parallel:
+       base_runner: my-custom-runner
+
+Any additional options passsed to the `parallel` runner will be
+forwarded to the ``base_runner``.
+
 *********************************************
  Running inference in parallel without Slurm
 *********************************************
