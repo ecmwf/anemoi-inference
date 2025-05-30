@@ -59,8 +59,8 @@ option:
      parallel:
        base_runner: my-custom-runner
 
-Any additional options passsed to the `parallel` runner will be
-forwarded to the ``base_runner``.
+Any additional options passed to the `parallel` runner will be forwarded
+to the ``base_runner``.
 
 *********************************************
  Running inference in parallel without Slurm
