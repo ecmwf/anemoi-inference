@@ -42,18 +42,20 @@ def update_state_dict(
     for key in list(reduced_state_dict):
         if key not in model_state_dict:
             if ignore_additional_layers:
-                LOG.info(f"Skipping injection of {key}, which is not in the model.")
+                LOG.info("Skipping injection of %s, which is not in the model.", key)
                 del reduced_state_dict[key]
             else:
                 raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
         elif reduced_state_dict[key].shape != model_state_dict[key].shape:
             if ignore_mismatched_layers:
-                LOG.info(f"Skipping injection of {key} due to shape mismatch.")
-                LOG.info(f"Model shape: {model_state_dict[key].shape}")
-                LOG.info(f"Provided shape: {reduced_state_dict[key].shape}")
+                LOG.info("Skipping injection of %s due to shape mismatch.", key)
+                LOG.info("Model shape: %s", model_state_dict[key].shape)
+                LOG.info("Provided shape: %s", reduced_state_dict[key].shape)
                 del reduced_state_dict[key]
             else:
-                raise AssertionError(f"Mismatch in shape of {key}. Consider setting 'ignore_mismatched_layers = True'.")
+                raise AssertionError(
+                    "Mismatch in shape of %s. Consider setting 'ignore_mismatched_layers = True'.", key
+                )
 
     # update
     model.load_state_dict(reduced_state_dict, strict=False)
@@ -97,7 +99,7 @@ class ExternalGraphRunner(DefaultRunner):
         if graph_dataset is not None:
             graph_ds = open_dataset(graph_dataset)
             LOG.info(
-                "The external graph was built using a different anemoi-dataset than that in the checkpoint."
+                "The external graph was built using a different anemoi-dataset than that in the checkpoint. "
                 "Patching metadata to ensure correct data loading."
             )
             self.checkpoint._metadata.patch(
@@ -146,7 +148,9 @@ class ExternalGraphRunner(DefaultRunner):
             attribute = output_mask["attribute_name"]
             self.checkpoint._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
             LOG.info(
-                f"Moving attribute '{attribute}' of nodes '{nodes}' from external graph to supporting arrays as 'output_mask'."
+                "Moving attribute '%s' of nodes '%s' from external graph to supporting arrays as 'output_mask'.",
+                attribute,
+                nodes,
             )
 
     @cached_property
@@ -155,7 +159,7 @@ class ExternalGraphRunner(DefaultRunner):
         assert os.path.isfile(
             graph_path
         ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
-        LOG.info(f"Loading external graph from path {graph_path}.")
+        LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 
     @cached_property
