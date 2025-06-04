@@ -11,63 +11,70 @@ import os
 from pathlib import Path
 
 import pytest
+import logging
+
+from typing import NamedTuple
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import save_fake_checkpoint
+from anemoi.utils.testing import get_test_data
+
+logging.basicConfig(level=logging.INFO)
 
 
-@pytest.fixture(autouse=True)
-def set_working_directory() -> None:
-    """Automatically set the working directory to the repo root."""
-    repo_root = Path(__file__).resolve().parent
-    while not (repo_root / ".git").exists() and repo_root != repo_root.parent:
-        repo_root = repo_root.parent
-
-    os.chdir(repo_root)
-
-
-@pytest.fixture()
-def metadata_path() -> Path:
-    """Fixture to provide the path to the metadata file."""
-    repo_root = Path(__file__).resolve().parent
-    return repo_root / "configs" / "atmosphere.json"
-
-
-@pytest.fixture()
-def checkpoint_path(metadata_path, tmp_path):
+def create_checkpoint(tmp_dir):
     """Fixture to create a fake checkpoint for testing."""
-    checkpoint_path = tmp_path / Path("checkpoint.pth")
+    repo_root = Path(__file__).resolve().parent
+    metadata_path = repo_root / "configs" / "simple_metadata.json"
+    checkpoint_path = tmp_dir / Path("checkpoint.pth")
+
     save_fake_checkpoint(metadata_path, checkpoint_path)
     return checkpoint_path
 
 
-@pytest.fixture
-def config_path(tmp_path, checkpoint_path):
-    """Fixture to create a fake configuration file for testing."""
-    config_path = tmp_path / "integration_test.yaml"
+def create_config_and_checkpoint(tmp_dir):
+    """Fixture to create a fake configuration file and a checkpoint for testing."""
+
+    checkpoint_path = create_checkpoint(tmp_dir)
+    config_path = tmp_dir / "integration_test.yaml"
+
     with open(config_path, "w") as f:
         f.write(
             f"""
+        lead_time: 48h
         checkpoint: {checkpoint_path}
         input:
-            grib: input.grib
+            grib:  {tmp_dir}/input.grib
         output:
-            grib: output.grib
+            grib: {tmp_dir}/output.grib
         """
         )
-    return config_path
+    return config_path    
 
 
-def test_inference_on_checkpoint(config_path):
-    """Test the inference process using a fake checkpoint.
 
-    This function loads a configuration, creates a runner, and runs the inference
-    process to ensure that the system works as expected with the provided configuration.
-    """
+class TestSetup(NamedTuple):
+    config_path: Path
+    tmp_dir: Path
+
+
+@pytest.fixture
+def test_setup() -> TestSetup:
+    url_dataset = "anemoi-integration-tests/input.grib"
+    grib_path = get_test_data(url_dataset)
+    tmp_dir = Path(grib_path).parent
+    config_path = create_config_and_checkpoint(tmp_dir)
+    return TestSetup(config_path=config_path, tmp_dir=tmp_dir)
+
+
+def test_inference_on_checkpoint(test_setup: TestSetup) -> None:
+    """Test the inference process using a fake checkpoint."""
     config = RunConfiguration.load(
-        config_path,
-        overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
+        test_setup.config_path,
+        overrides=dict(device="cpu", trace_path="trace.log"),
     )
     runner = create_runner(config)
     runner.execute()
+
+    assert (test_setup.tmp_dir / "output.grib").exists(), "Output GRIB file was not created."
