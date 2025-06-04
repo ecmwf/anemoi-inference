@@ -7,18 +7,16 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import os
+import logging
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
-import logging
-
-from typing import NamedTuple
+from anemoi.utils.testing import get_test_data
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import save_fake_checkpoint
-from anemoi.utils.testing import get_test_data
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,8 +48,7 @@ def create_config_and_checkpoint(tmp_dir):
             grib: {tmp_dir}/output.grib
         """
         )
-    return config_path    
-
+    return config_path
 
 
 class TestSetup(NamedTuple):
