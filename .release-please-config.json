@@ -16,5 +16,10 @@
         "package-name": "anemoi-inference"
     }
   },
+  "plugins": [
+    {
+      "type": "sentence-case"
+    }
+  ],
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
 }
