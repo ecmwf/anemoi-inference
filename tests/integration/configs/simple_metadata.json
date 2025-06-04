@@ -163,7 +163,7 @@
                 }
             },
             "tp": {
-                "accumulated": true,
+                "process": "accumulation",
                 "mars": {
                     "levtype": "sfc",
                     "param": "tp"
