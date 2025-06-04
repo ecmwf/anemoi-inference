@@ -20,6 +20,68 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 
 
+class SimpleMockModel(torch.nn.Module):
+    """Simple mock model for testing."""
+
+    def __init__(self, metadata: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
+        """Initialize the simple mock model.
+
+        Parameters
+        ----------
+        metadata : dict
+            The metadata for the model.
+        supporting_arrays : dict
+            The supporting arrays for the model.
+        """
+        super().__init__()
+        metadata = DotDict(metadata)
+        self.supporting_arrays = supporting_arrays
+
+        self.features_in = len(metadata.data_indices.model.input.full)
+        self.features_out = len(metadata.data_indices.model.output.full)
+        self.roll_window = metadata.config.training.multistep_input
+        self.grid_size = metadata.dataset.shape[-1]
+
+        self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
+        self.output_shape = (1, 1, self.grid_size, self.features_out)
+
+        checkpoint = Checkpoint(Metadata(metadata))
+        self.input_variables = {v: k for k, v in checkpoint.variable_to_input_tensor_index.items()}
+        self.output_variables = dict(checkpoint.output_tensor_index_to_variable)
+        self.lagged = checkpoint.lagged
+
+        self.typed_variables = checkpoint.typed_variables
+        self.timestep = checkpoint.timestep
+
+        self.first = True
+        self.constant_in_time: Dict[int, torch.Tensor] = {}
+
+    def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
+    ) -> torch.Tensor:
+        """Perform a prediction step.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input tensor.
+        date : datetime.datetime
+            The current date.
+        step : datetime.timedelta
+            The time step.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The output tensor.
+        """
+
+        out = torch.zeros(self.output_shape)
+        return out
+
+
 class MockModel(torch.nn.Module):
     """Mock model for testing."""
 
