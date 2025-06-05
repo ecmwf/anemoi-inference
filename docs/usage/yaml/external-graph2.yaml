@@ -1,0 +1,6 @@
+runner:
+  external_graph:
+    graph: path/to/graph.pt
+    output_mask:
+      nodes_name: data # name of the output nodes of the graph
+      attribute_name: cutout_mask # mask specifying the limited area among the output nodes
