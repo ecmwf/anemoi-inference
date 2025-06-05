@@ -200,6 +200,7 @@ class GribOutput(Output):
             return
 
         state = state.copy()
+        state = self.reduce(state)
 
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
