@@ -20,21 +20,13 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 
 
-class MockModel(torch.nn.Module):
-    """Mock model for testing."""
+class MockModelBase(torch.nn.Module):
+    """Mock model base class for testing."""
 
-    def __init__(self, medatada: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
-        """Initialize the mock model.
-
-        Parameters
-        ----------
-        medatada : dict
-            The metadata for the model.
-        supporting_arrays : dict
-            The supporting arrays for the model.
-        """
+    def __init__(self, metadata: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
         super().__init__()
-        metadata = DotDict(medatada)
+        metadata = DotDict(metadata)
+        self.supporting_arrays = supporting_arrays
 
         self.features_in = len(metadata.data_indices.model.input.full)
         self.features_out = len(metadata.data_indices.model.output.full)
@@ -46,7 +38,7 @@ class MockModel(torch.nn.Module):
 
         checkpoint = Checkpoint(Metadata(metadata))
         self.input_variables = {v: k for k, v in checkpoint.variable_to_input_tensor_index.items()}
-        self.output_variables = checkpoint.output_tensor_index_to_variable
+        self.output_variables = dict(checkpoint.output_tensor_index_to_variable)
         self.lagged = checkpoint.lagged
 
         self.typed_variables = checkpoint.typed_variables
@@ -54,6 +46,44 @@ class MockModel(torch.nn.Module):
 
         self.first = True
         self.constant_in_time: Dict[int, torch.Tensor] = {}
+
+    def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
+    ) -> torch.Tensor:
+        """Perform a prediction step.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input tensor.
+        date : datetime.datetime
+            The current date.
+        step : datetime.timedelta
+            The time step.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The output tensor.
+        """
+
+        raise NotImplementedError("This method should be implemented by subclasses.")
+
+
+class SimpleMockModel(MockModelBase):
+    """Simple mock model that creates dummy output."""
+
+    def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
+    ) -> torch.Tensor:
+        y = torch.ones(self.output_shape)
+        return y
+
+
+class MockModel(MockModelBase):
+    """Mock model with internal sanity checks. Assumes the input comes from the `dummy` input source."""
 
     def _check(
         self,
@@ -116,24 +146,6 @@ class MockModel(torch.nn.Module):
     def predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
-        """Perform a prediction step.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            The input tensor.
-        date : datetime.datetime
-            The current date.
-        step : datetime.timedelta
-            The time step.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        torch.Tensor
-            The output tensor.
-        """
         assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
 
         # Date of the data
