@@ -50,27 +50,17 @@ class Cutout(Input):
     def __repr__(self):
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
-        """Create the input state for the given date.
-
-        Parameters
-        ----------
-        date : Optional[Date]
-            The date for which to create the input state.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
+    def create_state(
+        self, *, date: Optional[Date], variables: Optional[List[str]] = None, initial: bool = True
+    ) -> State:
 
         LOG.info(f"Concatenating states from {self.sources}")
         sources = list(self.sources.keys())
 
-        state = self.sources[sources[0]].create_input_state(date=date)
+        state = self.sources[sources[0]].create_state(date=date, variables=variables, initial=initial)
         for source in sources[1:]:
             mask = self.masks[source]
-            _state = self.sources[source].create_input_state(date=date)
+            _state = self.sources[source].create_state(date=date, variables=variables, initial=initial)
 
             state["latitudes"] = np.concatenate([state["latitudes"], _state["latitudes"][..., mask]], axis=-1)
             state["longitudes"] = np.concatenate([state["longitudes"], _state["longitudes"][..., mask]], axis=-1)
@@ -78,36 +68,3 @@ class Cutout(Input):
                 state["fields"][field] = np.concatenate([values, _state["fields"][field][..., mask]], axis=-1)
 
         return state
-
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        """Load the forcings state for the given variables and dates.
-
-        Parameters
-        ----------
-        variables : List[str]
-            List of variables to load.
-        dates : List[Date]
-            List of dates for which to load the forcings.
-        current_state : State
-            The current state of the input.
-
-        Returns
-        -------
-        State
-            The loaded forcings state.
-        """
-
-        sources = list(self.sources.keys())
-        fields = self.sources[sources[0]].load_forcings_state(
-            variables=variables, dates=dates, current_state=current_state
-        )["fields"]
-        for source in sources[1:]:
-            mask = self.masks[source]
-            _fields = self.sources[source].load_forcings_state(
-                variables=variables, dates=dates, current_state=current_state
-            )["fields"]
-            for field in fields:
-                fields[field] = np.concatenate([fields[field], _fields[field][..., mask]], axis=-1)
-
-        current_state["fields"] |= fields
-        return current_state
