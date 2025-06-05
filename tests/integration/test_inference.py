@@ -41,6 +41,8 @@ def create_config_and_checkpoint(tmp_dir):
         f.write(
             f"""
         lead_time: 48h
+        post_processors:
+            - accumulate_from_start_of_forecast
         checkpoint: {checkpoint_path}
         input:
             grib:  {tmp_dir}/input.grib
