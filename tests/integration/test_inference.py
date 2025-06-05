@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 def create_checkpoint(tmp_dir):
     """Fixture to create a fake checkpoint for testing."""
     repo_root = Path(__file__).resolve().parent
-    metadata_path = repo_root / "configs" / "simple_metadata.json"
+    metadata_path = repo_root / "checkpoints" / "simple_metadata.json"
     checkpoint_path = tmp_dir / Path("checkpoint.pth")
 
     save_fake_checkpoint(metadata_path, checkpoint_path)
@@ -51,21 +51,21 @@ def create_config_and_checkpoint(tmp_dir):
     return config_path
 
 
-class TestSetup(NamedTuple):
+class Setup(NamedTuple):
     config_path: Path
     tmp_dir: Path
 
 
 @pytest.fixture
-def test_setup() -> TestSetup:
+def test_setup() -> Setup:
     url_dataset = "anemoi-integration-tests/input.grib"
     grib_path = get_test_data(url_dataset)
     tmp_dir = Path(grib_path).parent
     config_path = create_config_and_checkpoint(tmp_dir)
-    return TestSetup(config_path=config_path, tmp_dir=tmp_dir)
+    return Setup(config_path=config_path, tmp_dir=tmp_dir)
 
 
-def test_inference_on_checkpoint(test_setup: TestSetup) -> None:
+def test_inference_on_checkpoint(test_setup: Setup) -> None:
     """Test the inference process using a fake checkpoint."""
     config = RunConfiguration.load(
         test_setup.config_path,
