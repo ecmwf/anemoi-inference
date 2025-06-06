@@ -201,6 +201,7 @@ class Runner(Context):
 
         self.constant_forcings_inputs = self.create_constant_forcings_inputs(input_state)
         self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
+        #self.dynamic_forcings_inputs = self.dynamic_forcings_inputs.append("cos_solar_zenith_angle")
         self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
 
         LOG.info("-" * 80)
@@ -549,6 +550,8 @@ class Runner(Context):
         self.model.eval()
 
         torch.set_grad_enabled(False)
+        torch.manual_seed(42)
+        np.random.seed(42)
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
@@ -558,6 +561,7 @@ class Runner(Context):
         new_state = input_state.copy()  # We should not modify the input state
         new_state["fields"] = dict()
         new_state["step"] = to_timedelta(0)
+        new_state_shard=None
 
         start = input_state["date"]
 
@@ -595,26 +599,40 @@ class Runner(Context):
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
-                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                sharded_output=False
+                if output_shard_torch is not None:
+                    sharded_output=True
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                output_full = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                if sharded_output:
+                    output_shard = np.squeeze(output_shard_torch.cpu().numpy())  # shape: (values, variables)
+                    if new_state_shard is None:
+                        new_state_shard=new_state.copy()
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                for i in range(output.shape[1]):
-                    new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                for i in range(output_full.shape[1]):
+                    new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
+                if sharded_output:
+                    LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
+                    for i in range(output_shard.shape[1]):
+                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_shard[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output)
+                self._print_output_tensor("Output tensor", output_full)
 
             if self.trace:
                 self.trace.write_output_tensor(
-                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    date, s, output_full, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
                 )
 
-            yield new_state
+            if sharded_output:
+                yield new_state_shard
+            else:
+                yield new_state
 
             # No need to prepare next input tensor if we are at the last step
             if is_last_step:
@@ -675,9 +693,9 @@ class Runner(Context):
 
         prognostic_output_mask = self.checkpoint.prognostic_output_mask
         prognostic_input_mask = self.checkpoint.prognostic_input_mask
-
+        
         # Copy prognostic fields to input tensor
-        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
+        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values 
         input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
         input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
             prognostic_fields  # Add new values to last 'multi_step_input' row
