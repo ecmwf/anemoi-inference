@@ -797,9 +797,7 @@ class Runner(Context):
                     ProfilingLabel("Predict step", self.use_profiler),
                     Timer(title),
                 ):
-                    y_pred = self.predict_step(
-                        self.model, input_tensor_torch, fcstep=s, input_date=date - step
-                    )
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s)
 
                 output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
 
