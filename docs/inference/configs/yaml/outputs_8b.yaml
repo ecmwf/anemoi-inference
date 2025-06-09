@@ -1,0 +1,13 @@
+output:
+  extract_lam:
+    lam: '0/lam_0' #selects the cutout mask of the first dataset used in join
+    output:
+      tee:
+      - netcdf:
+          path: lam.nc
+      - plot:
+          path: lam-plots
+          variables:
+          - 2t
+          - z_500
+          - t_850

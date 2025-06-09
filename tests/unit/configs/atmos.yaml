@@ -1,0 +1,10 @@
+checkpoint: unit/checkpoints/atmos.ckpt
+runner: testing
+device: cpu
+
+lead_time: 480
+date: 2022-01-02
+
+input: dummy
+
+write_initial_state: false

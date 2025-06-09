@@ -10,10 +10,21 @@
 
 import json
 import sys
+from argparse import ArgumentParser
+from argparse import Namespace
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
 
 from earthkit.data.utils.dates import to_datetime
 
-from ..config import load_config
+from anemoi.inference.checkpoint import Checkpoint
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
+
+from ..config.run import RunConfiguration
 from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
 from ..runners import create_runner
@@ -21,18 +32,48 @@ from . import Command
 
 
 def checkpoint_to_requests(
-    checkpoint,
+    checkpoint: Checkpoint,
     *,
-    date,
-    target=None,
-    include_forcings=True,
-    retrieve_fields_type=None,
-    staging_dates=None,
-    use_grib_paramid=False,
-    extra=None,
-    patch_request=None,
-    use_scda=False,
-):
+    date: Date,
+    target: Optional[str] = None,
+    include_forcings: bool = True,
+    retrieve_fields_type: Optional[str] = None,
+    staging_dates: Optional[str] = None,
+    use_grib_paramid: bool = False,
+    extra: Optional[List[str]] = None,
+    patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
+    use_scda: bool = False,
+) -> List[DataRequest]:
+    """Convert a checkpoint to a list of data requests.
+
+    Parameters
+    ----------
+    checkpoint : Checkpoint
+        The checkpoint object containing the necessary data.
+    date : Date
+        The date for the data request.
+    target : str, optional
+        The target path for the data request.
+    include_forcings : bool, optional
+        Whether to include forcings in the data request.
+    retrieve_fields_type : str, optional
+        The type of fields to retrieve.
+    staging_dates : str, optional
+        Path to a file with staging dates.
+    use_grib_paramid : bool, optional
+        Whether to use GRIB parameter IDs.
+    extra : list of str, optional
+        Additional request values.
+    patch_request : Callable[[DataRequest], DataRequest], optional
+        Function to patch the data request.
+    use_scda : bool, optional
+        Whether to use SCDA stream for 6/18 input time.
+
+    Returns
+    -------
+    List[DataRequest]
+        A list of data requests.
+    """
     # TODO: Move this to the runner
 
     variables = checkpoint.variables_from_input(include_forcings=include_forcings)
@@ -81,7 +122,7 @@ def checkpoint_to_requests(
             r["target"] = target
         r.update(more)
         if use_scda:
-            _patch_scda(date, r)
+            _patch_scda(r)
         requests.append(r)
 
     return requests
@@ -90,11 +131,20 @@ def checkpoint_to_requests(
 class RetrieveCmd(Command):
     """Used by prepml."""
 
-    need_logging = False
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
 
-    def add_arguments(self, command_parser):
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.description = self.__doc__
-        command_parser.add_argument("config", type=str, help="Path to config file")
+        command_parser.add_argument(
+            "config",
+            type=str,
+            help="Path to config file. Can be omitted to pass config with overrides and defaults.",
+        )
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
         command_parser.add_argument("--output", type=str, default=None, help="Output file")
@@ -102,11 +152,21 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--retrieve-fields-type", type=str, help="Type of fields to retrieve")
         command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
-        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
+        """Run the retrieve command.
 
-        config = load_config(args.config, args.overrides, defaults=args.defaults)
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
+        if "=" in args.config:
+            args.overrides.append(args.config)
+            args.config = {}
+
+        config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
 
@@ -137,9 +197,15 @@ class RetrieveCmd(Command):
         json.dump(requests, f, indent=4)
 
 
-def _patch_scda(base_date, request):
-    if base_date.hour not in (6, 18):
-        return
+def _patch_scda(request: Dict[str, Any]) -> None:
+    """Patch the SCDA stream in the request if necessary.
+    ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC.
+
+    Parameters
+    ----------
+    request : dict
+        The request dictionary to be patched.
+    """
 
     if request.get("class", "od") != "od":
         return

@@ -11,8 +11,18 @@
 import json
 import logging
 from collections import defaultdict
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
+import earthkit.data as ekd
 import numpy as np
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import FloatArray
 
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
@@ -39,7 +49,21 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _is_valid(mars, keys):
+def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
+    """Check if the mars dictionary contains valid keys.
+
+    Parameters
+    ----------
+    mars : Dict[str, Any]
+        The mars dictionary.
+    keys : Dict[str, Any]
+        The keys dictionary.
+
+    Returns
+    -------
+    bool
+        True if valid, False otherwise.
+    """
     if "number" in keys and "number" not in mars:
         LOG.warning("`number` is missing from mars namespace")
         return False
@@ -52,7 +76,7 @@ def _is_valid(mars, keys):
 
 
 class ArchiveCollector:
-    """Collects archive requests"""
+    """Collects archive requests."""
 
     UNIQUE = {"date", "hdate", "time", "referenceDate", "type", "stream", "expver"}
 
@@ -60,7 +84,14 @@ class ArchiveCollector:
         self.expect = 0
         self._request = defaultdict(set)
 
-    def add(self, field):
+    def add(self, field: Dict[str, Any]) -> None:
+        """Add a field to the archive request.
+
+        Parameters
+        ----------
+        field : Dict[str,Any]
+            The field dictionary.
+        """
         self.expect += 1
         for k, v in field.items():
             self._request[k].add(str(v))
@@ -69,32 +100,64 @@ class ArchiveCollector:
                     raise ValueError(f"Field {field} has different values for {k}: {self._request[k]}")
 
     @property
-    def request(self):
+    def request(self) -> DataRequest:
+        """Get the archive request."""
         return {k: sorted(v) for k, v in self._request.items()}
 
 
 @output_registry.register("grib")
 @main_argument("path")
 class GribFileOutput(GribOutput):
-    """Handles grib files"""
+    """Handles grib files."""
 
     def __init__(
         self,
-        context,
+        context: Context,
         *,
-        path,
-        encoding=None,
-        archive_requests=None,
-        check_encoding=True,
-        templates=None,
-        grib1_keys=None,
-        grib2_keys=None,
-        modifiers=None,
-        output_frequency=None,
-        write_initial_state=None,
-        variables=None,
-        split_output=True,
-    ):
+        path: str,
+        encoding: Optional[Dict[str, Any]] = None,
+        archive_requests: Optional[Dict[str, Any]] = None,
+        check_encoding: bool = True,
+        templates: Optional[Union[List[str], str]] = None,
+        grib1_keys: Optional[Dict[str, Any]] = None,
+        grib2_keys: Optional[Dict[str, Any]] = None,
+        modifiers: Optional[List[str]] = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
+        variables: Optional[List[str]] = None,
+        split_output: bool = True,
+    ) -> None:
+        """Initialize the GribFileOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str
+            The path to save the grib files.
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        archive_requests : dict, optional
+            The archive requests dictionary, by default None.
+        check_encoding : bool, optional
+            Whether to check encoding, by default True.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        split_output : bool, optional
+            Whether to split the output, by default True.
+        """
         super().__init__(
             context,
             encoding=encoding,
@@ -113,19 +176,31 @@ class GribFileOutput(GribOutput):
         self.check_encoding = check_encoding
         self._namespace_bug_fix = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a string representation of the GribFileOutput object."""
         return f"GribFileOutput({self.path})"
 
-    def write_message(self, message, template, **keys):
+    def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
+        """Write a message to the grib file.
+
+        Parameters
+        ----------
+        message : FloatArray
+            The message array.
+        template : ekd.Field
+            A ekd.Field use as a template for GRIB encoding.
+        **keys : Dict[str, Any]
+            Additional keys for the message.
+        """
         # Make sure `name` is not in the keys, otherwise grib_encoding will fail
         if template is not None and template.metadata("name", default=None) is not None:
             # We cannot clear the metadata...
             class Dummy:
-                def __init__(self, template):
+                def __init__(self, template: ekd.Field) -> None:
                     self.template = template
                     self.handle = template.handle
 
-                def __repr__(self):
+                def __repr__(self) -> str:
                     return f"Dummy({self.template})"
 
             template = Dummy(template)
@@ -153,8 +228,18 @@ class GribFileOutput(GribOutput):
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
-    def collect_archive_requests(self, written, template, **keys):
+    def collect_archive_requests(self, written: tuple, template: object, **keys: Any) -> None:
+        """Collect archive requests.
 
+        Parameters
+        ----------
+        written : tuple
+            The written tuple.
+        template : object
+            The template object.
+        **keys : Any
+            Additional keys for the archive requests.
+        """
         if not self.archive_requests and not self.check_encoding:
             return
 
@@ -186,7 +271,8 @@ class GribFileOutput(GribOutput):
         if self.archive_requests:
             self.archiving[path].add(mars)
 
-    def close(self):
+    def close(self) -> None:
+        """Close the grib file."""
         self.output.close()
 
         if not self.archive_requests:
@@ -197,15 +283,19 @@ class GribFileOutput(GribOutput):
         patch = self.archive_requests.get("patch", {})
         indent = self.archive_requests.get("indent", None)
 
-        def _patch(r):
+        def _patch(r: DataRequest) -> DataRequest:
             if self.context.config.use_grib_paramid:
-                from anemoi.utils.grib import shortname_to_paramid
-
                 param = r.get("param", [])
                 if not isinstance(param, list):
                     param = [param]
-                param = [shortname_to_paramid(p) for p in param]
-                r["param"] = param
+
+                # Check if we're using param ids already
+                try:
+                    float(next(iter(param)))
+                except ValueError:
+                    from anemoi.utils.grib import shortname_to_paramid
+
+                    r["param"] = [shortname_to_paramid(p) for p in param]
 
             for k, v in patch.items():
                 if v is None:
