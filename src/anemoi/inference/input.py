@@ -1,11 +1,12 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2024 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-#
+
 import logging
 from abc import ABC
 from abc import abstractmethod
@@ -22,15 +23,11 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
-# TODO: only one method is need: `load_data`.
-# The other methods can be implemenneted concreetly
-# using the `load_data` method.
-
 
 class Input(ABC):
     """Abstract base class for input handling."""
 
-    trace_name = "????"  # Override in subclass
+    trace_name: str
 
     def __init__(self, context: "Context"):
         """Initialize the Input object.
@@ -54,13 +51,18 @@ class Input(ABC):
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_state(self, *, date: Optional[Date], variables: Optional[List[str]], initial: bool) -> State:
         """Create the input state dictionary.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        variables : Optional[List[str]]
+            The list of variables to include in the input state.
+        initial : bool
+            Whether the state is the initial state, in which case date expands to a list of dates
+            according to the model's input time window lag.
 
         Returns
         -------
@@ -69,34 +71,29 @@ class Input(ABC):
         """
         pass
 
-    @abstractmethod
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, date: Date, variables: List[str], initial: bool) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
         ----------
+        date : Date
+            The date for which to load the forcings.
         variables : List[str]
             The list of variables to load.
-        dates : List[Date]
-            The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
+        initial : bool
+            Whether the state is the initial state, in which case date expands to a list of dates
+            according to the model's input time window lag.
 
         Returns
         -------
         State
             The updated state with the loaded forcings.
         """
-        pass
+        return self.create_state(date=date, variables=variables, initial=initial)
 
-    def input_variables(self) -> List[str]:
-        """Return the list of input variables.
-
-        Returns
-        -------
-        List[str]
-            The list of input variables.
-        """
+    @property
+    def checkpoint_variables(self) -> List[str]:
+        """Return the list of input variables."""
         return list(self.checkpoint.variable_to_input_tensor_index.keys())
 
     def set_private_attributes(self, state: State, value: Any) -> None:

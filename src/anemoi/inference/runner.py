@@ -289,12 +289,9 @@ class Runner(Context):
         # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
-
-        dates = [date + h for h in self.checkpoint.lagged]
-
         # For output object. Should be moved elsewhere
-        self.reference_date = dates[-1]
-        self.initial_dates = dates
+        self.reference_date = date
+        self.initial_dates = [date + h for h in self.checkpoint.lagged]
 
         # TODO: Check for user provided forcings
 
@@ -313,8 +310,8 @@ class Runner(Context):
         LOG.info("-" * 80)
 
         for source in initial_constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings_array(dates, input_state)
+            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, date)
+            arrays = source.load_forcings_array(date, input_state, initial=True)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -323,8 +320,8 @@ class Runner(Context):
                     self.trace.from_source(name, source, "initial constant forcings")
 
         for source in initial_dynamic_forcings_inputs:
-            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings_array(dates, input_state)
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, date)
+            arrays = source.load_forcings_array(date, input_state, initial=True)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -726,7 +723,7 @@ class Runner(Context):
 
         for source in self.dynamic_forcings_inputs:
 
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(date, state, initial=False)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
@@ -773,7 +770,7 @@ class Runner(Context):
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(date, initial=False)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
