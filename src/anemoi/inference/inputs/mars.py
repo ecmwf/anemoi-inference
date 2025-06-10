@@ -124,6 +124,9 @@ def postproc(
     if grid_is_valid(grid):
         pproc["grid"] = grid
 
+    if isinstance(area, str):
+        area = [float(x) for x in area.split("/")]
+
     if area_is_valid(area):
         pproc["area"] = rounded_area(area)
 
@@ -282,12 +285,12 @@ class MarsInput(GribInput):
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
+        kwargs.setdefault("grid", self.checkpoint.grid)
+        kwargs.setdefault("area", self.checkpoint.area)
 
         return retrieve(
             requests,
-            kwargs.pop("grid", self.checkpoint.grid),
-            kwargs.pop("area", self.checkpoint.area),
-            self.patch,
+            patch=self.patch,
             **kwargs,
         )
 
