@@ -562,11 +562,19 @@ class Runner(Context):
         new_state = input_state.copy()  # We should not modify the input state
         new_state["fields"] = dict()
         new_state["step"] = to_timedelta(0)
+        
         import copy
         #new_state_shard=copy.deepcopy(new_state) #pickling error
+        #copy above is a shallow copy we need a 
         new_state_shard=dict()
-        new_state_shard["fields"] = dict()
-        new_state_shard["step"] = to_timedelta(0)
+        #shallow copy input_state, except for the stuff we care about
+        for key in input_state:
+            if key == "fields":
+                new_state_shard["fields"] = dict()
+            elif key == "step":
+                new_state_shard["step"] = to_timedelta(0)
+            else:
+                new_state_shard[key] = input_state[key]
 
         start = input_state["date"]
 
@@ -628,9 +636,13 @@ class Runner(Context):
                     new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
                 if sharded_output:
                     LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
-                    for i in range(output_shard.shape[1]):
-                        rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
-                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[i*(rank+1)]] = output_shard[:, i]
+                    rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
+                    num_fields_per_rank=output_shard.shape[1]
+                    local_fields=""
+                    for i in range(num_fields_per_rank): #assumes num_fields_per_rank is the same i.e. ranks goes in evenly
+                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[num_fields_per_rank*rank+i]] = output_shard[:, i]
+                        local_fields += f"{self.checkpoint.output_tensor_index_to_variable[num_fields_per_rank*rank+i]},"
+                    print(f"{rank=}, fields = {local_fields}")
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output_full)
