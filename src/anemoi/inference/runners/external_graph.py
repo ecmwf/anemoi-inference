@@ -1,3 +1,12 @@
+# (C) Copyright 2024 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
 import logging
 import os
 from copy import deepcopy
@@ -5,7 +14,6 @@ from functools import cached_property
 from typing import Any
 
 import torch
-from anemoi.datasets import open_dataset
 
 from ..runners.default import DefaultRunner
 from . import runner_registry
@@ -76,7 +84,7 @@ class ExternalGraphRunner(DefaultRunner):
         graph_dataset: Any | None = None,
         check_state_dict: bool | None = True,
     ) -> None:
-        """Initialize the ExternalGraphRunner.
+        """Initialise the ExternalGraphRunner.
 
         Parameters
         ----------
@@ -97,6 +105,8 @@ class ExternalGraphRunner(DefaultRunner):
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
+            from anemoi.datasets import open_dataset
+
             graph_ds = open_dataset(graph_dataset)
             LOG.info(
                 "The external graph was built using a different anemoi-dataset than that in the checkpoint. "
