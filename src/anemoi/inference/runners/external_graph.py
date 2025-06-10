@@ -100,8 +100,8 @@ class ExternalGraphRunner(DefaultRunner):
             Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes of the graph.
         update_supporting_arrays: dict[str, str] | None
             Dictionary specifying how to update the supporting arrays in the checkpoint metadata.
-            Will pull from the graph['data'] dictionary, key refers to the name in the graph,
-            and value refers to the name in the checkpoint metadata.
+            Will pull from the graph['data'] dictionary, key refers to the name in the supporting arrays,
+            and value refers to the name in the graph['data'].
         check_state_dict: bool | None
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
@@ -171,19 +171,18 @@ class ExternalGraphRunner(DefaultRunner):
 
         if update_supporting_arrays is not None:
             for key, value in update_supporting_arrays.items():
-                if key in self.graph["data"]:
-                    self.checkpoint._supporting_arrays[value] = self.graph["data"][key]
+                if value in self.graph["data"]:
+                    self.checkpoint._supporting_arrays[key] = self.graph["data"][value]
                     LOG.info(
-                        "Moving attribute '%s' of nodes '%s' from external graph to supporting arrays as '%s'.",
-                        key,
-                        "data",
+                        "Moving attribute '%s' from external graph to supporting arrays as '%s'.",
                         value,
+                        key,
                     )
                 else:
                     LOG.warning(
                         "Key '%s' not found in external graph 'data'. Skipping update of supporting array '%s'.",
-                        key,
                         value,
+                        key,
                     )
 
     @cached_property
