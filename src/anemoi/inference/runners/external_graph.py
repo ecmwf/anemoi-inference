@@ -12,6 +12,7 @@ import os
 from copy import deepcopy
 from functools import cached_property
 from typing import Any
+from typing import Literal
 
 import torch
 
@@ -70,6 +71,63 @@ def update_state_dict(
     return model
 
 
+def _get_supporting_arrays_from_graph(update_supporting_arrays: dict[str, str], graph: Any) -> dict:
+    """Update the supporting arrays from the graph data."""
+    updated_supporting_arrays = {}
+    for key, value in update_supporting_arrays.items():
+        if value in graph["data"]:
+            updated_supporting_arrays[key] = graph["data"][value]
+            LOG.info("Moving attribute '%s' from external graph to supporting arrays as '%s'.", value, key)
+        else:
+            error_msg = f"Key '{value}' not found in external graph 'data'. Cannot update supporting array: '{key}'."
+            raise KeyError(error_msg)
+    return updated_supporting_arrays
+
+
+def _get_supporting_arrays_from_file(update_supporting_arrays: dict[str, str]) -> dict:
+    """Update the supporting arrays from a file."""
+    updated_supporting_arrays = {}
+
+    import numpy as np
+
+    for key, value in update_supporting_arrays.items():
+        if os.path.isfile(value):
+            try:
+                updated_supporting_arrays[key] = torch.load(value)
+            except Exception as e:
+                LOG.warning("Failed to load '%s' as a torch tensor. Attempting to load as numpy array.\n%s", value, e)
+                updated_supporting_arrays[key] = np.load(value, allow_pickle=True)
+
+            LOG.info("Moving attribute '%s' from file to supporting arrays as '%s'.", value, key)
+        else:
+            error_msg = f"File '{value}' not found. Cannot update supporting array: '{key}'."
+            raise FileNotFoundError(error_msg)
+    return updated_supporting_arrays
+
+
+def get_updated_supporting_arrays(
+    update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]], graph: Any
+) -> dict:
+    """Get an update dict for the supporting arrays.
+
+    Allows to update the supporting arrays in the checkpoint metadata from the graph data,
+    and from files, which will be loaded using torch.load() or np.load().
+    """
+    updated_supporting_arrays = {}
+
+    for location in update_supporting_arrays:
+        if location == "graph":
+            updated_supporting_arrays.update(
+                _get_supporting_arrays_from_graph(update_supporting_arrays[location], graph)
+            )
+        elif location == "file":
+            updated_supporting_arrays.update(_get_supporting_arrays_from_file(update_supporting_arrays[location]))
+        else:
+            raise ValueError(f"Unknown location '{location}' in update_supporting_arrays.")
+
+    return updated_supporting_arrays
+
+
 @runner_registry.register("external_graph")
 class ExternalGraphRunner(DefaultRunner):
     """Runner where the graph saved in the checkpoint is replaced by an externally provided one.
@@ -83,7 +141,7 @@ class ExternalGraphRunner(DefaultRunner):
         *,
         output_mask: dict | None = {},
         graph_dataset: Any | None = None,
-        update_supporting_arrays: dict[str, str] | None = None,
+        update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]] | None = None,
         check_state_dict: bool | None = True,
     ) -> None:
         """Initialise the ExternalGraphRunner.
@@ -98,10 +156,14 @@ class ExternalGraphRunner(DefaultRunner):
             Dictionary specifying the output mask.
         graph_dataset : Any | None
             Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes of the graph.
-        update_supporting_arrays: dict[str, str] | None
+        update_supporting_arrays: dict[Literal['graph', 'file'], dict[str, str]] | None
             Dictionary specifying how to update the supporting arrays in the checkpoint metadata.
-            Will pull from the graph['data'] dictionary, key refers to the name in the supporting arrays,
+            Allows both 'graph' and 'file' as keys.
+            - 'graph': Will pull from the graph['data'] dictionary, key refers to the name in the supporting arrays,
             and value refers to the name in the graph['data'].
+            - 'file': Will pull from the file system, key refers to the name in the supporting arrays,
+            and value refers to the path to the file containing the numpy array.
+                Can be torch.load() or np.load() compatible.
         check_state_dict: bool | None
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
@@ -126,7 +188,7 @@ class ExternalGraphRunner(DefaultRunner):
             )
 
             # had to use private attributes because cached properties cause problems
-            self.checkpoint._metadata._supporting_arrays = graph_ds.supporting_arrays()
+            self.checkpoint._metadata._supporting_arrays.update(graph_ds.supporting_arrays())
             if "grid_indices" in self.checkpoint._metadata._supporting_arrays:
                 num_grid_points = len(self.checkpoint._metadata._supporting_arrays["grid_indices"])
             else:
@@ -170,17 +232,9 @@ class ExternalGraphRunner(DefaultRunner):
             )
 
         if update_supporting_arrays is not None:
-            for key, value in update_supporting_arrays.items():
-                if value in self.graph["data"]:
-                    self.checkpoint._supporting_arrays[key] = self.graph["data"][value]
-                    LOG.info(
-                        "Moving attribute '%s' from external graph to supporting arrays as '%s'.",
-                        value,
-                        key,
-                    )
-                else:
-                    error_msg = f"Key '{value}' not found in external graph 'data'. Skipping update of supporting array '{key}'."
-                    raise KeyError(error_msg)
+            self.checkpoint._supporting_arrays.update(
+                get_updated_supporting_arrays(update_supporting_arrays, self.graph)
+            )
 
     @cached_property
     def graph(self):
