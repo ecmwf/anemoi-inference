@@ -198,7 +198,8 @@ class ParallelRunnerMixin:
         else:
             LOG.info(f"{y_pred.shape=}")
         
-        return y_pred, expanded
+        #return y_pred, output_shard
+        return y_pred, output_shard
     
     #input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
     #need to overwrite this when using sharded output
@@ -214,15 +215,16 @@ class ParallelRunnerMixin:
             The created output.
         """
         if hasattr(self.config.output, 'multio'):
-            output = super().create_output(self, self.config.output)
+            output = create_output(self, self.config.output)
         else:
             if self.shard_output:
-                self.config.output.grib.path=self.config.output.grib.path + f"_{self.pid}"
-                output = super().create_output(self, self.config.output)
+                if hasattr(self.config.output, 'grib'):
+                    self.config.output.grib.path=self.config.output.grib.path + f"_{self.pid}"
+                output = create_output(self, self.config.output)
                 LOG.info("Output: %s", output)
             elif self.global_rank == 0:
                 #print(f"{self.config.output=}")
-                output = super().create_output(self, self.config.output)
+                output = create_output(self, self.config.output)
                 LOG.info("Output: %s", output)
             else:
                 output = create_output(self, "none")

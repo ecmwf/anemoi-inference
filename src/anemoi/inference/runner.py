@@ -558,10 +558,15 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
+        #TODO input_state.copy here is a shallow copy, so we are modifying what input_state points to
         new_state = input_state.copy()  # We should not modify the input state
         new_state["fields"] = dict()
         new_state["step"] = to_timedelta(0)
-        new_state_shard=None
+        import copy
+        #new_state_shard=copy.deepcopy(new_state) #pickling error
+        new_state_shard=dict()
+        new_state_shard["fields"] = dict()
+        new_state_shard["step"] = to_timedelta(0)
 
         start = input_state["date"]
 
@@ -587,6 +592,9 @@ class Runner(Context):
             new_state["date"] = date
             new_state["previous_step"] = new_state.get("step")
             new_state["step"] = step
+            new_state_shard["date"] = date
+            new_state_shard["previous_step"] = new_state_shard.get("step")
+            new_state_shard["step"] = step
 
             if self.trace:
                 self.trace.write_input_tensor(
@@ -602,6 +610,7 @@ class Runner(Context):
                 y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
                 sharded_output=False
                 if output_shard_torch is not None:
+                    #self.rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
                     sharded_output=True
 
             # Detach tensor and squeeze (should we detach here?)
@@ -609,8 +618,9 @@ class Runner(Context):
                 output_full = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
                 if sharded_output:
                     output_shard = np.squeeze(output_shard_torch.cpu().numpy())  # shape: (values, variables)
-                    if new_state_shard is None:
-                        new_state_shard=new_state.copy()
+                    #if new_state_shard is None:
+                    #    import copy
+                    #    new_state_shard=copy.deepcopy(new_state)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -619,7 +629,8 @@ class Runner(Context):
                 if sharded_output:
                     LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
                     for i in range(output_shard.shape[1]):
-                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_shard[:, i]
+                        rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
+                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[i*(rank+1)]] = output_shard[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output_full)
@@ -632,6 +643,14 @@ class Runner(Context):
             if sharded_output:
                 yield new_state_shard
             else:
+                #rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
+                #world_size=torch.distributed.get_world_size(group=self.model_comm_group)
+                #num_fields=len(new_state["fields"])
+                #field_subset_start=num_fields/world_size * rank
+                #field_subset_end=num_fields/world_size * (rank+1) -1
+                #if rank == world_size-1:
+                #    field_subset_end = num_fields
+                #print(f"{rank=}, {world_size=}, {num_fields=}, {field_subset_start=}, {field_subset_end=}")
                 yield new_state
 
             # No need to prepare next input tensor if we are at the last step
