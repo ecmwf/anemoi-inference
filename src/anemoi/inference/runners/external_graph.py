@@ -179,11 +179,8 @@ class ExternalGraphRunner(DefaultRunner):
                         key,
                     )
                 else:
-                    LOG.warning(
-                        "Key '%s' not found in external graph 'data'. Skipping update of supporting array '%s'.",
-                        value,
-                        key,
-                    )
+                    error_msg = f"Key '{value}' not found in external graph 'data'. Skipping update of supporting array '{key}'."
+                    raise KeyError(error_msg)
 
     @cached_property
     def graph(self):
