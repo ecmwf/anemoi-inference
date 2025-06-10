@@ -80,8 +80,10 @@ class ExternalGraphRunner(DefaultRunner):
         self,
         config: dict,
         graph: str,
+        *,
         output_mask: dict | None = {},
         graph_dataset: Any | None = None,
+        update_supporting_arrays: dict[str, str] | None = None,
         check_state_dict: bool | None = True,
     ) -> None:
         """Initialise the ExternalGraphRunner.
@@ -96,6 +98,10 @@ class ExternalGraphRunner(DefaultRunner):
             Dictionary specifying the output mask.
         graph_dataset : Any | None
             Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes of the graph.
+        update_supporting_arrays: dict[str, str] | None
+            Dictionary specifying how to update the supporting arrays in the checkpoint metadata.
+            Will pull from the graph['data'] dictionary, key refers to the name in the graph,
+            and value refers to the name in the checkpoint metadata.
         check_state_dict: bool | None
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
@@ -162,6 +168,23 @@ class ExternalGraphRunner(DefaultRunner):
                 attribute,
                 nodes,
             )
+
+        if update_supporting_arrays is not None:
+            for key, value in update_supporting_arrays.items():
+                if key in self.graph["data"]:
+                    self.checkpoint._supporting_arrays[value] = self.graph["data"][key]
+                    LOG.info(
+                        "Moving attribute '%s' of nodes '%s' from external graph to supporting arrays as '%s'.",
+                        key,
+                        "data",
+                        value,
+                    )
+                else:
+                    LOG.warning(
+                        "Key '%s' not found in external graph 'data'. Skipping update of supporting array '%s'.",
+                        key,
+                        value,
+                    )
 
     @cached_property
     def graph(self):
