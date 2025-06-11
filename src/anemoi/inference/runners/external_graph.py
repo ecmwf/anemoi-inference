@@ -7,6 +7,8 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from __future__ import annotations
+
 import logging
 import os
 from copy import deepcopy
@@ -144,6 +146,7 @@ class ExternalGraphRunner(DefaultRunner):
         output_mask: dict | None = {},
         graph_dataset: Any | None = None,
         update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]] | None = None,
+        updated_number_of_grid_points: str | int | None = None,
         check_state_dict: bool | None = True,
     ) -> None:
         """Initialise the ExternalGraphRunner.
@@ -166,6 +169,11 @@ class ExternalGraphRunner(DefaultRunner):
             - 'file': Will pull from the file system, key refers to the name in the supporting arrays,
             and value refers to the path to the file containing the numpy array.
                 Can be torch.load() or np.load() compatible.
+        updated_number_of_grid_points: str | int | None
+            If the number of grid points in the graph is different from that in the checkpoint,
+            this can be used to update the number of grid points in the checkpoint metadata.
+            If is a str, will be used as a key to the graph['data'] dictionary.
+            If is an int, will be used as the number of grid points.
         check_state_dict: bool | None
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
@@ -236,6 +244,15 @@ class ExternalGraphRunner(DefaultRunner):
         if update_supporting_arrays is not None:
             self.checkpoint._supporting_arrays.update(
                 get_updated_supporting_arrays(update_supporting_arrays, self.graph)
+            )
+
+        if updated_number_of_grid_points is not None:
+            if isinstance(updated_number_of_grid_points, str):
+                updated_number_of_grid_points = len(self.graph["data"][updated_number_of_grid_points])
+            self.checkpoint._metadata.number_of_grid_points = updated_number_of_grid_points
+            LOG.info(
+                "Updated number of grid points in the checkpoint metadata to %s.",
+                updated_number_of_grid_points,
             )
 
     @cached_property
