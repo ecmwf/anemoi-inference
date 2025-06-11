@@ -58,7 +58,7 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [ "anemoi-inference[huggingface]", "anemoi-utils[all]>=0.4.16" ]
+optional-dependencies.all = [ "anemoi-datasets", "anemoi-inference[huggingface]", "anemoi-utils[all]>=0.4.16" ]
 
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
