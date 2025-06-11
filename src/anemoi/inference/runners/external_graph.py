@@ -16,6 +16,7 @@ from typing import Literal
 
 import torch
 
+from ..decorators import main_argument
 from ..runners.default import DefaultRunner
 from . import runner_registry
 
@@ -129,6 +130,7 @@ def get_updated_supporting_arrays(
 
 
 @runner_registry.register("external_graph")
+@main_argument("graph")
 class ExternalGraphRunner(DefaultRunner):
     """Runner where the graph saved in the checkpoint is replaced by an externally provided one.
     Currently only supported as an extension of the default runner.
