@@ -222,7 +222,7 @@ class MarsInput(GribInput):
         patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
             Optional list of patches for the input.
         **kwargs : Any
-            Additional keyword arguments.
+            Additional keyword to pass to the request to MARS.
         """
         super().__init__(context, namer=namer)
         self.kwargs = kwargs
