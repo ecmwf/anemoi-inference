@@ -24,6 +24,7 @@ import torch.distributed as dist
 from anemoi.inference.config import Configuration
 from anemoi.inference.output import Output
 
+from ..decorators import main_argument
 from ..outputs import create_output
 from ..runner import Runner
 from ..runners import create_runner
@@ -48,6 +49,7 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
 
 
 @runner_registry.register("parallel")
+@main_argument("base_runner")
 class ParallelRunnerFactory:
     """Creates a ParallelRunner with a dynamic base class."""
 
