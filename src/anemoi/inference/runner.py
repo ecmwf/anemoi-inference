@@ -569,18 +569,22 @@ class Runner(Context):
         torch.set_grad_enabled(False)
         torch.manual_seed(42)
         np.random.seed(42)
+        import os
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
+        torch.backends.cudnn.benchmark = False
+        torch.use_deterministic_algorithms(True) 
 
         # Create pytorch input tensor
         input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
         lead_time = to_timedelta(lead_time)
+        
 
         #TODO input_state.copy here is a shallow copy, so we are modifying what input_state points to
         new_state = input_state.copy()  # We should not modify the input state
         new_state["fields"] = dict()
         new_state["step"] = to_timedelta(0)
         
-        import copy
         #new_state_shard=copy.deepcopy(new_state) #pickling error
         #copy above is a shallow copy we need a 
         new_state_shard=dict()
