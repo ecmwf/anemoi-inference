@@ -469,6 +469,23 @@ class Runner(Context):
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
             return model
+        
+        # Each GPU returns a subset of the global vars
+        # E.g. 88 vars in total, each GPU will have a shard with 22
+        # We need to get their rank and the number of processes to determine
+        # mapping from  local var id in the output shard to global var id in the output state
+    def determine_global_vars(self, model_comm_group, num_global_vars):
+        rank=torch.distributed.get_rank(group=model_comm_group) # comes from parallel runner
+        world_size=torch.distributed.get_world_size(group=model_comm_group)
+        num_fields_per_rank=(num_global_vars//world_size)
+        field_start=num_fields_per_rank * rank
+        field_end= num_fields_per_rank * (rank+1)
+        if rank == world_size -1:
+            field_end=num_global_vars # handle remainders
+        #do i need this last part
+        #if num_global_vars % world_size != 0 and rank == world_size-1:
+        #    num_fields_per_rank+= num_global_vars % world_size
+        return field_start, field_end
 
     def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         """Predict the next step.
@@ -569,6 +586,7 @@ class Runner(Context):
         new_state_shard=dict()
         #shallow copy input_state, except for the stuff we care about
         for key in input_state:
+            #print(key)
             if key == "fields":
                 new_state_shard["fields"] = dict()
             elif key == "step":
@@ -634,15 +652,29 @@ class Runner(Context):
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                 for i in range(output_full.shape[1]):
                     new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
+                    
+                    
+                    
+                    
+                    
+                    
                 if sharded_output:
+                    # Each GPU returns a subset of the global vars
+                    # E.g. 88 vars in total, each GPU will have a shard with 22
+                    # We need to get their rank and the number of processes to determine
+                    # mapping from  local var id in the output shard to global var id in the output state
                     LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
-                    rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
-                    num_fields_per_rank=output_shard.shape[1]
+                    field_start, field_end = self.determine_global_vars(self.model_comm_group, output_full.shape[1])
+                        
                     local_fields=""
-                    for i in range(num_fields_per_rank): #assumes num_fields_per_rank is the same i.e. ranks goes in evenly
-                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[num_fields_per_rank*rank+i]] = output_shard[:, i]
-                        local_fields += f"{self.checkpoint.output_tensor_index_to_variable[num_fields_per_rank*rank+i]},"
-                    print(f"{rank=}, fields = {local_fields}")
+                    fields_to_write=0
+                    for i in range(field_end-field_start):
+                        #are prog vars at the beginning or end??
+                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
+                        local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
+                        fields_to_write += 1
+                    rank=torch.distributed.get_rank(group=self.model_comm_group)
+                    print(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output_full)
@@ -655,14 +687,6 @@ class Runner(Context):
             if sharded_output:
                 yield new_state_shard
             else:
-                #rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
-                #world_size=torch.distributed.get_world_size(group=self.model_comm_group)
-                #num_fields=len(new_state["fields"])
-                #field_subset_start=num_fields/world_size * rank
-                #field_subset_end=num_fields/world_size * (rank+1) -1
-                #if rank == world_size-1:
-                #    field_subset_end = num_fields
-                #print(f"{rank=}, {world_size=}, {num_fields=}, {field_subset_start=}, {field_subset_end=}")
                 yield new_state
 
             # No need to prepare next input tensor if we are at the last step
