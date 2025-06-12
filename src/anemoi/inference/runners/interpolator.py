@@ -67,6 +67,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         ----------
         variables : List[str]
             The variables for the forcings
+        mask : optional
+            A mask to apply to the forcings. Defaults to None.
 
         Returns
         -------
