@@ -27,6 +27,9 @@ from ..grib.encoding import grib_keys
 from ..grib.templates.manager import TemplateManager
 from ..output import Output
 
+import numpy as np
+import ctypes
+
 LOG = logging.getLogger(__name__)
 
 
@@ -113,6 +116,8 @@ def modifier_factory(modifiers: list) -> list:
     return result
 
 
+
+    
 class GribOutput(Output):
     """Handles grib."""
 
@@ -159,6 +164,14 @@ class GribOutput(Output):
         self.encoding = encoding if encoding is not None else {}
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
+        
+        
+        import os
+        self.parallel_flatten=False
+        if os.getenv("PARALLEL_FLATTEN", 0) == "1":
+            LOG.info("Using parallel flatten before writing grib")
+            self.parallel_flatten=True
+            self.init_parallel_flatten()
 
         self.modifiers = modifier_factory(modifiers)
         self.variables = variables
@@ -184,6 +197,73 @@ class GribOutput(Output):
                 break
 
         self.template_manager = TemplateManager(self, templates)
+       
+    def init_parallel_flatten(self) -> None:
+        #load parallel flatten code
+        self.cflatten =ctypes.CDLL("/ec/res4/hpcperm/naco/raps/build/sources/anemoi-inference/src/anemoi/inference/C/flatten.so")
+        # Define the argument types
+        self.cflatten.par_float.argtypes = [
+            ctypes.c_void_p,  # float* A (device pointer)
+            ctypes.c_void_p,  # float* B (device pointer)
+            ctypes.c_size_t,  # std::size_t stride
+            ctypes.c_size_t,  # std::size_t itemsize
+            ctypes.c_size_t   # std::size_t n
+        ]
+        self.cflatten.par_float.restype = None
+        
+    def flatten(self, arr: np.ndarray, inplace=False) -> np.ndarray:
+        """
+        Convert a strided array to a contiguous array using parallel processing.
+        
+        Args:
+            arr: Input numpy array (can be strided)
+            
+        Returns:
+            Contiguous copy of the input array
+        """
+        if arr.ndim != 1:
+            raise ValueError("This function only supports 1D arrays")
+        
+        # Get array properties
+        dtype_str = str(arr.dtype)
+        itemsize = arr.itemsize
+        stride = arr.strides[0] if arr.strides else itemsize
+        n = arr.shape[0]
+        
+        # Map numpy dtypes to function names
+        dtype_map = {
+            'float32': 'float32',
+            #'float64': 'float64',
+            #'int32': 'int32',
+            #'int64': 'int64',
+        }
+        
+        if dtype_str not in dtype_map:
+            raise ValueError(f"Unsupported dtype: {dtype_str}")
+        
+        # Create output array (contiguous)
+        if inplace:
+            out_arr=arr
+        else:
+            out_arr = np.empty(arr.shape, dtype=arr.dtype)
+        
+        # Get function
+        #func = getattr(self.lib, func_name)
+        
+        # Get data pointers
+        in_ptr = arr.ctypes.data_as(ctypes.c_void_p)
+        out_ptr = out_arr.ctypes.data_as(ctypes.c_void_p)
+        
+        # Call the C++ function
+        self.cflatten.par_float(
+            in_ptr,
+            out_ptr,
+            ctypes.c_size_t(stride),
+            ctypes.c_size_t(itemsize),
+            ctypes.c_size_t(n)
+        )
+        
+        return out_arr
 
     def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
@@ -274,6 +354,8 @@ class GribOutput(Output):
                 LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             try:
+                if self.parallel_flatten:
+                    values = self.flatten(values)
                 self.write_message(values, template=template, **keys)
             except Exception:
                 LOG.error("Error writing field %s", name)
