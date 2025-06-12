@@ -29,12 +29,13 @@ from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from . import runner_registry
 from .simple import SimpleRunner
+from ..runners.default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
 
 
-@runner_registry.register("interpolator")
-class InterpolatorRunner(SimpleRunner):
+@runner_registry.register("time_interpolator")
+class TimeInterpolatorRunner(DefaultRunner):
     """A runner to be used for inference of a trained interpolator directly on analysis data
     without being coupled to a forecasting model.
     """
@@ -67,8 +68,6 @@ class InterpolatorRunner(SimpleRunner):
         ----------
         variables : List[str]
             The variables for the forcings
-        mask : optional
-            A mask to apply to the forcings. Defaults to None.
 
         Returns
         -------
