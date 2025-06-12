@@ -440,6 +440,11 @@ class Checkpoint:
     def lagged(self) -> List[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
+        
+        if self._metadata._config_training.model_task == 'anemoi.training.train.forecaster.GraphInterpolator':
+            result = [s * self._metadata.timestep for s in result]
+            return sorted(result)
+        
         result = [-s * self._metadata.timestep for s in result]
         return sorted(result)
 
