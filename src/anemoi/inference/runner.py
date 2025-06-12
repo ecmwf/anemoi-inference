@@ -640,7 +640,6 @@ class Runner(Context):
                 y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
                 sharded_output=False
                 if output_shard_torch is not None:
-                    #self.rank=torch.distributed.get_rank(group=self.model_comm_group) # comes from parallel runner
                     sharded_output=True
 
             # Detach tensor and squeeze (should we detach here?)
@@ -648,18 +647,11 @@ class Runner(Context):
                 output_full = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
                 if sharded_output:
                     output_shard = np.squeeze(output_shard_torch.cpu().numpy())  # shape: (values, variables)
-                    #if new_state_shard is None:
-                    #    import copy
-                    #    new_state_shard=copy.deepcopy(new_state)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                 for i in range(output_full.shape[1]):
                     new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
-                    
-                    
-                    
-                    
                     
                     
                 if sharded_output:
@@ -670,13 +662,17 @@ class Runner(Context):
                     LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
                     field_start, field_end = self.determine_global_vars(self.model_comm_group, output_full.shape[1])
                         
+                    #debug stuff
                     local_fields=""
                     fields_to_write=0
                     for i in range(field_end-field_start):
-                        #are prog vars at the beginning or end??
                         new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
+
+                        #debug stuff
                         local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
                         fields_to_write += 1
+                        
+                    #debug stuff
                     rank=torch.distributed.get_rank(group=self.model_comm_group)
                     print(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
 
@@ -688,6 +684,10 @@ class Runner(Context):
                     date, s, output_full, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
                 )
 
+            #dont do anythign here, in pred_step return y_pred and index
+            #add index to a new key to new_state
+            #then in parallel runner, overload forecast and iterare over super().forecast to get new_state
+            #extract the index from the new state and rebuild the state shard and yield that
             if sharded_output:
                 yield new_state_shard
             else:
