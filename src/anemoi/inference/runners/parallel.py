@@ -99,6 +99,7 @@ class ParallelRunnerMixin:
         self.pid = pid
         self.shard_output=False
         if os.getenv("PARALLEL_OUT", "0") == "1":
+            LOG.info("Anemoi inference: Parallel output")
             self.shard_output=True
 
         if self.shard_output:
@@ -223,6 +224,8 @@ class ParallelRunnerMixin:
                 if hasattr(self.config.output, 'grib'):
                     self.config.output.grib.path=self.config.output.grib.path + f"_{self.pid}"
                 output = create_output(self, self.config.output)
+                if self.pid != 0:
+                    output.write_step_zero=False
                 LOG.info("Output: %s", output)
             elif self.global_rank == 0:
                 #print(f"{self.config.output=}")
