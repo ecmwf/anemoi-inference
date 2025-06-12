@@ -215,7 +215,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             # this should be changed
             result["date"] = date
             result["previous_step"] = result.get("step")
-            result["step"] = self.checkpoint.timestep
+            result["step"] = step
 
             if self.trace:
                 self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
