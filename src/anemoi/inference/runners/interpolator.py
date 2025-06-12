@@ -27,9 +27,8 @@ from anemoi.inference.types import State
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
-from . import runner_registry
-from .simple import SimpleRunner
 from ..runners.default import DefaultRunner
+from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
