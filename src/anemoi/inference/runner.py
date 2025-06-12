@@ -686,12 +686,12 @@ class Runner(Context):
 
             #dont do anythign here, in pred_step return y_pred and index
             #add index to a new key to new_state
-            #then in parallel runner, overload forecast and iterare over super().forecast to get new_state
-            #extract the index from the new state and rebuild the state shard and yield that
-            if sharded_output:
-                yield new_state_shard
-            else:
-                yield new_state
+            #then in parallel runner, overload forecast and iterare over supr()
+            with Timer("Writing output..."):
+                if sharded_output:
+                    yield new_state_shard
+                else:
+                    yield new_state
 
             # No need to prepare next input tensor if we are at the last step
             if is_last_step:
