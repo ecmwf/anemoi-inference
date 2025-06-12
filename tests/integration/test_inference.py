@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 def create_checkpoint(tmp_dir):
     """Fixture to create a fake checkpoint for testing."""
     repo_root = Path(__file__).resolve().parent
-    metadata_path = repo_root / "checkpoints" / "simple_metadata.json"
+    metadata_path = repo_root / "checkpoints" / "single-o48-1.1.json"
     checkpoint_path = tmp_dir / Path("checkpoint.pth")
 
     save_fake_checkpoint(metadata_path, checkpoint_path)
@@ -45,7 +45,7 @@ def create_config_and_checkpoint(tmp_dir):
             - accumulate_from_start_of_forecast
         checkpoint: {checkpoint_path}
         input:
-            grib:  {tmp_dir}/input.grib
+            grib:  {tmp_dir}/input-single-o48-1.1.grib
         output:
             grib: {tmp_dir}/output.grib
         """
@@ -60,7 +60,7 @@ class Setup(NamedTuple):
 
 @pytest.fixture
 def test_setup() -> Setup:
-    url_dataset = "anemoi-integration-tests/input.grib"
+    url_dataset = "anemoi-integration-tests/inference/input-single-o48-1.1.grib"
     grib_path = get_test_data(url_dataset)
     tmp_dir = Path(grib_path).parent
     config_path = create_config_and_checkpoint(tmp_dir)
