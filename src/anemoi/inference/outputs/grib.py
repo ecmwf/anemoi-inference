@@ -196,6 +196,9 @@ class GribOutput(Output):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
+        if not self.write_step_zero:
+            return
+
         state = state.copy()
 
         self.reference_date = state["date"]
@@ -211,9 +214,9 @@ class GribOutput(Output):
 
             template = self.template(state, name)
             if template is None:
-                # We can currently only write grib output if we have a grib input
+                # grib output only reliably works when we have grib input, everything else relies on external templates
                 raise ValueError(
-                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
+                    f"No grib template found for initial state param `{name}`. Try setting `write_initial_state` to `false`."
                 )
 
         return self.write_step(state)
