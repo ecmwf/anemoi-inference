@@ -41,6 +41,8 @@ from .profiler import ProfilingRunner
 
 if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
+    
+import cProfile, pstats
 
 LOG = logging.getLogger(__name__)
 
@@ -564,169 +566,174 @@ class Runner(Context):
         Any
             The forecasted state.
         """
-        self.model.eval()
+        with cProfile.Profile() as pr:
+            self.model.eval()
 
-        torch.set_grad_enabled(False)
-        torch.manual_seed(42)
-        np.random.seed(42)
-        import os
-        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
-        torch.backends.cudnn.benchmark = False
-        torch.use_deterministic_algorithms(True) 
+            torch.set_grad_enabled(False)
+            torch.manual_seed(42)
+            np.random.seed(42)
+            import os
+            if os.getenv("DETERMINISTIC", "0") == "1":
+                os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
+                torch.backends.cudnn.benchmark = False
+                torch.use_deterministic_algorithms(True) 
 
-        # Create pytorch input tensor
-        input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+            # Create pytorch input tensor
+            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
 
-        lead_time = to_timedelta(lead_time)
-        
+            lead_time = to_timedelta(lead_time)
+            
 
-        #TODO input_state.copy here is a shallow copy, so we are modifying what input_state points to
-        new_state = input_state.copy()  # We should not modify the input state
-        new_state["fields"] = dict()
-        new_state["step"] = to_timedelta(0)
-        
-        #new_state_shard=copy.deepcopy(new_state) #pickling error
-        #copy above is a shallow copy we need a 
-        new_state_shard=dict()
-        #shallow copy input_state, except for the stuff we care about
-        for key in input_state:
-            #print(key)
-            if key == "fields":
-                new_state_shard["fields"] = dict()
-            elif key == "step":
-                new_state_shard["step"] = to_timedelta(0)
-            else:
-                new_state_shard[key] = input_state[key]
-
-        start = input_state["date"]
-
-        # The variable `check` is used to keep track of which variables have been updated
-        # In the input tensor. `reset` is used to reset `check` to False except
-        # when the values are of the constant in time variables
-
-        reset = np.full((input_tensor_torch.shape[-1],), False)
-        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-        typed_variables = self.checkpoint.typed_variables
-        for variable, i in variable_to_input_tensor_index.items():
-            if typed_variables[variable].is_constant_in_time:
-                reset[i] = True
-
-        check = reset.copy()
-
-        if self.verbosity > 0:
-            self._print_input_tensor("First input tensor", input_tensor_torch)
-
-        for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
-            title = f"Forecasting step {step} ({date})"
-
-            new_state["date"] = date
-            new_state["previous_step"] = new_state.get("step")
-            new_state["step"] = step
-            new_state_shard["date"] = date
-            new_state_shard["previous_step"] = new_state_shard.get("step")
-            new_state_shard["step"] = step
-
-            if self.trace:
-                self.trace.write_input_tensor(
-                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
-                )
-
-            # Predict next state of atmosphere
-            with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
-                ProfilingLabel("Predict step", self.use_profiler),
-                Timer(title),
-            ):
-                y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
-                sharded_output=False
-                if output_shard_torch is not None:
-                    sharded_output=True
-
-            # Detach tensor and squeeze (should we detach here?)
-            with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output_full = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
-                if sharded_output:
-                    output_shard = np.squeeze(output_shard_torch.cpu().numpy())  # shape: (values, variables)
-
-            # Update state
-            with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                for i in range(output_full.shape[1]):
-                    new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
-                    
-                    
-                if sharded_output:
-                    # Each GPU returns a subset of the global vars
-                    # E.g. 88 vars in total, each GPU will have a shard with 22
-                    # We need to get their rank and the number of processes to determine
-                    # mapping from  local var id in the output shard to global var id in the output state
-                    LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
-                    field_start, field_end = self.determine_global_vars(self.model_comm_group, output_full.shape[1])
-                        
-                    #debug stuff
-                    local_fields=""
-                    fields_to_write=0
-                    for i in range(field_end-field_start):
-                        new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
-
-                        #debug stuff
-                        local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
-                        fields_to_write += 1
-                        
-                    #debug stuff
-                    rank=torch.distributed.get_rank(group=self.model_comm_group)
-                    print(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
-
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output_full)
-
-            if self.trace:
-                self.trace.write_output_tensor(
-                    date, s, output_full, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
-                )
-
-            #dont do anythign here, in pred_step return y_pred and index
-            #add index to a new key to new_state
-            #then in parallel runner, overload forecast and iterare over supr()
-            with Timer("Writing output..."):
-                if sharded_output:
-                    yield new_state_shard
+            #TODO input_state.copy here is a shallow copy, so we are modifying what input_state points to
+            new_state = input_state.copy()  # We should not modify the input state
+            new_state["fields"] = dict()
+            new_state["step"] = to_timedelta(0)
+            
+            #new_state_shard=copy.deepcopy(new_state) #pickling error
+            #copy above is a shallow copy we need a 
+            new_state_shard=dict()
+            #shallow copy input_state, except for the stuff we care about
+            for key in input_state:
+                #print(key)
+                if key == "fields":
+                    new_state_shard["fields"] = dict()
+                elif key == "step":
+                    new_state_shard["step"] = to_timedelta(0)
                 else:
-                    yield new_state
+                    new_state_shard[key] = input_state[key]
 
-            # No need to prepare next input tensor if we are at the last step
-            if is_last_step:
-                break
+            start = input_state["date"]
 
-            # Update  tensor for next iteration
-            with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                check[:] = reset
+            # The variable `check` is used to keep track of which variables have been updated
+            # In the input tensor. `reset` is used to reset `check` to False except
+            # when the values are of the constant in time variables
+
+            reset = np.full((input_tensor_torch.shape[-1],), False)
+            variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+            typed_variables = self.checkpoint.typed_variables
+            for variable, i in variable_to_input_tensor_index.items():
+                if typed_variables[variable].is_constant_in_time:
+                    reset[i] = True
+
+            check = reset.copy()
+
+            if self.verbosity > 0:
+                self._print_input_tensor("First input tensor", input_tensor_torch)
+
+            for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
+                title = f"Forecasting step {step} ({date})"
+
+                new_state["date"] = date
+                new_state["previous_step"] = new_state.get("step")
+                new_state["step"] = step
+                new_state_shard["date"] = date
+                new_state_shard["previous_step"] = new_state_shard.get("step")
+                new_state_shard["step"] = step
+
                 if self.trace:
-                    self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+                    self.trace.write_input_tensor(
+                        date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                    )
 
-                input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                # Predict next state of atmosphere
+                with (
+                    torch.autocast(device_type=self.device, dtype=self.autocast),
+                    ProfilingLabel("Predict step", self.use_profiler),
+                    Timer(title),
+                ):
+                    y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                    sharded_output=False
+                    if output_shard_torch is not None:
+                        sharded_output=True
 
-                del y_pred  # Recover memory
+                # Detach tensor and squeeze (should we detach here?)
+                with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                    output_full = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                    if sharded_output:
+                        output_shard = np.squeeze(output_shard_torch.cpu().numpy())  # shape: (values, variables)
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
+                # Update state
+                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                    for i in range(output_full.shape[1]):
+                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
+                        
+                        
+                    if sharded_output:
+                        # Each GPU returns a subset of the global vars
+                        # E.g. 88 vars in total, each GPU will have a shard with 22
+                        # We need to get their rank and the number of processes to determine
+                        # mapping from  local var id in the output shard to global var id in the output state
+                        LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
+                        field_start, field_end = self.determine_global_vars(self.model_comm_group, output_full.shape[1])
+                            
+                        #debug stuff
+                        local_fields=""
+                        fields_to_write=0
+                        for i in range(field_end-field_start):
+                            new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
 
-            if not check.all():
-                # Not all variables have been updated
-                missing = []
-                variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                for i in range(check.shape[-1]):
-                    if not check[i]:
-                        missing.append(mapping[i])
+                            #debug stuff
+                            local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
+                            fields_to_write += 1
+                            
+                        #debug stuff
+                        rank=torch.distributed.get_rank(group=self.model_comm_group)
+                        print(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
 
-                raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                    self._print_output_tensor("Output tensor", output_full)
 
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_input_tensor("Next input tensor", input_tensor_torch)
+                if self.trace:
+                    self.trace.write_output_tensor(
+                        date, s, output_full, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    )
+
+                #dont do anythign here, in pred_step return y_pred and index
+                #add index to a new key to new_state
+                #then in parallel runner, overload forecast and iterare over supr()
+                with Timer("Writing output..."):
+                    if sharded_output:
+                        yield new_state_shard
+                    else:
+                        yield new_state
+
+                # No need to prepare next input tensor if we are at the last step
+                if is_last_step:
+                    break
+
+                # Update  tensor for next iteration
+                with ProfilingLabel("Update tensor for next step", self.use_profiler):
+                    check[:] = reset
+                    if self.trace:
+                        self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+
+                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+
+                    del y_pred  # Recover memory
+
+                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
+                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
+
+                if not check.all():
+                    # Not all variables have been updated
+                    missing = []
+                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                    for i in range(check.shape[-1]):
+                        if not check[i]:
+                            missing.append(mapping[i])
+
+                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+
+                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                    self._print_input_tensor("Next input tensor", input_tensor_torch)
+        if torch.distributed.get_rank(group=self.model_comm_group) == 0:
+            stats = pstats.Stats(pr)
+            stats.strip_dirs().sort_stats("time").print_stats(20)
 
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
