@@ -103,7 +103,6 @@ class Output(ABC):
             #self.num_writers = num_writers
             self.num_writers = int(os.getenv("WRITERS_PER_GPU"))
             self.writers_running=False
-            #self._spawn_writers()
         
     def _spawn_writers(self):
         """Spawn all writer processes."""
@@ -141,6 +140,8 @@ class Output(ABC):
         #LOG.debug(f"Initialising writer {writer_id}...")
         #self.__init__(context=context)
         #LOG.debug(f"Writer {writer_id} started and waiting for messages...")
+        
+        self.per_writer_init(writer_id)
         
         while True:
             try:
@@ -267,6 +268,9 @@ class Output(ABC):
             #find_unpicklable(state)
             #pp.pprint(state)
             #state
+            #I have to spawn the writers at runtime
+            #if i spawn at init time, then the output subclass hasnt been initialised,
+            # so per_writer_init is too early
             if not self.writers_running:
                 self._spawn_writers()
                 self.writers_running=True
@@ -363,6 +367,14 @@ class Output(ABC):
         ----------
         state : State
             The state to write.
+        """
+        pass
+    
+    @abstractmethod
+    def per_writer_init(self, writer_id) -> None:
+        """
+        Method to allow output-specific initalisation of workers
+        e.g. for grib you could append '_{worker_id}' to self.path
         """
         pass
 

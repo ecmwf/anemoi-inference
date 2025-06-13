@@ -663,7 +663,7 @@ class Runner(Context):
                         # E.g. 88 vars in total, each GPU will have a shard with 22
                         # We need to get their rank and the number of processes to determine
                         # mapping from  local var id in the output shard to global var id in the output state
-                        LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
+                        #LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
                         field_start, field_end = self.determine_global_vars(self.model_comm_group, output_full.shape[1])
                             
                         #debug stuff
@@ -678,7 +678,7 @@ class Runner(Context):
                             
                         #debug stuff
                         rank=torch.distributed.get_rank(group=self.model_comm_group)
-                        print(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
+                        LOG.debug(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_output_tensor("Output tensor", output_full)
