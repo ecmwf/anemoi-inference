@@ -19,16 +19,15 @@ import torch
 import torch.nn.functional
 from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 from anemoi.utils.config import DotDict
-from pydantic import BaseModel
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
+from pydantic import BaseModel
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
-from anemoi.inference.output import Output
-from anemoi.inference.config.run import RunConfiguration
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
@@ -45,7 +44,7 @@ class TimeInterpolatorRunner(DefaultRunner):
     without being coupled to a forecasting model.
     """
 
-    def __init__(self, config: Configuration=None, **kwargs: Any) -> None:
+    def __init__(self, config: Configuration = None, **kwargs: Any) -> None:
         """Initialize the TimeInterpolatorRunner.
 
         Parameters
@@ -66,14 +65,15 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Remove that when the Pydantic model is ready
         if isinstance(config, BaseModel):
             config = DotDict(config.model_dump())
-        
 
         non_config_kwargs = DotDict(**kwargs)
         config.update(non_config_kwargs)
 
         super().__init__(config)
 
-        assert self.config.write_initial_state == True, "Interpolator output should include temporal start state, end state and boudnary conditions"
+        assert (
+            self.config.write_initial_state == True
+        ), "Interpolator output should include temporal start state, end state and boudnary conditions"
         assert isinstance(
             self.model.model, AnemoiModelEncProcDecInterpolator
         ), "Model must be an interpolator model for this runner"
@@ -112,11 +112,10 @@ class TimeInterpolatorRunner(DefaultRunner):
                 f"Will interpolate for {num_windows * interpolation_window}"
             )
 
-
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * interpolation_window
-            
+
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
             # Create input state for this window
@@ -127,24 +126,24 @@ class TimeInterpolatorRunner(DefaultRunner):
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=interpolation_window)):
 
                 # In the first window, we want to write the initial state (t=0)
-                # In other windows, we want to skip the initial state (t=0) 
+                # In other windows, we want to skip the initial state (t=0)
                 # because it is written as the last state of the previous window
                 if window_idx != 0 and state_idx == boundary_idx[0]:
                     continue
 
                 # Updating state step to be a global step not relative to window
                 state["step"] = state["step"] + window_idx * interpolation_window
-                
+
                 # Apply post-processing
                 for processor in post_processors:
                     state = processor.process(state)
-                
+
                 if window_idx == 0 and state_idx == 0:
                     output.open(state)
                     output.write_initial_state(state)
                 else:
                     output.write_state(state)
-            
+
         output.close()
 
     def predict_step(
@@ -199,7 +198,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         LOG.info("Time stepping: %s Interpolating %s steps", self.checkpoint.timestep, steps)
 
         for s in range(steps):
-            step = self.checkpoint.timestep * (s+1)/( boundary_idx[-1] - boundary_idx[0] )
+            step = self.checkpoint.timestep * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
             date = start_date + step
             is_last_step = s == steps - 1
             yield step, date, target_steps[s], is_last_step
@@ -304,7 +303,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         # First yield the boundary states (t and t+window_size)
         boundary_times = self.checkpoint._metadata._config_training.explicit_times.input
-        
+
         # Yield initial boundary state (t)
         initial_result = result.copy()
         initial_result["date"] = start
@@ -320,10 +319,10 @@ class TimeInterpolatorRunner(DefaultRunner):
                     break
             if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
                 initial_result["fields"][var_name] = input_numpy[:, i]
-        
-        if self.write_initial_state: # Always True
+
+        if self.write_initial_state:  # Always True
             yield initial_result
-        
+
         # Now interpolate between the boundaries
         for s, (step, date, interpolation_step, is_last_step) in enumerate(self.interpolator_stepper(start)):
             title = f"Interpolating step {step}({date})"
