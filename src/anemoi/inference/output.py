@@ -17,47 +17,56 @@ from typing import List, Optional, Callable
 import multiprocessing as mp
 import math
 import os
+import itertools, types, pickle
+import traceback
+#import dill #thought this would make lambdas picklable but no look
 
 from anemoi.inference.types import State
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context
 
 LOG = logging.getLogger(__name__)
 
-#has to be outside Output class for pickling reasons
-def _writer_function(worker_id: int, queue: mp.Queue, write_fn):
-    """
-    Worker function that runs in each writer process.
-    Waits for messages from the main process and then writes them asyncronously.
+from collections.abc import Mapping, Iterable
+
+def find_unpicklable(obj, path="root"):
+    try:
+        pickle.dumps(obj)
+        return  # It's fine
+    except Exception as e:
+        print(f"❌ Unpicklable at {path}: {e}")
+
+    # If it's a dict, dive into keys and values
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            find_unpicklable(k, f"{path}[key={repr(k)}]")
+            find_unpicklable(v, f"{path}[{repr(k)}]")
+    # If it's a list, tuple, set — dive into elements
+    elif isinstance(obj, (list, tuple, set)):
+        for i, item in enumerate(obj):
+            find_unpicklable(item, f"{path}[{i}]")
+    # If it's a custom class, inspect __dict__
+    elif hasattr(obj, '__dict__'):
+        for attr, val in vars(obj).items():
+            find_unpicklable(val, f"{path}.{attr}")
+
+def check_picklability(obj):
+    try:
+        pickle.dumps(obj)
+    except Exception as e:
+        print(f"Object is not picklable: {e}")
+        raise
     
-    Args:
-        worker_id: Unique identifier for this worker
-        queue: Queue to receive messages from main process
-    """
-    LOG.debug(f"Writer {worker_id} started and waiting for messages...")
-    
-    while True:
-        try:
-            # Wait for message from main process
-            message = queue.get(timeout=1)  # 1 second timeout
-            
-            if message == "TERMINATE":
-                LOG.debug(f"Writer {worker_id} received termination signal")
-                break
-            
-            write_fn(message)
-            LOG.debug(f"Writer {worker_id} finished processing: {message}")
-            
-        except mp.queues.Empty:
-            # No message received, continue waiting
-            continue
-        except Exception as e:
-            LOG.error(f"Writer {worker_id} encountered error: {e}")
-            break
-    
-    LOG.debug(f"Worker {worker_id} shutting down")
-        
+def sanitize_state(state):
+    # remove unpicklable fields like lambdas or function refs
+    return {
+        key: val
+        for key, val in state.items()
+        if not callable(val)
+    }
 
 class Output(ABC):
     """Abstract base class for output mechanisms."""
@@ -106,21 +115,20 @@ class Output(ABC):
         for i in range(self.num_writers):
             self.queues.append(mp.Queue())
 
-        mp.set_start_method('fork', force=True)
+        #mp.set_start_method('fork', force=True)
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_function,
-                args=(i, self.queues[i], self.write_state)
+                args=(self.context, i, self.queues[i])
             )
             #_pickle.PicklingError: Can't pickle <class 'anemoi.inference.outputs.gribfile.GribFileOutput'>: it's not the same object as anemoi.inference.outputs.gribfile.GribFileOutput
             #I get this error when using the default method, spawn?
             process.start()
             self.processes.append(process)
         
-        LOG.info(f"Spawned {self.num_writers} writer processes")
+        LOG.info(f"Spawned {self.num_writers} writers per process")
         
-    #has to be outside Output class for pickling reasons
-    def _writer_function(self, worker_id: int, queue: mp.Queue) -> None:
+    def _writer_function(self, context, writer_id: int, queue: mp.Queue) -> None:
         """
         Worker function that runs in each writer process.
         Waits for messages from the main process and then writes them asyncronously.
@@ -129,29 +137,35 @@ class Output(ABC):
             worker_id: Unique identifier for this worker
             queue: Queue to receive messages from main process
         """
-        LOG.debug(f"Writer {worker_id} started and waiting for messages...")
+        #LOG.debug(f"Initialising writer {writer_id}...")
+        #self.__init__(context=context)
+        #LOG.debug(f"Writer {writer_id} started and waiting for messages...")
         
         while True:
             try:
                 # Wait for message from main process
                 message = queue.get(timeout=1)  # 1 second timeout
+                pp.pprint(f"writer {writer_id}: {message=}")
                 
                 if message == "TERMINATE":
-                    LOG.debug(f"Writer {worker_id} received termination signal")
+                    LOG.debug(f"Writer {writer_id} received termination signal")
                     break
                 
                 #TODO need some way to generate unique file output names for each writer proc
+                if hasattr(self.context.config.output, 'grib'):
+                    self.context.config.output.grib.path=self.context.config.output.grib.path + f"_w{writer_id}"
                 self.write_step(message)
-                LOG.debug(f"Writer {worker_id} finished processing: {message}")
+                LOG.debug(f"Writer {writer_id} finished processing: {message}")
                 
             except mp.queues.Empty:
                 # No message received, continue waiting
                 continue
             except Exception as e:
-                LOG.error(f"Writer {worker_id} encountered error: {e}")
+                print(traceback.format_exc())
+                LOG.error(f"Writer {writer_id} encountered error: {e}")
                 break
         
-        LOG.debug(f"Worker {worker_id} shutting down")
+        LOG.debug(f"Worker {writer_id} shutting down")
         
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -184,14 +198,14 @@ class Output(ABC):
         """
         if "fields" not in state:
             raise ValueError("State dictionary must contain 'fields' key")
-        if not isinstance(state["fields"], list):
-            raise ValueError("state['fields'] must be a list")
+        #if not isinstance(state["fields"], list):
+        #    raise ValueError("state['fields'] must be a list")
         
         if num_chunks == 1:
             return [state]
         
         fields = state["fields"]
-        fields_per_chunk = math.ceil(len(fields) / num_chunks)
+        fields_per_chunk = math.ceil(len(fields.items()) / num_chunks)
         
         chunks = []
         
@@ -208,15 +222,19 @@ class Output(ABC):
             #chunk_state = copy.deepcopy(state)  #wont work bc of pickling issues
             # Replace the fields with the chunk subset
 
-            chunk=dict()
-            #shallow copy input_state, except for the stuff we care about
-            for key in state:
-                #print(key)
-                if key == "fields":
-                    chunk["fields"] = dict()
-                else:
-                    chunk[key] = state[key]
-            chunk["fields"] = fields[start_idx:end_idx]
+            chunk = state.copy()
+            chunk["fields"] = {}
+            subset_of_fields=list(state["fields"].items())[start_idx:end_idx]
+            # More memory efficient for large dictionaries
+            #subset_of_fields = list(itertools.islice(state["fields"].items(), start_idx, end_idx))
+            #[rank0]: IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed
+            for field, values in subset_of_fields:
+                #print(f"Field: {field}")
+                #print(f"Values type: {type(values)}")
+                #print(f"Values shape: {values.shape if hasattr(values, 'shape') else 'No shape attr'}")
+                #print(f"Values: {values}")
+                #print("-" * 40)
+                chunk["fields"][field] = values #[-1]
             
             chunks.append(chunk)
             
@@ -237,13 +255,25 @@ class Output(ABC):
             if (step % self.output_frequency).total_seconds() != 0:
                 return
             
-        if self.num_writers == 1:
+        if self.num_writers == 0:
             return self.write_step(state)
         else:
             #use self.num_writers and state['num_fields'] to split state up into chunks
             #spawn 'self.num_writers' processes and have them each write a chunk of 'state'
-            state_chunks= self.split_state(state, self.num_writers)
+            #find_unpicklable(state)
+            #pp.pprint(state)
+            #state
+            state_chunks= self._split_state(state, self.num_writers)
             for i in range(self.num_writers):
+                # Find the problematic lambdas
+                #check_picklability(state_chunks[i])
+                #chunk = sanitize_state(state_chunks[i])
+                #self.queues[i].put(chunk)
+                #find_unpicklable(state_chunks[i])
+                state_chunks[i]['_grib_templates_for_output']={} #check if this is causing the pickle errors
+                #self.grib_templates=state['_grib_templates_for_output']
+                #pp.pprint(state_chunks[i])
+                #exit()
                 self.queues[i].put(state_chunks[i])
             #raise ValueError("Multiple writer procs not supported yet")
             
@@ -272,6 +302,7 @@ class Output(ABC):
                 process.join()
         
         LOG.debuf("All writer processes terminated")
+        #TODO I could merge all writer procs messages at this point
             
     def __del__(self):
         """Cleanup when object is destroyed."""

@@ -222,7 +222,7 @@ class ParallelRunnerMixin:
         else:
             if self.shard_output:
                 if hasattr(self.config.output, 'grib'):
-                    self.config.output.grib.path=self.config.output.grib.path + f"_{self.pid}"
+                    self.config.output.grib.path=self.config.output.grib.path + f"_g{self.pid}"
                 output = create_output(self, self.config.output)
                 if self.pid != 0:
                     output.write_step_zero=False
