@@ -102,7 +102,8 @@ class Output(ABC):
         else:
             #self.num_writers = num_writers
             self.num_writers = int(os.getenv("WRITERS_PER_GPU"))
-            self._spawn_writers()
+            self.writers_running=False
+            #self._spawn_writers()
         
     def _spawn_writers(self):
         """Spawn all writer processes."""
@@ -115,20 +116,20 @@ class Output(ABC):
         for i in range(self.num_writers):
             self.queues.append(mp.Queue())
 
-        #mp.set_start_method('fork', force=True)
+        mp.set_start_method('fork', force=True)
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_function,
-                args=(self.context, i, self.queues[i])
+                args=(i, self.queues[i])
             )
             #_pickle.PicklingError: Can't pickle <class 'anemoi.inference.outputs.gribfile.GribFileOutput'>: it's not the same object as anemoi.inference.outputs.gribfile.GribFileOutput
             #I get this error when using the default method, spawn?
             process.start()
             self.processes.append(process)
         
-        LOG.info(f"Spawned {self.num_writers} writers per process")
+        LOG.info(f"Spawned {self.num_writers} writers per process") # this seems to get called all the time
         
-    def _writer_function(self, context, writer_id: int, queue: mp.Queue) -> None:
+    def _writer_function(self, writer_id: int, queue: mp.Queue) -> None:
         """
         Worker function that runs in each writer process.
         Waits for messages from the main process and then writes them asyncronously.
@@ -145,7 +146,7 @@ class Output(ABC):
             try:
                 # Wait for message from main process
                 message = queue.get(timeout=1)  # 1 second timeout
-                pp.pprint(f"writer {writer_id}: {message=}")
+                #pp.pprint(f"writer {writer_id}: {message=}")
                 
                 if message == "TERMINATE":
                     LOG.debug(f"Writer {writer_id} received termination signal")
@@ -153,7 +154,10 @@ class Output(ABC):
                 
                 #TODO need some way to generate unique file output names for each writer proc
                 if hasattr(self.context.config.output, 'grib'):
-                    self.context.config.output.grib.path=self.context.config.output.grib.path + f"_w{writer_id}"
+                    #self.context.config.output.grib.path=self.context.config.output.grib.path + f"_w{writer_id}"
+                    #too late to change congif bc the class has already been initialised
+                    self.path = self.path + f"_w{writer_id}" #path attribute should exist since this is a gribFileOutput
+                    #TODO replace with a per-writer-init function in gribFileOutput.py
                 self.write_step(message)
                 LOG.debug(f"Writer {writer_id} finished processing: {message}")
                 
@@ -263,6 +267,9 @@ class Output(ABC):
             #find_unpicklable(state)
             #pp.pprint(state)
             #state
+            if not self.writers_running:
+                self._spawn_writers()
+                self.writers_running=True
             state_chunks= self._split_state(state, self.num_writers)
             for i in range(self.num_writers):
                 # Find the problematic lambdas
@@ -271,6 +278,9 @@ class Output(ABC):
                 #self.queues[i].put(chunk)
                 #find_unpicklable(state_chunks[i])
                 state_chunks[i]['_grib_templates_for_output']={} #check if this is causing the pickle errors
+                #i have an error writing grib outptu
+                #passing variables through queue.put forces them to be pickled
+                # and _grib_templates_for_output cant be pickled bc there's some lambda unctions for earthkit in there
                 #self.grib_templates=state['_grib_templates_for_output']
                 #pp.pprint(state_chunks[i])
                 #exit()
@@ -281,7 +291,7 @@ class Output(ABC):
             
     def _terminate_all_writers(self):
         """Terminate all writer processes gracefully."""
-        if not self.num_writers == 1:
+        if self.num_writers == 0:
             return
         
         LOG.debug("Terminating all worker processes...")
@@ -301,12 +311,13 @@ class Output(ABC):
                 process.terminate()
                 process.join()
         
-        LOG.debuf("All writer processes terminated")
+        LOG.debug("All writer processes terminated")
         #TODO I could merge all writer procs messages at this point
             
     def __del__(self):
         """Cleanup when object is destroyed."""
-        if self.num_writers > 1:
+        if self.num_writers > 1 and self.writers_running:
+            self.writers_running = False
             self._terminate_all_writers()
 
     @classmethod
