@@ -17,12 +17,18 @@ from typing import Tuple
 import numpy as np
 import torch
 import torch.nn.functional
+from anemoi.models.models import AnemoiModelEncProcDecInterpolator
+from anemoi.utils.config import DotDict
+from pydantic import BaseModel
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
 
+from anemoi.inference.config import Configuration
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
+from anemoi.inference.output import Output
+from anemoi.inference.config.run import RunConfiguration
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
@@ -39,8 +45,8 @@ class TimeInterpolatorRunner(DefaultRunner):
     without being coupled to a forecasting model.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the InterpolatorRunner.
+    def __init__(self, config: Configuration=None, **kwargs: Any) -> None:
+        """Initialize the TimeInterpolatorRunner.
 
         Parameters
         ----------
@@ -49,11 +55,97 @@ class TimeInterpolatorRunner(DefaultRunner):
         **kwargs : dict
             Keyword arguments.
         """
-        super().__init__(*args, **kwargs)
+
+        if isinstance(config, dict):
+            # So we get the dot notation
+            config = DotDict(config)
+
+        if isinstance(config, str):
+            config = RunConfiguration.load(config)
+
+        # Remove that when the Pydantic model is ready
+        if isinstance(config, BaseModel):
+            config = DotDict(config.model_dump())
+        
+
+        non_config_kwargs = DotDict(**kwargs)
+        config.update(non_config_kwargs)
+
+        super().__init__(config)
+
+        assert self.config.write_initial_state == True, "Interpolator output should include temporal start state, end state and boudnary conditions"
+        assert isinstance(
+            self.model.model, AnemoiModelEncProcDecInterpolator
+        ), "Model must be an interpolator model for this runner"
 
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
+
+    def execute(self) -> None:
+        """Execute the interpolator runner with support for multiple interpolation periods."""
+
+        if self.config.description is not None:
+            LOG.info("%s", self.config.description)
+
+        lead_time = to_timedelta(self.config.lead_time)
+
+        # This may be used by Output objects to compute the step
+        self.lead_time = lead_time
+        self.time_step = self.checkpoint.timestep
+
+        input = self.create_input()
+        output = self.create_output()
+
+        post_processors = self.post_processors
+
+        # Get the interpolation window size from training config
+        boundary_idx = self.checkpoint._metadata._config_training.explicit_times.input
+        # Assuming boundary_times is like [0, 6] for t and t+6
+        interpolation_window = self.checkpoint.timestep
+
+        # Calculate how many interpolation windows we need for the lead_time
+        num_windows = int(lead_time / interpolation_window)
+        if lead_time % interpolation_window != to_timedelta(0):
+            LOG.warning(
+                f"Lead time {lead_time} is not a multiple of interpolation window {interpolation_window}. "
+                f"Will interpolate for {num_windows * interpolation_window}"
+            )
+
+
+        # Process each interpolation window
+        for window_idx in range(num_windows):
+            window_start_date = self.config.date + window_idx * interpolation_window
+            
+            LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
+
+            # Create input state for this window
+            input_state = input.create_input_state(date=window_start_date)
+            self.input_state_hook(input_state)
+
+            # Run interpolation for this window
+            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=interpolation_window)):
+
+                # In the first window, we want to write the initial state (t=0)
+                # In other windows, we want to skip the initial state (t=0) 
+                # because it is written as the last state of the previous window
+                if window_idx != 0 and state_idx == boundary_idx[0]:
+                    continue
+
+                # Updating state step to be a global step not relative to window
+                state["step"] = state["step"] + window_idx * interpolation_window
+                
+                # Apply post-processing
+                for processor in post_processors:
+                    state = processor.process(state)
+                
+                if window_idx == 0 and state_idx == 0:
+                    output.open(state)
+                    output.write_initial_state(state)
+                else:
+                    output.write_state(state)
+            
+        output.close()
 
     def predict_step(
         self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
@@ -101,12 +193,13 @@ class TimeInterpolatorRunner(DefaultRunner):
             True if it's the last step of interpolation
         """
         target_steps = self.checkpoint._metadata._config_training.explicit_times.target
+        boundary_idx = self.checkpoint._metadata._config_training.explicit_times.input
         steps = len(target_steps)
 
         LOG.info("Time stepping: %s Interpolating %s steps", self.checkpoint.timestep, steps)
 
         for s in range(steps):
-            step = target_steps[s] * self.checkpoint.timestep
+            step = self.checkpoint.timestep * (s+1)/( boundary_idx[-1] - boundary_idx[0] )
             date = start_date + step
             is_last_step = s == steps - 1
             yield step, date, target_steps[s], is_last_step
@@ -166,14 +259,14 @@ class TimeInterpolatorRunner(DefaultRunner):
         return target_forcings
 
     def forecast(
-        self, lead_time: None, input_tensor_numpy: NDArray, input_state: State
+        self, lead_time: datetime.timedelta, input_tensor_numpy: NDArray, input_state: State
     ) -> Generator[State, None, None]:
         """Interpolate between the current and future state in the input tensor.
 
         Parameters
         ----------
-        lead_time : None
-            Lead time is not used for interpolation.
+        lead_time : datetime.timedelta
+            Lead time for this interpolation window (should match the window size).
         input_tensor_numpy : NDArray
             The input tensor.
         input_state : State
@@ -209,6 +302,29 @@ class TimeInterpolatorRunner(DefaultRunner):
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
+        # First yield the boundary states (t and t+window_size)
+        boundary_times = self.checkpoint._metadata._config_training.explicit_times.input
+        
+        # Yield initial boundary state (t)
+        initial_result = result.copy()
+        initial_result["date"] = start
+        initial_result["step"] = to_timedelta(0)
+        initial_result["interpolated"] = False
+        # Extract fields from the first time step of input tensor
+        input_numpy = input_tensor_torch[0, 0].cpu().numpy()  # First time step
+        for i in range(input_numpy.shape[-1]):
+            var_name = None
+            for var, idx in variable_to_input_tensor_index.items():
+                if idx == i:
+                    var_name = var
+                    break
+            if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
+                initial_result["fields"][var_name] = input_numpy[:, i]
+        
+        if self.write_initial_state: # Always True
+            yield initial_result
+        
+        # Now interpolate between the boundaries
         for s, (step, date, interpolation_step, is_last_step) in enumerate(self.interpolator_stepper(start)):
             title = f"Interpolating step {step}({date})"
 
@@ -216,6 +332,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             result["date"] = date
             result["previous_step"] = result.get("step")
             result["step"] = step
+            result["interpolated"] = True
 
             if self.trace:
                 self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
@@ -227,7 +344,7 @@ class TimeInterpolatorRunner(DefaultRunner):
                 Timer(title),
             ):
                 target_forcing = self.create_target_forcings(date, input_state, input_tensor_torch, interpolation_step)
-                y_pred = self.predict_step(self.model, input_tensor_torch, target_forcing)
+                y_pred = self.predict_step(self.model, input_tensor_torch, target_forcing=target_forcing)
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
@@ -246,6 +363,21 @@ class TimeInterpolatorRunner(DefaultRunner):
 
             yield result
 
-            # No need to prepare next input tensor if we are at the last step
-            if is_last_step:
-                break
+        # Yield final boundary state (t+window_size) if configured to do so
+        if len(boundary_times) > 1:
+            final_result = result.copy()
+            final_result["date"] = start + self.checkpoint.timestep
+            final_result["step"] = self.checkpoint.timestep
+            final_result["interpolated"] = False
+            # Extract fields from the last time step of input tensor
+            if input_tensor_torch.shape[1] > 1:
+                input_numpy = input_tensor_torch[0, -1].cpu().numpy()  # Last time step
+                for i in range(input_numpy.shape[-1]):
+                    var_name = None
+                    for var, idx in variable_to_input_tensor_index.items():
+                        if idx == i:
+                            var_name = var
+                            break
+                    if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
+                        final_result["fields"][var_name] = input_numpy[:, i]
+                yield final_result
