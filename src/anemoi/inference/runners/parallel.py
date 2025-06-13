@@ -238,7 +238,7 @@ class ParallelRunnerMixin:
     def __del__(self) -> None:
         """Destructor to clean up resources."""
         if self.model_comm_group is not None:
-            dist.destroy_process_group()
+            dist.destroy_process_group(self.model_comm_group)
 
     def _seed_procs(self) -> None:
         """Ensures each process uses the same seed.
