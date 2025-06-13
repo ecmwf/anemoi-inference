@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -67,15 +68,24 @@ class Cutout(Input):
         LOG.info(f"Concatenating states from {self.sources}")
         sources = list(self.sources.keys())
 
-        state = self.sources[sources[0]].create_input_state(date=date)
-        for source in sources[1:]:
-            mask = self.masks[source]
-            _state = self.sources[source].create_input_state(date=date)
+        states: List[State] = [self.sources[source].create_input_state(date=date) for source in sources]
 
-            state["latitudes"] = np.concatenate([state["latitudes"], _state["latitudes"][..., mask]], axis=-1)
-            state["longitudes"] = np.concatenate([state["longitudes"], _state["longitudes"][..., mask]], axis=-1)
-            for field, values in state["fields"].items():
-                state["fields"][field] = np.concatenate([values, _state["fields"][field][..., mask]], axis=-1)
+        state: State = {key: val for key, val in states[0].items() if key not in ["latitudes", "longitudes", "fields"]}
+
+        state["latitudes"] = np.concatenate(
+            [_state["latitudes"][..., self.masks[source]] for _state, source in zip(states, sources)],
+            axis=-1,
+        )
+        state["longitudes"] = np.concatenate(
+            [_state["longitudes"][..., self.masks[source]] for _state, source in zip(states, sources)],
+            axis=-1,
+        )
+        state["fields"] = {}
+        for field in states[0]["fields"]:
+            state["fields"][field] = np.concatenate(
+                [_state["fields"][field][..., self.masks[source]] for _state, source in zip(states, sources)],
+                axis=-1,
+            )
 
         return state
 
@@ -98,16 +108,18 @@ class Cutout(Input):
         """
 
         sources = list(self.sources.keys())
-        fields = self.sources[sources[0]].load_forcings_state(
-            variables=variables, dates=dates, current_state=current_state
-        )["fields"]
-        for source in sources[1:]:
-            mask = self.masks[source]
-            _fields = self.sources[source].load_forcings_state(
-                variables=variables, dates=dates, current_state=current_state
-            )["fields"]
-            for field in fields:
-                fields[field] = np.concatenate([fields[field], _fields[field][..., mask]], axis=-1)
+        _fields = [
+            self.sources[source].load_forcings_state(variables=variables, dates=dates, current_state=current_state)[
+                "fields"
+            ]
+            for source in sources
+        ]
+        fields: dict[str, Any] = {}
+        for field_name in _fields[0]:
+            fields[field_name] = np.concatenate(
+                [_field[field_name][..., self.masks[source]] for _field, source in zip(_fields, sources)],
+                axis=-1,
+            )
 
         current_state["fields"] |= fields
         return current_state
