@@ -9,13 +9,16 @@
 
 
 import logging
-from typing import Any, List, Optional
+from typing import Any
+from typing import List
+from typing import Optional
 
 import numpy as np
 
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
-from anemoi.inference.types import Date, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from . import input_registry
 
