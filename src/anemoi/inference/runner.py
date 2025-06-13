@@ -589,6 +589,11 @@ class Runner(Context):
             new_state["fields"] = dict()
             new_state["step"] = to_timedelta(0)
             
+            #These will eventually become references to CPU pinned memory buffers
+            #This is done to speed up the DtoH data transfers
+            y_pred_cpu=None
+            output_shard_torch_cpu=None
+            
             #new_state_shard=copy.deepcopy(new_state) #pickling error
             #copy above is a shallow copy we need a 
             new_state_shard=dict()
@@ -641,16 +646,26 @@ class Runner(Context):
                     ProfilingLabel("Predict step", self.use_profiler),
                     Timer(title),
                 ):
+                    #TODO replace output_shard_torch with a view into y_pred
                     y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                    
+                    #copy from device into pinned memory on the host
+                    if y_pred_cpu is None:
+                        y_pred_cpu = torch.zeros_like(y_pred, device="cpu", pin_memory=True)
+                    if output_shard_torch_cpu is None:
+                        output_shard_torch_cpu = torch.zeros_like(output_shard_torch, device="cpu", pin_memory=True)
+                    y_pred_cpu.copy_(y_pred, non_blocking=True)
+                    output_shard_torch_cpu.copy_(output_shard_torch, non_blocking=True)
+                    
                     sharded_output=False
                     if output_shard_torch is not None:
                         sharded_output=True
 
                 # Detach tensor and squeeze (should we detach here?)
                 with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                    output_full = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                    output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
                     if sharded_output:
-                        output_shard = np.squeeze(output_shard_torch.cpu().numpy())  # shape: (values, variables)
+                        output_shard = np.squeeze(output_shard_torch_cpu.numpy())  # shape: (values, variables)
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
