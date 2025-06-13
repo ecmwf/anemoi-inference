@@ -93,19 +93,19 @@ class Output(ABC):
         else:
             #self.num_writers = num_writers
             self.num_writers = int(os.getenv("WRITERS_PER_GPU"))
-            self.processes: List[mp.Process] = []
-            self.queues: List[mp.Queue] = []
-            
-            # Create queues for each writer
-            # Each writer will asynchronously write output
-            for i in range(self.num_writers):
-                self.queues.append(mp.Queue())
-
-            #spawn the writers
             self._spawn_writers()
         
     def _spawn_writers(self):
         """Spawn all writer processes."""
+        
+        self.processes: List[mp.Process] = []
+        self.queues: List[mp.Queue] = []
+            
+        # Create queues for each writer
+        # Each writer will asynchronously write output
+        for i in range(self.num_writers):
+            self.queues.append(mp.Queue())
+
         mp.set_start_method('fork', force=True)
         for i in range(self.num_writers):
             process = mp.Process(
