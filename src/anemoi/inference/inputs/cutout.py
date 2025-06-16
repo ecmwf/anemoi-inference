@@ -24,6 +24,36 @@ from . import input_registry
 LOG = logging.getLogger(__name__)
 
 
+def _mask_and_nest_state(
+    state: State,
+    _state: State,
+    mask: np.ndarray,
+) -> State:
+    """Mask and nest the state with the given mask.
+
+    Parameters
+    ----------
+    state : State
+        The state to be masked and nested.
+    _state : State
+        The state to be masked and nested with.
+    mask : np.ndarray
+        The mask to be applied.
+
+    Returns
+    -------
+    State
+        The masked and nested state.
+    """
+    for field, values in state["fields"].items():
+        state["fields"][field] = np.concatenate([values, _state["fields"][field][..., mask]], axis=-1)
+
+    state["latitudes"] = np.concatenate([state["latitudes"], _state["latitudes"][..., mask]], axis=-1)
+    state["longitudes"] = np.concatenate([state["longitudes"], _state["longitudes"][..., mask]], axis=-1)
+
+    return state
+
+
 @input_registry.register("cutout")
 class Cutout(Input):
     """Combines one or more LAMs into a global source using cutouts."""
@@ -43,7 +73,10 @@ class Cutout(Input):
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray] = {}
         for src, cfg in sources.items():
-            mask = cfg.pop("mask", f"{src}/cutout_mask")
+            if isinstance(cfg, str):
+                mask = f"{src}/cutout_mask"
+            else:
+                mask = cfg.pop("mask", f"{src}/cutout_mask")
             self.sources[src] = create_input(context, cfg)
             self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
 
@@ -72,10 +105,7 @@ class Cutout(Input):
             mask = self.masks[source]
             _state = self.sources[source].create_input_state(date=date)
 
-            state["latitudes"] = np.concatenate([state["latitudes"], _state["latitudes"][..., mask]], axis=-1)
-            state["longitudes"] = np.concatenate([state["longitudes"], _state["longitudes"][..., mask]], axis=-1)
-            for field, values in state["fields"].items():
-                state["fields"][field] = np.concatenate([values, _state["fields"][field][..., mask]], axis=-1)
+            state = _mask_and_nest_state(state, _state, mask)
 
         return state
 
