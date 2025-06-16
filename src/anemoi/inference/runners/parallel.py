@@ -97,16 +97,9 @@ class ParallelRunnerMixin:
 
         self.model_comm_group = None
         self.pid = pid
-        self.shard_output=False
         if os.getenv("PARALLEL_OUT", "0") == "1":
             LOG.info("Anemoi inference: Parallel output")
             self.shard_output=True
-
-        if self.shard_output:
-            #from anemoi.models.distributed.graph import gather_tensor
-            #from anemoi.models.distributed.graph import shard_tensor
-            self.initial_batch_shape=None
-        
 
         # give the base class an opportunity to modify the parallel runner
         super()._configure_parallel_runner()
@@ -135,11 +128,6 @@ class ParallelRunnerMixin:
     def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         """Performs a prediction step.
         
-        if sharded output is true:
-        predict step takes in an input batch sharded across var dim
-        and it transposes it all-gathers it
-        it returns a global batch and it shards it across variables
-
         Parameters
         ----------
         model : Any
@@ -157,18 +145,6 @@ class ParallelRunnerMixin:
         # call the predict_step of the base class since it might do some modifications
         # the base class is expected to forward the kwargs (including the comm group) to the model's predict_step method
         
-        #The first batch wont be sharded
-        if self.shard_output:
-            if self.initial_batch_shape is None:
-                self.initial_batch_shape=input_tensor_torch.shape
-            LOG.info(f"{input_tensor_torch.shape=}, {self.initial_batch_shape=}")
-        #[1, 2, 6599680, 99]
-        if self.shard_output and not input_tensor_torch.shape == self.initial_batch_shape:
-            #we need to allgather because we are sharded across var dim
-            from anemoi.models.distributed.graph import gather_tensor
-            input_tensor_torch=gather_tensor(input_tensor_torch.shape, -1, self.initial_batch_shape, self.model_comm_group)
-            LOG.info(f"{input_tensor_torch.shape=}, {self.initial_batch_shape=}")
-            
         if self.model_comm_group is None:
             y_pred=  super().predict_step(model, input_tensor_torch, **kwargs)
         else:
@@ -180,34 +156,8 @@ class ParallelRunnerMixin:
                 )
                 raise err
         
-        #shard the complete output batch across var dim
-        output_shard=None
-        if self.shard_output:
-            LOG.info(f"{y_pred.shape=} before shard")
-            output_shape=list(y_pred.shape)
-            output_shape[-1]=output_shape[-1]//self.world_size #todo need to handle remainder
-            
-            output_shape=tuple([output_shape.copy() for _ in range(self.world_size)])
-            output_shape[-1][-1] += y_pred.shape[-1] % self.world_size #handle the remainder
-            LOG.info(f"{output_shape=}")
-            from anemoi.models.distributed.graph import shard_tensor
-            output_shard = shard_tensor(y_pred, -1, output_shape,self.model_comm_group)
-            
-            #expanded = torch.zeros(*output_shard.shape[:-1], 88,
-            #           dtype=output_shard.dtype,
-            #           device=output_shard.device)
-            #expanded[..., self.pid*22:(self.pid*22)+22] = output_shard
-            LOG.info(f"{output_shard.shape=} after shard")
-        else:
-            LOG.info(f"{y_pred.shape=}")
-        
-        #return y_pred, output_shard
-        return y_pred, output_shard
+        return y_pred
     
-    #input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
-    #need to overwrite this when using sharded output
-    #def copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check):
-        
 
     def create_output(self) -> Output:
         """Creates the real output on rank 0 and a `none` on the others.

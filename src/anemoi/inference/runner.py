@@ -577,6 +577,12 @@ class Runner(Context):
                 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
                 torch.backends.cudnn.benchmark = False
                 torch.use_deterministic_algorithms(True) 
+                
+            self.sharded_output=False
+            if os.getenv("PARALLEL_OUT", "0") == "1":
+                LOG.info("Anemoi inference: Parallel output")
+                self.sharded_output=True
+        
 
             # Create pytorch input tensor
             input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
@@ -592,10 +598,7 @@ class Runner(Context):
             #These will eventually become references to CPU pinned memory buffers
             #This is done to speed up the DtoH data transfers
             y_pred_cpu=None
-            output_shard_torch_cpu=None
             
-            #new_state_shard=copy.deepcopy(new_state) #pickling error
-            #copy above is a shallow copy we need a 
             new_state_shard=dict()
             #shallow copy input_state, except for the stuff we care about
             for key in input_state:
@@ -646,26 +649,23 @@ class Runner(Context):
                     ProfilingLabel("Predict step", self.use_profiler),
                     Timer(title),
                 ):
-                    #TODO replace output_shard_torch with a view into y_pred
-                    y_pred,output_shard_torch = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
-                    
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+
+                # Detach tensor and squeeze (should we detach here?)
+                with ProfilingLabel("Sending output to cpu", self.use_profiler):
                     #copy from device into pinned memory on the host
                     if y_pred_cpu is None:
                         y_pred_cpu = torch.zeros_like(y_pred, device="cpu", pin_memory=True)
                     y_pred_cpu.copy_(y_pred, non_blocking=True)
-                    
-                    sharded_output=False
-                    if output_shard_torch is not None:
-                        sharded_output=True
-                        if output_shard_torch_cpu is None:
-                            output_shard_torch_cpu = torch.zeros_like(output_shard_torch, device="cpu", pin_memory=True)
-                        output_shard_torch_cpu.copy_(output_shard_torch, non_blocking=True)
 
-                # Detach tensor and squeeze (should we detach here?)
-                with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                    if self.sharded_output:
+                        field_start, field_end = self.determine_global_vars(self.model_comm_group, y_pred_cpu.shape[-1])
+                        output_shard_torch_cpu = y_pred_cpu[..., field_start:field_end]
+                    
                     output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
-                    if sharded_output:
+                    if self.sharded_output:
                         output_shard = np.squeeze(output_shard_torch_cpu.numpy())  # shape: (values, variables)
+                    
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -673,27 +673,26 @@ class Runner(Context):
                         new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
                         
                         
-                    if sharded_output:
+                    if self.sharded_output:
                         # Each GPU returns a subset of the global vars
                         # E.g. 88 vars in total, each GPU will have a shard with 22
                         # We need to get their rank and the number of processes to determine
                         # mapping from  local var id in the output shard to global var id in the output state
                         #LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
-                        field_start, field_end = self.determine_global_vars(self.model_comm_group, output_full.shape[1])
                             
                         #debug stuff
-                        local_fields=""
-                        fields_to_write=0
+                        #local_fields=""
+                        #fields_to_write=0
                         for i in range(field_end-field_start):
                             new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
 
                             #debug stuff
-                            local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
-                            fields_to_write += 1
+                            #local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
+                            #fields_to_write += 1
                             
                         #debug stuff
-                        rank=torch.distributed.get_rank(group=self.model_comm_group)
-                        LOG.debug(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
+                        #rank=torch.distributed.get_rank(group=self.model_comm_group)
+                        #LOG.debug(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_output_tensor("Output tensor", output_full)
@@ -707,7 +706,7 @@ class Runner(Context):
                 #add index to a new key to new_state
                 #then in parallel runner, overload forecast and iterare over supr()
                 with Timer("Writing output..."):
-                    if sharded_output:
+                    if self.sharded_output:
                         yield new_state_shard
                     else:
                         yield new_state
