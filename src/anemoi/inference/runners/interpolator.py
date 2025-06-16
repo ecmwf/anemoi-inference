@@ -191,8 +191,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         is_last_step : bool
             True if it's the last step of interpolation
         """
-        target_steps = self.checkpoint._metadata._config_training.explicit_times.target
-        boundary_idx = self.checkpoint._metadata._config_training.explicit_times.input
+        target_steps = self.checkpoint.target_explicit_times
+        boundary_idx = self.checkpoint.input_explicit_times
         steps = len(target_steps)
 
         LOG.info("Time stepping: %s Interpolating %s steps", self.checkpoint.timestep, steps)
@@ -250,7 +250,7 @@ class TimeInterpolatorRunner(DefaultRunner):
                     self.trace.from_source(name, source, "target forcings")
 
         if use_time_fraction:
-            boundary_times = self.checkpoint._metadata._config_training.explicit_times.input
+            boundary_times = self.checkpoint.input_explicit_times
             # this only works with two boundary times?
             target_forcings[..., -1] = (interpolation_step - boundary_times[-2]) / (
                 boundary_times[-1] - boundary_times[-2]
@@ -302,7 +302,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
         # First yield the boundary states (t and t+window_size)
-        boundary_times = self.checkpoint._metadata._config_training.explicit_times.input
+        boundary_times = self.checkpoint.input_explicit_times
 
         # Yield initial boundary state (t)
         initial_result = result.copy()
