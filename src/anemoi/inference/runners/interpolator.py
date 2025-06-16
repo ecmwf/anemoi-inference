@@ -72,7 +72,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         super().__init__(config)
 
         assert (
-            self.config.write_initial_state == True
+            self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boudnary conditions"
         assert isinstance(
             self.model.model, AnemoiModelEncProcDecInterpolator
