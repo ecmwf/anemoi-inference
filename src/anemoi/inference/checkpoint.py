@@ -158,6 +158,11 @@ class Checkpoint:
         return self._metadata.input_explicit_times
 
     @property
+    def target_explicit_times(self) -> Any:
+        """Get the target explicit times."""
+        return self._metadata.target_explicit_times
+
+    @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
