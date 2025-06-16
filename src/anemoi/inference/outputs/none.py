@@ -30,3 +30,6 @@ class NoneOutput(Output):
             The state dictionary.
         """
         pass
+    
+    def per_writer_init(self, writer_id) -> None:
+        pass

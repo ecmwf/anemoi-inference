@@ -652,14 +652,14 @@ class Runner(Context):
                     #copy from device into pinned memory on the host
                     if y_pred_cpu is None:
                         y_pred_cpu = torch.zeros_like(y_pred, device="cpu", pin_memory=True)
-                    if output_shard_torch_cpu is None:
-                        output_shard_torch_cpu = torch.zeros_like(output_shard_torch, device="cpu", pin_memory=True)
                     y_pred_cpu.copy_(y_pred, non_blocking=True)
-                    output_shard_torch_cpu.copy_(output_shard_torch, non_blocking=True)
                     
                     sharded_output=False
                     if output_shard_torch is not None:
                         sharded_output=True
+                        if output_shard_torch_cpu is None:
+                            output_shard_torch_cpu = torch.zeros_like(output_shard_torch, device="cpu", pin_memory=True)
+                        output_shard_torch_cpu.copy_(output_shard_torch, non_blocking=True)
 
                 # Detach tensor and squeeze (should we detach here?)
                 with ProfilingLabel("Sending output to cpu", self.use_profiler):

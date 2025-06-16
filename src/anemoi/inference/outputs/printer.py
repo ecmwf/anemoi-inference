@@ -148,3 +148,7 @@ class PrinterOutput(Output):
             The state dictionary.
         """
         print_state(state, print=self.print, variables=self.variables)
+        
+        
+    def per_writer_init(self, writer_id) -> None:
+        pass
