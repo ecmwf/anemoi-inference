@@ -117,17 +117,7 @@ class DatasetInput(Input):
         fields = input_state["fields"]
 
         date = np.datetime64(date)
-
-        # We should be able to use `explicit_times` in this way for every model in the future
-        # However it was introduced with the interpolator
-        # Thus we keep the else branch for backward compatibility
-        if hasattr(self.checkpoint, "input_explicit_times"):
-            timestep = self.checkpoint.timestep
-            input_explicit_times = self.checkpoint.input_explicit_times
-            dates = [date + np.timedelta64(h * timestep) for h in input_explicit_times]
-
-        else:
-            dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
+        dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
 
         data = self._load_dates(dates)
 
