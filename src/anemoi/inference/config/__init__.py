@@ -21,6 +21,7 @@ from typing import TypeVar
 from typing import Union
 
 import yaml
+from omegaconf import OmegaConf
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
@@ -106,8 +107,10 @@ class Configuration(BaseModel):
                         path = path.setdefault(key, {})
                 path[keys[-1]] = value
 
+        resolved_config = OmegaConf.to_container(OmegaConf.create(config), resolve=True)
+
         # Validate the configuration
-        config = cls(**config)
+        config = cls.model_validate(resolved_config)
 
         # Set environment variables found in the configuration
         # as soon as possible
