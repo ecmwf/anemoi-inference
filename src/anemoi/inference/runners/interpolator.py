@@ -44,8 +44,12 @@ class TimeInterpolatorRunner(DefaultRunner):
     without being coupled to a forecasting model.
     """
 
-    def __init__(self, config: Configuration | dict | str | BaseModel | None = None, **kwargs: Any) -> None:
-        """Initialize the TimeInterpolatorRunner.
+    def __init__(self, config: Configuration = None, **kwargs: Any) -> None:
+        """Initialize the TimeInterpolatorRunner
+        The runner makes the following assumptions:
+            - The model was trained with two input states: (t and t+timestep)
+            - The output states are between these two states and are set by "frequency" in the config
+            - timestep / frequency - 1 is equal to the number of output states
 
         Parameters
         ----------
@@ -55,20 +59,25 @@ class TimeInterpolatorRunner(DefaultRunner):
             Keyword arguments.
         """
 
-        assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
-        config = config or kwargs
+        if isinstance(config, dict):
+            # So we get the dot notation
+            config = DotDict(config)
 
-        # Remove that when the Pydantic model is ready
-        if not isinstance(config, BaseModel):
+        if isinstance(config, str):
             config = RunConfiguration.load(config)
 
-        config = DotDict(config.model_dump())
+        # Remove that when the Pydantic model is ready
+        if isinstance(config, BaseModel):
+            config = DotDict(config.model_dump())
+
+        non_config_kwargs = DotDict(**kwargs)
+        config.update(non_config_kwargs)
 
         super().__init__(config)
 
         assert (
             self.config.write_initial_state
-        ), "Interpolator output should include temporal start state, end state and boundary conditions"
+        ), "Interpolator output should include temporal start state, end state and boudnary conditions"
         assert isinstance(
             self.model.model, AnemoiModelEncProcDecInterpolator
         ), "Model must be an interpolator model for this runner"
@@ -76,6 +85,18 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
+
+        assert len(self.checkpoint.input_explicit_times) == 2, (
+            "Interpolator runner requires exactly two input explicit times (t and t+timestep), "
+            f"but got {self.checkpoint.input_explicit_times}"
+        )
+        assert len(self.checkpoint.target_explicit_times) == self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1, (
+            "Interpolator runner requires the number of target explicit times to be equal to "
+            "timestep / frequency - 1, but got "
+            f"{len(self.checkpoint.target_explicit_times)} for timestep {self.checkpoint.timestep} and "
+            f"input explicit times {self.checkpoint.input_explicit_times}"
+        )
+        
 
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
@@ -88,14 +109,13 @@ class TimeInterpolatorRunner(DefaultRunner):
         # This may be used by Output objects to compute the step
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
-
         input = self.create_input()
         output = self.create_output()
 
         post_processors = self.post_processors
 
         # Get the interpolation window size from training config
-        boundary_idx = self.checkpoint._metadata._config_training.explicit_times.input
+        boundary_idx = self.checkpoint.input_explicit_times
         # Assuming boundary_times is like [0, 6] for t and t+6
         interpolation_window = self.checkpoint.timestep
 
