@@ -58,7 +58,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
         config = config or kwargs
 
-        
         # Remove that when the Pydantic model is ready
         if not isinstance(config, BaseModel):
             config = RunConfiguration.load(config)
