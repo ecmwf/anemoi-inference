@@ -90,13 +90,15 @@ class TimeInterpolatorRunner(DefaultRunner):
             "Interpolator runner requires exactly two input explicit times (t and t+timestep), "
             f"but got {self.checkpoint.input_explicit_times}"
         )
-        assert len(self.checkpoint.target_explicit_times) == self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1, (
+        assert (
+            len(self.checkpoint.target_explicit_times)
+            == self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1
+        ), (
             "Interpolator runner requires the number of target explicit times to be equal to "
             "timestep / frequency - 1, but got "
             f"{len(self.checkpoint.target_explicit_times)} for timestep {self.checkpoint.timestep} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
-        
 
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
