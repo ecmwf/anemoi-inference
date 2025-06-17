@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import os
-from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import List
@@ -20,7 +19,8 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
-import yaml
+from omegaconf import DictConfig
+from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -59,7 +59,7 @@ class Configuration(BaseModel):
             The loaded configuration.
         """
 
-        config = {}
+        configs: List[Union[DictConfig, ListConfig]] = []
 
         # Set default values
         if defaults is not None:
@@ -67,18 +67,15 @@ class Configuration(BaseModel):
                 defaults = [defaults]
             for d in defaults:
                 if isinstance(d, str):
-                    with open(d) as f:
-                        d = yaml.safe_load(f)
-                config.update(d)
+                    configs.append(OmegaConf.load(d))
+                    continue
+                configs.append(OmegaConf.create(d))
 
         # Load the user configuration
         if isinstance(path, dict):
-            user_config = deepcopy(path)
+            configs.append(OmegaConf.create(path))
         else:
-            with open(path) as f:
-                user_config = yaml.safe_load(f)
-
-        cls._merge_configs(config, user_config)
+            configs.append(OmegaConf.load(path))
 
         # Apply overrides
         if not isinstance(overrides, list):
@@ -86,28 +83,11 @@ class Configuration(BaseModel):
 
         for override in overrides:
             if isinstance(override, dict):
-                cls._merge_configs(config, override)
+                configs.append(OmegaConf.create(override))
             else:
-                path = config
-                key, value = override.split("=")
-                keys = key.split(".")
-                for key in keys[:-1]:
-                    if key.isdigit() and isinstance(path, list):
-                        index = int(key)
-                        if index < len(path):
-                            LOG.debug(f"key {key} is used as list index in list{path}")
-                            path = path[index]
-                        elif index == len(path):
-                            LOG.debug(f"key {key} is used to append to list {path}")
-                            path.append({})
-                            path = path[index]
-                        else:
-                            raise IndexError(f"Index {index} out of range for list {path} of length {len(path)}")
-                    else:
-                        path = path.setdefault(key, {})
-                path[keys[-1]] = value
+                configs.append(OmegaConf.from_dotlist([override]))
 
-        resolved_config = OmegaConf.to_container(OmegaConf.create(config), resolve=True)
+        resolved_config = OmegaConf.to_container(OmegaConf.merge(*configs), resolve=True)
 
         # Validate the configuration
         config = cls.model_validate(resolved_config)
@@ -118,20 +98,3 @@ class Configuration(BaseModel):
             os.environ[key] = str(value)
 
         return config
-
-    @classmethod
-    def _merge_configs(cls, a: Dict[Any, Any], b: Dict[Any, Any]) -> None:
-        """Merge two configurations.
-
-        Parameters
-        ----------
-        a : Dict[Any, Any]
-            The first configuration.
-        b : Dict[Any, Any]
-            The second configuration.
-        """
-        for key, value in b.items():
-            if key in a and isinstance(a[key], dict) and isinstance(value, dict):
-                cls._merge_configs(a[key], value)
-            else:
-                a[key] = value
