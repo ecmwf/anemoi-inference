@@ -48,7 +48,7 @@ class ApplyMaskOutput(MaskedOutput):
     ) -> None:
         super().__init__(
             context,
-            mask=self.checkpoint.load_supporting_array(mask),
+            mask=mask,
             output=output,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
