@@ -320,6 +320,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         if "constant_fields" in self._metadata.dataset:
             for name in self._metadata.dataset.constant_fields:
+                if name not in result:
+                    continue
                 result[name]["constant_in_time"] = True
 
         return result
