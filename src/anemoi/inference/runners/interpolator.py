@@ -44,7 +44,7 @@ class TimeInterpolatorRunner(DefaultRunner):
     without being coupled to a forecasting model.
     """
 
-    def __init__(self, config: Configuration | dict | str | BaseModel | None = None, **kwargs: Any) -> None:        
+    def __init__(self, config: Configuration | dict | str | BaseModel | None = None, **kwargs: Any) -> None:
         """Initialize the TimeInterpolatorRunner
         The runner makes the following assumptions:
             - The model was trained with two input states: (t and t+timestep)
@@ -61,7 +61,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
         config = config or kwargs
 
-        
         # Remove that when the Pydantic model is ready
         if not isinstance(config, BaseModel):
             config = RunConfiguration.load(config)
