@@ -34,7 +34,7 @@ class RunConfiguration(Configuration):
     runner: Union[str, Dict[str, Any]] = "default"
     """The runner to use."""
 
-    date: Union[str, int, datetime.datetime, None] = None
+    date: Union[datetime.datetime, None] = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
     lead_time: Union[str, int, datetime.timedelta] = "10d"
