@@ -44,7 +44,7 @@ class TimeInterpolatorRunner(DefaultRunner):
     without being coupled to a forecasting model.
     """
 
-    def __init__(self, config: Configuration = None, **kwargs: Any) -> None:
+    def __init__(self, config: Configuration | dict | str | BaseModel | None = None, **kwargs: Any) -> None:        
         """Initialize the TimeInterpolatorRunner
         The runner makes the following assumptions:
             - The model was trained with two input states: (t and t+timestep)
@@ -53,31 +53,25 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         Parameters
         ----------
-        *args : tuple
-            Positional arguments.
+        config : Configuration | dict | str | BaseModel | None
+            The configuration for the runner.
         **kwargs : dict
-            Keyword arguments.
+            Keyword arguments to initialize a config for the runner.
         """
+        assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
+        config = config or kwargs
 
-        if isinstance(config, dict):
-            # So we get the dot notation
-            config = DotDict(config)
-
-        if isinstance(config, str):
+        
+        # Remove that when the Pydantic model is ready
+        if not isinstance(config, BaseModel):
             config = RunConfiguration.load(config)
 
-        # Remove that when the Pydantic model is ready
-        if isinstance(config, BaseModel):
-            config = DotDict(config.model_dump())
-
-        non_config_kwargs = DotDict(**kwargs)
-        config.update(non_config_kwargs)
+        config = DotDict(config.model_dump())
 
         super().__init__(config)
-
         assert (
             self.config.write_initial_state
-        ), "Interpolator output should include temporal start state, end state and boudnary conditions"
+        ), "Interpolator output should include temporal start state, end state and boundary conditions"
         assert isinstance(
             self.model.model, AnemoiModelEncProcDecInterpolator
         ), "Model must be an interpolator model for this runner"
