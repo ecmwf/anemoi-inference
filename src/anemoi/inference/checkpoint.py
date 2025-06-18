@@ -627,13 +627,18 @@ class Checkpoint:
                 if use_grib_paramid and "param" in r:
                     r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
 
-                # Simplyfie the request
+                # Simplify the request
 
-                for k, v in r.items():
-
+                for k in list(r.keys()):
+                    v = r[k]
                     if len(v) == 1:
-                        r[k] = v[0]
+                        v = v[0]
 
+                    # Remove empty values for when tree is not fully defined
+                    if v == "-":
+                        r.pop(k)
+                        continue
+                    r[k] = v
                 result.append(r)
 
         return result

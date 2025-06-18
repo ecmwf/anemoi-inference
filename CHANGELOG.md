@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.2](https://github.com/ecmwf/anemoi-inference/compare/0.6.1...0.6.2) (2025-06-18)
+
+
+### Features
+
+* Mars with Nested models ([#236](https://github.com/ecmwf/anemoi-inference/issues/236)) ([75a5e3b](https://github.com/ecmwf/anemoi-inference/commit/75a5e3b6354525b5f337b4b0181103d0311c77c6))
+* **parallel:** Make `base_runner` the main argument ([d6863a0](https://github.com/ecmwf/anemoi-inference/commit/d6863a0dd4ca1d4277eab9718c9fd55d31811c74))
+
+
+### Bug Fixes
+
+* **metadata:** Check if variable exists before patching `constant_fields` ([0ad51bb](https://github.com/ecmwf/anemoi-inference/commit/0ad51bb7d69e48de6bc5a997b2edf6861c61a8e5))
+
 ## [0.6.1](https://github.com/ecmwf/anemoi-inference/compare/0.6.0...0.6.1) (2025-06-04)
 
 
