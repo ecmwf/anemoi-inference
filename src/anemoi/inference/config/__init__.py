@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime
 from typing import Any
 from typing import Dict
 from typing import List
@@ -19,11 +20,13 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
+from earthkit.data.utils.dates import to_datetime
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import field_validator
 
 LOG = logging.getLogger(__name__)
 
@@ -34,6 +37,15 @@ class Configuration(BaseModel):
     """Configuration class."""
 
     model_config = ConfigDict(extra="forbid")
+
+    date: Union[datetime, None] = None
+    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def to_datetime(cls, date: Union[str, int, datetime, None]) -> Optional[datetime]:
+        if date is not None:
+            return to_datetime(date)
 
     @classmethod
     def load(

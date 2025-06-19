@@ -18,9 +18,6 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
-from earthkit.data.utils.dates import to_datetime
-from pydantic import field_validator
-
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -36,9 +33,6 @@ class RunConfiguration(Configuration):
 
     runner: Union[str, Dict[str, Any]] = "default"
     """The runner to use."""
-
-    date: Union[datetime.datetime, None] = None
-    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
     lead_time: Union[str, int, datetime.timedelta] = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
@@ -112,9 +106,3 @@ class RunConfiguration(Configuration):
 
     debugging_info: Dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
-
-    @field_validator("date", mode="before")
-    @classmethod
-    def to_datetime(cls, date: Union[str, int, datetime.datetime, None]) -> Optional[datetime.datetime]:
-        if date is not None:
-            return to_datetime(date)
