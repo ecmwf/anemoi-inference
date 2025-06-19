@@ -18,6 +18,9 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
+from earthkit.data.utils.dates import to_datetime
+from pydantic import field_validator
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -109,3 +112,9 @@ class RunConfiguration(Configuration):
 
     debugging_info: Dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def to_datetime(cls, date: Union[str, int, datetime.datetime, None]) -> Optional[datetime.datetime]:
+        if date is not None:
+            return to_datetime(date)
