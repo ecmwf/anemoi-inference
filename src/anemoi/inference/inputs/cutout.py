@@ -12,6 +12,7 @@ import logging
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -28,7 +29,7 @@ LOG = logging.getLogger(__name__)
 def _mask_and_combine_states(
     combined_state: State,
     new_state: State,
-    combined_mask: Optional[np.ndarray],
+    combined_mask: Union[np.ndarray, slice],
     mask: np.ndarray,
     fields: Iterable[str],
 ) -> State:
@@ -119,7 +120,7 @@ class Cutout(Input):
             combined_state["fields"] = _mask_and_combine_states(
                 combined_state["fields"], new_state["fields"], combined_mask, mask, combined_state["fields"]
             )
-            combined_mask = None
+            combined_mask = slice(0, None)
 
         return combined_state
 
@@ -154,7 +155,7 @@ class Cutout(Input):
             combined_fields = _mask_and_combine_states(
                 combined_fields, new_fields, combined_mask, mask, combined_fields
             )
-            combined_mask = None
+            combined_mask = slice(0, None)
 
         current_state["fields"] |= combined_fields
         return current_state
