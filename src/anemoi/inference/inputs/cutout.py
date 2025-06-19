@@ -12,6 +12,7 @@ import logging
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -28,7 +29,7 @@ LOG = logging.getLogger(__name__)
 def _mask_and_combine_states(
     combined_state: State,
     new_state: State,
-    combined_mask: Optional[np.ndarray],
+    combined_mask: Union[np.ndarray, slice, None],
     mask: np.ndarray,
     fields: Iterable[str],
 ) -> State:
@@ -53,6 +54,8 @@ def _mask_and_combine_states(
         The combined state
     """
     for field in fields:
+        if combined_mask is None:
+            combined_mask = slice(combined_state[field].shape[0])
         combined_state[field] = np.concatenate(
             [combined_state[field][..., combined_mask], new_state[field][..., mask]],
             axis=-1,
