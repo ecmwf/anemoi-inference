@@ -15,7 +15,8 @@ def test_mask_and_combine_states():
         mask = masks[k]
         new_state = states[k]
         combined_state = _mask_and_combine_states(combined_state, new_state, combined_mask, mask, ["a"])
-        combined_mask = None
+        combined_mask = slice(0, None)
+
     assert combined_state["a"].shape[0] == 6
     assert (
         combined_state["a"]
