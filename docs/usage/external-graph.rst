@@ -54,6 +54,14 @@ well:
 .. literalinclude:: yaml/external-graph3.yaml
    :language: yaml
 
+If you wish to run the external graph runner, but without the
+anemoi-dataset configuration, some supporting arrays may need to be
+updated. These can be sourced from either the ``graph['data']`` or from
+a file on disk. This is done with the ``update_supporting_arrays`` key
+
+.. literalinclude:: yaml/external-graph4.yaml
+   :language: yaml
+
 It should be emphasized that by using this runner the model will be
 rebuilt and for this reason will differ from the model stored in the
 checkpoint. To avoid unexpected results, there is a default check that
@@ -61,5 +69,5 @@ ensures the model used in inference has the same weights, biases and
 normalizer values as that stored in the checkpoint. In case of a more
 adventurous use-case this check can be disabled through the config as:
 
-.. literalinclude:: yaml/external-graph4.yaml
+.. literalinclude:: yaml/external-graph5.yaml
    :language: yaml
