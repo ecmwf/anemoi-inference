@@ -48,8 +48,6 @@ class MaskedOutput(ForwardOutput):
     ) -> None:
         super().__init__(context, output, output_frequency=output_frequency, write_initial_state=write_initial_state)
         self.mask = mask
-        if isinstance(mask, str):
-            self.mask = self.checkpoint.load_supporting_array(mask)
 
     def modify_state(self, state: State) -> State:
         """Apply the mask to the state.
