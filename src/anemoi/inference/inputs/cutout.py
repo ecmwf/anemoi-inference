@@ -12,7 +12,6 @@ import logging
 from typing import Iterable
 from typing import List
 from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -29,7 +28,7 @@ LOG = logging.getLogger(__name__)
 def _mask_and_combine_states(
     combined_state: State,
     new_state: State,
-    combined_mask: Union[np.ndarray, None],
+    combined_mask: Optional[np.ndarray],
     mask: np.ndarray,
     fields: Iterable[str],
 ) -> State:
@@ -41,7 +40,7 @@ def _mask_and_combine_states(
         The state to be combined into.
     new_state : State
         The other state to combine.
-    combined_mask : Union[np.ndarray, None]
+    combined_mask : Optional[np.ndarray]
         The mask to apply to combined_state. If None, no mask is applied
     mask : np.ndarray
         The mask to apply to new_state.
