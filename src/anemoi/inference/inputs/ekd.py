@@ -280,7 +280,6 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in state_fields:
                 state_fields[name] = np.full(
@@ -368,8 +367,6 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        # TODO: where we do this might change in the future
-        date = to_datetime(date)
         dates = [date + h for h in self.checkpoint.lagged]
 
         return self._create_state(
