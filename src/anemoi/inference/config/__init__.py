@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from copy import deepcopy
+from datetime import datetime
 from typing import Any
 from typing import Dict
 from typing import List
@@ -20,9 +20,13 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
-import yaml
+from earthkit.data.utils.dates import to_datetime
+from omegaconf import DictConfig
+from omegaconf import ListConfig
+from omegaconf import OmegaConf
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import field_validator
 
 LOG = logging.getLogger(__name__)
 
@@ -33,6 +37,15 @@ class Configuration(BaseModel):
     """Configuration class."""
 
     model_config = ConfigDict(extra="forbid")
+
+    date: Union[datetime, None] = None
+    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def to_datetime(cls, date: Union[str, int, datetime, None]) -> Optional[datetime]:
+        if date is not None:
+            return to_datetime(date)
 
     @classmethod
     def load(
@@ -58,7 +71,7 @@ class Configuration(BaseModel):
             The loaded configuration.
         """
 
-        config = {}
+        configs: List[Union[DictConfig, ListConfig]] = []
 
         # Set default values
         if defaults is not None:
@@ -66,48 +79,50 @@ class Configuration(BaseModel):
                 defaults = [defaults]
             for d in defaults:
                 if isinstance(d, str):
-                    with open(d) as f:
-                        d = yaml.safe_load(f)
-                config.update(d)
+                    configs.append(OmegaConf.load(d))
+                    continue
+                configs.append(OmegaConf.create(d))
 
         # Load the user configuration
         if isinstance(path, dict):
-            user_config = deepcopy(path)
+            configs.append(OmegaConf.create(path))
         else:
-            with open(path) as f:
-                user_config = yaml.safe_load(f)
+            configs.append(OmegaConf.load(path))
 
-        cls._merge_configs(config, user_config)
-
-        # Apply overrides
         if not isinstance(overrides, list):
             overrides = [overrides]
 
+        oc_config = OmegaConf.merge(*configs)
+
         for override in overrides:
             if isinstance(override, dict):
-                cls._merge_configs(config, override)
+                oc_config = OmegaConf.merge(oc_config, OmegaConf.create(override))
             else:
-                path = config
+                selected = oc_config
                 key, value = override.split("=")
                 keys = key.split(".")
                 for key in keys[:-1]:
-                    if key.isdigit() and isinstance(path, list):
+                    if key.isdigit() and isinstance(selected, ListConfig):
                         index = int(key)
-                        if index < len(path):
-                            LOG.debug(f"key {key} is used as list index in list{path}")
-                            path = path[index]
-                        elif index == len(path):
-                            LOG.debug(f"key {key} is used to append to list {path}")
-                            path.append({})
-                            path = path[index]
+                        if index < len(selected):
+                            LOG.debug(f"key {key} is used as list index in list{selected}")
+                            selected = selected[index]
+                        elif index == len(selected):
+                            LOG.debug(f"key {key} is used to append to list {selected}")
+                            selected.append(OmegaConf.create())
+                            selected = selected[index]
                         else:
-                            raise IndexError(f"Index {index} out of range for list {path} of length {len(path)}")
+                            raise IndexError(
+                                f"Index {index} out of range for list {selected} of length {len(selected)}"
+                            )
                     else:
-                        path = path.setdefault(key, {})
-                path[keys[-1]] = value
+                        selected = selected.setdefault(key, OmegaConf.create())
+                selected[keys[-1]] = value
+
+        resolved_config = OmegaConf.to_container(oc_config, resolve=True)
 
         # Validate the configuration
-        config = cls(**config)
+        config = cls.model_validate(resolved_config)
 
         # Set environment variables found in the configuration
         # as soon as possible
@@ -115,20 +130,3 @@ class Configuration(BaseModel):
             os.environ[key] = str(value)
 
         return config
-
-    @classmethod
-    def _merge_configs(cls, a: Dict[Any, Any], b: Dict[Any, Any]) -> None:
-        """Merge two configurations.
-
-        Parameters
-        ----------
-        a : Dict[Any, Any]
-            The first configuration.
-        b : Dict[Any, Any]
-            The second configuration.
-        """
-        for key, value in b.items():
-            if key in a and isinstance(a[key], dict) and isinstance(value, dict):
-                cls._merge_configs(a[key], value)
-            else:
-                a[key] = value

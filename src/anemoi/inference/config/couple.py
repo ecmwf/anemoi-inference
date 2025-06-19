@@ -18,7 +18,6 @@ from typing import Optional
 from typing import Tuple
 
 from anemoi.inference.config import Configuration
-from anemoi.inference.types import Date
 
 LOG = logging.getLogger(__name__)
 
@@ -27,9 +26,6 @@ class CoupleConfiguration(Configuration):
     """Configuration class for the couple runner."""
 
     description: Optional[str] = None
-
-    date: Optional[Date] = None
-    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
     lead_time: Optional[Tuple[str, int, datetime.timedelta]] = None
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.

@@ -151,8 +151,6 @@ class CDSInput(GribInput):
             date = to_datetime(-1)
             LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
 
-        date = to_datetime(date)
-
         return self._create_input_state(
             self.retrieve(
                 self.variables,
