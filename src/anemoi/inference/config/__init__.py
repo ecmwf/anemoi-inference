@@ -77,17 +77,37 @@ class Configuration(BaseModel):
         else:
             configs.append(OmegaConf.load(path))
 
-        # Apply overrides
         if not isinstance(overrides, list):
             overrides = [overrides]
 
+        oc_config = OmegaConf.merge(*configs)
+
         for override in overrides:
             if isinstance(override, dict):
-                configs.append(OmegaConf.create(override))
+                oc_config = OmegaConf.merge(oc_config, OmegaConf.create(override))
             else:
-                configs.append(OmegaConf.from_dotlist([override]))
+                selected = oc_config
+                key, value = override.split("=")
+                keys = key.split(".")
+                for key in keys[:-1]:
+                    if key.isdigit() and isinstance(selected, ListConfig):
+                        index = int(key)
+                        if index < len(selected):
+                            LOG.debug(f"key {key} is used as list index in list{selected}")
+                            selected = selected[index]
+                        elif index == len(selected):
+                            LOG.debug(f"key {key} is used to append to list {selected}")
+                            selected.append(OmegaConf.create())
+                            selected = selected[index]
+                        else:
+                            raise IndexError(
+                                f"Index {index} out of range for list {selected} of length {len(selected)}"
+                            )
+                    else:
+                        selected = selected.setdefault(key, OmegaConf.create())
+                selected[keys[-1]] = value
 
-        resolved_config = OmegaConf.to_container(OmegaConf.merge(*configs), resolve=True)
+        resolved_config = OmegaConf.to_container(oc_config, resolve=True)
 
         # Validate the configuration
         config = cls.model_validate(resolved_config)
