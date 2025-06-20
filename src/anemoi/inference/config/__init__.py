@@ -39,7 +39,7 @@ class Configuration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     date: Union[datetime, None] = None
-    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
+    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`earthkit.data.utils.dates`."""
 
     @field_validator("date", mode="before")
     @classmethod
