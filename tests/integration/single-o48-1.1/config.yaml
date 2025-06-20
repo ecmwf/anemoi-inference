@@ -1,0 +1,7 @@
+post_processors:
+    - accumulate_from_start_of_forecast
+checkpoint: "{CHECKPOINT}"
+input:
+    grib: "{TMP_DIR}/input.grib"
+output:
+    grib: "{TMP_DIR}/output.grib"
