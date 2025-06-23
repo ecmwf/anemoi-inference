@@ -53,13 +53,34 @@ def test_config_dotlist_override_append() -> None:
 def test_config_dotlist_override_append_end() -> None:
     """Test overriding with an additional parameter"""
     config = RunConfiguration.load(
-        files_for_tests("unit/configs/mwd.yaml"),
+        files_for_tests("unit/configs/simple.yaml"),
         overrides=[
-            "post_processors.1=test",
+            "pre_processors=[]",
+            "pre_processors.0=test",
         ],
     )
-    assert config.post_processors is not None and len(config.post_processors) == 2
-    assert config.post_processors[1] == "test"
+    assert isinstance(config.pre_processors, list) and len(config.pre_processors) == 1
+    assert config.pre_processors[0] == "test"
+
+
+def test_config_dotlist_override_add_new_non_empty_dict() -> None:
+    """Test overriding with an additional parameter"""
+    config = RunConfiguration.load(
+        files_for_tests("unit/configs/simple.yaml"),
+        overrides=["input={grib: test}"],
+    )
+    assert isinstance(config.input, dict) and "grib" in config.input
+    assert config.input["grib"] == "test"
+
+
+def test_config_dotlist_override_add_new_non_empty_list() -> None:
+    """Test overriding with an additional parameter"""
+    config = RunConfiguration.load(
+        files_for_tests("unit/configs/simple.yaml"),
+        overrides=["pre_processors=[test]"],
+    )
+    assert isinstance(config.pre_processors, list) and len(config.pre_processors) == 1
+    assert config.pre_processors[0] == "test"
 
 
 def test_config_dotlist_override_index_error() -> None:

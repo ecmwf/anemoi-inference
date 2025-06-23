@@ -101,8 +101,13 @@ class Configuration(BaseModel):
             else:
                 # use from_dotlist to use OmegaConf split
                 # which allows for "param.val" or "param[val]".
-                reconstructed = OmegaConf.from_dotlist([override])
-                oc_config = OmegaConf.unsafe_merge(_merge_dicts(oc_config, reconstructed))
+                override_conf = OmegaConf.from_dotlist([override])
+                # We can't directly merge reconstructed with the config because
+                # omegaconf prefers parsing digits (like 0 in key.0) into dict keys
+                # rather than lists.
+                # Instead, we provide a reference config and we try to merge the override
+                # into the reference and keep types provided by the reference.
+                oc_config = OmegaConf.unsafe_merge(_merge_dicts(oc_config, override_conf))
 
         resolved_config = OmegaConf.to_container(oc_config, resolve=True)
 
@@ -116,14 +121,14 @@ class Configuration(BaseModel):
         return config
 
 
-def _merge_dicts(ref: Any, new: Any) -> Any:
-    """Recursively merge a new OmegaConf object into a reference OmegaConf object
+def _merge_dicts(ref_conf: Any, new_conf: Any) -> Any:
+    """Recursively merges a new OmegaConf object into a reference OmegaConf object
 
     Parameters
     ----------
-    ref : Any
+    ref_conf : Any
         reference OmegaConf object. Should be a DictConfig or ListConfig.
-    new : Any
+    new_conf : Any
         new OmegaConf object.
 
     Returns
@@ -131,29 +136,31 @@ def _merge_dicts(ref: Any, new: Any) -> Any:
     Any
         The merged OmegaConf config
     """
-    if isinstance(new, DictConfig):
-        key, rest = next(iter(new.items()))
+    if isinstance(new_conf, DictConfig) and len(new_conf):
+        key, rest = next(iter(new_conf.items()))
         key = str(key)
-    elif isinstance(new, ListConfig):
-        key, rest = 0, new[0]
+    elif isinstance(new_conf, ListConfig) and len(new_conf):
+        key, rest = 0, new_conf[0]
     else:
-        return new
-    if isinstance(ref, ListConfig):
+        return new_conf
+    if isinstance(ref_conf, ListConfig):
         if isinstance(key, str) and not key.isdigit():
             raise ValueError(f"Expected int key, got {key}")
         index = int(key)
-        if index < len(ref):
-            LOG.debug(f"key {key} is used as list key in list{ref}")
-            ref[index] = _merge_dicts(ref[index], rest)
-        elif index == len(ref):
-            LOG.debug(f"key {key} is used to append to list {ref}")
-            ref.append(rest)
+        if index < len(ref_conf):
+            LOG.debug(f"key {key} is used as list key in list{ref_conf}")
+            ref_conf[index] = _merge_dicts(ref_conf[index], rest)
+        elif index == len(ref_conf):
+            LOG.debug(f"key {key} is used to append to list {ref_conf}")
+            ref_conf.append(rest)
         else:
-            raise IndexError(f"key {key} out of range for list {ref} of length {len(ref)}")
-        return ref
-    elif isinstance(ref, DictConfig):
-        ref[key] = ref.setdefault(key, OmegaConf.create())
-        ref[key] = _merge_dicts(ref[key], rest)
-        return ref
+            raise IndexError(f"key {key} out of range for list {ref_conf} of length {len(ref_conf)}")
+        return ref_conf
+    elif isinstance(ref_conf, DictConfig) and key in ref_conf:
+        ref_conf[key] = _merge_dicts(ref_conf[key], rest)
+        return ref_conf
+    elif isinstance(ref_conf, DictConfig):
+        ref_conf[key] = rest
+        return ref_conf
     else:
-        raise ValueError(f"ref is of unexpected type {type(ref)}. Should be ListConfig or DictConfig")
+        raise ValueError(f"ref is of unexpected type {type(ref_conf)}. Should be ListConfig or DictConfig")
