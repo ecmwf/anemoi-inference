@@ -26,7 +26,10 @@ You can also override values by providing them on the command line:
 .. literalinclude:: code/level3_2.sh
    :language: bash
 
-Overrides are parsed as an `OmegaConf <https://omegaconf.readthedocs.io/en/2.2_branch/usage.html#from-a-dot-list>`_ dotlist, so list items can be accessed with ``list.index`` or ``list[index]``. 
+Overrides are parsed as an `OmegaConf
+<https://omegaconf.readthedocs.io/en/2.2_branch/usage.html#from-a-dot-list>`_
+dotlist, so list items can be accessed with ``list.index`` or
+``list[index]``.
 
 You can also run entirely from the command line without a config file,
 by passing all required options as an override:
@@ -41,9 +44,9 @@ that was used to train the model, by setting ``dataset`` entry to
 .. literalinclude:: code/level3_2.yaml
    :language: yaml
 
-Below is an example of how to override list entries and append to lists on the
-command line by using the dotlist notation. Running inference with
-following command:
+Below is an example of how to override list entries and append to lists
+on the command line by using the dotlist notation. Running inference
+with following command:
 
 .. literalinclude:: code/level3_4.sh
    :language: bash
