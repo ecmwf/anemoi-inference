@@ -92,36 +92,20 @@ class Configuration(BaseModel):
         if not isinstance(overrides, list):
             overrides = [overrides]
 
-        oc_config = OmegaConf.merge(*configs)
+        # unsafe merge should be fine as we don't re-use the original configs
+        oc_config = OmegaConf.unsafe_merge(*configs)
 
         for override in overrides:
             if isinstance(override, dict):
-                oc_config = OmegaConf.merge(oc_config, OmegaConf.create(override))
+                oc_config = OmegaConf.unsafe_merge(oc_config, OmegaConf.create(override))
             else:
-                selected = oc_config
-                key, value = override.split("=")
-                keys = key.split(".")
-                for key in keys[:-1]:
-                    if key.isdigit() and isinstance(selected, ListConfig):
-                        index = int(key)
-                        if index < len(selected):
-                            LOG.debug(f"key {key} is used as list index in list{selected}")
-                            selected = selected[index]
-                        elif index == len(selected):
-                            LOG.debug(f"key {key} is used to append to list {selected}")
-                            selected.append(OmegaConf.create())
-                            selected = selected[index]
-                        else:
-                            raise IndexError(
-                                f"Index {index} out of range for list {selected} of length {len(selected)}"
-                            )
-                    else:
-                        selected = selected.setdefault(key, OmegaConf.create())
-                selected[keys[-1]] = value
+                # use from_dotlist to use OmegaConf split
+                # which allows for "param.val" or "param[val]".
+                reconstructed = OmegaConf.from_dotlist([override])
+                oc_config = OmegaConf.unsafe_merge(_merge_dicts(oc_config, reconstructed))
 
         resolved_config = OmegaConf.to_container(oc_config, resolve=True)
 
-        # Validate the configuration
         config = cls.model_validate(resolved_config)
 
         # Set environment variables found in the configuration
@@ -130,3 +114,46 @@ class Configuration(BaseModel):
             os.environ[key] = str(value)
 
         return config
+
+
+def _merge_dicts(ref: Any, new: Any) -> Any:
+    """Recursively merge a new OmegaConf object into a reference OmegaConf object
+
+    Parameters
+    ----------
+    ref : Any
+        reference OmegaConf object. Should be a DictConfig or ListConfig.
+    new : Any
+        new OmegaConf object.
+
+    Returns
+    -------
+    Any
+        The merged OmegaConf config
+    """
+    if isinstance(new, DictConfig):
+        key, rest = next(iter(new.items()))
+        key = str(key)
+    elif isinstance(new, ListConfig):
+        key, rest = 0, new[0]
+    else:
+        return new
+    if isinstance(ref, ListConfig):
+        if isinstance(key, str) and not key.isdigit():
+            raise ValueError(f"Expected int key, got {key}")
+        index = int(key)
+        if index < len(ref):
+            LOG.debug(f"key {key} is used as list key in list{ref}")
+            ref[index] = _merge_dicts(ref[index], rest)
+        elif index == len(ref):
+            LOG.debug(f"key {key} is used to append to list {ref}")
+            ref.append(rest)
+        else:
+            raise IndexError(f"key {key} out of range for list {ref} of length {len(ref)}")
+        return ref
+    elif isinstance(ref, DictConfig):
+        ref[key] = ref.setdefault(key, OmegaConf.create())
+        ref[key] = _merge_dicts(ref[key], rest)
+        return ref
+    else:
+        raise ValueError(f"ref is of unexpected type {type(ref)}. Should be ListConfig or DictConfig")

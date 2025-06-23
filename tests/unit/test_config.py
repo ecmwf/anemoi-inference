@@ -50,6 +50,18 @@ def test_config_dotlist_override_append() -> None:
     assert config.post_processors[1]["backward_transform_filter"] == "test"
 
 
+def test_config_dotlist_override_append_end() -> None:
+    """Test overriding with an additional parameter"""
+    config = RunConfiguration.load(
+        files_for_tests("unit/configs/mwd.yaml"),
+        overrides=[
+            "post_processors.1=test",
+        ],
+    )
+    assert config.post_processors is not None and len(config.post_processors) == 2
+    assert config.post_processors[1] == "test"
+
+
 def test_config_dotlist_override_index_error() -> None:
     """Test failing with index error in dotlist argument"""
     with pytest.raises(IndexError):
