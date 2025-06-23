@@ -107,7 +107,7 @@ class Configuration(BaseModel):
                 # rather than lists.
                 # Instead, we provide a reference config and we try to merge the override
                 # into the reference and keep types provided by the reference.
-                oc_config = OmegaConf.unsafe_merge(_merge_dicts(oc_config, override_conf))
+                oc_config = OmegaConf.unsafe_merge(_merge_configs(oc_config, override_conf))
 
         resolved_config = OmegaConf.to_container(oc_config, resolve=True)
 
@@ -121,7 +121,7 @@ class Configuration(BaseModel):
         return config
 
 
-def _merge_dicts(ref_conf: Any, new_conf: Any) -> Any:
+def _merge_configs(ref_conf: Any, new_conf: Any) -> Any:
     """Recursively merges a new OmegaConf object into a reference OmegaConf object
 
     Parameters
@@ -149,7 +149,7 @@ def _merge_dicts(ref_conf: Any, new_conf: Any) -> Any:
         index = int(key)
         if index < len(ref_conf):
             LOG.debug(f"key {key} is used as list key in list{ref_conf}")
-            ref_conf[index] = _merge_dicts(ref_conf[index], rest)
+            ref_conf[index] = _merge_configs(ref_conf[index], rest)
         elif index == len(ref_conf):
             LOG.debug(f"key {key} is used to append to list {ref_conf}")
             ref_conf.append(rest)
@@ -157,7 +157,7 @@ def _merge_dicts(ref_conf: Any, new_conf: Any) -> Any:
             raise IndexError(f"key {key} out of range for list {ref_conf} of length {len(ref_conf)}")
         return ref_conf
     elif isinstance(ref_conf, DictConfig) and key in ref_conf:
-        ref_conf[key] = _merge_dicts(ref_conf[key], rest)
+        ref_conf[key] = _merge_configs(ref_conf[key], rest)
         return ref_conf
     elif isinstance(ref_conf, DictConfig):
         ref_conf[key] = rest
