@@ -10,7 +10,7 @@ the :ref:`anemoi-inference run <run_command>` command line tool.
 The configuration file is a YAML file that specifies various options. It
 is extended by `OmegaConf <https://github.com/omry/omegaconf>`_ such
 that `interpolations
-<https://omegaconf.readthedocs.io/en/2.1_branch/usage.html#variable-interpolation>`_
+<https://omegaconf.readthedocs.io/en/2.2_branch/usage.html#variable-interpolation>`_
 can be used. It is composed of :ref:`top level <top-level>` options
 which are usually simple values such as strings, number or booleans. The
 configuration also provide ways to specify which internal classes to use
