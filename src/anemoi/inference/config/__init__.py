@@ -121,9 +121,7 @@ class Configuration(BaseModel):
         return config
 
 
-def _merge_configs(
-    ref_conf: Union[DictConfig, ListConfig], new_conf: Union[DictConfig, ListConfig]
-) -> Union[DictConfig, ListConfig]:
+def _merge_configs(ref_conf: Any, new_conf: Any) -> Any:
     """Recursively merges a new OmegaConf object into a reference OmegaConf object
 
     Parameters
