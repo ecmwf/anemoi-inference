@@ -9,7 +9,6 @@
 
 import datetime
 import logging
-from typing import Any
 from typing import Generator
 from typing import List
 from typing import Tuple
@@ -18,11 +17,9 @@ import numpy as np
 import torch
 import torch.nn.functional
 from anemoi.models.models import AnemoiModelEncProcDecInterpolator
-from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
-from pydantic import BaseModel
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
@@ -37,12 +34,14 @@ from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
+
 def checkpoint_lagged_interpolator_patch(self) -> List[datetime.timedelta]:
     """Return the list of steps for the `multi_step_input` fields (interpolator version)."""
     result = list(range(0, self._metadata.multi_step_input))
     # For interpolator, we always want positive timedeltas
     result = [s * self._metadata.timestep for s in result]
     return sorted(result)
+
 
 @runner_registry.register("time_interpolator")
 class TimeInterpolatorRunner(DefaultRunner):
@@ -99,32 +98,30 @@ class TimeInterpolatorRunner(DefaultRunner):
             f"{len(self.checkpoint.target_explicit_times)} for timestep {self.checkpoint.timestep} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
-    
+
     @classmethod
     def create_config(cls, config: str | dict) -> Configuration:
         """Instantiate the Configuration Object from a dictionary or from a path to a config file"""
         config = RunConfiguration.load(config)
         return config
-    
+
     def patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
         # By default, it assumes forecastor behaviour of retreving n previous steps of data,
         # but we require it to be a list of positive timedeltas from the current date
         # Clear any existing cached value
-        if 'lagged' in self.checkpoint.__dict__:
-            del self.checkpoint.__dict__['lagged']
-        
+        if "lagged" in self.checkpoint.__dict__:
+            del self.checkpoint.__dict__["lagged"]
+
         # Monkey patch: replace the property with a simple property that uses our function
-        import types
-        
+
         def get_lagged(instance):
-            if 'lagged' not in instance.__dict__:
-                instance.__dict__['lagged'] = checkpoint_lagged_interpolator_patch(instance)
-            return instance.__dict__['lagged']
-        
+            if "lagged" not in instance.__dict__:
+                instance.__dict__["lagged"] = checkpoint_lagged_interpolator_patch(instance)
+            return instance.__dict__["lagged"]
+
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
-        
 
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
@@ -180,7 +177,7 @@ class TimeInterpolatorRunner(DefaultRunner):
                 # Apply post-processing
                 for processor in post_processors:
                     state = processor.process(state)
-                
+
                 output.write_state(state)
 
         output.close()
@@ -350,7 +347,9 @@ class TimeInterpolatorRunner(DefaultRunner):
             initial_result["step"] = to_timedelta(0)
             initial_result["interpolated"] = False
             # Extract fields from the first time step of input tensor
-            input_numpy = input_tensor_torch[0, boundary_times[0]].cpu().numpy()  # # Select the initial boundary state (t) - First time step
+            input_numpy = (
+                input_tensor_torch[0, boundary_times[0]].cpu().numpy()
+            )  # # Select the initial boundary state (t) - First time step
             for i in range(input_numpy.shape[-1]):
                 var_name = None
                 for var, idx in variable_to_input_tensor_index.items():
