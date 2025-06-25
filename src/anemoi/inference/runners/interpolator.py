@@ -37,6 +37,12 @@ from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
+def checkpoint_lagged_interpolator_patch(self) -> List[datetime.timedelta]:
+    """Return the list of steps for the `multi_step_input` fields (interpolator version)."""
+    result = list(range(0, self._metadata.multi_step_input))
+    # For interpolator, we always want positive timedeltas
+    result = [s * self._metadata.timestep for s in result]
+    return sorted(result)
 
 @runner_registry.register("time_interpolator")
 class TimeInterpolatorRunner(DefaultRunner):
@@ -68,6 +74,9 @@ class TimeInterpolatorRunner(DefaultRunner):
         config = DotDict(config.model_dump())
 
         super().__init__(config)
+
+        self.patch_checkpoint_lagged_property()
+
         assert (
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
@@ -92,6 +101,26 @@ class TimeInterpolatorRunner(DefaultRunner):
             f"{len(self.checkpoint.target_explicit_times)} for timestep {self.checkpoint.timestep} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
+    
+    def patch_checkpoint_lagged_property(self):
+        # Patching the self._checkpoint lagged property
+        # By default, it assumes forecastor behaviour of retreving n previous steps of data,
+        # but we require it to be a list of positive timedeltas from the current date
+        # Clear any existing cached value
+        if 'lagged' in self.checkpoint.__dict__:
+            del self.checkpoint.__dict__['lagged']
+        
+        # Monkey patch: replace the property with a simple property that uses our function
+        import types
+        
+        def get_lagged(instance):
+            if 'lagged' not in instance.__dict__:
+                instance.__dict__['lagged'] = checkpoint_lagged_interpolator_patch(instance)
+            return instance.__dict__['lagged']
+        
+        # Replace the lagged property on this specific instance
+        self.checkpoint.__class__.lagged = property(get_lagged)
+        
 
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
