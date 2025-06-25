@@ -180,12 +180,8 @@ class TimeInterpolatorRunner(DefaultRunner):
                 # Apply post-processing
                 for processor in post_processors:
                     state = processor.process(state)
-
-                if window_idx == 0 and state_idx == 0:
-                    output.open(state)
-                    output.write_initial_state(state)
-                else:
-                    output.write_state(state)
+                
+                output.write_state(state)
 
         output.close()
 
@@ -347,23 +343,23 @@ class TimeInterpolatorRunner(DefaultRunner):
         # First yield the boundary states (t and t+window_size)
         boundary_times = self.checkpoint.input_explicit_times
 
-        # Yield initial boundary state (t)
-        initial_result = result.copy()
-        initial_result["date"] = start
-        initial_result["step"] = to_timedelta(0)
-        initial_result["interpolated"] = False
-        # Extract fields from the first time step of input tensor
-        input_numpy = input_tensor_torch[0, 0].cpu().numpy()  # First time step
-        for i in range(input_numpy.shape[-1]):
-            var_name = None
-            for var, idx in variable_to_input_tensor_index.items():
-                if idx == i:
-                    var_name = var
-                    break
-            if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
-                initial_result["fields"][var_name] = input_numpy[:, i]
-
         if self.write_initial_state:  # Always True
+            # Yield initial boundary state (t)
+            initial_result = result.copy()
+            initial_result["date"] = start
+            initial_result["step"] = to_timedelta(0)
+            initial_result["interpolated"] = False
+            # Extract fields from the first time step of input tensor
+            input_numpy = input_tensor_torch[0, boundary_times[0]].cpu().numpy()  # # Select the initial boundary state (t) - First time step
+            for i in range(input_numpy.shape[-1]):
+                var_name = None
+                for var, idx in variable_to_input_tensor_index.items():
+                    if idx == i:
+                        var_name = var
+                        break
+                if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
+                    initial_result["fields"][var_name] = input_numpy[:, i]
+
             yield initial_result
 
         # Now interpolate between the boundaries
