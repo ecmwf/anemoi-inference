@@ -50,7 +50,7 @@ class TimeInterpolatorRunner(DefaultRunner):
     without being coupled to a forecasting model.
     """
 
-    def __init__(self, config: Configuration | dict | str | BaseModel | None = None, **kwargs: Any) -> None:
+    def __init__(self, config: Configuration) -> None:
         """Initialize the TimeInterpolatorRunner
         The runner makes the following assumptions:
             - The model was trained with two input states: (t and t+timestep)
@@ -64,14 +64,12 @@ class TimeInterpolatorRunner(DefaultRunner):
         **kwargs : dict
             Keyword arguments to initialize a config for the runner.
         """
-        assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
-        config = config or kwargs
+        # assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
+        # config = config or kwargs
 
-        # Remove that when the Pydantic model is ready
-        if not isinstance(config, BaseModel):
-            config = RunConfiguration.load(config)
-
-        config = DotDict(config.model_dump())
+        # # Remove that when the Pydantic model is ready
+        # if not isinstance(config, BaseModel):
+        #     config = RunConfiguration.load(config)
 
         super().__init__(config)
 
@@ -101,6 +99,12 @@ class TimeInterpolatorRunner(DefaultRunner):
             f"{len(self.checkpoint.target_explicit_times)} for timestep {self.checkpoint.timestep} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
+    
+    @classmethod
+    def create_config(cls, config: str | dict) -> Configuration:
+        """Instantiate the Configuration Object from a dictionary or from a path to a config file"""
+        config = RunConfiguration.load(config)
+        return config
     
     def patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
