@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
+from omegaconf import OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
@@ -30,79 +31,86 @@ MODELS = [
     if path.is_dir() and (path / "metadata.json").exists() and (path / "config.yaml").exists()
 ]
 
-
-def create_config_and_checkpoint(tmp_dir: Path, model: str) -> Path:
-    """Create a fake configuration file and a checkpoint for testing."""
-
-    metadata_path = INTEGRATION_ROOT / model / "metadata.json"
-    config_path = INTEGRATION_ROOT / model / "config.yaml"
-    resolved_config_path = tmp_dir / "integration_test.yaml"
-
-    checkpoint_path = tmp_dir / Path("checkpoint.ckpt")
-    save_fake_checkpoint(metadata_path, checkpoint_path)
-
-    with open(config_path, "r") as f:
-        config = f.read()
-
-    config = config.format(CHECKPOINT=checkpoint_path, TMP_DIR=tmp_dir)
-    LOG.info(f"Resolved config:\n{config}\n")
-
-    with open(resolved_config_path, "w") as f:
-        f.write(config)
-
-    return resolved_config_path
+# each model can have more than one test configuration, defined as a listconfig in config.yaml
+# the integration test is parameterised over the models and their test configurations
+MODEL_CONFIGS = [
+    (model, config) for model in MODELS for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
+]
 
 
 class Setup(NamedTuple):
-    config_path: Path
-    tmp_dir: Path
+    config: OmegaConf
+    output: Path
 
 
-@pytest.fixture(params=MODELS)
-def test_setup(request, get_test_data: callable) -> Setup:
-    model = request.param
-    grib_path = get_test_data(f"anemoi-integration-tests/inference/{model}/input.grib")
-    tmp_dir = Path(grib_path).parent
-    config_path = create_config_and_checkpoint(tmp_dir, model)
-    return Setup(config_path=config_path, tmp_dir=tmp_dir)
+@pytest.fixture(params=MODEL_CONFIGS, ids=[f"{model}/{config.name}" for model, config in MODEL_CONFIGS])
+def test_setup(request, get_test_data: callable, tmp_path: Path) -> Setup:
+    model, config = request.param
+    input = config.input
+    output = config.output
+    inference_config = config.inference_config
+
+    # download input file
+    input_data = get_test_data(f"anemoi-integration-tests/inference/{model}/{input}")
+
+    # prepare checkpoint
+    metadata_path = INTEGRATION_ROOT / model / "metadata.json"
+    checkpoint_path = tmp_path / Path("checkpoint.ckpt")
+    save_fake_checkpoint(metadata_path, checkpoint_path)
+
+    # to substitute inference config with real paths
+    OmegaConf.register_new_resolver("input", lambda: str(input_data), replace=True)
+    OmegaConf.register_new_resolver("output", lambda: str(tmp_path / output), replace=True)
+    OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
+
+    # save the inference config to disk
+    inference_config = OmegaConf.to_yaml(inference_config, resolve=True)
+    LOG.info(f"Resolved config:\n{inference_config}")
+
+    with open(tmp_path / "integration_test.yaml", "w") as f:
+        f.write(inference_config)
+
+    return Setup(config=config, output=tmp_path / output)
 
 
-def test_inference_on_checkpoint(test_setup: Setup) -> None:
+def test_integration(test_setup: Setup, tmp_path) -> None:
     """Test the inference process using a fake checkpoint."""
     overrides = {"lead_time": "48h", "device": "cpu", "trace_path": "trace.log"}
     LOG.info(f"Config overrides: {overrides}")
 
     config = RunConfiguration.load(
-        test_setup.config_path,
+        tmp_path / "integration_test.yaml",
         overrides=overrides,
     )
     runner = create_runner(config)
     runner.execute()
 
-    assert (test_setup.tmp_dir / "output.grib").exists(), "Output GRIB file was not created."
+    assert (test_setup.output).exists(), "Output file was not created."
 
-    expected_params = [param.split("_")[0] for param in runner._checkpoint.output_tensor_index_to_variable.values()]
-    check_grib(
-        test_setup.tmp_dir / "output.grib",
-        grib_keys={
-            "stream": "oper",
-            "class": "ai",
-            "type": "fc",
-        },
-        expected_params=expected_params,
-        check_accum="tp",
-    )
+    # run the checks defined in the test configuration
+    expected_params = runner._checkpoint.output_tensor_index_to_variable.values()
+
+    for checks in test_setup.config.checks:
+        for check, kwargs in checks.items():
+            globals()[check](file=test_setup.output, expected_params=expected_params, **kwargs)
 
 
-def check_grib(file: Path, expected_params: list, grib_keys: dict, check_accum: str = None, check_nans=True) -> None:
+def check_grib(
+    file: Path, expected_params: list, grib_keys: dict, check_accum: str = None, check_nans=False, **kwargs
+) -> None:
     import earthkit.data as ekd
     import numpy as np
 
     ds = ekd.from_source("file", str(file))
 
+    assert len(ds) > 0, "No fields found in the GRIB file."
+
+    expected_params = [param.split("_")[0] for param in expected_params]
+
     params = set(ds.metadata("param"))
-    expected_params = set(expected_params)
-    assert expected_params == params, f"Expected parameters {expected_params} do not match found parameters {params}."
+    assert (
+        set(expected_params) == params
+    ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
 
     for field in ds:
         for key, value in grib_keys.items():
@@ -128,5 +136,41 @@ def check_grib(file: Path, expected_params: list, grib_keys: dict, check_accum: 
         return
 
     fields = list(ds.sel(param=check_accum))
+    if len(fields) < 2:
+        raise ValueError(f"No fields found for accumulation check: {check_accum}")
+
     averages = [np.average(field.values) for field in fields]
+    assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
+
+
+def check_netcdf(file: Path, expected_params: list, check_accum: str = None, check_nans=False, **kwargs) -> None:
+    import numpy as np
+    import xarray as xr
+
+    ds = xr.open_dataset(file)
+
+    assert len(ds.data_vars) > 0, "No data found in the NetCDF file."
+
+    skip = {"latitude", "longitude"}
+    params = set(ds.data_vars) - skip
+    assert (
+        set(expected_params) == params
+    ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
+
+    for var in ds.data_vars:
+        if var in skip:
+            continue
+        assert np.all(ds[var].values > 0), f"Variable {var} is zero."
+
+        if check_nans:
+            assert not np.isnan(ds[var].values).any(), f"Variable {var} contains NaN values."
+
+    if not check_accum:
+        return
+
+    data_vars = list(ds.data_vars[check_accum])
+    if len(data_vars) < 2:
+        raise ValueError(f"No variables found for accumulation check: {check_accum}")
+
+    averages = [np.average(data.values) for data in data_vars]
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"

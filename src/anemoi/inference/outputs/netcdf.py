@@ -193,7 +193,7 @@ class NetCDFOutput(Output):
 
         for name, value in state["fields"].items():
             with LOCK:
-                LOG.info(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
                 self.vars[name][self.n] = value
 
         self.n += 1
