@@ -51,6 +51,7 @@ dependencies = [
   "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
   "numpy",
+  "omegaconf>=2.2,<2.4",
   "packaging",
   "pydantic",
   "pyyaml",
@@ -58,7 +59,7 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [ "anemoi-inference[huggingface]", "anemoi-utils[all]>=0.4.26" ]
+optional-dependencies.all = [ "anemoi-datasets", "anemoi-inference[huggingface]", "anemoi-utils[all]>=0.4.26" ]
 
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 

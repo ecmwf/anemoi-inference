@@ -1,0 +1,8 @@
+runner:
+  external_graph:
+    graph: path/to/graph.pt
+    update_supporting_arrays:
+      graph: # Get data from the graph
+        'global/cutout_mask': 'cutout_mask'  # Change `global/cutout_mask` in the arrays to `cutout_mask`
+      file:
+        'global/cutout_mask': 'cutout_mask.npy'  # Change `global/cutout_mask` in the arrays to `cutout_mask.npy`
