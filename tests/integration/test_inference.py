@@ -81,6 +81,7 @@ def test_inference_on_checkpoint(test_setup: Setup) -> None:
 
     assert (test_setup.tmp_dir / "output.grib").exists(), "Output GRIB file was not created."
 
+    expected_params = [param.split("_")[0] for param in runner._checkpoint.output_tensor_index_to_variable.values()]
     check_grib(
         test_setup.tmp_dir / "output.grib",
         grib_keys={
@@ -88,41 +89,7 @@ def test_inference_on_checkpoint(test_setup: Setup) -> None:
             "class": "ai",
             "type": "fc",
         },
-        expected_params=[
-            "lsm",
-            "mcc",
-            "hcc",
-            "ssrd",
-            "100v",
-            "10v",
-            "100u",
-            "swvl2",
-            "w",
-            "strd",
-            "sdor",
-            "tp",
-            "t",
-            "2t",
-            "stl2",
-            "stl1",
-            "sp",
-            "sf",
-            "10u",
-            "v",
-            "skt",
-            "2d",
-            "slor",
-            "u",
-            "z",
-            "tcc",
-            "ro",
-            "cp",
-            "tcw",
-            "q",
-            "msl",
-            "lcc",
-            "swvl1",
-        ],
+        expected_params=expected_params,
         check_accum="tp",
     )
 
@@ -134,9 +101,8 @@ def check_grib(file: Path, expected_params: list, grib_keys: dict, check_accum: 
     ds = ekd.from_source("file", str(file))
 
     params = set(ds.metadata("param"))
-    assert params == set(
-        expected_params
-    ), f"Expected parameters {expected_params} do not match found parameters {params}."
+    expected_params = set(expected_params)
+    assert expected_params == params, f"Expected parameters {expected_params} do not match found parameters {params}."
 
     for field in ds:
         for key, value in grib_keys.items():
@@ -144,6 +110,8 @@ def check_grib(file: Path, expected_params: list, grib_keys: dict, check_accum: 
 
     previous_field = None
     for field in ds.sel(param=expected_params[1]):
+        assert np.all(field.values > 0), f"Field {field} is zero."
+
         if check_nans:
             assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
 
