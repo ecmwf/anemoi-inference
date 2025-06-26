@@ -80,3 +80,85 @@ def test_inference_on_checkpoint(test_setup: Setup) -> None:
     runner.execute()
 
     assert (test_setup.tmp_dir / "output.grib").exists(), "Output GRIB file was not created."
+
+    check_grib(
+        test_setup.tmp_dir / "output.grib",
+        grib_keys={
+            "stream": "oper",
+            "class": "ai",
+            "type": "fc",
+        },
+        expected_params=[
+            "lsm",
+            "mcc",
+            "hcc",
+            "ssrd",
+            "100v",
+            "10v",
+            "100u",
+            "swvl2",
+            "w",
+            "strd",
+            "sdor",
+            "tp",
+            "t",
+            "2t",
+            "stl2",
+            "stl1",
+            "sp",
+            "sf",
+            "10u",
+            "v",
+            "skt",
+            "2d",
+            "slor",
+            "u",
+            "z",
+            "tcc",
+            "ro",
+            "cp",
+            "tcw",
+            "q",
+            "msl",
+            "lcc",
+            "swvl1",
+        ],
+        check_accum="tp",
+    )
+
+
+def check_grib(file: Path, expected_params: list, grib_keys: dict, check_accum: str = None, check_nans=True) -> None:
+    import earthkit.data as ekd
+    import numpy as np
+
+    ds = ekd.from_source("file", str(file))
+
+    params = set(ds.metadata("param"))
+    assert params == set(
+        expected_params
+    ), f"Expected parameters {expected_params} do not match found parameters {params}."
+
+    for field in ds:
+        for key, value in grib_keys.items():
+            assert field[key] == value, f"Key {key} does not match expected value {value}."
+
+    previous_field = None
+    for field in ds.sel(param=expected_params[1]):
+        if check_nans:
+            assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
+
+        if not previous_field:
+            previous_field = field
+            continue
+
+        assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
+            f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
+            f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
+        )
+
+    if not check_accum:
+        return
+
+    fields = list(ds.sel(param=check_accum))
+    averages = [np.average(field.values) for field in fields]
+    assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
