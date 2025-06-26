@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
-from anemoi.utils.testing import get_test_data
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
@@ -60,7 +59,7 @@ class Setup(NamedTuple):
 
 
 @pytest.fixture(params=MODELS)
-def test_setup(request) -> Setup:
+def test_setup(request, get_test_data: callable) -> Setup:
     model = request.param
     grib_path = get_test_data(f"anemoi-integration-tests/inference/{model}/input.grib")
     tmp_dir = Path(grib_path).parent
