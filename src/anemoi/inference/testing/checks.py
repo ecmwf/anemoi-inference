@@ -54,16 +54,14 @@ def check_grib(
             assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
 
     # check time continuity
-    previous_field = None
-    for field in ds.sel(param=expected_params[1]):
-        if not previous_field:
-            previous_field = field
-            continue
-
+    fields = ds.sel(param=expected_params[0])
+    previous_field = fields[0]
+    for field in fields[1:]:
         assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
             f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
             f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
         )
+        previous_field = field
 
     if not check_accum:
         return
