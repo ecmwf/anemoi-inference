@@ -14,6 +14,7 @@ from typing import List
 from typing import Optional
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
@@ -33,6 +34,7 @@ class TeeOutput(ForwardOutput):
         context: Context,
         *args: Any,
         outputs: List[Configuration],
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
         **kwargs: Any,
@@ -47,6 +49,8 @@ class TeeOutput(ForwardOutput):
             Additional positional arguments.
         outputs : list or tuple, optional
             List of outputs to be created.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             Frequency of output.
         write_initial_state : bool, optional
@@ -54,7 +58,12 @@ class TeeOutput(ForwardOutput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, None, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        if post_processors is not None:
+            LOG.warning("TeeOutput does not execute post-processes. Set them to its outputs instead.")
+
+        super().__init__(
+            context, None, None, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
 
         if outputs is None:
             outputs = args

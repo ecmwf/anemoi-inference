@@ -9,9 +9,11 @@
 
 import logging
 from typing import Any
+from typing import List
 from typing import Optional
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
@@ -31,6 +33,8 @@ class MaskedOutput(ForwardOutput):
         The mask.
     output : dict
         The output configuration dictionary.
+    post_processors : Optional[List[ProcessorConfig]], default None
+        Post-processors to apply to the input
     output_frequency : int, optional
         The frequency of output, by default None.
     write_initial_state : bool, optional
@@ -43,10 +47,13 @@ class MaskedOutput(ForwardOutput):
         *,
         mask: Any,
         output: Configuration,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, output, post_processors, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
         self.mask = mask
 
     def modify_state(self, state: State) -> State:

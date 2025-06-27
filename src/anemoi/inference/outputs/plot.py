@@ -16,6 +16,7 @@ from typing import Union
 
 import numpy as np
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -58,6 +59,7 @@ class PlotOutput(Output):
         dpi: int = 300,
         format: str = "png",
         missing_value: Optional[float] = None,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
@@ -81,13 +83,17 @@ class PlotOutput(Output):
             The format of the plot, by default "png".
         missing_value : float, optional
             The value to use for missing data, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, post_processors, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
         self.path = path
         self.format = format
         self.variables = variables
@@ -120,7 +126,6 @@ class PlotOutput(Output):
         triangulation = tri.Triangulation(fix(longitudes), latitudes)
 
         for name, values in state["fields"].items():
-
             if self.variables != "all" and name not in self.variables:
                 continue
 
