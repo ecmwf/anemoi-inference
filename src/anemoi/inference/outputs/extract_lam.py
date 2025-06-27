@@ -14,6 +14,7 @@ from typing import Optional
 import numpy as np
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 
 from . import output_registry
@@ -33,6 +34,7 @@ class ExtractLamOutput(MaskedOutput):
         output: Configuration,
         lam: str = "lam_0",
         variables: Optional[List[str]] = None,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
@@ -46,6 +48,8 @@ class ExtractLamOutput(MaskedOutput):
             The LAM identifier, by default "lam_0".
         variables : list, optional
             The list of variables to extract, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -73,6 +77,7 @@ class ExtractLamOutput(MaskedOutput):
             mask=points,
             output=output,
             variables=variables,
+            post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )

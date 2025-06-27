@@ -12,6 +12,7 @@ from typing import List
 from typing import Optional
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 
 from . import output_registry
@@ -31,6 +32,7 @@ class ApplyMaskOutput(MaskedOutput):
         mask: str,
         output: Configuration,
         variables: Optional[List[str]] = None,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
@@ -42,6 +44,8 @@ class ApplyMaskOutput(MaskedOutput):
             The mask identifier.
         output : dict
             The output configuration dictionary.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -52,6 +56,7 @@ class ApplyMaskOutput(MaskedOutput):
             mask=context.checkpoint.load_supporting_array(mask),
             output=output,
             variables=variables,
+            post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )

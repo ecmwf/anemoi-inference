@@ -20,6 +20,7 @@ from typing import Union
 import earthkit.data as ekd
 import numpy as np
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
@@ -113,6 +114,7 @@ class GribFileOutput(GribOutput):
     def __init__(
         self,
         context: Context,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         *,
         path: str,
         encoding: Optional[Dict[str, Any]] = None,
@@ -133,6 +135,8 @@ class GribFileOutput(GribOutput):
         ----------
         context : Context
             The context.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         path : str
             The path to save the grib files.
         encoding : dict, optional
@@ -160,6 +164,7 @@ class GribFileOutput(GribOutput):
         """
         super().__init__(
             context,
+            post_processors,
             encoding=encoding,
             templates=templates,
             grib1_keys=grib1_keys,
@@ -246,7 +251,6 @@ class GribFileOutput(GribOutput):
         handle, path = written
 
         while True:
-
             if self._namespace_bug_fix:
                 import eccodes
                 from earthkit.data.readers.grib.codes import GribCodesHandle
