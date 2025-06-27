@@ -12,7 +12,6 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterable
 from typing import List
 from typing import Optional
 
@@ -37,14 +36,14 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: "Context", pre_processors: Optional[Iterable[ProcessorConfig]] = None):
+    def __init__(self, context: "Context", pre_processors: Optional[List[ProcessorConfig]] = None):
         """Initialize the Input object.
 
         Parameters
         ----------
         context : Context
             The context for the input.
-        pre_processors : Optional[Iterable[ProcessorConfig]], default None
+        pre_processors : Optional[List[ProcessorConfig]], default None
             Pre-processors to apply to the input
         """
         self.context = context
@@ -64,6 +63,24 @@ class Input(ABC):
 
         LOG.info("Pre processors: %s", processors)
         return processors
+
+    def pre_process(self, x: Any) -> Any:
+        """Run pre-processors.
+
+        Parameters
+        ----------
+        x : Any
+            input to pre-process
+
+        Return
+        ------
+        Any
+            Pre-processed input
+        """
+        for processor in self.pre_processors:
+            LOG.info("Processing with %s", processor)
+            x = processor.process(x)
+        return x
 
     def __repr__(self) -> str:
         """Return a string representation of the Input object.
