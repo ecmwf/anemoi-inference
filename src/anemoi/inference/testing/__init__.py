@@ -17,6 +17,9 @@ from typing import Any
 from typing import Callable
 
 from anemoi.utils.checkpoints import save_metadata
+from anemoi.utils.registry import Registry
+
+testing_registry = Registry(__name__)
 
 
 def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:

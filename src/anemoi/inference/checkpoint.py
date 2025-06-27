@@ -32,6 +32,7 @@ from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
 from .metadata import Metadata
+from .metadata import Variable
 
 LOG = logging.getLogger(__name__)
 
@@ -178,9 +179,15 @@ class Checkpoint:
         return self._metadata.model_computed_variables
 
     @property
-    def typed_variables(self) -> Any:
+    def typed_variables(self) -> Dict[str, Variable]:
         """Get the typed variables."""
         return self._metadata.typed_variables
+
+    @property
+    def typed_variables_output(self) -> Dict[str, Variable]:
+        """Get the typed variables for output only."""
+        output_variables = self.output_tensor_index_to_variable.values()
+        return {name: self._metadata.typed_variables[name] for name in output_variables}
 
     @property
     def diagnostic_variables(self) -> Any:
