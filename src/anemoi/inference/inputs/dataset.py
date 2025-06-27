@@ -115,7 +115,9 @@ class DatasetInput(Input):
         fields = input_state["fields"]
 
         date = np.datetime64(date)
-        data = self._load_dates([date + np.timedelta64(h) for h in self.checkpoint.lagged])
+        dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
+
+        data = self._load_dates(dates)
 
         if data.shape[2] != 1:
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")

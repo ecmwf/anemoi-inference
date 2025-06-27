@@ -154,6 +154,16 @@ class Checkpoint:
         return self._metadata.timestep
 
     @property
+    def input_explicit_times(self) -> Any:
+        """Get the input explicit times from metadata."""
+        return self._metadata.input_explicit_times
+
+    @property
+    def target_explicit_times(self) -> Any:
+        """Get the target explicit times."""
+        return self._metadata.target_explicit_times
+
+    @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
@@ -442,6 +452,7 @@ class Checkpoint:
     def lagged(self) -> List[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
+
         result = [-s * self._metadata.timestep for s in result]
         return sorted(result)
 
