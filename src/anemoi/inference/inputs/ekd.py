@@ -14,6 +14,7 @@ from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Union
@@ -24,6 +25,7 @@ from earthkit.data.indexing.fieldlist import FieldArray
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
@@ -105,6 +107,7 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
+        pre_processors: Optional[Iterable[ProcessorConfig]] = None,
         *,
         namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
     ) -> None:
@@ -117,7 +120,7 @@ class EkdInput(Input):
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
-        super().__init__(context)
+        super().__init__(context, pre_processors)
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -229,7 +232,7 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        for processor in self.context.pre_processors:
+        for processor in self.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
 
@@ -406,7 +409,7 @@ class EkdInput(Input):
         State
             The loaded forcings state.
         """
-        for processor in self.context.pre_processors:
+        for processor in self.pre_processors:
             LOG.info("Processing with %s", processor)
             fields = processor.process(fields)
 
