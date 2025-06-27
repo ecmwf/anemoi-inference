@@ -96,7 +96,6 @@ class DefaultRunner(Runner):
         input = self.create_input()
         output = self.create_output()
 
-        # pre_processors = self.pre_processors
         post_processors = self.post_processors
 
         input_state = input.create_input_state(date=self.config.date)

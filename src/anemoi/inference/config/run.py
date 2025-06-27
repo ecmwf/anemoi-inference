@@ -22,6 +22,8 @@ from . import Configuration
 
 LOG = logging.getLogger(__name__)
 
+ProcessorConfig = Union[str, Dict[str, Any]]
+
 
 class RunConfiguration(Configuration):
     """Configuration class for a default runner."""
@@ -57,8 +59,8 @@ class RunConfiguration(Configuration):
     input: Union[str, Dict[str, Any]] = "test"
     output: Union[str, Dict[str, Any]] = "printer"
 
-    pre_processors: List[Union[str, Dict[str, Any]]] = []
-    post_processors: Optional[List[Union[str, Dict[str, Any]]]] = None  # temporary, default accum from start #131
+    pre_processors: List[ProcessorConfig] = []
+    post_processors: Optional[List[ProcessorConfig]] = None  # temporary, default accum from start #131
 
     forcings: Optional[Dict[str, Dict[str, Any]]] = None
     """Where to find the forcings."""
