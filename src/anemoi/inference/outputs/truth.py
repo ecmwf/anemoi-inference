@@ -40,7 +40,7 @@ class TruthOutput(ForwardOutput):
         kwargs : dict
             Additional keyword arguments.
         """
-        super().__init__(context, output, **kwargs)
+        super().__init__(context, output, None, **kwargs)
         self._input = self.context.create_input()
 
     def write_step(self, state: State) -> None:

@@ -19,6 +19,7 @@ from typing import Union
 
 import numpy as np
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
@@ -53,7 +54,6 @@ def print_state(
     print()
     print("😀", end=" ")
     for key, value in state.items():
-
         if isinstance(value, datetime.datetime):
             print(f"{key}={value.isoformat()}", end=" ")
 
@@ -113,6 +113,7 @@ class PrinterOutput(Output):
     def __init__(
         self,
         context: Context,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         path: Optional[str] = None,
         variables: Optional[ListOrAll] = None,
         **kwargs: Any,
@@ -123,6 +124,8 @@ class PrinterOutput(Output):
         ----------
         context : Context
             The context.
+        post_processors : Optional[List[ProcessorConfig]] = None
+            Post-processors to apply to the input
         path : str, optional
             The path to save the printed output, by default None.
         variables : list, optional
@@ -131,7 +134,7 @@ class PrinterOutput(Output):
             Additional keyword arguments.
         """
 
-        super().__init__(context)
+        super().__init__(context, post_processors)
         self.print = print
         self.variables = variables
 

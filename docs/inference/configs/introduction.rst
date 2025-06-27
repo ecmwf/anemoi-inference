@@ -49,6 +49,7 @@ or if it expects a single argument, it can be simplified as:
    top-level
    inputs
    outputs
+   processors
    forcings
    icon-input
    grib-input

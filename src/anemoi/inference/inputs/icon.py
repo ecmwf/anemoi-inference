@@ -15,6 +15,7 @@ from typing import Optional
 
 import earthkit.data as ekd
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -39,6 +40,7 @@ class IconInput(GribInput):
         path: str,
         grid: str,
         refinement_level_c: int,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
         namer: Optional[Any] = None,
         **kwargs: Any,
     ) -> None:
@@ -54,12 +56,14 @@ class IconInput(GribInput):
             The grid type.
         refinement_level_c : int
             The refinement level.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, pre_processors, namer=namer, **kwargs)
         self.path = path
         self.grid = grid
         self.refinement_level_c = refinement_level_c

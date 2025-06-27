@@ -18,6 +18,7 @@ from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
@@ -206,6 +207,7 @@ class MarsInput(GribInput):
     def __init__(
         self,
         context: Context,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
         namer: Optional[Any] = None,
         patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
@@ -224,7 +226,7 @@ class MarsInput(GribInput):
         **kwargs : Any
             Additional keyword to pass to the request to MARS.
         """
-        super().__init__(context, namer=namer)
+        super().__init__(context, pre_processors, namer=namer)
         self.kwargs = kwargs
         self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.kwargs = kwargs
