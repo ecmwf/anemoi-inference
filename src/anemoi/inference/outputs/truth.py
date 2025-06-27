@@ -9,11 +9,8 @@
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.inference.config import Configuration
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..context import Context
@@ -31,13 +28,7 @@ class TruthOutput(ForwardOutput):
     the forecasts, effectively only for times in the past.
     """
 
-    def __init__(
-        self,
-        context: Context,
-        output: Configuration,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, context: Context, output: Configuration, **kwargs: Any) -> None:
         """Initialize the TruthOutput.
 
         Parameters
@@ -46,15 +37,10 @@ class TruthOutput(ForwardOutput):
             The context for the output.
         output : Configuration
             The output configuration.
-        post_processors : Optional[List[ProcessorConfig]], default None
-            Post-processors to apply to the input
         kwargs : dict
             Additional keyword arguments.
         """
-        if len(post_processors):
-            LOG.warning("TruthOutput does not execute post-processes. Set it in its output instead.")
-
-        super().__init__(context, output, [], **kwargs)
+        super().__init__(context, output, None, **kwargs)
         self._input = self.context.create_input()
 
     def write_step(self, state: State) -> None:

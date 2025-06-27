@@ -14,7 +14,6 @@ from collections import defaultdict
 from typing import Any
 from typing import Callable
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Union
@@ -107,7 +106,7 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
-        pre_processors: Optional[Iterable[ProcessorConfig]] = None,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
         namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
     ) -> None:
@@ -117,6 +116,8 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
@@ -232,9 +233,7 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        for processor in self.pre_processors:
-            LOG.info("Processing with %s", processor)
-            fields = processor.process(fields)
+        fields = self.pre_process(fields)
 
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
@@ -409,10 +408,6 @@ class EkdInput(Input):
         State
             The loaded forcings state.
         """
-        for processor in self.pre_processors:
-            LOG.info("Processing with %s", processor)
-            fields = processor.process(fields)
-
         return self._create_state(
             fields,
             variables=variables,
