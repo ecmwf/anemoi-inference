@@ -83,6 +83,13 @@ and output. It set to ``null`` (default), the value is set internally to
 The entries for the inputs and outputs are specified in the :ref:`inputs
 <inputs>` and :ref:`outputs <outputs>` sections of the documentation.
 
+**************************
+ Pre- and Post-processors
+**************************
+
+The entries for the pre- and post-processors are specified in the
+:ref:`processors <processors>` section of the documentation.
+
 ***********
  Debugging
 ***********
