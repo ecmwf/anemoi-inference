@@ -98,7 +98,7 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     # run the checks defined in the test configuration
     for checks in test_setup.config.checks:
         for check, kwargs in checks.items():
-            # give user the option to overwrite the expected output variables, by default it uses the checkpoint variables
+            # config can optionally pass expected output variables, by default it uses the checkpoint variables
             expected_variables_config = kwargs.pop("expected_variables", [])
             expected_variables = [
                 VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
