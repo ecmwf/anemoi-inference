@@ -125,9 +125,9 @@ class GribOutput(Output):
         grib1_keys: Optional[Dict[str, Any]] = None,
         grib2_keys: Optional[Dict[str, Any]] = None,
         modifiers: Optional[List[str]] = None,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
-        variables: Optional[List[str]] = None,
     ) -> None:
         """Initialize the GribOutput object.
 
@@ -153,9 +153,14 @@ class GribOutput(Output):
             The list of variables, by default None.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
         self._first = True
-        self.typed_variables = self.checkpoint.typed_variables
+
         self.encoding = encoding if encoding is not None else {}
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
@@ -204,9 +209,11 @@ class GribOutput(Output):
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
 
-        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+        for name in state["fields"].keys():
 
-        for name in out_vars:
+            if self.skip_variable(name):
+                continue
+
             variable = self.typed_variables[name]
 
             if variable.is_computed_forcing:
@@ -235,8 +242,11 @@ class GribOutput(Output):
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
 
-        out_vars = self.variables if self.variables is not None else state["fields"].keys()
-        for name in out_vars:
+        for name in state["fields"].keys():
+
+            if self.skip_variable(name):
+                continue
+
             values = state["fields"][name]
             keys = {}
 
@@ -315,7 +325,7 @@ class GribOutput(Output):
         if self.template_manager is None:
             self.template_manager = TemplateManager(self, self.templates)
 
-        return self.template_manager.template(name, state)
+        return self.template_manager.template(name, state, self.typed_variables)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup the template for a variable.

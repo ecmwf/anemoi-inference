@@ -31,6 +31,8 @@ class MaskedOutput(ForwardOutput):
         The mask.
     output : dict
         The output configuration dictionary.
+    variables : list, optional
+        The list of variables to extract, by default None.
     output_frequency : int, optional
         The frequency of output, by default None.
     write_initial_state : bool, optional
@@ -43,10 +45,17 @@ class MaskedOutput(ForwardOutput):
         *,
         mask: Any,
         output: Configuration,
+        variables: Optional[list[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            output,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
         self.mask = mask
 
     def modify_state(self, state: State) -> State:
