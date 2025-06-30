@@ -23,6 +23,7 @@ from typing import Union
 
 import numpy as np
 import torch
+from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
@@ -93,6 +94,7 @@ class Runner(Context):
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
         use_profiler: bool = False,
+        typed_variables: Dict[str, Dict] = {},
     ) -> None:
         """Parameters
         -------------
@@ -147,6 +149,9 @@ class Runner(Context):
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
         self.use_profiler = use_profiler
+
+        # For the moment, until we have a better solution
+        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
@@ -456,6 +461,9 @@ class Runner(Context):
             The loaded model.
         """
         with Timer(f"Loading {self.checkpoint}"):
+            LOG.info("Device is '%s'", self.device)
+            LOG.info("Loading model from %s", self.checkpoint.path)
+
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except Exception as e:  # Wildcard exception to catch all errors

@@ -18,6 +18,8 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
+from pydantic import Field
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -83,6 +85,9 @@ class RunConfiguration(Configuration):
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written.
     """
+
+    typed_variables: Dict[str, Dict] = Field(default_factory=dict)
+    """A list of typed variables to support the encoding of outputs."""
 
     output_frequency: Optional[str] = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
