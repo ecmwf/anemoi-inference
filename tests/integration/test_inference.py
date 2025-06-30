@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
+from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from omegaconf import OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
@@ -91,9 +92,16 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
     assert (test_setup.output).exists(), "Output file was not created."
 
-    expected_variables = [variable for variable in runner._checkpoint.typed_variables_output.values()]
+    checkpoint_output_variables = [variable for variable in runner._checkpoint.typed_variables_output.values()]
+    LOG.info(f"Checkpoint output variables: {checkpoint_output_variables}")
 
     # run the checks defined in the test configuration
     for checks in test_setup.config.checks:
         for check, kwargs in checks.items():
+            # give user the option to overwrite the expected output variables, by default it uses the checkpoint variables
+            expected_variables_config = kwargs.pop("expected_variables", [])
+            expected_variables = [
+                VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
+            ] or checkpoint_output_variables
+
             testing_registry.create(check, file=test_setup.output, expected_variables=expected_variables, **kwargs)
