@@ -1,0 +1,6 @@
+checkpoint: icon.ckpt
+icon_grid: icon_grid_0026_R03B07_G.nc
+
+env:
+  ECCODES_PYTHON_USE_FINDLIBS: 1
+  ECCODES_DEFINITION_PATH: definitions.edzw-2.31.0-2

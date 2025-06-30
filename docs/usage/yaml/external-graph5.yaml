@@ -1,0 +1,4 @@
+runner:
+  external_graph:
+    graph: path/to/graph.pt
+    check_state_dict: False

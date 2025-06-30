@@ -33,11 +33,8 @@ class RunConfiguration(Configuration):
     checkpoint: Union[str, Dict[Literal["huggingface"], Union[Dict[str, Any], str]]]
     """A path to an Anemoi checkpoint file."""
 
-    runner: str = "default"
+    runner: Union[str, Dict[str, Any]] = "default"
     """The runner to use."""
-
-    date: Union[str, int, datetime.datetime, None] = None
-    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
     lead_time: Union[str, int, datetime.timedelta] = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.

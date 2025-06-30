@@ -8,6 +8,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.3](https://github.com/ecmwf/anemoi-inference/compare/0.6.2...0.6.3) (2025-06-24)
+
+
+### Features
+
+* Improve external graph runner ([#247](https://github.com/ecmwf/anemoi-inference/issues/247)) ([74c8e20](https://github.com/ecmwf/anemoi-inference/commit/74c8e2072f8609f541f14ae93d36eafc7689a3a8))
+* Resolve config with omegaconf ([#252](https://github.com/ecmwf/anemoi-inference/issues/252)) ([19422b2](https://github.com/ecmwf/anemoi-inference/commit/19422b2a0569587a37b4f7054afd21655f570cd4))
+
+
+### Bug Fixes
+
+* Apply mask to all sources in cutout input. ([#249](https://github.com/ecmwf/anemoi-inference/issues/249)) ([c2152ca](https://github.com/ecmwf/anemoi-inference/commit/c2152ca64a62af565adec89a76427cc053a09e67))
+* Apply_mask output ([#254](https://github.com/ecmwf/anemoi-inference/issues/254)) ([cec4072](https://github.com/ecmwf/anemoi-inference/commit/cec407256e719357e04bf30405524725b1905c7b))
+* Error combining 3 or plus inputs in cutout ([#256](https://github.com/ecmwf/anemoi-inference/issues/256)) ([eb7afd1](https://github.com/ecmwf/anemoi-inference/commit/eb7afd1b308136017ffc466ca6d8253a1ae4e6a8))
+
+## [0.6.2](https://github.com/ecmwf/anemoi-inference/compare/0.6.1...0.6.2) (2025-06-18)
+
+
+### Features
+
+* Mars with Nested models ([#236](https://github.com/ecmwf/anemoi-inference/issues/236)) ([75a5e3b](https://github.com/ecmwf/anemoi-inference/commit/75a5e3b6354525b5f337b4b0181103d0311c77c6))
+* **parallel:** Make `base_runner` the main argument ([d6863a0](https://github.com/ecmwf/anemoi-inference/commit/d6863a0dd4ca1d4277eab9718c9fd55d31811c74))
+
+
+### Bug Fixes
+
+* **metadata:** Check if variable exists before patching `constant_fields` ([0ad51bb](https://github.com/ecmwf/anemoi-inference/commit/0ad51bb7d69e48de6bc5a997b2edf6861c61a8e5))
+
+## [0.6.1](https://github.com/ecmwf/anemoi-inference/compare/0.6.0...0.6.1) (2025-06-04)
+
+
+### Features
+
+* Add `assign_mask` output ([#221](https://github.com/ecmwf/anemoi-inference/issues/221)) ([053e750](https://github.com/ecmwf/anemoi-inference/commit/053e7500fa4263141a2aa810359bffc0388d229f))
+* Dynamic parallel runner (run any runner in parallel) ([#242](https://github.com/ecmwf/anemoi-inference/issues/242)) ([2411873](https://github.com/ecmwf/anemoi-inference/commit/241187369380d1cab45b408b1247b86de5d7d293))
+* **grib output:** Support string format specification for output filename ([#233](https://github.com/ecmwf/anemoi-inference/issues/233)) ([be00edf](https://github.com/ecmwf/anemoi-inference/commit/be00edf602154d210550319e1de1cccb623b924f))
+* Inference with external graph. ([#216](https://github.com/ecmwf/anemoi-inference/issues/216)) ([6765316](https://github.com/ecmwf/anemoi-inference/commit/6765316f3f0935cbe31e8dde441af32c9b06242d))
+* Set debug log level on verbosity &gt; 2 ([#239](https://github.com/ecmwf/anemoi-inference/issues/239)) ([532d070](https://github.com/ecmwf/anemoi-inference/commit/532d0709af90b5eb60a6aa5071178091099cca39))
+
+
+### Bug Fixes
+
+* **grib output:** Respect `write_initial_state` option ([#238](https://github.com/ecmwf/anemoi-inference/issues/238)) ([bab2dbe](https://github.com/ecmwf/anemoi-inference/commit/bab2dbe70f1d7a7739b0228f93dd4632e8f8d41d))
+* **output:** Remove open call at each write ([#221](https://github.com/ecmwf/anemoi-inference/issues/221)) ([053e750](https://github.com/ecmwf/anemoi-inference/commit/053e7500fa4263141a2aa810359bffc0388d229f))
+
+## [0.6.0](https://github.com/ecmwf/anemoi-inference/compare/0.5.4...0.6.0) (2025-05-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* do not set 'eps' key in grib encoding ([#222](https://github.com/ecmwf/anemoi-inference/issues/222))
+
+### Bug Fixes
+
+* **config:** Regression when merging user config with defaults ([ebaf4dc](https://github.com/ecmwf/anemoi-inference/commit/ebaf4dc1423838ca3f09eb54ac026756f97c6cec))
+* do not set 'eps' key in grib encoding ([#222](https://github.com/ecmwf/anemoi-inference/issues/222)) ([3b32025](https://github.com/ecmwf/anemoi-inference/commit/3b32025c93d3046cf6294939ac12424cefd506d8))
+* **metadata:** Check for empty grid ([#230](https://github.com/ecmwf/anemoi-inference/issues/230)) ([fa9d5a8](https://github.com/ecmwf/anemoi-inference/commit/fa9d5a87c896228aabd16b48baaacd8bad6fff08))
+* rename `write_initial_step` on ForwardOutput class ([#231](https://github.com/ecmwf/anemoi-inference/issues/231)) ([19e2e58](https://github.com/ecmwf/anemoi-inference/commit/19e2e580c3ea5e5c94ce2d1f90712daf13d844ec))
+
+## [0.5.4](https://github.com/ecmwf/anemoi-inference/compare/0.5.3...0.5.4) (2025-05-08)
+
+
+### Features
+
+* Support vscode metadata editor ([#228](https://github.com/ecmwf/anemoi-inference/issues/228)) ([e3dc9bb](https://github.com/ecmwf/anemoi-inference/commit/e3dc9bb520bd3ebec6fa7c70ccdbdfc25a62e2a4))
+
+
+### Bug Fixes
+
+* boundary forcings inputs ([#226](https://github.com/ecmwf/anemoi-inference/issues/226)) ([02eaa6b](https://github.com/ecmwf/anemoi-inference/commit/02eaa6b4dd2227a049860aa16f89bcb0762a63a3))
+* support for netcdf missing values ([#214](https://github.com/ecmwf/anemoi-inference/issues/214)) ([4e78971](https://github.com/ecmwf/anemoi-inference/commit/4e78971e8affcb345c2ec7cd880e2f4d0d5d673a))
+
+## [0.5.3](https://github.com/ecmwf/anemoi-inference/compare/0.5.2...0.5.3) (2025-04-30)
+
+
+### Features
+
+* **input:** add FDB input class ([#190](https://github.com/ecmwf/anemoi-inference/issues/190)) ([ca6d37f](https://github.com/ecmwf/anemoi-inference/commit/ca6d37f9d15a608b2b63b8ec05544dd051d4d7d2))
+* more flexible supporting array path for extract lam ([#219](https://github.com/ecmwf/anemoi-inference/issues/219)) ([edd176f](https://github.com/ecmwf/anemoi-inference/commit/edd176fd75d0700b3a3a5faf247fca23b03ced60))
+
+
+### Bug Fixes
+
+* Allow for downstream tests to provide checkpoint mocks ([#211](https://github.com/ecmwf/anemoi-inference/issues/211)) ([fbc3399](https://github.com/ecmwf/anemoi-inference/commit/fbc33992844cdda01d91396427ec5b8d220fe28f))
+* better error messages ([#213](https://github.com/ecmwf/anemoi-inference/issues/213)) ([746ecfe](https://github.com/ecmwf/anemoi-inference/commit/746ecfe0cb7c8045cea5e7dcaefd68f7943f0c7d))
+* extract-lam ([#217](https://github.com/ecmwf/anemoi-inference/issues/217)) ([db81c4c](https://github.com/ecmwf/anemoi-inference/commit/db81c4c0f92a3d3428d4b68f9dce6c4bd5861aaf))
+* Inference with crps requires additional arguments in predict_step ([#212](https://github.com/ecmwf/anemoi-inference/issues/212)) ([7917d53](https://github.com/ecmwf/anemoi-inference/commit/7917d5368ba8518bab0f8848c4f4981250af9ab2))
+
+## [0.5.2](https://github.com/ecmwf/anemoi-inference/compare/0.5.1...0.5.2) (2025-04-25)
+
+
+### Features
+
+* Add version validation if model fails to load ([#194](https://github.com/ecmwf/anemoi-inference/issues/194)) ([bfd890f](https://github.com/ecmwf/anemoi-inference/commit/bfd890f3f656d8e91cacbcb2cd4f5e7c93853879))
+* Allow empty config path to run from overrides ([#206](https://github.com/ecmwf/anemoi-inference/issues/206)) ([a5177d3](https://github.com/ecmwf/anemoi-inference/commit/a5177d3fce8abb6d93ad0c9e1b2b4066c8b3fc06))
+* Allow hydra-like override of config list elements ([#201](https://github.com/ecmwf/anemoi-inference/issues/201)) ([ff0c607](https://github.com/ecmwf/anemoi-inference/commit/ff0c6077ae49ea4e873bba9575565e1b132cb912))
+
+
+### Bug Fixes
+
+* Hindcast encoding ([217d81e](https://github.com/ecmwf/anemoi-inference/commit/217d81e966ecba830ded4d9c6f6634e965b824ed))
+* Improve Testing Decorators ([#209](https://github.com/ecmwf/anemoi-inference/issues/209)) ([03a7f65](https://github.com/ecmwf/anemoi-inference/commit/03a7f65dc0f983d9194c1471ec10c1e3bb20adc2))
+
+
+### Documentation
+
+* Fix cutout example ([ff9715c](https://github.com/ecmwf/anemoi-inference/commit/ff9715cec988c011fe58d2c60bd630bf4d746822))
+
 ## [0.5.1](https://github.com/ecmwf/anemoi-inference/compare/0.5.0...0.5.1) (2025-04-09)
 
 

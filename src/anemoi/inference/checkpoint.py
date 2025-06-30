@@ -153,6 +153,16 @@ class Checkpoint:
         return self._metadata.timestep
 
     @property
+    def input_explicit_times(self) -> Any:
+        """Get the input explicit times from metadata."""
+        return self._metadata.input_explicit_times
+
+    @property
+    def target_explicit_times(self) -> Any:
+        """Get the target explicit times."""
+        return self._metadata.target_explicit_times
+
+    @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
@@ -435,6 +445,7 @@ class Checkpoint:
     def lagged(self) -> List[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
+
         result = [-s * self._metadata.timestep for s in result]
         return sorted(result)
 
@@ -612,13 +623,18 @@ class Checkpoint:
                 if use_grib_paramid and "param" in r:
                     r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
 
-                # Simplyfie the request
+                # Simplify the request
 
-                for k, v in r.items():
-
+                for k in list(r.keys()):
+                    v = r[k]
                     if len(v) == 1:
-                        r[k] = v[0]
+                        v = v[0]
 
+                    # Remove empty values for when tree is not fully defined
+                    if v == "-":
+                        r.pop(k)
+                        continue
+                    r[k] = v
                 result.append(r)
 
         return result

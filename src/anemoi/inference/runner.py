@@ -12,6 +12,7 @@ import datetime
 import logging
 import warnings
 from functools import cached_property
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -38,6 +39,9 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+
+if TYPE_CHECKING:
+    from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
 
@@ -159,6 +163,10 @@ class Runner(Context):
         self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
+            logging.basicConfig(level=logging.DEBUG)
+            for logger_name in logging.root.manager.loggerDict:
+                logging.getLogger(logger_name).setLevel(logging.DEBUG)
+
             self.checkpoint.print_indices()
 
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
@@ -402,7 +410,7 @@ class Runner(Context):
             shape=(
                 self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
@@ -459,6 +467,8 @@ class Runner(Context):
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except Exception as e:  # Wildcard exception to catch all errors
+                if self.report_error:
+                    self.checkpoint.report_error()
                 validation_result = self.checkpoint.validate_environment(on_difference="return")
                 error_msg = f"Error loading model - {validation_result}"
                 raise RuntimeError(error_msg) from e
@@ -477,14 +487,19 @@ class Runner(Context):
         input_tensor_torch : torch.Tensor
             The input tensor.
         **kwargs : Any
-            Additional keyword arguments
+            Additional keyword arguments that will be passed to the model's predict_step method.
 
         Returns
         -------
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch)
+        try:
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
@@ -972,3 +987,11 @@ class Runner(Context):
             request = p.patch_data_request(request)
 
         return request
+
+    def _configure_parallel_runner(self: "ParallelRunnerMixin") -> None:
+        """Configure the parallel runner (only applies when using the `parallel` runner).
+
+        This method is called by the parallel runner on initialisation.
+        Derived classes can implement this method to modify itself for parallel operation.
+        """
+        pass

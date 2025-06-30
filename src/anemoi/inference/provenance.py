@@ -158,11 +158,11 @@ def validate_environment(
 
         if train_environment_version < inference_environment_version:
             invalid_messages["mismatch"].append(
-                f"Version of module {module} was lower in training then in inference: {train_environment_version!s} <= {inference_environment_version!s}"
+                f"Version of module {module} was lower in training than in inference: {train_environment_version!s} <= {inference_environment_version!s}"
             )
         elif train_environment_version > inference_environment_version:
             invalid_messages["critical mismatch"].append(
-                f"CRITICAL: Version of module {module} was greater in training then in inference: {train_environment_version!s} > {inference_environment_version!s}"
+                f"CRITICAL: Version of module {module} was greater in training than in inference: {train_environment_version!s} > {inference_environment_version!s}"
             )
 
     for git_record in train_environment["git_versions"].keys():
@@ -178,11 +178,11 @@ def validate_environment(
                 f"Training environment contained uncommitted change missing in inference environment: {git_record}"
             )
         elif (
-            train_environment["git_versions"][git_record]["sha1"]
-            != inference_environment["git_versions"][git_record]["sha1"]
+            train_environment["git_versions"][git_record]["git"]["sha1"]
+            != inference_environment["git_versions"][git_record]["git"]["sha1"]
         ):
             invalid_messages["uncommitted"].append(
-                f"sha1 mismatch for git record between training and inference. {git_record} (training != inference): {train_environment['git_versions'][git_record]} != {inference_environment['git_versions'][git_record]}"
+                f"sha1 mismatch for git record between training and inference. {git_record} (training != inference): {train_environment['git_versions'][git_record]['git']} != {inference_environment['git_versions'][git_record]['git']}"
             )
 
     for git_record in inference_environment["git_versions"].keys():

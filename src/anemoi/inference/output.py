@@ -104,8 +104,6 @@ class Output(ABC):
         state : State
             The state to write.
         """
-        self.open(state)
-
         step = state["step"]
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
@@ -206,18 +204,14 @@ class ForwardOutput(Output):
     Subclass from this class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves.
 
-    Parameters
-    ----------
-    context : Context
-        The context in which the output operates.
-    output_frequency : Optional[int], optional
-        The frequency at which to output states, by default None.
-    write_initial_state : Optional[bool], optional
-        Whether to write the initial state, by default None.
     """
 
     def __init__(
-        self, context: "Context", output_frequency: Optional[int] = None, write_initial_state: Optional[bool] = None
+        self,
+        context: "Context",
+        output: dict,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
     ):
         """Initialize the ForwardOutput object.
 
@@ -225,12 +219,20 @@ class ForwardOutput(Output):
         ----------
         context : Context
             The context in which the output operates.
+        output : dict
+            The output configuration dictionary.
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
             Whether to write the initial state, by default None.
         """
+
+        from anemoi.inference.outputs import create_output
+
         super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
+
+        self.output = None if output is None else create_output(context, output)
+
         if self.context.output_frequency is not None:
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)
 
@@ -238,3 +240,65 @@ class ForwardOutput(Output):
     def output_frequency(self) -> Optional[datetime.timedelta]:
         """Get the output frequency."""
         return None
+
+    def modify_state(self, state: State) -> State:
+        """Modify the state before writing.
+
+        Parameters
+        ----------
+        state : State
+            The state to modify.
+
+        Returns
+        -------
+        State
+            The modified state.
+        """
+        return state
+
+    def open(self, state) -> None:
+        """Open the output for writing.
+        Parameters
+        ----------
+        state : State
+            The initial state.
+        """
+        self.output.open(self.modify_state(state))
+
+    def close(self) -> None:
+        """Close the output."""
+
+        self.output.close()
+
+    def write_initial_state(self, state: State) -> None:
+        """Write the initial step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
+        state.setdefault("step", datetime.timedelta(0))
+
+        self.output.write_initial_state(self.modify_state(state))
+
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state to write.
+        """
+        self.output.write_state(self.modify_state(state))
+
+    def print_summary(self, depth: int = 0) -> None:
+        """Print a summary of the output.
+
+        Parameters
+        ----------
+        depth : int, optional
+            The depth of the summary, by default 0.
+        """
+        super().print_summary(depth)
+        self.output.print_summary(depth + 1)

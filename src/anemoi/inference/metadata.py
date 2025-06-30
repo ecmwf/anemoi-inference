@@ -114,6 +114,16 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the configuration."""
         return self._metadata.config
 
+    @property
+    def target_explicit_times(self) -> Any:
+        """Return the target explicit times from the training configuration."""
+        return self._config_training.explicit_times.target
+
+    @property
+    def input_explicit_times(self) -> Any:
+        """Return the input explicit times from the training configuration."""
+        return self._config_training.explicit_times.input
+
     ###########################################################################
     # Debugging
     ###########################################################################
@@ -320,6 +330,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         if "constant_fields" in self._metadata.dataset:
             for name in self._metadata.dataset.constant_fields:
+                if name not in result:
+                    continue
                 result[name]["constant_in_time"] = True
 
         return result
@@ -596,7 +608,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             mars = self.variables_metadata[variable]["mars"].copy()
 
-            for k in ("date", "hdate", "time"):
+            for k in ("date", "hdate", "time", "valid_datetime", "variable"):
                 mars.pop(k, None)
 
             yield mars
@@ -959,16 +971,13 @@ class Metadata(PatchMixin, LegacyMixin):
         list
             The list of boundary forcings inputs.
         """
-        result = []
+        if "output_mask" not in self._supporting_arrays:
+            return []
 
-        if "output_mask" in self._supporting_arrays:
-            result.append(
-                context.create_boundary_forcings(
-                    self.prognostic_variables,
-                    self.prognostic_input_mask,
-                )
-            )
-        return result
+        return context.create_boundary_forcings(
+            self.prognostic_variables,
+            self.prognostic_input_mask,
+        )
 
     ###########################################################################
     # Supporting arrays

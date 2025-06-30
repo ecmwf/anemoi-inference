@@ -124,6 +124,9 @@ def postproc(
     if grid_is_valid(grid):
         pproc["grid"] = grid
 
+    if isinstance(area, str):
+        area = [float(x) for x in area.split("/")]
+
     if area_is_valid(area):
         pproc["area"] = rounded_area(area)
 
@@ -219,7 +222,7 @@ class MarsInput(GribInput):
         patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
             Optional list of patches for the input.
         **kwargs : Any
-            Additional keyword arguments.
+            Additional keyword to pass to the request to MARS.
         """
         super().__init__(context, namer=namer)
         self.kwargs = kwargs
@@ -243,8 +246,6 @@ class MarsInput(GribInput):
         if date is None:
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
-
-        date = to_datetime(date)
 
         return self._create_input_state(
             self.retrieve(
@@ -282,12 +283,12 @@ class MarsInput(GribInput):
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
+        kwargs.setdefault("grid", self.checkpoint.grid)
+        kwargs.setdefault("area", self.checkpoint.area)
 
         return retrieve(
             requests,
-            self.checkpoint.grid,
-            self.checkpoint.area,
-            self.patch,
+            patch=self.patch,
             **kwargs,
         )
 
