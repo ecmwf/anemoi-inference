@@ -248,7 +248,6 @@ class GribOutput(Output):
             keys = {}
 
             variable = self.typed_variables[name]
-            print(variable)
 
             if variable.is_computed_forcing:
                 continue

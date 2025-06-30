@@ -18,6 +18,8 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
+from pydantic import Field
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -87,7 +89,7 @@ class RunConfiguration(Configuration):
     written.
     """
 
-    typed_variables: Dict[str, Dict] = {}
+    typed_variables: Dict[str, Dict] = Field(default_factory=dict)
     """A list of typed variables to support the encoding of outputs."""
 
     output_frequency: Optional[str] = None
