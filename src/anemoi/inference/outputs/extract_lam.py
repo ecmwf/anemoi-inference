@@ -36,8 +36,7 @@ class ExtractLamOutput(MaskedOutput):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        """
-        Parameters
+        """Parameters
         ----------
         context : dict
             The context dictionary.
