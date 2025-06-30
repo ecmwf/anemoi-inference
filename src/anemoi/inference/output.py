@@ -210,6 +210,7 @@ class ForwardOutput(Output):
         self,
         context: "Context",
         output: dict,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):
@@ -221,6 +222,8 @@ class ForwardOutput(Output):
             The context in which the output operates.
         output : dict
             The output configuration dictionary.
+        variables : list, optional
+            The list of variables, by default None.
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
@@ -229,7 +232,7 @@ class ForwardOutput(Output):
 
         from anemoi.inference.outputs import create_output
 
-        super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
+        super().__init__(context, variables=variables, output_frequency=None, write_initial_state=write_initial_state)
 
         self.output = None if output is None else create_output(context, output)
 

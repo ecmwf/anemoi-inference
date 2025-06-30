@@ -52,6 +52,7 @@ class ApplyMaskOutput(MaskedOutput):
             context,
             mask=context.checkpoint.load_supporting_array(mask),
             output=output,
+            variables=variables,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )

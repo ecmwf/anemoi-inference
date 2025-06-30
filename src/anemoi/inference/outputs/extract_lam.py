@@ -73,6 +73,7 @@ class ExtractLamOutput(MaskedOutput):
             context,
             mask=points,
             output=output,
+            variables=variables,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
