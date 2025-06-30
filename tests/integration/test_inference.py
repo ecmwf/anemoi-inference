@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import json
 import logging
 from pathlib import Path
 from typing import NamedTuple
@@ -48,20 +49,21 @@ class Setup(NamedTuple):
 def test_setup(request, get_test_data: callable, tmp_path: Path) -> Setup:
     model, config = request.param
     input = config.input
-    output = config.output
+    output = tmp_path / config.output
     inference_config = config.inference_config
 
     # download input file
     input_data = get_test_data(f"anemoi-integration-tests/inference/{model}/{input}")
 
     # prepare checkpoint
-    metadata_path = INTEGRATION_ROOT / model / "metadata.json"
     checkpoint_path = tmp_path / Path("checkpoint.ckpt")
-    save_fake_checkpoint(metadata_path, checkpoint_path)
+    with open(INTEGRATION_ROOT / model / "metadata.json", "r") as f:
+        metadata = json.load(f)
+    save_fake_checkpoint(metadata, checkpoint_path)
 
     # substitute inference config with real paths
     OmegaConf.register_new_resolver("input", lambda: str(input_data), replace=True)
-    OmegaConf.register_new_resolver("output", lambda: str(tmp_path / output), replace=True)
+    OmegaConf.register_new_resolver("output", lambda: str(output), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
 
     # save the inference config to disk
@@ -71,7 +73,7 @@ def test_setup(request, get_test_data: callable, tmp_path: Path) -> Setup:
     with open(tmp_path / "integration_test.yaml", "w") as f:
         f.write(inference_config)
 
-    return Setup(config=config, output=tmp_path / output)
+    return Setup(config=config, output=output)
 
 
 def test_integration(test_setup: Setup, tmp_path: Path) -> None:
