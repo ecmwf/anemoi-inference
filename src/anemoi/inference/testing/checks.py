@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 # checks here are used in the integration tests and can be reused in other test suites
-# each check must accept a **kwargs since the integration test will pass some arguments by default, that some checks may not have/use
+# checks must use keyword arguments only and must have a **kwargs
 
 
 @testing_registry.register("check_grib")
