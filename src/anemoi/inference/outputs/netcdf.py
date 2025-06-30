@@ -62,7 +62,9 @@ class NetCDFOutput(Output):
             The missing value, by default np.nan.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
 
         from netCDF4 import Dataset
 
