@@ -10,10 +10,12 @@
 import logging
 import os
 import threading
+from typing import List
 from typing import Optional
 
 import numpy as np
 
+from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
@@ -37,6 +39,7 @@ class NetCDFOutput(Output):
         self,
         context: Context,
         path: str,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
         float_size: str = "f4",
@@ -50,6 +53,8 @@ class NetCDFOutput(Output):
             The context dictionary.
         path : str
             The path to save the NetCDF file.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -60,7 +65,9 @@ class NetCDFOutput(Output):
             The missing value, by default np.nan.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context, post_processors, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
 
         from netCDF4 import Dataset
 
