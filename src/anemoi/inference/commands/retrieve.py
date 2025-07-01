@@ -9,6 +9,7 @@
 
 
 import json
+import logging
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
@@ -26,10 +27,11 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 
 from ..config.run import RunConfiguration
-from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
 from ..runners import create_runner
 from . import Command
+
+LOG = logging.getLogger(__name__)
 
 
 def print_request(verb, request, file=sys.stdout):
@@ -96,6 +98,10 @@ def checkpoint_to_requests(
         A list of data requests.
     """
     # TODO: Move this to the runner
+
+    LOG.info("Converting checkpoint to requests")
+    LOG.info("Include categories: %s", include)
+    LOG.info("Exclude categories: %s", exclude)
 
     variables = checkpoint.variables_from_input(include=include, exclude=exclude)
     area = checkpoint.area
@@ -201,15 +207,14 @@ class RetrieveCmd(Command):
             raise ValueError("Either 'date' or 'staging_dates' must be provided.")
 
         # so that the user does not need to pass --extra target=path when the input file is already in the config
-        target = None
-        input = runner.create_input()
-        if isinstance(input, GribInput) and (path := getattr(input, "path", None)):
-            target = path
+        # target = None
+        # input = runner.create_input()
+        # if isinstance(input, GribInput) and (path := getattr(input, "path", None)):
+        #     target = path
 
         requests = checkpoint_to_requests(
             runner.checkpoint,
             date=args.date,
-            target=target,
             extra=args.extra,
             staging_dates=args.staging_dates,
             forecast_dates=args.forecast_dates,
