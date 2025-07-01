@@ -8,8 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 
-import json
-import sys
 from argparse import ArgumentParser
 from argparse import Namespace
 from typing import Any
@@ -25,7 +23,6 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 
 from ..config.run import RunConfiguration
-from ..inputs.grib import GribInput
 from ..inputs.mars import postproc
 from ..runners import create_runner
 from . import Command
@@ -98,6 +95,9 @@ def checkpoint_to_requests(
         k, v = r.split("=")
         more[k] = v
 
+    if staging_dates is None and date is None:
+        raise ValueError("Either 'date' or 'staging_dates' must be provided.")
+
     if staging_dates:
         dates = set()
         with open(staging_dates) as f:
@@ -128,7 +128,7 @@ def checkpoint_to_requests(
     return requests
 
 
-class RetrieveCmd(Command):
+class VariablesCmd(Command):
     """Used by prepml."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
@@ -169,35 +169,7 @@ class RetrieveCmd(Command):
         config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
-
-        if args.staging_dates is None and args.date is None:
-            raise ValueError("Either 'date' or 'staging_dates' must be provided.")
-
-        # so that the user does not need to pass --extra target=path when the input file is already in the config
-        target = None
-        input = runner.create_input()
-        if isinstance(input, GribInput) and (path := getattr(input, "path", None)):
-            target = path
-
-        requests = checkpoint_to_requests(
-            runner.checkpoint,
-            date=args.date,
-            target=target,
-            include_forcings=True,
-            extra=args.extra,
-            retrieve_fields_type=args.retrieve_fields_type,
-            staging_dates=args.staging_dates,
-            use_grib_paramid=config.use_grib_paramid,
-            patch_request=runner.patch_data_request,
-            use_scda=args.use_scda,
-        )
-
-        if args.output and args.output != "-":
-            f = open(args.output, "w")
-        else:
-            f = sys.stdout
-
-        json.dump(requests, f, indent=4)
+        runner.typed_variables()
 
 
 def _patch_scda(request: Dict[str, Any]) -> None:
@@ -225,4 +197,4 @@ def _patch_scda(request: Dict[str, Any]) -> None:
         request["stream"] = "scda"
 
 
-command = RetrieveCmd
+command = VariablesCmd

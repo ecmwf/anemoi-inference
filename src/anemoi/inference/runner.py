@@ -458,12 +458,13 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}"):
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
-            except Exception as e:  # Wildcard exception to catch all errors
-                if self.report_error:
-                    self.checkpoint.report_error()
-                validation_result = self.checkpoint.validate_environment(on_difference="return")
-                error_msg = f"Error loading model - {validation_result}"
-                raise RuntimeError(error_msg) from e
+            except RuntimeError:
+                # This happens when the no GPU is available
+                raise
+            except Exception:  # Wildcard exception to catch all errors
+                self.checkpoint.report_error()
+                raise
+
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self

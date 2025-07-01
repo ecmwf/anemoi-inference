@@ -63,7 +63,7 @@ class RunConfiguration(Configuration):
     pre_processors: List[Union[str, Dict[str, Any]]] = []
     post_processors: Optional[List[Union[str, Dict[str, Any]]]] = None  # temporary, default accum from start #131
 
-    forcings: Optional[Dict[str, Dict[str, Any]]] = None
+    forcings: Optional[Dict[str, Any]] = None
     """Where to find the forcings."""
 
     device: str = "cuda"

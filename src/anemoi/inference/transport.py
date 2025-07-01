@@ -267,7 +267,7 @@ class Transport(ABC):
         fields: Dict[str, Any] = input_state["fields"]
 
         LOG.info(f"{sender}: sending to {target} {variables} {input_state['date']}")
-        LOG.info("State fields: %s", list(fields.keys()))
+        # LOG.info("State fields: %s", list(fields.keys()))
 
         fields = {v: fields[v] for v in variables if v in fields}
 
