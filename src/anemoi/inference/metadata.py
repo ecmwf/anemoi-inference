@@ -503,6 +503,9 @@ class Metadata(PatchMixin, LegacyMixin):
         list
             The list of variables.
         """
+
+        CATEGORIES = {"computed", "forcing", "diagnostic", "prognostic"}
+
         variable_categories = self.variable_categories()
         result = []
 
@@ -512,6 +515,20 @@ class Metadata(PatchMixin, LegacyMixin):
         if include is not None and exclude is not None:
             if not include.isdisjoint(exclude):
                 raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
+
+        if include is not None:
+            include = set(include)
+            if not (include <= CATEGORIES):
+                raise ValueError(
+                    f"Invalid include categories: {include}. Must be a subset of {CATEGORIES}. Unknown: {include-CATEGORIES}."
+                )
+
+        if exclude is not None:
+            exclude = set(exclude)
+            if not (exclude <= CATEGORIES):
+                raise ValueError(
+                    f"Invalid exclude categories: {exclude}. Must be a subset of {CATEGORIES}. Unknown: {exclude-CATEGORIES}."
+                )
 
         for variable, metadata in self.variables_metadata.items():
 
@@ -536,12 +553,10 @@ class Metadata(PatchMixin, LegacyMixin):
         Iterator[DataRequest]
             The MARS requests.
         """
-        variable_categories = self.variable_categories()
-        for variable in self.variables_from_input(include_forcings=True):
 
-            if "diagnostic" in variable_categories[variable]:
-                continue
-
+        for variable in self.variables_from_input(
+            include=["prognostic", "forcings"], exclude=["computed", "diagnostic"]
+        ):
             metadata = self.variables_metadata[variable]
 
             yield metadata["mars"].copy()
@@ -559,15 +574,14 @@ class Metadata(PatchMixin, LegacyMixin):
         tuple
             The parameters and levels.
         """
-        variable_categories = self.variable_categories()
 
         params = set()
         levels = set()
 
-        for variable in self.variables_from_input(include_forcings=True):
-
-            if "diagnostic" in variable_categories[variable]:
-                continue
+        for variable in self.variables_from_input(
+            include=["prognostic", "forcings"],
+            exclude=["computed", "diagnostic"],
+        ):
 
             metadata = self.variables_metadata[variable]
 

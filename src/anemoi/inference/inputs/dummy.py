@@ -114,7 +114,10 @@ class DummyInput(EkdInput):
         """
 
         if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
+            variables = self.checkpoint.variables_from_input(
+                include=["prognostic", "forcings"],
+                exclude=["computed", "diagnostic"],
+            )
 
         LOG.info("Generating fields for %s", variables)
 

@@ -104,6 +104,10 @@ def checkpoint_to_requests(
     LOG.info("Exclude categories: %s", exclude)
 
     variables = checkpoint.variables_from_input(include=include, exclude=exclude)
+
+    if not variables:
+        return []
+
     area = checkpoint.area
     grid = checkpoint.grid
 
