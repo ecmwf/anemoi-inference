@@ -151,7 +151,7 @@ class Runner(Context):
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution
-        self.user_provided_typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
+        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
 
         self._input_kinds = {}
         self._input_tensor_by_name = []

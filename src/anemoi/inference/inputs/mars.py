@@ -226,8 +226,9 @@ class MarsInput(GribInput):
         """
         super().__init__(context, namer=namer)
         self.kwargs = kwargs
-        self.variables = self.checkpoint.variables_from_input(
-            include=["prognostic"], exclude=["forcing", "computed", "diagnostic"]
+        self.variables = self.checkpoint.select_variables(
+            include=["prognostic"],
+            exclude=["forcing", "computed", "diagnostic"],
         )
         self.kwargs = kwargs
         self.patches = patches or []

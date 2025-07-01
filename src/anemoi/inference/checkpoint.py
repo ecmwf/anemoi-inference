@@ -462,7 +462,7 @@ class Checkpoint:
     # Data retrieval
     ###########################################################################
 
-    def variables_from_input(self, *, include, exclude) -> Any:
+    def select_variables(self, *, include, exclude) -> Any:
         """Get variables from input.
 
         Parameters
@@ -478,7 +478,7 @@ class Checkpoint:
         Any
             The variables from input.
         """
-        return self._metadata.variables_from_input(include=include, exclude=exclude)
+        return self._metadata.select_variables(include=include, exclude=exclude)
 
     @property
     def grid(self) -> Any:

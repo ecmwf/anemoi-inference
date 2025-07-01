@@ -234,8 +234,9 @@ class EkdInput(Input):
             fields = processor.process(fields)
 
         if variables is None:
-            variables = self.checkpoint.variables_from_input(
-                include=["prognostic", "forcings"], exclude=["computed", "diagnostic"]
+            variables = self.checkpoint.select_variables(
+                include=["prognostic", "forcings"],
+                exclude=["computed", "diagnostic"],
             )
 
         if len(fields) == 0:

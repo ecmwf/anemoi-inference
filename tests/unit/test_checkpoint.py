@@ -22,7 +22,7 @@ def test_checkpoint() -> None:
     from anemoi.inference.checkpoint import Checkpoint
 
     c = Checkpoint("simple.chkpt")
-    c.variables_from_input
+    c.select_variables
 
 
 if __name__ == "__main__":
