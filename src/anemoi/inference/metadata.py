@@ -488,13 +488,15 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the area information."""
         return self._data_request.get("area")
 
-    def variables_from_input(self, *, include_forcings: bool) -> list:
+    def variables_from_input(self, *, include, exclude) -> list:
         """Get variables from input.
 
         Parameters
         ----------
-        include_forcings : bool
-            Whether to include forcings.
+        include: List[str]
+            Categories to include.
+        exclude: List[str]
+            Categories to exclude.
 
         Returns
         -------
@@ -503,19 +505,23 @@ class Metadata(PatchMixin, LegacyMixin):
         """
         variable_categories = self.variable_categories()
         result = []
+
+        include = set(include) if include is not None else None
+        exclude = set(exclude) if exclude is not None else None
+
+        if include is not None and exclude is not None:
+            if not include.isdisjoint(exclude):
+                raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
+
         for variable, metadata in self.variables_metadata.items():
 
             if "mars" not in metadata:
                 continue
 
-            if "forcing" in variable_categories[variable]:
-                if not include_forcings:
-                    continue
-
-            if "computed" in variable_categories[variable]:
+            if include is not None and include.isdisjoint(variable_categories[variable]):
                 continue
 
-            if "diagnostic" in variable_categories[variable]:
+            if exclude is not None and not exclude.isdisjoint(variable_categories[variable]):
                 continue
 
             result.append(variable)

@@ -151,7 +151,7 @@ class Runner(Context):
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution
-        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
+        self.user_provided_typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
@@ -393,7 +393,7 @@ class Runner(Context):
         if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
 
-        typed_variables = self.checkpoint.typed_variables
+        typed_variables = self.typed_variables
 
         for name in input_state["fields"]:
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
@@ -576,7 +576,7 @@ class Runner(Context):
 
         reset = np.full((input_tensor_torch.shape[-1],), False)
         variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-        typed_variables = self.checkpoint.typed_variables
+        typed_variables = self.context.typed_variables
         for variable, i in variable_to_input_tensor_index.items():
             if typed_variables[variable].is_constant_in_time:
                 reset[i] = True
@@ -996,3 +996,14 @@ class Runner(Context):
         Derived classes can implement this method to modify itself for parallel operation.
         """
         pass
+
+    @cached_property
+    def typed_variables(self) -> Dict[str, Any]:
+        """Returns
+        ----------
+        Dict[str, Any]
+            The typed variables, possibly including user provided ones.
+        """
+        result = self.checkpoint.typed_variables.copy()
+        result.update(self.user_provided_typed_variables)
+        return result

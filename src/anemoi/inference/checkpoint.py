@@ -462,20 +462,23 @@ class Checkpoint:
     # Data retrieval
     ###########################################################################
 
-    def variables_from_input(self, *, include_forcings: bool) -> Any:
+    def variables_from_input(self, *, include, exclude) -> Any:
         """Get variables from input.
 
         Parameters
         ----------
-        include_forcings : bool
-            Whether to include forcings.
+        include : Optional[List[str]]
+            Categories to include.
+
+        exclude : Optional[List[str]]
+            Categories to exclude.
 
         Returns
         -------
         Any
             The variables from input.
         """
-        return self._metadata.variables_from_input(include_forcings=include_forcings)
+        return self._metadata.variables_from_input(include=include, exclude=exclude)
 
     @property
     def grid(self) -> Any:

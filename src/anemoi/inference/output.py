@@ -56,8 +56,7 @@ class Output(ABC):
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-        self.typed_variables = self.checkpoint.typed_variables.copy()
-        self.typed_variables.update(self.context.typed_variables)
+        self.typed_variables = self.context.typed_variables
 
     def skip_variable(self, variable: str) -> bool:
         """Check if a variable should be skipped.

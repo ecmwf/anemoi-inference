@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import json
 from argparse import ArgumentParser
 from argparse import Namespace
 from typing import Any
@@ -169,7 +170,22 @@ class VariablesCmd(Command):
         config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
-        runner.typed_variables()
+
+        typed_variables = runner.checkpoint.typed_variables
+
+        variables = {}
+        for name, categories in runner.checkpoint.variable_categories().items():
+            variables[name] = {
+                "categories": categories,
+                **typed_variables[name].as_dict(),
+            }
+
+        print(
+            json.dumps(
+                dict(variables=variables, area=runner.checkpoint.area, grid=runner.checkpoint.grid),
+                indent=2,
+            )
+        )
 
 
 def _patch_scda(request: Dict[str, Any]) -> None:

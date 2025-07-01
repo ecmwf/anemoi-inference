@@ -118,7 +118,7 @@ class DummyInput(EkdInput):
 
         LOG.info("Generating fields for %s", variables)
 
-        typed_variables = self.checkpoint.typed_variables
+        typed_variables = self.context.typed_variables
 
         result = []
         for variable in variables:

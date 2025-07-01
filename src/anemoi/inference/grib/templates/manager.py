@@ -40,7 +40,7 @@ class TemplateManager:
         """
         self.owner = owner
         self.checkpoint = owner.context.checkpoint
-        self.typed_variables = self.checkpoint.typed_variables
+        self.typed_variables = owner.context.typed_variables
 
         self._template_cache = {}
 
