@@ -115,7 +115,7 @@ class DummyInput(EkdInput):
 
         if variables is None:
             variables = self.checkpoint.select_variables(
-                include=["prognostic", "forcings"],
+                include=["prognostic", "forcing"],
                 exclude=["computed", "diagnostic"],
             )
 

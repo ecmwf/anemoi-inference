@@ -554,7 +554,7 @@ class Metadata(PatchMixin, LegacyMixin):
             The MARS requests.
         """
 
-        for variable in self.select_variables(include=["prognostic", "forcings"], exclude=["computed", "diagnostic"]):
+        for variable in self.select_variables(include=["prognostic", "forcing"], exclude=["computed", "diagnostic"]):
             metadata = self.variables_metadata[variable]
 
             yield metadata["mars"].copy()
@@ -577,7 +577,7 @@ class Metadata(PatchMixin, LegacyMixin):
         levels = set()
 
         for variable in self.select_variables(
-            include=["prognostic", "forcings"],
+            include=["prognostic", "forcing"],
             exclude=["computed", "diagnostic"],
         ):
 
