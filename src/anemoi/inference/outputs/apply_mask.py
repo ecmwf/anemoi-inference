@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import List
 from typing import Optional
 
 from anemoi.inference.config import Configuration
@@ -21,21 +22,7 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("apply_mask")
 class ApplyMaskOutput(MaskedOutput):
-    """Apply mask output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    mask : str
-        The mask identifier.
-    output : dict
-        The output configuration dictionary.
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    """
+    """Apply mask output class."""
 
     def __init__(
         self,
@@ -43,13 +30,28 @@ class ApplyMaskOutput(MaskedOutput):
         *,
         mask: str,
         output: Configuration,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
+        """Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        mask : str
+            The mask identifier.
+        output : dict
+            The output configuration dictionary.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        """
         super().__init__(
             context,
-            mask=self.checkpoint.load_supporting_array(mask),
+            mask=context.checkpoint.load_supporting_array(mask),
             output=output,
+            variables=variables,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )

@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from typing import List
 from typing import Optional
 
 import numpy as np
@@ -23,21 +24,7 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("extract_lam")
 class ExtractLamOutput(MaskedOutput):
-    """Extract LAM output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    output : dict
-        The output configuration dictionary.
-    lam : str, optional
-        The LAM identifier, by default "lam_0".
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    """
+    """Extract LAM output class."""
 
     def __init__(
         self,
@@ -45,9 +32,25 @@ class ExtractLamOutput(MaskedOutput):
         *,
         output: Configuration,
         lam: str = "lam_0",
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
+        """Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        output : dict
+            The output configuration dictionary.
+        lam : str, optional
+            The LAM identifier, by default "lam_0".
+        variables : list, optional
+            The list of variables to extract, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        """
 
         if "cutout_mask" in context.checkpoint.supporting_arrays:
             # Backwards compatibility
@@ -69,6 +72,7 @@ class ExtractLamOutput(MaskedOutput):
             context,
             mask=points,
             output=output,
+            variables=variables,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )

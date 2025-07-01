@@ -33,6 +33,7 @@ class TeeOutput(ForwardOutput):
         context: Context,
         *args: Any,
         outputs: List[Configuration],
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
         **kwargs: Any,
@@ -54,7 +55,13 @@ class TeeOutput(ForwardOutput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, None, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            None,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
 
         if outputs is None:
             outputs = args

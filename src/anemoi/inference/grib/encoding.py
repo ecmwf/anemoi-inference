@@ -276,7 +276,23 @@ def grib_keys(
     )
 
     for k, v in variable.grib_keys.items():
-        if k not in ("domain", "type", "stream", "expver", "class", "param", "number", "step", "date", "hdate", "time"):
+        if k not in (
+            "domain",
+            "type",
+            "expver",
+            "class",
+            "param",
+            "number",
+            "step",
+            "date",
+            "hdate",
+            "time",
+        ):
+            if k == "stream":
+                if v in ("oper", "wave"):
+                    result.setdefault(k, v)
+                continue
+
             if k == "levtype":
                 v = LEVTYPES.get(v)
                 if v is None:

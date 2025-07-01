@@ -40,9 +40,9 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
     Parameters
     ----------
     config : Configuration
-        Configuration.
+        The configuration object for the runner.
     pid : int
-        Process ID.
+        The process ID.
     """
     runner = create_runner(config, pid=pid)
     runner.execute()
@@ -92,7 +92,7 @@ class ParallelRunnerMixin:
         config : Any
             The config for the runner.
         pid : int, optional
-            Process ID, by default 0.
+            The process ID, by default 0.
         """
         super().__init__(config, **kwargs)
 
@@ -133,7 +133,7 @@ class ParallelRunnerMixin:
         input_tensor_torch : torch.Tensor
             The input tensor for the model.
         **kwargs : Any
-            Additional arguments.
+            Additional arguments for the prediction step.
 
         Returns
         -------
@@ -199,7 +199,7 @@ class ParallelRunnerMixin:
             torch.manual_seed(seed)
 
     def _srun_used(self) -> bool:
-        """Returns true if anemoi-inference was launched with srun.
+        """Checks if anemoi-inference was launched with srun.
 
         Returns
         -------
@@ -216,7 +216,7 @@ class ParallelRunnerMixin:
         Parameters
         ----------
         num_procs : int
-            Number of processes to spawn.
+            The number of processes to spawn.
         """
         LOG.debug(f"spawning {num_procs -1 } procs")
 
@@ -237,9 +237,10 @@ class ParallelRunnerMixin:
             mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 
     def _bootstrap_processes(self) -> None:
-        """Initializes processes and their network information.
-        If srun is available, slurm variables are read to determine network settings.
-        Otherwise, local processes are spawned and network info is inferred from config.
+        """Initialises processes and their network information.
+
+        If srun is available, Slurm variables are read to determine network settings.
+        Otherwise, local processes are spawned and network info is inferred from the configuration.
         """
         using_slurm = self._srun_used()
         if using_slurm:

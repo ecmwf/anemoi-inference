@@ -12,6 +12,7 @@ from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
+from typing import List
 from typing import Optional
 
 from anemoi.inference.types import State
@@ -28,6 +29,7 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):
@@ -48,6 +50,29 @@ class Output(ABC):
 
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
+
+        self.variables = variables
+        if self.variables is not None:
+            if not isinstance(self.variables, (list, tuple)):
+                self.variables = [self.variables]
+
+        self.typed_variables = self.checkpoint.typed_variables.copy()
+        self.typed_variables.update(self.context.typed_variables)
+
+    def skip_variable(self, variable: str) -> bool:
+        """Check if a variable should be skipped.
+
+        Parameters
+        ----------
+        variable : str
+            The variable to check.
+
+        Returns
+        -------
+        bool
+            True if the variable should be skipped, False otherwise.
+        """
+        return self.variables is not None and variable not in self.variables
 
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -103,7 +128,10 @@ class Output(ABC):
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
-            reduced_state["fields"][field] = values[-1, :]
+            if len(values.shape) == 2:
+                reduced_state["fields"][field] = values[-1, :]
+            else:
+                reduced_state["fields"][field] = values
         return reduced_state
 
     def open(self, state: State) -> None:
@@ -175,12 +203,14 @@ class ForwardOutput(Output):
 
     Subclass from this class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves.
+
     """
 
     def __init__(
         self,
         context: "Context",
         output: dict,
+        variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):
@@ -192,6 +222,8 @@ class ForwardOutput(Output):
             The context in which the output operates.
         output : dict
             The output configuration dictionary.
+        variables : list, optional
+            The list of variables, by default None.
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
@@ -200,7 +232,7 @@ class ForwardOutput(Output):
 
         from anemoi.inference.outputs import create_output
 
-        super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
+        super().__init__(context, variables=variables, output_frequency=None, write_initial_state=write_initial_state)
 
         self.output = None if output is None else create_output(context, output)
 

@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.3](https://github.com/ecmwf/anemoi-inference/compare/0.6.2...0.6.3) (2025-06-24)
+
+
+### Features
+
+* Improve external graph runner ([#247](https://github.com/ecmwf/anemoi-inference/issues/247)) ([74c8e20](https://github.com/ecmwf/anemoi-inference/commit/74c8e2072f8609f541f14ae93d36eafc7689a3a8))
+* Resolve config with omegaconf ([#252](https://github.com/ecmwf/anemoi-inference/issues/252)) ([19422b2](https://github.com/ecmwf/anemoi-inference/commit/19422b2a0569587a37b4f7054afd21655f570cd4))
+
+
+### Bug Fixes
+
+* Apply mask to all sources in cutout input. ([#249](https://github.com/ecmwf/anemoi-inference/issues/249)) ([c2152ca](https://github.com/ecmwf/anemoi-inference/commit/c2152ca64a62af565adec89a76427cc053a09e67))
+* Apply_mask output ([#254](https://github.com/ecmwf/anemoi-inference/issues/254)) ([cec4072](https://github.com/ecmwf/anemoi-inference/commit/cec407256e719357e04bf30405524725b1905c7b))
+* Error combining 3 or plus inputs in cutout ([#256](https://github.com/ecmwf/anemoi-inference/issues/256)) ([eb7afd1](https://github.com/ecmwf/anemoi-inference/commit/eb7afd1b308136017ffc466ca6d8253a1ae4e6a8))
+
+## [0.6.2](https://github.com/ecmwf/anemoi-inference/compare/0.6.1...0.6.2) (2025-06-18)
+
+
+### Features
+
+* Mars with Nested models ([#236](https://github.com/ecmwf/anemoi-inference/issues/236)) ([75a5e3b](https://github.com/ecmwf/anemoi-inference/commit/75a5e3b6354525b5f337b4b0181103d0311c77c6))
+* **parallel:** Make `base_runner` the main argument ([d6863a0](https://github.com/ecmwf/anemoi-inference/commit/d6863a0dd4ca1d4277eab9718c9fd55d31811c74))
+
+
+### Bug Fixes
+
+* **metadata:** Check if variable exists before patching `constant_fields` ([0ad51bb](https://github.com/ecmwf/anemoi-inference/commit/0ad51bb7d69e48de6bc5a997b2edf6861c61a8e5))
+
 ## [0.6.1](https://github.com/ecmwf/anemoi-inference/compare/0.6.0...0.6.1) (2025-06-04)
 
 

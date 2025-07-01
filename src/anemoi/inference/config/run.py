@@ -18,6 +18,8 @@ from typing import Literal
 from typing import Optional
 from typing import Union
 
+from pydantic import Field
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -33,9 +35,6 @@ class RunConfiguration(Configuration):
 
     runner: Union[str, Dict[str, Any]] = "default"
     """The runner to use."""
-
-    date: Union[str, int, datetime.datetime, None] = None
-    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`anemoi.utils.dates.as_datetime`."""
 
     lead_time: Union[str, int, datetime.timedelta] = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
@@ -86,6 +85,9 @@ class RunConfiguration(Configuration):
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written.
     """
+
+    typed_variables: Dict[str, Dict] = Field(default_factory=dict)
+    """A list of typed variables to support the encoding of outputs."""
 
     output_frequency: Optional[str] = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
