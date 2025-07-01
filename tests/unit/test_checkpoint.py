@@ -21,7 +21,7 @@ def test_checkpoint() -> None:
     """
     from anemoi.inference.checkpoint import Checkpoint
 
-    c = Checkpoint("simple.chkpt")
+    c = Checkpoint("unit/checkpoints/simple.ckpt")
     c.select_variables(
         include=["prognostic"],
         exclude=["forcing", "computed", "diagnostic"],
