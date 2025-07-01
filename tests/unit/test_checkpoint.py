@@ -22,7 +22,10 @@ def test_checkpoint() -> None:
     from anemoi.inference.checkpoint import Checkpoint
 
     c = Checkpoint("simple.chkpt")
-    c.select_variables
+    c.select_variables(
+        include=["prognostic"],
+        exclude=["forcing", "computed", "diagnostic"],
+    )
 
 
 if __name__ == "__main__":

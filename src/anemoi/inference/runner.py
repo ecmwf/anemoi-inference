@@ -393,7 +393,7 @@ class Runner(Context):
         if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
 
-        typed_variables = self.typed_variables
+        typed_variables = self.checkpoint.typed_variables
 
         for name in input_state["fields"]:
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)

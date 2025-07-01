@@ -329,7 +329,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         reset = np.full((input_tensor_torch.shape[-1],), False)
         variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-        typed_variables = self.context.typed_variables
+        typed_variables = self.checkpoint.typed_variables
         for variable, i in variable_to_input_tensor_index.items():
             if typed_variables[variable].is_constant_in_time:
                 reset[i] = True
