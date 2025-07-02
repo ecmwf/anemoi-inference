@@ -504,7 +504,7 @@ class Metadata(PatchMixin, LegacyMixin):
             The list of variables.
         """
 
-        CATEGORIES = {"computed", "forcing", "diagnostic", "prognostic"}
+        CATEGORIES = {"computed", "forcing", "diagnostic", "prognostic", "constant", "accumulation"}
 
         variable_categories = self.variable_categories()
         result = []
@@ -532,13 +532,21 @@ class Metadata(PatchMixin, LegacyMixin):
 
         for variable, metadata in self.variables_metadata.items():
 
+            categories = set(variable_categories[variable])
+
+            if not categories < CATEGORIES:
+                warnings.warn(
+                    f"Variable {variable} has unknown categories: {categories - CATEGORIES}. "
+                    f"Please update the code."
+                )
+
             if "mars" not in metadata:
                 continue
 
-            if include is not None and include.isdisjoint(variable_categories[variable]):
+            if include is not None and include.isdisjoint(categories):
                 continue
 
-            if exclude is not None and not exclude.isdisjoint(variable_categories[variable]):
+            if exclude is not None and not exclude.isdisjoint(categories):
                 continue
 
             result.append(variable)
