@@ -184,7 +184,7 @@ class Runner(Context):
         return self._checkpoint
 
     def run(
-        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta]
+        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta], return_numpy: bool = True
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -194,6 +194,9 @@ class Runner(Context):
             The input state.
         lead_time : Union[str, int, datetime.timedelta]
             The lead time.
+        return_numpy : bool, optional
+            Whether to return the output state fields as numpy arrays, by default True.
+            Otherwise, it will return torch tensors.
 
         Returns
         -------
@@ -232,7 +235,7 @@ class Runner(Context):
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
-                yield from self.forecast(lead_time, input_tensor, input_state)
+                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
             except (TypeError, ModuleNotFoundError, AttributeError):
                 if self.report_error:
                     self.checkpoint.report_error()
@@ -439,6 +442,32 @@ class Runner(Context):
 
         return input_tensor_numpy
 
+    def prepare_output_state(
+        self, output: Generator[State, None, None], return_numpy: bool
+    ) -> Generator[State, None, None]:
+        """Prepare the output state.
+
+        Parameters
+        ----------
+        output : Generator[State, None, None]
+            Output state generator,
+            Expects fields to be torch tensors with shape (values, variables).
+        return_numpy : bool
+            Whether to return the output state fields as numpy arrays.
+
+        Yields
+        ------
+        Generator[State, None, None]
+            The prepared output state.
+        """
+        for state in output:
+            if return_numpy:
+                # Convert fields to numpy arrays
+                for name, field in state["fields"].items():
+                    if isinstance(field, torch.Tensor):
+                        state["fields"][name] = field.cpu().numpy()
+            yield state
+
     @cached_property
     def autocast(self) -> Union[torch.dtype, str]:
         """The autocast precision."""
@@ -605,9 +634,7 @@ class Runner(Context):
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
-            # Detach tensor and squeeze (should we detach here?)
-            with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            output = torch.squeeze(y_pred)  # shape: (values, variables)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -638,12 +665,12 @@ class Runner(Context):
 
                 del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
+                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
+                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
 
             if not check.all():
                 # Not all variables have been updated
