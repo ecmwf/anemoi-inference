@@ -206,7 +206,7 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                LOG.info(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
                 self.vars[name][self.n] = value
 
         self.n += 1

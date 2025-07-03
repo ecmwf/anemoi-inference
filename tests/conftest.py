@@ -10,6 +10,8 @@
 
 import pytest
 
+pytest_plugins = "anemoi.utils.testing"
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
