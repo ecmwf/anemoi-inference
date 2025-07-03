@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.6.4](https://github.com/ecmwf/anemoi-inference/compare/0.6.3...0.6.4) (2025-07-03)
+
+
+### Features
+
+* Allow for `Runner.run` to return torch ([#263](https://github.com/ecmwf/anemoi-inference/issues/263)) ([77330f7](https://github.com/ecmwf/anemoi-inference/commit/77330f70291474f8a6391389bc5c4e12d90a4f65))
+* Move anemoi-inference metadata command to anemoi-utils ([#257](https://github.com/ecmwf/anemoi-inference/issues/257)) ([d735be5](https://github.com/ecmwf/anemoi-inference/commit/d735be5d1b7fb0dade64ff20cd51aef9f792fd8a))
+* Temporal interpolation runner ([#227](https://github.com/ecmwf/anemoi-inference/issues/227)) ([74048d9](https://github.com/ecmwf/anemoi-inference/commit/74048d9c976fd658f173e8cfafe1f13ab36fdfee))
+* **waves:** Add ability to update `typed_variables` from config ([#202](https://github.com/ecmwf/anemoi-inference/issues/202)) ([c02c45a](https://github.com/ecmwf/anemoi-inference/commit/c02c45aa1329fdc0c660ee2d7eccac2b15bc0514))
+
+
+### Bug Fixes
+
+* Provenance git dict reference issue ([#259](https://github.com/ecmwf/anemoi-inference/issues/259)) ([2d70411](https://github.com/ecmwf/anemoi-inference/commit/2d704119d4c1467f035e7f4cf0c437b9f2806af0))
+
 ## [0.6.3](https://github.com/ecmwf/anemoi-inference/compare/0.6.2...0.6.3) (2025-06-24)
 
 
