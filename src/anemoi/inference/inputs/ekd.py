@@ -234,7 +234,10 @@ class EkdInput(Input):
             fields = processor.process(fields)
 
         if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
+            variables = self.checkpoint.select_variables(
+                include=["prognostic", "forcing"],
+                exclude=["computed", "diagnostic"],
+            )
 
         if len(fields) == 0:
             raise ValueError("No input fields provided")
