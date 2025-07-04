@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 from argparse import ArgumentParser
 from argparse import Namespace
@@ -72,6 +73,8 @@ class CoupleCmd(Command):
             value = getattr(config, copy, None)
             if value is not None:
                 LOG.info("Copy setting to all tasks: %s=%s", copy, value)
+                if isinstance(value, datetime.datetime):
+                    value = value.isoformat()
                 global_config[copy] = value
 
         tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}

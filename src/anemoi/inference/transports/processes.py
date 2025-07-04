@@ -112,6 +112,10 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
+            if status != 0:
+                LOG.error("One of the child processes failed. Exiting.")
+                raise RuntimeError(f"Child process {pid} ({self.children[pid]}) failed with status {status}")
+
     def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send a state from the sender to the target.
 
