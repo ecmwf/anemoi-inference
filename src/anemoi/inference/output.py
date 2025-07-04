@@ -370,7 +370,6 @@ class Output(ABC):
         """
         pass
     
-    @abstractmethod
     def per_writer_init(self, writer_id) -> None:
         """
         Method to allow output-specific initalisation of workers

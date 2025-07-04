@@ -97,6 +97,7 @@ class ParallelRunnerMixin:
 
         self.model_comm_group = None
         self.pid = pid
+        self.shard_output=False
         if os.getenv("PARALLEL_OUT", "0") == "1":
             LOG.info("Anemoi inference: Parallel output")
             self.shard_output=True
