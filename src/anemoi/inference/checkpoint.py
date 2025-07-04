@@ -24,8 +24,8 @@ from typing import Union
 
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
-from earthkit.data.utils.dates import to_datetime
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import DataRequest
@@ -162,12 +162,12 @@ class Checkpoint:
     def target_explicit_times(self) -> Any:
         """Get the target explicit times."""
         return self._metadata.target_explicit_times
-    
+
     @property
     def interpolation_window(self) -> Any:
         """Get the interpolation window."""
         return to_timedelta(self.data_frequency) * (self.input_explicit_times[1] - self.input_explicit_times[0])
-    
+
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""

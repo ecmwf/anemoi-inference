@@ -126,7 +126,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
-        
         lead_time = to_timedelta(self.config.lead_time)
 
         # This may be used by Output objects to compute the step
