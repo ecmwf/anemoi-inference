@@ -176,7 +176,9 @@ class GribOutput(BaseGribOutput):
             variables=variables,
         )
         self.out = out
-        self.output = GribWriter(self.out, split_output=split_output or not isinstance(self.out, IOBase))
+        self.output = GribWriter(
+            self.out, split_output=split_output if split_output is not None else not isinstance(self.out, IOBase)
+        )
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
