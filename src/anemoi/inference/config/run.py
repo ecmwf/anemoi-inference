@@ -20,11 +20,11 @@ from typing import Union
 
 from pydantic import Field
 
+from anemoi.inference.types import ProcessorConfig
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
-
-ProcessorConfig = Union[str, Dict[str, Any]]
 
 
 class RunConfiguration(Configuration):

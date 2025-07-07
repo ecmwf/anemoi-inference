@@ -16,7 +16,7 @@ from typing import Optional
 import earthkit.data as ekd
 import numpy as np
 
-from anemoi.inference.config.run import ProcessorConfig
+from anemoi.inference.types import ProcessorConfig
 
 from ..types import Date
 from ..types import State

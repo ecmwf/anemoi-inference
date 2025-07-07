@@ -9,9 +9,9 @@
 
 from anemoi.utils.registry import Registry
 
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
 from anemoi.inference.processor import Processor
+from anemoi.inference.types import ProcessorConfig
 
 pre_processor_registry = Registry(__name__)
 

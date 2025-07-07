@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING
 from typing import List
 from typing import Optional
 
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 if TYPE_CHECKING:

@@ -14,8 +14,8 @@ from typing import Optional
 import numpy as np
 
 from anemoi.inference.config import Configuration
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 
 from . import output_registry
 from .masked import MaskedOutput

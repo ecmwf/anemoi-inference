@@ -13,8 +13,8 @@ from typing import List
 from typing import Optional
 
 from anemoi.inference.config import Configuration
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..output import ForwardOutput

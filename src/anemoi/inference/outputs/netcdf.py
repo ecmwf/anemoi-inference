@@ -15,8 +15,8 @@ from typing import Optional
 
 import numpy as np
 
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument

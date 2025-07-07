@@ -15,10 +15,10 @@ from typing import Any
 from typing import List
 from typing import Optional
 
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 if TYPE_CHECKING:

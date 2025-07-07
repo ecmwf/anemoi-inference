@@ -20,8 +20,8 @@ from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.config.run import ProcessorConfig
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..grib.encoding import grib_keys
