@@ -110,4 +110,4 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
 def _typed_variables_output(checkpoint):
     output_variables = checkpoint.output_tensor_index_to_variable.values()
-    return [checkpoint._metadata.typed_variables[name] for name in output_variables]
+    return [checkpoint.typed_variables[name] for name in output_variables]
