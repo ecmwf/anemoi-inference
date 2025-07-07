@@ -10,12 +10,13 @@
 
 from functools import wraps
 from typing import Any
+from typing import Callable
 from typing import TypeVar
 
 from anemoi.inference.context import Context
 
 MARKER = object()
-F = TypeVar("F")
+F = TypeVar("F", bound=Callable)
 
 
 class main_argument:
