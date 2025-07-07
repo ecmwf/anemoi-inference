@@ -39,6 +39,7 @@ def get_interpolation_window(data_frequency, input_explicit_times) -> datetime.t
     """Get the interpolation window."""
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
+
 def checkpoint_lagged_interpolator_patch(self) -> List[datetime.timedelta]:
     # For interpolator, we always want positive timedeltas
     result = [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
@@ -129,11 +130,13 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
-        
+
         lead_time = to_timedelta(self.config.lead_time)
         # This may be used by Output objects to compute the step
         self.lead_time = lead_time
-        self.interpolation_window = get_interpolation_window(self.checkpoint.data_frequency, self.checkpoint.input_explicit_times)
+        self.interpolation_window = get_interpolation_window(
+            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
+        )
         # Not really timestep but the size of the interpolation window, not sure if this is used
         self.time_step = self.interpolation_window
         input = self.create_input()
