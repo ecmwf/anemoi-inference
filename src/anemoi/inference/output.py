@@ -88,9 +88,6 @@ class Output(ABC):
 
         processors = []
 
-        if hasattr(self.context, "post_processors"):
-            processors.extend(self.context.post_processors)
-
         for processor in self._post_processor_confs:
             processors.append(create_post_processor(self.context, processor))
 

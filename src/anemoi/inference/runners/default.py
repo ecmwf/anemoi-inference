@@ -108,6 +108,10 @@ class DefaultRunner(Runner):
         output.write_initial_state(state)
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
+            # Apply top-level post-processors
+            LOG.info("Top-level post-processors: %s", self.post_processors)
+            for processor in self.post_processors:
+                state = processor.process(state)
             output.write_state(state)
 
         output.close()

@@ -61,7 +61,7 @@ class Input(ABC):
         if hasattr(self.context, "pre_processors"):
             processors.extend(self.context.pre_processors)
 
-        LOG.info("Pre processors: %s", processors)
+        LOG.info("Inner-level pre-processors: %s", processors)
         return processors
 
     def pre_process(self, x: Any) -> Any:
