@@ -101,11 +101,13 @@ class DefaultRunner(Runner):
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)
 
-        state = Output.reduce(input_state)
+        initial_state = Output.reduce(input_state)
+        for processor in self.post_processors:
+            initial_state = processor.process(initial_state)
 
-        output.open(state)
+        output.open(initial_state)
         LOG.info("write_initial_state: %s", output)
-        output.write_initial_state(state)
+        output.write_initial_state(initial_state)
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
             # Apply top-level post-processors
