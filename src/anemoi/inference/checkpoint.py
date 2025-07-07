@@ -163,6 +163,11 @@ class Checkpoint:
         return self._metadata.target_explicit_times
 
     @property
+    def data_frequency(self) -> Any:
+        """Get the data frequency."""
+        return self._metadata._config_data.frequency
+
+    @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
