@@ -24,7 +24,10 @@ from typing import Union
 
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
+<<<<<<< HEAD
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+=======
+>>>>>>> 62c0185 (move interpolation window)
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.forcings import Forcings

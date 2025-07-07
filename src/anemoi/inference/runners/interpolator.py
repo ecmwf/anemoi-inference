@@ -35,6 +35,10 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
+def get_interpolation_window(data_frequency, input_explicit_times) -> datetime.timedelta:
+    """Get the interpolation window."""
+    return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
+
 def checkpoint_lagged_interpolator_patch(self) -> List[datetime.timedelta]:
     # For interpolator, we always want positive timedeltas
     result = [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
@@ -92,7 +96,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         ), (
             "Interpolator runner requires the number of target explicit times to be equal to "
             "interpolation_window / frequency - 1, but got "
-            f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.checkpoint.interpolation_window} and "
+            f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
 
@@ -125,14 +129,13 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
-
+        
         lead_time = to_timedelta(self.config.lead_time)
-
         # This may be used by Output objects to compute the step
         self.lead_time = lead_time
-        interpolation_window = self.checkpoint.interpolation_window
+        self.interpolation_window = get_interpolation_window(self.checkpoint.data_frequency, self.checkpoint.input_explicit_times)
         # Not really timestep but the size of the interpolation window, not sure if this is used
-        self.time_step = interpolation_window
+        self.time_step = self.interpolation_window
         input = self.create_input()
         output = self.create_output()
 
@@ -141,16 +144,16 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Get the interpolation window size from training config
         boundary_idx = self.checkpoint.input_explicit_times
         # Calculate how many interpolation windows we need for the lead_time
-        num_windows = int(lead_time / interpolation_window)
-        if lead_time % interpolation_window != to_timedelta(0):
+        num_windows = int(lead_time / self.interpolation_window)
+        if lead_time % self.interpolation_window != to_timedelta(0):
             LOG.warning(
-                f"Lead time {lead_time} is not a multiple of interpolation window {interpolation_window}. "
-                f"Will interpolate for {num_windows * interpolation_window}"
+                f"Lead time {lead_time} is not a multiple of interpolation window {self.interpolation_window}. "
+                f"Will interpolate for {num_windows * self.interpolation_window}"
             )
 
         # Process each interpolation window
         for window_idx in range(num_windows):
-            window_start_date = self.config.date + window_idx * interpolation_window
+            window_start_date = self.config.date + window_idx * self.interpolation_window
 
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
@@ -159,7 +162,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
-            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=interpolation_window)):
+            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
 
                 # In the first window, we want to write the initial state (t=0)
                 # In other windows, we want to skip the initial state (t=0)
@@ -168,7 +171,7 @@ class TimeInterpolatorRunner(DefaultRunner):
                     continue
 
                 # Updating state step to be a global step not relative to window
-                state["step"] = state["step"] + window_idx * interpolation_window
+                state["step"] = state["step"] + window_idx * self.interpolation_window
 
                 # Apply post-processing
                 for processor in post_processors:
@@ -227,10 +230,10 @@ class TimeInterpolatorRunner(DefaultRunner):
         boundary_idx = self.checkpoint.input_explicit_times
         steps = len(target_steps)
 
-        LOG.info("Time stepping: %s Interpolating %s steps", self.checkpoint.interpolation_window, steps)
+        LOG.info("Time stepping: %s Interpolating %s steps", self.interpolation_window, steps)
 
         for s in range(steps):
-            step = self.checkpoint.interpolation_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
+            step = self.interpolation_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
             date = start_date + step
             is_last_step = s == steps - 1
             yield step, date, target_steps[s], is_last_step
@@ -399,8 +402,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Yield final boundary state (t+window_size) if configured to do so
         if len(boundary_times) > 1:
             final_result = result.copy()
-            final_result["date"] = start + self.checkpoint.interpolation_window
-            final_result["step"] = self.checkpoint.interpolation_window
+            final_result["date"] = start + self.interpolation_window
+            final_result["step"] = self.interpolation_window
             final_result["interpolated"] = False
             # Extract fields from the last time step of input tensor
             if input_tensor_torch.shape[1] > 1:
