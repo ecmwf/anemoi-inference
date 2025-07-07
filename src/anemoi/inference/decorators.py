@@ -35,7 +35,7 @@ class main_argument:
 
     output:
         grib:
-            path: out.grib
+            out: out.grib
     """
 
     def __init__(self, name: str):

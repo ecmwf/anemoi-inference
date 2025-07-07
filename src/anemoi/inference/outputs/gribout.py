@@ -11,6 +11,7 @@
 import json
 import logging
 from collections import defaultdict
+from io import IOBase
 from typing import Any
 from typing import Dict
 from typing import List
@@ -28,7 +29,7 @@ from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
-from .grib import GribOutput
+from .grib import BaseGribOutput
 
 LOG = logging.getLogger(__name__)
 
@@ -106,15 +107,15 @@ class ArchiveCollector:
 
 
 @output_registry.register("grib")
-@main_argument("path")
-class GribFileOutput(GribOutput):
+@main_argument("out")
+class GribOutput(BaseGribOutput):
     """Handles grib files."""
 
     def __init__(
         self,
         context: Context,
         *,
-        path: str,
+        out: Union[str, IOBase],
         encoding: Optional[Dict[str, Any]] = None,
         archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
@@ -125,16 +126,18 @@ class GribFileOutput(GribOutput):
         variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
-        split_output: bool = True,
+        split_output: Optional[bool] = None,
     ) -> None:
-        """Initialize the GribFileOutput.
+        """Initialize the GribOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
-            The path to save the grib files.
+        out : Union[str, IOBase]
+            Path or file-like object to write the grib data to.
+            If a string, it should be a file path.
+            If a file-like object, it should be opened in binary write mode.
         encoding : dict, optional
             The encoding dictionary, by default None.
         archive_requests : dict, optional
@@ -156,7 +159,10 @@ class GribFileOutput(GribOutput):
         variables : list, optional
             The list of variables, by default None.
         split_output : bool, optional
-            Whether to split the output, by default True.
+            Whether to split the output, by default None.
+            Cannot be `True` if `out` is a file-like object.
+            If `out` is a string, this is set to `True` by default.
+            If `out` is a file-like object, this is ignored and set to `False`.
         """
         super().__init__(
             context,
@@ -169,16 +175,16 @@ class GribFileOutput(GribOutput):
             write_initial_state=write_initial_state,
             variables=variables,
         )
-        self.path = path
-        self.output = GribWriter(self.path, split_output=split_output)
+        self.out = out
+        self.output = GribWriter(self.out, split_output=split_output or not isinstance(self.out, IOBase))
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
-        """Return a string representation of the GribFileOutput object."""
-        return f"GribFileOutput({self.path})"
+        """Return a string representation of the GribOutput object."""
+        return f"GribOutput({self.out})"
 
     def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
         """Write a message to the grib file.
@@ -220,7 +226,7 @@ class GribFileOutput(GribOutput):
         except Exception as e:
             import eccodes
 
-            LOG.error("Error writing message to %s", self.path)
+            LOG.error("Error writing message to %s", self.out)
             LOG.error("eccodes: %s", eccodes.__version__)
             LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)

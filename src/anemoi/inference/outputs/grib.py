@@ -113,7 +113,7 @@ def modifier_factory(modifiers: list) -> list:
     return result
 
 
-class GribOutput(Output):
+class BaseGribOutput(Output):
     """Handles grib."""
 
     def __init__(
