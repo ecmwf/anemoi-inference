@@ -194,12 +194,6 @@ class Checkpoint:
         return self._metadata.typed_variables
 
     @property
-    def typed_variables_output(self) -> Dict[str, Variable]:
-        """Get the typed variables for output only."""
-        output_variables = self.output_tensor_index_to_variable.values()
-        return {name: self._metadata.typed_variables[name] for name in output_variables}
-
-    @property
     def diagnostic_variables(self) -> Any:
         """Get the diagnostic variables."""
         return self._metadata.diagnostic_variables

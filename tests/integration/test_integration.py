@@ -93,7 +93,7 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
     assert (test_setup.output).exists(), "Output file was not created."
 
-    checkpoint_output_variables = [variable for variable in runner._checkpoint.typed_variables_output.values()]
+    checkpoint_output_variables = _typed_variables_output(runner._checkpoint)
     LOG.info(f"Checkpoint output variables: {checkpoint_output_variables}")
 
     # run the checks defined in the test configuration
@@ -106,3 +106,8 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
             ] or checkpoint_output_variables
 
             testing_registry.create(check, file=test_setup.output, expected_variables=expected_variables, **kwargs)
+
+
+def _typed_variables_output(checkpoint):
+    output_variables = checkpoint.output_tensor_index_to_variable.values()
+    return [checkpoint._metadata.typed_variables[name] for name in output_variables]
