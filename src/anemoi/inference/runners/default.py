@@ -13,6 +13,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+from anemoi.utils.config import DotDict
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from pydantic import BaseModel
 
 from anemoi.inference.config import Configuration
@@ -21,8 +23,6 @@ from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
-from anemoi.utils.config import DotDict
-from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
