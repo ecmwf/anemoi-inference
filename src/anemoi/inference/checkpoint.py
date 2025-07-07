@@ -24,7 +24,6 @@ from typing import Union
 
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
-
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.forcings import Forcings
