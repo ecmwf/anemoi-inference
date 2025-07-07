@@ -9,7 +9,6 @@
 
 
 import logging
-import warnings
 from typing import Any
 from typing import Dict
 from typing import List
@@ -121,6 +120,15 @@ class DefaultRunner(Runner):
             output.write_state(state)
 
         output.close()
+
+        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
+            LOG.warning(
+                """
+                🚧 The default accumulation behaviour has changed. 🚧
+                🚧 Accumulation fields have NOT been accumulated from the beginning of the forecast. 🚧
+                🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
+                """  # ecmwf/anemoi-inference#131
+            )
 
     def input_state_hook(self, input_state: State) -> None:
         """Hook used by coupled runners to send the input state."""
@@ -281,26 +289,6 @@ class DefaultRunner(Runner):
         List[Processor]
             The created pre-processors.
         """
-        if self.config.post_processors is None:
-            self.config.post_processors = ["accumulate_from_start_of_forecast"]
-            warnings.warn(
-                """
-                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
-
-                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-                Update your config if you wish to keep accumulating from the beginning.
-                https://github.com/ecmwf/anemoi-inference/issues/131
-                """,
-            )
-
-        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
-            warnings.warn(
-                """
-                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
-                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
-                """
-            )
-
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))
