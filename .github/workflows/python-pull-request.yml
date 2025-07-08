@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - test/uv-pytest-workflow
   schedule:
     - cron: "9 2 * * 0" # at 9:02 on sunday
 
@@ -20,6 +21,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-    uses: ecmwf/reusable-workflows/.github/workflows/qa-pytest-pyproject.yml@v2
+    uses: ecmwf/reusable-workflows/.github/workflows/qa-pytest-pyproject.yml@feat/uv-qa-pytest-pyproject
     with:
       python-version: ${{ matrix.python-version }}
