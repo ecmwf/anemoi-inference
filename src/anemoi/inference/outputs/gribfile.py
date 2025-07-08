@@ -106,10 +106,12 @@ class ArchiveCollector:
         return {k: sorted(v) for k, v in self._request.items()}
 
 
-@output_registry.register("grib")
-@main_argument("out")
-class GribOutput(BaseGribOutput):
-    """Handles grib files."""
+class GribIoOutput(BaseGribOutput):
+    """Output class for grib files.
+
+    This class handles writing grib files and collecting archive requests.
+    It extends the BaseGribOutput class and implements the write_message method.
+    """
 
     def __init__(
         self,
@@ -126,7 +128,7 @@ class GribOutput(BaseGribOutput):
         variables: Optional[List[str]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
-        split_output: Optional[bool] = None,
+        split_output: bool = True,
     ) -> None:
         """Initialize the GribOutput.
 
@@ -134,7 +136,7 @@ class GribOutput(BaseGribOutput):
         ----------
         context : Context
             The context.
-        out : Union[str, IOBase]
+        path : Union[str, IOBase]
             Path or file-like object to write the grib data to.
             If a string, it should be a file path.
             If a file-like object, it should be opened in binary write mode.
@@ -176,9 +178,7 @@ class GribOutput(BaseGribOutput):
             variables=variables,
         )
         self.out = out
-        self.output = GribWriter(
-            self.out, split_output=split_output if split_output is not None else not isinstance(self.out, IOBase)
-        )
+        self.output = GribWriter(self.out, split_output)
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
@@ -326,3 +326,73 @@ class GribOutput(BaseGribOutput):
 
             json.dump(requests, f, indent=indent)
             f.write("\n")
+
+
+@output_registry.register("grib")
+@main_argument("path")
+class GribFileOutput(GribIoOutput):
+    """Handles grib files."""
+
+    def __init__(
+        self,
+        context: Context,
+        *,
+        path: str,
+        encoding: Optional[Dict[str, Any]] = None,
+        archive_requests: Optional[Dict[str, Any]] = None,
+        check_encoding: bool = True,
+        templates: Optional[Union[List[str], str]] = None,
+        grib1_keys: Optional[Dict[str, Any]] = None,
+        grib2_keys: Optional[Dict[str, Any]] = None,
+        modifiers: Optional[List[str]] = None,
+        variables: Optional[List[str]] = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
+        split_output: bool = True,
+    ) -> None:
+        """Initialize the GribFileOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str
+            Path to the grib file to write the data to.
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        archive_requests : dict, optional
+            The archive requests dictionary, by default None.
+        check_encoding : bool, optional
+            Whether to check encoding, by default True.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        split_output : bool, optional
+            Whether to split the output, by default None.
+        """
+        super().__init__(
+            context,
+            out=path,
+            encoding=encoding,
+            archive_requests=archive_requests,
+            check_encoding=check_encoding,
+            templates=templates,
+            grib1_keys=grib1_keys,
+            grib2_keys=grib2_keys,
+            modifiers=modifiers,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+            variables=variables,
+            split_output=split_output,
+        )

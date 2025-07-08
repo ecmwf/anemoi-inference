@@ -42,7 +42,7 @@ The path to the output file is actually a template.
 
 .. code:: yaml
 
-   grib: "output-{date}-{time}-{step}.grib"
+   path: "output-{date}-{time}-{step}.grib"
 
 For each field, the output path will be constructed by substituting the
 string between curly braces with the corresponding value, based on the
@@ -51,7 +51,7 @@ format the values. For example,
 
 .. code:: yaml
 
-   grib: "output-{date}-{time}-{step:03}.grib"
+   path: "output-{date}-{time}-{step:03}.grib"
 
 will apply zero-padding to the 'step' value, so that it is always 3
 digits long.
