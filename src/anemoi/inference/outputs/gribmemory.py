@@ -70,8 +70,6 @@ class GribMemoryOutput(GribIoOutput):
             Whether to write the initial state, by default None.
         variables : list, optional
             The list of variables, by default None.
-        split_output : bool, optional
-            Whether to split the output, by default None.
         """
         super().__init__(
             context,

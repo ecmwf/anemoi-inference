@@ -107,9 +107,9 @@ class ArchiveCollector:
 
 
 class GribIoOutput(BaseGribOutput):
-    """Output class for grib files.
+    """Output class for grib io.
 
-    This class handles writing grib files and collecting archive requests.
+    This class handles writing grib and collecting archive requests.
     It extends the BaseGribOutput class and implements the write_message method.
     """
 
@@ -130,7 +130,7 @@ class GribIoOutput(BaseGribOutput):
         write_initial_state: Optional[bool] = None,
         split_output: bool = True,
     ) -> None:
-        """Initialize the GribOutput.
+        """Initialize the GribIOOutput.
 
         Parameters
         ----------
@@ -161,10 +161,8 @@ class GribIoOutput(BaseGribOutput):
         variables : list, optional
             The list of variables, by default None.
         split_output : bool, optional
-            Whether to split the output, by default None.
+            Whether to split the output, by default True.
             Cannot be `True` if `out` is a file-like object.
-            If `out` is a string, this is set to `True` by default.
-            If `out` is a file-like object, this is ignored and set to `False`.
         """
         super().__init__(
             context,
@@ -185,8 +183,8 @@ class GribIoOutput(BaseGribOutput):
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
-        """Return a string representation of the GribOutput object."""
-        return f"GribOutput({self.out})"
+        """Return a string representation of the GribIOOutput object."""
+        return f"{type(self).__name__ }({self.out})"
 
     def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
         """Write a message to the grib file.
@@ -379,7 +377,7 @@ class GribFileOutput(GribIoOutput):
         variables : list, optional
             The list of variables, by default None.
         split_output : bool, optional
-            Whether to split the output, by default None.
+            Whether to split the output, by default True.
         """
         super().__init__(
             context,
