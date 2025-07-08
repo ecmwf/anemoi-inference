@@ -697,3 +697,8 @@ class SourceCheckpoint(Checkpoint):
             String representation of the SourceCheckpoint.
         """
         return f"Source({self.name}@{self.path})"
+
+    @property
+    def operational_config(self) -> Dict[str, Any]:
+        LOG.warning("The `operational_config` property is deprecated.")
+        return False

@@ -185,7 +185,9 @@ class RetrieveCmd(Command):
             "--exclude", help="Comma-separated list of variable categories to exclude", default="computed"
         )
         command_parser.add_argument("--mars", action="store_true", help="Write requests for MARS retrieval")
-        command_parser.add_argument("--target", default="data.grib", help="Target path for the MARS retrieval requests")
+        command_parser.add_argument(
+            "--target", default="input.grib", help="Target path for the MARS retrieval requests"
+        )
         command_parser.add_argument("--verb", default="retrieve", help="Verb for the MARS retrieval requests")
         command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
