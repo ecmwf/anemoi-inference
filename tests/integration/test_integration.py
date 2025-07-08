@@ -97,15 +97,16 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     LOG.info(f"Checkpoint output variables: {checkpoint_output_variables}")
 
     # run the checks defined in the test configuration
+    # checks is a list of dicts, each with a single key-value pair
     for checks in test_setup.config.checks:
-        for check, kwargs in checks.items():
-            # config can optionally pass expected output variables, by default it uses the checkpoint variables
-            expected_variables_config = kwargs.pop("expected_variables", [])
-            expected_variables = [
-                VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
-            ] or checkpoint_output_variables
+        check, kwargs = next(iter(checks.items()))
+        # config can optionally pass expected output variables, by default it uses the checkpoint variables
+        expected_variables_config = kwargs.pop("expected_variables", [])
+        expected_variables = [
+            VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
+        ] or checkpoint_output_variables
 
-            testing_registry.create(check, file=test_setup.output, expected_variables=expected_variables, **kwargs)
+        testing_registry.create(check, file=test_setup.output, expected_variables=expected_variables, **kwargs)
 
 
 def _typed_variables_output(checkpoint):
