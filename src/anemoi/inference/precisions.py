@@ -10,20 +10,34 @@
 
 """List of precisions supported by the inference runner."""
 
+########################################################################################################
+# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
+########################################################################################################
 
-import torch
 
-PRECISIONS: dict[str, torch.dtype] = {
-    "16-mixed": torch.float16,
-    "16": torch.float16,
-    "32": torch.float32,
-    "b16-mixed": torch.bfloat16,
-    "b16": torch.bfloat16,
-    "bf16-mixed": torch.bfloat16,
-    "bf16": torch.bfloat16,
-    "bfloat16": torch.bfloat16,
-    "f16": torch.float16,
-    "f32": torch.float32,
-    "float16": torch.float16,
-    "float32": torch.float32,
-}
+class LazyDict(dict):
+    """A dictionary that lazily loads its values.
+    So we don't import torch at the top level, which can be slow.
+    """
+
+    def __missing__(self, key):
+        import torch  # noqa: F401
+
+        mapping = {
+            "16-mixed": torch.float16,
+            "16": torch.float16,
+            "32": torch.float32,
+            "b16-mixed": torch.bfloat16,
+            "b16": torch.bfloat16,
+            "bf16-mixed": torch.bfloat16,
+            "bf16": torch.bfloat16,
+            "bfloat16": torch.bfloat16,
+            "f16": torch.float16,
+            "f32": torch.float32,
+            "float16": torch.float16,
+            "float32": torch.float32,
+        }
+        return mapping[key]
+
+
+PRECISIONS = LazyDict()

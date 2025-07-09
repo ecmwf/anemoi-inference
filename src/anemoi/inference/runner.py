@@ -7,6 +7,9 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+########################################################################################################
+# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
+########################################################################################################
 
 import datetime
 import logging
@@ -22,7 +25,6 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
-import torch
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
@@ -41,6 +43,8 @@ from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
 
 if TYPE_CHECKING:
+    import torch
+
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
@@ -440,7 +444,7 @@ class Runner(Context):
         return input_tensor_numpy
 
     @cached_property
-    def autocast(self) -> Union[torch.dtype, str]:
+    def autocast(self) -> Union["torch.dtype", str]:
         """The autocast precision."""
         autocast = self.precision
 
@@ -454,12 +458,14 @@ class Runner(Context):
         return PRECISIONS.get(autocast, autocast)
 
     @cached_property
-    def model(self) -> torch.nn.Module:
+    def model(self) -> "torch.nn.Module":
         """Returns
         ----------
         Any
             The loaded model.
         """
+        import torch
+
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
@@ -478,7 +484,9 @@ class Runner(Context):
             model.runner = self
             return model
 
-    def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+    ) -> "torch.Tensor":
         """Predict the next step.
 
         Parameters
@@ -555,6 +563,8 @@ class Runner(Context):
         Any
             The forecasted state.
         """
+        import torch
+
         self.model.eval()
 
         torch.set_grad_enabled(False)
@@ -661,8 +671,8 @@ class Runner(Context):
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+    ) -> "torch.Tensor":
         """Copy prognostic fields to the input tensor.
 
         Parameters
@@ -703,8 +713,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
         Parameters
@@ -758,8 +768,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
         Parameters
@@ -916,7 +926,7 @@ class Runner(Context):
         )
         LOG.info("")
 
-    def _print_input_tensor(self, title: str, input_tensor_torch: torch.Tensor) -> None:
+    def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
         """Print the input tensor.
 
         Parameters
