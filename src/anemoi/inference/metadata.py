@@ -352,7 +352,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
-    def typed_variables(self) -> dict:
+    def typed_variables(self) -> dict[str, Variable]:
         """Returns a strongly typed variables."""
         result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 

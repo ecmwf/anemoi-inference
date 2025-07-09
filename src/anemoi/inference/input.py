@@ -9,12 +9,16 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import List
 from typing import Optional
 
+from anemoi.inference.pre_processors import create_pre_processor
+from anemoi.inference.processor import Processor
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 if TYPE_CHECKING:
@@ -32,16 +36,53 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: "Context"):
+    def __init__(self, context: "Context", pre_processors: Optional[List[ProcessorConfig]] = None):
         """Initialize the Input object.
 
         Parameters
         ----------
         context : Context
             The context for the input.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         """
         self.context = context
         self.checkpoint = context.checkpoint
+        self._pre_processor_confs = pre_processors or []
+
+    @cached_property
+    def pre_processors(self) -> List[Processor]:
+        """Return pre-processors."""
+
+        processors = []
+        # inner-level pre-processors
+        for processor in self._pre_processor_confs:
+            processors.append(create_pre_processor(self.context, processor))
+
+        # top-level pre-processors
+        if hasattr(self.context, "pre_processors"):
+            processors.extend(self.context.pre_processors)
+
+        LOG.info("Pre-processors: %s", processors)
+        return processors
+
+    def pre_process(self, x: Any) -> Any:
+        """Run pre-processors.
+
+        Parameters
+        ----------
+        x : Any
+            input to pre-process
+
+        Return
+        ------
+        Any
+            Pre-processed input
+        """
+        for processor in self.pre_processors:
+            LOG.info("Processing with %s", processor)
+            x = processor.process(x)
+        return x
 
     def __repr__(self) -> str:
         """Return a string representation of the Input object.

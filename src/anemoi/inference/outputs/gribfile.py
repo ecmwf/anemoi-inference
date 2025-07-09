@@ -24,6 +24,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
@@ -118,6 +119,7 @@ class GribIoOutput(BaseGribOutput):
         context: Context,
         *,
         out: Union[str, IOBase],
+        post_processors: Optional[List[ProcessorConfig]] = None,
         encoding: Optional[Dict[str, Any]] = None,
         archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
@@ -136,10 +138,12 @@ class GribIoOutput(BaseGribOutput):
         ----------
         context : Context
             The context.
-        path : Union[str, IOBase]
+        out : Union[str, IOBase]
             Path or file-like object to write the grib data to.
             If a string, it should be a file path.
             If a file-like object, it should be opened in binary write mode.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         archive_requests : dict, optional
@@ -166,6 +170,7 @@ class GribIoOutput(BaseGribOutput):
         """
         super().__init__(
             context,
+            post_processors,
             encoding=encoding,
             templates=templates,
             grib1_keys=grib1_keys,
@@ -252,7 +257,6 @@ class GribIoOutput(BaseGribOutput):
         handle, path = written
 
         while True:
-
             if self._namespace_bug_fix:
                 import eccodes
                 from earthkit.data.readers.grib.codes import GribCodesHandle
@@ -336,6 +340,7 @@ class GribFileOutput(GribIoOutput):
         context: Context,
         *,
         path: str,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         encoding: Optional[Dict[str, Any]] = None,
         archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
@@ -356,6 +361,8 @@ class GribFileOutput(GribIoOutput):
             The context.
         path : str
             Path to the grib file to write the data to.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         archive_requests : dict, optional
@@ -382,6 +389,7 @@ class GribFileOutput(GribIoOutput):
         super().__init__(
             context,
             out=path,
+            post_processors=post_processors,
             encoding=encoding,
             archive_requests=archive_requests,
             check_encoding=check_encoding,
