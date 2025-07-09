@@ -438,7 +438,7 @@ class Runner(Context):
         if len(check) != self.checkpoint.number_of_input_features:
             missing = set(range(self.checkpoint.number_of_input_features)) - check
             mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
+            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
 
@@ -760,7 +760,6 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-
             forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
@@ -874,7 +873,6 @@ class Runner(Context):
         with_nans = []
 
         for name, field in list(fields.items()):
-
             # Allow for 1D fields if multi_step is 1
             if len(field.shape) == 1:
                 field = fields[name] = field.reshape(1, field.shape[0])
@@ -974,7 +972,7 @@ class Runner(Context):
         """
         LOG.info(
             "%s",
-            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
         )
 
         if not self._output_tensor_by_name:

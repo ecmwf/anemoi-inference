@@ -96,26 +96,25 @@ class DefaultRunner(Runner):
         input = self.create_input()
         output = self.create_output()
 
-        # pre_processors = self.pre_processors
-        post_processors = self.post_processors
-
+        # Top-level pre-processors are applied by the input directly as it is applied on FieldList directly.
         input_state = input.create_input_state(date=self.config.date)
 
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)
 
-        state = Output.reduce(input_state)
-        for processor in post_processors:
-            LOG.info("Post processor: %s", processor)
-            state = processor.process(state)
+        initial_state = Output.reduce(input_state)
+        # Top-level post-processors on the other hand are applied on State and are executed here.
+        for processor in self.post_processors:
+            initial_state = processor.process(initial_state)
 
-        output.open(state)
+        output.open(initial_state)
         LOG.info("write_initial_state: %s", output)
-        output.write_initial_state(state)
+        output.write_initial_state(initial_state)
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
-            for processor in post_processors:
-                LOG.info("Post processor: %s", processor)
+            # Apply top-level post-processors
+            LOG.info("Top-level post-processors: %s", self.post_processors)
+            for processor in self.post_processors:
                 state = processor.process(state)
             output.write_state(state)
 
