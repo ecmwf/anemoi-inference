@@ -229,6 +229,8 @@ class Runner(Context):
         LOG.info("-" * 80)
 
         lead_time = to_timedelta(lead_time)
+        # Record the lead time in the context for use by outputs and post-processors
+        self.lead_time = lead_time
 
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
