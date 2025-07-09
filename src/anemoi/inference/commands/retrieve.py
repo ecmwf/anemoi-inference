@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import argparse
 import json
 import logging
 import sys
@@ -156,6 +157,19 @@ def checkpoint_to_requests(
     return requests
 
 
+# Custom type function to parse and validate comma-separated input
+def comma_separated_list(value):
+    from anemoi.inference.metadata import VARIABLE_CATEGORIES
+
+    items = value.split(",")
+    invalid = [item for item in items if item not in VARIABLE_CATEGORIES]
+    if invalid:
+        raise argparse.ArgumentTypeError(
+            f"Invalid value(s): {', '.join(invalid)}. Allowed values are: {', '.join(VARIABLE_CATEGORIES)}"
+        )
+    return items
+
+
 class RetrieveCmd(Command):
     """Used by prepml."""
 
@@ -180,9 +194,16 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--forecast-dates", action="store_true", help="Use forecast dates (for forcings)")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
-        command_parser.add_argument("--include", help="Comma-separated list of variable categories to include")
         command_parser.add_argument(
-            "--exclude", help="Comma-separated list of variable categories to exclude", default="computed"
+            "--include",
+            type=comma_separated_list,
+            help="Comma-separated list of variable categories to include",
+        )
+        command_parser.add_argument(
+            "--exclude",
+            type=comma_separated_list,
+            help="Comma-separated list of variable categories to exclude",
+            default="computed",
         )
         command_parser.add_argument("--mars", action="store_true", help="Write requests for MARS retrieval")
         command_parser.add_argument(
@@ -211,12 +232,6 @@ class RetrieveCmd(Command):
 
         if args.staging_dates is None and args.date is None:
             raise ValueError("Either 'date' or 'staging_dates' must be provided.")
-
-        # so that the user does not need to pass --extra target=path when the input file is already in the config
-        # target = None
-        # input = runner.create_input()
-        # if isinstance(input, GribInput) and (path := getattr(input, "path", None)):
-        #     target = path
 
         requests = checkpoint_to_requests(
             runner.checkpoint,

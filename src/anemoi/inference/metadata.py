@@ -50,6 +50,16 @@ USE_LEGACY = True
 LOG = logging.getLogger(__name__)
 
 
+VARIABLE_CATEGORIES = {
+    "computed",
+    "forcing",
+    "diagnostic",
+    "prognostic",
+    "constant",
+    "accumulation",
+}
+
+
 def _remove_full_paths(x: Any) -> Any:
     """Remove full paths from the given data structure.
 
@@ -504,8 +514,6 @@ class Metadata(PatchMixin, LegacyMixin):
             The list of variables.
         """
 
-        CATEGORIES = {"computed", "forcing", "diagnostic", "prognostic", "constant", "accumulation"}
-
         variable_categories = self.variable_categories()
         result = []
 
@@ -518,25 +526,25 @@ class Metadata(PatchMixin, LegacyMixin):
 
         if include is not None:
             include = set(include)
-            if not (include <= CATEGORIES):
+            if not (include <= VARIABLE_CATEGORIES):
                 raise ValueError(
-                    f"Invalid include categories: {include}. Must be a subset of {CATEGORIES}. Unknown: {include-CATEGORIES}."
+                    f"Invalid include categories: {include}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {include-VARIABLE_CATEGORIES}."
                 )
 
         if exclude is not None:
             exclude = set(exclude)
-            if not (exclude <= CATEGORIES):
+            if not (exclude <= VARIABLE_CATEGORIES):
                 raise ValueError(
-                    f"Invalid exclude categories: {exclude}. Must be a subset of {CATEGORIES}. Unknown: {exclude-CATEGORIES}."
+                    f"Invalid exclude categories: {exclude}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {exclude-VARIABLE_CATEGORIES}."
                 )
 
         for variable, metadata in self.variables_metadata.items():
 
             categories = set(variable_categories[variable])
 
-            if not categories < CATEGORIES:
+            if not categories < VARIABLE_CATEGORIES:
                 warnings.warn(
-                    f"Variable {variable} has unknown categories: {categories - CATEGORIES}. "
+                    f"Variable {variable} has unknown categories: {categories - VARIABLE_CATEGORIES}. "
                     f"Please update the code."
                 )
 
