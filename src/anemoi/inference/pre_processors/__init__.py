@@ -9,14 +9,14 @@
 
 from anemoi.utils.registry import Registry
 
-from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
 from anemoi.inference.processor import Processor
+from anemoi.inference.types import ProcessorConfig
 
 pre_processor_registry = Registry(__name__)
 
 
-def create_pre_processor(context: Context, config: Configuration) -> Processor:
+def create_pre_processor(context: Context, config: ProcessorConfig) -> Processor:
     """Create a pre-processor.
 
     Parameters
