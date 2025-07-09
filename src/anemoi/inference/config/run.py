@@ -20,6 +20,8 @@ from typing import Union
 
 from pydantic import Field
 
+from anemoi.inference.types import ProcessorConfig
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -59,8 +61,8 @@ class RunConfiguration(Configuration):
     input: Union[str, Dict[str, Any]] = "test"
     output: Union[str, Dict[str, Any]] = "printer"
 
-    pre_processors: List[Union[str, Dict[str, Any]]] = []
-    post_processors: List[Union[str, Dict[str, Any]]] = []
+    pre_processors: List[ProcessorConfig] = []
+    post_processors: List[ProcessorConfig] = []
 
     forcings: Optional[Dict[str, Dict[str, Any]]] = None
     """Where to find the forcings."""

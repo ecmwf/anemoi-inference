@@ -59,6 +59,7 @@ class TeeOutput(ForwardOutput):
             context,
             None,
             variables=variables,
+            post_processors=None,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
