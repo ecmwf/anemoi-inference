@@ -28,12 +28,12 @@ LOG = logging.getLogger(__name__)
 
 
 def create_zarr_array(
-    store,
+    store: Any,
     name: str,
     shape: tuple,
     dtype: str,
     dimensions: tuple[str, ...],
-    chunks: tuple[int, ...] | Literal["auto"],
+    chunks: tuple[int, ...] | Literal["auto"] | bool,
     fill_value: Optional[float] = None,
 ) -> Any:
     """Create a Zarr array with the given parameters.
@@ -42,20 +42,29 @@ def create_zarr_array(
     """
     import zarr
 
-    zarr_version = int(zarr.__version__.split(".")[0])
+    chunks = chunks if zarr.__version__ >= "3" else chunks if not chunks == "auto" else True
 
-    array = zarr.create_array(
-        store,
+    store: zarr.Group = store
+
+    if zarr.__version__ >= "3":
+        from zarr import create_array
+    else:
+
+        def create_array(*, store, **kwargs):
+            """Create a Zarr array using the zarr 2 API."""
+            return store.create_dataset(**kwargs)
+
+    array = create_array(
+        store=store,
         name=name,
         shape=shape,
         dtype=dtype,
         chunks=chunks,
         fill_value=fill_value,
-        dimension_names=dimensions if zarr_version >= 3 else None,
+        dimension_names=dimensions,
         overwrite=True,
     )
-    if zarr_version < 3:
-        array.attrs["_ARRAY_DIMENSIONS"] = list(dimensions)
+    array.attrs["_ARRAY_DIMENSIONS"] = list(dimensions)
 
     return array
 
@@ -63,7 +72,11 @@ def create_zarr_array(
 @output_registry.register("zarr")  # type: ignore
 @main_argument("store")
 class ZarrOutput(Output):
-    """Zarr output class."""
+    """Zarr output class.
+
+    If using a existing store, it is assumed to be a writable store and empty,
+    and you must call `open` before writing any data. Use the initial state for this.
+    """
 
     def __init__(
         self,
@@ -112,32 +125,34 @@ class ZarrOutput(Output):
         self.chunks = chunks
         self.float_size = float_size
 
-        self.extra_time = int(self.write_step_zero)
         self._vars = {}
 
     def __repr__(self) -> str:
         """Return a string representation of the ZarrOutput object."""
         return f"ZarrOutput({self.zarr_store})"
 
-    def open(self, state: State) -> None:
-        """Open the Zarr file and initialize dimensions.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-
+    def _setup(self, state: State) -> None:
+        """Setup the Zarr output."""
         import zarr
-        from zarr.storage import LocalStore
 
         if isinstance(self.zarr_store, str):
             if os.path.exists(self.zarr_store):
                 LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
                 shutil.rmtree(self.zarr_store)
-            self.zarr_store = LocalStore(self.zarr_store)
 
-        self.zarr_group = zarr.open_group(self.zarr_store, mode="w")
+            if zarr.__version__ >= "3":
+                from zarr.storage import LocalStore
+
+                self.zarr_store = LocalStore(self.zarr_store)
+            else:
+                from zarr.storage import DirectoryStore
+
+                self.zarr_store = DirectoryStore(self.zarr_store)
+
+        if zarr.__version__ >= "3":
+            self.zarr_group = self.zarr_store
+        else:
+            self.zarr_group = zarr.open_group(self.zarr_store, mode="w")
 
         values = len(state["latitudes"])
 
@@ -147,19 +162,23 @@ class ZarrOutput(Output):
             lead_time := getattr(self.context, "lead_time", None)
         ):
             time = lead_time // time_step
-            time += self.extra_time
+
+        time += int(self.write_step_zero)
 
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
+        if not self.write_step_zero and time_step is not None:
+            self.reference_date -= time_step
+
         self.time_size = time
         self.time_array = create_zarr_array(
-            self.zarr_store,
+            self.zarr_group,
             name="time",
             shape=(self.time_size,),
             dtype="i4",
             dimensions=("time",),
-            chunks=self.chunks,
+            chunks=(1,),
         )
         self.time_array.attrs.update(
             {
@@ -170,7 +189,7 @@ class ZarrOutput(Output):
 
         latitudes = state["latitudes"]
         self.latitude_var = create_zarr_array(
-            self.zarr_store,
+            self.zarr_group,
             name="latitude",
             shape=(values,),
             dtype=self.float_size,
@@ -182,7 +201,7 @@ class ZarrOutput(Output):
 
         longitudes = state["longitudes"]
         self.longitude_var = create_zarr_array(
-            self.zarr_store,
+            self.zarr_group,
             name="longitude",
             shape=(values,),
             dtype=self.float_size,
@@ -195,7 +214,15 @@ class ZarrOutput(Output):
         self.latitude_var[:] = latitudes
         self.longitude_var[:] = longitudes
 
-        self.n = 0
+    def open(self, state: State) -> None:
+        """Open the Zarr file and initialize dimensions.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
+        self._setup(state)
 
     def _variable_array(self, name: str, values_size: int) -> Any:
         """Get the variable array by name.
@@ -218,7 +245,7 @@ class ZarrOutput(Output):
             return self._vars[name]
 
         self._vars[name] = create_zarr_array(
-            self.zarr_store,
+            self.zarr_group,
             name=name,
             shape=(self.time_size, values_size),
             dtype=self.float_size,
@@ -239,26 +266,25 @@ class ZarrOutput(Output):
         state : State
             The state dictionary.
         """
-
         step = state["date"] - self.reference_date
         self.time_array[self.n] = step.total_seconds()
 
         values = len(state["latitudes"])
 
         for name, value in state["fields"].items():
-
             if self.skip_variable(name):
                 continue
-
             self._variable_array(name, values)[self.n] = value
+
         self.n += 1
 
     def close(self) -> None:
         """Close the Zarr file."""
         import zarr
-        from zarr.abc.store import Store
+        from zarr.storage import StoreLike
 
-        if self.zarr_store is not None and isinstance(self.zarr_store, Store):
-            zarr.consolidate_metadata(self.zarr_store)
-            self.zarr_store.close()
+        if self.zarr_store is not None and not isinstance(self.zarr_store, str):
+            if isinstance(self.zarr_store, StoreLike):
+                zarr.consolidate_metadata(self.zarr_store)
+                self.zarr_store.close()
             self.zarr_store = None
