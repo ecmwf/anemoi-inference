@@ -1,3 +1,5 @@
+.. _inference-processors:
+
 ################
  Pre-processors
 ################

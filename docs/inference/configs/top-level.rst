@@ -88,7 +88,7 @@ The entries for the inputs and outputs are specified in the :ref:`inputs
 **************************
 
 The entries for the pre- and post-processors are specified in the
-:ref:`processors <processors>` section of the documentation.
+:ref:`processors <inference-processors>` section of the documentation.
 
 ***********
  Debugging
