@@ -242,8 +242,8 @@ class RetrieveCmd(Command):
             use_grib_paramid=config.use_grib_paramid,
             patch_request=runner.patch_data_request,
             use_scda=args.use_scda,
-            include=args.include.split(",") if args.include else None,
-            exclude=args.exclude.split(",") if args.exclude else None,
+            include=args.include if args.include else None,
+            exclude=args.exclude if args.exclude else None,
             lead_time=lead_time,
             time_step=time_step,
         )
