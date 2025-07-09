@@ -17,6 +17,7 @@ from typing import Optional
 from typing import Union
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 
 from .gribfile import GribIoOutput
 
@@ -31,6 +32,7 @@ class GribMemoryOutput(GribIoOutput):
         context: Context,
         *,
         out: IOBase,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         encoding: Optional[Dict[str, Any]] = None,
         archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
@@ -50,6 +52,8 @@ class GribMemoryOutput(GribIoOutput):
             The context.
         out : IOBase
             Output stream or file-like object for writing GRIB data.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         archive_requests : dict, optional
@@ -74,6 +78,7 @@ class GribMemoryOutput(GribIoOutput):
         super().__init__(
             context,
             out=out,
+            post_processors=post_processors,
             encoding=encoding,
             archive_requests=archive_requests,
             check_encoding=check_encoding,
