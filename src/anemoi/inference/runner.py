@@ -762,6 +762,8 @@ class Runner(Context):
         torch.Tensor
             The updated input tensor.
         """
+        import torch
+
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
                 date = self.development_hacks["dynamic_forcings_date"]
@@ -818,6 +820,8 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
+        import torch
+
         sources = self.boundary_forcings_inputs
         for source in sources:
             forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
