@@ -38,9 +38,9 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
     Parameters
     ----------
     config : Configuration
-        The configuration object for the runner.
+        Configuration.
     pid : int
-        The process ID.
+        Process ID.
     """
     runner = create_runner(config, pid=pid)
     runner.execute()
@@ -50,8 +50,7 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
 class ParallelRunner(DefaultRunner):
     """Runner which splits a model over multiple devices."""
 
-    def __new__(cls, context: Any, *args: Any, **kwargs: Any) -> DefaultRunner:
-        """Creates a new instance of the ParallelRunner."""
+    def __new__(cls, context, *args, **kwargs):
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
@@ -59,14 +58,14 @@ class ParallelRunner(DefaultRunner):
             return DefaultRunner(context)
 
     def __init__(self, context: Any, pid: int = 0) -> None:
-        """Initialises the ParallelRunner.
+        """Initializes the ParallelRunner.
 
         Parameters
         ----------
         context : Any
             The context for the runner.
         pid : int, optional
-            The process ID, by default 0.
+            Process ID, by default 0.
         """
         super().__init__(context)
 
@@ -104,7 +103,7 @@ class ParallelRunner(DefaultRunner):
         input_tensor_torch : torch.Tensor
             The input tensor for the model.
         **kwargs : Any
-            Additional arguments for the prediction step.
+            Additional arguments.
 
         Returns
         -------
@@ -169,7 +168,7 @@ class ParallelRunner(DefaultRunner):
             torch.manual_seed(seed)
 
     def _srun_used(self) -> bool:
-        """Checks if anemoi-inference was launched with srun.
+        """Returns true if anemoi-inference was launched with srun.
 
         Returns
         -------
@@ -186,7 +185,7 @@ class ParallelRunner(DefaultRunner):
         Parameters
         ----------
         num_procs : int
-            The number of processes to spawn.
+            Number of processes to spawn.
         """
         LOG.debug(f"spawning {num_procs -1 } procs")
 
@@ -207,10 +206,9 @@ class ParallelRunner(DefaultRunner):
             mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 
     def _bootstrap_processes(self) -> None:
-        """Initialises processes and their network information.
-
-        If srun is available, Slurm variables are read to determine network settings.
-        Otherwise, local processes are spawned and network info is inferred from the configuration.
+        """Initializes processes and their network information.
+        If srun is available, slurm variables are read to determine network settings.
+        Otherwise, local processes are spawned and network info is inferred from config.
         """
         using_slurm = self._srun_used()
         if using_slurm:
