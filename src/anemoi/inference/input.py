@@ -14,8 +14,8 @@ from typing import Any
 from typing import List
 from typing import Optional
 
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context

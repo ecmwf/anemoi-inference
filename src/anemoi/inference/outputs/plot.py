@@ -15,8 +15,8 @@ from typing import Optional
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import State
 
 from ..output import Output
 from . import output_registry

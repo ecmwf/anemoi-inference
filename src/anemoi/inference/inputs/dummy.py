@@ -24,8 +24,8 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.testing import float_hash
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import State
 
 from . import input_registry
 from .ekd import EkdInput

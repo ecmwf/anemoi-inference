@@ -16,8 +16,8 @@ from typing import Optional
 import earthkit.data as ekd
 import numpy as np
 
-from ..types import Date
-from ..types import State
+from ..typings import Date
+from ..typings import State
 from . import input_registry
 from .grib import GribInput
 

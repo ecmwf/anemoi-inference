@@ -20,7 +20,7 @@ from typing import Union
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import State
+from anemoi.inference.typings import State
 
 from ..decorators import main_argument
 from ..output import Output

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from typing import List
 from typing import Optional
 
-from anemoi.inference.types import State
+from anemoi.inference.typings import State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context

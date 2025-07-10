@@ -24,8 +24,8 @@ from anemoi.utils.dates import frequency_to_timedelta
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
+from anemoi.inference.typings import DataRequest
+from anemoi.inference.typings import Date
 
 from ..config.run import RunConfiguration
 from ..inputs.mars import postproc

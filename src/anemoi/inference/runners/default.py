@@ -22,8 +22,8 @@ from anemoi.inference.config import Configuration
 from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.typings import IntArray
+from anemoi.inference.typings import State
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings

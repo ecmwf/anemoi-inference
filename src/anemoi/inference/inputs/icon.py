@@ -16,8 +16,8 @@ from typing import Optional
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import State
 
 from . import input_registry
 from .grib import GribInput

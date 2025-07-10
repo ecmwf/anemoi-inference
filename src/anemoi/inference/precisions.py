@@ -15,15 +15,31 @@
 ########################################################################################################
 
 
-class LazyDict(dict):
+from functools import cached_property
+
+
+class LazyDict:
     """A dictionary that lazily loads its values.
     So we don't import torch at the top level, which can be slow.
     """
 
-    def __missing__(self, key):
-        import torch  # noqa: F401
+    def keys(self):
+        return self._mapping.keys()
 
-        mapping = {
+    def values(self):
+        return self._mapping.values()
+
+    def items(self):
+        return self._mapping.items()
+
+    def __getitem__(self, key):
+        return self._mapping[key]
+
+    @cached_property
+    def _mapping(self):
+        import torch
+
+        return {
             "16-mixed": torch.float16,
             "16": torch.float16,
             "32": torch.float32,
@@ -37,7 +53,18 @@ class LazyDict(dict):
             "float16": torch.float16,
             "float32": torch.float32,
         }
-        return mapping[key]
 
 
 PRECISIONS = LazyDict()
+
+if __name__ == "__main__":
+    # This is just to make sure that the module can be imported without errors.
+    # It will not be executed when the module is imported, only when run as a script.
+
+    print("Available precisions:", list(PRECISIONS.keys()))
+    print("Available precisions:", list(PRECISIONS.values()))
+    print("Available precisions:", list(PRECISIONS.items()))
+
+    print("Torch float16:", PRECISIONS["16"])
+    print("Torch bfloat16:", PRECISIONS["b16"])
+    print("Torch float32:", PRECISIONS["32"])

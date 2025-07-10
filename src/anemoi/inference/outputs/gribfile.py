@@ -21,8 +21,8 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import FloatArray
+from anemoi.inference.typings import DataRequest
+from anemoi.inference.typings import FloatArray
 
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter

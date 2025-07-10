@@ -18,7 +18,7 @@ from typing import Union
 
 import earthkit.data as ekd
 
-from anemoi.inference.types import State
+from anemoi.inference.typings import State
 
 from . import create_template_provider
 

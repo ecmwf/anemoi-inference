@@ -22,7 +22,7 @@ from numpy.typing import NDArray
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runner import Kind
-from anemoi.inference.types import State
+from anemoi.inference.typings import State
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings

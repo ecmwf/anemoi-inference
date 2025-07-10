@@ -27,9 +27,9 @@ from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.typings import DataRequest
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import State
 
 from .metadata import Metadata
 
