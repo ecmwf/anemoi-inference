@@ -11,7 +11,7 @@ from anemoi.utils.registry import Registry
 
 from anemoi.inference.context import Context
 from anemoi.inference.processor import Processor
-from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.typings import ProcessorConfig
 
 pre_processor_registry = Registry(__name__)
 

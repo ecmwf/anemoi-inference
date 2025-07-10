@@ -20,7 +20,7 @@ from typing import Union
 
 from pydantic import Field
 
-from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.typings import ProcessorConfig
 
 from . import Configuration
 
