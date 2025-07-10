@@ -12,6 +12,7 @@ import datetime
 import logging
 import warnings
 from functools import cached_property
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -22,6 +23,7 @@ from typing import Union
 
 import numpy as np
 import torch
+from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
@@ -37,6 +39,9 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+
+if TYPE_CHECKING:
+    from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
 
@@ -89,6 +94,7 @@ class Runner(Context):
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
         use_profiler: bool = False,
+        typed_variables: Dict[str, Dict] = {},
     ) -> None:
         """Parameters
         -------------
@@ -144,6 +150,9 @@ class Runner(Context):
         self.write_initial_state = write_initial_state
         self.use_profiler = use_profiler
 
+        # For the moment, until we have a better solution
+        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
+
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -154,6 +163,10 @@ class Runner(Context):
         self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
+            logging.basicConfig(level=logging.DEBUG)
+            for logger_name in logging.root.manager.loggerDict:
+                logging.getLogger(logger_name).setLevel(logging.DEBUG)
+
             self.checkpoint.print_indices()
 
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
@@ -171,7 +184,7 @@ class Runner(Context):
         return self._checkpoint
 
     def run(
-        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta]
+        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta], return_numpy: bool = True
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -181,6 +194,9 @@ class Runner(Context):
             The input state.
         lead_time : Union[str, int, datetime.timedelta]
             The lead time.
+        return_numpy : bool, optional
+            Whether to return the output state fields as numpy arrays, by default True.
+            Otherwise, it will return torch tensors.
 
         Returns
         -------
@@ -214,16 +230,12 @@ class Runner(Context):
 
         lead_time = to_timedelta(lead_time)
 
-        # This may be used but Output objects to compute the step
-        self.lead_time = lead_time
-        self.time_step = self.checkpoint.timestep
-
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
-                yield from self.forecast(lead_time, input_tensor, input_state)
+                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
             except (TypeError, ModuleNotFoundError, AttributeError):
                 if self.report_error:
                     self.checkpoint.report_error()
@@ -401,7 +413,7 @@ class Runner(Context):
             shape=(
                 self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
@@ -426,9 +438,35 @@ class Runner(Context):
         if len(check) != self.checkpoint.number_of_input_features:
             missing = set(range(self.checkpoint.number_of_input_features)) - check
             mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
+            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
+
+    def prepare_output_state(
+        self, output: Generator[State, None, None], return_numpy: bool
+    ) -> Generator[State, None, None]:
+        """Prepare the output state.
+
+        Parameters
+        ----------
+        output : Generator[State, None, None]
+            Output state generator,
+            Expects fields to be torch tensors with shape (values, variables).
+        return_numpy : bool
+            Whether to return the output state fields as numpy arrays.
+
+        Yields
+        ------
+        Generator[State, None, None]
+            The prepared output state.
+        """
+        for state in output:
+            if return_numpy:
+                # Convert fields to numpy arrays
+                for name, field in state["fields"].items():
+                    if isinstance(field, torch.Tensor):
+                        state["fields"][name] = field.cpu().numpy()
+            yield state
 
     @cached_property
     def autocast(self) -> Union[torch.dtype, str]:
@@ -452,7 +490,17 @@ class Runner(Context):
             The loaded model.
         """
         with Timer(f"Loading {self.checkpoint}"):
-            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            LOG.info("Device is '%s'", self.device)
+            LOG.info("Loading model from %s", self.checkpoint.path)
+
+            try:
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            except Exception as e:  # Wildcard exception to catch all errors
+                if self.report_error:
+                    self.checkpoint.report_error()
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                error_msg = f"Error loading model - {validation_result}"
+                raise RuntimeError(error_msg) from e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
@@ -468,14 +516,19 @@ class Runner(Context):
         input_tensor_torch : torch.Tensor
             The input tensor.
         **kwargs : Any
-            Additional keyword arguments
+            Additional keyword arguments that will be passed to the model's predict_step method.
 
         Returns
         -------
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch)
+        try:
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
@@ -581,9 +634,7 @@ class Runner(Context):
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
-            # Detach tensor and squeeze (should we detach here?)
-            with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            output = torch.squeeze(y_pred)  # shape: (values, variables)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -614,12 +665,12 @@ class Runner(Context):
 
                 del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
+                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
+                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
 
             if not check.all():
                 # Not all variables have been updated
@@ -709,7 +760,6 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-
             forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
@@ -823,7 +873,6 @@ class Runner(Context):
         with_nans = []
 
         for name, field in list(fields.items()):
-
             # Allow for 1D fields if multi_step is 1
             if len(field.shape) == 1:
                 field = fields[name] = field.reshape(1, field.shape[0])
@@ -923,7 +972,7 @@ class Runner(Context):
         """
         LOG.info(
             "%s",
-            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
         )
 
         if not self._output_tensor_by_name:
@@ -963,3 +1012,11 @@ class Runner(Context):
             request = p.patch_data_request(request)
 
         return request
+
+    def _configure_parallel_runner(self: "ParallelRunnerMixin") -> None:
+        """Configure the parallel runner (only applies when using the `parallel` runner).
+
+        This method is called by the parallel runner on initialisation.
+        Derived classes can implement this method to modify itself for parallel operation.
+        """
+        pass

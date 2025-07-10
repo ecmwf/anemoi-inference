@@ -1,11 +1,12 @@
 import datetime
 
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.inputs.gribfile import GribFileInput
 from anemoi.inference.outputs.gribfile import GribFileOutput
-from anemoi.inference.runners import DefaultRunner
+from anemoi.inference.runners.default import DefaultRunner
 
 # Create a runner with the checkpoint file
-runner = DefaultRunner("checkpoint.ckpt")
+runner = DefaultRunner(RunConfiguration(checkpoint="checkpoint.ckpt"))
 
 # Select a starting date
 date = datetime.datetime(2024, 10, 25)
@@ -13,7 +14,7 @@ date = datetime.datetime(2024, 10, 25)
 input = GribFileInput(runner, "input.grib")
 output = GribFileOutput(runner, "output.grib")
 
-input_state = input.create_input_state(date)
+input_state = input.create_input_state(date=date)
 
 # Write the initial state to the output file
 output.write_initial_state(input_state)

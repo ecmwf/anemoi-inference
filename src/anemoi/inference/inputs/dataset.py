@@ -18,7 +18,6 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
-from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
@@ -103,7 +102,6 @@ class DatasetInput(Input):
         if date is None:
             raise ValueError("`date` must be provided")
 
-        date = to_datetime(date)
         latitudes = self.ds.latitudes
         longitudes = self.ds.longitudes
 
@@ -117,7 +115,9 @@ class DatasetInput(Input):
         fields = input_state["fields"]
 
         date = np.datetime64(date)
-        data = self._load_dates([date + np.timedelta64(h) for h in self.checkpoint.lagged])
+        dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
+
+        data = self._load_dates(dates)
 
         if data.shape[2] != 1:
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")

@@ -114,6 +114,16 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the configuration."""
         return self._metadata.config
 
+    @property
+    def target_explicit_times(self) -> Any:
+        """Return the target explicit times from the training configuration."""
+        return self._config_training.explicit_times.target
+
+    @property
+    def input_explicit_times(self) -> Any:
+        """Return the input explicit times from the training configuration."""
+        return self._config_training.explicit_times.input
+
     ###########################################################################
     # Debugging
     ###########################################################################
@@ -320,6 +330,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         if "constant_fields" in self._metadata.dataset:
             for name in self._metadata.dataset.constant_fields:
+                if name not in result:
+                    continue
                 result[name]["constant_in_time"] = True
 
         return result
@@ -340,7 +352,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
-    def typed_variables(self) -> dict:
+    def typed_variables(self) -> dict[str, Variable]:
         """Returns a strongly typed variables."""
         result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
@@ -596,7 +608,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             mars = self.variables_metadata[variable]["mars"].copy()
 
-            for k in ("date", "hdate", "time"):
+            for k in ("date", "hdate", "time", "valid_datetime", "variable"):
                 mars.pop(k, None)
 
             yield mars
@@ -631,23 +643,24 @@ class Metadata(PatchMixin, LegacyMixin):
         self,
         *,
         all_packages: bool = False,
-        on_difference: Literal["warn", "error", "ignore"] = "warn",
+        on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
         exempt_packages: Optional[list[str]] = None,
-    ) -> bool:
+    ) -> Union[bool, str]:
         """Validate environment of the checkpoint against the current environment.
 
         Parameters
         ----------
         all_packages : bool, optional
-            Check all packages in environment or just `anemoi`'s, by default False
-        on_difference : Literal['warn', 'error', 'ignore'], optional
+            Check all packages in the environment (True) or just anemoi's (False), by default False.
+        on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
             What to do on difference, by default "warn"
         exempt_packages : list[str], optional
             List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
-        bool
+        Union[bool, str]
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
             True if environment is valid, False otherwise
 
         Raises
@@ -1009,16 +1022,13 @@ class Metadata(PatchMixin, LegacyMixin):
         list
             The list of boundary forcings inputs.
         """
-        result = []
+        if "output_mask" not in self._supporting_arrays:
+            return []
 
-        if "output_mask" in self._supporting_arrays:
-            result.append(
-                context.create_boundary_forcings(
-                    self.prognostic_variables,
-                    self.prognostic_input_mask,
-                )
-            )
-        return result
+        return context.create_boundary_forcings(
+            self.prognostic_variables,
+            self.prognostic_input_mask,
+        )
 
     ###########################################################################
     # Supporting arrays

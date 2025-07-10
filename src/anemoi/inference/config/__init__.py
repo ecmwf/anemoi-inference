@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from copy import deepcopy
+from datetime import datetime
 from typing import Any
 from typing import Dict
 from typing import List
@@ -20,9 +20,13 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
-import yaml
+from earthkit.data.utils.dates import to_datetime
+from omegaconf import DictConfig
+from omegaconf import ListConfig
+from omegaconf import OmegaConf
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import field_validator
 
 LOG = logging.getLogger(__name__)
 
@@ -33,6 +37,15 @@ class Configuration(BaseModel):
     """Configuration class."""
 
     model_config = ConfigDict(extra="forbid")
+
+    date: Union[datetime, None] = None
+    """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`earthkit.data.utils.dates`."""
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def to_datetime(cls, date: Union[str, int, datetime, None]) -> Optional[datetime]:
+        if date is not None:
+            return to_datetime(date)
 
     @classmethod
     def load(
@@ -58,7 +71,7 @@ class Configuration(BaseModel):
             The loaded configuration.
         """
 
-        config = {}
+        configs: List[Union[DictConfig, ListConfig]] = []
 
         # Set default values
         if defaults is not None:
@@ -66,34 +79,39 @@ class Configuration(BaseModel):
                 defaults = [defaults]
             for d in defaults:
                 if isinstance(d, str):
-                    with open(d) as f:
-                        d = yaml.safe_load(f)
-                config.update(d)
+                    configs.append(OmegaConf.load(d))
+                    continue
+                configs.append(OmegaConf.create(d))
 
-        # Load the configuration
+        # Load the user configuration
         if isinstance(path, dict):
-            config = deepcopy(path)
+            configs.append(OmegaConf.create(path))
         else:
-            with open(path) as f:
-                config.update(yaml.safe_load(f))
+            configs.append(OmegaConf.load(path))
 
-        # Apply overrides
         if not isinstance(overrides, list):
             overrides = [overrides]
 
+        # unsafe merge should be fine as we don't re-use the original configs
+        oc_config = OmegaConf.unsafe_merge(*configs)
+
         for override in overrides:
             if isinstance(override, dict):
-                cls._merge_configs(config, override)
+                oc_config = OmegaConf.unsafe_merge(oc_config, OmegaConf.create(override))
             else:
-                path = config
-                key, value = override.split("=")
-                keys = key.split(".")
-                for key in keys[:-1]:
-                    path = path.setdefault(key, {})
-                path[keys[-1]] = value
+                # use from_dotlist to use OmegaConf split
+                # which allows for "param.val" or "param[val]".
+                override_conf = OmegaConf.from_dotlist([override])
+                # We can't directly merge reconstructed with the config because
+                # omegaconf prefers parsing digits (like 0 in key.0) into dict keys
+                # rather than lists.
+                # Instead, we provide a reference config and we try to merge the override
+                # into the reference and keep types provided by the reference.
+                oc_config = OmegaConf.unsafe_merge(_merge_configs(oc_config, override_conf))
 
-        # Validate the configuration
-        config = cls(**config)
+        resolved_config = OmegaConf.to_container(oc_config, resolve=True)
+
+        config = cls.model_validate(resolved_config)
 
         # Set environment variables found in the configuration
         # as soon as possible
@@ -102,19 +120,47 @@ class Configuration(BaseModel):
 
         return config
 
-    @classmethod
-    def _merge_configs(cls, a: Dict[Any, Any], b: Dict[Any, Any]) -> None:
-        """Merge two configurations.
 
-        Parameters
-        ----------
-        a : Dict[Any, Any]
-            The first configuration.
-        b : Dict[Any, Any]
-            The second configuration.
-        """
-        for key, value in b.items():
-            if key in a and isinstance(a[key], dict) and isinstance(value, dict):
-                cls._merge_configs(a[key], value)
-            else:
-                a[key] = value
+def _merge_configs(ref_conf: Any, new_conf: Any) -> Any:
+    """Recursively merges a new OmegaConf object into a reference OmegaConf object
+
+    Parameters
+    ----------
+    ref_conf : Any
+        reference OmegaConf object. Should be a DictConfig or ListConfig.
+    new_conf : Any
+        new OmegaConf object.
+
+    Returns
+    -------
+    Any
+        The merged OmegaConf config
+    """
+    if isinstance(new_conf, DictConfig) and len(new_conf):
+        key, rest = next(iter(new_conf.items()))
+        key = str(key)
+    elif isinstance(new_conf, ListConfig) and len(new_conf):
+        key, rest = 0, new_conf[0]
+    else:
+        return new_conf
+    if isinstance(ref_conf, ListConfig):
+        if isinstance(key, str) and not key.isdigit():
+            raise ValueError(f"Expected int key, got {key}")
+        index = int(key)
+        if index < len(ref_conf):
+            LOG.debug(f"key {key} is used as list key in list{ref_conf}")
+            ref_conf[index] = _merge_configs(ref_conf[index], rest)
+        elif index == len(ref_conf):
+            LOG.debug(f"key {key} is used to append to list {ref_conf}")
+            ref_conf.append(rest)
+        else:
+            raise IndexError(f"key {key} out of range for list {ref_conf} of length {len(ref_conf)}")
+        return ref_conf
+    elif isinstance(ref_conf, DictConfig) and key in ref_conf:
+        ref_conf[key] = _merge_configs(ref_conf[key], rest)
+        return ref_conf
+    elif isinstance(ref_conf, DictConfig):
+        ref_conf[key] = rest
+        return ref_conf
+    else:
+        raise ValueError(f"ref is of unexpected type {type(ref_conf)}. Should be ListConfig or DictConfig")

@@ -10,6 +10,7 @@
 
 import logging
 import re
+from io import IOBase
 from typing import Any
 from typing import Dict
 from typing import List
@@ -246,8 +247,6 @@ def grib_keys(
 
     result["edition"] = edition
 
-    result["eps"] = 1 if ensemble else 0
-
     if param is not None:
         result.setdefault(_param(param), param)
 
@@ -278,7 +277,23 @@ def grib_keys(
     )
 
     for k, v in variable.grib_keys.items():
-        if k not in ("domain", "type", "stream", "expver", "class", "param", "number", "step", "date", "hdate", "time"):
+        if k not in (
+            "domain",
+            "type",
+            "expver",
+            "class",
+            "param",
+            "number",
+            "step",
+            "date",
+            "hdate",
+            "time",
+        ):
+            if k == "stream":
+                if v in ("oper", "wave"):
+                    result.setdefault(k, v)
+                continue
+
             if k == "levtype":
                 v = LEVTYPES.get(v)
                 if v is None:
@@ -436,22 +451,25 @@ def encode_message(
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, path: str, split_output: bool = False) -> None:
+    def __init__(self, out: Union[str, IOBase], split_output: bool = True) -> None:
         """Initialize the GribWriter.
 
         Parameters
         ----------
-        path : str
-            The path to the output file.
+        out : Union[str, IOBase]
+            Path or file-like object to write the grib data to.
+            If a string, it should be a file path.
+            If a file-like object, it should be opened in binary write mode.
         split_output : bool, optional
             Whether to split the output into multiple files.
         """
-        self._files: Dict[str, Any] = {}
-        self.filename = path
-        self.split_output: Optional[List[str]] = None
 
-        if split_output:
-            self.split_output = re.findall(r"\{(.*?)\}", self.filename)
+        if isinstance(out, IOBase) and split_output:
+            raise ValueError("Cannot split output when `out` is a file-like object.")
+
+        self.out = out
+        self.split_output = split_output
+        self._files: Dict[str, IOBase] = {}
 
     def close(self) -> None:
         """Close all open files."""
@@ -524,7 +542,7 @@ class GribWriter:
 
         return handle, path
 
-    def target(self, handle: Any) -> tuple:
+    def target(self, handle: Any) -> tuple[IOBase, str]:
         """Determine the target file for the GRIB message.
 
         Parameters
@@ -538,11 +556,49 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            path = self.filename.format(**{k: handle.get(k) for k in self.split_output})
+            out = render_template(self.out, handle)
         else:
-            path = self.filename
+            out = self.out
 
-        if path not in self._files:
-            self._files[path] = open(path, "wb")
+        if isinstance(out, IOBase):
+            # self._files['out'] = out
+            return out, "out"
 
-        return self._files[path], path
+        if out not in self._files:
+            self._files[out] = open(out, "wb")
+
+        return self._files[out], out
+
+
+_TEMPLATE_EXPRESSION_PATTERN = re.compile(r"\{(.*?)\}")
+
+
+def render_template(template: str, handle: Dict) -> str:
+    """Render a template string with the given keyword arguments.
+
+    Given a template string such as '{dateTime}_{step:03}.grib' and
+    the GRIB handle, this function will replace the expressions in the
+    template with the corresponding values from the handle, formatted
+    according to the optional format specifier.
+
+    For example, the template '{dateTime}_{step:03}.grib' with a handle
+    containing 'dateTime' as '202501011200' and 'step' as 6 will
+    produce '202501011200_006.grib'.
+
+    Parameters
+    ----------
+    template : str
+        The template string to render.
+    handle : Dict
+        The earthkit.data handle manager.
+
+    Returns
+    -------
+    str
+        The rendered template string.
+    """
+    expressions = _TEMPLATE_EXPRESSION_PATTERN.findall(template)
+    expr_format = [el.split(":") if ":" in el else [el, ""] for el in expressions]
+    keys = {k[0]: format(handle.get(k[0]), k[1]) for k in expr_format}
+    path = template.format(**keys)
+    return path

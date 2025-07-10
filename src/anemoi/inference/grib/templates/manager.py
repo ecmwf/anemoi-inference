@@ -55,15 +55,17 @@ class TemplateManager:
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
-    def template(self, name: str, state: State) -> Optional[ekd.Field]:
+    def template(self, name: str, state: State, typed_variables: List[Any]) -> Optional[ekd.Field]:
         """Get the template for a given name and state.
 
         Parameters
         ----------
         name : str
             The name of the template.
-        state : Dict[str, Any]
-            The state dictionary containing template information.
+        state : State
+            The state object containing template information.
+        typed_variables : list of Any
+            The list of typed variables.
 
         Returns
         -------
@@ -76,19 +78,21 @@ class TemplateManager:
         self._template_cache.update(state.get("_grib_templates_for_output", {}))
 
         if name not in self._template_cache:
-            self.load_template(name, state)
+            self.load_template(name, state, typed_variables)
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: State) -> Optional[ekd.Field]:
+    def load_template(self, name: str, state: State, typed_variables: List[Any]) -> Optional[ekd.Field]:
         """Load the template for a given name and state.
 
         Parameters
         ----------
         name : str
             The name of the template.
-        state : Dict[str, Any]
-            The state dictionary containing template information.
+        state : State
+            The state object containing template information.
+        typed_variables : list of Any
+            The list of typed variables.
 
         Returns
         -------
@@ -98,7 +102,7 @@ class TemplateManager:
 
         checkpoint = self.owner.context.checkpoint
 
-        typed = checkpoint.typed_variables[name]
+        typed = typed_variables[name]
 
         lookup = dict(
             name=name,
@@ -132,18 +136,18 @@ class TemplateManager:
         LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
-    def _grid(self, grid: Union[str, List[float], Tuple[int, int]]) -> Union[str, List[float]]:
-        """Convert the grid information to a standardized format.
+    def _grid(self, grid: Union[str, List[float], Tuple[int, int]]) -> str:
+        """Convert the grid information to a standardised format.
 
         Parameters
         ----------
-        grid : Union[str, List[int], Tuple[int, int]]
+        grid : Union[str, list of float, tuple of int]
             The grid information.
 
         Returns
         -------
-        Union[str, int]
-            The standardized grid format.
+        str
+            The standardised grid format.
         """
 
         if isinstance(grid, str):

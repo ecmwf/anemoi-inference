@@ -121,6 +121,7 @@ You may also have to install pandoc on MacOS:
    :caption: Recipe Examples
 
    usage/getting-started
+   usage/external-graph
 
 .. toctree::
    :maxdepth: 1

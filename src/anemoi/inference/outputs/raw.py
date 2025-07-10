@@ -9,11 +9,13 @@
 
 import logging
 import os
+from typing import List
 from typing import Optional
 
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -34,6 +36,8 @@ class RawOutput(Output):
         path: str,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
+        variables: Optional[List[str]] = None,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
@@ -49,12 +53,20 @@ class RawOutput(Output):
             The template for filenames, by default "{date}.npz".
         strftime : str, optional
             The date format string, by default "%Y%m%d%H%M%S".
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
         """
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
         self.path = path
         self.template = template
         self.strftime = strftime
@@ -80,9 +92,12 @@ class RawOutput(Output):
         os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
         fn_state = f"{self.path}/{self.template.format(date=date)}"
-        restate = {f"field_{key}": val for key, val in state["fields"].items()}
+        restate = {f"field_{key}": val for key, val in state["fields"].items() if not self.skip_variable(key)}
+
         for key in ["date"]:
             restate[key] = np.array(state[key], dtype=str)
+
         for key in ["latitudes", "longitudes"]:
             restate[key] = np.array(state[key])
+
         np.savez_compressed(fn_state, **restate)

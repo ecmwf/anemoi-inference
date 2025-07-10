@@ -23,7 +23,7 @@ def test_atmos() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        files_for_tests("configs/atmos.yaml"),
+        files_for_tests("unit/configs/atmos.yaml"),
         overrides=dict(device="cpu", input="dummy"),
     )
     runner = create_runner(config)
@@ -38,7 +38,7 @@ def test_ocean() -> None:
     process to ensure that the system works as expected with the provided configuration.
     """
     config = RunConfiguration.load(
-        files_for_tests("configs/ocean.yaml"),
+        files_for_tests("unit/configs/ocean.yaml"),
         overrides=dict(device="cpu", input="dummy"),
     )
     runner = create_runner(config)

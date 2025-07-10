@@ -11,10 +11,12 @@
 from functools import wraps
 from typing import Any
 from typing import Callable
+from typing import TypeVar
 
 from anemoi.inference.context import Context
 
 MARKER = object()
+F = TypeVar("F", bound=Callable)
 
 
 class main_argument:
@@ -48,7 +50,7 @@ class main_argument:
         """
         self.name = name
 
-    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
+    def __call__(self, func: F) -> F:
         """Decorate the function to set the main argument.
 
         Parameters

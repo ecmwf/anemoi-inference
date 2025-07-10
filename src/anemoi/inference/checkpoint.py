@@ -32,6 +32,7 @@ from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
 from .metadata import Metadata
+from .metadata import Variable
 
 LOG = logging.getLogger(__name__)
 
@@ -153,6 +154,21 @@ class Checkpoint:
         return self._metadata.timestep
 
     @property
+    def input_explicit_times(self) -> Any:
+        """Get the input explicit times from metadata."""
+        return self._metadata.input_explicit_times
+
+    @property
+    def target_explicit_times(self) -> Any:
+        """Get the target explicit times."""
+        return self._metadata.target_explicit_times
+
+    @property
+    def data_frequency(self) -> Any:
+        """Get the data frequency."""
+        return self._metadata._config_data.frequency
+
+    @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
@@ -178,7 +194,7 @@ class Checkpoint:
         return self._metadata.model_computed_variables
 
     @property
-    def typed_variables(self) -> Any:
+    def typed_variables(self) -> Dict[str, Variable]:
         """Get the typed variables."""
         return self._metadata.typed_variables
 
@@ -258,24 +274,25 @@ class Checkpoint:
         self,
         *,
         all_packages: bool = False,
-        on_difference: Literal["warn", "error", "ignore"] = "warn",
-        exempt_packages: Optional[List[str]] = None,
-    ) -> bool:
+        on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
+        exempt_packages: Optional[list[str]] = None,
+    ) -> Union[bool, str]:
         """Validate the environment.
 
         Parameters
         ----------
         all_packages : bool, optional
-            Whether to validate all packages, by default False.
-        on_difference : str, optional
-            Action to take on difference, by default "warn".
-        exempt_packages : Optional[List[str]], optional
-            List of packages to exempt, by default None.
+            Check all packages in the environment (True) or just anemoi's (False), by default False.
+        on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
+            What to do on difference, by default "warn"
+        exempt_packages : list[str], optional
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
-        bool
-            True if the environment is valid, False otherwise.
+        Union[bool, str]
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
+            True if environment is valid, False otherwise
         """
         return self._metadata.validate_environment(
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
@@ -456,6 +473,7 @@ class Checkpoint:
     def lagged(self) -> List[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
+
         result = [-s * self._metadata.timestep for s in result]
         return sorted(result)
 
@@ -633,13 +651,18 @@ class Checkpoint:
                 if use_grib_paramid and "param" in r:
                     r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
 
-                # Simplyfie the request
+                # Simplify the request
 
-                for k, v in r.items():
-
+                for k in list(r.keys()):
+                    v = r[k]
                     if len(v) == 1:
-                        r[k] = v[0]
+                        v = v[0]
 
+                    # Remove empty values for when tree is not fully defined
+                    if v == "-":
+                        r.pop(k)
+                        continue
+                    r[k] = v
                 result.append(r)
 
         return result
