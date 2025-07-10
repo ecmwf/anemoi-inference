@@ -11,6 +11,7 @@
 import json
 import logging
 from collections import defaultdict
+from io import IOBase
 from typing import Any
 from typing import Dict
 from typing import List
@@ -23,12 +24,13 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.typings import DataRequest
 from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import ProcessorConfig
 
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
-from .grib import GribOutput
+from .grib import BaseGribOutput
 
 LOG = logging.getLogger(__name__)
 
@@ -105,16 +107,19 @@ class ArchiveCollector:
         return {k: sorted(v) for k, v in self._request.items()}
 
 
-@output_registry.register("grib")
-@main_argument("path")
-class GribFileOutput(GribOutput):
-    """Handles grib files."""
+class GribIoOutput(BaseGribOutput):
+    """Output class for grib io.
+
+    This class handles writing grib and collecting archive requests.
+    It extends the BaseGribOutput class and implements the write_message method.
+    """
 
     def __init__(
         self,
         context: Context,
         *,
-        path: str,
+        out: Union[str, IOBase],
+        post_processors: Optional[List[ProcessorConfig]] = None,
         encoding: Optional[Dict[str, Any]] = None,
         archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
@@ -127,14 +132,18 @@ class GribFileOutput(GribOutput):
         write_initial_state: Optional[bool] = None,
         split_output: bool = True,
     ) -> None:
-        """Initialize the GribFileOutput.
+        """Initialize the GribIOOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
-            The path to save the grib files.
+        out : Union[str, IOBase]
+            Path or file-like object to write the grib data to.
+            If a string, it should be a file path.
+            If a file-like object, it should be opened in binary write mode.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         archive_requests : dict, optional
@@ -157,9 +166,11 @@ class GribFileOutput(GribOutput):
             The list of variables, by default None.
         split_output : bool, optional
             Whether to split the output, by default True.
+            Cannot be `True` if `out` is a file-like object.
         """
         super().__init__(
             context,
+            post_processors,
             encoding=encoding,
             templates=templates,
             grib1_keys=grib1_keys,
@@ -169,16 +180,16 @@ class GribFileOutput(GribOutput):
             write_initial_state=write_initial_state,
             variables=variables,
         )
-        self.path = path
-        self.output = GribWriter(self.path, split_output=split_output)
+        self.out = out
+        self.output = GribWriter(self.out, split_output)
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
-        """Return a string representation of the GribFileOutput object."""
-        return f"GribFileOutput({self.path})"
+        """Return a string representation of the GribIOOutput object."""
+        return f"{type(self).__name__ }({self.out})"
 
     def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
         """Write a message to the grib file.
@@ -220,7 +231,7 @@ class GribFileOutput(GribOutput):
         except Exception as e:
             import eccodes
 
-            LOG.error("Error writing message to %s", self.path)
+            LOG.error("Error writing message to %s", self.out)
             LOG.error("eccodes: %s", eccodes.__version__)
             LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)
@@ -246,7 +257,6 @@ class GribFileOutput(GribOutput):
         handle, path = written
 
         while True:
-
             if self._namespace_bug_fix:
                 import eccodes
                 from earthkit.data.readers.grib.codes import GribCodesHandle
@@ -318,3 +328,77 @@ class GribFileOutput(GribOutput):
 
             json.dump(requests, f, indent=indent)
             f.write("\n")
+
+
+@output_registry.register("grib")
+@main_argument("path")
+class GribFileOutput(GribIoOutput):
+    """Handles grib files."""
+
+    def __init__(
+        self,
+        context: Context,
+        *,
+        path: str,
+        post_processors: Optional[List[ProcessorConfig]] = None,
+        encoding: Optional[Dict[str, Any]] = None,
+        archive_requests: Optional[Dict[str, Any]] = None,
+        check_encoding: bool = True,
+        templates: Optional[Union[List[str], str]] = None,
+        grib1_keys: Optional[Dict[str, Any]] = None,
+        grib2_keys: Optional[Dict[str, Any]] = None,
+        modifiers: Optional[List[str]] = None,
+        variables: Optional[List[str]] = None,
+        output_frequency: Optional[int] = None,
+        write_initial_state: Optional[bool] = None,
+        split_output: bool = True,
+    ) -> None:
+        """Initialize the GribFileOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : str
+            Path to the grib file to write the data to.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        archive_requests : dict, optional
+            The archive requests dictionary, by default None.
+        check_encoding : bool, optional
+            Whether to check encoding, by default True.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        split_output : bool, optional
+            Whether to split the output, by default True.
+        """
+        super().__init__(
+            context,
+            out=path,
+            post_processors=post_processors,
+            encoding=encoding,
+            archive_requests=archive_requests,
+            check_encoding=check_encoding,
+            templates=templates,
+            grib1_keys=grib1_keys,
+            grib2_keys=grib2_keys,
+            modifiers=modifiers,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+            variables=variables,
+            split_output=split_output,
+        )

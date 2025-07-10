@@ -21,6 +21,7 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.typings import DataRequest
 from anemoi.inference.typings import Date
+from anemoi.inference.typings import ProcessorConfig
 from anemoi.inference.typings import State
 
 from . import input_registry
@@ -113,7 +114,13 @@ class CDSInput(GribInput):
     trace_name = "cds"
 
     def __init__(
-        self, context: Context, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
+        self,
+        context: Context,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        *,
+        dataset: Union[str, Dict[str, Any]],
+        namer: Optional[Any] = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize the CDSInput.
 
@@ -121,6 +128,8 @@ class CDSInput(GribInput):
         ----------
         context : Context
             The context in which the input is used.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         dataset : Union[str, Dict[str, Any]]
             The dataset to use.
         namer : Optional[Any]
@@ -128,7 +137,7 @@ class CDSInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer)
+        super().__init__(context, pre_processors, namer=namer)
 
         self.variables = self.checkpoint.select_variables(
             include=["prognostic"],

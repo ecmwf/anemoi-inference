@@ -10,6 +10,7 @@
 
 import logging
 import re
+from io import IOBase
 from typing import Any
 from typing import Dict
 from typing import List
@@ -450,19 +451,25 @@ def encode_message(
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, path: str, split_output: bool = True) -> None:
+    def __init__(self, out: Union[str, IOBase], split_output: bool = True) -> None:
         """Initialize the GribWriter.
 
         Parameters
         ----------
-        path : str
-            The path to the output file.
+        out : Union[str, IOBase]
+            Path or file-like object to write the grib data to.
+            If a string, it should be a file path.
+            If a file-like object, it should be opened in binary write mode.
         split_output : bool, optional
             Whether to split the output into multiple files.
         """
-        self._files: Dict[str, Any] = {}
-        self.filename = path
+
+        if isinstance(out, IOBase) and split_output:
+            raise ValueError("Cannot split output when `out` is a file-like object.")
+
+        self.out = out
         self.split_output = split_output
+        self._files: Dict[str, IOBase] = {}
 
     def close(self) -> None:
         """Close all open files."""
@@ -535,7 +542,7 @@ class GribWriter:
 
         return handle, path
 
-    def target(self, handle: Any) -> tuple:
+    def target(self, handle: Any) -> tuple[IOBase, str]:
         """Determine the target file for the GRIB message.
 
         Parameters
@@ -549,14 +556,18 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            path = render_template(self.filename, handle)
+            out = render_template(self.out, handle)
         else:
-            path = self.filename
+            out = self.out
 
-        if path not in self._files:
-            self._files[path] = open(path, "wb")
+        if isinstance(out, IOBase):
+            # self._files['out'] = out
+            return out, "out"
 
-        return self._files[path], path
+        if out not in self._files:
+            self._files[out] = open(out, "wb")
+
+        return self._files[out], out
 
 
 _TEMPLATE_EXPRESSION_PATTERN = re.compile(r"\{(.*?)\}")

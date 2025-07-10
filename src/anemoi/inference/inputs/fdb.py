@@ -16,6 +16,8 @@ from typing import Optional
 import earthkit.data as ekd
 import numpy as np
 
+from anemoi.inference.typings import ProcessorConfig
+
 from ..typings import Date
 from ..typings import State
 from . import input_registry
@@ -33,6 +35,7 @@ class FDBInput(GribInput):
     def __init__(
         self,
         context,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
         namer=None,
         fdb_config: dict | None = None,
@@ -45,6 +48,8 @@ class FDBInput(GribInput):
         ----------
         context : dict
             The context runner.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         namer : optional
             The namer to use for the input.
         fdb_config : dict, optional
@@ -54,7 +59,7 @@ class FDBInput(GribInput):
         kwargs : dict, optional
             Additional keyword arguments for the request to FDB.
         """
-        super().__init__(context, namer=namer)
+        super().__init__(context, pre_processors, namer=namer)
         self.kwargs = kwargs
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         # NOTE: this is a temporary workaround for #191 thus not documented

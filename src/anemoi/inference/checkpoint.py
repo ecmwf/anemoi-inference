@@ -32,6 +32,7 @@ from anemoi.inference.typings import Date
 from anemoi.inference.typings import State
 
 from .metadata import Metadata
+from .metadata import Variable
 
 LOG = logging.getLogger(__name__)
 
@@ -163,6 +164,11 @@ class Checkpoint:
         return self._metadata.target_explicit_times
 
     @property
+    def data_frequency(self) -> Any:
+        """Get the data frequency."""
+        return self._metadata._config_data.frequency
+
+    @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
@@ -188,7 +194,7 @@ class Checkpoint:
         return self._metadata.model_computed_variables
 
     @property
-    def typed_variables(self) -> Any:
+    def typed_variables(self) -> Dict[str, Variable]:
         """Get the typed variables."""
         return self._metadata.typed_variables
 

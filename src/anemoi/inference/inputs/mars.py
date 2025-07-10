@@ -21,6 +21,7 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.typings import DataRequest
 from anemoi.inference.typings import Date
+from anemoi.inference.typings import ProcessorConfig
 from anemoi.inference.typings import State
 
 from . import input_registry
@@ -138,6 +139,7 @@ def retrieve(
     grid: Optional[Union[str, List[float]]],
     area: Optional[List[float]],
     patch: Optional[Any] = None,
+    log: bool = True,
     **kwargs: Any,
 ) -> Any:
     """Retrieve data from MARS.
@@ -152,6 +154,8 @@ def retrieve(
         The area for the retrieval.
     patch : Optional[Any], optional
         Optional patch for the request, by default None.
+    log : bool, optional
+        Whether to log the requests, by default True.
     **kwargs : Any
         Additional keyword arguments.
 
@@ -192,7 +196,7 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("mars", r)
+        result += ekd.from_source("mars", r, log="default" if log else None)
 
     return result
 
@@ -206,9 +210,11 @@ class MarsInput(GribInput):
     def __init__(
         self,
         context: Context,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
         namer: Optional[Any] = None,
         patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
+        log: bool = True,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -221,10 +227,12 @@ class MarsInput(GribInput):
             Optional namer for the input.
         patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
             Optional list of patches for the input.
+        log : bool
+            Whether to log the requests to MARS, by default True.
         **kwargs : Any
             Additional keyword to pass to the request to MARS.
         """
-        super().__init__(context, namer=namer)
+        super().__init__(context, pre_processors, namer=namer)
         self.kwargs = kwargs
         self.variables = self.checkpoint.select_variables(
             include=["prognostic"],
@@ -232,6 +240,7 @@ class MarsInput(GribInput):
         )
         self.kwargs = kwargs
         self.patches = patches or []
+        self.log = log
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.
@@ -292,6 +301,7 @@ class MarsInput(GribInput):
         return retrieve(
             requests,
             patch=self.patch,
+            log=self.log,
             **kwargs,
         )
 

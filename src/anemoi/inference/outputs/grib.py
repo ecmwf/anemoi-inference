@@ -21,6 +21,7 @@ from typing import Union
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import ProcessorConfig
 from anemoi.inference.typings import State
 
 from ..grib.encoding import grib_keys
@@ -113,12 +114,13 @@ def modifier_factory(modifiers: list) -> list:
     return result
 
 
-class GribOutput(Output):
+class BaseGribOutput(Output):
     """Handles grib."""
 
     def __init__(
         self,
         context: dict,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         *,
         encoding: Optional[Dict[str, Any]] = None,
         templates: Optional[Union[List[str], str]] = None,
@@ -135,6 +137,8 @@ class GribOutput(Output):
         ----------
         context : dict
             The context dictionary.
+        post_processors : Optional[List[ProcessorConfig]] = None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         templates : list or str, optional
@@ -156,6 +160,7 @@ class GribOutput(Output):
         super().__init__(
             context,
             variables=variables,
+            post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
@@ -210,7 +215,6 @@ class GribOutput(Output):
         state.setdefault("step", datetime.timedelta(0))
 
         for name in state["fields"].keys():
-
             if self.skip_variable(name):
                 continue
 
@@ -226,7 +230,7 @@ class GribOutput(Output):
                     f"No grib template found for initial state param `{name}`. Try setting `write_initial_state` to `false`."
                 )
 
-        return self.write_step(state)
+        return self.write_step(self.post_process(state))
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
@@ -243,7 +247,6 @@ class GribOutput(Output):
         start_steps = state.get("start_steps", {})
 
         for name in state["fields"].keys():
-
             if self.skip_variable(name):
                 continue
 
