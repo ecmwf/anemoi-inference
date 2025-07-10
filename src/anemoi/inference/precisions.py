@@ -23,6 +23,9 @@ class LazyDict:
     So we don't import torch at the top level, which can be slow.
     """
 
+    def get(self, key, default=None):
+        return self._mapping.get(key, default)
+
     def keys(self):
         return self._mapping.keys()
 
