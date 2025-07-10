@@ -53,7 +53,7 @@
   input: input.grib
   output: output.nc
   checks:
-    - check_netcdf:
+    - check_with_xarray:
         check_accum: tp
         check_nans: true
   inference_config:
@@ -71,7 +71,7 @@
   input: input.grib
   output: output.zarr
   checks:
-    - check_netcdf:
+    - check_with_xarray:
         check_accum: tp
         check_nans: true
   inference_config:

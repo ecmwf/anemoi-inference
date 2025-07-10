@@ -78,8 +78,8 @@ def check_grib(
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
-@testing_registry.register("check_netcdf")
-def check_netcdf(
+@testing_registry.register("check_with_xarray")
+def check_with_xarray(
     *, file: Path, expected_variables: list["Variable"], check_accum: Optional[str] = None, check_nans=False, **kwargs
 ) -> None:
     LOG.info(f"Checking NetCDF file: {file}")
