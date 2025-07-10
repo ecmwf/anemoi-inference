@@ -464,6 +464,8 @@ class Runner(Context):
         Generator[State, None, None]
             The prepared output state.
         """
+        import torch
+
         for state in output:
             if return_numpy:
                 # Convert fields to numpy arrays
