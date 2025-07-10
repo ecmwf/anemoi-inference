@@ -322,10 +322,14 @@ class ZarrOutput(Output):
     def close(self) -> None:
         """Close the Zarr file."""
         import zarr
-        from zarr.storage import StoreLike
+
+        if zarr.__version__ >= "3":
+            from zarr.abc.store import Store
+        else:
+            from zarr.storage import BaseStore as Store
 
         if self.zarr_store is not None and not isinstance(self.zarr_store, str):
-            if isinstance(self.zarr_store, StoreLike):
+            if isinstance(self.zarr_store, Store):
                 zarr.consolidate_metadata(self.zarr_store)
                 self.zarr_store.close()
             self.zarr_store = None
