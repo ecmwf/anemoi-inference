@@ -9,7 +9,6 @@
 
 
 import logging
-import warnings
 from typing import Any
 from typing import Dict
 from typing import List
@@ -97,30 +96,38 @@ class DefaultRunner(Runner):
         input = self.create_input()
         output = self.create_output()
 
-        # pre_processors = self.pre_processors
-        post_processors = self.post_processors
-
+        # Top-level pre-processors are applied by the input directly as it is applied on FieldList directly.
         input_state = input.create_input_state(date=self.config.date)
 
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)
 
-        state = Output.reduce(input_state)
-        for processor in post_processors:
-            LOG.info("Post processor: %s", processor)
-            state = processor.process(state)
+        initial_state = Output.reduce(input_state)
+        # Top-level post-processors on the other hand are applied on State and are executed here.
+        for processor in self.post_processors:
+            initial_state = processor.process(initial_state)
 
-        output.open(state)
+        output.open(initial_state)
         LOG.info("write_initial_state: %s", output)
-        output.write_initial_state(state)
+        output.write_initial_state(initial_state)
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
-            for processor in post_processors:
-                LOG.info("Post processor: %s", processor)
+            # Apply top-level post-processors
+            LOG.info("Top-level post-processors: %s", self.post_processors)
+            for processor in self.post_processors:
                 state = processor.process(state)
             output.write_state(state)
 
         output.close()
+
+        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
+            LOG.warning(
+                """
+                🚧 The default accumulation behaviour has changed. 🚧
+                🚧 Accumulation fields have NOT been accumulated from the beginning of the forecast. 🚧
+                🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
+                """  # ecmwf/anemoi-inference#131
+            )
 
     def input_state_hook(self, input_state: State) -> None:
         """Hook used by coupled runners to send the input state."""
@@ -281,26 +288,6 @@ class DefaultRunner(Runner):
         List[Processor]
             The created pre-processors.
         """
-        if self.config.post_processors is None:
-            self.config.post_processors = ["accumulate_from_start_of_forecast"]
-            warnings.warn(
-                """
-                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
-
-                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-                Update your config if you wish to keep accumulating from the beginning.
-                https://github.com/ecmwf/anemoi-inference/issues/131
-                """,
-            )
-
-        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
-            warnings.warn(
-                """
-                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
-                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
-                """
-            )
-
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))

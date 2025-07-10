@@ -20,7 +20,7 @@ from typing import Optional
 from ai_models.model import Model
 
 from anemoi.inference.inputs.grib import GribInput
-from anemoi.inference.outputs.grib import GribOutput
+from anemoi.inference.outputs.grib import BaseGribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
 from anemoi.inference.types import Date
@@ -104,7 +104,7 @@ class FieldListInput(GribInput):
         state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
 
 
-class CallbackOutput(GribOutput):
+class CallbackOutput(BaseGribOutput):
     """Call ai-models write method."""
 
     def __init__(self, context: Any, *, write: Any, encoding: Any = None) -> None:

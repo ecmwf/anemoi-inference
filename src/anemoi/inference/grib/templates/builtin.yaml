@@ -13,6 +13,25 @@
 # 4 - python -c 'import base64, sys, zlib;print(base64.b64encode(zlib.compress(open(sys.argv[1], "rb").read())).decode())' out.grib | sed 's/.\{98\}/&\n/g'
 
 # Q-1000, GRIB2, ECMWF, CCSDS
+# retrieve,levtype=pl,levelist=1000,param=q,grid=o48,target=data.grib
+- - { grid: O48, levtype: pl }
+  - |
+    eJxlkLFLQlEUxn/35XsWRRAoFDiIOIQIvUCowSFCMMFBwiHCIeINDQ4NDg0OBRYODg0ODRIODg0ODQ4NDgYODg79G/0Vz+8+wq
+    VzuJdzzzn3+75zypeV8zDEITLT1ZU03EIGE//1tneUCHX2HIzciRnf94/VubmhbG7mGA4J/5uKNxbRxm75aSuCf1aQvP4++mvw
+    IcE+KdJkhZJXosApRc4ocUGVGnWuaAgp4I4m97R4oM0jHbr0eKXPGwOGjPhgzCcTvpgyY86CJT/ypaK5MlNVJuoYq3OkHwP97A
+    uhJ6SOENtCbomhKaZAjA0x16WgKiUlKSpKWUEK81KaleKUlCc0RCYWLU6TvmsqYx+B3i/D9R4OXLsocqxtNy1C8DxbduMnshWW
+    sGIt
+
+# LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
+# retrieve,levtype=sfc,param=lsm,grid=o48,target=data.grib
+- - { grid: O48 }
+  - |
+    eJxlkL9LQlEUxz/35nsWRRAoFDiIOIQIvUCowSFEsMAhwiHCIcKhwaHBocGhwMDBocGhQaTBwcGhwaHBwcChwaF/o7/i9n2vCK
+    JzuJfD+fH9fs+pnJ2UnLOWyExXX9JwBRlM/NNf31DC6W1ZjNzGTBAE++pcXVE2N7eGXdx/U/EyRAxjr3K/FsE/KEhevO39NASQ
+    YJsUabJCyStR4JAiR5Q5psopNc6pC6nBNU1uaHFLmzs6dOnxSJ8nBjwzYsyEF6a8MmPOgneWfMiXihbKzFSZqmOizpEmBprsC6
+    EnpI4Q20JuiaEppoYY62KuSUFVSspSVJSyghTmpTQrxSkpT2iJTOz7dLihtjLRFf/eYccLD0WOX9tMixB8Pyx78QPZF0LAZZ8=
+
+# Q-1000, GRIB2, ECMWF, CCSDS
 - - { grid: O96, levtype: pl }
   - |
     eJxlkSFMW1EUhr//0QKiWUbSJpBUdEsFWSrekiZDVBDSZF1SQUgFoiENeckQzYKoQFRUPBZEBQIxwUhFxQQCgZhAIBAIBAIxgU

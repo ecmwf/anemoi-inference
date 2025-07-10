@@ -16,6 +16,7 @@ from typing import Optional
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -39,6 +40,7 @@ class NetCDFOutput(Output):
         context: Context,
         path: str,
         variables: Optional[List[str]] = None,
+        post_processors: Optional[List[ProcessorConfig]] = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
         float_size: str = "f4",
@@ -52,6 +54,8 @@ class NetCDFOutput(Output):
             The context dictionary.
         path : str
             The path to save the NetCDF file.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -63,7 +67,11 @@ class NetCDFOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         from netCDF4 import Dataset
@@ -159,7 +167,6 @@ class NetCDFOutput(Output):
         compression = {}  # dict(zlib=False, complevel=0)
 
         for name in state["fields"].keys():
-
             if self.skip_variable(name):
                 continue
 
@@ -201,11 +208,11 @@ class NetCDFOutput(Output):
         self.time_var[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
-
             if self.skip_variable(name):
                 continue
 
             with LOCK:
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
                 self.vars[name][self.n] = value
 
         self.n += 1
