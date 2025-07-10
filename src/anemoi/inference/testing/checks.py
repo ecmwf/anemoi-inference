@@ -82,15 +82,15 @@ def check_grib(
 def check_with_xarray(
     *, file: Path, expected_variables: list["Variable"], check_accum: Optional[str] = None, check_nans=False, **kwargs
 ) -> None:
-    LOG.info(f"Checking NetCDF file: {file}")
+    LOG.info(f"Checking file: {file}")
     import numpy as np
     import xarray as xr
 
     ds = xr.open_dataset(file)
 
-    assert len(ds.data_vars) > 0, "No data found in the NetCDF file."
+    assert len(ds.data_vars) > 0, "No data found in the xarray compatible file."
 
-    # lat and lon are variables in the netcdf, but they are not variables of the model so skip them
+    # lat and lon are variables in the file, but they are not variables of the model so skip them
     skip = {"latitude", "longitude"}
     params = set(ds.data_vars) - skip
     expected_params = [var.name for var in expected_variables]

@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
 import os
 import shutil
@@ -125,15 +124,19 @@ class ZarrOutput(Output):
         self.float_size = float_size
 
         self._vars = {}
-        self._has_been_setup = False
-        self._recorded_initial_state = None
 
     def __repr__(self) -> str:
         """Return a string representation of the ZarrOutput object."""
         return f"ZarrOutput({self.zarr_store})"
 
-    def _setup(self, state: State) -> None:
-        """Setup the Zarr output."""
+    def open(self, state: State) -> None:
+        """Open the Zarr file and initialize dimensions.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
         import zarr
 
         if isinstance(self.zarr_store, str):
@@ -165,7 +168,9 @@ class ZarrOutput(Output):
         time_step = self.context.checkpoint.timestep
 
         if lead_time is None:
-            return
+            raise RuntimeError(
+                "When setting up the ZarrOutput, the `lead_time` was not yet set on the context, therefore unable to construct the arrays."
+            )
 
         time = lead_time // time_step
         time += int(self.write_step_zero)
@@ -219,23 +224,6 @@ class ZarrOutput(Output):
         self.latitude_var[:] = latitudes
         self.longitude_var[:] = longitudes
 
-        self._has_been_setup = True
-
-        if self._recorded_initial_state is not None:
-            # If we have a recorded initial state, write it now
-            self.write_initial_state(self._recorded_initial_state)
-            self._recorded_initial_state = None
-
-    def open(self, state: State) -> None:
-        """Open the Zarr file and initialize dimensions.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-        self._setup(state)
-
     def _variable_array(self, name: str, values_size: int) -> Any:
         """Get the variable array by name.
 
@@ -271,20 +259,8 @@ class ZarrOutput(Output):
         return self._vars[name]
 
     def write_initial_state(self, state: State) -> None:
-        """Write the initial state to the Zarr file.
-
-        In the case of not yet being setup, as if the lead_time is still unknown,
-        we record the initial state and write it later.
-        """
-        if not self.write_step_zero:
-            return
-
+        """Write the initial state to the Zarr file."""
         state = self.reduce(state)  # Reduce to only the last step
-
-        if not self._has_been_setup:
-            state.setdefault("step", datetime.timedelta(0))
-            self._recorded_initial_state = self.post_process(state)
-            return
 
         return super().write_initial_state(state)
 
@@ -296,17 +272,6 @@ class ZarrOutput(Output):
         state : State
             The state dictionary.
         """
-        if not self._has_been_setup:
-            self._setup(state)
-
-        if not self._has_been_setup:
-            if getattr(self.context, "lead_time", None) is None:
-                raise RuntimeError(
-                    "When writing a state, the ZarrOutput failed to be setup, the `lead_time` was not yet set in the runner."
-                )
-            else:
-                raise RuntimeError("When writing a state, the ZarrOutput failed to be setup")
-
         step = state["date"] - self.reference_date
         self.time_array[self.n] = step.total_seconds()
 
