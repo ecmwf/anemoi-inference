@@ -1,0 +1,2 @@
+output:
+  zarr: /path/to/zarr/store.zarr
