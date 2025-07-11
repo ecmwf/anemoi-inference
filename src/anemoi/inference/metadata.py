@@ -138,7 +138,9 @@ class Metadata(PatchMixin, LegacyMixin):
     # Debugging
     ###########################################################################
 
-    def _print_indices(self, title: str, indices: Dict[str, List[int]], naming: Dict, skip: List[str] = []) -> None:
+    def _print_indices(
+        self, title: str, indices: Dict[str, List[int]], naming: Dict, skip: List[str] = [], print=LOG.info
+    ) -> None:
         """Print indices for debugging purposes.
 
         Parameters
@@ -151,9 +153,11 @@ class Metadata(PatchMixin, LegacyMixin):
             The naming convention for the indices.
         skip : set, optional
             The set of indices to skip, by default set().
+        print : callable, optional
+            The print function to use, by default logging.info.
         """
-        LOG.info("")
-        LOG.info("%s:", title)
+        print("")
+        print(title)
 
         for k, v in sorted(indices.items()):
             if k in skip:
@@ -163,20 +167,22 @@ class Metadata(PatchMixin, LegacyMixin):
                 if entry in skip:
                     continue
 
-                LOG.info("   %s:", f"{k}.{name}")
+                print(f"   {k}.{name}:")
                 for n in idx:
-                    LOG.info(f"     {n:3d} - %s", naming[k].get(n, "?"))
+                    print(f"     {n:3d} - {naming[k].get(n, "?")}")
                 if not idx:
-                    LOG.info("     <empty>")
+                    print("     <empty>")
 
-    def print_indices(self) -> None:
+    def print_indices(self, print=LOG.info) -> None:
         """Print data and model indices for debugging purposes."""
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
-        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"])
-        self._print_indices("Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]))
+        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"], print=print)
+        self._print_indices(
+            "Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]), print=print
+        )
 
     ###########################################################################
     # Inference
@@ -1154,11 +1160,11 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return sources
 
-    def print_variable_categories(self) -> None:
+    def print_variable_categories(self, print=LOG.info) -> None:
         """Print the variable categories for debugging purposes."""
         length = max(len(name) for name in self.variables)
         for name, categories in sorted(self.variable_categories().items()):
-            LOG.info(f"   {name:{length}} => {', '.join(categories)}")
+            print(f"   {name:{length}} => {', '.join(categories)}")
 
     ###########################################################################
 

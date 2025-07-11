@@ -411,9 +411,9 @@ class Checkpoint:
         """
         return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
 
-    def print_indices(self) -> None:
+    def print_indices(self, print=LOG.info) -> None:
         """Print the indices."""
-        return self._metadata.print_indices()
+        return self._metadata.print_indices(print=print)
 
     def variable_categories(self) -> Any:
         """Get the variable categories.
@@ -460,9 +460,9 @@ class Checkpoint:
         """Get the multi-step input."""
         return self._metadata.multi_step_input
 
-    def print_variable_categories(self) -> None:
+    def print_variable_categories(self, print=LOG.info) -> None:
         """Print the variable categories."""
-        return self._metadata.print_variable_categories()
+        return self._metadata.print_variable_categories(print=print)
 
     ###########################################################################
     # Data retrieval
@@ -565,8 +565,9 @@ class Checkpoint:
         KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 
         requests = defaultdict(list)
-
+        print(f"Processing request: {variables}")
         for r in self._metadata.mars_requests(variables=variables):
+            print(f"Processing request: {r}")
             for date in dates:
 
                 r = r.copy()
