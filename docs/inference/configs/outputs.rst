@@ -73,6 +73,18 @@ variable is written in its own NetCDF variable.
    :language: yaml
 
 ******
+ zarr
+******
+
+The `zarr` output writes the output to a Zarr file. The encoding is
+basic, and does not attempt to rebuild 3D fields from 2D fields. The
+only coordinates are `latitude`, `longitude` and `time`.
+
+Each state variable is written in its own Zarr array.
+
+.. literalinclude:: yaml/outputs_10.yaml
+
+******
  plot
 ******
 

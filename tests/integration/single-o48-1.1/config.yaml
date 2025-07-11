@@ -53,7 +53,7 @@
   input: input.grib
   output: output.nc
   checks:
-    - check_netcdf:
+    - check_with_xarray:
         check_accum: tp
         check_nans: true
   inference_config:
@@ -65,3 +65,21 @@
       grib: ${input:}
     output:
       netcdf: ${output:}
+
+
+- name: grib-in-zarr-out
+  input: input.grib
+  output: output.zarr
+  checks:
+    - check_with_xarray:
+        check_accum: tp
+        check_nans: true
+  inference_config:
+    post_processors:
+      - accumulate_from_start_of_forecast
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      zarr: ${output:}
