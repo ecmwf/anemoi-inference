@@ -7,6 +7,10 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+########################################################################################################
+# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
+########################################################################################################
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +20,7 @@ from functools import cached_property
 from typing import Any
 from typing import Literal
 
-import torch
+import numpy as np
 
 from ..decorators import main_argument
 from ..runners.default import DefaultRunner
@@ -91,7 +95,7 @@ def _get_supporting_arrays_from_file(update_supporting_arrays: dict[str, str]) -
     """Update the supporting arrays from a file."""
     updated_supporting_arrays = {}
 
-    import numpy as np
+    import torch
 
     for key, value in update_supporting_arrays.items():
         if os.path.isfile(value):
@@ -257,6 +261,8 @@ class ExternalGraphRunner(DefaultRunner):
 
     @cached_property
     def graph(self):
+        import torch
+
         graph_path = self.graph_path
         assert os.path.isfile(
             graph_path

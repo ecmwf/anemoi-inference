@@ -10,8 +10,8 @@ from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import State
+from anemoi.inference.typings import DataRequest
+from anemoi.inference.typings import State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context

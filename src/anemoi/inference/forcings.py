@@ -22,10 +22,10 @@ from earthkit.data.indexing.fieldlist import FieldArray
 
 from anemoi.inference.context import Context
 from anemoi.inference.inputs.dataset import DatasetInput
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import IntArray
+from anemoi.inference.typings import State
 
 LOG = logging.getLogger(__name__)
 

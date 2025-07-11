@@ -19,10 +19,10 @@ import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.typings import DataRequest
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import ProcessorConfig
+from anemoi.inference.typings import State
 
 from . import input_registry
 from .grib import GribInput
@@ -139,7 +139,10 @@ class CDSInput(GribInput):
         """
         super().__init__(context, pre_processors, namer=namer)
 
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
+        self.variables = self.checkpoint.select_variables(
+            include=["prognostic"],
+            exclude=["forcing", "computed", "diagnostic"],
+        )
         self.dataset = dataset
         self.kwargs = kwargs
 

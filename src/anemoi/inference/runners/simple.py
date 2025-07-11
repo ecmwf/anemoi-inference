@@ -12,8 +12,8 @@ import logging
 from typing import Any
 from typing import List
 
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.typings import IntArray
+from anemoi.inference.typings import State
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings

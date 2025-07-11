@@ -19,7 +19,7 @@ from typing import List
 from typing import Optional
 
 from anemoi.inference.processor import Processor
-from anemoi.inference.types import IntArray
+from anemoi.inference.typings import IntArray
 
 if TYPE_CHECKING:
     from anemoi.inference.input import Input

@@ -20,7 +20,7 @@ from typing import Union
 
 from pydantic import Field
 
-from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.typings import ProcessorConfig
 
 from . import Configuration
 
@@ -64,7 +64,7 @@ class RunConfiguration(Configuration):
     pre_processors: List[ProcessorConfig] = []
     post_processors: List[ProcessorConfig] = []
 
-    forcings: Optional[Dict[str, Dict[str, Any]]] = None
+    forcings: Optional[Dict[str, Any]] = None
     """Where to find the forcings."""
 
     device: str = "cuda"

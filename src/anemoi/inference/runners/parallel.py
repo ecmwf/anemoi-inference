@@ -7,19 +7,21 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+########################################################################################################
+# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
+########################################################################################################
 
 import datetime
 import logging
 import os
 import socket
 import subprocess
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
 from typing import Tuple
 
 import numpy as np
-import torch
-import torch.distributed as dist
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.output import Output
@@ -32,6 +34,10 @@ from . import runner_registry
 from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    import torch
+    import torch.distributed as dist
 
 
 def create_parallel_runner(config: Configuration, pid: int) -> None:
@@ -78,6 +84,8 @@ class ParallelRunnerMixin:
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __new__(cls, config, *args, **kwargs):
+        import torch
+
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
@@ -94,6 +102,8 @@ class ParallelRunnerMixin:
         pid : int, optional
             The process ID, by default 0.
         """
+        import torch
+
         super().__init__(config, **kwargs)
 
         self.model_comm_group = None
@@ -123,7 +133,7 @@ class ParallelRunnerMixin:
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any) -> "torch.Tensor":
         """Performs a prediction step.
 
         Parameters
@@ -178,6 +188,8 @@ class ParallelRunnerMixin:
         Will try read 'ANEMOI_BASE_SEED' from the environment.
         Otherwise, the seed of process 0 will be shared to all processes.
         """
+        import torch
+
         seed = None
         seed_threshold = 1000
         env_var_list = ["ANEMOI_BASE_SEED"]
@@ -218,6 +230,8 @@ class ParallelRunnerMixin:
         num_procs : int
             The number of processes to spawn.
         """
+        import torch
+
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
@@ -341,7 +355,7 @@ class ParallelRunnerMixin:
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> Optional[dist.ProcessGroup]:
+    def _init_parallel(self) -> Optional["dist.ProcessGroup"]:
         """Creates a model communication group to be used for parallel inference.
 
         Returns
@@ -349,6 +363,8 @@ class ParallelRunnerMixin:
         Optional[dist.ProcessGroup]
             The model communication group.
         """
+        import torch.distributed as dist
+
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'

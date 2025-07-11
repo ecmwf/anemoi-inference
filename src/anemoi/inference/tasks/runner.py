@@ -21,9 +21,9 @@ from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.runners.testing import TestingMixing
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import State
 
 from ..task import Task
 from . import task_registry

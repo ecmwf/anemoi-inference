@@ -16,7 +16,7 @@ from anemoi.utils.logs import set_logging_name
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.task import Task
-from anemoi.inference.types import State
+from anemoi.inference.typings import State
 
 from ..transport import Transport
 from . import transport_registry

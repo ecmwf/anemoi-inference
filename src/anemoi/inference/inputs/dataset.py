@@ -20,9 +20,9 @@ from typing import Tuple
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import State
 
 from ..input import Input
 from . import input_registry

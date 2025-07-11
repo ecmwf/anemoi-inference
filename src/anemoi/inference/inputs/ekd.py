@@ -25,10 +25,10 @@ from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.typings import Date
+from anemoi.inference.typings import FloatArray
+from anemoi.inference.typings import ProcessorConfig
+from anemoi.inference.typings import State
 
 from ..checks import check_data
 from ..input import Input
@@ -236,7 +236,10 @@ class EkdInput(Input):
         fields = self.pre_process(fields)
 
         if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
+            variables = self.checkpoint.select_variables(
+                include=["prognostic", "forcing"],
+                exclude=["computed", "diagnostic"],
+            )
 
         if len(fields) == 0:
             raise ValueError("No input fields provided")

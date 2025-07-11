@@ -16,10 +16,10 @@ from typing import Optional
 import earthkit.data as ekd
 import numpy as np
 
-from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.typings import ProcessorConfig
 
-from ..types import Date
-from ..types import State
+from ..typings import Date
+from ..typings import State
 from . import input_registry
 from .grib import GribInput
 
@@ -64,7 +64,10 @@ class FDBInput(GribInput):
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         # NOTE: this is a temporary workaround for #191 thus not documented
         self.param_id_map = kwargs.pop("param_id_map", {})
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
+        self.variables = self.checkpoint.select_variables(
+            include=["prognostic"],
+            exclude=["forcing", "computed", "diagnostic"],
+        )
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         date = np.datetime64(date).astype(datetime.datetime)
