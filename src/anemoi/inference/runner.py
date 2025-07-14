@@ -7,6 +7,9 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+########################################################################################################
+# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
+########################################################################################################
 
 import datetime
 import logging
@@ -22,7 +25,6 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
-import torch
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
@@ -41,6 +43,8 @@ from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
 
 if TYPE_CHECKING:
+    import torch
+
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
@@ -460,6 +464,8 @@ class Runner(Context):
         Generator[State, None, None]
             The prepared output state.
         """
+        import torch
+
         for state in output:
             if return_numpy:
                 # Convert fields to numpy arrays
@@ -469,7 +475,7 @@ class Runner(Context):
             yield state
 
     @cached_property
-    def autocast(self) -> Union[torch.dtype, str]:
+    def autocast(self) -> Union["torch.dtype", str]:
         """The autocast precision."""
         autocast = self.precision
 
@@ -483,30 +489,35 @@ class Runner(Context):
         return PRECISIONS.get(autocast, autocast)
 
     @cached_property
-    def model(self) -> torch.nn.Module:
+    def model(self) -> "torch.nn.Module":
         """Returns
         ----------
         Any
             The loaded model.
         """
+        import torch
+
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
-            except Exception as e:  # Wildcard exception to catch all errors
-                if self.report_error:
-                    self.checkpoint.report_error()
-                validation_result = self.checkpoint.validate_environment(on_difference="return")
-                error_msg = f"Error loading model - {validation_result}"
-                raise RuntimeError(error_msg) from e
+            except RuntimeError:
+                # This happens when the no GPU is available
+                raise
+            except Exception:  # Wildcard exception to catch all errors
+                self.checkpoint.report_error()
+                raise
+
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
             return model
 
-    def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+    ) -> "torch.Tensor":
         """Predict the next step.
 
         Parameters
@@ -583,6 +594,8 @@ class Runner(Context):
         Any
             The forecasted state.
         """
+        import torch
+
         self.model.eval()
 
         torch.set_grad_enabled(False)
@@ -642,7 +655,7 @@ class Runner(Context):
                     new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output)
+                self._print_output_tensor("Output tensor", output.cpu().numpy())
 
             if self.trace:
                 self.trace.write_output_tensor(
@@ -687,8 +700,8 @@ class Runner(Context):
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+    ) -> "torch.Tensor":
         """Copy prognostic fields to the input tensor.
 
         Parameters
@@ -729,8 +742,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
         Parameters
@@ -749,6 +762,8 @@ class Runner(Context):
         torch.Tensor
             The updated input tensor.
         """
+        import torch
+
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
                 date = self.development_hacks["dynamic_forcings_date"]
@@ -783,8 +798,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
         Parameters
@@ -805,6 +820,8 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
+        import torch
+
         sources = self.boundary_forcings_inputs
         for source in sources:
             forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
@@ -940,7 +957,7 @@ class Runner(Context):
         )
         LOG.info("")
 
-    def _print_input_tensor(self, title: str, input_tensor_torch: torch.Tensor) -> None:
+    def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
         """Print the input tensor.
 
         Parameters
@@ -1020,3 +1037,14 @@ class Runner(Context):
         Derived classes can implement this method to modify itself for parallel operation.
         """
         pass
+
+    @cached_property
+    def typed_variables(self) -> Dict[str, Any]:
+        """Returns
+        ----------
+        Dict[str, Any]
+            The typed variables, possibly including user provided ones.
+        """
+        result = self.checkpoint.typed_variables.copy()
+        result.update(self.user_provided_typed_variables)
+        return result

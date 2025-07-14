@@ -50,6 +50,16 @@ USE_LEGACY = True
 LOG = logging.getLogger(__name__)
 
 
+VARIABLE_CATEGORIES = {
+    "computed",
+    "forcing",
+    "diagnostic",
+    "prognostic",
+    "constant",
+    "accumulation",
+}
+
+
 def _remove_full_paths(x: Any) -> Any:
     """Remove full paths from the given data structure.
 
@@ -128,7 +138,9 @@ class Metadata(PatchMixin, LegacyMixin):
     # Debugging
     ###########################################################################
 
-    def _print_indices(self, title: str, indices: Dict[str, List[int]], naming: Dict, skip: List[str] = []) -> None:
+    def _print_indices(
+        self, title: str, indices: Dict[str, List[int]], naming: Dict, skip: List[str] = [], print=LOG.info
+    ) -> None:
         """Print indices for debugging purposes.
 
         Parameters
@@ -141,9 +153,11 @@ class Metadata(PatchMixin, LegacyMixin):
             The naming convention for the indices.
         skip : set, optional
             The set of indices to skip, by default set().
+        print : callable, optional
+            The print function to use, by default logging.info.
         """
-        LOG.info("")
-        LOG.info("%s:", title)
+        print("")
+        print(title)
 
         for k, v in sorted(indices.items()):
             if k in skip:
@@ -153,20 +167,22 @@ class Metadata(PatchMixin, LegacyMixin):
                 if entry in skip:
                     continue
 
-                LOG.info("   %s:", f"{k}.{name}")
+                print(f"   {k}.{name}:")
                 for n in idx:
-                    LOG.info(f"     {n:3d} - %s", naming[k].get(n, "?"))
+                    print(f"     {n:3d} - {naming[k].get(n, "?")}")
                 if not idx:
-                    LOG.info("     <empty>")
+                    print("     <empty>")
 
-    def print_indices(self) -> None:
+    def print_indices(self, print=LOG.info) -> None:
         """Print data and model indices for debugging purposes."""
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
-        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"])
-        self._print_indices("Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]))
+        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"], print=print)
+        self._print_indices(
+            "Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]), print=print
+        )
 
     ###########################################################################
     # Inference
@@ -488,34 +504,63 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the area information."""
         return self._data_request.get("area")
 
-    def variables_from_input(self, *, include_forcings: bool) -> list:
+    def select_variables(self, *, include, exclude) -> list:
         """Get variables from input.
 
         Parameters
         ----------
-        include_forcings : bool
-            Whether to include forcings.
+        include: List[str]
+            Categories to include.
+        exclude: List[str]
+            Categories to exclude.
 
         Returns
         -------
         list
             The list of variables.
         """
+
         variable_categories = self.variable_categories()
         result = []
+
+        include = set(include) if include is not None else None
+        exclude = set(exclude) if exclude is not None else None
+
+        if include is not None and exclude is not None:
+            if not include.isdisjoint(exclude):
+                raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
+
+        if include is not None:
+            include = set(include)
+            if not (include <= VARIABLE_CATEGORIES):
+                raise ValueError(
+                    f"Invalid include categories: {include}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {include-VARIABLE_CATEGORIES}."
+                )
+
+        if exclude is not None:
+            exclude = set(exclude)
+            if not (exclude <= VARIABLE_CATEGORIES):
+                raise ValueError(
+                    f"Invalid exclude categories: {exclude}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {exclude-VARIABLE_CATEGORIES}."
+                )
+
         for variable, metadata in self.variables_metadata.items():
+
+            categories = set(variable_categories[variable])
+
+            if not categories < VARIABLE_CATEGORIES:
+                warnings.warn(
+                    f"Variable {variable} has unknown categories: {categories - VARIABLE_CATEGORIES}. "
+                    f"Please update the code."
+                )
 
             if "mars" not in metadata:
                 continue
 
-            if "forcing" in variable_categories[variable]:
-                if not include_forcings:
-                    continue
-
-            if "computed" in variable_categories[variable]:
+            if include is not None and include.isdisjoint(categories):
                 continue
 
-            if "diagnostic" in variable_categories[variable]:
+            if exclude is not None and not exclude.isdisjoint(categories):
                 continue
 
             result.append(variable)
@@ -530,12 +575,8 @@ class Metadata(PatchMixin, LegacyMixin):
         Iterator[DataRequest]
             The MARS requests.
         """
-        variable_categories = self.variable_categories()
-        for variable in self.variables_from_input(include_forcings=True):
 
-            if "diagnostic" in variable_categories[variable]:
-                continue
-
+        for variable in self.select_variables(include=["prognostic", "forcing"], exclude=["computed", "diagnostic"]):
             metadata = self.variables_metadata[variable]
 
             yield metadata["mars"].copy()
@@ -553,15 +594,14 @@ class Metadata(PatchMixin, LegacyMixin):
         tuple
             The parameters and levels.
         """
-        variable_categories = self.variable_categories()
 
         params = set()
         levels = set()
 
-        for variable in self.variables_from_input(include_forcings=True):
-
-            if "diagnostic" in variable_categories[variable]:
-                continue
+        for variable in self.select_variables(
+            include=["prognostic", "forcing"],
+            exclude=["computed", "diagnostic"],
+        ):
 
             metadata = self.variables_metadata[variable]
 
@@ -1120,11 +1160,11 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return sources
 
-    def print_variable_categories(self) -> None:
+    def print_variable_categories(self, print=LOG.info) -> None:
         """Print the variable categories for debugging purposes."""
         length = max(len(name) for name in self.variables)
         for name, categories in sorted(self.variable_categories().items()):
-            LOG.info(f"   {name:{length}} => {', '.join(categories)}")
+            print(f"   {name:{length}} => {', '.join(categories)}")
 
     ###########################################################################
 

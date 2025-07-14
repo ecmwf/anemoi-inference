@@ -7,14 +7,15 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+########################################################################################################
+# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
+########################################################################################################
 
 import logging
 import socket
 import time
 from contextlib import contextmanager
 from typing import Generator
-
-import torch
 
 LOG = logging.getLogger(__name__)
 
@@ -35,6 +36,8 @@ def ProfilingLabel(label: str, use_profiler: bool) -> Generator[None, None, None
     Generator[None, None, None]
         Yields to the caller.
     """
+    import torch
+
     if use_profiler:
         with torch.autograd.profiler.record_function(label):
             torch.cuda.nvtx.range_push(label)
@@ -58,6 +61,8 @@ def ProfilingRunner(use_profiler: bool) -> Generator[None, None, None]:
     Generator[None, None, None]
         Yields to the caller.
     """
+    import torch
+
     dirname = f"profiling-output/{socket.gethostname()}-{int(time.time())}"
     if use_profiler:
         torch.cuda.memory._record_memory_history(max_entries=100000)
