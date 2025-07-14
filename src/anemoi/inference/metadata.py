@@ -169,7 +169,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
                 print(f"   {k}.{name}:")
                 for n in idx:
-                    print(f"     {n:3d} - {naming[k].get(n, "?")}")
+                    print(f"     {n:3d} - {naming[k].get(n, '?')}")
                 if not idx:
                     print("     <empty>")
 
