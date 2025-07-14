@@ -59,8 +59,11 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [ "anemoi-datasets", "anemoi-inference[huggingface]", "anemoi-utils[all]>=0.4.26" ]
-
+optional-dependencies.all = [
+  "anemoi-datasets",
+  "anemoi-inference[huggingface,tests,zarr]",
+  "anemoi-utils[all]>=0.4.26",
+]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
@@ -74,9 +77,11 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+
 optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest" ]
+
+optional-dependencies.zarr = [ "zarr" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
