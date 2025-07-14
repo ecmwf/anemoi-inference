@@ -32,6 +32,7 @@ from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
 from anemoi.inference.forcings import Forcings
+from anemoi.inference.lazy import torch
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
