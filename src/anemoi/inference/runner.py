@@ -32,9 +32,9 @@ from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.typings import BoolArray
-from anemoi.inference.typings import FloatArray
-from anemoi.inference.typings import State
+from anemoi.inference.types import BoolArray
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from .checkpoint import Checkpoint
 from .context import Context

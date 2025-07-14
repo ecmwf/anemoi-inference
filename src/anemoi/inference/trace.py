@@ -16,8 +16,8 @@ from typing import Union
 
 import numpy as np
 
-from anemoi.inference.typings import BoolArray
-from anemoi.inference.typings import FloatArray
+from anemoi.inference.types import BoolArray
+from anemoi.inference.types import FloatArray
 
 LOG = logging.getLogger(__name__)
 

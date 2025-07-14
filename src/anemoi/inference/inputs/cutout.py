@@ -18,8 +18,8 @@ import numpy as np
 
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
-from anemoi.inference.typings import Date
-from anemoi.inference.typings import State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from . import input_registry
 

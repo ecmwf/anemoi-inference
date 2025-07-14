@@ -17,8 +17,8 @@ from typing import Optional
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
-from anemoi.inference.typings import ProcessorConfig
-from anemoi.inference.typings import State
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context

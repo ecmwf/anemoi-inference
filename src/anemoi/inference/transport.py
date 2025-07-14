@@ -16,7 +16,7 @@ from typing import List
 from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.task import Task
-from anemoi.inference.typings import State
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 

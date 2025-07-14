@@ -15,7 +15,7 @@ from typing import Optional
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
-from anemoi.inference.typings import State
+from anemoi.inference.types import State
 
 from ..output import ForwardOutput
 from . import create_output

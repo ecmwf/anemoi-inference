@@ -24,8 +24,8 @@ from anemoi.utils.dates import frequency_to_timedelta
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
-from anemoi.inference.typings import DataRequest
-from anemoi.inference.typings import Date
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
 
 from ..config.run import RunConfiguration
 from ..inputs.mars import postproc
@@ -203,7 +203,7 @@ class RetrieveCmd(Command):
             "--exclude",
             type=comma_separated_list,
             help="Comma-separated list of variable categories to exclude",
-            default="computed",
+            default="computed,diagnostic",
         )
         command_parser.add_argument("--mars", action="store_true", help="Write requests for MARS retrieval")
         command_parser.add_argument(

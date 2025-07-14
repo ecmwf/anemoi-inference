@@ -16,7 +16,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 
-from anemoi.inference.typings import DataRequest
+from anemoi.inference.types import DataRequest
 
 from .protocol import MetadataProtocol
 

@@ -17,7 +17,7 @@ from typing import Optional
 from typing import Union
 
 from anemoi.inference.context import Context
-from anemoi.inference.typings import ProcessorConfig
+from anemoi.inference.types import ProcessorConfig
 
 from .gribfile import GribIoOutput
 

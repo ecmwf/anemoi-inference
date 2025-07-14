@@ -19,10 +19,10 @@ from typing import Union
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.typings import DataRequest
-from anemoi.inference.typings import Date
-from anemoi.inference.typings import ProcessorConfig
-from anemoi.inference.typings import State
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput

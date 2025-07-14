@@ -23,8 +23,8 @@ from anemoi.inference.inputs.grib import GribInput
 from anemoi.inference.outputs.grib import BaseGribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
-from anemoi.inference.typings import Date
-from anemoi.inference.typings import State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 

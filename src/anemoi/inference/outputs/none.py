@@ -9,7 +9,7 @@
 
 import logging
 
-from anemoi.inference.typings import State
+from anemoi.inference.types import State
 
 from ..output import Output
 from . import output_registry

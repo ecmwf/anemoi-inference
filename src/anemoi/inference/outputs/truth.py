@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from anemoi.inference.config import Configuration
-from anemoi.inference.typings import State
+from anemoi.inference.types import State
 
 from ..context import Context
 from ..output import ForwardOutput

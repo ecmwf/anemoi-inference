@@ -15,7 +15,7 @@ from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.typings import State
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry

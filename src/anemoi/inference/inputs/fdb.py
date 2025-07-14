@@ -16,10 +16,10 @@ from typing import Optional
 import earthkit.data as ekd
 import numpy as np
 
-from anemoi.inference.typings import ProcessorConfig
+from anemoi.inference.types import ProcessorConfig
 
-from ..typings import Date
-from ..typings import State
+from ..types import Date
+from ..types import State
 from . import input_registry
 from .grib import GribInput
 

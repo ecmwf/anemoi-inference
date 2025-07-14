@@ -13,7 +13,7 @@ import logging
 from typing import List
 from typing import Tuple
 
-from anemoi.inference.typings import IntArray
+from anemoi.inference.types import IntArray
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings

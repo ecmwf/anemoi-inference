@@ -34,10 +34,10 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.typings import DataRequest
-from anemoi.inference.typings import FloatArray
-from anemoi.inference.typings import IntArray
-from anemoi.inference.typings import State
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
