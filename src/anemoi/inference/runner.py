@@ -464,7 +464,6 @@ class Runner(Context):
         Generator[State, None, None]
             The prepared output state.
         """
-        import torch
 
         for state in output:
             if return_numpy:
@@ -495,7 +494,6 @@ class Runner(Context):
         Any
             The loaded model.
         """
-        import torch
 
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
@@ -594,7 +592,6 @@ class Runner(Context):
         Any
             The forecasted state.
         """
-        import torch
 
         self.model.eval()
 
@@ -762,7 +759,6 @@ class Runner(Context):
         torch.Tensor
             The updated input tensor.
         """
-        import torch
 
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
@@ -820,7 +816,6 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-        import torch
 
         sources = self.boundary_forcings_inputs
         for source in sources:

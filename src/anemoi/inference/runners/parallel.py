@@ -7,10 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-########################################################################################################
-# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
-########################################################################################################
-
 import datetime
 import logging
 import os
@@ -24,6 +20,7 @@ from typing import Tuple
 import numpy as np
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.lazy import torch
 from anemoi.inference.output import Output
 
 from ..decorators import main_argument
@@ -37,7 +34,6 @@ LOG = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import torch
-    import torch.distributed as dist
 
 
 def create_parallel_runner(config: Configuration, pid: int) -> None:
@@ -84,7 +80,6 @@ class ParallelRunnerMixin:
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __new__(cls, config, *args, **kwargs):
-        import torch
 
         if torch.cuda.is_available():
             return super().__new__(cls)
@@ -102,7 +97,6 @@ class ParallelRunnerMixin:
         pid : int, optional
             The process ID, by default 0.
         """
-        import torch
 
         super().__init__(config, **kwargs)
 
@@ -181,14 +175,13 @@ class ParallelRunnerMixin:
     def __del__(self) -> None:
         """Destructor to clean up resources."""
         if self.model_comm_group is not None:
-            dist.destroy_process_group()
+            torch.distributed.destroy_process_group()
 
     def _seed_procs(self) -> None:
         """Ensures each process uses the same seed.
         Will try read 'ANEMOI_BASE_SEED' from the environment.
         Otherwise, the seed of process 0 will be shared to all processes.
         """
-        import torch
 
         seed = None
         seed_threshold = 1000
@@ -355,7 +348,7 @@ class ParallelRunnerMixin:
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> Optional["dist.ProcessGroup"]:
+    def _init_parallel(self) -> Optional["torch.distributed.dist.ProcessGroup"]:
         """Creates a model communication group to be used for parallel inference.
 
         Returns

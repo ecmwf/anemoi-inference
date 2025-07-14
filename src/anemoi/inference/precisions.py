@@ -10,10 +10,6 @@
 
 """List of precisions supported by the inference runner."""
 
-########################################################################################################
-# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
-########################################################################################################
-
 
 from functools import cached_property
 

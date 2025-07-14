@@ -9,7 +9,6 @@
 
 import datetime
 import logging
-from typing import TYPE_CHECKING
 from typing import Generator
 from typing import List
 from typing import Tuple
@@ -21,6 +20,7 @@ from numpy.typing import NDArray
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
 
@@ -29,13 +29,6 @@ from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
 from . import runner_registry
-
-########################################################################################################
-# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
-########################################################################################################
-
-if TYPE_CHECKING:
-    import torch
 
 LOG = logging.getLogger(__name__)
 
@@ -269,7 +262,6 @@ class TimeInterpolatorRunner(DefaultRunner):
             the target forcings.
 
         """
-        import torch
 
         batch_size, _, grid, n_vars = input_tensor_torch.shape
 
