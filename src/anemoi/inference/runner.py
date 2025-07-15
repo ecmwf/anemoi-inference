@@ -666,6 +666,8 @@ class Runner(Context):
             if is_last_step:
                 break
 
+            self.output_state_hook(new_state)
+
             # Update  tensor for next iteration
             with ProfilingLabel("Update tensor for next step", self.use_profiler):
                 check[:] = reset
@@ -1044,3 +1046,11 @@ class Runner(Context):
         result = self.checkpoint.typed_variables.copy()
         result.update(self.user_provided_typed_variables)
         return result
+
+    def input_state_hook(self, input_state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass
+
+    def output_state_hook(self, state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass

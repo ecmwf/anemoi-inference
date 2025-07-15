@@ -22,7 +22,6 @@ from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
@@ -129,10 +128,6 @@ class DefaultRunner(Runner):
                 🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
                 """  # ecmwf/anemoi-inference#131
             )
-
-    def input_state_hook(self, input_state: State) -> None:
-        """Hook used by coupled runners to send the input state."""
-        pass
 
     def create_input(self) -> Input:
         """Create the input.

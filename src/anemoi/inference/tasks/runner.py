@@ -59,6 +59,10 @@ class CoupledRunner(DefaultRunner):
         """Hook used by coupled runners to send the input state."""
         self.coupled_input.initial_state(Output.reduce(input_state))
 
+    def output_state_hook(self, state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        self.coupled_input.output_state(Output.reduce(state))
+
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
         """Create dynamic coupled forcings.
 
@@ -152,6 +156,7 @@ class CoupledInput:
         self.couplings = couplings
         self.constants: Dict[str, FloatArray] = {}
         self.tag = 0
+        self.send_only = sum(1 if c.target is task else 0 for c in couplings) == 0
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         """Load the forcings state.
@@ -203,6 +208,34 @@ class CoupledInput:
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
         self.constants = state["fields"].copy()
+
+    def output_state(self, state: State) -> None:
+        """Output the state.
+
+        Parameters
+        ----------
+        state : State
+            State dictionary.
+        """
+
+        if not self.send_only:
+            return
+
+        # We exchange the states when fetching forcings from the coupled tasks.
+        # If this task is send only, it will never exchange its state, so
+        # we do it here.
+
+        for c in self.couplings:
+            c.apply(
+                self.task,
+                self.transport,
+                input_state=state,
+                output_state=None,
+                constants=self.constants,
+                tag=self.tag,
+            )
+
+        self.tag += 1
 
 
 class TestCoupledRunner(TestingMixing, CoupledRunner):
