@@ -68,12 +68,14 @@ class ProcessesTransport(Transport):
                 os.close(read_fd)
                 os.close(write_fd)
 
+        code = 0
         try:
             task.run(self)
         except Exception as e:
             LOG.exception(e)
-            return 1
-        return 0
+            code = 1
+        LOG.info("Child process %s finished with code %d", task.name, code)
+        return code
 
     def start(self) -> None:
         """Start the transport by forking processes for each task."""

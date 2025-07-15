@@ -271,3 +271,4 @@ class RunnerTask(Task):
             runner = CoupledRunner(self.config, coupler)
 
         runner.execute()
+        LOG.info("Finished task %s", self.name)
