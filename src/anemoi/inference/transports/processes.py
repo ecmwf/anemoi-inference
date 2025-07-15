@@ -132,6 +132,9 @@ class ProcessesTransport(Transport):
         tag : int
             The tag associated with the state.
         """
+
+        LOG.info(f"{sender}: sending to {target} [{tag}]")
+
         # TODO: something more efficient than pickle
         _, write_fd = self.pipes[(sender.name, target.name)]
         pickle_data = pickle.dumps(state)
@@ -157,6 +160,9 @@ class ProcessesTransport(Transport):
         Any
             The received state.
         """
+
+        LOG.info(f"{receiver}: receiving from {source} [{tag}]")
+
         read_fd, _ = self.pipes[(source.name, receiver.name)]
 
         recieved_tag = struct.unpack("!Q", os.read(read_fd, 8))[0]

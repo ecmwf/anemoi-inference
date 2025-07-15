@@ -104,6 +104,8 @@ class DefaultRunner(Runner):
 
         initial_state = Output.reduce(input_state)
         # Top-level post-processors on the other hand are applied on State and are executed here.
+        LOG.info("Top-level post-processors: %s", self.post_processors)
+
         for processor in self.post_processors:
             initial_state = processor.process(initial_state)
 
@@ -113,7 +115,6 @@ class DefaultRunner(Runner):
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
             # Apply top-level post-processors
-            LOG.info("Top-level post-processors: %s", self.post_processors)
             for processor in self.post_processors:
                 state = processor.process(state)
             output.write_state(state)
