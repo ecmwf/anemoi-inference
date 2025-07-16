@@ -525,26 +525,21 @@ class Metadata(PatchMixin, LegacyMixin):
         variable_categories = self.variable_categories()
         result = []
 
-        include = set(include) if include is not None else None
-        exclude = set(exclude) if exclude is not None else None
+        include = set(include) if include is not None else VARIABLE_CATEGORIES
+        exclude = set(exclude) if exclude is not None else set()
 
-        if include is not None and exclude is not None:
-            if not include.isdisjoint(exclude):
-                raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
+        if not include.isdisjoint(exclude):
+            raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
 
-        if include is not None:
-            include = set(include)
-            if not (include <= VARIABLE_CATEGORIES):
-                raise ValueError(
-                    f"Invalid include categories: {include}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {include-VARIABLE_CATEGORIES}."
-                )
+        if not (include <= VARIABLE_CATEGORIES):
+            raise ValueError(
+                f"Invalid include categories: {include}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {include-VARIABLE_CATEGORIES}."
+            )
 
-        if exclude is not None:
-            exclude = set(exclude)
-            if not (exclude <= VARIABLE_CATEGORIES):
-                raise ValueError(
-                    f"Invalid exclude categories: {exclude}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {exclude-VARIABLE_CATEGORIES}."
-                )
+        if not (exclude <= VARIABLE_CATEGORIES):
+            raise ValueError(
+                f"Invalid exclude categories: {exclude}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {exclude-VARIABLE_CATEGORIES}."
+            )
 
         for variable, metadata in self.variables_metadata.items():
 
@@ -559,13 +554,18 @@ class Metadata(PatchMixin, LegacyMixin):
             if "mars" not in metadata:
                 continue
 
-            if exclude is not None and not exclude.isdisjoint(categories):
-                continue
+            discard = exclude.intersection(categories)
+            keep = include.intersection(categories)
 
-            if include is not None and include.isdisjoint(categories):
-                continue
+            if keep == discard:
+                raise ValueError(
+                    f"Variable {variable} cannot be both included and excluded."
+                    f" Include: {include}, Exclude: {exclude}"
+                    f" Categories: {categories}"
+                )
 
-            result.append(variable)
+            if keep:
+                result.append(variable)
 
         return result
 
