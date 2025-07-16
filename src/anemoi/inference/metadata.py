@@ -504,7 +504,9 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the area information."""
         return self._data_request.get("area")
 
-    def select_variables(self, *, include, exclude) -> list:
+    def select_variables(
+        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+    ) -> List[str]:
         """Get variables from input.
 
         Parameters
@@ -516,7 +518,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         Returns
         -------
-        list
+        List[str]
             The list of variables.
         """
 

@@ -468,7 +468,9 @@ class Checkpoint:
     # Data retrieval
     ###########################################################################
 
-    def select_variables(self, *, include, exclude) -> Any:
+    def select_variables(
+        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+    ) -> List[str]:
         """Get variables from input.
 
         Parameters
@@ -481,8 +483,8 @@ class Checkpoint:
 
         Returns
         -------
-        Any
-            The variables from input.
+        List[str]
+            The selected variables.
         """
         return self._metadata.select_variables(include=include, exclude=exclude)
 

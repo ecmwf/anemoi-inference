@@ -1036,16 +1036,16 @@ class Runner(Context):
         """
         pass
 
-    @cached_property
-    def typed_variables(self) -> Dict[str, Any]:
-        """Returns
-        ----------
-        Dict[str, Any]
-            The typed variables, possibly including user provided ones.
-        """
-        result = self.checkpoint.typed_variables.copy()
-        result.update(self.user_provided_typed_variables)
-        return result
+    # @cached_property
+    # def typed_variables(self) -> Dict[str, Any]:
+    #     """Returns
+    #     ----------
+    #     Dict[str, Any]
+    #         The typed variables, possibly including user provided ones.
+    #     """
+    #     result = self.checkpoint.typed_variables.copy()
+    #     result.update(self.user_provided_typed_variables)
+    #     return result
 
     def input_state_hook(self, input_state: State) -> None:
         """Hook used by coupled runners to send the input state."""
