@@ -521,6 +521,7 @@ class Checkpoint:
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
+        dont_fail_for_missing_param_ids: bool = False,
         **kwargs: Any,
     ) -> List[DataRequest]:
         """Generate MARS requests for the given variables and dates.
@@ -537,6 +538,8 @@ class Checkpoint:
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
             A callable to patch the request, by default None.
+        dont_fail_for_missing_param_ids : bool, optional
+            Whether to not fail for missing param ids, by default False.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -633,7 +636,20 @@ class Checkpoint:
                         r[k] = [v]
 
                 if use_grib_paramid and "param" in r:
-                    r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
+
+                    def shortname_to_paramid_no_fail(x: str) -> str:
+                        try:
+                            return shortname_to_paramid(x)
+                        except KeyError:
+                            LOG.warning("Could not convert shortname '%s' to paramid", x)
+                            return x
+
+                    if dont_fail_for_missing_param_ids:
+                        _ = shortname_to_paramid_no_fail
+                    else:
+                        _ = shortname_to_paramid
+
+                    r["param"] = [_(p) for p in r["param"]]
 
                 # Simplify the request
 
