@@ -559,10 +559,10 @@ class Metadata(PatchMixin, LegacyMixin):
             if "mars" not in metadata:
                 continue
 
-            if include is not None and include.isdisjoint(categories):
+            if exclude is not None and not exclude.isdisjoint(categories):
                 continue
 
-            if exclude is not None and not exclude.isdisjoint(categories):
+            if include is not None and include.isdisjoint(categories):
                 continue
 
             result.append(variable)
