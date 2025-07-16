@@ -562,10 +562,10 @@ class Metadata(PatchMixin, LegacyMixin):
             if "mars" not in metadata:
                 continue
 
-            discard = exclude.intersection(categories)
-            keep = include.intersection(categories)
+            discard = len(exclude.intersection(categories)) > 0
+            keep = len(include.intersection(categories)) > 0
 
-            if keep == discard:
+            if keep and discard:
                 raise ValueError(
                     f"Variable {variable} cannot be both included and excluded."
                     f" Include: {include}, Exclude: {exclude}"
