@@ -56,6 +56,7 @@ def checkpoint_to_requests(
     staging_dates: Optional[str] = None,
     forecast_dates: bool = False,
     use_grib_paramid: bool = False,
+    dont_fail_for_missing_paramid: bool = False,
     extra: Optional[List[str]] = None,
     patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
     use_scda: bool = False,
@@ -78,6 +79,8 @@ def checkpoint_to_requests(
         Whether to use forecast dates (for forcings).
     use_grib_paramid : bool, optional
         Whether to use GRIB parameter IDs.
+    dont_fail_for_missing_paramid : bool, optional
+        Whether to ignore missing parameter IDs.
     extra : list of str, optional
         Additional request values.
     patch_request : Callable[[DataRequest], DataRequest], optional
@@ -147,6 +150,7 @@ def checkpoint_to_requests(
         use_grib_paramid=use_grib_paramid,
         patch_request=patch_request,
         always_split_time=use_scda,
+        dont_fail_for_missing_paramid=dont_fail_for_missing_paramid,
     ):
         r = r.copy()
         r.update(more)
@@ -194,6 +198,12 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--forecast-dates", action="store_true", help="Use forecast dates (for forcings)")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
+        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
+        command_parser.add_argument(
+            "--dont-fail-for-missing-paramid",
+            action="store_true",
+            help="Do not fail if a parameter ID is missing.",
+        )
         command_parser.add_argument(
             "--include",
             type=comma_separated_list,
@@ -239,7 +249,8 @@ class RetrieveCmd(Command):
             extra=args.extra,
             staging_dates=args.staging_dates,
             forecast_dates=args.forecast_dates,
-            use_grib_paramid=config.use_grib_paramid,
+            use_grib_paramid=config.use_grib_paramid or args.use_grib_paramid,
+            dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
             patch_request=runner.patch_data_request,
             use_scda=args.use_scda,
             include=args.include if args.include else None,

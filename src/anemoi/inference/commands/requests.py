@@ -32,6 +32,11 @@ class RequestCmd(Command):
         command_parser.description = self.__doc__
         command_parser.add_argument("--mars", action="store_true", help="Print the MARS request.")
         command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
+        command_parser.add_argument(
+            "--dont-fail-for-missing-paramid",
+            action="store_true",
+            help="Do not fail if a parameter ID is missing.",
+        )
         command_parser.add_argument("path", help="Path to the checkpoint.")
 
     def run(self, args: Namespace) -> None:
@@ -43,7 +48,12 @@ class RequestCmd(Command):
             The arguments passed to the command.
         """
         c = Checkpoint(args.path)
-        for r in checkpoint_to_requests(c, date=-1, use_grib_paramid=args.use_grib_paramid):
+        for r in checkpoint_to_requests(
+            c,
+            date=-1,
+            use_grib_paramid=args.use_grib_paramid,
+            dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
+        ):
             if args.mars:
                 req = ["retrieve,target=data"]
                 for k, v in r.items():

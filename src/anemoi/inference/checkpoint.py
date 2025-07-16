@@ -521,7 +521,7 @@ class Checkpoint:
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
-        dont_fail_for_missing_param_ids: bool = False,
+        dont_fail_for_missing_paramid: bool = False,
         **kwargs: Any,
     ) -> List[DataRequest]:
         """Generate MARS requests for the given variables and dates.
@@ -538,7 +538,7 @@ class Checkpoint:
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
             A callable to patch the request, by default None.
-        dont_fail_for_missing_param_ids : bool, optional
+        dont_fail_for_missing_paramid : bool, optional
             Whether to not fail for missing param ids, by default False.
         **kwargs : Any
             Additional keyword arguments.
@@ -550,6 +550,8 @@ class Checkpoint:
         """
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
+
+        dont_fail_for_missing_paramid = True  # For now
 
         assert variables, "No variables provided"
 
@@ -644,7 +646,7 @@ class Checkpoint:
                             LOG.warning("Could not convert shortname '%s' to paramid", x)
                             return x
 
-                    if dont_fail_for_missing_param_ids:
+                    if dont_fail_for_missing_paramid:
                         _ = shortname_to_paramid_no_fail
                     else:
                         _ = shortname_to_paramid
