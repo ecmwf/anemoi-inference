@@ -525,8 +525,16 @@ class Metadata(PatchMixin, LegacyMixin):
         variable_categories = self.variable_categories()
         result = []
 
-        include = set(include) if include is not None else VARIABLE_CATEGORIES
-        exclude = set(exclude) if exclude is not None else set()
+        if include is None and exclude is None:
+            include = VARIABLE_CATEGORIES
+            exclude = set()
+        elif include is None:
+            include = VARIABLE_CATEGORIES - exclude
+        elif exclude is None:
+            exclude = VARIABLE_CATEGORIES - include
+
+        include = set(include)
+        exclude = set(exclude)
 
         if not include.isdisjoint(exclude):
             raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
@@ -562,6 +570,7 @@ class Metadata(PatchMixin, LegacyMixin):
                     f"Variable {variable} cannot be both included and excluded."
                     f" Include: {include}, Exclude: {exclude}"
                     f" Categories: {categories}"
+                    f" Discard: {discard}, Keep: {keep}"
                 )
 
             if keep:
