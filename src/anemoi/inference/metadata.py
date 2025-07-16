@@ -529,9 +529,9 @@ class Metadata(PatchMixin, LegacyMixin):
             include = VARIABLE_CATEGORIES
             exclude = set()
         elif include is None:
-            include = VARIABLE_CATEGORIES - exclude
+            include = VARIABLE_CATEGORIES - set(exclude)
         elif exclude is None:
-            exclude = VARIABLE_CATEGORIES - include
+            exclude = VARIABLE_CATEGORIES - set(include)
 
         include = set(include)
         exclude = set(exclude)
