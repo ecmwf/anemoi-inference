@@ -223,8 +223,6 @@ class ParallelRunnerMixin:
         num_procs : int
             The number of processes to spawn.
         """
-        import torch
-
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
@@ -348,7 +346,7 @@ class ParallelRunnerMixin:
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> Optional["torch.distributed.dist.ProcessGroup"]:
+    def _init_parallel(self) -> Optional["torch.distributed.ProcessGroup"]:
         """Creates a model communication group to be used for parallel inference.
 
         Returns

@@ -64,7 +64,7 @@ class RunConfiguration(Configuration):
     pre_processors: List[ProcessorConfig] = []
     post_processors: List[ProcessorConfig] = []
 
-    forcings: Optional[Dict[str, Any]] = None
+    forcings: Union[str, Dict[str, Any]] = None
     """Where to find the forcings."""
 
     device: str = "cuda"
