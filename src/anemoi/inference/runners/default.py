@@ -218,6 +218,9 @@ class DefaultRunner(Runner):
                         f"🚫 The `{name}` input forcings configuration is deprecated. "
                         f"Please use the `{names[0]}` configuration instead."
                     )
+                if name != names[0]:
+                    LOG.info(f"Loading `config.{names[0]}` from `config.{name}`")
+
                 return self.config[name]
 
         return self.config.input

@@ -25,7 +25,6 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
-import rich
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
@@ -357,11 +356,6 @@ class Runner(Context):
         LOG.info("-" * 80)
 
         for source in initial_constant_forcings_inputs:
-            # rich.print("[bold]Adding initial constant forcings to input state[/bold]")
-            # rich.print(f"Constant forcings input: {source} {source.variables} ({dates})")
-            rich.print(f"Constant forcings input: {source} {source.mask}")
-            rich.print(f"Constant forcings input: {self.loaded_constant_forcings_variables()}")
-            rich.print(f"Constant forcings input: {self.computed_constant_forcings_variables()}")
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
@@ -398,17 +392,23 @@ class Runner(Context):
         return constant_forcings_inputs
 
     def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
-        """Modify the dynamic forcings inputs for the first step.
+        """Modify the dynamic forcings inputs for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
 
         Parameters
         ----------
-        dynamic_forcings_inputs : list of Forcings
-            The dynamic forcings inputs.
+        dynamic_forcings_inputs : List[Forcings]
+            The dynamic forcings inputs to be potentially modified for the initial step.
 
         Returns
         -------
-        list[Forcings]
-            The modified dynamic forcings inputs.
+
+        List[Forcings]
+            The modified list of dynamic forcings inputs for the initial step.
+
         """
         # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
@@ -443,7 +443,6 @@ class Runner(Context):
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
-        rich.print("[bold]Adding initial forcings to input state[/bold]")
         self.add_initial_forcings_to_input_state(input_state)
 
         input_state = self.validate_input_state(input_state)
