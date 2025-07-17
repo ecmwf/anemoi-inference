@@ -212,7 +212,7 @@ class DefaultRunner(Runner):
                 name = name[1:]  # Remove the leading dash
             else:
                 deprecated = False
-            if name in self.config:
+            if self.config.get(name):
                 if deprecated:
                     LOG.warning(
                         f"🚫 The `{name}` input forcings configuration is deprecated. "
