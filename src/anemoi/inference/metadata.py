@@ -33,11 +33,9 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
-from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
@@ -323,6 +321,21 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return np.array(indices), variables
 
+    def has_supporting_array(self, name: str) -> bool:
+        """Check if the metadata has a supporting array with the given name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the supporting array.
+
+        Returns
+        -------
+        bool
+            True if the supporting array exists, False otherwise.
+        """
+        return name in self._supporting_arrays
+
     ###########################################################################
     # Variables
     ###########################################################################
@@ -505,7 +518,11 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._data_request.get("area")
 
     def select_variables(
-        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+        self,
+        *,
+        include: Optional[List[str]] = None,
+        exclude: Optional[List[str]] = None,
+        has_mars_requests: bool = True,
     ) -> List[str]:
         """Get variables from input.
 
@@ -515,6 +532,8 @@ class Metadata(PatchMixin, LegacyMixin):
             Categories to include.
         exclude: List[str]
             Categories to exclude.
+        has_mars_requests: bool
+            If True, only include variables that have MARS requests.
 
         Returns
         -------
@@ -525,20 +544,27 @@ class Metadata(PatchMixin, LegacyMixin):
         variable_categories = self.variable_categories()
         result = []
 
-        if include is not None:
-            include = set(include)
+        def parse_category(categories: str) -> set:
+            if categories is None:
+                return None
 
-            if not (include <= VARIABLE_CATEGORIES):
-                raise ValueError(
-                    f"Invalid include categories: {include}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {include-VARIABLE_CATEGORIES}."
-                )
+            parsed = set()
+            for category in categories:
+                bits = category.split("+")
+                for bit in bits:
+                    if bit not in VARIABLE_CATEGORIES:
+                        raise ValueError(f"Unknown category {bit} in {categories}. Known: {VARIABLE_CATEGORIES}")
+                parsed.add(frozenset(bits))
+            return parsed
 
-        if exclude is not None:
-            exclude = set(exclude)
-            if not (exclude <= VARIABLE_CATEGORIES):
-                raise ValueError(
-                    f"Invalid exclude categories: {exclude}. Must be a subset of {VARIABLE_CATEGORIES}. Unknown: {exclude-VARIABLE_CATEGORIES}."
-                )
+        def match(categories, variable_categories, variable):
+            for c in categories:
+                if c.issubset(variable_categories):
+                    return True
+            return False
+
+        include = parse_category(include)
+        exclude = parse_category(exclude)
 
         if include is not None and exclude is not None:
             if not include.isdisjoint(exclude):
@@ -554,16 +580,29 @@ class Metadata(PatchMixin, LegacyMixin):
                     f"Please update the code."
                 )
 
-            if "mars" not in metadata:
+            if has_mars_requests and "mars" not in metadata:
                 continue
 
-            if exclude is not None and exclude.intersection(categories):
+            if exclude is not None and match(exclude, categories, variable):
                 continue
 
-            if include is None or include.intersection(categories):
+            if include is None or match(include, categories, variable):
                 result.append(variable)
 
         return result
+
+    def variables_mask(self, *, variables: List[str]) -> IntArray:
+
+        variable_to_input_tensor_index = self.variable_to_input_tensor_index
+        indices = [variable_to_input_tensor_index[v] for v in variables]
+
+        return np.array(indices)
+
+    def select_variables_and_masks(
+        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]]
+    ) -> Tuple[List[str], IntArray]:
+        variables = self.select_variables(include=include, exclude=exclude, has_mars_requests=False)
+        return variables, self.variables_mask(variables=variables)
 
     def mars_input_requests(self) -> Iterator[DataRequest]:
         """Generate MARS input requests.
@@ -850,172 +889,6 @@ class Metadata(PatchMixin, LegacyMixin):
             result[name] = sorted(result[name])
 
         return result
-
-    def constant_forcings_inputs(self, context: object, input_state: dict) -> list:
-        """Get the constant forcings inputs.
-
-        Parameters
-        ----------
-        context : object
-            The context object.
-        input_state : dict
-            The input state.
-
-        Returns
-        -------
-        list
-            The list of constant forcings inputs.
-        """
-        # TODO: this does not belong here
-
-        result = []
-
-        provided_variables = set(input_state["fields"].keys())
-
-        # This will manage the dynamic forcings that are computed
-        forcing_mask, forcing_variables = self.computed_constant_forcings
-
-        # Ingore provided variables
-        new_forcing_mask = []
-        new_forcing_variables = []
-
-        for i, name in zip(forcing_mask, forcing_variables):
-            if name not in provided_variables:
-                new_forcing_mask.append(i)
-                new_forcing_variables.append(name)
-
-        LOG.info(
-            "Computed constant forcings: before %s, after %s",
-            forcing_variables,
-            new_forcing_variables,
-        )
-
-        forcing_mask = np.array(new_forcing_mask)
-        forcing_variables = new_forcing_variables
-
-        if len(forcing_mask) > 0:
-            result.extend(
-                context.create_constant_computed_forcings(
-                    forcing_variables,
-                    forcing_mask,
-                )
-            )
-
-        remaining = (
-            set(self._config.data.forcing)
-            - set(self.model_computed_variables)
-            - set(forcing_variables)
-            - provided_variables
-        )
-        if not remaining:
-            return result
-
-        LOG.info("Remaining forcings: %s", remaining)
-
-        # We need the mask of the remaining variable in the model.input space
-
-        mapping = self._make_indices_mapping(
-            self._indices.data.input.full,
-            self._indices.model.input.full,
-        )
-
-        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
-
-        LOG.info("Will get the following from MARS for now: %s", remaining)
-
-        remaining_mask = [i for i, _ in remaining]
-        remaining = [name for _, name in remaining]
-
-        result.extend(
-            context.create_constant_coupled_forcings(
-                remaining,
-                remaining_mask,
-            )
-        )
-
-        return result
-
-    def dynamic_forcings_inputs(self, context: object, input_state: State) -> List[Forcings]:
-        """Get the dynamic forcings inputs.
-
-        Parameters
-        ----------
-        context : object
-            The context object.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        list
-            The list of dynamic forcings inputs.
-        """
-        result = []
-
-        # This will manage the dynamic forcings that are computed
-        forcing_mask, forcing_variables = self.computed_time_dependent_forcings
-        if len(forcing_mask) > 0:
-            result.extend(
-                context.create_dynamic_computed_forcings(
-                    forcing_variables,
-                    forcing_mask,
-                )
-            )
-
-        remaining = (
-            set(self._config.data.forcing)
-            - set(self.model_computed_variables)
-            - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
-        )
-        if not remaining:
-            return result
-
-        LOG.info("Remaining forcings: %s", remaining)
-
-        # We need the mask of the remaining variable in the model.input space
-
-        mapping = self._make_indices_mapping(
-            self._indices.data.input.full,
-            self._indices.model.input.full,
-        )
-
-        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
-
-        LOG.info("Will get the following from `forcings.dynamic`: %s", remaining)
-
-        remaining_mask = [i for i, _ in remaining]
-        remaining = [name for _, name in remaining]
-
-        result.extend(
-            context.create_dynamic_coupled_forcings(
-                remaining,
-                remaining_mask,
-            )
-        )
-        return result
-
-    def boundary_forcings_inputs(self, context: object, input_state: dict) -> list:
-        """Get the boundary forcings inputs.
-
-        Parameters
-        ----------
-        context : object
-            The context object.
-        input_state : dict
-            The input state.
-
-        Returns
-        -------
-        list
-            The list of boundary forcings inputs.
-        """
-        if "output_mask" not in self._supporting_arrays:
-            return []
-
-        return context.create_boundary_forcings(
-            self.prognostic_variables,
-            self.prognostic_input_mask,
-        )
 
     ###########################################################################
     # Supporting arrays

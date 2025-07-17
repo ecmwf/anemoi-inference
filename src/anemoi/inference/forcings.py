@@ -231,6 +231,11 @@ class CoupledForcings(Forcings):
         )
 
 
+class ConstantForcings(CoupledForcings):
+    # Just to have a different __repr__
+    pass
+
+
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 

@@ -248,49 +248,79 @@ class Runner(Context):
                 raise
 
     def create_constant_forcings_inputs(self, input_state: State) -> List[Forcings]:
-        """Create constant forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        result = []
 
-        Returns
-        -------
-        list[Forcings]
-            The created constant forcings inputs.
-        """
-        return self.checkpoint.constant_forcings_inputs(self, input_state)
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["constant+forcing"], exclude=["computed"]
+        )
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_constant_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed+constant+forcing"]
+        )
+
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_constant_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+
+        return result
 
     def create_dynamic_forcings_inputs(self, input_state: State) -> List[Forcings]:
-        """Create dynamic forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["forcing"], exclude=["computed", "constant"]
+        )
 
-        Returns
-        -------
-        list[Forcings]
-            The created dynamic forcings inputs.
-        """
-        return self.checkpoint.dynamic_forcings_inputs(self, input_state)
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed+forcing"], exclude=["constant"]
+        )
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+        return result
 
     def create_boundary_forcings_inputs(self, input_state: State) -> List[Forcings]:
-        """Create boundary forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        if not self.checkpoint.has_supporting_array("boundary"):
+            return []
 
-        Returns
-        -------
-        list[Forcings]
-            The created boundary forcings inputs.
-        """
-        return self.checkpoint.boundary_forcings_inputs(self, input_state)
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(include=["prognostic"])
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_boundary_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        return result
 
     def add_initial_forcings_to_input_state(self, input_state: State) -> None:
         """Add initial forcings to the input state.
@@ -327,6 +357,11 @@ class Runner(Context):
         LOG.info("-" * 80)
 
         for source in initial_constant_forcings_inputs:
+            # rich.print("[bold]Adding initial constant forcings to input state[/bold]")
+            # rich.print(f"Constant forcings input: {source} {source.variables} ({dates})")
+            rich.print(f"Constant forcings input: {source} {source.mask}")
+            rich.print(f"Constant forcings input: {self.loaded_constant_forcings_variables()}")
+            rich.print(f"Constant forcings input: {self.computed_constant_forcings_variables()}")
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
@@ -1044,3 +1079,9 @@ class Runner(Context):
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
         pass
+
+    def loaded_constant_forcings_variables(self):
+        return self.checkpoint.select_variables_and_masks(include=["constant+forcing"], exclude=["computed"])
+
+    def computed_constant_forcings_variables(self):
+        return self.checkpoint.select_variables_and_masks(include=["computed+constant+forcing"])

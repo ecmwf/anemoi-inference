@@ -25,6 +25,7 @@ from anemoi.inference.types import IntArray
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
+from ..forcings import ConstantForcings
 from ..forcings import CoupledForcings
 from ..forcings import Forcings
 from ..inputs import create_input
@@ -237,7 +238,7 @@ class DefaultRunner(Runner):
             The created constant coupled forcings.
         """
         input = create_input(self, self._input_forcings("constant_forcings", "forcings", "input"))
-        result = CoupledForcings(self, input, variables, mask)
+        result = ConstantForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
 
         return [result]
