@@ -191,12 +191,12 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def _input_forcings(self, name: str) -> Dict[str, Any]:
+    def _input_forcings(self, *names: str) -> Dict[str, Any]:
         """Get the input forcings configuration.
 
         Parameters
         ----------
-        name : str
+        names : list
             The name of the forcings configuration.
 
         Returns
@@ -204,17 +204,22 @@ class DefaultRunner(Runner):
         dict
             The input forcings configuration.
         """
-        if self.config.forcings is None:
-            # Use the same as the input
-            return self.config.input
 
-        if name in self.config.forcings:
-            return self.config.forcings[name]
+        for name in names:
+            if name.startswith("-"):
+                deprecated = True
+                name = name[1:]  # Remove the leading dash
+            else:
+                deprecated = False
+            if name in self.config:
+                if deprecated:
+                    LOG.warning(
+                        f"🚫 The `{name}` input forcings configuration is deprecated. "
+                        f"Please use the `{names[0]}` configuration instead."
+                    )
+                return self.config[name]
 
-        if "input" in self.config.forcings:
-            return self.config.forcings.input
-
-        return self.config.forcings
+        return self.config.input
 
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant coupled forcings.
@@ -231,9 +236,10 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created constant coupled forcings.
         """
-        input = create_input(self, self._input_forcings("constant"))
+        input = create_input(self, self._input_forcings("constant_forcings", "forcings", "input"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
+
         return [result]
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
@@ -251,7 +257,7 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created dynamic coupled forcings.
         """
-        input = create_input(self, self._input_forcings("dynamic"))
+        input = create_input(self, self._input_forcings("dynamic_forcings", "forcings", "input"))
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
@@ -271,7 +277,7 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created boundary forcings.
         """
-        input = create_input(self, self._input_forcings("boundary"))
+        input = create_input(self, self._input_forcings("boundary_forcings", "-boundary", "forcings", "input"))
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return [result]

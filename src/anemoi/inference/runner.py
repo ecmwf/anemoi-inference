@@ -25,6 +25,7 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
+import rich
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
@@ -407,7 +408,7 @@ class Runner(Context):
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
-
+        rich.print("[bold]Adding initial forcings to input state[/bold]")
         self.add_initial_forcings_to_input_state(input_state)
 
         input_state = self.validate_input_state(input_state)
