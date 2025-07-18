@@ -165,7 +165,7 @@ class Output(ABC):
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
-            if len(values.shape) == 2:
+            if len(values.shape) > 1:
                 reduced_state["fields"][field] = values[-1, :]
             else:
                 reduced_state["fields"][field] = values

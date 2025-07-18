@@ -72,3 +72,22 @@
     5jzQpiTunSuk941B+RLlhFxxhV2jpqUU9xR29xGThmUmynCBKuOnDj8vCvE/G31tF7Tn6dtG+ZNgPOrLTOkZmteorWOW0/zTLn
     7tzbLDSzwZQkk9PMlOQrnrhmDt1s/iWW+Y2SzET/pTtKezP7Z6YLApJucLti3jaIdEnUKtIvwLdtnBfbQA3TR1Ez1dhS0lUnbC
     3prl22WIVttsJWk27z2XJTbLtRtl6B7QcMZ6LqRXjBVlSyUrEeRcGTosWYXAoG5NxbhJRrNiuXvdw0jx+V0Dib
+
+# Q-1000, GRIB2, ECMWF, CCSDS
+- - { grid: N128, levtype: pl }
+  - |
+    eJy9kjFLw0AYht87k3SRgkLAbFVEiijELi4OQQrWrQguukkH0YKjLkIWnbu0o/QnOPgDxCk/wdEugpuDU5f4fl+u0WBn7yHHJX
+    dc7t7nOzg63M9zWGizGbvQ4AxYhal9eMEiP+R8liwMsZ6J43iHKzsLgDkNrEET+d/GSd1Rxv7xyoa+3HEQXlxdFguQAsuIsM4d
+    ttHCHhJ0SBcnpIc+bsgtlw3ICGPypDyTDK/KBJ/KFFMesE4ayhZJHG1zXuHakZKBY2geK7yUvM3hXfn6jcX/UP2rO8m8M/7coH
+    qzYXlnuf8si2pC7TI7ybFIVLKF5OwSnzgDmfoozIijkfpKaU789WlSfHbVbULLLdpu0npE+8CaJ5XBjfMHVoUWTY/v9+NZHSHy
+    pdCwKVNpKH29IbWDIJBpv7bL9g3s36zH
+
+# LSM, GRIB2, ECMWF, CCSDS  (we use LSM so the level info is missing)
+# retrieve,levtype=sfc,param=lsm,grid=n128,target=data.grib
+- - { grid: N128 }
+  - |
+    eJy9kjFLw0AYht87k3SRgkLRbFVEiijELi4OoRSsWxFcdBMH0YKjLkIW9y7tKP4EB3+AOOUnONpFcHNw6hLf78sZPezsPeS45I
+    7L3ft8ewf7naKwFtpszq5hcAKswNTeg2ieHwo+CxaG2MAkSbLNlb05wBxH1qCF4m/jpO4o4/BweV1fbjlonF9elAuQAYuIscYd
+    ttDGLlL0SB9H5BQDXJMbLhuSMe7Jo/JEcrwoE3woU0x5wDppKpskdXTNmceVIyNDx8g8eDxXvM7gTfn8jcX/4P/VnWTWGX9u4N
+    9sVN1Z7v+dhZ9Qt8pOciwTlWwhObvEJ85Arj5KM+JorL4ymhN/A5oUn311m9Jym7ZbtB7TPrAalKWH4o5VoUVjvDpCHEqhYUOm
+    siXp602pHUSRTIe1HbYvm5+wOw==
