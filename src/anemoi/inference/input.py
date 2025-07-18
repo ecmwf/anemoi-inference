@@ -57,7 +57,6 @@ class Input(ABC):
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
         self.variables = variables
-        assert self.variables is not None, "Input variables must be provided"
 
         rich.print(f"Input: {self.__class__.__name__} with variables: {self.variables}")
 
