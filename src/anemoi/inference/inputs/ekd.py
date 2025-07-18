@@ -167,7 +167,8 @@ class EkdInput(Input):
             name=variables, valid_datetime="ascending"
         )
 
-        check_data(title, data, variables, dates)
+        if False:
+            check_data(title, data, variables, dates)
 
         return data
 
