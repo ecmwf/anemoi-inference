@@ -244,10 +244,6 @@ class DefaultRunner(Runner):
         return create_input(
             self,
             self._input_forcings("constant_forcings", "forcings", "input"),
-            variables=self.checkpoint.select_variables(
-                include=["constant+forcing"],
-                exclude=["computed"],
-            ),
         )
 
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
