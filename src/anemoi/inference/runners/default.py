@@ -99,16 +99,19 @@ class DefaultRunner(Runner):
         # In case the constant forcings are from another input, combine them here
         # So that they are in considered in the `write_initial_state`
         # With `only_if_needed=True`, if the constant forcings are the same as the input
-        constants_input = self.create_constant_coupled_forcings_input(only_if_needed=True)
+        if self.has_split_input():
+            constants_input = self.create_constant_coupled_forcings_input()
+        else:
+            constants_input = None
 
         # Top-level pre-processors are applied by the input directly as it is applied on FieldList directly.
         input_state = input.create_input_state(date=self.config.date)
 
-        if constants_input is not None:
+        if self.has_split_input():
             # If the constant forcings are from another input, we need to combine them with the input state
             constants_state = constants_input.create_input_state(date=self.config.date)
             if not set(input_state["fields"]).isdisjoint(constants_state["fields"]):
-                LOG.warning(
+                raise ValueError(
                     f"The input state and the constant forcings state have overlapping fields:"
                     f" {set(input_state['fields']).intersection(constants_state['fields'])}"
                 )
@@ -241,13 +244,12 @@ class DefaultRunner(Runner):
         return self.config.input
 
     def create_constant_coupled_forcings_input(self, only_if_needed=False):
-        config = self._input_forcings("constant_forcings", "forcings", "input")
 
-        if only_if_needed and config == self.config.input:
+        if only_if_needed and self.has_split_input():
             # If the constant forcings are the same as the input, we don't need to create a new input
             return None
 
-        return create_input(self, config)
+        return create_input(self, self._input_forcings("constant_forcings", "forcings", "input"))
 
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant coupled forcings.
@@ -345,3 +347,19 @@ class DefaultRunner(Runner):
 
         LOG.info("Post processors: %s", result)
         return result
+
+    def has_split_input(self) -> bool:
+        config = self._input_forcings("constant_forcings", "forcings", "input")
+        return config is not self.config.input
+
+    def default_input_variables(self):
+        if self.has_split_input():
+            return self.checkpoint.select_variables(
+                include=["prognostic"],
+                exclude=["computed", "diagnostic", "forcing"],
+            )
+        else:
+            return self.checkpoint.select_variables(
+                include=["prognostic", "forcing"],
+                exclude=["computed", "diagnostic"],
+            )

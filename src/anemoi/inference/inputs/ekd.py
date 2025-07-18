@@ -167,8 +167,7 @@ class EkdInput(Input):
             name=variables, valid_datetime="ascending"
         )
 
-        if False:
-            check_data(title, data, variables, dates)
+        check_data(title, data, variables, dates)
 
         return data
 
@@ -237,10 +236,7 @@ class EkdInput(Input):
         fields = self.pre_process(fields)
 
         if variables is None:
-            variables = self.checkpoint.select_variables(
-                include=["prognostic", "forcing"],
-                exclude=["computed", "diagnostic"],
-            )
+            variables = self.context.default_input_variables()
 
         if len(fields) == 0:
             raise ValueError("No input fields provided")

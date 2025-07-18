@@ -1084,3 +1084,12 @@ class Runner(Context):
 
     def computed_constant_forcings_variables(self):
         return self.checkpoint.select_variables_and_masks(include=["computed+constant+forcing"])
+
+    def has_split_input(self) -> bool:
+        return True
+
+    def default_input_variables(self):
+        return self.checkpoint.select_variables(
+            include=["prognostic", "forcing"],
+            exclude=["computed", "diagnostic"],
+        )
