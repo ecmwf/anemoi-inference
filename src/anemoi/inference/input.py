@@ -41,8 +41,9 @@ class Input(ABC):
     def __init__(
         self,
         context: "Context",
+        *,
+        variables: Optional[List[str]],
         pre_processors: Optional[List[ProcessorConfig]] = None,
-        variables: Optional[List[str]] = None,
     ) -> None:
         """Initialize the Input object.
 

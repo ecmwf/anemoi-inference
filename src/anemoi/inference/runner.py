@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -42,6 +42,7 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+from .variables import Variables
 
 if TYPE_CHECKING:
     import torch
@@ -131,7 +132,7 @@ class Runner(Context):
             Whether to use profiler, by default False.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
-
+        self.variables = Variables(self)
         self.trace_path = trace_path
 
         if trace_path:
@@ -1079,19 +1080,10 @@ class Runner(Context):
         """Hook used by coupled runners to send the input state."""
         pass
 
-    def loaded_constant_forcings_variables(self):
-        return self.checkpoint.select_variables_and_masks(include=["constant+forcing"], exclude=["computed"])
-
-    def computed_constant_forcings_variables(self):
-        return self.checkpoint.select_variables_and_masks(include=["computed+constant+forcing"])
-
     def has_split_input(self) -> bool:
         # To be overridden by a subclass if the we use different inputs
         # for initial conditions, constants and dynamic forcings
-        return False
-
-    def default_input_variables(self):
-        return self.checkpoint.select_variables(
-            include=["prognostic", "forcing"],
-            exclude=["computed", "diagnostic"],
+        raise NotImplementedError(
+            "This method should be overridden by a subclass if the runner uses different inputs "
+            "for initial conditions, constants and dynamic forcings."
         )

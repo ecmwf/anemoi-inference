@@ -37,9 +37,10 @@ class GribFileInput(GribInput):
     def __init__(
         self,
         context: Context,
-        path: str,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        path: str,
         namer: Optional[Any] = None,
         **kwargs: Any,
     ) -> None:
@@ -58,7 +59,7 @@ class GribFileInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, pre_processors, namer=namer, **kwargs)
+        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Optional[Date]) -> State:

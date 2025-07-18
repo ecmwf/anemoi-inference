@@ -152,7 +152,13 @@ class DefaultRunner(Runner):
         Input
             The created input.
         """
-        input = create_input(self, self.config.input)
+        if self.has_split_input():
+            # If the input is split, we need to create the input for the constant forcings
+            variables = self.variables.retrieved_prognostic_variables()
+        else:
+            variables = self.variables.default_input_variables()
+
+        input = create_input(self, self.config.input, variables=variables)
         LOG.info("Input: %s", input)
         return input
 
@@ -244,6 +250,7 @@ class DefaultRunner(Runner):
         return create_input(
             self,
             self._input_forcings("constant_forcings", "forcings", "input"),
+            variables=self.variables.retrieved_constant_forcings_variables(),
         )
 
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
@@ -346,15 +353,3 @@ class DefaultRunner(Runner):
     def has_split_input(self) -> bool:
         config = self._input_forcings("constant_forcings", "forcings", "input")
         return config is not self.config.input
-
-    def default_input_variables(self):
-        if self.has_split_input():
-            return self.checkpoint.select_variables(
-                include=["prognostic"],
-                exclude=["computed", "diagnostic", "forcing"],
-            )
-        else:
-            return self.checkpoint.select_variables(
-                include=["prognostic", "forcing"],
-                exclude=["computed", "diagnostic"],
-            )

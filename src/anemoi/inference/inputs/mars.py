@@ -233,11 +233,7 @@ class MarsInput(GribInput):
             Additional keyword to pass to the request to MARS.
         """
         super().__init__(context, pre_processors, namer=namer)
-        self.kwargs = kwargs
-        self.variables = self.checkpoint.select_variables(
-            include=["prognostic"],
-            exclude=["forcing", "computed", "diagnostic"],
-        )
+
         self.kwargs = kwargs
         self.patches = patches or []
         self.log = log

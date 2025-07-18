@@ -106,8 +106,9 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
+        variables: Optional[List[str]] = None,
+        pre_processors: Optional[List[ProcessorConfig]] = None,
         namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
     ) -> None:
         """Initialize the EkdInput.
@@ -121,7 +122,7 @@ class EkdInput(Input):
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
-        super().__init__(context, pre_processors)
+        super().__init__(context, variables=variables, pre_processors=pre_processors)
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -235,13 +236,7 @@ class EkdInput(Input):
         """
         fields = self.pre_process(fields)
 
-        assert variables is not None
-
-        if variables is None:
-            if self.variables is not None:
-                variables = self.variables
-            else:
-                variables = self.context.default_input_variables()
+        assert variables is not None, f"Variables must be provided {self.__class__.__name__}"
 
         if len(fields) == 0:
             raise ValueError("No input fields provided")
@@ -378,7 +373,7 @@ class EkdInput(Input):
 
         return self._create_state(
             input_fields,
-            variables=variables,
+            variables=self.variables,
             dates=dates,
             latitudes=latitudes,
             longitudes=longitudes,

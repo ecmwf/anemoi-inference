@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
 
 
 class FieldListInput(GribInput):
-    """Handles earchkit-data fieldlists input fields."""
+    """Handles earthkit-data fieldlists input fields."""
 
     def __init__(self, context: Any, *, input_fields: Any) -> None:
         """Initialize FieldListInput.
