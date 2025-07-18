@@ -30,6 +30,7 @@ from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
+from ..checks import check_data
 from ..input import Input
 
 LOG = logging.getLogger(__name__)
@@ -166,7 +167,7 @@ class EkdInput(Input):
             name=variables, valid_datetime="ascending"
         )
 
-        # check_data(title, data, variables, dates)
+        check_data(title, data, variables, dates)
 
         return data
 
