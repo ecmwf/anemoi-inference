@@ -275,7 +275,15 @@ class DefaultRunner(Runner):
         return [result]
 
     def create_dynamic_coupled_forcings_input(self):
-        return create_input(self, self._input_forcings("dynamic_forcings", "forcings", "input"))
+        return create_input(
+            self,
+            self._input_forcings(
+                "dynamic_forcings",
+                "forcings",
+                "input",
+            ),
+            variables=self.variables.retrieved_dynamic_forcings_variables(),
+        )
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create dynamic coupled forcings.

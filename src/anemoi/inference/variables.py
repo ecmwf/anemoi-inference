@@ -84,3 +84,21 @@ class Variables:
         return self.checkpoint.select_variables_and_masks(
             **self.computed_constant_forcings_variables_include_exclude(),
         )
+
+    ###############################################################################
+    @classmethod
+    def retrieved_dynamic_forcings_variables_include_exclude(cls):
+        return dict(
+            include=["forcing"],
+            exclude=["computed", "constant"],
+        )
+
+    def retrieved_dynamic_forcings_variables(self):
+        return self.checkpoint.select_variables(
+            **self.retrieved_dynamic_forcings_variables_include_exclude(),
+        )
+
+    def retrieved_dynamic_forcings_variables_and_mask(self):
+        return self.checkpoint.select_variables_and_masks(
+            **self.retrieved_dynamic_forcings_variables_include_exclude(),
+        )
