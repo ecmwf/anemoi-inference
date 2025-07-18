@@ -152,7 +152,7 @@ class DefaultRunner(Runner):
         Input
             The created input.
         """
-        input = create_input(self, self.config.input, variables=self.default_input_variables())
+        input = create_input(self, self.config.input)
         LOG.info("Input: %s", input)
         return input
 
