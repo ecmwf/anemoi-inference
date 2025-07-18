@@ -22,7 +22,6 @@ from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
@@ -104,6 +103,8 @@ class DefaultRunner(Runner):
 
         initial_state = Output.reduce(input_state)
         # Top-level post-processors on the other hand are applied on State and are executed here.
+        LOG.info("Top-level post-processors: %s", self.post_processors)
+
         for processor in self.post_processors:
             initial_state = processor.process(initial_state)
 
@@ -113,7 +114,6 @@ class DefaultRunner(Runner):
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
             # Apply top-level post-processors
-            LOG.info("Top-level post-processors: %s", self.post_processors)
             for processor in self.post_processors:
                 state = processor.process(state)
             output.write_state(state)
@@ -128,10 +128,6 @@ class DefaultRunner(Runner):
                 🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
                 """  # ecmwf/anemoi-inference#131
             )
-
-    def input_state_hook(self, input_state: State) -> None:
-        """Hook used by coupled runners to send the input state."""
-        pass
 
     def create_input(self) -> Input:
         """Create the input.
