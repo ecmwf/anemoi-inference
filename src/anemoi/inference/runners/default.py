@@ -107,7 +107,11 @@ class DefaultRunner(Runner):
         if constants_input is not None:
             # If the constant forcings are from another input, we need to combine them with the input state
             constants_state = constants_input.create_input_state(date=self.config.date)
-            assert set(input_state["fields"]).isdisjoint(constants_state["fields"])
+            if not set(input_state["fields"]).isdisjoint(constants_state["fields"]):
+                raise ValueError(
+                    f"The input state and the constant forcings state have overlapping fields:"
+                    f" {set(input_state['fields']).intersection(constants_state['fields'])}"
+                )
             input_state["fields"].update(constants_state["fields"])
 
         # This hook is needed for the coupled runner
