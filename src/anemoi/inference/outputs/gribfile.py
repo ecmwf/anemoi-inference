@@ -74,6 +74,11 @@ def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
         LOG.warning("`hdate` is missing from mars namespace")
         return False
 
+    if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
+        if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
+            LOG.warning("`step` is missing a range in mars namespace.")
+            return False
+
     return True
 
 
