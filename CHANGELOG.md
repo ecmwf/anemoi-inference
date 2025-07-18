@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.7.0](https://github.com/ecmwf/anemoi-inference/compare/0.6.3...0.7.0) (2025-07-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* Stop accumulating from start of forecast by default ([#265](https://github.com/ecmwf/anemoi-inference/issues/265))
+
+### Features
+
+* Add logging control to mars ([#268](https://github.com/ecmwf/anemoi-inference/issues/268)) ([e95f184](https://github.com/ecmwf/anemoi-inference/commit/e95f1845beea518064d205303d2be337d6bf5d7f))
+* Add Zarr Output ([#275](https://github.com/ecmwf/anemoi-inference/issues/275)) ([6c04b44](https://github.com/ecmwf/anemoi-inference/commit/6c04b44325ae93578471ebb73a30cb153b5bec69))
+* Allow for `Runner.run` to return torch ([#263](https://github.com/ecmwf/anemoi-inference/issues/263)) ([77330f7](https://github.com/ecmwf/anemoi-inference/commit/77330f70291474f8a6391389bc5c4e12d90a4f65))
+* Extend GribOutput class to write to FileLike Objects ([#269](https://github.com/ecmwf/anemoi-inference/issues/269)) ([b9770e2](https://github.com/ecmwf/anemoi-inference/commit/b9770e25caa5d08b5ceb8b628dc88ebae14ec583))
+* Inner-level processors ([#260](https://github.com/ecmwf/anemoi-inference/issues/260)) ([59664cb](https://github.com/ecmwf/anemoi-inference/commit/59664cbf07f3b87d968c46e8033ad92eeb077a89))
+* Move anemoi-inference metadata command to anemoi-utils ([#257](https://github.com/ecmwf/anemoi-inference/issues/257)) ([d735be5](https://github.com/ecmwf/anemoi-inference/commit/d735be5d1b7fb0dade64ff20cd51aef9f792fd8a))
+* Stop accumulating from start of forecast by default ([#265](https://github.com/ecmwf/anemoi-inference/issues/265)) ([21826fb](https://github.com/ecmwf/anemoi-inference/commit/21826fb13eec4e0d9963ae105a89a7d819ef40f8))
+* Temporal interpolation runner ([#227](https://github.com/ecmwf/anemoi-inference/issues/227)) ([74048d9](https://github.com/ecmwf/anemoi-inference/commit/74048d9c976fd658f173e8cfafe1f13ab36fdfee))
+* **waves:** Add ability to update `typed_variables` from config ([#202](https://github.com/ecmwf/anemoi-inference/issues/202)) ([c02c45a](https://github.com/ecmwf/anemoi-inference/commit/c02c45aa1329fdc0c660ee2d7eccac2b15bc0514))
+
+
+### Bug Fixes
+
+* Provenance git dict reference issue ([#259](https://github.com/ecmwf/anemoi-inference/issues/259)) ([2d70411](https://github.com/ecmwf/anemoi-inference/commit/2d704119d4c1467f035e7f4cf0c437b9f2806af0))
+* Tensor not detached in debug mode ([#279](https://github.com/ecmwf/anemoi-inference/issues/279)) ([d9efac5](https://github.com/ecmwf/anemoi-inference/commit/d9efac527ecc23604f57c309fa4f1968bdfa078a))
+* Use data frequency in interpolator inference to be consistent with training ([#266](https://github.com/ecmwf/anemoi-inference/issues/266)) ([feac2a4](https://github.com/ecmwf/anemoi-inference/commit/feac2a48b0c2faec67b825f9e5c6858fad6eb82c))
+
 ## [0.6.3](https://github.com/ecmwf/anemoi-inference/compare/0.6.2...0.6.3) (2025-06-24)
 
 
