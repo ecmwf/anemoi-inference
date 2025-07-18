@@ -108,7 +108,6 @@ class EkdInput(Input):
         context: Context,
         pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
-        variables: Optional[List[str]] = None,
         namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
     ) -> None:
         """Initialize the EkdInput.
@@ -122,7 +121,7 @@ class EkdInput(Input):
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
-        super().__init__(context, pre_processors, variables=variables)
+        super().__init__(context, pre_processors)
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -235,6 +234,8 @@ class EkdInput(Input):
             The created input state.
         """
         fields = self.pre_process(fields)
+
+        assert variables is not None
 
         if variables is None:
             if self.variables is not None:
