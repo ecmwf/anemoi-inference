@@ -108,7 +108,7 @@ class DefaultRunner(Runner):
             # If the constant forcings are from another input, we need to combine them with the input state
             constants_state = constants_input.create_input_state(date=self.config.date)
             if not set(input_state["fields"]).isdisjoint(constants_state["fields"]):
-                raise ValueError(
+                LOG.warning(
                     f"The input state and the constant forcings state have overlapping fields:"
                     f" {set(input_state['fields']).intersection(constants_state['fields'])}"
                 )
