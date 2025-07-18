@@ -642,11 +642,15 @@ class Runner(Context):
                     new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output)
+                self._print_output_tensor("Output tensor", output.cpu().numpy())
 
             if self.trace:
                 self.trace.write_output_tensor(
-                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    date,
+                    s,
+                    output.cpu().numpy(),
+                    self.checkpoint.output_tensor_index_to_variable,
+                    self.checkpoint.timestep,
                 )
 
             yield new_state
