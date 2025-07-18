@@ -18,6 +18,7 @@ from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
+from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.runners.testing import TestingMixing
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
@@ -243,6 +244,23 @@ class TestCoupledRunner(TestingMixing, CoupledRunner):
 
     def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
         """Initialize the TestCoupledRunner.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary.
+        coupled_input : CoupledInput
+            Coupled input instance.
+        """
+
+        super().__init__(config, coupled_input)
+
+
+class NoModelCoupledRunner(NoModelMixing, CoupledRunner):
+    """Runner for testing coupled models."""
+
+    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
+        """Initialize the NoModelCoupledRunner.
 
         Parameters
         ----------
