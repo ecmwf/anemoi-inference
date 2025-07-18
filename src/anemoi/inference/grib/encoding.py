@@ -11,6 +11,7 @@
 import logging
 import re
 from io import IOBase
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,6 +19,10 @@ from typing import Optional
 from typing import Union
 
 import earthkit.data as ekd
+from anemoi.utils.dates import as_timedelta
+
+if TYPE_CHECKING:
+    from anemoi.transform.variables import Variable
 
 LOG = logging.getLogger(__name__)
 
@@ -110,7 +115,7 @@ def encode_time_processing(
     *,
     result: Dict[str, Any],
     template: ekd.Field,
-    variable: Any,
+    variable: "Variable",
     step: Any,
     previous_step: Optional[Any],
     start_steps: Dict[Any, Any],
@@ -152,7 +157,14 @@ def encode_time_processing(
             LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
-    start = _step_in_hours(start_steps.get(variable, previous_step))
+    if period := getattr(variable, "period", None):
+        start = max(as_timedelta(0), step - period)
+    else:
+        # backwards compatibility
+        start = previous_step
+
+    # give post-processors a chance to modify the start step
+    start = _step_in_hours(start_steps.get(variable.name, start))
     end = _step_in_hours(step)
 
     result["startStep"] = start
