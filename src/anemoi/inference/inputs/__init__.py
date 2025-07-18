@@ -17,7 +17,7 @@ from anemoi.inference.context import Context
 input_registry = Registry(__name__)
 
 
-def create_input(context: Context, config: Configuration) -> Any:
+def create_input(context: Context, config: Configuration, variables=None) -> Any:
     """Create an input instance from the given context and configuration.
 
     Parameters
@@ -26,10 +26,12 @@ def create_input(context: Context, config: Configuration) -> Any:
         The context in which the input is created.
     config : Configuration
         The configuration for the input.
+    variables: List[str], optional
+        Default list of variables
 
     Returns
     -------
     Any
         The created input instance.
     """
-    return input_registry.from_config(config, context)
+    return input_registry.from_config(config, context, variables=variables)

@@ -1086,7 +1086,9 @@ class Runner(Context):
         return self.checkpoint.select_variables_and_masks(include=["computed+constant+forcing"])
 
     def has_split_input(self) -> bool:
-        return True
+        # To be overridden by a subclass if the we use different inputs
+        # for initial conditions, constants and dynamic forcings
+        return False
 
     def default_input_variables(self):
         return self.checkpoint.select_variables(
