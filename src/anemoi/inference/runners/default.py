@@ -113,6 +113,9 @@ class DefaultRunner(Runner):
                     f" {set(input_state['fields']).intersection(constants_state['fields'])}"
                 )
 
+            # Combine the constant forcings with the input state
+            input_state["fields"].update(constants_state["fields"])
+
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)
 

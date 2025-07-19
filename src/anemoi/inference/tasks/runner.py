@@ -208,6 +208,7 @@ class CoupledInput:
         """
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
+
         self.constants = state["fields"].copy()
 
     def output_state(self, state: State) -> None:
@@ -312,11 +313,15 @@ class RunnerTask(Task):
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 
-        assert self.config.runner in ("default", "testing"), self.config.runner
+        assert self.config.runner in ("default", "testing", "no-model"), self.config.runner
 
         coupler = CoupledInput(self, transport, couplings)
 
-        if self.config.runner == "testing":
+        # TODO: a factory method would be better here
+        if self.config.runner == "no-model":
+            runner = NoModelCoupledRunner(self.config, coupler)
+        elif self.config.runner == "testing":
+
             runner = TestCoupledRunner(self.config, coupler)
         else:
             runner = CoupledRunner(self.config, coupler)
