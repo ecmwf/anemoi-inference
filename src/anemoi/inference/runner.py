@@ -693,7 +693,11 @@ class Runner(Context):
 
             if self.trace:
                 self.trace.write_output_tensor(
-                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    date,
+                    s,
+                    output.cpu().numpy(),
+                    self.checkpoint.output_tensor_index_to_variable,
+                    self.checkpoint.timestep,
                 )
 
             yield new_state
