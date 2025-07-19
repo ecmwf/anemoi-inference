@@ -26,10 +26,8 @@ import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
-from anemoi.inference.types import State
 
 from .metadata import Metadata
 from .metadata import Variable
@@ -320,57 +318,6 @@ class Checkpoint:
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
-        """Get constant forcings inputs.
-
-        Parameters
-        ----------
-        runner : Any
-            The runner.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        List[Forcings]
-            The constant forcings inputs.
-        """
-        return self._metadata.constant_forcings_inputs(runner, input_state)
-
-    def dynamic_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
-        """Get dynamic forcings inputs.
-
-        Parameters
-        ----------
-        runner : Any
-            The runner.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        List[Forcings]
-            The dynamic forcings inputs.
-        """
-        return self._metadata.dynamic_forcings_inputs(runner, input_state)
-
-    def boundary_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
-        """Get boundary forcings inputs.
-
-        Parameters
-        ----------
-        runner : Any
-            The runner.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        List[Forcings]
-            The boundary forcings inputs.
-        """
-        return self._metadata.boundary_forcings_inputs(runner, input_state)
-
     def name_fields(self, fields: Any, namer: Optional[Callable[..., str]] = None) -> Any:
         """Name fields.
 
@@ -415,6 +362,13 @@ class Checkpoint:
         """Print the indices."""
         return self._metadata.print_indices(print=print)
 
+    ###########################################################################
+    # Variable categories
+    ###########################################################################
+    def print_variable_categories(self, print=LOG.info) -> None:
+        """Print the variable categories."""
+        return self._metadata.print_variable_categories(print=print)
+
     def variable_categories(self) -> Any:
         """Get the variable categories.
 
@@ -425,6 +379,48 @@ class Checkpoint:
         """
         return self._metadata.variable_categories()
 
+    def select_variables(
+        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+    ) -> List[str]:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include : Optional[List[str]]
+            Categories to include.
+
+        exclude : Optional[List[str]]
+            Categories to exclude.
+
+        Returns
+        -------
+        List[str]
+            The selected variables.
+
+        """
+        return self._metadata.select_variables(include=include, exclude=exclude)
+
+    def select_variables_and_masks(
+        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+    ) -> List[str]:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include : Optional[List[str]]
+            Categories to include.
+
+        exclude : Optional[List[str]]
+            Categories to exclude.
+
+        Returns
+        -------
+        List[str]
+            The selected variables.
+        """
+        return self._metadata.select_variables_and_masks(include=include, exclude=exclude)
+
+    ###########################################################################
     def load_supporting_array(self, name: str) -> Any:
         """Load a supporting array.
 
@@ -460,34 +456,9 @@ class Checkpoint:
         """Get the multi-step input."""
         return self._metadata.multi_step_input
 
-    def print_variable_categories(self, print=LOG.info) -> None:
-        """Print the variable categories."""
-        return self._metadata.print_variable_categories(print=print)
-
     ###########################################################################
     # Data retrieval
     ###########################################################################
-
-    def select_variables(
-        self, *, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None
-    ) -> List[str]:
-        """Get variables from input.
-
-        Parameters
-        ----------
-        include : Optional[List[str]]
-            Categories to include.
-
-        exclude : Optional[List[str]]
-            Categories to exclude.
-
-        Returns
-        -------
-        List[str]
-            The selected variables.
-        """
-        return self._metadata.select_variables(include=include, exclude=exclude)
-
     @property
     def grid(self) -> Any:
         """Get the grid."""
@@ -521,6 +492,7 @@ class Checkpoint:
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
+        dont_fail_for_missing_paramid: bool = False,
         **kwargs: Any,
     ) -> List[DataRequest]:
         """Generate MARS requests for the given variables and dates.
@@ -537,6 +509,8 @@ class Checkpoint:
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
             A callable to patch the request, by default None.
+        dont_fail_for_missing_paramid : bool, optional
+            Whether to not fail for missing param ids, by default False.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -547,6 +521,8 @@ class Checkpoint:
         """
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
+
+        dont_fail_for_missing_paramid = True  # For now
 
         assert variables, "No variables provided"
 
@@ -633,7 +609,20 @@ class Checkpoint:
                         r[k] = [v]
 
                 if use_grib_paramid and "param" in r:
-                    r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
+
+                    def shortname_to_paramid_no_fail(x: str) -> str:
+                        try:
+                            return shortname_to_paramid(x)
+                        except KeyError:
+                            LOG.warning("Could not convert shortname '%s' to paramid", x)
+                            return x
+
+                    if dont_fail_for_missing_paramid:
+                        _ = shortname_to_paramid_no_fail
+                    else:
+                        _ = shortname_to_paramid
+
+                    r["param"] = [_(p) for p in r["param"]]
 
                 # Simplify the request
 
@@ -664,6 +653,21 @@ class Checkpoint:
     def name(self) -> Any:
         """Get the name."""
         return self._metadata.name
+
+    def has_supporting_array(self, name: str) -> bool:
+        """Check if the checkpoint has a supporting array with the given name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the supporting array.
+
+        Returns
+        -------
+        bool
+            True if the supporting array exists, False otherwise.
+        """
+        return self._metadata.has_supporting_array(name)
 
     ###########################################################################
     # Misc

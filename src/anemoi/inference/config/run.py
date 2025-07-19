@@ -65,7 +65,10 @@ class RunConfiguration(Configuration):
     post_processors: List[ProcessorConfig] = []
 
     forcings: Union[str, Dict[str, Any]] = None
-    """Where to find the forcings."""
+    """Where to find the forcings. (default is input)"""
+
+    constant_forcings: Union[str, Dict[str, Any]] = None
+    """Where to find the constant forcings (default to forcings)."""
 
     device: str = "cuda"
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""

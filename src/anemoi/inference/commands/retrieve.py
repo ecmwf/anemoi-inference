@@ -24,8 +24,10 @@ from anemoi.utils.dates import frequency_to_timedelta
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
+from anemoi.inference.metadata import VARIABLE_CATEGORIES
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
+from anemoi.inference.variables import Variables
 
 from ..config.run import RunConfiguration
 from ..inputs.mars import postproc
@@ -56,6 +58,7 @@ def checkpoint_to_requests(
     staging_dates: Optional[str] = None,
     forecast_dates: bool = False,
     use_grib_paramid: bool = False,
+    dont_fail_for_missing_paramid: bool = False,
     extra: Optional[List[str]] = None,
     patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
     use_scda: bool = False,
@@ -78,6 +81,8 @@ def checkpoint_to_requests(
         Whether to use forecast dates (for forcings).
     use_grib_paramid : bool, optional
         Whether to use GRIB parameter IDs.
+    dont_fail_for_missing_paramid : bool, optional
+        Whether to ignore missing parameter IDs.
     extra : list of str, optional
         Additional request values.
     patch_request : Callable[[DataRequest], DataRequest], optional
@@ -147,6 +152,7 @@ def checkpoint_to_requests(
         use_grib_paramid=use_grib_paramid,
         patch_request=patch_request,
         always_split_time=use_scda,
+        dont_fail_for_missing_paramid=dont_fail_for_missing_paramid,
     ):
         r = r.copy()
         r.update(more)
@@ -159,10 +165,13 @@ def checkpoint_to_requests(
 
 # Custom type function to parse and validate comma-separated input
 def comma_separated_list(value):
-    from anemoi.inference.metadata import VARIABLE_CATEGORIES
 
     items = value.split(",")
-    invalid = [item for item in items if item not in VARIABLE_CATEGORIES]
+    invalid = set()
+    for item in items:
+        for bit in item.split("+"):
+            if bit not in VARIABLE_CATEGORIES:
+                invalid.add(bit)
     if invalid:
         raise argparse.ArgumentTypeError(
             f"Invalid value(s): {', '.join(invalid)}. Allowed values are: {', '.join(VARIABLE_CATEGORIES)}"
@@ -194,6 +203,12 @@ class RetrieveCmd(Command):
         command_parser.add_argument("--forecast-dates", action="store_true", help="Use forecast dates (for forcings)")
         command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
         command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
+        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
+        command_parser.add_argument(
+            "--dont-fail-for-missing-paramid",
+            action="store_true",
+            help="Do not fail if a parameter ID is missing.",
+        )
         command_parser.add_argument(
             "--include",
             type=comma_separated_list,
@@ -203,8 +218,16 @@ class RetrieveCmd(Command):
             "--exclude",
             type=comma_separated_list,
             help="Comma-separated list of variable categories to exclude",
-            default="computed,diagnostic",
         )
+
+        # This is a alias to pairs of include/exclude
+        command_parser.add_argument(
+            "--input-type",
+            default="default",
+            choices=sorted(Variables.input_types()),
+            help="Type of input variables to retrieve.",
+        )
+
         command_parser.add_argument("--mars", action="store_true", help="Write requests for MARS retrieval")
         command_parser.add_argument(
             "--target", default="input.grib", help="Target path for the MARS retrieval requests"
@@ -233,13 +256,21 @@ class RetrieveCmd(Command):
         if args.staging_dates is None and args.date is None:
             raise ValueError("Either 'date' or 'staging_dates' must be provided.")
 
+        if args.input_type is not None:
+            include_exclude = Variables.input_type_to_include_exclude(args.input_type)
+            if "include" in include_exclude:
+                args.include = sorted(set(args.include or []) | set(include_exclude["include"]))
+            if "exclude" in include_exclude:
+                args.exclude = sorted(set(args.exclude or []) | set(include_exclude["exclude"]))
+
         requests = checkpoint_to_requests(
             runner.checkpoint,
             date=args.date,
             extra=args.extra,
             staging_dates=args.staging_dates,
             forecast_dates=args.forecast_dates,
-            use_grib_paramid=config.use_grib_paramid,
+            use_grib_paramid=config.use_grib_paramid or args.use_grib_paramid,
+            dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
             patch_request=runner.patch_data_request,
             use_scda=args.use_scda,
             include=args.include if args.include else None,

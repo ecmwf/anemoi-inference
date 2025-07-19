@@ -64,10 +64,6 @@ class FDBInput(GribInput):
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         # NOTE: this is a temporary workaround for #191 thus not documented
         self.param_id_map = kwargs.pop("param_id_map", {})
-        self.variables = self.checkpoint.select_variables(
-            include=["prognostic"],
-            exclude=["forcing", "computed", "diagnostic"],
-        )
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         date = np.datetime64(date).astype(datetime.datetime)

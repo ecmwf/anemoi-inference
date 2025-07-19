@@ -15,6 +15,8 @@ from typing import Any
 from typing import List
 from typing import Optional
 
+import rich
+
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import Date
@@ -36,7 +38,13 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: "Context", pre_processors: Optional[List[ProcessorConfig]] = None):
+    def __init__(
+        self,
+        context: "Context",
+        *,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+    ) -> None:
         """Initialize the Input object.
 
         Parameters
@@ -49,6 +57,9 @@ class Input(ABC):
         self.context = context
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
+        self.variables = variables
+
+        rich.print(f"Input: {self.__class__.__name__} with variables: {self.variables}")
 
     @cached_property
     def pre_processors(self) -> List[Processor]:

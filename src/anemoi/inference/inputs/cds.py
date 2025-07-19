@@ -139,10 +139,6 @@ class CDSInput(GribInput):
         """
         super().__init__(context, pre_processors, namer=namer)
 
-        self.variables = self.checkpoint.select_variables(
-            include=["prognostic"],
-            exclude=["forcing", "computed", "diagnostic"],
-        )
         self.dataset = dataset
         self.kwargs = kwargs
 
