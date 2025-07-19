@@ -85,7 +85,11 @@ class DatasetInput(Input):
         """Return the dataset."""
         from anemoi.datasets import open_dataset
 
-        return open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
+        dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
+        if self.variables is not None:
+            dataset = open_dataset(dataset, select=self.variables)
+
+        return dataset
 
     @cached_property
     def latitudes(self) -> FloatArray:

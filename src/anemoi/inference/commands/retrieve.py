@@ -24,8 +24,10 @@ from anemoi.utils.dates import frequency_to_timedelta
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
+from anemoi.inference.metadata import VARIABLE_CATEGORIES
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
+from anemoi.inference.variables import Variables
 
 from ..config.run import RunConfiguration
 from ..inputs.mars import postproc
@@ -163,10 +165,13 @@ def checkpoint_to_requests(
 
 # Custom type function to parse and validate comma-separated input
 def comma_separated_list(value):
-    from anemoi.inference.metadata import VARIABLE_CATEGORIES
 
     items = value.split(",")
-    invalid = [item for item in items if item not in VARIABLE_CATEGORIES]
+    invalid = set()
+    for item in items:
+        for bit in item.split("+"):
+            if bit not in VARIABLE_CATEGORIES:
+                invalid.add(bit)
     if invalid:
         raise argparse.ArgumentTypeError(
             f"Invalid value(s): {', '.join(invalid)}. Allowed values are: {', '.join(VARIABLE_CATEGORIES)}"
@@ -213,8 +218,16 @@ class RetrieveCmd(Command):
             "--exclude",
             type=comma_separated_list,
             help="Comma-separated list of variable categories to exclude",
-            default="computed,diagnostic",
         )
+
+        # This is a alias to pairs of include/exclude
+        command_parser.add_argument(
+            "--input-type",
+            default="default",
+            choices=sorted(Variables.input_types()),
+            help="Type of input variables to retrieve.",
+        )
+
         command_parser.add_argument("--mars", action="store_true", help="Write requests for MARS retrieval")
         command_parser.add_argument(
             "--target", default="input.grib", help="Target path for the MARS retrieval requests"
@@ -242,6 +255,13 @@ class RetrieveCmd(Command):
 
         if args.staging_dates is None and args.date is None:
             raise ValueError("Either 'date' or 'staging_dates' must be provided.")
+
+        if args.input_type is not None:
+            include_exclude = Variables.input_type_to_include_exclude(args.input_type)
+            if "include" in include_exclude:
+                args.include = sorted(set(args.include or []) | set(include_exclude["include"]))
+            if "exclude" in include_exclude:
+                args.exclude = sorted(set(args.exclude or []) | set(include_exclude["exclude"]))
 
         requests = checkpoint_to_requests(
             runner.checkpoint,

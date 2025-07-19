@@ -102,3 +102,19 @@ class Variables:
         return self.checkpoint.select_variables_and_masks(
             **self.retrieved_dynamic_forcings_variables_include_exclude(),
         )
+
+    ###############################################################################
+
+    @classmethod
+    def input_types(cls):
+        return {
+            "default-input": cls.default_runner_input_variables_include_exclude(),
+            "retrieved-constant-forcings": cls.retrieved_constant_forcings_variables_include_exclude(),
+            "retrieved-prognostic": cls.retrieved_prognostic_variables_include_exclude(),
+            "retrieved-dynamic-forcings": cls.retrieved_dynamic_forcings_variables_include_exclude(),
+            "computed-constant-forcings": cls.computed_constant_forcings_variables_include_exclude(),
+        }
+
+    @classmethod
+    def input_type_to_include_exclude(cls, input_type):
+        return cls.input_types()[input_type]
