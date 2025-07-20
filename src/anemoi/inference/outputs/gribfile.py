@@ -76,7 +76,9 @@ def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
 
     if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
         if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
-            LOG.warning("`step` is missing a range in mars namespace.")
+            LOG.warning(
+                f"`step` is missing a range in mars namespace ({keys['startStep']}-{keys['endStep']}, {keys.get('stepType')})."
+            )
             return False
 
     return True
@@ -274,7 +276,7 @@ class GribIoOutput(BaseGribOutput):
                 break
 
             if self._namespace_bug_fix:
-                raise ValueError("Namespace bug: %s" % mars)
+                raise ValueError(f"Namespace bug: {mars},check last field of {path}")
 
             # Try again with the namespace bug
             LOG.warning("Namespace bug detected, trying again")

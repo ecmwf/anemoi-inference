@@ -10,6 +10,7 @@
 
 import logging
 import re
+from datetime import datetime
 from io import IOBase
 from typing import TYPE_CHECKING
 from typing import Any
@@ -19,6 +20,7 @@ from typing import Optional
 from typing import Union
 
 import earthkit.data as ekd
+import rich
 from anemoi.utils.dates import as_timedelta
 
 if TYPE_CHECKING:
@@ -145,6 +147,8 @@ def encode_time_processing(
     """
     assert edition in (1, 2)
 
+    rich.print(f"[bold blue]Encoding time processing for {variable.name} {variable.time_processing} [/bold blue]")
+
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)
         # result["startStep"] = _step_in_hours(step)
@@ -157,15 +161,55 @@ def encode_time_processing(
             LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
-    if period := getattr(variable, "period", None):
-        start = max(as_timedelta(0), step - period)
+    # TODO: update the variable class
+    period = variable.data.get("period", None)
+
+    if period is not None:
+
+        period_start_step = as_timedelta(period[0])
+        previous_end_step = as_timedelta(period[1])
+
+        period_length = previous_end_step - period_start_step
+
+        start = step - period_length
+        # assert False, (start, step, previous_step, period_start_step, period, period_length)
+
+        if start < as_timedelta(0):
+            LOG.warning(
+                f"Start step {start} is negative for variable {variable.name} with period {period}, using previous step."
+            )
+
+            assert result["time"] in (
+                0,
+                600,
+                1200,
+                1800,
+            ), f"Unexpected time {result['time']} for variable {variable.name} with period {period}"
+            date = datetime(
+                year=result["date"] // 10000,
+                month=(result["date"] // 100) % 100,
+                day=result["date"] % 100,
+                hour=result["time"] // 100,
+                minute=result["time"] % 100,
+            )
+
+            date += start
+            step -= start
+            start = as_timedelta(0)
+
+            result["date"] = date.year * 10000 + date.month * 100 + date.day
+            result["time"] = date.hour * 100 + date.minute
+
     else:
         # backwards compatibility
         start = previous_step
+        LOG.warning(f"{variable.name} {variable.time_processing} does not have a period set, using start={start}.")
 
     # give post-processors a chance to modify the start step
     start = _step_in_hours(start_steps.get(variable.name, start))
     end = _step_in_hours(step)
+
+    rich.print(f"[bold blue]Encoding time processing for {variable.name} {start=} {end=} [/bold blue]")
 
     result["startStep"] = start
     result["endStep"] = end
@@ -173,6 +217,16 @@ def encode_time_processing(
 
     if edition == 1:
         return
+
+    # There is a bug in eccodes, if tpa/ocda/o3d and o2d is not not
+    # an ensemble, the steps are not encoded correctly.
+    if (result.get("type"), result.get("stream"), result.get("levtype")) in (
+        ("tpa", "ocda", "o3d"),
+        ("tpa", "ocda", "o2d"),
+    ) and not ensemble:
+        LOG.warning(f"Encoding time processing for {variable.name} as ensemble, but it is not an ensemble. ")
+        ensemble = True
+        result["number"] = 0
 
     if ensemble:
         result["productDefinitionTemplateNumber"] = 11
