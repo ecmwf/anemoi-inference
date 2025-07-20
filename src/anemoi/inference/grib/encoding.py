@@ -218,16 +218,6 @@ def encode_time_processing(
     if edition == 1:
         return
 
-    # There is a bug in eccodes, if tpa/ocda/o3d and o2d is not not
-    # an ensemble, the steps are not encoded correctly.
-    if (result.get("type"), result.get("stream"), result.get("levtype")) in (
-        ("tpa", "ocda", "o3d"),
-        ("tpa", "ocda", "o2d"),
-    ) and not ensemble:
-        LOG.warning(f"Encoding time processing for {variable.name} as ensemble, but it is not an ensemble. ")
-        ensemble = True
-        result["number"] = 0
-
     if ensemble:
         result["productDefinitionTemplateNumber"] = 11
     else:

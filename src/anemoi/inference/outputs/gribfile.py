@@ -51,7 +51,7 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
+def _fix(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
     """Check if the mars dictionary contains valid keys.
 
     Parameters
@@ -67,21 +67,19 @@ def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
         True if valid, False otherwise.
     """
     if "number" in keys and "number" not in mars:
-        LOG.warning("`number` is missing from mars namespace")
-        return False
+        LOG.error(f"`number` is missing from mars namespace, setting it to {keys['number']}")
+        mars["number"] = keys["number"]
 
     if "referenceDate" in keys and "hdate" not in mars:
-        LOG.warning("`hdate` is missing from mars namespace")
-        return False
+        LOG.error(f"`hdate` is missing from mars namespace, setting it to {keys['referenceDate']}")
+        mars["hdate"] = keys["referenceDate"]
 
     if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
         if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
-            LOG.warning(
-                f"`step` is missing a range in mars namespace ({keys['startStep']}-{keys['endStep']}, {keys.get('stepType')})."
+            LOG.error(
+                f"{keys.get('stepType')} `step={mars.get('step')}` is not a range,  setting it to {keys['startStep']}-{keys['endStep']}."
             )
-            return False
-
-    return True
+            mars["step"] = f"{keys['startStep']}-{keys['endStep']}"
 
 
 class ArchiveCollector:
@@ -263,24 +261,8 @@ class GribIoOutput(BaseGribOutput):
 
         handle, path = written
 
-        while True:
-            if self._namespace_bug_fix:
-                import eccodes
-                from earthkit.data.readers.grib.codes import GribCodesHandle
-
-                handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
-
-            mars = {k: v for k, v in handle.items("mars")}
-
-            if _is_valid(mars, keys):
-                break
-
-            if self._namespace_bug_fix:
-                raise ValueError(f"Namespace bug: {mars},check last field of {path}")
-
-            # Try again with the namespace bug
-            LOG.warning("Namespace bug detected, trying again")
-            self._namespace_bug_fix = True
+        mars = {k: v for k, v in handle.items("mars")}
+        _fix(mars, keys)
 
         if self.check_encoding:
             check_encoding(handle, keys)
