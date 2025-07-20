@@ -44,23 +44,34 @@ class GribFileInput(Input):
         **kwargs: Any,
     ) -> None:
 
-        super().__init__(context, variables=variables, pre_processors=pre_processors, **kwargs)
-        self.source = create_input(context, source, variables)
-        self.mode = mode
-        assert self.mode in [
-            "constant",
-        ], f"Unknown mode {self.mode}"
-        self.date = kwargs.get("date", None)
+        self.date = kwargs.pop("date", None)
         assert self.date is not None, "date must be provided for repeated-dates input"
+
         self.date = as_datetime(self.date)
+        self.source = create_input(context, source, variables=variables)
+        self.mode = mode
+
+        assert self.mode in ["constant"], f"Unknown mode {self.mode}"
+
+        super().__init__(context, variables=variables, pre_processors=pre_processors, **kwargs)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         return self.source.create_input_state(date=self.date)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+        assert len(dates) > 0, "dates must not be empty for repeated dates input"
 
-        return self.source.load_forcings_state(
+        state = self.source.load_forcings_state(
             variables=variables,
-            dates=[self.date for _ in dates],
+            dates=[self.date],
             current_state=current_state,
         )
+
+        fields = state["fields"]
+
+        for name, data in fields.items():
+            assert len(data.shape) == 2, data.shape
+            assert data.shape[0] == 1, data.shape
+            fields[name] = data.repeat(len(dates), axis=0)
+
+        return state
