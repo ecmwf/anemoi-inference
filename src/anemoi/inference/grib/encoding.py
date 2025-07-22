@@ -147,7 +147,7 @@ def encode_time_processing(
     """
     assert edition in (1, 2)
 
-    rich.print(f"[bold blue]Encoding time processing for {variable.name} {variable.time_processing} [/bold blue]")
+    # rich.print(f"[bold blue]Encoding time processing for {variable.name} {variable.time_processing} [/bold blue]")
 
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)

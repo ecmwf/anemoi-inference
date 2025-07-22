@@ -11,6 +11,7 @@
 import datetime
 import json
 import logging
+import re
 from abc import abstractmethod
 from typing import Any
 from typing import Dict
@@ -18,6 +19,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+import rich
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import FloatArray
@@ -45,11 +47,13 @@ class HindcastOutput:
 
         self.reference_year = reference_year
 
-    def __call__(self, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
         """Call the HindcastOutput object.
 
         Parameters
         ----------
+        variable : Any
+            The variable object.
         values : FloatArray
             The values array.
         template : object
@@ -79,7 +83,52 @@ class HindcastOutput:
         return values, template, keys
 
 
-MODIFIERS = dict(hindcast=HindcastOutput)
+class Matching:
+
+    def __init__(self, config):
+
+        self.conditions = {}
+        for k, v in config.items():
+            self.conditions[re.compile(k)] = v
+
+    def patch(self, variable, request):
+
+        for k, v in self.conditions.items():
+            m = k.match(variable.name)
+            if m:
+                patch = {}
+                for kk, vv in v.items():
+                    if isinstance(vv, str) and vv.startswith("\\"):
+                        vv = m.group(int(vv[1:]))
+                    patch[kk] = vv
+                return patch
+
+        return {}
+
+
+class PatchOutput:
+    def __init__(self, *patches):
+        self.patches = []
+        for patch in patches:
+            assert isinstance(patch, dict), patch
+            assert len(patch) == 1, patch
+            key = list(patch.keys())[0]
+            assert key == "variable", patch
+        self.patches.append(Matching(patch[key]))
+
+        rich.print(f"PatchOutput: {self.patches}")
+
+    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+        original_keys = keys.copy()
+        result = keys.copy()
+        for patch in self.patches:
+            result.update(patch.patch(variable, original_keys))
+
+        rich.print(f"PatchOutput: {result}")
+        return values, template, result
+
+
+MODIFIERS = dict(hindcast=HindcastOutput, patches=PatchOutput)
 
 
 def modifier_factory(modifiers: list) -> list:
@@ -108,7 +157,10 @@ def modifier_factory(modifiers: list) -> list:
         assert len(modifier) == 1, modifier
 
         klass = list(modifier.keys())[0]
-        result.append(MODIFIERS[klass](**modifier[klass]))
+        if isinstance(modifier[klass], list):
+            result.append(MODIFIERS[klass](*modifier[klass]))
+        else:
+            result.append(MODIFIERS[klass](**modifier[klass]))
 
     return result
 
@@ -280,7 +332,7 @@ class BaseGribOutput(Output):
             )
 
             for modifier in self.modifiers:
-                values, template, keys = modifier(values, template, keys)
+                values, template, keys = modifier(variable, values, template, keys)
 
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))

@@ -98,26 +98,29 @@ class DefaultRunner(Runner):
         # In case the constant forcings are from another input, combine them here
         # So that they are in considered in the `write_initial_state`
 
-        input = self.create_input()
-        input_state = input.create_input_state(date=self.config.date)
+        prognostic_input = self.create_prognostics_input()
+        prognostic_state = prognostic_input.create_input_state(date=self.config.date)
 
-        if self.has_split_input():
-            # If the constant forcings are from another input, we need to combine them with the input state
+        constants_input = self.create_constant_coupled_forcings_input()
+        constants_state = constants_input.create_input_state(date=self.config.date)
 
-            constants_input = self.create_constant_coupled_forcings_input()
-            constants_state = constants_input.create_input_state(date=self.config.date)
+        forcings_input = self.create_dynamic_forcings_input()
+        forcings_state = forcings_input.create_input_state(date=self.config.date)
 
-            if not set(input_state["fields"]).isdisjoint(constants_state["fields"]):
-                raise ValueError(
-                    f"The input state and the constant forcings state have overlapping fields:"
-                    f" {set(input_state['fields']).intersection(constants_state['fields'])}"
-                )
+        input_state = prognostic_state.copy()
 
-            # Combine the constant forcings with the input state
-            input_state["fields"].update(constants_state["fields"])
+        # if not set(input_state["fields"]).isdisjoint(constants_state["fields"]):
+        #     raise ValueError(
+        #         f"The input state and the constant forcings state have overlapping fields:"
+        #         f" {set(input_state['fields']).intersection(constants_state['fields'])}"
+        #     )
+
+        # Combine the constant forcings with the input state
+        input_state["fields"].update(constants_state["fields"])
+        input_state["fields"].update(forcings_state["fields"])
 
         # This hook is needed for the coupled runner
-        self.input_state_hook(input_state)
+        self.input_state_hook(constants_state)
 
         initial_state = Output.reduce(input_state)
         # Top-level post-processors on the other hand are applied on State and are executed here.
@@ -147,24 +150,6 @@ class DefaultRunner(Runner):
                 """  # ecmwf/anemoi-inference#131
             )
 
-    def create_input(self) -> Input:
-        """Create the input.
-
-        Returns
-        -------
-        Input
-            The created input.
-        """
-        if self.has_split_input():
-            # If the input is split, we need to create the input for the constant forcings
-            variables = self.variables.retrieved_prognostic_variables()
-        else:
-            variables = self.variables.default_input_variables()
-
-        input = create_input(self, self.config.input, variables=variables)
-        LOG.info("Input: %s", input)
-        return input
-
     def create_output(self) -> Output:
         """Create the output.
 
@@ -178,39 +163,13 @@ class DefaultRunner(Runner):
         return output
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
-        """Create constant computed forcings.
 
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created constant computed forcings.
-        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
     def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
-        """Create dynamic computed forcings.
 
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created dynamic computed forcings.
-        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
@@ -248,14 +207,36 @@ class DefaultRunner(Runner):
 
         return self.config.input
 
+    #########################################################################################################
+    def create_prognostics_input(self) -> Input:
+        variables = self.variables.retrieved_prognostic_variables()
+        config = self._input_forcings("prognostic_input", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Prognostic input: %s", input)
+        return input
+
     def create_constant_coupled_forcings_input(self):
+        variables = self.variables.retrieved_constant_forcings_variables()
+        config = self._input_forcings("constant_forcings", "forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Constant coupled forcings input: %s", input)
+        return input
 
-        return create_input(
-            self,
-            self._input_forcings("constant_forcings", "forcings", "input"),
-            variables=self.variables.retrieved_constant_forcings_variables(),
-        )
+    def create_dynamic_forcings_input(self):
+        variables = self.variables.retrieved_dynamic_forcings_variables()
+        config = self._input_forcings("dynamic_forcings", "-forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Dynamic forcings input: %s", input)
+        return input
 
+    def create_boundary_forcings_input(self):
+        variables = self.variables.retrieved_boundary_forcings_variables()
+        config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Boundary forcings input: %s", input)
+        return input
+
+    #########################################################################################################
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant coupled forcings.
 
@@ -277,17 +258,6 @@ class DefaultRunner(Runner):
 
         return [result]
 
-    def create_dynamic_coupled_forcings_input(self):
-        return create_input(
-            self,
-            self._input_forcings(
-                "dynamic_forcings",
-                "forcings",
-                "input",
-            ),
-            variables=self.variables.retrieved_dynamic_forcings_variables(),
-        )
-
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create dynamic coupled forcings.
 
@@ -303,13 +273,10 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created dynamic coupled forcings.
         """
-        input = self.create_dynamic_coupled_forcings_input()
+        input = self.create_dynamic_forcings_input()
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
-
-    def create_boundary_forcings_input(self):
-        return create_input(self, self._input_forcings("boundary_forcings", "-boundary", "forcings", "input"))
 
     def create_boundary_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create boundary forcings.
@@ -360,7 +327,3 @@ class DefaultRunner(Runner):
 
         LOG.info("Post processors: %s", result)
         return result
-
-    def has_split_input(self) -> bool:
-        config = self._input_forcings("constant_forcings", "forcings", "input")
-        return config is not self.config.input

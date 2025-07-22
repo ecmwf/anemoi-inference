@@ -239,6 +239,7 @@ class EkdInput(Input):
         assert variables is not None, f"Variables must be provided {self.__class__.__name__}"
 
         if len(fields) == 0:
+            # return dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
             raise ValueError("No input fields provided")
 
         dates = sorted([to_datetime(d) for d in dates])

@@ -86,7 +86,8 @@ class NoModelMixing:
                     number_of_output_variables,  # variables
                 )
 
-                return torch.rand(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+                # return torch.rand(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+                return torch.zeros(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
 
         return NoModel()
 
