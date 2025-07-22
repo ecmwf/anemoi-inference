@@ -56,7 +56,10 @@ class GribFileInput(Input):
         super().__init__(context, variables=variables, pre_processors=pre_processors, **kwargs)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
-        return self.source.create_input_state(date=self.date)
+        state = self.source.create_input_state(date=self.date)
+        state["_input"] = self
+        state["date"] = date
+        return state
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
         assert len(dates) > 0, "dates must not be empty for repeated dates input"
@@ -73,5 +76,9 @@ class GribFileInput(Input):
             assert len(data.shape) == 2, data.shape
             assert data.shape[0] == 1, data.shape
             fields[name] = data.repeat(len(dates), axis=0)
+
+        state["date"] = dates[-1]
+
+        state["_input"] = self
 
         return state

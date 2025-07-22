@@ -52,7 +52,7 @@ class EmptyInput(Input):
             date = datetime.datetime(2000, 1, 1)
 
         dates = [date + h for h in self.checkpoint.lagged]
-        return dict(date=dates, latitudes=None, longitudes=None, fields=dict())
+        return dict(date=dates[-1], latitudes=None, longitudes=None, fields=dict(), _input=self)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        return dict(date=dates, latitudes=None, longitudes=None, fields=dict())
+        return dict(date=dates[-1], latitudes=None, longitudes=None, fields=dict(), _input=self)

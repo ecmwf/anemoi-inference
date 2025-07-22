@@ -8,6 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
+import itertools
 import logging
 from typing import Any
 from typing import Dict
@@ -100,24 +102,23 @@ class DefaultRunner(Runner):
 
         prognostic_input = self.create_prognostics_input()
         prognostic_state = prognostic_input.create_input_state(date=self.config.date)
+        self._check_state(prognostic_state, "prognostic")
 
         constants_input = self.create_constant_coupled_forcings_input()
         constants_state = constants_input.create_input_state(date=self.config.date)
+        self._check_state(constants_state, "constants")
 
         forcings_input = self.create_dynamic_forcings_input()
         forcings_state = forcings_input.create_input_state(date=self.config.date)
+        self._check_state(forcings_state, "forcings")
 
-        input_state = prognostic_state.copy()
+        input_state = self._combine_states(
+            prognostic_state,
+            constants_state,
+            forcings_state,
+        )
 
-        # if not set(input_state["fields"]).isdisjoint(constants_state["fields"]):
-        #     raise ValueError(
-        #         f"The input state and the constant forcings state have overlapping fields:"
-        #         f" {set(input_state['fields']).intersection(constants_state['fields'])}"
-        #     )
-
-        # Combine the constant forcings with the input state
-        input_state["fields"].update(constants_state["fields"])
-        input_state["fields"].update(forcings_state["fields"])
+        initial_state = self._initial_state(prognostic_state, constants_state, forcings_state)
 
         # This hook is needed for the coupled runner
         self.input_state_hook(constants_state)
@@ -130,6 +131,7 @@ class DefaultRunner(Runner):
             initial_state = processor.process(initial_state)
 
         output.open(initial_state)
+
         LOG.info("write_initial_state: %s", output)
         output.write_initial_state(initial_state)
 
@@ -327,3 +329,148 @@ class DefaultRunner(Runner):
 
         LOG.info("Post processors: %s", result)
         return result
+
+    def _combine_states(self, *states: Dict[str, Any]) -> Dict[str, Any]:
+        """Combine multiple states into one.
+
+        Parameters
+        ----------
+        states : list
+            The states to combine.
+
+        Returns
+        -------
+        dict
+            The combined state.
+        """
+        import numpy as np
+
+        combined = states[0].copy()
+        shape = None
+        for state in states[1:]:
+
+            for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
+                if shape is None:
+                    shape = values.shape
+                elif shape != values.shape:
+                    raise ValueError(
+                        f"Field '{name}' has different shape in the states: " f"{shape} and {values.shape}."
+                    )
+
+            if not set(combined["fields"]).isdisjoint(state["fields"]):
+                raise ValueError(
+                    f"Some states have overlapping fields:" f" {set(combined['fields']).intersection(state['fields'])}"
+                )
+
+            combined["fields"].update(state.get("fields", {}))
+            for key, value in state.items():
+                if key == "fields":
+                    continue
+
+                if key.startswith("_"):
+                    continue
+
+                if combined.get(key) is None:
+                    combined[key] = value
+                    continue
+
+                if value is None:
+                    continue
+
+                if type(combined[key]) is not type(value):
+                    raise ValueError(
+                        f"Key '{key}' has different types in the states: " f"{type(combined[key])} and {type(value)}."
+                    )
+
+                if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):
+                    if not np.array_equal(combined[key], value):
+                        raise ValueError(
+                            f"Key '{key}' has different array values in the states: " f"{combined[key]} and {value}."
+                        )
+                    continue
+
+                if combined[key] != value:
+                    raise ValueError(
+                        f"Key '{key}' has different values in the states: " f"{combined[key]} and {value} ({shape})."
+                    )
+
+        return combined
+
+    def _initial_state(
+        self, prognostic_state: Dict[str, Any], constants_state: Dict[str, Any], forcings_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create the initial state for the output.
+
+        Parameters
+        ----------
+        prognostic_state : dict
+            The prognostic state.
+        constants_state : dict
+            The constant forcings state.
+        forcings_state : dict
+            The dynamic forcings state.
+
+        Returns
+        -------
+        dict
+            The initial state for the output.
+        """
+        return prognostic_state
+
+        # return self._combine_states(prognostic_state, constants_state, forcings_state)
+
+    def _check_state(self, state: Dict[str, Any], title: str) -> None:
+        """Check the state for consistency.
+
+        Parameters
+        ----------
+        state : dict
+            The state to check.
+        title : str
+            The title of the state (for logging).
+
+        Raises
+        ------
+        ValueError
+            If the state is not consistent.
+        """
+
+        if not isinstance(state, dict):
+            raise ValueError(f"State '{title}' is not a dictionary: {state}")
+
+        input = state.get("_input")
+
+        if "fields" not in state:
+            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=})")
+
+        shape = None
+
+        for field, values in state["fields"].items():
+            if shape is None:
+                shape = values.shape
+            elif shape != values.shape:
+                raise ValueError(
+                    f"Field '{field}' in state '{title}' has different shape: "
+                    f"{shape} and {values.shape} ({input=})."
+                )
+
+        date = state.get("date")
+        if not isinstance(date, datetime.datetime):
+            raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
+
+        # if shape is not None: # Non-empty input
+        #     if shape[0] == 1:
+        #         assert isinstance(date, datetime.datetime), (
+        #             f"State '{title}' date is not a datetime: {date} ({input=})"
+        #         )
+        #     elif shape[0] > 1:
+        #         if not isinstance(date, list):
+        #             raise ValueError(f"State '{title}' date is not a list: {date} ({input=})")
+        #         if len(date) != shape[0]:
+        #             raise ValueError(
+        #                 f"State '{title}' date length does not match shape: "
+        #                 f"{len(date)} != {shape[0]} ({input=})."
+        #             )
+        #         for d in date:
+        #             if not isinstance(d, datetime.datetime):
+        #                 raise ValueError(f"State '{title}' date item is not a datetime: {d} ({input=}).")

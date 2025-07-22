@@ -327,6 +327,8 @@ class EkdInput(Input):
         # to be used as output
         self.set_private_attributes(state, fields)
 
+        state["_input"] = self
+
         return state
 
     def _create_input_state(
