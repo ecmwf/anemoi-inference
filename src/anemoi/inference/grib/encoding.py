@@ -10,6 +10,7 @@
 
 import logging
 import re
+import warnings
 from io import IOBase
 from typing import TYPE_CHECKING
 from typing import Any
@@ -158,10 +159,18 @@ def encode_time_processing(
         previous_step = step
 
     if period := getattr(variable, "period", None):
-        start = max(as_timedelta(0), step - period)
+        start = step - period
+        if start < as_timedelta(0):
+            raise ValueError(
+                f"Writing {variable.name} at step {_step_in_hours(step)} with period {_step_in_hours(period)} for would result in a negative start step {_step_in_hours(start)}. "
+                "Try `write_initial_state: False`"
+            )
     else:
-        # backwards compatibility
+        # backwards compatibility or if period is missing from the metadata
         start = previous_step
+        warnings.warn(
+            f"{variable.name} {variable.time_processing} does not have a period set, using previous_step as start={_step_in_hours(start)}."
+        )
 
     # give post-processors a chance to modify the start step
     start = _step_in_hours(start_steps.get(variable.name, start))
