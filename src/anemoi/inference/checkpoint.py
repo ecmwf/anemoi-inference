@@ -543,9 +543,7 @@ class Checkpoint:
         KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 
         requests = defaultdict(list)
-        print(f"Processing request: {variables}")
         for r in self._metadata.mars_requests(variables=variables):
-            print(f"Processing request: {r}")
             for date in dates:
 
                 r = r.copy()

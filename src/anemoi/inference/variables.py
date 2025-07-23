@@ -231,11 +231,10 @@ class Variables:
             Dictionary mapping input type names to include/exclude dicts.
         """
         return {
-            "default-input": cls.default_runner_input_variables_include_exclude(),
-            "retrieved-constant-forcings": cls.retrieved_constant_forcings_variables_include_exclude(),
-            "retrieved-prognostic": cls.retrieved_prognostic_variables_include_exclude(),
-            "retrieved-dynamic-forcings": cls.retrieved_dynamic_forcings_variables_include_exclude(),
-            "computed-constant-forcings": cls.computed_constant_forcings_variables_include_exclude(),
+            "default-input": cls.default_runner_input_variables_include_exclude(),  # For backwards compatibility
+            "constant-forcings": cls.retrieved_constant_forcings_variables_include_exclude(),
+            "prognostics": cls.retrieved_prognostic_variables_include_exclude(),
+            "dynamic-forcings": cls.retrieved_dynamic_forcings_variables_include_exclude(),
         }
 
     @classmethod
