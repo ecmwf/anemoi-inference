@@ -72,7 +72,6 @@ class DummyInput(EkdInput):
         """
         return self._load_forcings_state(
             self._fields(dates, self.variables),
-            variables=self.variables,
             dates=dates,
             current_state=current_state,
         )

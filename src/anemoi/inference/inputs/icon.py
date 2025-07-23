@@ -107,7 +107,6 @@ class IconInput(GribInput):
         """
         return self._load_forcings_state(
             ekd.from_source("file", self.path),
-            variables=self.variables,
             dates=dates,
             current_state=current_state,
         )

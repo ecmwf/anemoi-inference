@@ -130,15 +130,13 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
+    def _filter_and_sort(self, data: Any, *, dates: List[Any], title: str) -> Any:
         """Filter and sort the data.
 
         Parameters
         ----------
         data : Any
             The data to filter and sort.
-        variables : List[str]
-            The list of variables to select.
         dates : List[Any]
             The list of dates to select.
         title : str
@@ -161,11 +159,12 @@ class EkdInput(Input):
         # for f in data:
         #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
 
-        data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
-            name=variables, valid_datetime="ascending"
+        data = data.sel(name=self.variables, valid_datetime=valid_datetime).order_by(
+            name=self.variables,
+            valid_datetime="ascending",
         )
 
-        check_data(title, data, variables, dates)
+        check_data(title, data, self.variables, dates)
 
         return data
 
@@ -197,13 +196,11 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         *,
-        variables: Optional[List[str]] = None,
         dates: List[Date],
         latitudes: Optional[FloatArray] = None,
         longitudes: Optional[FloatArray] = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        title: str = "Create state",
     ) -> State:
         """Create a state from an ekd.FieldList.
 
@@ -211,8 +208,6 @@ class EkdInput(Input):
         ----------
         fields : ekd.FieldList
             The ekd fields.
-        variables : Optional[List[str]]
-            List of variables.
         dates : List[Date]
             The dates for which to create the input state.
         latitudes : Optional[FloatArray]
@@ -223,8 +218,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        title : str
-            The title for logging.
 
         Returns
         -------
@@ -232,8 +225,6 @@ class EkdInput(Input):
             The created input state.
         """
         fields = self.pre_process(fields)
-
-        assert variables is not None, f"Variables must be provided {self.__class__.__name__}"
 
         if len(fields) == 0:
             # return dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
@@ -246,7 +237,7 @@ class EkdInput(Input):
 
         state_fields = state["fields"]
 
-        fields = self._filter_and_sort(fields, variables=variables, dates=dates, title="Create input state")
+        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
 
         if latitudes is None and longitudes is None:
             try:
@@ -373,31 +364,20 @@ class EkdInput(Input):
 
         return self._create_state(
             input_fields,
-            variables=self.variables,
             dates=dates,
             latitudes=latitudes,
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
-            title="Create input state",
         )
 
-    def _load_forcings_state(
-        self,
-        fields: ekd.FieldList,
-        *,
-        variables: List[str],
-        dates: List[Date],
-        current_state: State,
-    ) -> State:
+    def _load_forcings_state(self, fields: ekd.FieldList, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state.
 
         Parameters
         ----------
         fields : ekd.FieldList
             The fields to load.
-        variables : List[str]
-            The list of variables to load.
         dates : List[Any]
             The list of dates to load.
         current_state : Dict[str, Any]
@@ -410,11 +390,9 @@ class EkdInput(Input):
         """
         return self._create_state(
             fields,
-            variables=variables,
             dates=dates,
             latitudes=current_state["latitudes"],
             longitudes=current_state["longitudes"],
             dtype=np.float32,
             flatten=True,
-            title="Load forcings state",
         )

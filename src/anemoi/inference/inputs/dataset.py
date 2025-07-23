@@ -242,10 +242,11 @@ class DatasetInputArgsKwargs(DatasetInput):
         self,
         context: Context,
         *args: Any,
-        use_original_paths: bool = True,
+        use_original_paths: bool = False,
         variables: Optional[List[str]],
         pre_processors: Optional[List[ProcessorConfig]] = None,
         grid_indices=None,
+        purpose: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInputArgsKwargs.
@@ -271,6 +272,7 @@ class DatasetInputArgsKwargs(DatasetInput):
                 cmd += f"{key}={value}, "
 
             LOG.warning("%s", cmd)
+
         super().__init__(
             context,
             variables=variables,
@@ -278,6 +280,7 @@ class DatasetInputArgsKwargs(DatasetInput):
             grid_indices=grid_indices,
             open_dataset_args=args,
             open_dataset_kwargs=kwargs,
+            purpose=purpose,
         )
 
 
@@ -288,7 +291,7 @@ class DataloaderInput(DatasetInput):
         self,
         context: Context,
         *,
-        use_original_paths: bool = True,
+        use_original_paths: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the DataloaderInput.

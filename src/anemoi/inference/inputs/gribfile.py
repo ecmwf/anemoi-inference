@@ -9,7 +9,6 @@
 
 
 import logging
-import os
 from typing import Any
 from typing import List
 from typing import Optional
@@ -73,13 +72,7 @@ class GribFileInput(GribInput):
             The created input state.
         """
 
-        # if os.path.getsize(self.path) == 0:
-        #     source = ekd.from_source("empty")
-        # else:
-        #     source = ekd.from_source("file", self.path)
-
-        # return self._create_input_state(source, variables=None, date=date)
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
+        return self._create_input_state(ekd.from_source("file", self.path), date=date)
 
     def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -97,14 +90,8 @@ class GribFileInput(GribInput):
             The loaded forcings state.
         """
 
-        if os.path.getsize(self.path) == 0:
-            source = ekd.from_source("empty")
-        else:
-            source = ekd.from_source("file", self.path)
-
         return self._load_forcings_state(
-            source,
-            variables=self.variables,
+            ekd.from_source("file", self.path),
             dates=dates,
             current_state=current_state,
         )

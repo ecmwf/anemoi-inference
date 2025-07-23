@@ -66,7 +66,7 @@ class FDBInput(GribInput):
 
     def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         ds = self.retrieve(variables=self.variables, dates=dates)
-        return self._load_forcings_state(ds, variables=self.variables, dates=dates, current_state=current_state)
+        return self._load_forcings_state(ds, dates=dates, current_state=current_state)
 
     def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
         requests = self.checkpoint.mars_requests(
