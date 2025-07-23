@@ -18,6 +18,7 @@ from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
+from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.runners.testing import TestingMixing
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
@@ -207,6 +208,7 @@ class CoupledInput:
         """
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
+
         self.constants = state["fields"].copy()
 
     def output_state(self, state: State) -> None:
@@ -243,6 +245,23 @@ class TestCoupledRunner(TestingMixing, CoupledRunner):
 
     def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
         """Initialize the TestCoupledRunner.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary.
+        coupled_input : CoupledInput
+            Coupled input instance.
+        """
+
+        super().__init__(config, coupled_input)
+
+
+class NoModelCoupledRunner(NoModelMixing, CoupledRunner):
+    """Runner for testing coupled models."""
+
+    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
+        """Initialize the NoModelCoupledRunner.
 
         Parameters
         ----------
@@ -294,11 +313,15 @@ class RunnerTask(Task):
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 
-        assert self.config.runner in ("default", "testing"), self.config.runner
+        assert self.config.runner in ("default", "testing", "no-model"), self.config.runner
 
         coupler = CoupledInput(self, transport, couplings)
 
-        if self.config.runner == "testing":
+        # TODO: a factory method would be better here
+        if self.config.runner == "no-model":
+            runner = NoModelCoupledRunner(self.config, coupler)
+        elif self.config.runner == "testing":
+
             runner = TestCoupledRunner(self.config, coupler)
         else:
             runner = CoupledRunner(self.config, coupler)

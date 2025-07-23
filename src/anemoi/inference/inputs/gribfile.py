@@ -9,6 +9,7 @@
 
 
 import logging
+import os
 from typing import Any
 from typing import List
 from typing import Optional
@@ -37,9 +38,10 @@ class GribFileInput(GribInput):
     def __init__(
         self,
         context: Context,
-        path: str,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        path: str,
         namer: Optional[Any] = None,
         **kwargs: Any,
     ) -> None:
@@ -58,7 +60,7 @@ class GribFileInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, pre_processors, namer=namer, **kwargs)
+        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
@@ -74,6 +76,13 @@ class GribFileInput(GribInput):
         State
             The created input state.
         """
+
+        # if os.path.getsize(self.path) == 0:
+        #     source = ekd.from_source("empty")
+        # else:
+        #     source = ekd.from_source("file", self.path)
+
+        # return self._create_input_state(source, variables=None, date=date)
         return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
 
     def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
@@ -93,8 +102,14 @@ class GribFileInput(GribInput):
         State
             The loaded forcings state.
         """
+
+        if os.path.getsize(self.path) == 0:
+            source = ekd.from_source("empty")
+        else:
+            source = ekd.from_source("file", self.path)
+
         return self._load_forcings_state(
-            ekd.from_source("file", self.path),
+            source,
             variables=variables,
             dates=dates,
             current_state=current_state,

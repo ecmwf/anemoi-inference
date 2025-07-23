@@ -8,6 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
+import itertools
 import logging
 from typing import Any
 from typing import Dict
@@ -25,6 +27,7 @@ from anemoi.inference.types import IntArray
 
 from ..forcings import BoundaryForcings
 from ..forcings import ComputedForcings
+from ..forcings import ConstantForcings
 from ..forcings import CoupledForcings
 from ..forcings import Forcings
 from ..inputs import create_input
@@ -69,12 +72,13 @@ class DefaultRunner(Runner):
             precision=config.precision,
             allow_nans=config.allow_nans,
             verbosity=config.verbosity,
-            report_error=config.report_error,
+            # report_error=config.report_error,
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
+            # initial_state_categories=config.initial_state_categories,
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
@@ -92,14 +96,33 @@ class DefaultRunner(Runner):
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
 
-        input = self.create_input()
         output = self.create_output()
 
-        # Top-level pre-processors are applied by the input directly as it is applied on FieldList directly.
-        input_state = input.create_input_state(date=self.config.date)
+        # In case the constant forcings are from another input, combine them here
+        # So that they are in considered in the `write_initial_state`
+
+        prognostic_input = self.create_prognostics_input()
+        prognostic_state = prognostic_input.create_input_state(date=self.config.date)
+        self._check_state(prognostic_state, "prognostics")
+
+        constants_input = self.create_constant_coupled_forcings_input()
+        constants_state = constants_input.create_input_state(date=self.config.date)
+        self._check_state(constants_state, "constant_forcings")
+
+        forcings_input = self.create_dynamic_forcings_input()
+        forcings_state = forcings_input.create_input_state(date=self.config.date)
+        self._check_state(forcings_state, "dynamic_forcings")
+
+        input_state = self._combine_states(
+            prognostic_state,
+            constants_state,
+            forcings_state,
+        )
+
+        initial_state = self._initial_state(prognostic_state, constants_state, forcings_state)
 
         # This hook is needed for the coupled runner
-        self.input_state_hook(input_state)
+        self.input_state_hook(constants_state)
 
         initial_state = Output.reduce(input_state)
         # Top-level post-processors on the other hand are applied on State and are executed here.
@@ -109,6 +132,7 @@ class DefaultRunner(Runner):
             initial_state = processor.process(initial_state)
 
         output.open(initial_state)
+
         LOG.info("write_initial_state: %s", output)
         output.write_initial_state(initial_state)
 
@@ -129,18 +153,6 @@ class DefaultRunner(Runner):
                 """  # ecmwf/anemoi-inference#131
             )
 
-    def create_input(self) -> Input:
-        """Create the input.
-
-        Returns
-        -------
-        Input
-            The created input.
-        """
-        input = create_input(self, self.config.input)
-        LOG.info("Input: %s", input)
-        return input
-
     def create_output(self) -> Output:
         """Create the output.
 
@@ -154,49 +166,23 @@ class DefaultRunner(Runner):
         return output
 
     def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
-        """Create constant computed forcings.
 
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created constant computed forcings.
-        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
     def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
-        """Create dynamic computed forcings.
 
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created dynamic computed forcings.
-        """
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def _input_forcings(self, name: str) -> Dict[str, Any]:
+    def _input_forcings(self, *names: str) -> Dict[str, Any]:
         """Get the input forcings configuration.
 
         Parameters
         ----------
-        name : str
+        names : list
             The name of the forcings configuration.
 
         Returns
@@ -204,18 +190,84 @@ class DefaultRunner(Runner):
         dict
             The input forcings configuration.
         """
-        if self.config.forcings is None:
-            # Use the same as the input
-            return self.config.input
 
-        if name in self.config.forcings:
-            return self.config.forcings[name]
+        for name in names:
+            if name.startswith("-"):
+                deprecated = True
+                name = name[1:]  # Remove the leading dash
+            else:
+                deprecated = False
+            if self.config.get(name):
+                if deprecated:
+                    LOG.warning(
+                        f"🚫 The `{name}` input forcings configuration is deprecated. "
+                        f"Please use the `{names[0]}` configuration instead."
+                    )
+                if name != names[0]:
+                    LOG.info(f"Loading `config.{names[0]}` from `config.{name}`")
 
-        if "input" in self.config.forcings:
-            return self.config.forcings.input
+                return self.config[name]
 
-        return self.config.forcings
+        return self.config.input
 
+    #########################################################################################################
+    def create_prognostics_input(self) -> Input:
+        """Create the prognostics input.
+
+        Returns
+        -------
+        Input
+            The created prognostics input.
+        """
+        variables = self.variables.retrieved_prognostic_variables()
+        config = self._input_forcings("prognostic_input", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Prognostic input: %s", input)
+        return input
+
+    def create_constant_coupled_forcings_input(self) -> Input:
+        """Create the constant coupled forcings input.
+
+        Returns
+        -------
+        Input
+            The created constant coupled forcings input.
+        """
+        variables = self.variables.retrieved_constant_forcings_variables()
+        config = self._input_forcings("constant_forcings", "forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Constant coupled forcings input: %s", input)
+        return input
+
+    def create_dynamic_forcings_input(self) -> Input:
+        """Create the dynamic forcings input.
+
+        Returns
+        -------
+        Input
+            The created dynamic forcings input.
+        """
+        variables = self.variables.retrieved_dynamic_forcings_variables()
+        config = self._input_forcings("dynamic_forcings", "-forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Dynamic forcings input: %s", input)
+        return input
+
+    def create_boundary_forcings_input(self) -> Input:
+        """Create the boundary forcings input.
+
+        Returns
+        -------
+        Input
+            The created boundary forcings input.
+        """
+        variables = self.variables.retrieved_boundary_forcings_variables()
+        config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables)
+        LOG.info("Boundary forcings input: %s", input)
+        return input
+
+    #########################################################################################################
     def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
         """Create constant coupled forcings.
 
@@ -231,9 +283,10 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created constant coupled forcings.
         """
-        input = create_input(self, self._input_forcings("constant"))
-        result = CoupledForcings(self, input, variables, mask)
+        input = self.create_constant_coupled_forcings_input()
+        result = ConstantForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
+
         return [result]
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
@@ -251,7 +304,7 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created dynamic coupled forcings.
         """
-        input = create_input(self, self._input_forcings("dynamic"))
+        input = self.create_dynamic_forcings_input()
         result = CoupledForcings(self, input, variables, mask)
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
@@ -271,7 +324,7 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created boundary forcings.
         """
-        input = create_input(self, self._input_forcings("boundary"))
+        input = self.create_boundary_forcings_input()
         result = BoundaryForcings(self, input, variables, mask)
         LOG.info("Boundary forcing: %s", result)
         return [result]
@@ -305,3 +358,142 @@ class DefaultRunner(Runner):
 
         LOG.info("Post processors: %s", result)
         return result
+
+    def _combine_states(self, *states: Dict[str, Any]) -> Dict[str, Any]:
+        """Combine multiple states into one.
+
+        Parameters
+        ----------
+        states : list
+            The states to combine.
+
+        Returns
+        -------
+        dict
+            The combined state.
+        """
+        import numpy as np
+
+        combined = states[0].copy()
+        combined["fields"] = combined["fields"].copy()
+        shape = None
+
+        for state in states[1:]:
+
+            for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
+                if shape is None:
+                    shape = values.shape
+                elif shape != values.shape:
+                    raise ValueError(
+                        f"Field '{name}' has different shape in the states: " f"{shape} and {values.shape}."
+                    )
+
+            if not set(combined["fields"]).isdisjoint(state["fields"]):
+                raise ValueError(
+                    f"Some states have overlapping fields:" f" {set(combined['fields']).intersection(state['fields'])}"
+                )
+
+            combined["fields"].update(state.get("fields", {}))
+            for key, value in state.items():
+                if key == "fields":
+                    continue
+
+                if key.startswith("_"):
+                    continue
+
+                if combined.get(key) is None:
+                    combined[key] = value
+                    continue
+
+                if value is None:
+                    continue
+
+                if type(combined[key]) is not type(value):
+                    raise ValueError(
+                        f"Key '{key}' has different types in the states: " f"{type(combined[key])} and {type(value)}."
+                    )
+
+                if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):
+                    if not np.array_equal(combined[key], value):
+                        raise ValueError(
+                            f"Key '{key}' has different array values in the states: " f"{combined[key]} and {value}."
+                        )
+                    continue
+
+                if combined[key] != value:
+                    raise ValueError(
+                        f"Key '{key}' has different values in the states: " f"{combined[key]} and {value} ({shape})."
+                    )
+
+        return combined
+
+    def _initial_state(
+        self, prognostic_state: Dict[str, Any], constants_state: Dict[str, Any], forcings_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create the initial state for the output.
+
+        Parameters
+        ----------
+        prognostic_state : dict
+            The prognostic state.
+        constants_state : dict
+            The constant forcings state.
+        forcings_state : dict
+            The dynamic forcings state.
+
+        Returns
+        -------
+        dict
+            The initial state for the output.
+        """
+        states = []
+
+        if "prognostics" in self.config.initial_state_categories:
+            states.append(prognostic_state)
+
+        if "constant_forcings" in self.config.initial_state_categories:
+            states.append(constants_state)
+
+        if "dynamic_forcings" in self.config.initial_state_categories:
+            states.append(forcings_state)
+
+        return self._combine_states(*states)
+
+    def _check_state(self, state: Dict[str, Any], title: str) -> None:
+        """Check the state for consistency.
+
+        Parameters
+        ----------
+        state : dict
+            The state to check.
+        title : str
+            The title of the state (for logging).
+
+        Raises
+        ------
+        ValueError
+            If the state is not consistent.
+        """
+
+        if not isinstance(state, dict):
+            raise ValueError(f"State '{title}' is not a dictionary: {state}")
+
+        input = state.get("_input")
+
+        if "fields" not in state:
+            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=})")
+
+        shape = None
+
+        for field, values in state["fields"].items():
+            if shape is None:
+                shape = values.shape
+            elif shape != values.shape:
+                raise ValueError(
+                    f"Field '{field}' in state '{title}' has different shape: "
+                    f"{shape} and {values.shape} ({input=})."
+                )
+
+        date = state.get("date")
+        if not isinstance(date, datetime.datetime):
+            raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")

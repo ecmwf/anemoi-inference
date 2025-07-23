@@ -22,6 +22,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..input import Input
@@ -33,7 +34,16 @@ LOG = logging.getLogger(__name__)
 class DatasetInput(Input):
     """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context: Context, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        context: Context,
+        *,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        grid_indices=None,
+        open_dataset_args: Tuple[Any, ...],
+        open_dataset_kwargs: Dict[str, Any],
+    ) -> None:
         """Initialize the DatasetInput.
 
         Parameters
@@ -45,14 +55,19 @@ class DatasetInput(Input):
         kwargs : Dict[str, Any]
             Keyword arguments for the dataset.
         """
-        super().__init__(context)
+        super().__init__(context, variables=variables, pre_processors=pre_processors)
 
-        grid_indices = kwargs.pop("grid_indices", None)
+        self.open_dataset_args = open_dataset_args
+        self.open_dataset_kwargs = open_dataset_kwargs
 
-        self.args, self.kwargs = args, kwargs
         if context.verbosity > 0:
             LOG.info(
-                "Opening dataset with\nargs=%s\nkwargs=%s", json.dumps(args, indent=4), json.dumps(kwargs, indent=4)
+                "Opening dataset with\nargs=%s\nkwargs=%s",
+                json.dumps(open_dataset_args, indent=4),
+                json.dumps(
+                    open_dataset_kwargs,
+                    indent=4,
+                ),
             )
 
         if grid_indices is None and "grid_indices" in context.checkpoint._supporting_arrays:
@@ -70,7 +85,11 @@ class DatasetInput(Input):
         """Return the dataset."""
         from anemoi.datasets import open_dataset
 
-        return open_dataset(*self.args, **self.kwargs)
+        dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
+        if self.variables is not None:
+            dataset = open_dataset(dataset, select=self.variables)
+
+        return dataset
 
     @cached_property
     def latitudes(self) -> FloatArray:
@@ -84,7 +103,7 @@ class DatasetInput(Input):
 
     def __repr__(self) -> str:
         """Return a string representation of the DatasetInput."""
-        return f"DatasetInput({self.args}, {self.kwargs})"
+        return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
     def create_input_state(self, *, date: Optional[Date] = None) -> State:
         """Create the input state for the given date.
@@ -218,7 +237,16 @@ class DatasetInputArgsKwargs(DatasetInput):
 
     trace_name = "dataset/provided"
 
-    def __init__(self, context: Context, /, *args: Any, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        *args: Any,
+        use_original_paths: bool = True,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        grid_indices=None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the DatasetInputArgsKwargs.
 
         Parameters
@@ -242,13 +270,26 @@ class DatasetInputArgsKwargs(DatasetInput):
                 cmd += f"{key}={value}, "
 
             LOG.warning("%s", cmd)
-        super().__init__(context, args, kwargs)
+        super().__init__(
+            context,
+            variables=variables,
+            pre_processors=pre_processors,
+            grid_indices=grid_indices,
+            open_dataset_args=args,
+            open_dataset_kwargs=kwargs,
+        )
 
 
 class DataloaderInput(DatasetInput):
     """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context: Context, /, name: str, use_original_paths: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        *,
+        use_original_paths: bool = True,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the DataloaderInput.
 
         Parameters
@@ -260,12 +301,17 @@ class DataloaderInput(DatasetInput):
         use_original_paths : bool
             Whether to use original paths.
         """
-        args, kwargs = context.checkpoint.open_dataset_args_kwargs(
+        open_dataset_args, open_dataset_kwargs = context.checkpoint.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
-            from_dataloader=name,
+            from_dataloader=self.name,
         )
 
-        super().__init__(context, args, kwargs)
+        super().__init__(
+            context,
+            open_dataset_args=open_dataset_args,
+            open_dataset_kwargs=open_dataset_kwargs,
+            **kwargs,
+        )
 
 
 @input_registry.register("test")
@@ -273,23 +319,7 @@ class TestInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/test"
-
-    def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
-        """Initialize the TestInput.
-
-        Parameters
-        ----------
-        context : Any
-            The context in which the input is used.
-        use_original_paths : bool
-            Whether to use original paths.
-        """
-        super().__init__(
-            context,
-            name="test",
-            use_original_paths=use_original_paths,
-            **kwargs,
-        )
+    name = "test"
 
 
 @input_registry.register("validation")
@@ -297,14 +327,7 @@ class ValidationInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/validation"
-
-    def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
-        super().__init__(
-            context,
-            name="validation",
-            use_original_paths=use_original_paths,
-            **kwargs,
-        )
+    name = "validation"
 
 
 @input_registry.register("training")
@@ -312,11 +335,4 @@ class TrainingInput(DataloaderInput):
     """Handles `anemoi-datasets` dataset as input."""
 
     trace_name = "dataset/training"
-
-    def __init__(self, context: Context, /, use_original_paths: bool = True, **kwargs: Any) -> None:
-        super().__init__(
-            context,
-            name="training",
-            use_original_paths=use_original_paths,
-            **kwargs,
-        )
+    name = "training"

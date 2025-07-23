@@ -25,6 +25,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -40,7 +41,15 @@ class DummyInput(EkdInput):
 
     trace_name = "dummy"
 
-    def __init__(self, context: Context, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        *,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        namer: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the DummyInput.
 
         Parameters
@@ -52,7 +61,7 @@ class DummyInput(EkdInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, **kwargs)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         """Create the input state for the given date.

@@ -36,7 +36,13 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: "Context", pre_processors: Optional[List[ProcessorConfig]] = None):
+    def __init__(
+        self,
+        context: "Context",
+        *,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+    ) -> None:
         """Initialize the Input object.
 
         Parameters
@@ -49,6 +55,7 @@ class Input(ABC):
         self.context = context
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
+        self.variables = variables
 
     @cached_property
     def pre_processors(self) -> List[Processor]:

@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -7,9 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-########################################################################################################
-# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
-########################################################################################################
 
 import datetime
 import logging
@@ -42,6 +39,7 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+from .variables import Variables
 
 if TYPE_CHECKING:
     import torch
@@ -89,7 +87,7 @@ class Runner(Context):
         *,
         device: str = "cuda",
         precision: Optional[str] = None,
-        report_error: bool = False,
+        # report_error: bool = False,
         allow_nans: Optional[bool] = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
@@ -98,6 +96,7 @@ class Runner(Context):
         trace_path: Optional[str] = None,
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
+        # initial_state_categories: List[str] = ["prognostics", "constant_forcings"],
         use_profiler: bool = False,
         typed_variables: Dict[str, Dict] = {},
     ) -> None:
@@ -127,11 +126,13 @@ class Runner(Context):
             Frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default True.
+        initial_state_categories : List[str]
+            Categories to write in the initial state, by default ['prognostics', 'constant_forcings'].
         use_profiler : bool, optional
             Whether to use profiler, by default False.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
-
+        self.variables = Variables(self)
         self.trace_path = trace_path
 
         if trace_path:
@@ -143,7 +144,7 @@ class Runner(Context):
 
         self.device = device
         self.precision = precision
-        self.report_error = report_error
+        # self.report_error = report_error
 
         # Override the default values set in `Context`
         self.verbosity = verbosity
@@ -153,6 +154,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
+        # self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution
@@ -247,49 +249,79 @@ class Runner(Context):
                 raise
 
     def create_constant_forcings_inputs(self, input_state: State) -> List[Forcings]:
-        """Create constant forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        result = []
 
-        Returns
-        -------
-        list[Forcings]
-            The created constant forcings inputs.
-        """
-        return self.checkpoint.constant_forcings_inputs(self, input_state)
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["constant+forcing"], exclude=["computed"]
+        )
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_constant_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed+constant+forcing"]
+        )
+
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_constant_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+
+        return result
 
     def create_dynamic_forcings_inputs(self, input_state: State) -> List[Forcings]:
-        """Create dynamic forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["forcing"], exclude=["computed", "constant"]
+        )
 
-        Returns
-        -------
-        list[Forcings]
-            The created dynamic forcings inputs.
-        """
-        return self.checkpoint.dynamic_forcings_inputs(self, input_state)
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed+forcing"], exclude=["constant"]
+        )
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+        return result
 
     def create_boundary_forcings_inputs(self, input_state: State) -> List[Forcings]:
-        """Create boundary forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        if not self.checkpoint.has_supporting_array("boundary"):
+            return []
 
-        Returns
-        -------
-        list[Forcings]
-            The created boundary forcings inputs.
-        """
-        return self.checkpoint.boundary_forcings_inputs(self, input_state)
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(include=["prognostic"])
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_boundary_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        return result
 
     def add_initial_forcings_to_input_state(self, input_state: State) -> None:
         """Add initial forcings to the input state.
@@ -362,17 +394,23 @@ class Runner(Context):
         return constant_forcings_inputs
 
     def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
-        """Modify the dynamic forcings inputs for the first step.
+        """Modify the dynamic forcings inputs for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
 
         Parameters
         ----------
-        dynamic_forcings_inputs : list of Forcings
-            The dynamic forcings inputs.
+        dynamic_forcings_inputs : List[Forcings]
+            The dynamic forcings inputs to be potentially modified for the initial step.
 
         Returns
         -------
-        list[Forcings]
-            The modified dynamic forcings inputs.
+
+        List[Forcings]
+            The modified list of dynamic forcings inputs for the initial step.
+
         """
         # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
@@ -407,7 +445,6 @@ class Runner(Context):
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
-
         self.add_initial_forcings_to_input_state(input_state)
 
         input_state = self.validate_input_state(input_state)
@@ -657,7 +694,11 @@ class Runner(Context):
 
             if self.trace:
                 self.trace.write_output_tensor(
-                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    date,
+                    s,
+                    output.cpu().numpy(),
+                    self.checkpoint.output_tensor_index_to_variable,
+                    self.checkpoint.timestep,
                 )
 
             yield new_state
@@ -1043,3 +1084,11 @@ class Runner(Context):
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
         pass
+
+    def has_split_input(self) -> bool:
+        # To be overridden by a subclass if the we use different inputs
+        # for initial conditions, constants and dynamic forcings
+        raise NotImplementedError(
+            "This method should be overridden by a subclass if the runner uses different inputs "
+            "for initial conditions, constants and dynamic forcings."
+        )
