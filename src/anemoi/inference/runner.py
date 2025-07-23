@@ -99,6 +99,7 @@ class Runner(Context):
         trace_path: Optional[str] = None,
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
+        initial_state_categories: List[str] = ["prognostics", "constant_forcings"],
         use_profiler: bool = False,
         typed_variables: Dict[str, Dict] = {},
     ) -> None:
@@ -128,6 +129,8 @@ class Runner(Context):
             Frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default True.
+        initial_state_categories : List[str]
+            Categories to write in the initial state, by default ['prognostics', 'constant_forcings'].
         use_profiler : bool, optional
             Whether to use profiler, by default False.
         """
@@ -154,6 +157,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
+        self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution

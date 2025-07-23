@@ -19,7 +19,6 @@ from typing import List
 from typing import Optional
 from typing import Union
 
-import rich
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import FloatArray
@@ -116,15 +115,12 @@ class PatchOutput:
             assert key == "variable", patch
         self.patches.append(Matching(patch[key]))
 
-        rich.print(f"PatchOutput: {self.patches}")
-
     def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
         original_keys = keys.copy()
         result = keys.copy()
         for patch in self.patches:
             result.update(patch.patch(variable, original_keys))
 
-        rich.print(f"PatchOutput: {result}")
         return values, template, result
 
 

@@ -15,8 +15,6 @@ from typing import Any
 from typing import List
 from typing import Optional
 
-import rich
-
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import Date
@@ -58,8 +56,6 @@ class Input(ABC):
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
         self.variables = variables
-
-        rich.print(f"Input: {self.__class__.__name__} with variables: {self.variables}")
 
     @cached_property
     def pre_processors(self) -> List[Processor]:

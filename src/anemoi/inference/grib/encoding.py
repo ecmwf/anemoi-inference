@@ -20,7 +20,6 @@ from typing import Optional
 from typing import Union
 
 import earthkit.data as ekd
-import rich
 from anemoi.utils.dates import as_timedelta
 
 if TYPE_CHECKING:
@@ -147,12 +146,8 @@ def encode_time_processing(
     """
     assert edition in (1, 2)
 
-    # rich.print(f"[bold blue]Encoding time processing for {variable.name} {variable.time_processing} [/bold blue]")
-
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)
-        # result["startStep"] = _step_in_hours(step)
-        # result["endStep"] = _step_in_hours(step)
         result["stepType"] = "instant"
         return
 
@@ -172,7 +167,6 @@ def encode_time_processing(
         period_length = previous_end_step - period_start_step
 
         start = step - period_length
-        # assert False, (start, step, previous_step, period_start_step, period, period_length)
 
         if start < as_timedelta(0):
             LOG.warning(
@@ -208,8 +202,6 @@ def encode_time_processing(
     # give post-processors a chance to modify the start step
     start = _step_in_hours(start_steps.get(variable.name, start))
     end = _step_in_hours(step)
-
-    rich.print(f"[bold blue]Encoding time processing for {variable.name} {start=} {end=} [/bold blue]")
 
     result["startStep"] = start
     result["endStep"] = end

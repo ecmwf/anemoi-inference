@@ -11,8 +11,6 @@ import logging
 from functools import cached_property
 from typing import Any
 
-import rich
-
 from anemoi.inference.lazy import torch
 
 from . import runner_registry
@@ -69,7 +67,6 @@ class NoModelMixing:
 
         checkpoint = self.checkpoint
         number_of_output_variables = len(checkpoint.output_tensor_index_to_variable)
-        rich.print(f"Loading model from checkpoint: {checkpoint.output_tensor_index_to_variable}")
 
         class NoModel(torch.nn.Module):
             """Dummy model class for testing purposes."""
@@ -86,8 +83,7 @@ class NoModelMixing:
                     number_of_output_variables,  # variables
                 )
 
-                # return torch.rand(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
-                return torch.zeros(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+                return torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
 
         return NoModel()
 

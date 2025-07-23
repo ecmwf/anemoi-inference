@@ -78,6 +78,7 @@ class DefaultRunner(Runner):
             development_hacks=config.development_hacks,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
+            initial_state_categories=config.initial_state_categories,
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
@@ -346,7 +347,9 @@ class DefaultRunner(Runner):
         import numpy as np
 
         combined = states[0].copy()
+        combined["fields"] = combined["fields"].copy()
         shape = None
+
         for state in states[1:]:
 
             for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
@@ -415,9 +418,18 @@ class DefaultRunner(Runner):
         dict
             The initial state for the output.
         """
-        return prognostic_state
+        states = []
 
-        # return self._combine_states(prognostic_state, constants_state, forcings_state)
+        if "prognostics" in self.config.initial_state_categories:
+            states.append(prognostic_state)
+
+        if "constant_forcings" in self.config.initial_state_categories:
+            states.append(constants_state)
+
+        if "dynamic_forcings" in self.config.initial_state_categories:
+            states.append(forcings_state)
+
+        return self._combine_states(*states)
 
     def _check_state(self, state: Dict[str, Any], title: str) -> None:
         """Check the state for consistency.
@@ -457,20 +469,3 @@ class DefaultRunner(Runner):
         date = state.get("date")
         if not isinstance(date, datetime.datetime):
             raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
-
-        # if shape is not None: # Non-empty input
-        #     if shape[0] == 1:
-        #         assert isinstance(date, datetime.datetime), (
-        #             f"State '{title}' date is not a datetime: {date} ({input=})"
-        #         )
-        #     elif shape[0] > 1:
-        #         if not isinstance(date, list):
-        #             raise ValueError(f"State '{title}' date is not a list: {date} ({input=})")
-        #         if len(date) != shape[0]:
-        #             raise ValueError(
-        #                 f"State '{title}' date length does not match shape: "
-        #                 f"{len(date)} != {shape[0]} ({input=})."
-        #             )
-        #         for d in date:
-        #             if not isinstance(d, datetime.datetime):
-        #                 raise ValueError(f"State '{title}' date item is not a datetime: {d} ({input=}).")
