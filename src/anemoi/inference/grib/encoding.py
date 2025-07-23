@@ -166,7 +166,7 @@ def encode_time_processing(
                 "Try `write_initial_state: False`"
             )
     else:
-        # backwards compatibility or if period is missing from the metadata
+        # backwards compatibility with old transform or if period is missing from the metadata
         start = previous_step
         warnings.warn(
             f"{variable.name} {variable.time_processing} does not have a period set, using previous_step as start={_step_in_hours(start)}."
