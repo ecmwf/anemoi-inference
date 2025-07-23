@@ -13,14 +13,12 @@ It will generate fields with constant values for each variable and date.
 These values are then tested in the mock model.
 """
 
-import datetime
 import logging
 from typing import List
 from typing import Optional
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..input import Input
@@ -38,21 +36,14 @@ class EmptyInput(Input):
     def __init__(
         self,
         context: Context,
-        *,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
+        **kwargs,
     ) -> None:
 
-        super().__init__(context, variables=variables, pre_processors=pre_processors)
-        assert variables in (None, []), "EmptyInput should not have variables"
+        super().__init__(context, **kwargs)
+        assert self.variables in (None, []), "EmptyInput should not have variables"
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
+        return dict(fields=dict(), _input=self)
 
-        if date is None:
-            date = datetime.datetime(2000, 1, 1)
-
-        dates = [date + h for h in self.checkpoint.lagged]
-        return dict(date=dates[-1], latitudes=None, longitudes=None, fields=dict(), _input=self)
-
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
-        return dict(date=dates[-1], latitudes=None, longitudes=None, fields=dict(), _input=self)
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+        return dict(date=dates[-1], fields=dict(), _input=self)

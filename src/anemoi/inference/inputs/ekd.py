@@ -16,7 +16,6 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
@@ -27,7 +26,6 @@ from numpy.typing import DTypeLike
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..checks import check_data
@@ -107,9 +105,8 @@ class EkdInput(Input):
         self,
         context: Context,
         *,
-        variables: Optional[List[str]] = None,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
-        namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
+        namer: Optional[Any] = None,
+        **kwargs,
     ) -> None:
         """Initialize the EkdInput.
 
@@ -122,7 +119,7 @@ class EkdInput(Input):
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
-        super().__init__(context, variables=variables, pre_processors=pre_processors)
+        super().__init__(context, **kwargs)
 
         if isinstance(namer, dict):
             # TODO: a factory for namers

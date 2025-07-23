@@ -96,6 +96,7 @@ class Metadata(PatchMixin, LegacyMixin):
         self._metadata = DotDict(metadata)
         assert isinstance(supporting_arrays, dict)
         self._supporting_arrays = supporting_arrays
+        self._variables_categories = None
 
     @property
     def _indices(self) -> DotDict:
@@ -854,6 +855,10 @@ class Metadata(PatchMixin, LegacyMixin):
         dict
             The categories of variables.
         """
+
+        if self._variables_categories is not None:
+            return self._variables_categories
+
         result = defaultdict(set)
         typed_variables = self.typed_variables
 
@@ -888,7 +893,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
             result[name] = sorted(result[name])
 
-        return result
+        self._variables_categories = frozendict(result)
+        return self._variables_categories
 
     ###########################################################################
     # Supporting arrays

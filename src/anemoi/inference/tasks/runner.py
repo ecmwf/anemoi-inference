@@ -159,13 +159,11 @@ class CoupledInput:
         self.tag = 0
         self.send_only = sum(1 if c.target is task else 0 for c in couplings) == 0
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state.
 
         Parameters
         ----------
-        variables : list of str
-            List of variable names.
         dates : list of Date
             List of dates.
         current_state : State
@@ -176,8 +174,8 @@ class CoupledInput:
         State
             Updated state dictionary.
         """
-        LOG.info("Adding dynamic forcings %s %s", variables, dates)
-        state = dict(variables=variables, date=dates)
+        LOG.info("Adding dynamic forcings %s %s", dates)
+        state = dict(date=dates)
 
         for c in self.couplings:
             c.apply(

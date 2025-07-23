@@ -42,6 +42,7 @@ class Input(ABC):
         *,
         variables: Optional[List[str]],
         pre_processors: Optional[List[ProcessorConfig]] = None,
+        purpose=None,
     ) -> None:
         """Initialize the Input object.
 
@@ -56,6 +57,7 @@ class Input(ABC):
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
         self.variables = variables
+        self.purpose = purpose or "input"
 
     @cached_property
     def pre_processors(self) -> List[Processor]:
@@ -99,7 +101,10 @@ class Input(ABC):
         str
             The string representation of the Input object.
         """
-        return f"{self.__class__.__name__}()"
+        if self.purpose is None:
+            return f"{self.__class__.__name__}(variables={self.variables})"
+        else:
+            return f"{self.__class__.__name__}({self.purpose})"
 
     @abstractmethod
     def create_input_state(self, *, date: Optional[Date]) -> State:
@@ -118,13 +123,11 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables to load.
         dates : List[Date]
             The list of dates for which to load the forcings.
         current_state : State

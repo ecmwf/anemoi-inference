@@ -9,7 +9,6 @@
 
 
 import logging
-from typing import Any
 from typing import List
 from typing import Optional
 
@@ -17,7 +16,6 @@ from anemoi.utils.dates import as_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..input import Input
@@ -37,23 +35,22 @@ class GribFileInput(Input):
         self,
         context: Context,
         *,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         source: str,
         mode: str = "constant",  # Same as "anemoi-dataset"
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
 
         self.date = kwargs.pop("date", None)
         assert self.date is not None, "date must be provided for repeated-dates input"
 
         self.date = as_datetime(self.date)
-        self.source = create_input(context, source, variables=variables)
+
         self.mode = mode
 
         assert self.mode in ["constant"], f"Unknown mode {self.mode}"
 
-        super().__init__(context, variables=variables, pre_processors=pre_processors, **kwargs)
+        super().__init__(context, **kwargs)
+        self.source = create_input(context, source, variables=self.variables, purpose=self.purpose)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
         state = self.source.create_input_state(date=self.date)
@@ -61,11 +58,10 @@ class GribFileInput(Input):
         state["date"] = date
         return state
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         assert len(dates) > 0, "dates must not be empty for repeated dates input"
 
         state = self.source.load_forcings_state(
-            variables=variables,
             dates=[self.date],
             current_state=current_state,
         )

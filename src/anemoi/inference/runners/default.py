@@ -102,14 +102,17 @@ class DefaultRunner(Runner):
         # So that they are in considered in the `write_initial_state`
 
         prognostic_input = self.create_prognostics_input()
+        LOG.info(f"📥 Prognostic input: {prognostic_input}")
         prognostic_state = prognostic_input.create_input_state(date=self.config.date)
         self._check_state(prognostic_state, "prognostics")
 
         constants_input = self.create_constant_coupled_forcings_input()
+        LOG.info(f"📥 Constant forcings input: {constants_input}")
         constants_state = constants_input.create_input_state(date=self.config.date)
         self._check_state(constants_state, "constant_forcings")
 
         forcings_input = self.create_dynamic_forcings_input()
+        LOG.info(f"📥 Dynamic forcings input: {forcings_input}")
         forcings_state = forcings_input.create_input_state(date=self.config.date)
         self._check_state(forcings_state, "dynamic_forcings")
 
@@ -221,7 +224,7 @@ class DefaultRunner(Runner):
         """
         variables = self.variables.retrieved_prognostic_variables()
         config = self._input_forcings("prognostic_input", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables)
+        input = create_input(self, config, variables=variables, purpose="prognostics")
         LOG.info("Prognostic input: %s", input)
         return input
 
@@ -235,7 +238,7 @@ class DefaultRunner(Runner):
         """
         variables = self.variables.retrieved_constant_forcings_variables()
         config = self._input_forcings("constant_forcings", "forcings", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables)
+        input = create_input(self, config, variables=variables, purpose="constant_forcings")
         LOG.info("Constant coupled forcings input: %s", input)
         return input
 
@@ -249,7 +252,7 @@ class DefaultRunner(Runner):
         """
         variables = self.variables.retrieved_dynamic_forcings_variables()
         config = self._input_forcings("dynamic_forcings", "-forcings", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables)
+        input = create_input(self, config, variables=variables, purpose="dynamic_forcings")
         LOG.info("Dynamic forcings input: %s", input)
         return input
 
@@ -263,7 +266,7 @@ class DefaultRunner(Runner):
         """
         variables = self.variables.retrieved_boundary_forcings_variables()
         config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables)
+        input = create_input(self, config, variables=variables, purpose="boundary_forcings")
         LOG.info("Boundary forcings input: %s", input)
         return input
 
@@ -377,20 +380,27 @@ class DefaultRunner(Runner):
         combined = states[0].copy()
         combined["fields"] = combined["fields"].copy()
         shape = None
+        first_input = combined.get("_input")
 
         for state in states[1:]:
+
+            this_input = state.get("_input")
 
             for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
                 if shape is None:
                     shape = values.shape
                 elif shape != values.shape:
                     raise ValueError(
-                        f"Field '{name}' has different shape in the states: " f"{shape} and {values.shape}."
+                        f"Field '{name}' has different shape in the states: "
+                        f"{shape} and {values.shape}."
+                        f" Input: {first_input} vs {this_input}."
                     )
 
             if not set(combined["fields"]).isdisjoint(state["fields"]):
                 raise ValueError(
-                    f"Some states have overlapping fields:" f" {set(combined['fields']).intersection(state['fields'])}"
+                    f"Some states have overlapping fields:"
+                    f" {set(combined['fields']).intersection(state['fields'])}"
+                    f" Input: {first_input} vs {this_input}."
                 )
 
             combined["fields"].update(state.get("fields", {}))
@@ -416,13 +426,17 @@ class DefaultRunner(Runner):
                 if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):
                     if not np.array_equal(combined[key], value):
                         raise ValueError(
-                            f"Key '{key}' has different array values in the states: " f"{combined[key]} and {value}."
+                            f"Key '{key}' has different array values in the states: "
+                            f"{combined[key]} and {value}."
+                            f" Input: {first_input} vs {this_input}."
                         )
                     continue
 
                 if combined[key] != value:
                     raise ValueError(
-                        f"Key '{key}' has different values in the states: " f"{combined[key]} and {value} ({shape})."
+                        f"Key '{key}' has different values in the states: "
+                        f"{combined[key]} and {value} ({shape})."
+                        f" Input: {first_input} vs {this_input}."
                     )
 
         return combined
@@ -495,5 +509,7 @@ class DefaultRunner(Runner):
                 )
 
         date = state.get("date")
-        if not isinstance(date, datetime.datetime):
-            raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
+        if date is None and len(state["fields"]) > 0:
+            # date can be None for an empty input
+            if not isinstance(date, datetime.datetime):
+                raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")

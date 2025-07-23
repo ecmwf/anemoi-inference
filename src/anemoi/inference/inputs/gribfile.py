@@ -18,7 +18,6 @@ import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -39,10 +38,7 @@ class GribFileInput(GribInput):
         self,
         context: Context,
         *,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         path: str,
-        namer: Optional[Any] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the GribFileInput.
@@ -60,7 +56,7 @@ class GribFileInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, **kwargs)
+        super().__init__(context, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
@@ -85,13 +81,11 @@ class GribFileInput(GribInput):
         # return self._create_input_state(source, variables=None, date=date)
         return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
         dates : List[Date]
             List of dates for which to load the forcings.
         current_state : State
@@ -110,7 +104,7 @@ class GribFileInput(GribInput):
 
         return self._load_forcings_state(
             source,
-            variables=variables,
+            variables=self.variables,
             dates=dates,
             current_state=current_state,
         )

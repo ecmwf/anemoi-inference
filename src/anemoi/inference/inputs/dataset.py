@@ -38,11 +38,10 @@ class DatasetInput(Input):
         self,
         context: Context,
         *,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
-        grid_indices=None,
         open_dataset_args: Tuple[Any, ...],
         open_dataset_kwargs: Dict[str, Any],
+        grid_indices: Any = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInput.
 
@@ -50,12 +49,16 @@ class DatasetInput(Input):
         ----------
         context : Any
             The context in which the input is used.
-        args : Tuple[Any, ...]
+        open_dataset_args : Tuple[Any, ...]
             Arguments for the dataset.
-        kwargs : Dict[str, Any]
+        open_dataset_kwargs : Dict[str, Any]
             Keyword arguments for the dataset.
+        grid_indices : Optional[Any]
+            Indices to reduce the input grid. If None, the full grid is used.
+        **kwargs : Any
+            Additional keyword arguments.
         """
-        super().__init__(context, variables=variables, pre_processors=pre_processors)
+        super().__init__(context, **kwargs)
 
         self.open_dataset_args = open_dataset_args
         self.open_dataset_kwargs = open_dataset_kwargs
@@ -154,13 +157,11 @@ class DatasetInput(Input):
 
         return input_state
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
         dates : List[Any]
             List of dates for which to load the forcings.
         current_state : State
@@ -173,7 +174,7 @@ class DatasetInput(Input):
         """
         data = self._load_dates(dates)  # (date, variables, ensemble, values)
 
-        requested_variables = np.array([self.ds.name_to_index[v] for v in variables])
+        requested_variables = np.array([self.ds.name_to_index[v] for v in self.variables])
         data = data[:, requested_variables]
         # Squeeze the data to remove the ensemble dimension
         data = np.squeeze(data, axis=2)
@@ -183,7 +184,7 @@ class DatasetInput(Input):
         # apply reduction to `grid_indices`
         data = data[..., self.grid_indices]
 
-        fields = {v: data[i] for i, v in enumerate(variables)}
+        fields = {v: data[i] for i, v in enumerate(self.variables)}
 
         return dict(
             fields=fields,

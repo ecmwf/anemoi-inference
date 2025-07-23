@@ -222,7 +222,6 @@ class CoupledForcings(Forcings):
         """
         return self._state_to_numpy(
             self.input.load_forcings_state(
-                variables=self.variables,
                 dates=dates,
                 current_state=current_state,
             ),

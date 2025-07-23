@@ -301,13 +301,11 @@ class MarsInput(GribInput):
             **kwargs,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables for which to load the forcings state.
         dates : List[Date]
             The list of dates for which to load the forcings state.
         current_state : State
@@ -319,7 +317,10 @@ class MarsInput(GribInput):
             The loaded forcings state.
         """
         return self._load_forcings_state(
-            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+            self.retrieve(self.variables, dates),
+            variables=self.variables,
+            dates=dates,
+            current_state=current_state,
         )
 
     def patch(self, request: Dict[str, Any]) -> Dict[str, Any]:

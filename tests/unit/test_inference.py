@@ -27,6 +27,7 @@ def test_inference_simple() -> None:
         overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
     )
     runner = create_runner(config)
+    runner.checkpoint.print_variable_categories()
     runner.execute()
 
 
@@ -47,8 +48,6 @@ def test_inference_mwd() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    test_inference_mwd()
-    exit(0)
     for name, obj in list(globals().items()):
         if name.startswith("test_") and callable(obj):
             print(f"Running {name}...")

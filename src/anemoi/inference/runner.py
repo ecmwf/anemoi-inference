@@ -265,7 +265,7 @@ class Runner(Context):
             )
 
         computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
-            include=["computed+constant+forcing"]
+            include=["computed+constant"]
         )
 
         if len(computed_variables_mask) > 0:
@@ -294,7 +294,8 @@ class Runner(Context):
             )
 
         computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
-            include=["computed+forcing"], exclude=["constant"]
+            include=["computed"],
+            exclude=["constant"],
         )
         if len(computed_variables_mask) > 0:
             result.extend(

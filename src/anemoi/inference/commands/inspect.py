@@ -15,6 +15,7 @@ from typing import Any
 from typing import Callable
 
 import rich
+import yaml
 
 from ..checkpoint import Checkpoint
 from . import Command
@@ -133,9 +134,15 @@ class InspectCmd(Command):
     def datasets(self, c: Checkpoint, args: Namespace) -> None:
         open_dataset_args, open_dataset_kwargs = c.open_dataset_args_kwargs(use_original_paths=False)
 
-        rich.print("Open dataset arguments:")
-        rich.print(f"  {json.dumps(open_dataset_args, indent=4, default=str)}")
-        rich.print(f"  {json.dumps(open_dataset_kwargs, indent=4, default=str)}")
+        print("Open dataset arguments:")
+
+        if open_dataset_args:
+            print()
+            print(yaml.dump(open_dataset_args, indent=4, default_flow_style=False))
+
+        if open_dataset_kwargs:
+            print()
+            print(yaml.dump(open_dataset_kwargs, indent=4, default_flow_style=False))
 
     def requirements(self, c: Checkpoint, args: Namespace) -> None:
 
