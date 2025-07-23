@@ -72,13 +72,13 @@ class DefaultRunner(Runner):
             precision=config.precision,
             allow_nans=config.allow_nans,
             verbosity=config.verbosity,
-            report_error=config.report_error,
+            # report_error=config.report_error,
             use_grib_paramid=config.use_grib_paramid,
             patch_metadata=config.patch_metadata,
             development_hacks=config.development_hacks,
             output_frequency=config.output_frequency,
             write_initial_state=config.write_initial_state,
-            initial_state_categories=config.initial_state_categories,
+            # initial_state_categories=config.initial_state_categories,
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
@@ -103,15 +103,15 @@ class DefaultRunner(Runner):
 
         prognostic_input = self.create_prognostics_input()
         prognostic_state = prognostic_input.create_input_state(date=self.config.date)
-        self._check_state(prognostic_state, "prognostic")
+        self._check_state(prognostic_state, "prognostics")
 
         constants_input = self.create_constant_coupled_forcings_input()
         constants_state = constants_input.create_input_state(date=self.config.date)
-        self._check_state(constants_state, "constants")
+        self._check_state(constants_state, "constant_forcings")
 
         forcings_input = self.create_dynamic_forcings_input()
         forcings_state = forcings_input.create_input_state(date=self.config.date)
-        self._check_state(forcings_state, "forcings")
+        self._check_state(forcings_state, "dynamic_forcings")
 
         input_state = self._combine_states(
             prognostic_state,
@@ -212,27 +212,55 @@ class DefaultRunner(Runner):
 
     #########################################################################################################
     def create_prognostics_input(self) -> Input:
+        """Create the prognostics input.
+
+        Returns
+        -------
+        Input
+            The created prognostics input.
+        """
         variables = self.variables.retrieved_prognostic_variables()
         config = self._input_forcings("prognostic_input", "input") if variables else "empty"
         input = create_input(self, config, variables=variables)
         LOG.info("Prognostic input: %s", input)
         return input
 
-    def create_constant_coupled_forcings_input(self):
+    def create_constant_coupled_forcings_input(self) -> Input:
+        """Create the constant coupled forcings input.
+
+        Returns
+        -------
+        Input
+            The created constant coupled forcings input.
+        """
         variables = self.variables.retrieved_constant_forcings_variables()
         config = self._input_forcings("constant_forcings", "forcings", "input") if variables else "empty"
         input = create_input(self, config, variables=variables)
         LOG.info("Constant coupled forcings input: %s", input)
         return input
 
-    def create_dynamic_forcings_input(self):
+    def create_dynamic_forcings_input(self) -> Input:
+        """Create the dynamic forcings input.
+
+        Returns
+        -------
+        Input
+            The created dynamic forcings input.
+        """
         variables = self.variables.retrieved_dynamic_forcings_variables()
         config = self._input_forcings("dynamic_forcings", "-forcings", "input") if variables else "empty"
         input = create_input(self, config, variables=variables)
         LOG.info("Dynamic forcings input: %s", input)
         return input
 
-    def create_boundary_forcings_input(self):
+    def create_boundary_forcings_input(self) -> Input:
+        """Create the boundary forcings input.
+
+        Returns
+        -------
+        Input
+            The created boundary forcings input.
+        """
         variables = self.variables.retrieved_boundary_forcings_variables()
         config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
         input = create_input(self, config, variables=variables)

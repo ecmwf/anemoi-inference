@@ -7,9 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-########################################################################################################
-# Don't import torch here, it takes a long time to load and is not needed for the runner registration. #
-########################################################################################################
 
 import datetime
 import logging
@@ -90,7 +87,7 @@ class Runner(Context):
         *,
         device: str = "cuda",
         precision: Optional[str] = None,
-        report_error: bool = False,
+        # report_error: bool = False,
         allow_nans: Optional[bool] = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
@@ -99,7 +96,7 @@ class Runner(Context):
         trace_path: Optional[str] = None,
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
-        initial_state_categories: List[str] = ["prognostics", "constant_forcings"],
+        # initial_state_categories: List[str] = ["prognostics", "constant_forcings"],
         use_profiler: bool = False,
         typed_variables: Dict[str, Dict] = {},
     ) -> None:
@@ -147,7 +144,7 @@ class Runner(Context):
 
         self.device = device
         self.precision = precision
-        self.report_error = report_error
+        # self.report_error = report_error
 
         # Override the default values set in `Context`
         self.verbosity = verbosity
@@ -157,7 +154,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
-        self.initial_state_categories = initial_state_categories
+        # self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution
