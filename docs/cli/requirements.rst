@@ -3,7 +3,7 @@
 Requirements Command
 ================
 
-This command will create a Python's requirements.txt file based version of the packages that were use during training.
+This command will create a Python's requirements.txt file based version of the packages that were used during training.
 
 *********
  Usage
