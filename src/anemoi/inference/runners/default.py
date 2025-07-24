@@ -9,6 +9,8 @@
 
 
 import logging
+import warnings
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -36,6 +38,9 @@ from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    import torch
 
 
 @runner_registry.register("default")
@@ -80,6 +85,19 @@ class DefaultRunner(Runner):
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
         )
+
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+    ) -> "torch.Tensor":
+        for key, value in self.config.predict_kwargs.items():
+            if key in kwargs:
+                warnings.warn(
+                    f"`predict_kwargs` contains illegal kwarg `{key}`. This kwarg is set by the runner and will be ignored."
+                )
+                continue
+            kwargs[key] = value
+
+        return super().predict_step(model, input_tensor_torch, **kwargs)
 
     def execute(self) -> None:
         """Execute the runner."""

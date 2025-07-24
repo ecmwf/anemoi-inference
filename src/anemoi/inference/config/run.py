@@ -88,6 +88,9 @@ class RunConfiguration(Configuration):
     written.
     """
 
+    predict_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""
+
     typed_variables: Dict[str, Dict] = Field(default_factory=dict)
     """A list of typed variables to support the encoding of outputs."""
 
