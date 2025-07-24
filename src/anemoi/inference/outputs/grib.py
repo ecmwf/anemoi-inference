@@ -72,7 +72,6 @@ class HindcastOutput:
         for k in ("date", "hdate", "eps", "productDefinitionTemplateNumber"):
             keys.pop(k, None)
 
-        keys["edition"] = 1
         keys["localDefinitionNumber"] = 30
         keys["dataDate"] = int(to_datetime(date).strftime("%Y%m%d"))
         keys["referenceDate"] = int(to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
