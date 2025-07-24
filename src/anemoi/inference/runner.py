@@ -873,6 +873,11 @@ class Runner(Context):
             total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
             input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
+            for n in source.variables_mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
