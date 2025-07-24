@@ -144,8 +144,6 @@ You may also have to install pandoc on MacOS:
    cli/inspect
    cli/patch
    cli/requests
-   cli/variables
-   cli/requirements
 
 .. toctree::
    :maxdepth: 1
