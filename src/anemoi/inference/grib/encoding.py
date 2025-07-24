@@ -10,7 +10,9 @@
 
 import logging
 import re
+import warnings
 from io import IOBase
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,6 +20,10 @@ from typing import Optional
 from typing import Union
 
 import earthkit.data as ekd
+from anemoi.utils.dates import as_timedelta
+
+if TYPE_CHECKING:
+    from anemoi.transform.variables import Variable
 
 LOG = logging.getLogger(__name__)
 
@@ -110,7 +116,7 @@ def encode_time_processing(
     *,
     result: Dict[str, Any],
     template: ekd.Field,
-    variable: Any,
+    variable: "Variable",
     step: Any,
     previous_step: Optional[Any],
     start_steps: Dict[Any, Any],
@@ -152,7 +158,22 @@ def encode_time_processing(
             LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
-    start = _step_in_hours(start_steps.get(variable, previous_step))
+    if period := getattr(variable, "period", None):
+        start = step - period
+        if start < as_timedelta(0):
+            raise ValueError(
+                f"Writing {variable.name} at step {_step_in_hours(step)} with period {_step_in_hours(period)} for would result in a negative start step {_step_in_hours(start)}. "
+                "Try `write_initial_state: False`"
+            )
+    else:
+        # backwards compatibility with old transform or if period is missing from the metadata
+        start = previous_step
+        warnings.warn(
+            f"{variable.name} {variable.time_processing} does not have a period set, using previous_step as start={_step_in_hours(start)}."
+        )
+
+    # give post-processors a chance to modify the start step
+    start = _step_in_hours(start_steps.get(variable.name, start))
     end = _step_in_hours(step)
 
     result["startStep"] = start
