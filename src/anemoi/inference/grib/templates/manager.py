@@ -107,6 +107,7 @@ class TemplateManager:
         lookup = dict(
             name=name,
             grid=self._grid(checkpoint.grid),
+            area=checkpoint.area,
             time_processing=typed.time_processing,
             number_of_grid_points=checkpoint.number_of_grid_points,
         )
