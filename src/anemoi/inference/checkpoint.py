@@ -298,6 +298,28 @@ class Checkpoint:
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
 
+    def open_dataset(
+        self,
+        *,
+        use_original_paths: Optional[bool] = None,
+        from_dataloader: Optional[Any] = None,
+    ) -> Any:
+        """Open the dataset.
+
+        Parameters
+        ----------
+        use_original_paths : bool, optional
+            Whether to use the original paths, by default None.
+        from_dataloader : Any, optional
+            The dataloader to use, by default None.
+
+        Returns
+        -------
+        Any
+            The opened dataset.
+        """
+        return self._metadata.open_dataset(use_original_paths=use_original_paths, from_dataloader=from_dataloader)
+
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: Optional[Any] = None
     ) -> Tuple[Any, Any]:
