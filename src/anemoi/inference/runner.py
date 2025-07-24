@@ -96,6 +96,7 @@ class Runner(Context):
         trace_path: Optional[str] = None,
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
+        initial_state_categories: Optional[List[str]] = None,
         use_profiler: bool = False,
         typed_variables: Dict[str, Dict] = {},
     ) -> None:
@@ -150,6 +151,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
+        self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution

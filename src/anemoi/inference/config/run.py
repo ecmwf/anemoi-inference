@@ -91,6 +91,9 @@ class RunConfiguration(Configuration):
     written.
     """
 
+    initial_state_categories: List[str] = ["prognostics", "constant_forcings"]
+    """A list of categories to use when writing step zero."""
+
     predict_kwargs: Dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""
 
