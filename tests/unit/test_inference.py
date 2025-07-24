@@ -27,7 +27,6 @@ def test_inference_simple() -> None:
         overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
     )
     runner = create_runner(config)
-    runner.checkpoint.print_variable_categories()
     runner.execute()
 
 

@@ -81,7 +81,7 @@ def test_setup(request, get_test_data: callable, tmp_path: Path) -> Setup:
 def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     """Run the integration test suite."""
 
-    overrides = {"lead_time": "48h", "device": "cpu"}  # , "date": "2025-06-11 00:00:00"}
+    overrides = {"lead_time": "48h", "device": "cpu"}
     LOG.info(f"Config overrides: {overrides}")
 
     config = RunConfiguration.load(

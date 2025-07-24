@@ -96,7 +96,6 @@ class Runner(Context):
         trace_path: Optional[str] = None,
         output_frequency: Optional[str] = None,
         write_initial_state: bool = True,
-        # initial_state_categories: List[str] = ["prognostics", "constant_forcings"],
         use_profiler: bool = False,
         typed_variables: Dict[str, Dict] = {},
     ) -> None:
@@ -126,8 +125,6 @@ class Runner(Context):
             Frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default True.
-        initial_state_categories : List[str]
-            Categories to write in the initial state, by default ['prognostics', 'constant_forcings'].
         use_profiler : bool, optional
             Whether to use profiler, by default False.
         """
@@ -144,7 +141,6 @@ class Runner(Context):
 
         self.device = device
         self.precision = precision
-        # self.report_error = report_error
 
         # Override the default values set in `Context`
         self.verbosity = verbosity
@@ -154,7 +150,6 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
-        # self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution
@@ -543,9 +538,10 @@ class Runner(Context):
             except RuntimeError:
                 # This happens when the no GPU is available
                 raise
-            except Exception:  # Wildcard exception to catch all errors
-                self.checkpoint.report_error()
-                raise
+            except Exception as e:  # Wildcard exception to catch all errors
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                error_msg = f"Error loading model - {validation_result}"
+                raise RuntimeError(error_msg) from e
 
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner

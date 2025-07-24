@@ -57,7 +57,7 @@ class Input(ABC):
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
         self.variables = variables
-        self.purpose = purpose or "input"
+        self.purpose = purpose
 
     @cached_property
     def pre_processors(self) -> List[Processor]:
