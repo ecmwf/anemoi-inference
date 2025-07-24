@@ -91,8 +91,8 @@ class RunConfiguration(Configuration):
     written.
     """
 
-    initial_state_categories: List[str] = ["prognostics", "constant_forcings"]
-    """A list of categories to write in the initial state. This is used to filter the fields written in the initial state."""
+    predict_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""
 
     typed_variables: Dict[str, Dict] = Field(default_factory=dict)
     """A list of typed variables to support the encoding of outputs."""

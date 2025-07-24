@@ -10,7 +10,7 @@
 
 import logging
 import re
-from datetime import datetime
+import warnings
 from io import IOBase
 from typing import TYPE_CHECKING
 from typing import Any
@@ -156,48 +156,19 @@ def encode_time_processing(
             LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
-    # TODO: update the variable class
-    period = variable.data.get("period", None)
-
-    if period is not None:
-
-        period_start_step = as_timedelta(period[0])
-        previous_end_step = as_timedelta(period[1])
-
-        period_length = previous_end_step - period_start_step
-
-        start = step - period_length
-
+    if period := getattr(variable, "period", None):
+        start = step - period
         if start < as_timedelta(0):
-            LOG.warning(
-                f"Start step {start} is negative for variable {variable.name} with period {period}, using previous step."
+            raise ValueError(
+                f"Writing {variable.name} at step {_step_in_hours(step)} with period {_step_in_hours(period)} for would result in a negative start step {_step_in_hours(start)}. "
+                "Try `write_initial_state: False`"
             )
-
-            assert result["time"] in (
-                0,
-                600,
-                1200,
-                1800,
-            ), f"Unexpected time {result['time']} for variable {variable.name} with period {period}"
-            date = datetime(
-                year=result["date"] // 10000,
-                month=(result["date"] // 100) % 100,
-                day=result["date"] % 100,
-                hour=result["time"] // 100,
-                minute=result["time"] % 100,
-            )
-
-            date += start
-            step -= start
-            start = as_timedelta(0)
-
-            result["date"] = date.year * 10000 + date.month * 100 + date.day
-            result["time"] = date.hour * 100 + date.minute
-
     else:
-        # backwards compatibility
+        # backwards compatibility with old transform or if period is missing from the metadata
         start = previous_step
-        LOG.warning(f"{variable.name} {variable.time_processing} does not have a period set, using start={start}.")
+        warnings.warn(
+            f"{variable.name} {variable.time_processing} does not have a period set, using previous_step as start={_step_in_hours(start)}."
+        )
 
     # give post-processors a chance to modify the start step
     start = _step_in_hours(start_steps.get(variable.name, start))

@@ -51,8 +51,8 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _fix(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
-    """Check if the mars dictionary contains valid keys.
+def _fix(mars: Dict[str, Any], keys: Dict[str, Any]) -> None:
+    """Check if the mars dictionary contains valid keys and fix it.
 
     Parameters
     ----------
@@ -60,23 +60,18 @@ def _fix(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
         The mars dictionary.
     keys : Dict[str, Any]
         The keys dictionary.
-
-    Returns
-    -------
-    bool
-        True if valid, False otherwise.
     """
     if "number" in keys and "number" not in mars:
-        LOG.error(f"`number` is missing from mars namespace, setting it to {keys['number']}")
+        LOG.debug(f"`number` is missing from mars namespace, setting it to {keys['number']}")
         mars["number"] = keys["number"]
 
     if "referenceDate" in keys and "hdate" not in mars:
-        LOG.error(f"`hdate` is missing from mars namespace, setting it to {keys['referenceDate']}")
+        LOG.debug(f"`hdate` is missing from mars namespace, setting it to {keys['referenceDate']}")
         mars["hdate"] = keys["referenceDate"]
 
     if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
         if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
-            LOG.error(
+            LOG.debug(
                 f"{keys.get('stepType')} `step={mars.get('step')}` is not a range,  setting it to {keys['startStep']}-{keys['endStep']}."
             )
             mars["step"] = f"{keys['startStep']}-{keys['endStep']}"
