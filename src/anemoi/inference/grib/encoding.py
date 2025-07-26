@@ -148,8 +148,6 @@ def encode_time_processing(
 
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)
-        # result["startStep"] = _step_in_hours(step)
-        # result["endStep"] = _step_in_hours(step)
         result["stepType"] = "instant"
         return
 

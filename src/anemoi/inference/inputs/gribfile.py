@@ -17,7 +17,6 @@ import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -37,10 +36,8 @@ class GribFileInput(GribInput):
     def __init__(
         self,
         context: Context,
-        path: str,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
-        namer: Optional[Any] = None,
+        path: str,
         **kwargs: Any,
     ) -> None:
         """Initialize the GribFileInput.
@@ -58,7 +55,7 @@ class GribFileInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, pre_processors, namer=namer, **kwargs)
+        super().__init__(context, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
@@ -74,15 +71,14 @@ class GribFileInput(GribInput):
         State
             The created input state.
         """
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+        return self._create_input_state(ekd.from_source("file", self.path), date=date)
+
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
         dates : List[Date]
             List of dates for which to load the forcings.
         current_state : State
@@ -93,9 +89,9 @@ class GribFileInput(GribInput):
         State
             The loaded forcings state.
         """
+
         return self._load_forcings_state(
             ekd.from_source("file", self.path),
-            variables=variables,
             dates=dates,
             current_state=current_state,
         )

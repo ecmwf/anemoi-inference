@@ -125,13 +125,12 @@ class Cutout(Input):
 
         return combined_state
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
+
         dates : List[Date]
             List of dates for which to load the forcings.
         current_state : State
@@ -145,13 +144,13 @@ class Cutout(Input):
 
         sources = list(self.sources.keys())
         combined_fields = self.sources[sources[0]].load_forcings_state(
-            variables=variables, dates=dates, current_state=current_state
+            variables=self.variables, dates=dates, current_state=current_state
         )["fields"]
         combined_mask = self.masks[sources[0]]
         for source in sources[1:]:
             mask = self.masks[source]
             new_fields = self.sources[source].load_forcings_state(
-                variables=variables, dates=dates, current_state=current_state
+                variables=self.variables, dates=dates, current_state=current_state
             )["fields"]
             combined_fields = _mask_and_combine_states(
                 combined_fields, new_fields, combined_mask, mask, combined_fields

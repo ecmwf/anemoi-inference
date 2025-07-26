@@ -64,8 +64,11 @@ class RunConfiguration(Configuration):
     pre_processors: List[ProcessorConfig] = []
     post_processors: List[ProcessorConfig] = []
 
-    forcings: Optional[Dict[str, Dict[str, Any]]] = None
-    """Where to find the forcings."""
+    dynamic_forcings: Optional[Union[str, Dict[str, Any]]] = None
+    """Where to find the dinamic forcings. (default is input)"""
+
+    constant_forcings: Optional[Union[str, Dict[str, Any]]] = None
+    """Where to find the constant forcings (default to input)."""
 
     device: str = "cuda"
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
@@ -87,6 +90,9 @@ class RunConfiguration(Configuration):
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written.
     """
+
+    initial_state_categories: List[str] = ["prognostics", "constant_forcings"]
+    """A list of categories to use when writing step zero."""
 
     predict_kwargs: Dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""
