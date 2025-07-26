@@ -26,6 +26,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import deprecation
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -33,6 +34,7 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
+from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
@@ -274,7 +276,13 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the prognostic input mask."""
         return np.array(self._indices.model.input.prognostic)
 
-    @cached_property
+    @property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.7.0",
+        current_version=__version__,
+        details="Use `select_variables_and_mask` instead.",
+    )
     def computed_time_dependent_forcings(self) -> Tuple[np.ndarray, list]:
         """Return the indices and names of the computed forcings that are not constant in time."""
         # Mapping between model and data indices
@@ -298,7 +306,13 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return np.array(indices), variables
 
-    @cached_property
+    @property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.7.0",
+        current_version=__version__,
+        details="Use `select_variables_and_mask` instead.",
+    )
     def computed_constant_forcings(self) -> Tuple[FloatArray, List[str]]:
         """Return the indices and names of the computed forcings that are  constant in time."""
         # Mapping between model and data indices
@@ -367,11 +381,23 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     @cached_property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.7.0",
+        current_version=__version__,
+        details="Use `select_variables` instead.",
+    )
     def diagnostic_variables(self) -> list:
         """Variables that are marked as diagnostic."""
         return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
 
     @cached_property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.7.0",
+        current_version=__version__,
+        details="Use `select_variables` instead.",
+    )
     def prognostic_variables(self) -> list:
         """Variables that are marked as prognostic."""
         return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]

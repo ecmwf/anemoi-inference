@@ -22,10 +22,12 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import deprecation
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 
@@ -197,11 +199,23 @@ class Checkpoint:
         return self._metadata.typed_variables
 
     @property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.7.0",
+        current_version=__version__,
+        details="Use `select_variables` instead.",
+    )
     def diagnostic_variables(self) -> Any:
         """Get the diagnostic variables."""
         return self._metadata.diagnostic_variables
 
     @property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.7.0",
+        current_version=__version__,
+        details="Use `select_variables` instead.",
+    )
     def prognostic_variables(self) -> Any:
         """Get the prognostic variables."""
         return self._metadata.prognostic_variables
