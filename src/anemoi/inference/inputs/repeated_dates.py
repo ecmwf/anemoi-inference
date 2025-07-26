@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -27,18 +28,15 @@ LOG = logging.getLogger(__name__)
 
 @input_registry.register("repeated-dates")
 class GribFileInput(Input):
-    """Handles constants."""
+    """This class is identical to the one used to in anemoi-datasets/create
+    It uses a source of constants (e.g. a source containing the bathymetry)
+    available only for a given date and returns its content whever date
+    is requested by the runner
+    """
 
     trace_name = "repeated dates"
 
-    def __init__(
-        self,
-        context: Context,
-        *,
-        source: str,
-        mode: str = "constant",  # Same as "anemoi-dataset"
-        **kwargs,
-    ) -> None:
+    def __init__(self, context: Context, *, source: str, mode: str = "constant", **kwargs: Any) -> None:
 
         self.date = kwargs.pop("date", None)
         assert self.date is not None, "date must be provided for repeated-dates input"
@@ -53,12 +51,40 @@ class GribFileInput(Input):
         self.source = create_input(context, source, variables=self.variables, purpose=self.purpose)
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
+        """Create the input state for the repeated-dates input.
+
+        Parameters
+        ----------
+        date : Date or None
+            The date for the input state.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
+
+        # TODO: Consider caching the result
         state = self.source.create_input_state(date=self.date)
         state["_input"] = self
         state["date"] = date
         return state
 
     def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+        """Load the forcings state for repeated dates input.
+
+        Parameters
+        ----------
+        dates : list of Date
+            The list of dates for which to repeat the fields.
+        current_state : State
+            The current state to use for loading.
+
+        Returns
+        -------
+        State
+            The loaded and repeated forcings state.
+        """
         assert len(dates) > 0, "dates must not be empty for repeated dates input"
 
         state = self.source.load_forcings_state(

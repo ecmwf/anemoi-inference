@@ -126,12 +126,39 @@ class InspectCmd(Command):
             print()
 
     def variables(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the variable categories in the checkpoint.
+
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
         c.print_variable_categories(print=rich.print)
 
     def indices(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the variable indices in the checkpoint.
+
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
         c.print_indices(print=rich.print)
 
     def datasets(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the dataset arguments and keyword arguments for opening datasets.
+
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
         open_dataset_args, open_dataset_kwargs = c.open_dataset_args_kwargs(use_original_paths=False)
 
         print("Open dataset arguments:")
@@ -145,7 +172,15 @@ class InspectCmd(Command):
             print(yaml.dump(open_dataset_kwargs, indent=4, default_flow_style=False))
 
     def requirements(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the requirements for the checkpoint, including PyPI and Git dependencies.
 
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
         c = Checkpoint(args.path)
         r = c.provenance_training()
 

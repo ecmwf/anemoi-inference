@@ -14,6 +14,7 @@ These values are then tested in the mock model.
 """
 
 import logging
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -30,20 +31,51 @@ SKIP_KEYS = ["date", "time", "step"]
 
 @input_registry.register("empty")
 class EmptyInput(Input):
+    """An Input that is always empty."""
 
     trace_name = "empty"
 
-    def __init__(
-        self,
-        context: Context,
-        **kwargs,
-    ) -> None:
+    def __init__(self, context: Context, **kwargs: Any) -> None:
+        """Initialise the EmptyInput.
 
+        Parameters
+        ----------
+        context : Context
+            The context object for the input.
+        **kwargs : object
+            Additional keyword arguments.
+        """
         super().__init__(context, **kwargs)
         assert self.variables in (None, []), "EmptyInput should not have variables"
 
     def create_input_state(self, *, date: Optional[Date]) -> State:
+        """Create an empty input state.
+
+        Parameters
+        ----------
+        date : Date or None
+            The date for the input state.
+
+        Returns
+        -------
+        State
+            The created empty input state.
+        """
         return dict(fields=dict(), _input=self)
 
     def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+        """Load an empty forcings state.
+
+        Parameters
+        ----------
+        dates : list of Date
+            The list of dates for the forcings state.
+        current_state : State
+            The current state (unused).
+
+        Returns
+        -------
+        State
+            The loaded empty forcings state.
+        """
         return dict(date=dates[-1], fields=dict(), _input=self)
