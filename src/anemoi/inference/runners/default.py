@@ -39,6 +39,7 @@ from ..pre_processors import create_pre_processor
 from ..runner import Runner
 from ..state import check_state
 from ..state import combine_states
+from ..state import reduce_state
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ class DefaultRunner(Runner):
         # This hook is needed for the coupled runner
         self.input_state_hook(constants_state)
 
-        initial_state = Output.reduce(input_state)
+        initial_state = reduce_state(input_state)
         # Top-level post-processors on the other hand are applied on State and are executed here.
         LOG.info("Top-level post-processors: %s", self.post_processors)
 

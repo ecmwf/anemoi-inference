@@ -16,10 +16,10 @@ from typing import List
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.output import Output
 from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.runners.testing import TestingMixing
+from anemoi.inference.state import reduce_state
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
 from anemoi.inference.types import Date
@@ -58,11 +58,11 @@ class CoupledRunner(DefaultRunner):
 
     def input_state_hook(self, input_state: State) -> None:
         """Hook used by coupled runners to send the input state."""
-        self.coupled_input.initial_state(Output.reduce(input_state))
+        self.coupled_input.initial_state(reduce_state(input_state))
 
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
-        self.coupled_input.output_state(Output.reduce(state))
+        self.coupled_input.output_state(reduce_state(state))
 
     def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
         """Create dynamic coupled forcings.
