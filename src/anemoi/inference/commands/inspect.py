@@ -69,8 +69,6 @@ class InspectCmd(Command):
             The arguments passed to the command.
         """
         c = Checkpoint(args.path)
-        rich.print(f"Checkpoint: {c.path}")
-        rich.print("=" * 80)
 
         if args.validate:
             c.validate_environment()
