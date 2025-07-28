@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 @input_registry.register("repeated-dates")
-class GribFileInput(Input):
+class RepeatedDatesInput(Input):
     """This class is identical to the one used to in anemoi-datasets/create
     It uses a source of constants (e.g. a source containing the bathymetry)
     available only for a given date and returns its content whever date
