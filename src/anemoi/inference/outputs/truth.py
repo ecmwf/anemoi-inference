@@ -11,6 +11,7 @@ import logging
 from typing import Any
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
 from ..context import Context
@@ -52,7 +53,7 @@ class TruthOutput(ForwardOutput):
             The state to write.
         """
         truth_state = self._input.create_input_state(date=state["date"])
-        reduced_state = self.reduce(truth_state)
+        reduced_state = reduce_state(truth_state)
         self.output.write_state(reduced_state)
 
     def __repr__(self) -> str:

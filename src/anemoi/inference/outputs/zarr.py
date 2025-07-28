@@ -20,6 +20,7 @@ from typing import Optional
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -260,7 +261,7 @@ class ZarrOutput(Output):
 
     def write_initial_state(self, state: State) -> None:
         """Write the initial state to the Zarr file."""
-        state = self.reduce(state)  # Reduce to only the last step
+        state = reduce_state(state)  # Reduce to only the last step
 
         return super().write_initial_state(state)
 

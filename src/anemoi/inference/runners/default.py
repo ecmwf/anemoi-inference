@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -37,6 +37,8 @@ from ..outputs import create_output
 from ..post_processors import create_post_processor
 from ..pre_processors import create_pre_processor
 from ..runner import Runner
+from ..state import check_state
+from ..state import combine_states
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
@@ -121,17 +123,17 @@ class DefaultRunner(Runner):
         prognostic_input = self.create_prognostics_input()
         LOG.info(f"📥 Prognostic input: {prognostic_input}")
         prognostic_state = prognostic_input.create_input_state(date=self.config.date)
-        self._check_state(prognostic_state, "prognostics")
+        check_state(prognostic_state, "prognostics")
 
         constants_input = self.create_constant_coupled_forcings_input()
         LOG.info(f"📥 Constant forcings input: {constants_input}")
         constants_state = constants_input.create_input_state(date=self.config.date)
-        self._check_state(constants_state, "constant_forcings")
+        check_state(constants_state, "constant_forcings")
 
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info(f"📥 Dynamic forcings input: {forcings_input}")
         forcings_state = forcings_input.create_input_state(date=self.config.date)
-        self._check_state(forcings_state, "dynamic_forcings")
+        check_state(forcings_state, "dynamic_forcings")
 
         input_state = self._combine_states(
             prognostic_state,
@@ -488,7 +490,7 @@ class DefaultRunner(Runner):
         if "dynamic_forcings" in self.config.initial_state_categories:
             states.append(forcings_state)
 
-        return self._combine_states(*states)
+        return combine_states(*states)
 
     def _check_state(self, state: Dict[str, Any], title: str) -> None:
         """Check the state for consistency.
