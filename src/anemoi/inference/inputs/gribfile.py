@@ -9,6 +9,7 @@
 
 
 import logging
+from functools import cached_property
 from typing import Any
 from typing import List
 from typing import Optional
@@ -72,7 +73,7 @@ class GribFileInput(GribInput):
             The created input state.
         """
 
-        return self._create_input_state(ekd.from_source("file", self.path), date=date)
+        return self._create_input_state(self._fieldlist, date=date)
 
     def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -91,7 +92,12 @@ class GribFileInput(GribInput):
         """
 
         return self._load_forcings_state(
-            ekd.from_source("file", self.path),
+            self._fieldlist,
             dates=dates,
             current_state=current_state,
         )
+
+    @cached_property
+    def _fieldlist(self) -> ekd.FieldList:
+        """Get the input fieldlist from the GRIB file."""
+        return ekd.from_source("file", self.path)

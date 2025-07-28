@@ -210,11 +210,13 @@ class MarsInput(GribInput):
     def __init__(
         self,
         context: Context,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
         *,
-        namer: Optional[Any] = None,
         patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
         log: bool = True,
+        variables: Optional[List[str]],
+        pre_processors: Optional[List[ProcessorConfig]] = None,
+        namer: Optional[Any] = None,
+        purpose: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -232,7 +234,13 @@ class MarsInput(GribInput):
         **kwargs : Any
             Additional keyword to pass to the request to MARS.
         """
-        super().__init__(context, pre_processors, namer=namer)
+        super().__init__(
+            context,
+            variables=variables,
+            pre_processors=pre_processors,
+            purpose=purpose,
+            namer=namer,
+        )
 
         self.kwargs = kwargs
         self.patches = patches or []
