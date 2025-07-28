@@ -51,6 +51,7 @@ dependencies = [
   "deprecation",
   "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
+  "findlib==0.1.1",
   "numpy",
   "omegaconf>=2.2,<2.4",
   "packaging",
