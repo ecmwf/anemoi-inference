@@ -9,6 +9,7 @@
 
 
 import logging
+from pathlib import Path
 
 import numpy as np
 
@@ -26,6 +27,7 @@ LOG = logging.getLogger(__name__)
 class ExtractBase(Processor):
     """Base class for processors that extract data from the state."""
 
+    # this needs to be set in subclasses
     indexer: BoolArray | slice
 
     def process(self, state: State) -> State:
@@ -70,7 +72,7 @@ class ExtractMask(ExtractBase):
 
         self._maskname = mask
 
-        if mask.endswith(".npy"):
+        if Path(mask).is_file():
             mask = np.load(mask)
         else:
             mask = context.checkpoint.load_supporting_array(mask)
