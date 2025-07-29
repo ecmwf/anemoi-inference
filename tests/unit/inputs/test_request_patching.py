@@ -41,6 +41,7 @@ def runner() -> None:
     return create_runner(config)
 
 
+@fake_checkpoints
 def test_patched_by_input_and_context(runner):
     runner.pre_processors.append(TestingProcessor(runner, "context"))
 
@@ -48,6 +49,7 @@ def test_patched_by_input_and_context(runner):
     input.pre_processors.append(TestingProcessor(runner, "input"))
 
     empty_request = {}
-    patched_request = runner.input.patch_data_request(empty_request)
+    patched_request = input.patch_data_request(empty_request)
+
     assert patched_request["context"] is True
     assert patched_request["input"] is True
