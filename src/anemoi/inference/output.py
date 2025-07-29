@@ -10,6 +10,7 @@ import datetime
 import logging
 from abc import ABC
 from abc import abstractmethod
+from functools import cache
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import List
@@ -59,14 +60,21 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
 
+        if isinstance(variables, dict):
+            self._included_variables = variables.get("include", [])
+            self._excluded_variables = variables.get("exclude", [])
+        else:
+            if variables and not isinstance(variables, (list, tuple)):
+                variables = [variables]
+            self._included_variables = variables or []
+            self._excluded_variables = []
+
         self.variables = variables
-        if self.variables is not None:
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
 
         self.typed_variables = self.checkpoint.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
 
+    @cache
     def skip_variable(self, variable: str) -> bool:
         """Check if a variable should be skipped.
 
@@ -80,7 +88,10 @@ class Output(ABC):
         bool
             True if the variable should be skipped, False otherwise.
         """
-        return self.variables is not None and variable not in self.variables
+        if variable in self._excluded_variables:
+            return True
+
+        return len(self._included_variables) > 0 and variable not in self._included_variables
 
     @cached_property
     def post_processors(self) -> List[Processor]:
