@@ -548,13 +548,23 @@ class GribWriter:
         tuple
             The encoded GRIB handle and the file path.
         """
-        handle = encode_message(
-            values=values,
-            check_nans=check_nans,
-            metadata=metadata,
-            template=template,
-            missing_value=missing_value,
-        )
+
+        while True:
+            try:
+                handle = encode_message(
+                    values=values,
+                    check_nans=check_nans,
+                    metadata=metadata,
+                    template=template,
+                    missing_value=missing_value,
+                )
+                break
+            except Exception as e:
+                if metadata.get("edition") == 2:
+                    raise
+                # Try again with edition 2
+                LOG.warning("Failed to encode GRIB message with edition 1, retrying with edition 2: %s", e)
+                metadata["edition"] = 2
 
         file, path = self.target(handle)
         handle.write(file)

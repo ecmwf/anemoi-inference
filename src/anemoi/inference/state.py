@@ -69,6 +69,8 @@ def combine_states(*states: State) -> State:
     """
     import numpy as np
 
+    assert len(states) > 1, "At least two states must be provided"
+
     combined = states[0].copy()
     combined["fields"] = combined["fields"].copy()
     shape = None

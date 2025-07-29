@@ -18,7 +18,6 @@ from anemoi.inference.state import combine_states
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
-from ..decorators import main_argument
 from ..input import Input
 from . import create_input
 from . import input_registry
@@ -27,29 +26,32 @@ LOG = logging.getLogger(__name__)
 
 
 @input_registry.register("split")
-@main_argument("splits")
+# @main_argument("splits")
 class SplitInput(Input):
 
     trace_name = "split input"
 
-    def __init__(self, context: Context, *, splits: list, **kwargs: Any) -> None:
+    def __init__(self, context: Context, *splits, **kwargs: Any) -> None:
 
         all_variables = set(kwargs.get("variables"))
         assert all_variables is not None, "variables must be provided for split input"
 
         self.splits = {}
 
-        fallback = None
+        default = None
+        seen = set()
 
         for s in splits:
             assert isinstance(s, dict), "each split must be a dictionary"
+
+            if "default" in s:
+                default = s["default"]
+                continue
+
             assert "source" in s, "each split must have a 'source' key"
             assert "variables" in s, "each split must have a 'variables' key"
 
             vars = s["variables"]
-            if (not vars) or (vars == "fallback"):
-                fallback = s["source"]
-                continue
 
             if not isinstance(vars, list):
                 vars = [vars]
@@ -61,12 +63,16 @@ class SplitInput(Input):
                     f"Variables {vars} not in the provided variables {all_variables} ({set(vars) - all_variables})"
                 )
 
-            self.splits[tuple(vars)] = create_input(
+            self.splits[tuple(sorted(vars))] = create_input(
                 context,
                 s["source"],
                 variables=vars,
                 purpose=s.get("purpose"),
             )
+
+            seen |= vars
+
+        all_variables -= seen
 
         for i, vars1 in enumerate(splits):
             vars1 = set(vars1)
@@ -77,20 +83,20 @@ class SplitInput(Input):
                 if not vars1.isdisjoint(vars2):
                     raise ValueError(f"Splits {vars1} and {vars2} overlap in variables {vars1 & vars2}")
 
-            all_variables -= vars1
-
         if all_variables:
-            if fallback is None:
-                raise ValueError(f"Variables {all_variables} not covered by any split and no fallback provided")
+            if default is None:
+                raise ValueError(f"Variables {all_variables} not covered by any split and no default provided")
 
-            LOG.debug(f"Variables {all_variables} not covered by any split, using fallback {fallback}")
+            LOG.debug(f"Variables {all_variables} not covered by any split, using default {default}")
 
-            self.fallback = create_input(
+            self.splits[tuple(sorted(all_variables))] = create_input(
                 context,
-                fallback,
+                default,
                 variables=sorted(all_variables),
                 purpose=kwargs.get("purpose"),
             )
+
+        assert len(self.splits) > 1, "At least two splits must be provided"
 
         self.splits = list(self.splits.values())
 
@@ -114,6 +120,9 @@ class SplitInput(Input):
         states = [split.create_input_state(date=date) for split in self.splits]
 
         state = combine_states(*states)
+
+        assert set(state["fields"]) == set(self.variables), (sorted(state["fields"]), sorted(self.variables))
+
         state["_input"] = self
         state["date"] = date
 
@@ -138,6 +147,8 @@ class SplitInput(Input):
 
         states = [split.load_forcings_state(dates=dates, current_state=current_state) for split in self.splits]
         state = combine_states(*states)
+
+        assert set(state["fields"]) == set(self.variables)
 
         state["date"] = dates[-1]
         state["_input"] = self
