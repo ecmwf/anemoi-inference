@@ -140,6 +140,27 @@ class Input(ABC):
         """
         return list(self.checkpoint.variable_to_input_tensor_index.keys())
 
+    def patch_data_request(self, request: Any) -> Any:
+        """Patch the data request.
+
+        Uses both the context and input preprocessors.
+
+        Parameters
+        ----------
+        request : Any
+            The data request.
+
+        Returns
+        -------
+        Any
+            The patched data request.
+        """
+        request = self.context.patch_data_request(request)
+        for p in self.pre_processors:
+            request = p.patch_data_request(request)
+
+        return request
+
     def set_private_attributes(self, state: State, value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state
         dictionary, that may be needed by the output object.
