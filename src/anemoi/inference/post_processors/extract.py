@@ -44,6 +44,7 @@ class ExtractBase(Processor):
             The updated state with extracted fields.
         """
         state = state.copy()
+        state["fields"] = state["fields"].copy()
 
         state["latitudes"] = state["latitudes"][self.indexer]
         state["longitudes"] = state["longitudes"][self.indexer]
