@@ -10,6 +10,7 @@
 
 import logging
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 
@@ -28,7 +29,7 @@ class ExtractBase(Processor):
     """Base class for processors that extract data from the state."""
 
     # this needs to be set in subclasses
-    indexer: BoolArray | slice
+    indexer: Union[BoolArray, slice]
 
     def process(self, state: State) -> State:
         """Process the state to extract a subset of points based on the indexer.
