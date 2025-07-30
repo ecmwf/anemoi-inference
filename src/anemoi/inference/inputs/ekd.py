@@ -162,7 +162,6 @@ class EkdInput(Input):
 
         # for f in data:
         #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
-
         data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
             name=variables, valid_datetime="ascending"
         )

@@ -82,7 +82,7 @@ class FDBInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.context.patch_data_request,
+            patch_request=self.patch_data_request,
         )
         requests = [self.kwargs | r for r in requests]
         # NOTE: this is a temporary workaround for #191
