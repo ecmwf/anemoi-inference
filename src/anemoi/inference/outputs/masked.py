@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import warnings
 from typing import Any
 from typing import List
 from typing import Optional
@@ -54,6 +55,12 @@ class MaskedOutput(ForwardOutput):
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
+
+        warnings.warn(
+            f"The {self.__class__.__name__} is deprecated and will be removed in a future release. "
+            "Use extraction post-processors instead.",
+            DeprecationWarning,
+        )
         super().__init__(
             context,
             output,
