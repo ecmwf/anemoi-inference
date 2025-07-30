@@ -64,6 +64,16 @@ def state():
 def extract_mask_npy(tmp_path):
     """Fixture to create a mock mask in .npy format."""
     mask = np.random.choice([True, False], size=STATE_NPOINTS)
-    mask_path = tmp_path / "mask.npy"
+    mask_path = tmp_path / "extract_mask.npy"
+    np.save(mask_path, mask)
+    return str(mask_path)
+
+
+@pytest.fixture
+def assign_mask_npy(tmp_path):
+    """Fixture to create a mock mask in .npy format."""
+    mask = np.zeros(STATE_NPOINTS + 10, dtype=bool)
+    mask[:STATE_NPOINTS] = True
+    mask_path = tmp_path / "assign_mask.npy"
     np.save(mask_path, mask)
     return str(mask_path)
