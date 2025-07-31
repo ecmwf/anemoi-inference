@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import warnings
 
 import numpy as np
 
@@ -64,6 +65,11 @@ class AssignMask(ForwardOutput):
     ) -> None:
         super().__init__(
             context, output, post_processors, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
+        warnings.warn(
+            "The AssignMask output is deprecated and will be removed in a future release. "
+            "Use the `assign_mask` post-processor instead.",
+            DeprecationWarning,
         )
 
         if mask not in self.checkpoint.supporting_arrays:
