@@ -10,7 +10,6 @@
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Optional
 
 from . import testing_registry
 
@@ -29,7 +28,7 @@ def check_grib(
     file: Path,
     expected_variables: list["Variable"],
     grib_keys: dict = {},
-    check_accum: Optional[str] = None,
+    check_accum: str | None = None,
     check_nans=False,
     **kwargs,
 ) -> None:
@@ -80,7 +79,7 @@ def check_grib(
 
 @testing_registry.register("check_with_xarray")
 def check_with_xarray(
-    *, file: Path, expected_variables: list["Variable"], check_accum: Optional[str] = None, check_nans=False, **kwargs
+    *, file: Path, expected_variables: list["Variable"], check_accum: str | None = None, check_nans=False, **kwargs
 ) -> None:
     LOG.info(f"Checking file: {file}")
     import numpy as np

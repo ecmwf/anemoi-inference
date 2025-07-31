@@ -11,12 +11,8 @@
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
@@ -39,7 +35,7 @@ LOG = logging.getLogger(__name__)
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
-    def __init__(self, rules: Any, default_namer: Callable[[Any, Dict[str, Any]], str]) -> None:
+    def __init__(self, rules: Any, default_namer: Callable[[Any, dict[str, Any]], str]) -> None:
         """Initialize the RulesNamer.
 
         Parameters
@@ -52,7 +48,7 @@ class RulesNamer:
         self.rules = rules
         self.default_namer = default_namer
 
-    def __call__(self, field: Any, original_metadata: Dict[str, Any]) -> str:
+    def __call__(self, field: Any, original_metadata: dict[str, Any]) -> str:
         """Generate a name for the field.
 
         Parameters
@@ -78,7 +74,7 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template: str, field: Any, original_metadata: Dict[str, Any]) -> str:
+    def substitute(self, template: str, field: Any, original_metadata: dict[str, Any]) -> str:
         """Substitute placeholders in the template with metadata values.
 
         Parameters
@@ -106,9 +102,9 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
+        pre_processors: list[ProcessorConfig] | None = None,
         *,
-        namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
+        namer: Callable[[Any, dict[str, Any]], str] | dict[str, Any] | None = None,
     ) -> None:
         """Initialize the EkdInput.
 
@@ -132,7 +128,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
+    def _filter_and_sort(self, data: Any, *, variables: list[str], dates: list[Any], title: str) -> Any:
         """Filter and sort the data.
 
         Parameters
@@ -152,7 +148,7 @@ class EkdInput(Input):
             The filtered and sorted data.
         """
 
-        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
+        def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
@@ -188,7 +184,7 @@ class EkdInput(Input):
             The selected variable.
         """
 
-        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
+        def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
@@ -198,10 +194,10 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         *,
-        variables: Optional[List[str]] = None,
-        dates: List[Date],
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
+        variables: list[str] | None = None,
+        dates: list[Date],
+        latitudes: FloatArray | None = None,
+        longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         title: str = "Create state",
@@ -247,7 +243,7 @@ class EkdInput(Input):
 
         geography_information = {}
 
-        def get_geography_info(key: str) -> Optional[str]:
+        def get_geography_info(key: str) -> str | None:
             try:
                 combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
             except NotImplementedError:  # Issue with earthkit.data throwing error here
@@ -350,10 +346,10 @@ class EkdInput(Input):
         self,
         input_fields: ekd.FieldList,
         *,
-        date: Optional[Date] = None,
-        variables: Optional[List[str]] = None,
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
+        date: Date | None = None,
+        variables: list[str] | None = None,
+        latitudes: FloatArray | None = None,
+        longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
     ) -> State:
@@ -404,8 +400,8 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         *,
-        variables: List[str],
-        dates: List[Date],
+        variables: list[str],
+        dates: list[Date],
         current_state: State,
     ) -> State:
         """Load the forcings state.

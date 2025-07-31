@@ -11,10 +11,6 @@
 import json
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import earthkit.data as ekd
 
@@ -28,7 +24,7 @@ LOG = logging.getLogger(__name__)
 class TemplateManager:
     """A class to manage GRIB templates."""
 
-    def __init__(self, owner: Any, templates: Optional[Union[List[str], str]] = None) -> None:
+    def __init__(self, owner: Any, templates: list[str] | str | None = None) -> None:
         """Initialize the TemplateManager.
 
         Parameters
@@ -55,7 +51,7 @@ class TemplateManager:
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
-    def template(self, name: str, state: State, typed_variables: List[Any]) -> Optional[ekd.Field]:
+    def template(self, name: str, state: State, typed_variables: list[Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
 
         Parameters
@@ -82,7 +78,7 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: State, typed_variables: List[Any]) -> Optional[ekd.Field]:
+    def load_template(self, name: str, state: State, typed_variables: list[Any]) -> ekd.Field | None:
         """Load the template for a given name and state.
 
         Parameters
@@ -140,7 +136,7 @@ class TemplateManager:
         LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
-    def _grid(self, grid: Union[str, List[float], Tuple[int, int]]) -> str:
+    def _grid(self, grid: str | list[float] | tuple[int, int]) -> str:
         """Convert the grid information to a standardised format.
 
         Parameters

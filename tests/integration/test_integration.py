@@ -58,7 +58,7 @@ def test_setup(request, get_test_data: callable, tmp_path: Path) -> Setup:
 
     # prepare checkpoint
     checkpoint_path = tmp_path / Path("checkpoint.ckpt")
-    with open(INTEGRATION_ROOT / model / "metadata.json", "r") as f:
+    with open(INTEGRATION_ROOT / model / "metadata.json") as f:
         metadata = json.load(f)
     # TODO: also get supporting arrays from S3 if needed and store them in the checkpoint
     save_fake_checkpoint(metadata, checkpoint_path)

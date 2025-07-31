@@ -9,12 +9,10 @@
 
 
 import logging
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cached_property
 from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import Tuple
 
 from .protocol import MetadataProtocol
 
@@ -53,9 +51,9 @@ class PatchMixin(MetadataProtocol):
 
     def patch_metadata(
         self,
-        supporting_arrays: Dict[str, Any],
+        supporting_arrays: dict[str, Any],
         root: str,
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Patch the metadata with supporting arrays and root.
 
         Parameters
@@ -77,7 +75,7 @@ class PatchMixin(MetadataProtocol):
         return self._metadata, self._supporting_arrays
 
     @cached_property
-    def _from_zarr(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _from_zarr(self) -> tuple[dict[str, Any], dict[str, Any]]:
         """Open the dataset and fetch metadata and supporting arrays."""
         # We assume that the datasets are reachable via the content of
         # ~/.config/anemoi/settings.toml.

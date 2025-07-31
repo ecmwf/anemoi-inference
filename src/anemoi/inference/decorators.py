@@ -8,9 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
-from typing import Callable
 from typing import TypeVar
 
 from anemoi.inference.context import Context

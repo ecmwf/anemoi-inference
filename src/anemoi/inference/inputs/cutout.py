@@ -10,10 +10,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Iterable
-from typing import List
-from typing import Optional
-from typing import Union
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -31,7 +28,7 @@ STANDARD_KEYS = ["longitudes", "latitudes", "fields", "date"]
 def _mask_and_combine_states(
     existing_state: State | None,
     new_state: State,
-    mask: Union[np.ndarray, slice],
+    mask: np.ndarray | slice,
     fields: Iterable[str],
 ) -> State:
     """Mask and combine two states.
@@ -153,7 +150,7 @@ class Cutout(Input):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -217,7 +214,7 @@ class Cutout(Input):
         combined_state.update(_private_attributes)
         return combined_state
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters

@@ -13,10 +13,6 @@ import logging
 from collections import defaultdict
 from io import IOBase
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
@@ -51,7 +47,7 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _fix(mars: Dict[str, Any], keys: Dict[str, Any]) -> None:
+def _fix(mars: dict[str, Any], keys: dict[str, Any]) -> None:
     """Check if the mars dictionary contains valid keys and fix it.
 
     Parameters
@@ -86,7 +82,7 @@ class ArchiveCollector:
         self.expect = 0
         self._request = defaultdict(set)
 
-    def add(self, field: Dict[str, Any]) -> None:
+    def add(self, field: dict[str, Any]) -> None:
         """Add a field to the archive request.
 
         Parameters
@@ -118,18 +114,18 @@ class GribIoOutput(BaseGribOutput):
         self,
         context: Context,
         *,
-        out: Union[str, IOBase],
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        encoding: Optional[Dict[str, Any]] = None,
-        archive_requests: Optional[Dict[str, Any]] = None,
+        out: str | IOBase,
+        post_processors: list[ProcessorConfig] | None = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
         check_encoding: bool = True,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
         split_output: bool = True,
     ) -> None:
         """Initialize the GribIOOutput.
@@ -191,7 +187,7 @@ class GribIoOutput(BaseGribOutput):
         """Return a string representation of the GribIOOutput object."""
         return f"{type(self).__name__ }({self.out})"
 
-    def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
+    def write_message(self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]) -> None:
         """Write a message to the grib file.
 
         Parameters
@@ -324,17 +320,17 @@ class GribFileOutput(GribIoOutput):
         context: Context,
         *,
         path: str,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        encoding: Optional[Dict[str, Any]] = None,
-        archive_requests: Optional[Dict[str, Any]] = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
         check_encoding: bool = True,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
         split_output: bool = True,
     ) -> None:
         """Initialize the GribFileOutput.

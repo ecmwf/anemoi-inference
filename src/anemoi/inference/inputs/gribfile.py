@@ -10,8 +10,6 @@
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -38,9 +36,9 @@ class GribFileInput(GribInput):
         self,
         context: Context,
         path: str,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
+        pre_processors: list[ProcessorConfig] | None = None,
         *,
-        namer: Optional[Any] = None,
+        namer: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the GribFileInput.
@@ -61,7 +59,7 @@ class GribFileInput(GribInput):
         super().__init__(context, pre_processors, namer=namer, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -76,7 +74,7 @@ class GribFileInput(GribInput):
         """
         return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters

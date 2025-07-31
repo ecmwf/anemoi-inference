@@ -1,4 +1,4 @@
-# (C) Copyright 2024-2025 Anemoi contributors.
+# (C) Copyright 2025- Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -10,7 +10,6 @@
 
 import logging
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 
@@ -29,7 +28,7 @@ class ExtractBase(Processor):
     """Base class for processors that extract data from the state."""
 
     # this needs to be set in subclasses
-    indexer: Union[BoolArray, slice]
+    indexer: BoolArray | slice
 
     def process(self, state: State) -> State:
         """Process the state to extract a subset of points based on the indexer.

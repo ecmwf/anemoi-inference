@@ -14,10 +14,6 @@ import warnings
 from io import IOBase
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 from anemoi.utils.dates import as_timedelta
@@ -28,9 +24,9 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
-GRIB1_ONLY: List[str] = []
+GRIB1_ONLY: list[str] = []
 
-GRIB2_ONLY: List[str] = ["typeOfGeneratingProcess"]
+GRIB2_ONLY: list[str] = ["typeOfGeneratingProcess"]
 
 
 ORDERING = (
@@ -114,12 +110,12 @@ STEP_TYPE = {
 
 def encode_time_processing(
     *,
-    result: Dict[str, Any],
+    result: dict[str, Any],
     template: ekd.Field,
     variable: "Variable",
     step: Any,
-    previous_step: Optional[Any],
-    start_steps: Dict[Any, Any],
+    previous_step: Any | None,
+    start_steps: dict[Any, Any],
     edition: int,
     ensemble: bool,
 ) -> None:
@@ -203,16 +199,16 @@ def grib_keys(
     template: Any,
     variable: Any,
     ensemble: bool,
-    param: Optional[Union[int, float, str]],
+    param: int | float | str | None,
     date: int,
     time: int,
     step: Any,
-    previous_step: Optional[Any],
-    start_steps: Dict[Any, Any],
-    keys: Dict[str, Any],
-    grib1_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
-    grib2_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
-) -> Dict[str, Any]:
+    previous_step: Any | None,
+    start_steps: dict[Any, Any],
+    keys: dict[str, Any],
+    grib1_keys: dict[int | float | str, dict[str, Any]] = {},
+    grib2_keys: dict[int | float | str, dict[str, Any]] = {},
+) -> dict[str, Any]:
     """Generate GRIB keys for encoding.
 
     Parameters
@@ -329,7 +325,7 @@ def grib_keys(
     return result
 
 
-def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> None:
+def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> None:
     """Check if the GRIB encoding matches the expected keys.
 
     Parameters
@@ -381,7 +377,7 @@ def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> Non
             w = handle.get(k)
 
         if not same(w, v, k):
-            mismatches[k] = 'Expected "{}" but got "{}"'.format(v, w)
+            mismatches[k] = f'Expected "{v}" but got "{w}"'
 
     if mismatches:
 
@@ -397,11 +393,11 @@ def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> Non
 
 def encode_message(
     *,
-    values: Optional[Any],
+    values: Any | None,
     template: Any,
-    metadata: Dict[str, Any],
+    metadata: dict[str, Any],
     check_nans: bool = False,
-    missing_value: Union[int, float] = 9999,
+    missing_value: int | float = 9999,
 ) -> Any:
     """Encode a GRIB message.
 
@@ -474,7 +470,7 @@ def encode_message(
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, out: Union[str, IOBase], split_output: bool = True) -> None:
+    def __init__(self, out: str | IOBase, split_output: bool = True) -> None:
         """Initialize the GribWriter.
 
         Parameters
@@ -492,7 +488,7 @@ class GribWriter:
 
         self.out = out
         self.split_output = split_output
-        self._files: Dict[str, IOBase] = {}
+        self._files: dict[str, IOBase] = {}
 
     def close(self) -> None:
         """Close all open files."""
@@ -509,7 +505,7 @@ class GribWriter:
         """
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], trace: Optional[Any]) -> None:
+    def __exit__(self, exc_type: type | None, exc_value: BaseException | None, trace: Any | None) -> None:
         """Exit the runtime context related to this object.
 
         Parameters
@@ -526,11 +522,11 @@ class GribWriter:
     def write(
         self,
         *,
-        values: Optional[Any],
+        values: Any | None,
         template: Any,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         check_nans: bool = False,
-        missing_value: Union[int, float] = 9999,
+        missing_value: int | float = 9999,
     ) -> tuple:
         """Write a GRIB message to the target file.
 
@@ -596,7 +592,7 @@ class GribWriter:
 _TEMPLATE_EXPRESSION_PATTERN = re.compile(r"\{(.*?)\}")
 
 
-def render_template(template: str, handle: Dict) -> str:
+def render_template(template: str, handle: dict) -> str:
     """Render a template string with the given keyword arguments.
 
     Given a template string such as '{dateTime}_{step:03}.grib' and

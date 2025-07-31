@@ -12,8 +12,6 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
@@ -36,7 +34,7 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: "Context", pre_processors: Optional[List[ProcessorConfig]] = None):
+    def __init__(self, context: "Context", pre_processors: list[ProcessorConfig] | None = None):
         """Initialize the Input object.
 
         Parameters
@@ -51,7 +49,7 @@ class Input(ABC):
         self._pre_processor_confs = pre_processors or []
 
     @cached_property
-    def pre_processors(self) -> List[Processor]:
+    def pre_processors(self) -> list[Processor]:
         """Return pre-processors."""
 
         processors = []
@@ -95,7 +93,7 @@ class Input(ABC):
         return f"{self.__class__.__name__}()"
 
     @abstractmethod
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state dictionary.
 
         Parameters
@@ -111,7 +109,7 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
@@ -130,7 +128,7 @@ class Input(ABC):
         """
         pass
 
-    def input_variables(self) -> List[str]:
+    def input_variables(self) -> list[str]:
         """Return the list of input variables.
 
         Returns

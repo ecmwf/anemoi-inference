@@ -11,16 +11,11 @@
 import datetime
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from functools import cached_property
 from pathlib import Path
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Literal
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
@@ -78,9 +73,9 @@ class Checkpoint:
 
     def __init__(
         self,
-        source: Union[str, Metadata, Dict[str, Any]],
+        source: str | Metadata | dict[str, Any],
         *,
-        patch_metadata: Optional[Dict[str, Any]] = None,
+        patch_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Checkpoint.
 
@@ -194,7 +189,7 @@ class Checkpoint:
         return self._metadata.model_computed_variables
 
     @property
-    def typed_variables(self) -> Dict[str, Variable]:
+    def typed_variables(self) -> dict[str, Variable]:
         """Get the typed variables."""
         return self._metadata.typed_variables
 
@@ -244,7 +239,7 @@ class Checkpoint:
         return self._metadata.grid_points_mask
 
     @cached_property
-    def sources(self) -> List["SourceCheckpoint"]:
+    def sources(self) -> list["SourceCheckpoint"]:
         """Get the sources."""
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
@@ -275,8 +270,8 @@ class Checkpoint:
         *,
         all_packages: bool = False,
         on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
-        exempt_packages: Optional[list[str]] = None,
-    ) -> Union[bool, str]:
+        exempt_packages: list[str] | None = None,
+    ) -> bool | str:
         """Validate the environment.
 
         Parameters
@@ -301,8 +296,8 @@ class Checkpoint:
     def open_dataset(
         self,
         *,
-        use_original_paths: Optional[bool] = None,
-        from_dataloader: Optional[Any] = None,
+        use_original_paths: bool | None = None,
+        from_dataloader: Any | None = None,
     ) -> Any:
         """Open the dataset.
 
@@ -321,8 +316,8 @@ class Checkpoint:
         return self._metadata.open_dataset(use_original_paths=use_original_paths, from_dataloader=from_dataloader)
 
     def open_dataset_args_kwargs(
-        self, *, use_original_paths: bool, from_dataloader: Optional[Any] = None
-    ) -> Tuple[Any, Any]:
+        self, *, use_original_paths: bool, from_dataloader: Any | None = None
+    ) -> tuple[Any, Any]:
         """Get arguments and keyword arguments for opening the dataset.
 
         Parameters
@@ -342,7 +337,7 @@ class Checkpoint:
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
+    def constant_forcings_inputs(self, runner: Any, input_state: State) -> list[Forcings]:
         """Get constant forcings inputs.
 
         Parameters
@@ -359,7 +354,7 @@ class Checkpoint:
         """
         return self._metadata.constant_forcings_inputs(runner, input_state)
 
-    def dynamic_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
+    def dynamic_forcings_inputs(self, runner: Any, input_state: State) -> list[Forcings]:
         """Get dynamic forcings inputs.
 
         Parameters
@@ -376,7 +371,7 @@ class Checkpoint:
         """
         return self._metadata.dynamic_forcings_inputs(runner, input_state)
 
-    def boundary_forcings_inputs(self, runner: Any, input_state: State) -> List[Forcings]:
+    def boundary_forcings_inputs(self, runner: Any, input_state: State) -> list[Forcings]:
         """Get boundary forcings inputs.
 
         Parameters
@@ -393,7 +388,7 @@ class Checkpoint:
         """
         return self._metadata.boundary_forcings_inputs(runner, input_state)
 
-    def name_fields(self, fields: Any, namer: Optional[Callable[..., str]] = None) -> Any:
+    def name_fields(self, fields: Any, namer: Callable[..., str] | None = None) -> Any:
         """Name fields.
 
         Parameters
@@ -411,7 +406,7 @@ class Checkpoint:
         return self._metadata.name_fields(fields, namer=namer)
 
     def sort_by_name(
-        self, fields: ekd.FieldList, *args: Any, namer: Optional[Callable[..., str]] = None, **kwargs: Any
+        self, fields: ekd.FieldList, *args: Any, namer: Callable[..., str] | None = None, **kwargs: Any
     ) -> ekd.FieldList:
         """Sort fields by name.
 
@@ -470,7 +465,7 @@ class Checkpoint:
     ###########################################################################
 
     @cached_property
-    def lagged(self) -> List[datetime.timedelta]:
+    def lagged(self) -> list[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self._metadata.multi_step_input))
 
@@ -533,13 +528,13 @@ class Checkpoint:
     def mars_requests(
         self,
         *,
-        variables: List[str],
-        dates: List[Date],
+        variables: list[str],
+        dates: list[Date],
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
-        patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
+        patch_request: Callable[[DataRequest], DataRequest] | None = None,
         **kwargs: Any,
-    ) -> List[DataRequest]:
+    ) -> list[DataRequest]:
         """Generate MARS requests for the given variables and dates.
 
         Parameters
@@ -574,7 +569,7 @@ class Checkpoint:
 
         assert dates, "No dates provided"
 
-        result: List[DataRequest] = []
+        result: list[DataRequest] = []
 
         DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
         DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
