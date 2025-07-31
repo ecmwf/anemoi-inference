@@ -184,7 +184,7 @@ class CDSInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.context.patch_data_request,
+            patch_request=self.patch_data_request,
         )
 
         if not requests:

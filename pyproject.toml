@@ -25,7 +25,7 @@ authors = [
   { name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int" },
 ]
 
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -33,7 +33,6 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -62,7 +61,7 @@ dependencies = [
 
 optional-dependencies.all = [
   "anemoi-datasets",
-  "anemoi-inference[huggingface,tests,zarr]",
+  "anemoi-inference[huggingface,tests,zarr,plot]",
   "anemoi-utils[all]>=0.4.26",
 ]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
@@ -78,9 +77,10 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+optional-dependencies.plot = [ "cartopy", "matplotlib" ]
 
-optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest" ]
+optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
+optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest", "pytest-mock" ]
 
 optional-dependencies.zarr = [ "zarr" ]
 

@@ -132,7 +132,7 @@ class PrinterOutput(Output):
             Additional keyword arguments.
         """
 
-        super().__init__(context, post_processors)
+        super().__init__(context, variables=variables, post_processors=post_processors)
         self.print = print
         self.variables = variables
 

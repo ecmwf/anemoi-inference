@@ -133,7 +133,7 @@ class PlotOutput(Output):
                 min = np.nanmin(values)
                 missing_value = min - np.abs(min) * 0.001
 
-            values = np.where(missing_values, self.missing_value, values)
+            values = np.where(missing_values, self.missing_value, values).astype(np.float32)
 
             _ = ax.tricontourf(triangulation, values, levels=10, transform=ccrs.PlateCarree())
 

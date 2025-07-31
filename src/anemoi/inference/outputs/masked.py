@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import warnings
 from typing import Any
 
 from anemoi.inference.config import Configuration
@@ -52,6 +53,12 @@ class MaskedOutput(ForwardOutput):
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
     ) -> None:
+
+        warnings.warn(
+            f"The {self.__class__.__name__} is deprecated and will be removed in a future release. "
+            "Use extraction post-processors instead.",
+            DeprecationWarning,
+        )
         super().__init__(
             context,
             output,
