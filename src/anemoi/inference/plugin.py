@@ -14,8 +14,6 @@ import logging
 import os
 from functools import cached_property
 from typing import Any
-from typing import List
-from typing import Optional
 
 from ai_models.model import Model
 
@@ -45,7 +43,7 @@ class FieldListInput(GribInput):
         super().__init__(context, **kwargs)
         self.input_fields = input_fields
 
-    def create_input_state(self, *, date: Optional[Date]) -> Any:
+    def create_input_state(self, *, date: Date | None) -> Any:
         """Create the input state for the given date.
 
         Parameters
@@ -63,7 +61,7 @@ class FieldListInput(GribInput):
     def load_forcings_state(
         self,
         *,
-        dates: List[str],
+        dates: list[str],
         current_state: State,
     ) -> State:
         """Load the forcings state.
@@ -147,7 +145,7 @@ class AIModelPlugin(Model):
         """
         pass
 
-    def parse_model_args(self, args: List[str]) -> argparse.ArgumentParser:
+    def parse_model_args(self, args: list[str]) -> argparse.ArgumentParser:
         """Parse model-specific arguments.
 
         Parameters

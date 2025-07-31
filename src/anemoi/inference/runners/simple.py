@@ -10,7 +10,6 @@
 
 import logging
 from typing import Any
-from typing import List
 
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
@@ -29,7 +28,7 @@ LOG = logging.getLogger(__name__)
 class NoForcings(Forcings):
     """No forcings."""
 
-    def __init__(self, context: Any, variables: List[str], mask: IntArray) -> None:
+    def __init__(self, context: Any, variables: list[str], mask: IntArray) -> None:
         """Initialize the NoForcings.
 
         Parameters
@@ -75,7 +74,7 @@ class SimpleRunner(Runner):
         """
         super().__init__(*args, **kwargs)
 
-    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant computed forcings.
 
         Parameters
@@ -94,7 +93,7 @@ class SimpleRunner(Runner):
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic computed forcings.
 
         Parameters
@@ -113,7 +112,7 @@ class SimpleRunner(Runner):
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant coupled forcings.
 
         Parameters
@@ -134,7 +133,7 @@ class SimpleRunner(Runner):
         LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
         return []
 
-    def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic coupled forcings.
 
         Parameters

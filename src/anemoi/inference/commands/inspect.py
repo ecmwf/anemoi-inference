@@ -11,8 +11,8 @@ import json
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
 
 import rich
 import yaml

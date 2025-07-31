@@ -12,10 +12,9 @@
 
 import datetime
 import logging
+from collections.abc import Callable
 from functools import cached_property
 from typing import Any
-from typing import Callable
-from typing import Dict
 
 import earthkit.data as ekd
 import numpy as np
@@ -68,7 +67,7 @@ class StateFieldMetadata(RawMetadata):
         )
         self._field = field
 
-    def as_namespace(self, ns: str) -> Dict[str, Any]:
+    def as_namespace(self, ns: str) -> dict[str, Any]:
         """Convert metadata to a specific namespace.
 
         Parameters

@@ -14,8 +14,6 @@ import logging
 import warnings
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
 
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -185,19 +183,19 @@ class DefaultRunner(Runner):
         LOG.info("Output: %s", output)
         return output
 
-    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
 
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
 
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def _input_forcings(self, *names: str) -> Dict[str, Any]:
+    def _input_forcings(self, *names: str) -> dict[str, Any]:
         """Get the input forcings configuration.
 
         Parameters
@@ -288,7 +286,7 @@ class DefaultRunner(Runner):
         return input
 
     #########################################################################################################
-    def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant coupled forcings.
 
         Parameters
@@ -309,7 +307,7 @@ class DefaultRunner(Runner):
 
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic coupled forcings.
 
         Parameters
@@ -329,7 +327,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create boundary forcings.
 
         Parameters
@@ -349,7 +347,7 @@ class DefaultRunner(Runner):
         LOG.info("Boundary forcing: %s", result)
         return [result]
 
-    def create_pre_processors(self) -> List[Processor]:
+    def create_pre_processors(self) -> list[Processor]:
         """Create pre-processors.
 
         Returns
@@ -364,7 +362,7 @@ class DefaultRunner(Runner):
         LOG.info("Pre processors: %s", result)
         return result
 
-    def create_post_processors(self) -> List[Processor]:
+    def create_post_processors(self) -> list[Processor]:
         """Create post-processors.
 
         Returns
@@ -379,7 +377,7 @@ class DefaultRunner(Runner):
         LOG.info("Post processors: %s", result)
         return result
 
-    def _combine_states(self, *states: Dict[str, Any]) -> Dict[str, Any]:
+    def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
         """Combine multiple states into one.
 
         Parameters
@@ -459,8 +457,8 @@ class DefaultRunner(Runner):
         return combined
 
     def _initial_state(
-        self, prognostic_state: Dict[str, Any], constants_state: Dict[str, Any], forcings_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, prognostic_state: dict[str, Any], constants_state: dict[str, Any], forcings_state: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create the initial state for the output.
 
         Parameters
@@ -490,7 +488,7 @@ class DefaultRunner(Runner):
 
         return self._combine_states(*states)
 
-    def _check_state(self, state: Dict[str, Any], title: str) -> None:
+    def _check_state(self, state: dict[str, Any], title: str) -> None:
         """Check the state for consistency.
 
         Parameters

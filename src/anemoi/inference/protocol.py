@@ -9,14 +9,13 @@
 
 
 from typing import Any
-from typing import Dict
 from typing import Protocol
 
 
 class MetadataProtocol(Protocol):
     """Protocol for metadata objects. This will keep `mypy` happy."""
 
-    _metadata: Dict[str, Any]
-    _supporting_arrays: Dict[str, Any]
+    _metadata: dict[str, Any]
+    _supporting_arrays: dict[str, Any]
     grid: str
-    variables: Dict[str, Any]
+    variables: dict[str, Any]

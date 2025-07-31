@@ -14,8 +14,6 @@ These values are then tested in the mock model.
 """
 
 import logging
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 import numpy as np
@@ -37,7 +35,7 @@ class DummyInput(EkdInput):
 
     trace_name = "dummy"
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -55,7 +53,7 @@ class DummyInput(EkdInput):
         dates = [date + h for h in self.checkpoint.lagged]
         return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date)
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
@@ -76,7 +74,7 @@ class DummyInput(EkdInput):
             current_state=current_state,
         )
 
-    def _fields(self, dates: List[Date], variables) -> ekd.FieldList:
+    def _fields(self, dates: list[Date], variables) -> ekd.FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters

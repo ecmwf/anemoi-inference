@@ -9,10 +9,7 @@
 
 
 import logging
-from typing import Iterable
-from typing import List
-from typing import Optional
-from typing import Union
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -29,7 +26,7 @@ LOG = logging.getLogger(__name__)
 def _mask_and_combine_states(
     combined_state: State,
     new_state: State,
-    combined_mask: Union[np.ndarray, slice],
+    combined_mask: np.ndarray | slice,
     mask: np.ndarray,
     fields: Iterable[str],
 ) -> State:
@@ -92,7 +89,7 @@ class Cutout(Input):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -125,7 +122,7 @@ class Cutout(Input):
 
         return combined_state
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters

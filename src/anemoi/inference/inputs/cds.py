@@ -10,10 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
@@ -32,10 +28,10 @@ LOG = logging.getLogger(__name__)
 
 
 def retrieve(
-    requests: List[DataRequest],
-    grid: Optional[Union[str, List[float]]],
-    area: Optional[List[float]],
-    dataset: Union[str, Dict[str, Any]],
+    requests: list[DataRequest],
+    grid: str | list[float] | None,
+    area: list[float] | None,
+    dataset: str | dict[str, Any],
     **kwargs: Any,
 ) -> ekd.FieldList:
     """Retrieve data from CDS.
@@ -116,10 +112,10 @@ class CDSInput(GribInput):
     def __init__(
         self,
         context: Context,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
+        pre_processors: list[ProcessorConfig] | None = None,
         *,
-        dataset: Union[str, Dict[str, Any]],
-        namer: Optional[Any] = None,
+        dataset: str | dict[str, Any],
+        namer: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the CDSInput.
@@ -142,7 +138,7 @@ class CDSInput(GribInput):
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -168,7 +164,7 @@ class CDSInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
@@ -192,13 +188,13 @@ class CDSInput(GribInput):
         )
 
         if not requests:
-            raise ValueError("No requests for %s (%s)" % (variables, dates))
+            raise ValueError(f"No requests for {variables} ({dates})")
 
         return retrieve(
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters

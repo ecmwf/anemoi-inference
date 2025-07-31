@@ -12,10 +12,6 @@ import json
 import logging
 from functools import cached_property
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 
@@ -38,8 +34,8 @@ class DatasetInput(Input):
         self,
         context: Context,
         *,
-        open_dataset_args: Tuple[Any, ...],
-        open_dataset_kwargs: Dict[str, Any],
+        open_dataset_args: tuple[Any, ...],
+        open_dataset_kwargs: dict[str, Any],
         grid_indices: Any = None,
         **kwargs: Any,
     ) -> None:
@@ -108,7 +104,7 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
-    def create_input_state(self, *, date: Optional[Date] = None) -> State:
+    def create_input_state(self, *, date: Date | None = None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -157,7 +153,7 @@ class DatasetInput(Input):
 
         return input_state
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
@@ -193,7 +189,7 @@ class DatasetInput(Input):
             longitudes=self.longitudes,
         )
 
-    def _load_dates(self, dates: List[Date]) -> Any:
+    def _load_dates(self, dates: list[Date]) -> Any:
         """Load the data for the given dates.
 
         Parameters
@@ -243,10 +239,10 @@ class DatasetInputArgsKwargs(DatasetInput):
         context: Context,
         *args: Any,
         use_original_paths: bool = False,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
+        variables: list[str] | None,
+        pre_processors: list[ProcessorConfig] | None = None,
         grid_indices=None,
-        purpose: Optional[str] = None,
+        purpose: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInputArgsKwargs.

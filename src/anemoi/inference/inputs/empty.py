@@ -15,8 +15,6 @@ These values are then tested in the mock model.
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
@@ -48,7 +46,7 @@ class EmptyInput(Input):
         super().__init__(context, **kwargs)
         assert self.variables in (None, []), "EmptyInput should not have variables"
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create an empty input state.
 
         Parameters
@@ -63,7 +61,7 @@ class EmptyInput(Input):
         """
         return dict(fields=dict(), _input=self)
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load an empty forcings state.
 
         Parameters

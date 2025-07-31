@@ -10,7 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Optional
 
 from ..context import Context
 from ..input import Input
@@ -39,7 +38,7 @@ class CutoutInput(Input):
         self.lam = lam
         self.globe = globe
 
-    def create_input_state(self, *, date: Optional[str]) -> None:
+    def create_input_state(self, *, date: str | None) -> None:
         """Create the input state.
 
         Parameters

@@ -10,8 +10,6 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
-from typing import Dict
-from typing import List
 
 from anemoi.utils.logs import enable_logging_name
 
@@ -24,7 +22,7 @@ LOG = logging.getLogger(__name__)
 class Coupling:
     """Represents a coupling between a source and a target with specific variables."""
 
-    def __init__(self, source: Task, target: Task, variables: List[str]) -> None:
+    def __init__(self, source: Task, target: Task, variables: list[str]) -> None:
         """Initialize a Coupling instance.
 
         Parameters
@@ -38,7 +36,7 @@ class Coupling:
         """
         self.source = source
         self.target = target
-        self.variables: List[str] = variables
+        self.variables: list[str] = variables
 
     def __repr__(self) -> str:
         """Return a string representation of the coupling.
@@ -133,7 +131,7 @@ class CouplingRecv(Coupling):
 class Transport(ABC):
     """Abstract base class for transport mechanisms."""
 
-    def __init__(self, couplings: List[Dict[str, List[str]]], tasks: Dict[str, Task]) -> None:
+    def __init__(self, couplings: list[dict[str, list[str]]], tasks: dict[str, Task]) -> None:
         """Initialize a Transport instance.
 
         Parameters
@@ -145,7 +143,7 @@ class Transport(ABC):
         """
         enable_logging_name("main")
         self._couplings = couplings
-        self.tasks: Dict[str, Task] = tasks
+        self.tasks: dict[str, Task] = tasks
 
     @abstractmethod
     def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
@@ -194,7 +192,7 @@ class Transport(ABC):
         """
         return f"{self.__class__.__name__}()"
 
-    def couplings(self, task: Task) -> List[Coupling]:
+    def couplings(self, task: Task) -> list[Coupling]:
         """Get the couplings for a given task.
 
         Parameters
@@ -207,7 +205,7 @@ class Transport(ABC):
         List[Coupling]
             The list of couplings for the task.
         """
-        couplings: List[Coupling] = []
+        couplings: list[Coupling] = []
         for coupling in self._couplings:
             assert isinstance(coupling, dict)
             assert len(coupling) == 1
@@ -241,8 +239,8 @@ class Transport(ABC):
         target: Task,
         *,
         input_state: State,
-        variables: List[str],
-        constants: Dict[str, Any],
+        variables: list[str],
+        constants: dict[str, Any],
         tag: int,
     ) -> None:
         """Send the state from the sender to the target.
@@ -264,7 +262,7 @@ class Transport(ABC):
         """
         assert sender.name != target.name, f"Cannot send to self {sender}"
 
-        fields: Dict[str, Any] = input_state["fields"]
+        fields: dict[str, Any] = input_state["fields"]
 
         LOG.info(f"{sender}: sending to {target} {variables} {input_state['date']}")
         # LOG.info("State fields: %s", list(fields.keys()))
@@ -301,7 +299,7 @@ class Transport(ABC):
         source: Task,
         *,
         output_state: State,
-        variables: List[str],
+        variables: list[str],
         tag: int,
     ) -> None:
         """Receive the state from the source to the receiver.
@@ -329,8 +327,8 @@ class Transport(ABC):
 
         output_state.setdefault("fields", {})
 
-        fields_in: Dict[str, Any] = state["fields"]
-        fields_out: Dict[str, Any] = output_state["fields"]
+        fields_in: dict[str, Any] = state["fields"]
+        fields_out: dict[str, Any] = output_state["fields"]
 
         for v in variables:
             if v in fields_out:

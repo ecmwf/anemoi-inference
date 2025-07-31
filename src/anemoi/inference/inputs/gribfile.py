@@ -11,8 +11,6 @@
 import logging
 from functools import cached_property
 from typing import Any
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -59,7 +57,7 @@ class GribFileInput(GribInput):
         super().__init__(context, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -75,7 +73,7 @@ class GribFileInput(GribInput):
 
         return self._create_input_state(self._fieldlist, date=date)
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
