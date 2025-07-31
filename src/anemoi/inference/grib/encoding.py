@@ -11,6 +11,7 @@
 import logging
 import re
 import warnings
+from datetime import datetime
 from io import IOBase
 from typing import TYPE_CHECKING
 from typing import Any
@@ -161,10 +162,30 @@ def encode_time_processing(
     if period := getattr(variable, "period", None):
         start = step - period
         if start < as_timedelta(0):
-            raise ValueError(
-                f"Writing {variable.name} at step {_step_in_hours(step)} with period {_step_in_hours(period)} for would result in a negative start step {_step_in_hours(start)}. "
-                "Try `write_initial_state: False`"
+            assert result["time"] in (
+                0,
+                600,
+                1200,
+                1800,
+            ), f"Unexpected time {result['time']} for variable {variable.name} with period {period}"
+            date = datetime(
+                year=result["date"] // 10000,
+                month=(result["date"] // 100) % 100,
+                day=result["date"] % 100,
+                hour=result["time"] // 100,
+                minute=result["time"] % 100,
             )
+
+            date += start
+            step -= start
+
+            LOG.warning(
+                f"Start step {start} is negative for variable {variable.name} with period {period}, setting reference date {date.isoformat()}."
+            )
+
+            start = as_timedelta(0)
+            result["date"] = date.year * 10000 + date.month * 100 + date.day
+            result["time"] = date.hour * 100 + date.minute
     else:
         # backwards compatibility with old transform or if period is missing from the metadata
         start = previous_step
