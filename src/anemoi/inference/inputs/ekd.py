@@ -245,6 +245,22 @@ class EkdInput(Input):
 
         state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
 
+        geography_information = {}
+
+        def get_geography_info(key: str) -> Optional[str]:
+            combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+            if len(set(map(str, combo))) == 1 and combo[0] != "None":
+                return combo[0]
+            return None
+
+        if area := get_geography_info("mars_area"):
+            geography_information["area"] = area
+        if grid := get_geography_info("mars_grid"):
+            geography_information["grid"] = grid
+
+        if geography_information:
+            state["_geography"] = geography_information
+
         state_fields = state["fields"]
 
         fields = self._filter_and_sort(fields, variables=variables, dates=dates, title="Create input state")

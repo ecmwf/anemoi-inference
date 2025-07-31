@@ -124,3 +124,59 @@ class ExtractSlice(ExtractBase):
             String representation of the object.
         """
         return f"ExtractSlice({self.indexer})"
+
+
+@post_processor_registry.register("extract_from_state")
+@main_argument("source")
+class ExtractState(ExtractBase):
+    """Extract a subset of points based on a mask included in the state.
+
+    Must be used with the Cutout input.
+    """
+
+    def __init__(self, context: Context, source: str) -> None:
+        super().__init__(context)
+        self._source = source
+
+    def process(self, state: State) -> State:
+        """Process the state to extract a subset of points based on the mask.
+
+        Parameters
+        ----------
+        state : State
+            The state containing fields to be extracted.
+
+        Returns
+        -------
+        State
+            The updated state with extracted fields.
+        """
+        if "_mask" not in state:
+            raise ValueError("Private attribute '_mask' not found in the state. Are you using the Cutout Input?")
+
+        if self._source not in state["_mask"]:
+            raise ValueError(f"Mask '{self._source}' not found in the state.")
+
+        mask = state["_mask"][self._source]
+        if not isinstance(mask, np.ndarray) or mask.dtype != bool:
+            raise ValueError(f"Expected the mask '{self._source}' to be a boolean numpy array.")
+
+        self.indexer = mask
+        extraced_state = super().process(state)
+
+        standard_keys = ["latitudes", "longitudes", "fields", "date"]
+        for key in [k for k in state.keys() if k not in standard_keys]:
+            if hasattr(state[key], "__getitem__") and self._source in state[key]:
+                extraced_state[key] = state[key][self._source]
+
+        return extraced_state
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ExtractSlice object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"ExtractState(source={self._source!r})"
