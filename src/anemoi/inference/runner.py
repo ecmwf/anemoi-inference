@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -15,9 +15,9 @@ from collections.abc import Generator
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Union
 
 import numpy as np
-import torch
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
@@ -25,6 +25,7 @@ from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
 from anemoi.inference.forcings import Forcings
+from anemoi.inference.lazy import torch
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -34,8 +35,11 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+from .variables import Variables
 
 if TYPE_CHECKING:
+    import torch
+
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
@@ -79,7 +83,7 @@ class Runner(Context):
         *,
         device: str = "cuda",
         precision: str | None = None,
-        report_error: bool = False,
+        # report_error: bool = False,
         allow_nans: bool | None = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
@@ -88,6 +92,7 @@ class Runner(Context):
         trace_path: str | None = None,
         output_frequency: str | None = None,
         write_initial_state: bool = True,
+        initial_state_categories: list[str] | None = None,
         use_profiler: bool = False,
         typed_variables: dict[str, dict] = {},
     ) -> None:
@@ -121,7 +126,7 @@ class Runner(Context):
             Whether to use profiler, by default False.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
-
+        self.variables = Variables(self)
         self.trace_path = trace_path
 
         if trace_path:
@@ -133,7 +138,6 @@ class Runner(Context):
 
         self.device = device
         self.precision = precision
-        self.report_error = report_error
 
         # Override the default values set in `Context`
         self.verbosity = verbosity
@@ -143,6 +147,7 @@ class Runner(Context):
         self.hacks = bool(development_hacks)
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
+        self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
 
         # For the moment, until we have a better solution
@@ -237,49 +242,80 @@ class Runner(Context):
                 raise
 
     def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
-        """Create constant forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        result = []
 
-        Returns
-        -------
-        list[Forcings]
-            The created constant forcings inputs.
-        """
-        return self.checkpoint.constant_forcings_inputs(self, input_state)
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["constant+forcing"], exclude=["computed"]
+        )
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_constant_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed+constant"]
+        )
+
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_constant_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+
+        return result
 
     def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
-        """Create dynamic forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["forcing"], exclude=["computed", "constant"]
+        )
 
-        Returns
-        -------
-        list[Forcings]
-            The created dynamic forcings inputs.
-        """
-        return self.checkpoint.dynamic_forcings_inputs(self, input_state)
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed"],
+            exclude=["constant"],
+        )
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+        return result
 
     def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
-        """Create boundary forcings inputs.
 
-        Parameters
-        ----------
-        input_state : State
-            The input state.
+        if not self.checkpoint.has_supporting_array("boundary"):
+            return []
 
-        Returns
-        -------
-        list[Forcings]
-            The created boundary forcings inputs.
-        """
-        return self.checkpoint.boundary_forcings_inputs(self, input_state)
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(include=["prognostic"])
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_boundary_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        return result
 
     def add_initial_forcings_to_input_state(self, input_state: State) -> None:
         """Add initial forcings to the input state.
@@ -352,17 +388,23 @@ class Runner(Context):
         return constant_forcings_inputs
 
     def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
-        """Modify the dynamic forcings inputs for the first step.
+        """Modify the dynamic forcings inputs for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
 
         Parameters
         ----------
-        dynamic_forcings_inputs : list of Forcings
-            The dynamic forcings inputs.
+        dynamic_forcings_inputs : List[Forcings]
+            The dynamic forcings inputs to be potentially modified for the initial step.
 
         Returns
         -------
-        list[Forcings]
-            The modified dynamic forcings inputs.
+
+        List[Forcings]
+            The modified list of dynamic forcings inputs for the initial step.
+
         """
         # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
@@ -397,7 +439,6 @@ class Runner(Context):
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
-
         self.add_initial_forcings_to_input_state(input_state)
 
         input_state = self.validate_input_state(input_state)
@@ -455,6 +496,7 @@ class Runner(Context):
         Generator[State, None, None]
             The prepared output state.
         """
+
         for state in output:
             if return_numpy:
                 # Convert fields to numpy arrays
@@ -464,7 +506,7 @@ class Runner(Context):
             yield state
 
     @cached_property
-    def autocast(self) -> torch.dtype | str:
+    def autocast(self) -> Union["torch.dtype", str]:
         """The autocast precision."""
         autocast = self.precision
 
@@ -478,30 +520,35 @@ class Runner(Context):
         return PRECISIONS.get(autocast, autocast)
 
     @cached_property
-    def model(self) -> torch.nn.Module:
+    def model(self) -> "torch.nn.Module":
         """Returns
         ----------
         Any
             The loaded model.
         """
+
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            except RuntimeError:
+                # This happens when the no GPU is available
+                raise
             except Exception as e:  # Wildcard exception to catch all errors
-                if self.report_error:
-                    self.checkpoint.report_error()
                 validation_result = self.checkpoint.validate_environment(on_difference="return")
                 error_msg = f"Error loading model - {validation_result}"
                 raise RuntimeError(error_msg) from e
+
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
             return model
 
-    def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+    ) -> "torch.Tensor":
         """Predict the next step.
 
         Parameters
@@ -578,6 +625,7 @@ class Runner(Context):
         Any
             The forecasted state.
         """
+
         self.model.eval()
 
         torch.set_grad_enabled(False)
@@ -654,6 +702,8 @@ class Runner(Context):
             if is_last_step:
                 break
 
+            self.output_state_hook(new_state)
+
             # Update  tensor for next iteration
             with ProfilingLabel("Update tensor for next step", self.use_profiler):
                 check[:] = reset
@@ -686,8 +736,8 @@ class Runner(Context):
                 self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+    ) -> "torch.Tensor":
         """Copy prognostic fields to the input tensor.
 
         Parameters
@@ -728,8 +778,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
         Parameters
@@ -748,6 +798,7 @@ class Runner(Context):
         torch.Tensor
             The updated input tensor.
         """
+
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
                 date = self.development_hacks["dynamic_forcings_date"]
@@ -782,8 +833,8 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
-    ) -> torch.Tensor:
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
         Parameters
@@ -804,6 +855,7 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
+
         sources = self.boundary_forcings_inputs
         for source in sources:
             forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
@@ -814,6 +866,11 @@ class Runner(Context):
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
             total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
             input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+
+            for n in source.variables_mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
 
         # TO DO: add some consistency checks as above
         return input_tensor_torch
@@ -939,7 +996,7 @@ class Runner(Context):
         )
         LOG.info("")
 
-    def _print_input_tensor(self, title: str, input_tensor_torch: torch.Tensor) -> None:
+    def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
         """Print the input tensor.
 
         Parameters
@@ -1019,3 +1076,19 @@ class Runner(Context):
         Derived classes can implement this method to modify itself for parallel operation.
         """
         pass
+
+    def input_state_hook(self, input_state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass
+
+    def output_state_hook(self, state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass
+
+    def has_split_input(self) -> bool:
+        # To be overridden by a subclass if the we use different inputs
+        # for initial conditions, constants and dynamic forcings
+        raise NotImplementedError(
+            "This method should be overridden by a subclass if the runner uses different inputs "
+            "for initial conditions, constants and dynamic forcings."
+        )

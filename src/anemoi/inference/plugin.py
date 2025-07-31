@@ -28,9 +28,9 @@ LOG = logging.getLogger(__name__)
 
 
 class FieldListInput(GribInput):
-    """Handles earchkit-data fieldlists input fields."""
+    """Handles earthkit-data fieldlists input fields."""
 
-    def __init__(self, context: Any, *, input_fields: Any) -> None:
+    def __init__(self, context: Any, *, input_fields: Any, **kwargs) -> None:
         """Initialize FieldListInput.
 
         Parameters
@@ -40,7 +40,7 @@ class FieldListInput(GribInput):
         input_fields : Any
             The input fields to be processed.
         """
-        super().__init__(context)
+        super().__init__(context, **kwargs)
         self.input_fields = input_fields
 
     def create_input_state(self, *, date: Date | None) -> Any:
@@ -56,12 +56,11 @@ class FieldListInput(GribInput):
         Any
             The created input state.
         """
-        return self._create_input_state(self.input_fields, variables=None, date=date)
+        return self._create_input_state(self.input_fields, date=date)
 
     def load_forcings_state(
         self,
         *,
-        variables: list[str],
         dates: list[str],
         current_state: State,
     ) -> State:
@@ -69,8 +68,6 @@ class FieldListInput(GribInput):
 
         Parameters
         ----------
-        variables : List[str]
-            The variables to load.
         dates : List[str]
             The dates for which to load the forcings.
         current_state : State
@@ -83,7 +80,6 @@ class FieldListInput(GribInput):
         """
         return self._load_forcings_state(
             self.input_fields,
-            variables=variables,
             dates=dates,
             current_state=current_state,
         )
