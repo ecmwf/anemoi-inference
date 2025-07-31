@@ -12,8 +12,6 @@ import logging
 import os
 import zlib
 from typing import Any
-from typing import Dict
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -34,7 +32,7 @@ LOG = logging.getLogger(__name__)
 class BuiltinTemplates(IndexTemplateProvider):
     """Builtin templates provider."""
 
-    def __init__(self, manager: Any, index_path: Optional[str] = None) -> None:
+    def __init__(self, manager: Any, index_path: str | None = None) -> None:
         """Initialize the BuiltinTemplates instance.
 
         Parameters
@@ -49,7 +47,7 @@ class BuiltinTemplates(IndexTemplateProvider):
 
         super().__init__(manager, index_path)
 
-    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
         """Load the template for the given GRIB and lookup.
 
         Parameters

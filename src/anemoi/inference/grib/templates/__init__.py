@@ -10,9 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 import yaml
@@ -57,7 +54,7 @@ class TemplateProvider:
         """
         self.manager = manager
 
-    def template(self, variable: str, lookup: Dict[str, Any]) -> ekd.Field:
+    def template(self, variable: str, lookup: dict[str, Any]) -> ekd.Field:
         """Get the template for the given variable and lookup.
 
         Parameters
@@ -111,7 +108,7 @@ class IndexTemplateProvider(TemplateProvider):
             if not isinstance(grib, str):
                 raise ValueError(f"Invalid grib in templates.yaml, must be a string: {grib}")
 
-    def template(self, variable: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
+    def template(self, variable: str, lookup: dict[str, Any]) -> ekd.Field | None:
         """Get the template for the given variable and lookup.
 
         Parameters
@@ -127,7 +124,7 @@ class IndexTemplateProvider(TemplateProvider):
             The template field if found, otherwise None.
         """
 
-        def _as_list(value: Any) -> List[Any]:
+        def _as_list(value: Any) -> list[Any]:
             if not isinstance(value, list):
                 return [value]
             return value
@@ -142,7 +139,7 @@ class IndexTemplateProvider(TemplateProvider):
 
         return None
 
-    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
         """Load the template for the given GRIB and lookup.
 
         Parameters

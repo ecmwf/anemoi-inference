@@ -10,11 +10,7 @@
 
 import logging
 from typing import TYPE_CHECKING
-from typing import Dict
-from typing import List
 from typing import Literal
-from typing import Optional
-from typing import Union
 from typing import overload
 
 from anemoi.utils.provenance import gather_provenance_info
@@ -51,7 +47,7 @@ def validate_environment(
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore"] = "warn",
-    exempt_packages: Optional[List[str]] = None,
+    exempt_packages: list[str] | None = None,
 ) -> bool: ...
 
 
@@ -61,7 +57,7 @@ def validate_environment(
     *,
     all_packages: bool = False,
     on_difference: Literal["return"] = "return",
-    exempt_packages: Optional[List[str]] = None,
+    exempt_packages: list[str] | None = None,
 ) -> str: ...
 
 
@@ -70,8 +66,8 @@ def validate_environment(
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
-    exempt_packages: Optional[List[str]] = None,
-) -> Union[bool, str]:
+    exempt_packages: list[str] | None = None,
+) -> bool | str:
     """Validate environment of the checkpoint against the current environment.
 
     Parameters
@@ -114,7 +110,7 @@ def validate_environment(
     exempt_packages = exempt_packages or []
     exempt_packages.extend(EXEMPT_PACKAGES)
 
-    invalid_messages: Dict[str, List[str]] = {
+    invalid_messages: dict[str, list[str]] = {
         "python": [],
         "missing": [],
         "mismatch": [],

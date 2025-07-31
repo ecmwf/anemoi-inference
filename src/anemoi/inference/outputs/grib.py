@@ -13,10 +13,6 @@ import json
 import logging
 from abc import abstractmethod
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -119,16 +115,16 @@ class BaseGribOutput(Output):
     def __init__(
         self,
         context: dict,
-        post_processors: Optional[List[ProcessorConfig]] = None,
+        post_processors: list[ProcessorConfig] | None = None,
         *,
-        encoding: Optional[Dict[str, Any]] = None,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        encoding: dict[str, Any] | None = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ) -> None:
         """Initialize the GribOutput object.
 

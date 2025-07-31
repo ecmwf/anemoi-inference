@@ -9,7 +9,6 @@
 
 import datetime
 from typing import Any
-from typing import Dict
 
 import torch
 from anemoi.utils.config import DotDict
@@ -23,7 +22,7 @@ from anemoi.inference.testing import float_hash
 class MockModelBase(torch.nn.Module):
     """Mock model base class for testing."""
 
-    def __init__(self, metadata: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
+    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
         super().__init__()
         metadata = DotDict(metadata)
         self.supporting_arrays = supporting_arrays
@@ -45,7 +44,7 @@ class MockModelBase(torch.nn.Module):
         self.timestep = checkpoint.timestep
 
         self.first = True
-        self.constant_in_time: Dict[int, torch.Tensor] = {}
+        self.constant_in_time: dict[int, torch.Tensor] = {}
 
     def predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any

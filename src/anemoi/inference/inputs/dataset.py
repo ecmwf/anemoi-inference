@@ -12,10 +12,6 @@ import json
 import logging
 from functools import cached_property
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 
@@ -33,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class DatasetInput(Input):
     """Handles `anemoi-datasets` dataset as input."""
 
-    def __init__(self, context: Context, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+    def __init__(self, context: Context, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
         """Initialize the DatasetInput.
 
         Parameters
@@ -86,7 +82,7 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.args}, {self.kwargs})"
 
-    def create_input_state(self, *, date: Optional[Date] = None) -> State:
+    def create_input_state(self, *, date: Date | None = None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -135,7 +131,7 @@ class DatasetInput(Input):
 
         return input_state
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
@@ -173,7 +169,7 @@ class DatasetInput(Input):
             longitudes=self.longitudes,
         )
 
-    def _load_dates(self, dates: List[Date]) -> Any:
+    def _load_dates(self, dates: list[Date]) -> Any:
         """Load the data for the given dates.
 
         Parameters

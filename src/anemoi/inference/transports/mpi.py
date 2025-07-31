@@ -10,7 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
 
 from anemoi.utils.logs import set_logging_name
 
@@ -28,7 +27,7 @@ LOG = logging.getLogger(__name__)
 class MPITransport(Transport):
     """Transport implementation using MPI."""
 
-    def __init__(self, couplings: Configuration, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, couplings: Configuration, tasks: dict[str, Task], *args: Any, **kwargs: Any) -> None:
         """Initialize the MPITransport.
 
         Parameters

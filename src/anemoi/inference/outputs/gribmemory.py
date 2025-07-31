@@ -11,10 +11,6 @@
 import logging
 from io import IOBase
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig
@@ -32,17 +28,17 @@ class GribMemoryOutput(GribIoOutput):
         context: Context,
         *,
         out: IOBase,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        encoding: Optional[Dict[str, Any]] = None,
-        archive_requests: Optional[Dict[str, Any]] = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
         check_encoding: bool = True,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ) -> None:
         """Initialize the GribFileOutput.
 
