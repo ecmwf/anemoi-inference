@@ -248,7 +248,10 @@ class EkdInput(Input):
         geography_information = {}
 
         def get_geography_info(key: str) -> Optional[str]:
-            combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+            try:
+                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+            except NotImplementedError:  # Issue with earthkit.data throwing error here
+                return None
             if len(set(map(str, combo))) == 1 and combo[0] != "None":
                 return combo[0]
             return None
