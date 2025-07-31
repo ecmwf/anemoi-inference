@@ -10,8 +10,6 @@
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -40,8 +38,8 @@ class IconInput(GribInput):
         path: str,
         grid: str,
         refinement_level_c: int,
-        pre_processors: Optional[List[ProcessorConfig]] = None,
-        namer: Optional[Any] = None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the IconInput.
@@ -68,7 +66,7 @@ class IconInput(GribInput):
         self.grid = grid
         self.refinement_level_c = refinement_level_c
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Creates the input state for the given date.
 
         Parameters
@@ -93,7 +91,7 @@ class IconInput(GribInput):
             longitudes=longitudes,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Loads the forcings state for the given variables and dates.
 
         Parameters

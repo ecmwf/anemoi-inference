@@ -12,8 +12,6 @@ import logging
 import warnings
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
 
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -175,7 +173,7 @@ class DefaultRunner(Runner):
         LOG.info("Output: %s", output)
         return output
 
-    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant computed forcings.
 
         Parameters
@@ -194,7 +192,7 @@ class DefaultRunner(Runner):
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic computed forcings.
 
         Parameters
@@ -213,7 +211,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def _input_forcings(self, name: str) -> Dict[str, Any]:
+    def _input_forcings(self, name: str) -> dict[str, Any]:
         """Get the input forcings configuration.
 
         Parameters
@@ -238,7 +236,7 @@ class DefaultRunner(Runner):
 
         return self.config.forcings
 
-    def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant coupled forcings.
 
         Parameters
@@ -258,7 +256,7 @@ class DefaultRunner(Runner):
         LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic coupled forcings.
 
         Parameters
@@ -278,7 +276,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create boundary forcings.
 
         Parameters
@@ -298,7 +296,7 @@ class DefaultRunner(Runner):
         LOG.info("Boundary forcing: %s", result)
         return [result]
 
-    def create_pre_processors(self) -> List[Processor]:
+    def create_pre_processors(self) -> list[Processor]:
         """Create pre-processors.
 
         Returns
@@ -313,7 +311,7 @@ class DefaultRunner(Runner):
         LOG.info("Pre processors: %s", result)
         return result
 
-    def create_post_processors(self) -> List[Processor]:
+    def create_post_processors(self) -> list[Processor]:
         """Create post-processors.
 
         Returns

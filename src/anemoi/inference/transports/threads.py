@@ -12,8 +12,6 @@ import logging
 import queue
 import threading
 from typing import Any
-from typing import Dict
-from typing import Optional
 
 from anemoi.utils.logs import set_logging_name
 
@@ -39,7 +37,7 @@ class TaskWrapper:
         """
         self.task: Task = task
         self.queue: queue.Queue[Any] = queue.Queue(maxsize=1)
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
         self.name: str = task.name
 
     def run(self, transport: "ThreadsTransport") -> None:
@@ -72,7 +70,7 @@ class TaskWrapper:
 class ThreadsTransport(Transport):
     """Transport implementation using threads."""
 
-    def __init__(self, couplings: Any, tasks: Dict[str, Task], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, couplings: Any, tasks: dict[str, Task], *args: Any, **kwargs: Any) -> None:
         """Initialize the ThreadsTransport.
 
         Parameters
@@ -83,9 +81,9 @@ class ThreadsTransport(Transport):
             The tasks to be executed.
         """
         super().__init__(couplings, tasks)
-        self.threads: Dict[str, threading.Thread] = {}
+        self.threads: dict[str, threading.Thread] = {}
         self.lock = threading.Lock()
-        self.backlogs: Dict[str, Any] = {name: {} for name in tasks}
+        self.backlogs: dict[str, Any] = {name: {} for name in tasks}
 
     def start(self) -> None:
         """Start the transport by initializing and starting threads for each task."""

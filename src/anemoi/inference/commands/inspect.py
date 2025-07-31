@@ -10,8 +10,8 @@
 import json
 from argparse import ArgumentParser
 from argparse import Namespace
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
 
 from ..checkpoint import Checkpoint
 from . import Command

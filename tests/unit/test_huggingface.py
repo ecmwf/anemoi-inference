@@ -10,7 +10,6 @@
 
 import unittest
 from pathlib import Path
-from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -99,7 +98,7 @@ def test_huggingface_repo_download_str(
 def test_huggingface_repo_download_dict(
     huggingface_mock: unittest.mock.Mock,
     monkeypatch: pytest.MonkeyPatch,
-    ckpt: Dict[str, str],
+    ckpt: dict[str, str],
     fake_huggingface_repo: Path,
 ) -> None:
     """Test downloading a huggingface repo using a dictionary identifier.
@@ -130,7 +129,7 @@ def test_huggingface_repo_download_dict(
 def test_huggingface_file_download(
     huggingface_mock: unittest.mock.Mock,
     monkeypatch: pytest.MonkeyPatch,
-    ckpt: Dict[str, str],
+    ckpt: dict[str, str],
     fake_huggingface_ckpt: Path,
 ) -> None:
     """Test downloading a specific file from a huggingface repo.

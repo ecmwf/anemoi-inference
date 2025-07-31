@@ -11,8 +11,6 @@ import datetime
 import logging
 import sys
 from typing import Any
-from typing import Dict
-from typing import Union
 
 import numpy as np
 
@@ -51,12 +49,12 @@ class InputSource:
 class Trace:
     """Implementation of a trace."""
 
-    def __init__(self, path: Union[bool, str]) -> None:
+    def __init__(self, path: bool | str) -> None:
         self.path = path
         self.file = sys.stdout if path is True else open(path, "w")
 
-        self.sources: Dict[str, Any] = {}
-        self.extra: Dict[str, Any] = {}
+        self.sources: dict[str, Any] = {}
+        self.extra: dict[str, Any] = {}
 
         print("-+" * 80, file=self.file)
         print("Trace:", datetime.datetime.now(), file=self.file)
@@ -68,7 +66,7 @@ class Trace:
         date: datetime.datetime,
         fcstep: int,
         input_tensor: FloatArray,
-        variable_to_input_tensor_index: Dict[str, int],
+        variable_to_input_tensor_index: dict[str, int],
         timestep: datetime.timedelta,
     ) -> None:
         """Write the input tensor details to the trace file.
@@ -121,7 +119,7 @@ class Trace:
         date: datetime.datetime,
         fcstep: int,
         output_tensor: FloatArray,
-        output_tensor_index_to_variable: Dict[int, str],
+        output_tensor_index_to_variable: dict[int, str],
         timestep: datetime.timedelta,
     ) -> None:
         """Write the output tensor details to the trace file.
@@ -217,7 +215,7 @@ class Trace:
         """
         self.from_source(name, InputSource(input))
 
-    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: Dict[str, int]) -> None:
+    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: dict[str, int]) -> None:
         """Reset the sources in the trace.
 
         Parameters

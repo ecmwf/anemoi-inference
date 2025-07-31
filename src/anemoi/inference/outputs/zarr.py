@@ -13,9 +13,7 @@ import logging
 import os
 import shutil
 from typing import Any
-from typing import List
 from typing import Literal
-from typing import Optional
 
 import numpy as np
 
@@ -36,7 +34,7 @@ def create_zarr_array(
     dtype: str,
     dimensions: tuple[str, ...],
     chunks: tuple[int, ...] | Literal["auto"] | bool,
-    fill_value: Optional[float] = None,
+    fill_value: float | None = None,
 ) -> Any:
     """Create a Zarr array with the given parameters.
 
@@ -80,10 +78,10 @@ class ZarrOutput(Output):
         self,
         context: Context,
         store: Any,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
-        missing_value: Optional[float] = np.nan,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        missing_value: float | None = np.nan,
         float_size: str = "f4",
         chunks: tuple[int, ...] | Literal["auto"] = "auto",
     ) -> None:

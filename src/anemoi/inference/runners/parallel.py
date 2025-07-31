@@ -14,8 +14,6 @@ import os
 import socket
 import subprocess
 from typing import Any
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -290,7 +288,7 @@ class ParallelRunnerMixin:
             if self.local_rank == 0:
                 self._spawn_parallel_procs(self.world_size)
 
-    def _init_network_from_slurm(self) -> Tuple[str, str]:
+    def _init_network_from_slurm(self) -> tuple[str, str]:
         """Reads Slurm environment to set master address and port for parallel communication.
 
         Returns
@@ -341,7 +339,7 @@ class ParallelRunnerMixin:
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> Optional[dist.ProcessGroup]:
+    def _init_parallel(self) -> dist.ProcessGroup | None:
         """Creates a model communication group to be used for parallel inference.
 
         Returns
@@ -376,7 +374,7 @@ class ParallelRunnerMixin:
 
         return model_comm_group
 
-    def _get_parallel_info_from_slurm(self) -> Tuple[int, int, int]:
+    def _get_parallel_info_from_slurm(self) -> tuple[int, int, int]:
         """Reads Slurm env vars, if they exist, to determine if inference is running in parallel.
 
         Returns
