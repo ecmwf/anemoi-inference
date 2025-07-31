@@ -11,15 +11,10 @@
 import datetime
 import logging
 import warnings
+from collections.abc import Generator
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import torch
@@ -83,18 +78,18 @@ class Runner(Context):
         checkpoint: str,
         *,
         device: str = "cuda",
-        precision: Optional[str] = None,
+        precision: str | None = None,
         report_error: bool = False,
-        allow_nans: Optional[bool] = None,
+        allow_nans: bool | None = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
-        patch_metadata: Dict[str, Any] = {},
-        development_hacks: Dict[str, Any] = {},
-        trace_path: Optional[str] = None,
-        output_frequency: Optional[str] = None,
+        patch_metadata: dict[str, Any] = {},
+        development_hacks: dict[str, Any] = {},
+        trace_path: str | None = None,
+        output_frequency: str | None = None,
         write_initial_state: bool = True,
         use_profiler: bool = False,
-        typed_variables: Dict[str, Dict] = {},
+        typed_variables: dict[str, dict] = {},
     ) -> None:
         """Parameters
         -------------
@@ -184,7 +179,7 @@ class Runner(Context):
         return self._checkpoint
 
     def run(
-        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta], return_numpy: bool = True
+        self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -241,7 +236,7 @@ class Runner(Context):
                     self.checkpoint.report_error()
                 raise
 
-    def create_constant_forcings_inputs(self, input_state: State) -> List[Forcings]:
+    def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
         """Create constant forcings inputs.
 
         Parameters
@@ -256,7 +251,7 @@ class Runner(Context):
         """
         return self.checkpoint.constant_forcings_inputs(self, input_state)
 
-    def create_dynamic_forcings_inputs(self, input_state: State) -> List[Forcings]:
+    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
         """Create dynamic forcings inputs.
 
         Parameters
@@ -271,7 +266,7 @@ class Runner(Context):
         """
         return self.checkpoint.dynamic_forcings_inputs(self, input_state)
 
-    def create_boundary_forcings_inputs(self, input_state: State) -> List[Forcings]:
+    def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
         """Create boundary forcings inputs.
 
         Parameters
@@ -340,7 +335,7 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs: List[Forcings]) -> List[Forcings]:
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
         """Modify the constant forcings inputs for the first step.
 
         Parameters
@@ -356,7 +351,7 @@ class Runner(Context):
         # Give an opportunity to modify the forcings for the first step
         return constant_forcings_inputs
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
         """Modify the dynamic forcings inputs for the first step.
 
         Parameters
@@ -469,7 +464,7 @@ class Runner(Context):
             yield state
 
     @cached_property
-    def autocast(self) -> Union[torch.dtype, str]:
+    def autocast(self) -> torch.dtype | str:
         """The autocast precision."""
         autocast = self.precision
 
@@ -532,7 +527,7 @@ class Runner(Context):
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[Tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -902,7 +897,7 @@ class Runner(Context):
         return input_state
 
     def _print_tensor(
-        self, title: str, tensor_numpy: FloatArray, tensor_by_name: List[str], kinds: Dict[str, Kind]
+        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
     ) -> None:
         """Print the tensor.
 

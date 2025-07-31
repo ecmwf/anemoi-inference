@@ -9,8 +9,6 @@
 
 import logging
 import os
-from typing import List
-from typing import Optional
 
 import numpy as np
 
@@ -53,11 +51,11 @@ class PlotOutput(Output):
         template: str = "plot_{variable}_{date}.{format}",
         dpi: int = 300,
         format: str = "png",
-        variables: Optional[List[str]] = None,
-        missing_value: Optional[float] = None,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        variables: list[str] | None = None,
+        missing_value: float | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ) -> None:
         """Initialize the PlotOutput.
 

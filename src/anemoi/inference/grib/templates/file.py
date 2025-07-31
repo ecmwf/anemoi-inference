@@ -9,7 +9,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
 
 import earthkit.data as ekd
 
@@ -36,7 +35,7 @@ class FileTemplates(TemplateProvider):
         self.manager = manager
         self.path = path
 
-    def template(self, grib: str, lookup: Dict[str, Any]) -> ekd.Field:
+    def template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field:
         """Retrieve the template from the GRIB file.
 
         Parameters

@@ -12,11 +12,8 @@ import json
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -35,15 +32,15 @@ def checkpoint_to_requests(
     checkpoint: Checkpoint,
     *,
     date: Date,
-    target: Optional[str] = None,
+    target: str | None = None,
     include_forcings: bool = True,
-    retrieve_fields_type: Optional[str] = None,
-    staging_dates: Optional[str] = None,
+    retrieve_fields_type: str | None = None,
+    staging_dates: str | None = None,
     use_grib_paramid: bool = False,
-    extra: Optional[List[str]] = None,
-    patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
+    extra: list[str] | None = None,
+    patch_request: Callable[[DataRequest], DataRequest] | None = None,
     use_scda: bool = False,
-) -> List[DataRequest]:
+) -> list[DataRequest]:
     """Convert a checkpoint to a list of data requests.
 
     Parameters
@@ -197,7 +194,7 @@ class RetrieveCmd(Command):
         json.dump(requests, f, indent=4)
 
 
-def _patch_scda(request: Dict[str, Any]) -> None:
+def _patch_scda(request: dict[str, Any]) -> None:
     """Patch the SCDA stream in the request if necessary.
     ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC.
 
