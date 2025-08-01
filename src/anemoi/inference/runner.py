@@ -494,8 +494,10 @@ class Runner(Context):
                 if self.report_error:
                     self.checkpoint.report_error()
                 validation_result = self.checkpoint.validate_environment(on_difference="return")
-                error_msg = f"Error loading model - {validation_result}"
-                raise RuntimeError(error_msg) from e
+                warnings.warn(
+                    "Model failed to load, is your environment valid:\n" + str(validation_result), UserWarning
+                )
+                raise e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
