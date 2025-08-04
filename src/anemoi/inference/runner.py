@@ -488,6 +488,9 @@ class Runner(Context):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
+            if hasattr(self.device, "resolve"):
+                self.device = self.device.resolve()  # type: ignore
+
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except Exception as e:  # Wildcard exception to catch all errors

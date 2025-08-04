@@ -16,6 +16,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from anemoi.inference.device import LazyDevice
 from anemoi.inference.types import ProcessorConfig
 
 from . import Configuration
@@ -63,7 +64,7 @@ class RunConfiguration(Configuration):
     forcings: dict[str, dict[str, Any]] | None = None
     """Where to find the forcings."""
 
-    device: str = "cuda"
+    device: str = LazyDevice()
     """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
 
     precision: str | None = None
