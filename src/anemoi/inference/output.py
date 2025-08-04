@@ -244,7 +244,7 @@ class ForwardOutput(Output):
     def __init__(
         self,
         context: "Context",
-        output: dict,
+        output: dict | None,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
