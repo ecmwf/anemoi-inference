@@ -78,7 +78,7 @@ class Runner(Context):
         self,
         checkpoint: str,
         *,
-        device: str = "cuda",
+        device: str | None = None,
         precision: str | None = None,
         report_error: bool = False,
         allow_nans: bool | None = None,
@@ -96,8 +96,9 @@ class Runner(Context):
         -------------
         checkpoint : str
             Path to the checkpoint file.
-        device : str, optional
-            Device to run the model on, by default "cuda".
+        device : str | None, optional
+            Device to run the model on, by default None.
+            If None the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
         precision : Optional[str], optional
             Precision to use, by default None.
         report_error : bool, optional
