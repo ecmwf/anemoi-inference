@@ -126,16 +126,27 @@ class ExtractSlice(ExtractBase):
 
 
 @post_processor_registry.register("extract_from_state")
-@main_argument("source")
+@main_argument("cutout_source")
 class ExtractState(ExtractBase):
     """Extract a subset of points based on a mask included in the state.
 
     Must be used with the Cutout input.
     """
 
-    def __init__(self, context: Context, source: str) -> None:
+    def __init__(self, context: Context, cutout_source: str) -> None:
+        """Initialize the ExtractState processor.
+
+        Must be used with the Cutout input.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the processor is running.
+        cutout_source : str
+            The source to use for the cutout mask for extraction.
+        """
         super().__init__(context)
-        self._source = source
+        self._source = cutout_source
 
     def process(self, state: State) -> State:
         """Process the state to extract a subset of points based on the mask.
@@ -165,7 +176,7 @@ class ExtractState(ExtractBase):
 
         standard_keys = ["latitudes", "longitudes", "fields", "date"]
         for key in [k for k in state.keys() if k not in standard_keys]:
-            if hasattr(state[key], "__getitem__") and self._source in state[key]:
+            if isinstance(state[key], dict) and self._source in state[key]:
                 extraced_state[key] = state[key][self._source]
 
         return extraced_state

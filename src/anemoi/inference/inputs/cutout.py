@@ -26,7 +26,7 @@ STANDARD_KEYS = ["longitudes", "latitudes", "fields", "date"]
 
 
 def _mask_and_combine_states(
-    existing_state: State | None,
+    existing_state: State,
     new_state: State,
     mask: np.ndarray | slice,
     fields: Iterable[str],
@@ -37,7 +37,7 @@ def _mask_and_combine_states(
 
     Parameters
     ----------
-    existing_state : State | None
+    existing_state : State
         The state to be combined into.
     new_state : State
         The other state to combine.
@@ -51,8 +51,7 @@ def _mask_and_combine_states(
     State
         The combined state
     """
-    was_empty = existing_state is None or existing_state == {}
-    existing_state = existing_state or {}
+    was_empty = bool(existing_state)
 
     for field in fields:
         if was_empty:
