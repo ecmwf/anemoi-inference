@@ -105,6 +105,8 @@ markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]
 testpaths = "tests"
+tmp_path_retention_policy = "none"
+tmp_path_retention_count = 0
 
 [tool.mypy]
 exclude = [ "docs/" ]
