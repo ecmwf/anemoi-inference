@@ -613,22 +613,13 @@ class Checkpoint:
                 if not r:
                     continue
 
-                changed = True
-                while changed:
-                    changed = False
-                    for k, v in r.items():
-                        if isinstance(v, tuple):
-                            r[k] = list(v)
-                            changed = True
-
-                        if isinstance(v, (list, tuple)) and len(v) == 1:
-                            r[k] = v[0]
-                            changed = True
+                r = r.copy()
 
                 # Convert all to lists
                 for k, v in r.items():
-                    if not isinstance(v, list):
-                        r[k] = [v]
+                    if not isinstance(v, (list, tuple, set)):
+                        v = [v]
+                    r[k] = sorted(set(v))
 
                 # Patch BEFORE the shortname to paramid
 
@@ -637,10 +628,9 @@ class Checkpoint:
 
                 # Convert all to lists (again)
                 for k, v in r.items():
-                    if isinstance(v, tuple):
-                        r[k] = list(*v)
-                    if not isinstance(v, list):
-                        r[k] = [v]
+                    if not isinstance(v, (list, tuple, set)):
+                        v = [v]
+                    r[k] = sorted(set(v))
 
                 if use_grib_paramid and "param" in r:
 
