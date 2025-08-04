@@ -31,9 +31,6 @@ class TeeOutput(ForwardOutput):
         context: Context,
         *args: Any,
         outputs: list[Configuration],
-        variables: list[str] | None = None,
-        output_frequency: int | None = None,
-        write_initial_state: bool | None = None,
         **kwargs: Any,
     ):
         """Initialize the TeeOutput.
@@ -46,20 +43,13 @@ class TeeOutput(ForwardOutput):
             Additional positional arguments.
         outputs : list or tuple, optional
             List of outputs to be created.
-        output_frequency : int, optional
-            Frequency of output.
-        write_initial_state : bool, optional
-            Flag to write the initial state.
         **kwargs : Any
             Additional keyword arguments.
         """
         super().__init__(
             context,
             None,
-            variables=variables,
-            post_processors=None,
-            output_frequency=output_frequency,
-            write_initial_state=write_initial_state,
+            **kwargs,
         )
 
         if outputs is None:
@@ -79,6 +69,7 @@ class TeeOutput(ForwardOutput):
             The state dictionary.
         """
         state.setdefault("step", datetime.timedelta(0))
+        state = self.post_process(state)
         for output in self.outputs:
             output.write_initial_state(state)
 
@@ -90,6 +81,7 @@ class TeeOutput(ForwardOutput):
         state : State
             The state dictionary.
         """
+        state = self.post_process(state)
         for output in self.outputs:
             output.write_state(state)
 

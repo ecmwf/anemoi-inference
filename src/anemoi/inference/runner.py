@@ -538,9 +538,9 @@ class Runner(Context):
                 raise
             except Exception as e:  # Wildcard exception to catch all errors
                 validation_result = self.checkpoint.validate_environment(on_difference="return")
-                error_msg = f"Error loading model - {validation_result}"
-                raise RuntimeError(error_msg) from e
-
+                e.add_note("Model failed to load, check the stack trace above this message to find the real error")
+                e.add_note("Is your environment valid?:\n" + str(validation_result))
+                raise e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
