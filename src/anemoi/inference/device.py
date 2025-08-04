@@ -7,57 +7,24 @@
 # nor does it submit to any jurisdiction.
 #
 
-import torch
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch
 
 
-class LazyDevice(str):
-    def __init__(self, prefer: list[str] | None = None):
-        """prefer: Ordered list of preferred device types.
-        Options: 'cuda', 'mps', 'cpu'
-        Default: ['cuda', 'mps', 'cpu']
-        """
-        if prefer is None:
-            prefer = ["cuda", "mps", "cpu"]
-        self.prefer = prefer
-        self._device = None
+def get_available_device() -> "torch.device":
+    """Get the available device for PyTorch.
 
-    def resolve(self) -> str:
-        if self._device is not None:
-            return self._device
+    Returns
+    -------
+    torch.device
+        The available device, either 'cuda', 'mps', or 'cpu'.
+    """
+    import torch
 
-        for dev in self.prefer:
-            if dev == "cuda" and torch.cuda.is_available():
-                self._device = "cuda"
-                break
-            elif dev == "mps" and torch.backends.mps.is_available():
-                self._device = "mps"
-                break
-            elif dev == "cpu":
-                self._device = "cpu"
-                break
-
-        if self._device is None:
-            raise RuntimeError(f"No supported devices found among: {self.prefer}")
-
-        return self._device
-
-    def __str__(self):
-        return self.resolve()
-
-    def __repr__(self):
-        return self.resolve()
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        return self.resolve()
-
-    def __getattribute__(self, key):
-        if key in ["_device", "resolve", "prefer"]:
-            return super().__getattribute__(key)
-        return getattr(self.resolve(), key)
-
-
-device = LazyDevice()
-
-__all__ = ["device"]
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")

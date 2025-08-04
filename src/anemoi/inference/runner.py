@@ -24,6 +24,7 @@ from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
+from anemoi.inference.device import get_available_device
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
@@ -131,7 +132,7 @@ class Runner(Context):
         else:
             self.trace = None
 
-        self.device = device
+        self._device = device
         self.precision = precision
         self.report_error = report_error
 
@@ -177,6 +178,12 @@ class Runner(Context):
             The checkpoint object.
         """
         return self._checkpoint
+
+    @property
+    def device(self) -> str:
+        if self._device is None:
+            self._device = str(get_available_device())
+        return self._device
 
     def run(
         self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
@@ -487,9 +494,6 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
-
-            if hasattr(self.device, "resolve"):
-                self.device = self.device.resolve()  # type: ignore
 
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
