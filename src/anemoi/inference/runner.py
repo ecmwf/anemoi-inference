@@ -181,10 +181,17 @@ class Runner(Context):
         return self._checkpoint
 
     @property
-    def device(self) -> str:
+    def device(self) -> "torch.device":
         if self._device is None:
-            self._device = str(get_available_device())
+            self._device = get_available_device()
+        elif isinstance(self._device, str):
+            self._device = torch.device(self._device)
         return self._device
+
+    @device.setter
+    def device(self, value: "torch.device | str") -> None:
+        """Set the device for the runner."""
+        self._device = value
 
     def run(
         self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
@@ -632,7 +639,7 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
+                torch.autocast(device_type=str(self.device), dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
