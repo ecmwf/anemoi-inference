@@ -51,7 +51,7 @@ def _mask_and_combine_states(
     State
         The combined state
     """
-    was_empty = bool(existing_state)
+    was_empty = existing_state == {}
 
     for field in fields:
         if was_empty:

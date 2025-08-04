@@ -28,7 +28,7 @@ def test_mask_and_combine_states():
     masks[1][[2, 3]] = True
     masks[2][[2, 4]] = True
 
-    combined_state: dict = None  # type: ignore
+    combined_state: dict = {}
     for k in range(len(states)):
         mask = masks[k]
         new_state = states[k]
