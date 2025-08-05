@@ -415,6 +415,10 @@ class EkdInput(Input):
         )
 
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
+        """Set private attributes to the state.
+
+        Provides geography information if available retrieved from the fields.
+        """
         geography_information = {}
 
         def get_geography_info(key: str) -> str | None:
