@@ -22,7 +22,6 @@ from anemoi.inference.types import State
 from . import input_registry
 
 LOG = logging.getLogger(__name__)
-STANDARD_KEYS = ["longitudes", "latitudes", "fields", "date"]
 
 
 def _mask_and_combine_states(
@@ -66,20 +65,7 @@ def _mask_and_combine_states(
 
 
 def _realise_mask(sli: slice | np.ndarray, state: dict) -> np.ndarray:
-    """Realise a slice or array into an bool array based on the state shape.
-
-    Parameters
-    ----------
-    sli : slice | np.ndarray
-        The slice to realise.
-    state : dict
-        The state containing the data to slice.
-
-    Returns
-    -------
-    np.ndarray
-        The slice realised as a boolean array.
-    """
+    """Realise a slice or array into an bool array based on the state shape."""
     return np.ones(len(state["latitudes"]), dtype=bool)[sli]
 
 
@@ -105,7 +91,7 @@ def _extract_and_add_private_attributes(
         The updated private attributes dictionary.
     """
 
-    for key in (k for k in state.keys() if k not in STANDARD_KEYS):
+    for key in (k for k in state.keys() if k.startswith("_")):
         private_attributes[key][name] = state[key]
     return private_attributes
 
@@ -174,14 +160,11 @@ class Cutout(Input):
             source_state = self.sources[source].create_input_state(date=date)
             source_mask = self.masks[source]
 
+            # Create the mask front padded with zeros
+            # to match the length of the combined state
             _realised_mask = _realise_mask(source_mask, source_state)
-
-            if len(_realised_mask) != len(
-                source_state["latitudes"]
-            ):  # Remove geography if mask modifies the number of points in state
-                source_state.pop("_geography", None)
-
             current_length = len(combined_state.get("latitudes", []))
+
             _mask_private_attributes[source] = np.concatenate(
                 (
                     np.zeros((current_length,), dtype=bool),
@@ -189,6 +172,7 @@ class Cutout(Input):
                 ),
                 axis=-1,
             )
+            # Combine the private attributes
             _private_attributes = _extract_and_add_private_attributes(_private_attributes, source_state, source)
 
             combined_state = _mask_and_combine_states(
@@ -198,7 +182,7 @@ class Cutout(Input):
                 combined_state.get("fields", {}), source_state["fields"], source_mask, source_state["fields"].keys()
             )
 
-            for key in STANDARD_KEYS:
+            for key in (k for k in source_state.keys() if not k.startswith("_")):
                 combined_state.setdefault(key, source_state[key])
 
         # Pad the masks to the total length of the combined state

@@ -174,8 +174,7 @@ class ExtractState(ExtractBase):
         self.indexer = mask
         extraced_state = super().process(state)
 
-        standard_keys = ["latitudes", "longitudes", "fields", "date"]
-        for key in [k for k in state.keys() if k not in standard_keys]:
+        for key in (k for k in state.keys() if k.startswith("_")):
             if isinstance(state[key], dict) and self._source in state[key]:
                 extraced_state[key] = state[key][self._source]
 
