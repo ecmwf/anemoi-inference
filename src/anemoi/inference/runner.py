@@ -24,6 +24,7 @@ from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
+from anemoi.inference.device import get_available_device
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
@@ -77,7 +78,7 @@ class Runner(Context):
         self,
         checkpoint: str,
         *,
-        device: str = "cuda",
+        device: str | None = None,
         precision: str | None = None,
         report_error: bool = False,
         allow_nans: bool | None = None,
@@ -95,8 +96,9 @@ class Runner(Context):
         -------------
         checkpoint : str
             Path to the checkpoint file.
-        device : str, optional
-            Device to run the model on, by default "cuda".
+        device : str | None, optional
+            Device to run the model on, by default None.
+            If None the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
         precision : Optional[str], optional
             Precision to use, by default None.
         report_error : bool, optional
@@ -131,7 +133,7 @@ class Runner(Context):
         else:
             self.trace = None
 
-        self.device = device
+        self._device = device
         self.precision = precision
         self.report_error = report_error
 
@@ -177,6 +179,19 @@ class Runner(Context):
             The checkpoint object.
         """
         return self._checkpoint
+
+    @property
+    def device(self) -> "torch.device":
+        if self._device is None:
+            self._device = get_available_device()
+        elif isinstance(self._device, str):
+            self._device = torch.device(self._device)
+        return self._device
+
+    @device.setter
+    def device(self, value: "torch.device | str") -> None:
+        """Set the device for the runner."""
+        self._device = value
 
     def run(
         self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
@@ -624,7 +639,7 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
+                torch.autocast(device_type=str(self.device), dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
