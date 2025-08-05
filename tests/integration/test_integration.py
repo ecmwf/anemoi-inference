@@ -14,6 +14,7 @@ from typing import NamedTuple
 
 import pytest
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
+from anemoi.utils.testing import GetTestData
 from omegaconf import OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
@@ -47,7 +48,7 @@ class Setup(NamedTuple):
 
 
 @pytest.fixture(params=MODEL_CONFIGS, ids=[f"{model}/{config.name}" for model, config in MODEL_CONFIGS])
-def test_setup(request, get_test_data: callable, tmp_path: Path) -> Setup:
+def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     model, config = request.param
     input = config.input
     output = tmp_path / config.output
