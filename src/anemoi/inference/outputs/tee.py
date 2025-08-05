@@ -29,8 +29,8 @@ class TeeOutput(ForwardOutput):
     def __init__(
         self,
         context: Context,
-        *args: Any,
-        outputs: list[Configuration],
+        *args: Configuration,
+        outputs: tuple[Configuration, ...] | None = None,
         **kwargs: Any,
     ):
         """Initialize the TeeOutput.
@@ -39,7 +39,7 @@ class TeeOutput(ForwardOutput):
         ----------
         context : object
             The context object.
-        *args : Any
+        *args : Configuration
             Additional positional arguments.
         outputs : list or tuple, optional
             List of outputs to be created.
