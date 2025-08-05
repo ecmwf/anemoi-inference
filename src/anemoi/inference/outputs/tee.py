@@ -10,6 +10,7 @@
 import datetime
 import logging
 from typing import Any
+from typing import Sequence
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
@@ -30,7 +31,7 @@ class TeeOutput(ForwardOutput):
         self,
         context: Context,
         *args: Configuration,
-        outputs: tuple[Configuration, ...] | None = None,
+        outputs: Sequence[Configuration] | None = None,
         **kwargs: Any,
     ):
         """Initialize the TeeOutput.
@@ -41,8 +42,8 @@ class TeeOutput(ForwardOutput):
             The context object.
         *args : Configuration
             Additional positional arguments.
-        outputs : list or tuple, optional
-            List of outputs to be created.
+        outputs : Sequence[Configuration], optional
+            Outputs to be created.
         **kwargs : Any
             Additional keyword arguments.
         """
