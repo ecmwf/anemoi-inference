@@ -18,6 +18,7 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
+from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch
@@ -57,6 +58,8 @@ class ParallelRunnerFactory:
 
     def __new__(cls, config: Any, base_runner: str = "default", *args, **kwargs):
         assert base_runner != "parallel", "Base runner cannot be `parallel` itself."
+
+        enable_logging_name(f"rank{int(os.environ.get('SLURM_PROCID',0)):02d}")
 
         try:
             base_class = runner_registry.lookup(base_runner)
@@ -108,13 +111,15 @@ class ParallelRunnerMixin:
 
         self._bootstrap_processes()
 
-        # disable most logging on non-zero ranks
-        if self.global_rank != 0:
-            logging.getLogger().setLevel(logging.WARNING)
-
         if self.device == "cuda":
             self.device = f"{self.device}:{self.local_rank}"
             torch.cuda.set_device(self.local_rank)
+
+        LOG.info(f"ParallelRunner initialized with global rank {self.global_rank} on device {self.device}")
+
+        # disable most logging on non-zero ranks
+        if self.global_rank != 0 and self.verbosity == 0:
+            logging.getLogger().setLevel(logging.WARNING)
 
         # Create a model comm group for parallel inference
         # A dummy comm group is created if only a single device is in use
