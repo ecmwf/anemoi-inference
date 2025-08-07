@@ -66,8 +66,11 @@ class RunConfiguration(Configuration):
     constant_forcings: str | dict[str, Any] | None = None
     """Where to find the constant forcings (default to input)."""
 
-    device: str = "cuda"
-    """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
+    device: str | None = None
+    """
+    The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch.
+    If None, the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
+    """
 
     precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""

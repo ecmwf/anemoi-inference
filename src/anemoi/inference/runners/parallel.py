@@ -111,7 +111,7 @@ class ParallelRunnerMixin:
         if self.global_rank != 0:
             logging.getLogger().setLevel(logging.WARNING)
 
-        if self.device == "cuda":
+        if str(self.device) == "cuda":
             self.device = f"{self.device}:{self.local_rank}"
             torch.cuda.set_device(self.local_rank)
 
@@ -225,7 +225,7 @@ class ParallelRunnerMixin:
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
-        if self.device.startswith("cuda"):
+        if str(self.device).startswith("cuda"):
             num_gpus = torch.cuda.device_count()
             if num_procs > num_gpus:
                 raise ValueError(
@@ -358,7 +358,7 @@ class ParallelRunnerMixin:
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'
-            if self.device.startswith("cuda"):
+            if str(self.device).startswith("cuda"):
                 backend = "nccl"
             else:
                 if dist.is_mpi_available():
