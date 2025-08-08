@@ -101,6 +101,16 @@ backward_transform_filter
 Applies a backward transform filter from `anemoi-transform
 <https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_.
 
+Extractors
+==========
+
+Three extractors are available for use as post-processors:
+   -  ``extract_mask``: extracts with the use of a mask, either on disk
+      or in the supporting arrays.
+   -  ``extract_slice``: extracts with the use of a slice.
+   -  ``extract_from_state``: extracts from the state using masks filled
+      from the ``Cutout`` input.
+
 ***************************
  Top-level post-processors
 ***************************
