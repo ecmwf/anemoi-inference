@@ -61,7 +61,7 @@ dependencies = [
 optional-dependencies.all = [
   "anemoi-datasets",
   "anemoi-inference[huggingface,tests,zarr,plot]",
-  "anemoi-utils[all]>=0.4.26",
+  "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
