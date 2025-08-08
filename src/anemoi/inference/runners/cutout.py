@@ -38,7 +38,7 @@ class CutoutInput(Input):
         self.lam = lam
         self.globe = globe
 
-    def create_input_state(self, *, date: str | None = None) -> None:
+    def create_input_state(self, *, date: str | None) -> None:
         """Create the input state.
 
         Parameters

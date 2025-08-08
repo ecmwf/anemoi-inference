@@ -7,19 +7,19 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
 import datetime
 import logging
 import os
 import socket
 import subprocess
+from typing import TYPE_CHECKING
 from typing import Any
+from typing import Optional
 
 import numpy as np
-import torch
-import torch.distributed as dist
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.lazy import torch
 from anemoi.inference.output import Output
 
 from ..decorators import main_argument
@@ -30,6 +30,9 @@ from . import runner_registry
 from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    import torch
 
 
 def create_parallel_runner(config: Configuration, pid: int) -> None:
@@ -76,6 +79,7 @@ class ParallelRunnerMixin:
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __new__(cls, config, *args, **kwargs):
+
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
@@ -92,6 +96,7 @@ class ParallelRunnerMixin:
         pid : int, optional
             The process ID, by default 0.
         """
+
         super().__init__(config, **kwargs)
 
         self.model_comm_group = None
@@ -121,7 +126,7 @@ class ParallelRunnerMixin:
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any) -> "torch.Tensor":
         """Performs a prediction step.
 
         Parameters
@@ -169,13 +174,14 @@ class ParallelRunnerMixin:
     def __del__(self) -> None:
         """Destructor to clean up resources."""
         if self.model_comm_group is not None:
-            dist.destroy_process_group()
+            torch.distributed.destroy_process_group()
 
     def _seed_procs(self) -> None:
         """Ensures each process uses the same seed.
         Will try read 'ANEMOI_BASE_SEED' from the environment.
         Otherwise, the seed of process 0 will be shared to all processes.
         """
+
         seed = None
         seed_threshold = 1000
         env_var_list = ["ANEMOI_BASE_SEED"]
@@ -339,7 +345,7 @@ class ParallelRunnerMixin:
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> dist.ProcessGroup | None:
+    def _init_parallel(self) -> Optional["torch.distributed.ProcessGroup"]:
         """Creates a model communication group to be used for parallel inference.
 
         Returns
@@ -347,6 +353,8 @@ class ParallelRunnerMixin:
         Optional[dist.ProcessGroup]
             The model communication group.
         """
+        import torch.distributed as dist
+
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'

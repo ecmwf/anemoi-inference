@@ -12,15 +12,13 @@ import logging
 from collections.abc import Generator
 
 import numpy as np
-import torch
-import torch.nn.functional
-from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
 
@@ -70,6 +68,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         # # Remove that when the Pydantic model is ready
         # if not isinstance(config, BaseModel):
         #     config = RunConfiguration.load(config)
+
+        from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 
         super().__init__(config)
 
@@ -183,8 +183,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         output.close()
 
     def predict_step(
-        self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, target_forcing: torch.Tensor
-    ) -> torch.Tensor:
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", target_forcing: "torch.Tensor"
+    ) -> "torch.Tensor":
         return model.predict_step(input_tensor_torch, target_forcing=target_forcing)
 
     def target_computed_forcings(self, variables: list[str], mask=None) -> list[Forcings]:
@@ -240,8 +240,8 @@ class TimeInterpolatorRunner(DefaultRunner):
             yield step, date, target_steps[s], is_last_step
 
     def create_target_forcings(
-        self, dates: datetime.datetime, state: State, input_tensor_torch: torch.Tensor, interpolation_step: int
-    ) -> torch.tensor:
+        self, dates: datetime.datetime, state: State, input_tensor_torch: "torch.Tensor", interpolation_step: int
+    ) -> "torch.tensor":
         """Create target forcings tensor.
 
         Parameters
@@ -260,6 +260,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             the target forcings.
 
         """
+
         batch_size, _, grid, n_vars = input_tensor_torch.shape
 
         # Should use self.checkpoint._metadata._config_training.target_forcing.time_fraction but not accessible
@@ -312,6 +313,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         Any
             The forecasted state.
         """
+        import torch
+
         # This does interpolation but called forecast so we can reuse run()
         self.model.eval()
         torch.set_grad_enabled(False)
