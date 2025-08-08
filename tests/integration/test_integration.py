@@ -9,11 +9,14 @@
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
 
+import numpy as np
 import pytest
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
+from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData
 from omegaconf import OmegaConf
 
@@ -53,21 +56,34 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     input = config.input
     output = tmp_path / config.output
     inference_config = config.inference_config
+    s3_path = f"anemoi-integration-tests/inference/{model}"
 
     # download input file
-    input_data = get_test_data(f"anemoi-integration-tests/inference/{model}/{input}")
+    input_data = get_test_data(f"{s3_path}/{input}") if input else None
 
     # prepare checkpoint
     checkpoint_path = tmp_path / Path("checkpoint.ckpt")
     with open(INTEGRATION_ROOT / model / "metadata.json") as f:
         metadata = json.load(f)
-    # TODO: also get supporting arrays from S3 if needed and store them in the checkpoint
-    save_fake_checkpoint(metadata, checkpoint_path)
+
+    if supporting_arrays := metadata.get("supporting_arrays_paths", {}).keys():
+
+        def load_array(array_name):
+            return array_name, np.load(get_test_data(f"{s3_path}/supporting-arrays/{array_name}.npy"))
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            results = list(executor.map(load_array, list(supporting_arrays)))
+
+        supporting_arrays = dict(results)
+        LOG.info(f"Supporting arrays: {supporting_arrays.keys()}")
+
+    save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays or {})
 
     # substitute inference config with real paths
     OmegaConf.register_new_resolver("input", lambda: str(input_data), replace=True)
     OmegaConf.register_new_resolver("output", lambda: str(output), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
+    OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
 
     # save the inference config to disk
     inference_config = OmegaConf.to_yaml(inference_config, resolve=True)
@@ -107,7 +123,13 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
             VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
         ] or checkpoint_output_variables
 
-        testing_registry.create(check, file=test_setup.output, expected_variables=expected_variables, **kwargs)
+        testing_registry.create(
+            check,
+            file=test_setup.output,
+            expected_variables=expected_variables,
+            checkpoint=runner._checkpoint,
+            **kwargs,
+        )
 
 
 def _typed_variables_output(checkpoint):
