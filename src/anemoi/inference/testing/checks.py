@@ -16,6 +16,8 @@ from . import testing_registry
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
 
+    from anemoi.inference.checkpoint import Checkpoint
+
 LOG = logging.getLogger(__name__)
 
 # checks here are used in the integration tests and can be reused in other test suites
@@ -49,8 +51,7 @@ def check_grib(
     for field in ds:
         for key, value in grib_keys.items():
             assert field[key] == value, f"Key {key} does not match expected value {value}."
-
-        assert np.all(field.values > 0), f"Field {field} is zero."
+        assert not np.all(field.values == 0), f"Field {field} is zero."
 
         if check_nans:
             assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
@@ -100,7 +101,7 @@ def check_with_xarray(
     for var in ds.data_vars:
         if var in skip:
             continue
-        assert np.all(ds[var].values > 0), f"Variable {var} is zero."
+        assert not np.all(ds[var].values == 0), f"Variable {var} is zero."
 
         if check_nans:
             assert not np.isnan(ds[var].values).any(), f"Variable {var} contains NaN values."
@@ -114,3 +115,44 @@ def check_with_xarray(
 
     averages = [np.average(data.values) for data in data_vars]
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
+
+
+@testing_registry.register("check_lam_with_xarray")
+def check_lam(
+    *,
+    file: Path,
+    checkpoint: "Checkpoint",
+    mask="lam_0",
+    reference_date: str = None,
+    reference_dataset={},
+    reference_file=None,
+    **kwargs,
+) -> None:
+    LOG.info(f"Checking LAM: {file}")
+    import numpy as np
+    import xarray as xr
+
+    ds = xr.open_dataset(file)
+
+    # check shape of inner region against the mask in the checkpoint
+    mask = checkpoint.load_supporting_array(f"{mask}/cutout_mask")
+    for var in ds.data_vars:
+        assert ds[var].shape[-1] == np.sum(mask.shape[-1])
+
+    # check that the extracted inner region matches the reference input dataset
+    # the mock model passes input to output, values in the output file should match the input dataset at the reference date
+    if reference_dataset:
+        from anemoi.datasets import open_dataset
+
+        ref_ds = open_dataset(**reference_dataset, start=reference_date, end=reference_date)
+
+        for var in checkpoint.prognostic_variables:
+            assert var in ds.data_vars, f"Variable {var} not found in output file."
+            ref_idx = ref_ds.name_to_index[var]
+            for data in ds[var]:
+                assert np.allclose(
+                    data.values, ref_ds[0, ref_idx, 0, :]
+                ), f"Variable {var} in output does not match reference data at {reference_date}."
+    elif reference_file:
+        # check against a reference file, implement when needed
+        raise NotImplementedError("Reference file check is not implemented yet.")
