@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.7.1](https://github.com/ecmwf/anemoi-inference/compare/0.7.0...0.7.1) (2025-08-08)
+
+
+### Features
+
+* **runner:** Dynamically evalute default device from config ([#297](https://github.com/ecmwf/anemoi-inference/issues/297)) ([c08f3e2](https://github.com/ecmwf/anemoi-inference/commit/c08f3e2bbe90b002ed44098798091ec3c2a4c72a))
+
 ## [0.7.0](https://github.com/ecmwf/anemoi-inference/compare/0.6.3...0.7.0) (2025-08-04)
 
 
