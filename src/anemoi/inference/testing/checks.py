@@ -137,7 +137,9 @@ def check_lam(
     # check shape of inner region against the mask in the checkpoint
     mask = checkpoint.load_supporting_array(f"{mask}/cutout_mask")
     for var in ds.data_vars:
-        assert ds[var].shape[-1] == np.sum(mask.shape[-1])
+        assert ds[var].shape[-1] == np.sum(
+            mask
+        ), f"Variable {var} shape {ds[var].shape[-1]} does not match mask size {np.sum(mask)}."
 
     # check that the extracted inner region matches the reference input dataset
     # the mock model passes input to output, values in the output file should match the input dataset at the reference date
