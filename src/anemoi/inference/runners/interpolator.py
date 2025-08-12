@@ -15,10 +15,10 @@ import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
-from anemoi.inference.device import get_available_device
+
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.lazy import torch
+from anemoi.inference.device import get_available_device
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
 
