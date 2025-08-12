@@ -16,15 +16,14 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
-from earthkit.data.indexing.fieldlist import FieldArray
-from earthkit.data.utils.dates import to_datetime
-from numpy.typing import DTypeLike
-
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
+from earthkit.data.indexing.fieldlist import FieldArray
+from earthkit.data.utils.dates import to_datetime
+from numpy.typing import DTypeLike
 
 from ..checks import check_data
 from ..input import Input
@@ -231,7 +230,7 @@ class EkdInput(Input):
         fields = self.pre_process(fields)
 
         if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
+            variables = self.checkpoint.variables_from_input(include_forcings=False)
 
         if len(fields) == 0:
             raise ValueError("No input fields provided")
@@ -239,7 +238,7 @@ class EkdInput(Input):
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
-        state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
+        state = dict(date=dates[0], latitudes=latitudes, longitudes=longitudes, fields=dict())
 
         state_fields = state["fields"]
 
