@@ -10,6 +10,7 @@
 
 import logging
 from typing import Any
+from typing import Optional
 
 import earthkit.data as ekd
 
@@ -17,7 +18,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
-from typing import Optional
+
 from ..decorators import main_argument
 from . import input_registry
 from .grib import GribInput
