@@ -92,9 +92,9 @@ that will be executed after inference. It uses the same factory registry
 as the inference config. Check functions are located in
 ``anemoi.inference.testing.checks``.
 
-Each checks ``entry`` is a dictionary with a single key that is the name
-of the check in the registry, and the value is a dict of kwargs to pass
-to the function.
+Each entry is a dictionary with a single key that is the name of the
+check in the registry, and the value is a dict of kwargs to pass to the
+function.
 
 By default, the following arguments are passed to the check function:
 
