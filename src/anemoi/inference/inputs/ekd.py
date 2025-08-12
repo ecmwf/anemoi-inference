@@ -16,14 +16,13 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
-from earthkit.data.indexing.fieldlist import FieldArray
-from earthkit.data.utils.dates import to_datetime
-from numpy.typing import DTypeLike
-
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
+from earthkit.data.indexing.fieldlist import FieldArray
+from earthkit.data.utils.dates import to_datetime
+from numpy.typing import DTypeLike
 
 from ..checks import check_data
 from ..input import Input
