@@ -221,6 +221,7 @@ class EkdInput(Input):
         ref_date_index : int
             The index of the reference date in the dates list.
         include_forcings : bool
+            Whether to include forcings in the state.
         title : str
             The title for logging.
 

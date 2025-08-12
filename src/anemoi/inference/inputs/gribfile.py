@@ -11,7 +11,6 @@
 import logging
 from functools import cached_property
 from typing import Any
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -66,6 +65,11 @@ class GribFileInput(GribInput):
         date : Optional[Date]
             The date for which to create the input state.
         **kwargs : Any
+            Additional keyword arguments, including:
+            - ref_date_index: int, default -1
+                The reference date index to use.
+            - include_forcings: bool, default True
+                Whether to include forcings in the state.
 
         Returns
         -------

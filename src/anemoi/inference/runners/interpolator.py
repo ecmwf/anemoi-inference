@@ -159,7 +159,9 @@ class TimeInterpolatorRunner(DefaultRunner):
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
             # Create input state for this window
-            input_state = input.create_input_state(date=window_start_date, include_forcings=False, ref_date_index=0) # for interpolator, the first date is present and the last is future. For AR models with multiple input states, the last date is the current date. This is why the distinction is made here.
+            input_state = input.create_input_state(
+                date=window_start_date, include_forcings=False, ref_date_index=0
+            )  # for interpolator, the first date is present and the last is future. For AR models with multiple input states, the last date is the current date. This is why the distinction is made here.
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
