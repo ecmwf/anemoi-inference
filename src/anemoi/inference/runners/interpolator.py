@@ -15,7 +15,7 @@ import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
-
+from anemoi.inference.device import get_available_device
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.lazy import torch
@@ -74,6 +74,10 @@ class TimeInterpolatorRunner(DefaultRunner):
         super().__init__(config)
 
         self.patch_checkpoint_lagged_property()
+        self.device = get_available_device()
+        assert (
+            self.config.write_initial_state
+        ), "Interpolator output should include temporal start state, end state and boundary conditions"
         assert isinstance(
             self.model.model, AnemoiModelEncProcDecInterpolator
         ), "Model must be an interpolator model for this runner"
@@ -122,7 +126,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
-
+        self.reference_date = self.config.date
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
@@ -156,18 +160,17 @@ class TimeInterpolatorRunner(DefaultRunner):
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
             # Create input state for this window
-            self.reference_date = window_start_date
             input_state = input.create_input_state(date=window_start_date)
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
-            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window), start=1):
+            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
                 print(f"Processing state {state_idx} in window {window_idx + 1}/{num_windows}")
 
                 # In the first window, we want to write the initial state (t=0)
                 # In other windows, we want to skip the initial state (t=0)
                 # because it is written as the last state of the previous window
-                if state_idx == boundary_idx[0] or state_idx == boundary_idx[-1]:
+                if window_idx != 0 and state_idx == boundary_idx[0]:
                     continue
 
                 # Updating state step to be a global step not relative to window
@@ -378,7 +381,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
+                torch.autocast(device_type=str(self.device), dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
