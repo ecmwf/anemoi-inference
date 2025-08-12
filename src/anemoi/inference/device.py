@@ -25,6 +25,7 @@ def get_available_device() -> "torch.device":
 
     if torch.cuda.is_available():
         import os
+
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))
         device = f"cuda:{local_rank}"
         return torch.device(device)

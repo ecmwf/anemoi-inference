@@ -10,7 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -68,6 +67,11 @@ class GribFileInput(GribInput):
         date : Optional[Date]
             The date for which to create the input state.
         **kwargs : Any
+            Additional keyword arguments, including:
+            - ref_date_index: int, default -1
+                The reference date index to use.
+            - include_forcings: bool, default True
+                Whether to include forcings in the state.
 
         Returns
         -------
@@ -76,7 +80,13 @@ class GribFileInput(GribInput):
         """
         ref_date_index = kwargs.get("ref_date_index", -1)
         include_forcings = kwargs.get("include_forcings", True)
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date, include_forcings=include_forcings, ref_date_index=ref_date_index)
+        return self._create_input_state(
+            ekd.from_source("file", self.path),
+            variables=None,
+            date=date,
+            include_forcings=include_forcings,
+            ref_date_index=ref_date_index,
+        )
 
     def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
