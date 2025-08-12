@@ -58,21 +58,23 @@ class GribFileInput(GribInput):
         super().__init__(context, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
 
         Returns
         -------
         State
             The created input state.
         """
-
-        return self._create_input_state(self._fieldlist, date=date)
+        ref_date_index = kwargs.get("ref_date_index", -1)
+        include_forcings = kwargs.get("include_forcings", True)
+        return self._create_input_state(self._fieldlist, date=date, include_forcings=include_forcings, ref_date_index=ref_date_index)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
