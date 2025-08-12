@@ -74,9 +74,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         super().__init__(config)
 
         self.patch_checkpoint_lagged_property()
-        assert (
-            self.config.write_initial_state
-        ), "Interpolator output should include temporal start state, end state and boundary conditions"
         assert isinstance(
             self.model.model, AnemoiModelEncProcDecInterpolator
         ), "Model must be an interpolator model for this runner"
@@ -159,16 +156,18 @@ class TimeInterpolatorRunner(DefaultRunner):
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
             # Create input state for this window
+            self.reference_date = window_start_date
             input_state = input.create_input_state(date=window_start_date)
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
-            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
+            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window), start=1):
+                print(f"Processing state {state_idx} in window {window_idx + 1}/{num_windows}")
 
                 # In the first window, we want to write the initial state (t=0)
                 # In other windows, we want to skip the initial state (t=0)
                 # because it is written as the last state of the previous window
-                if window_idx != 0 and state_idx == boundary_idx[0]:
+                if state_idx == boundary_idx[0] or state_idx == boundary_idx[-1]:
                     continue
 
                 # Updating state step to be a global step not relative to window
