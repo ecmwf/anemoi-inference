@@ -234,26 +234,9 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        fields = self.pre_process(fields)
-
-        if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=include_forcings)
-
-        if len(fields) == 0:
-            raise ValueError("No input fields provided")
-
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=dict())
-
-        state_fields = state["fields"]
-
-        fields = self._filter_and_sort(fields, variables=variables, dates=dates, title="Create input state")
-
         if latitudes is None and longitudes is None:
             try:
-                state["latitudes"], state["longitudes"] = fields[0].grid_points()
+                latitudes, longitudes = fields[0].grid_points()
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -266,8 +249,6 @@ class EkdInput(Input):
                 latitudes = self.checkpoint.latitudes
                 longitudes = self.checkpoint.longitudes
                 if latitudes is not None and longitudes is not None:
-                    state["latitudes"] = latitudes
-                    state["longitudes"] = longitudes
                     LOG.info(
                         "%s: using `latitudes` and `longitudes` found in the checkpoint.",
                         self.__class__.__name__,
@@ -278,6 +259,21 @@ class EkdInput(Input):
                         self.__class__.__name__,
                     )
                     raise e
+                
+        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = self.pre_process(state)
+        fields = state["fields"]
+        state_fields = {}
+
+        if variables is None:
+            variables = self.checkpoint.variables_from_input(include_forcings=include_forcings)
+
+        if len(fields) == 0:
+            raise ValueError("No input fields provided")
+
+        dates = sorted([to_datetime(d) for d in dates])
+        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        fields = self._filter_and_sort(fields, variables=variables, dates=dates, title="Create input state")
 
         check = defaultdict(set)
 
@@ -303,6 +299,7 @@ class EkdInput(Input):
                 LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
                 raise
 
+            state["fields"] = state_fields
             if date_idx in check[name]:
                 LOG.error("Duplicate dates for %s: %s", name, date_idx)
                 LOG.error("Expected %s", list(date_to_index.keys()))
