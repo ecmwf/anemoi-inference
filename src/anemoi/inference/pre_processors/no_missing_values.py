@@ -11,7 +11,6 @@
 import logging
 from typing import Any
 
-import earthkit.data as ekd
 import tqdm
 from anemoi.transform.fields import new_field_from_numpy
 from anemoi.transform.fields import new_fieldlist_from_list
@@ -46,7 +45,7 @@ class NoMissingValues(Processor):
 
         Parameters
         ----------
-        state : State 
+        state : State
             The state to process.
 
         Returns

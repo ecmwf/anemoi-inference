@@ -11,10 +11,10 @@
 import logging
 from typing import Any
 
-import earthkit.data as ekd
 from anemoi.transform.filters import filter_registry
-from anemoi.inference.types import State
+
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import pre_processor_registry

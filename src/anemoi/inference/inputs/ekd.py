@@ -273,7 +273,7 @@ class EkdInput(Input):
                         self.__class__.__name__,
                     )
                     raise e
-                
+
         state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
         state = self.pre_process(state)
         fields = state["fields"]
