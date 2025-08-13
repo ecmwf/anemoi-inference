@@ -118,10 +118,10 @@ class Cutout(Input):
         self.masks: dict[str, np.ndarray | slice] = {}
 
         for src, cfg in sources.items():
-            cfg = cfg.copy()
             if isinstance(cfg, str):
                 mask = f"{src}/cutout_mask"
             else:
+                cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
             self.sources[src] = create_input(context, cfg)
