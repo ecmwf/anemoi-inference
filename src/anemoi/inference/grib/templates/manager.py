@@ -155,7 +155,7 @@ class TemplateManager:
 
         if isinstance(grid, (tuple, list)) and len(grid) == 2:
             if grid[0] == grid[1]:
-                return grid[0]
+                return f"{grid[0]}/{grid[1]}"
             return f"{grid[0]}x{grid[1]}"
 
         return grid
