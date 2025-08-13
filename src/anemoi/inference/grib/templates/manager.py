@@ -100,10 +100,13 @@ class TemplateManager:
 
         typed = typed_variables[name]
 
+        grid = state.get("_geography", {}).get("grid", checkpoint.grid)
+        area = state.get("_geography", {}).get("area", checkpoint.area)
+
         lookup = dict(
             name=name,
-            grid=self._grid(checkpoint.grid),
-            area=checkpoint.area,
+            grid=self._grid(grid),
+            area=area,
             time_processing=typed.time_processing,
             number_of_grid_points=checkpoint.number_of_grid_points,
         )
