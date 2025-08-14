@@ -70,8 +70,10 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     # change working directory to the input temporary directory, so the config could use relative paths to input files
     if input_data:
         workdir = Path(input_data[0]).parent
-        LOG.info(f"Changing working directory to {workdir}")
-        os.chdir(workdir)
+    else:
+        workdir = tmp_path
+    LOG.info(f"Changing working directory to {workdir}")
+    os.chdir(workdir)
 
     # prepare checkpoint
     checkpoint_path = tmp_path / Path("checkpoint.ckpt")
