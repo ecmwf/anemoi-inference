@@ -72,6 +72,18 @@ be added to the list. Within the same config file, each test case should
 have a unique name (names can be reused between configs). In the pytest
 log, each test case will be printed as ``{model}/{test-case-name}``.
 
+The ``input`` entry can be a single file like in the example above, or a
+list of files:
+
+.. code:: yaml
+
+   input:
+     - input-lam.grib
+     - input-global.grib
+
+These are then available in the inference config as ``${input:0}`` and
+``${input:1}``.
+
 Resolvers
 =========
 
@@ -79,9 +91,14 @@ Since the integration test uses temporary files, the config file has the
 following resolvers that will be substituted at runtime:
 
 -  ``${checkpoint:}`` Path to the temporary fake checkpoint.
+
 -  ``${input:}`` Path to the temporary input file, downloaded from S3
-   (using the ``input`` entry in the config).
+   (using the ``input`` entry in the config). If the input is a list,
+   individual files can be accessed with their index, e.g.
+   ``${input:0}``, ``${input:1}``, etc.
+
 -  ``${output:}`` Path to the temporary output file after inference.
+
 -  ``${s3:}`` S3 URL in HTTP format of the model's data folder.
 
 Checks

@@ -9,6 +9,7 @@
 
 import json
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
@@ -18,6 +19,7 @@ import pytest
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData
+from omegaconf import ListConfig
 from omegaconf import OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
@@ -58,8 +60,18 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     inference_config = config.inference_config
     s3_path = f"anemoi-integration-tests/inference/{model}"
 
-    # download input file
-    input_data = get_test_data(f"{s3_path}/{input}") if input else None
+    # download input file(s)
+    if not input:
+        input = []
+    if not isinstance(input, (list, ListConfig)):
+        input = [input]
+    input_data = [get_test_data(f"{s3_path}/{file}") for file in input]
+
+    # change working directory to the input temporary directory, so the config could use relative paths to input files
+    if input_data:
+        workdir = Path(input_data[0]).parent
+        LOG.info(f"Changing working directory to {workdir}")
+        os.chdir(workdir)
 
     # prepare checkpoint
     checkpoint_path = tmp_path / Path("checkpoint.ckpt")
@@ -80,7 +92,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays or {})
 
     # substitute inference config with real paths
-    OmegaConf.register_new_resolver("input", lambda: str(input_data), replace=True)
+    OmegaConf.register_new_resolver("input", lambda i=0: str(input_data[i]), replace=True)
     OmegaConf.register_new_resolver("output", lambda: str(output), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
     OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
