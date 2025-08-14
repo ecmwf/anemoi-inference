@@ -135,6 +135,14 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :caption: Contributing
+
+   dev/contributing
+   dev/integration-tests
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
    :caption: Command line tool
 
    cli/introduction
@@ -157,10 +165,3 @@ You may also have to install pandoc on MacOS:
    modules/metadata
    modules/outputs
    modules/processor
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Contributing
-
-   dev/contributing

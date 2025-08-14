@@ -1,0 +1,16 @@
+- name: grib-in-netcdf-out
+  input: input.grib  # this file will be downloaded from S3
+  output: output.nc
+  checks:
+    - check_with_xarray:
+        check_accum: tp
+        check_nans: true
+  inference_config:
+    post_processors:
+      - accumulate_from_start_of_forecast
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      netcdf: ${output:}
