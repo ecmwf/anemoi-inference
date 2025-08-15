@@ -108,6 +108,8 @@ class ParallelRunnerMixin:
 
         if str(self.device) == "cuda":
             self.device = f"{self.device}:{self.local_rank}"
+
+        if str(self.device).startswith("cuda"):
             torch.cuda.set_device(self.local_rank)
 
         # Create a model comm group for parallel inference
