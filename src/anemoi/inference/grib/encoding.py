@@ -305,6 +305,7 @@ def grib_keys(
             "date",
             "hdate",
             "time",
+            "timespan",
             "valid_datetime",
             "variable",
         ):
