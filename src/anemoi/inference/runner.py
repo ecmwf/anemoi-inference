@@ -15,6 +15,7 @@ from collections.abc import Generator
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
+
 import numpy as np
 import torch
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
+
 
 class Kind:
     """Used for debugging purposes."""
