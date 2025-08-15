@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
+
 class Kind:
     """Used for debugging purposes."""
 

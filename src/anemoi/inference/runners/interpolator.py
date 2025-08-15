@@ -166,12 +166,11 @@ class TimeInterpolatorRunner(DefaultRunner):
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
-                print(f"Processing state {state_idx} in window {window_idx + 1}/{num_windows}")
 
                 # In the first window, we want to write the initial state (t=0)
                 # In other windows, we want to skip the initial state (t=0)
                 # because it is written as the last state of the previous window
-                if state_idx == boundary_idx[0] or state_idx == boundary_idx[-1]:
+                if window_idx != 0 and state_idx == boundary_idx[0]:
                     continue
 
                 # Updating state step to be a global step not relative to window
