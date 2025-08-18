@@ -305,6 +305,9 @@ def grib_keys(
             "date",
             "hdate",
             "time",
+            "timespan",
+            "valid_datetime",
+            "variable",
         ):
             if k == "stream":
                 if v in ("oper", "wave"):
