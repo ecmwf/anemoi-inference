@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.7.1](https://github.com/ecmwf/anemoi-inference/compare/0.7.0...0.7.1) (2025-08-18)
+
+
+### Features
+
+* **inputs, outputs:** Add and use geography metadata ([#292](https://github.com/ecmwf/anemoi-inference/issues/292)) ([a31f6ad](https://github.com/ecmwf/anemoi-inference/commit/a31f6adc686b114945529e775aed826176e727a7))
+* **output, plots:** Use earthkit plots ([#293](https://github.com/ecmwf/anemoi-inference/issues/293)) ([0eea172](https://github.com/ecmwf/anemoi-inference/commit/0eea172edbd50c1cc88c739f894ec88846624ee7))
+* **runner:** Dynamically evalute default device from config ([#297](https://github.com/ecmwf/anemoi-inference/issues/297)) ([c08f3e2](https://github.com/ecmwf/anemoi-inference/commit/c08f3e2bbe90b002ed44098798091ec3c2a4c72a))
+
+
+### Bug Fixes
+
+* Bad copy on string ([#312](https://github.com/ecmwf/anemoi-inference/issues/312)) ([811c5cd](https://github.com/ecmwf/anemoi-inference/commit/811c5cd8657d505bf7accb0e68084177431ae268))
+* **grib output:** Skip `timespan` in output keys ([#316](https://github.com/ecmwf/anemoi-inference/issues/316)) ([0551a00](https://github.com/ecmwf/anemoi-inference/commit/0551a00e3045d1279324732342584ca275588138))
+
 ## [0.7.0](https://github.com/ecmwf/anemoi-inference/compare/0.6.3...0.7.0) (2025-08-04)
 
 
