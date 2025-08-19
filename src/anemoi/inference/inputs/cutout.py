@@ -151,13 +151,15 @@ class Cutout(Input):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : dict
+            Additional keyword arguments for the source input state creation.
 
         Returns
         -------
@@ -173,7 +175,7 @@ class Cutout(Input):
         combined_state = {}
 
         for source in self.sources.keys():
-            source_state = self.sources[source].create_input_state(date=date)
+            source_state = self.sources[source].create_input_state(date=date, **kwargs)
             source_mask = self.masks[source]
 
             # Create the mask front padded with zeros
