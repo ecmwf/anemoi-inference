@@ -137,12 +137,17 @@ class DefaultRunner(Runner):
             forcings_state,
         )
 
-        initial_state = self._initial_state(prognostic_state, constants_state, forcings_state)
-
         # This hook is needed for the coupled runner
         self.input_state_hook(constants_state)
 
-        initial_state = Output.reduce(input_state)
+        # For step-zero only
+        initial_state = Output.reduce(
+            self._initial_state(
+                prognostic_state,
+                constants_state,
+                forcings_state,
+            )
+        )
         # Top-level post-processors on the other hand are applied on State and are executed here.
         LOG.info("Top-level post-processors: %s", self.post_processors)
 
