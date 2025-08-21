@@ -15,7 +15,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
+from typing import Union
 
 from anemoi.inference.config import Configuration
 
@@ -27,7 +27,7 @@ class CoupleConfiguration(Configuration):
 
     description: Optional[str] = None
 
-    lead_time: Optional[Tuple[str, int, datetime.timedelta]] = None
+    lead_time: Optional[Union[str, int, datetime.timedelta]] = None
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
