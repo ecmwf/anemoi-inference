@@ -196,6 +196,8 @@ class Runner(Context):
     @device.setter
     def device(self, value: "torch.device | str") -> None:
         """Set the device for the runner."""
+        if isinstance(value, str):
+            value = torch.device(value)
         self._device = value
 
     def run(
@@ -252,8 +254,7 @@ class Runner(Context):
             try:
                 yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
             except (TypeError, ModuleNotFoundError, AttributeError):
-                if self.report_error:
-                    self.checkpoint.report_error()
+                self.checkpoint.report_error()
                 raise
 
     def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:

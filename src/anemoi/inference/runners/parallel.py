@@ -110,14 +110,20 @@ class ParallelRunnerMixin:
 
         self._bootstrap_processes()
 
-        if self.device == "cuda":
-            self.device = f"{self.device}:{self.local_rank}"
-            torch.cuda.set_device(self.local_rank)
+        LOG.info(
+            f"ParallelRunner local/global ranks: {self.local_rank}/{self.global_rank}, host: {socket.gethostname()}"
+        )
 
-        LOG.info(f"ParallelRunner initialized with global rank {self.global_rank} on device {self.device}")
+        if self.device.type == "cuda":
+            self.device = torch.device("cuda", index=self.local_rank)
+            torch.cuda.set_device(self.device)
+            LOG.info(f"ParallelRunner changing to device `{self.device}`")
+        else:
+            LOG.info(f"ParallelRunner device `{self.device}` is unchanged")
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0 and self.verbosity == 0:
+            LOG.info("ParallelRunner logging disabled on non-zero rank")
             logging.getLogger().setLevel(logging.WARNING)
 
         # Create a model comm group for parallel inference
