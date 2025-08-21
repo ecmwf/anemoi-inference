@@ -551,8 +551,6 @@ class Checkpoint:
         from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
-        dont_fail_for_missing_paramid = True  # For now
-
         assert variables, "No variables provided"
 
         if not isinstance(dates, (list, tuple)):
