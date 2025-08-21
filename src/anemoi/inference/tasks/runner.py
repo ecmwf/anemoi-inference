@@ -35,6 +35,10 @@ LOG = logging.getLogger(__name__)
 class CouplingForcings(CoupledForcings):
     """Just to have a different __repr__."""
 
+    def __init__(self, context, input, variables, mask):
+        super().__init__(context, input, variables, mask)
+        self.kinds = dict(coupled=True)
+
 
 class CoupledRunner(DefaultRunner):
     """Runner for coupled models.
