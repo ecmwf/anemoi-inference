@@ -40,16 +40,20 @@ class Input(ABC):
         *,
         variables: list[str] | None,
         pre_processors: list[ProcessorConfig] | None = None,
-        purpose=None,
+        purpose: str | None = None,
     ) -> None:
-        """Initialize the Input object.
+        """Initialise the Input object.
 
         Parameters
         ----------
         context : Context
             The context for the input.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
+        variables : list of str or None
+            List of variable names to be handled by the input, or None for all available variables.
+        pre_processors : list of ProcessorConfig or None, optional
+            List of pre-processors to apply to the input. If None, no pre-processing is performed.
+        purpose : str or None, optional
+            The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
         """
         self.context = context
         self.checkpoint = context.checkpoint
