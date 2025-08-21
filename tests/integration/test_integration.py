@@ -80,18 +80,19 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     with open(INTEGRATION_ROOT / model / "metadata.json") as f:
         metadata = json.load(f)
 
-    if supporting_arrays := metadata.get("supporting_arrays_paths", {}).keys():
+    supporting_arrays = {}
+    if array_names := list(metadata.get("supporting_arrays_paths", {})):
 
-        def load_array(array_name):
-            return array_name, np.load(get_test_data(f"{s3_path}/supporting-arrays/{array_name}.npy"))
+        def load_array(name):
+            return name, np.load(get_test_data(f"{s3_path}/supporting-arrays/{name}.npy"))
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            results = list(executor.map(load_array, list(supporting_arrays)))
+            results = list(executor.map(load_array, array_names))
 
         supporting_arrays = dict(results)
         LOG.info(f"Supporting arrays: {supporting_arrays.keys()}")
 
-    save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays or {})
+    save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays)
 
     # substitute inference config with real paths
     OmegaConf.register_new_resolver("input", lambda i=0: str(input_data[i]), replace=True)
