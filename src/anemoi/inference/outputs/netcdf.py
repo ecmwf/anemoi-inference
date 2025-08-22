@@ -144,8 +144,8 @@ class NetCDFOutput(Output):
             self.longitude_var.units = "degrees_east"
             self.longitude_var.long_name = "longitude"
 
-        self.latitude_var[:] = latitudes
-        self.longitude_var[:] = longitudes
+            self.latitude_var[:] = latitudes
+            self.longitude_var[:] = longitudes
 
         self.vars = {}
 
