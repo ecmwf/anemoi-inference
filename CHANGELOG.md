@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.7.2](https://github.com/ecmwf/anemoi-inference/compare/0.7.1...0.7.2) (2025-08-21)
+
+
+### Bug Fixes
+
+* Device type in autocast ([#317](https://github.com/ecmwf/anemoi-inference/issues/317)) ([d289aff](https://github.com/ecmwf/anemoi-inference/commit/d289affd5d10491690de3b6a17fd294543edfae9))
+
 ## [0.7.1](https://github.com/ecmwf/anemoi-inference/compare/0.7.0...0.7.1) (2025-08-18)
 
 
