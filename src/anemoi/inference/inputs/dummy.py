@@ -35,6 +35,17 @@ class DummyInput(EkdInput):
 
     trace_name = "dummy"
 
+    def __init__(self, context, **kwargs) -> None:
+        """Initialize the DummyInput.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the input.
+        """
+        kwargs.setdefault("variables", None)
+        super().__init__(context, **kwargs)
+
     def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
