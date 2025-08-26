@@ -71,7 +71,7 @@ def test_cutout_no_mask(runner: Runner):
         "lam": {"mask": None, "dummy": {}},
         "global": {"mask": None, "dummy": {}},
     }
-    cutout_input = Cutout(runner, **cutout_config)
+    cutout_input = Cutout(runner, variables=["2t"], **cutout_config)
     input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
     number_of_grid_points = runner.checkpoint.number_of_grid_points
 
@@ -93,7 +93,7 @@ def test_cutout_with_slice(runner: Runner):
         "lam": {"mask": slice(0, 10), "dummy": {}},
         "global": {"mask": slice(10, 25), "dummy": {}},
     }
-    cutout_input = Cutout(runner, **cutout_config)
+    cutout_input = Cutout(runner, variables=["2t"], **cutout_config)
     assert list(cutout_input.sources.keys()) == ["lam", "global"]
 
     input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
@@ -124,7 +124,7 @@ def test_cutout_with_array(runner: Runner):
         "lam": {"mask": lam_mask, "dummy": {}},
         "global": {"mask": global_mask, "dummy": {}},
     }
-    cutout_input = Cutout(runner, **cutout_config)
+    cutout_input = Cutout(runner, variables=["2t"], **cutout_config)
     input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
 
     assert "_mask" in input_state

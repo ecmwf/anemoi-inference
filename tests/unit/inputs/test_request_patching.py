@@ -45,7 +45,7 @@ def runner() -> None:
 def test_patched_by_input_and_context(runner):
     runner.pre_processors.append(DummyProcessor(runner, "context"))
 
-    input = runner.create_input()
+    input = runner.create_prognostics_input()
     input.pre_processors.append(DummyProcessor(runner, "input"))
 
     empty_request = {}

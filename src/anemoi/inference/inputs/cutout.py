@@ -17,6 +17,7 @@ import numpy as np
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -102,7 +103,14 @@ class Cutout(Input):
 
     # TODO: Does this need an ordering?
 
-    def __init__(self, context, **sources: dict[str, dict]):
+    def __init__(
+        self,
+        context,
+        variables: list[str] | None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        purpose: str | None = None,
+        **sources: dict[str, dict],
+    ):
         """Create a cutout input from a list of sources.
 
         Parameters
@@ -112,7 +120,7 @@ class Cutout(Input):
         sources : dict of sources
             A dictionary of sources to combine.
         """
-        super().__init__(context)
+        super().__init__(context, variables=variables, pre_processors=pre_processors, purpose=purpose)
 
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
@@ -124,7 +132,9 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            self.sources[src] = create_input(context, cfg)
+            self.sources[src] = create_input(
+                context, cfg, variables=variables, pre_processors=pre_processors, purpose=purpose
+            )
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
