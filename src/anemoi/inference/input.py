@@ -58,6 +58,10 @@ class Input(ABC):
         self.context = context
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
+
+        if variables is None:
+            variables = self.context.variables.default_input_variables()  # type: ignore
+
         self.variables = variables
         self.purpose = purpose
 
