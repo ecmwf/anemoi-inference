@@ -393,3 +393,27 @@ class EkdInput(Input):
             dtype=np.float32,
             flatten=True,
         )
+
+    def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
+        """Set private attributes to the state.
+
+        Provides geography information if available retrieved from the fields.
+        """
+        geography_information = {}
+
+        def get_geography_info(key: str) -> str | None:
+            try:
+                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+            except NotImplementedError:  # Issue with earthkit.data throwing error here
+                return None
+            if len(set(map(str, combo))) == 1 and combo[0] != "None":
+                return combo[0]
+            return None
+
+        if area := get_geography_info("mars_area"):
+            geography_information["area"] = area
+        if grid := get_geography_info("mars_grid"):
+            geography_information["grid"] = grid
+
+        if geography_information:
+            state["_geography"] = geography_information
