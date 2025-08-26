@@ -112,7 +112,7 @@ class Cutout(Input):
         sources : dict of sources
             A dictionary of sources to combine.
         """
-        super().__init__(context)
+        super().__init__(context, variables=None)
 
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
