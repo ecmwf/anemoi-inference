@@ -10,6 +10,7 @@
 import pytest
 
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.inputs.dummy import DummyInput
 from anemoi.inference.processor import Processor
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
@@ -45,7 +46,7 @@ def runner() -> None:
 def test_patched_by_input_and_context(runner):
     runner.pre_processors.append(DummyProcessor(runner, "context"))
 
-    input = runner.create_prognostics_input()
+    input = DummyInput(runner)
     input.pre_processors.append(DummyProcessor(runner, "input"))
 
     empty_request = {}
