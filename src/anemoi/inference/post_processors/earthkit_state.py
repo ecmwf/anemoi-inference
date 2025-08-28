@@ -136,11 +136,6 @@ class StateField(ekd.Field):
         """Str: String representation of the StateField."""
         return f"{self.__class__.__name__ }({self._metadata})"
 
-    def __copy__(self):
-        # This is needed with as long as we wrap ekd.field in anemoi-transform/fields.py
-        # We can remove it once ekd.field is refactored
-        return StateField(self.name, self.__values, self.state)
-
 
 def wrap_state(state: State) -> ekd.FieldList:
     """Transform a state dictionary into an earthkit.data field list.
