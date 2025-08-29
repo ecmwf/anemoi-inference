@@ -10,13 +10,12 @@
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -33,7 +32,15 @@ class GribFileInput(GribInput):
 
     trace_name = "grib file"
 
-    def __init__(self, context: Context, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        path: str,
+        pre_processors: list[ProcessorConfig] | None = None,
+        *,
+        namer: Any | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the GribFileInput.
 
         Parameters
@@ -42,15 +49,17 @@ class GribFileInput(GribInput):
             The context in which the input is used.
         path : str
             The path to the GRIB file.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, pre_processors, namer=namer, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -65,7 +74,7 @@ class GribFileInput(GribInput):
         """
         return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters

@@ -46,7 +46,15 @@ The path to the output file is actually a template.
 
 For each field, the output path will be constructed by substituting the
 string between curly braces with the corresponding value, based on the
-GRIB's eccodes keys.
+GRIB's eccodes keys. Optionally, string format specifiers can be used to
+format the values. For example,
+
+.. code:: yaml
+
+   path: "output-{date}-{time}-{step:03}.grib"
+
+will apply zero-padding to the 'step' value, so that it is always 3
+digits long.
 
 It relies heavily on having a GRIB input, but will nevertheless attempt
 to encode the data as GRIB messages when this is not the case. For more
@@ -63,6 +71,18 @@ variable is written in its own NetCDF variable.
 
 .. literalinclude:: yaml/outputs_3.yaml
    :language: yaml
+
+******
+ zarr
+******
+
+The `zarr` output writes the output to a Zarr file. The encoding is
+basic, and does not attempt to rebuild 3D fields from 2D fields. The
+only coordinates are `latitude`, `longitude` and `time`.
+
+Each state variable is written in its own Zarr array.
+
+.. literalinclude:: yaml/outputs_10.yaml
 
 ******
  plot
@@ -118,15 +138,38 @@ result is passed to the next output.
 .. literalinclude:: yaml/outputs_7.yaml
 
 *************
+ assign_mask
+*************
+
+This operation can be seen as the opposite of `apply_mask`. Instead of
+extracting a smaller area from a larger one, it assigns the current
+output to a portion of a larger area using a mask. This is useful when
+you want to restore the original state of the model after applying a
+mask to it. The portion of the state that is not covered by the mask
+will be set to a fill value (NaN by default).
+
+.. literalinclude:: yaml/outputs_assign.yaml
+
+*************
  extract_lam
 *************
 
 Similar to the previous one, ``extract_lam`` will extract the LAM domain
-from the output fields. The LAM domain is found in the checkpoint file,
-and is based on `anemoi-datasets's` :ref:`cutout feature
-<anemoi-datasets:combining-datasets>`.
+from the output fields. The LAM domain is found in the checkpoint file
+as supporting array, and is based on the `cutout_mask` associated to
+`anemoi-datasets's` :ref:`cutout feature
+<anemoi-datasets:combining-datasets>`. The default mask that is used is
+`lam_0` and does not need to be specified. In that case the config takes
+the simple form
 
-.. literalinclude:: yaml/outputs_8.yaml
+.. literalinclude:: yaml/outputs_8a.yaml
+
+In the case of more complicated datasets, e.g. those formed using the
+`join` operation, there can be multiple cutout masks present and the
+relevant one needs to be specified. A more elaborate config could for
+example be
+
+.. literalinclude:: yaml/outputs_8b.yaml
 
 *******
  truth

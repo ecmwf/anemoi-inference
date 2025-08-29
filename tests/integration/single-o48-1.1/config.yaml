@@ -1,0 +1,85 @@
+- name: grib-in-grib-out
+  input: input.grib
+  output: output.grib
+  checks:
+    - check_grib:
+        grib_keys:
+          stream: oper
+          class: ai
+          type: fc
+        check_accum: tp
+        check_nans: true
+  inference_config:
+    post_processors:
+      - accumulate_from_start_of_forecast
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      grib:
+          path: ${output:}
+          encoding:
+            stream: oper
+            class: ai
+            type: fc
+
+- name: grib-in-grib-out-limit-vars
+  input: input.grib
+  output: output.grib
+  checks:
+    - check_grib:
+        expected_variables:
+          - 100u
+          - 2t
+          - q
+  inference_config:
+    post_processors:
+      - accumulate_from_start_of_forecast
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      grib:
+          path: ${output:}
+          variables:
+            - 100u
+            - 2t
+            - q_600
+
+
+- name: grib-in-netcdf-out
+  input: input.grib
+  output: output.nc
+  checks:
+    - check_with_xarray:
+        check_accum: tp
+        check_nans: true
+  inference_config:
+    post_processors:
+      - accumulate_from_start_of_forecast
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      netcdf: ${output:}
+
+
+- name: grib-in-zarr-out
+  input: input.grib
+  output: output.zarr
+  checks:
+    - check_with_xarray:
+        check_accum: tp
+        check_nans: true
+  inference_config:
+    post_processors:
+      - accumulate_from_start_of_forecast
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      zarr: ${output:}

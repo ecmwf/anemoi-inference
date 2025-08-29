@@ -11,12 +11,8 @@
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
@@ -27,6 +23,7 @@ from numpy.typing import DTypeLike
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..checks import check_data
@@ -38,7 +35,7 @@ LOG = logging.getLogger(__name__)
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
-    def __init__(self, rules: Any, default_namer: Callable[[Any, Dict[str, Any]], str]) -> None:
+    def __init__(self, rules: Any, default_namer: Callable[[Any, dict[str, Any]], str]) -> None:
         """Initialize the RulesNamer.
 
         Parameters
@@ -51,7 +48,7 @@ class RulesNamer:
         self.rules = rules
         self.default_namer = default_namer
 
-    def __call__(self, field: Any, original_metadata: Dict[str, Any]) -> str:
+    def __call__(self, field: Any, original_metadata: dict[str, Any]) -> str:
         """Generate a name for the field.
 
         Parameters
@@ -77,7 +74,7 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template: str, field: Any, original_metadata: Dict[str, Any]) -> str:
+    def substitute(self, template: str, field: Any, original_metadata: dict[str, Any]) -> str:
         """Substitute placeholders in the template with metadata values.
 
         Parameters
@@ -105,8 +102,9 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
+        pre_processors: list[ProcessorConfig] | None = None,
         *,
-        namer: Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]] = None,
+        namer: Callable[[Any, dict[str, Any]], str] | dict[str, Any] | None = None,
     ) -> None:
         """Initialize the EkdInput.
 
@@ -114,10 +112,12 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
-        super().__init__(context)
+        super().__init__(context, pre_processors)
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -128,7 +128,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(self, data: Any, *, variables: List[str], dates: List[Any], title: str) -> Any:
+    def _filter_and_sort(self, data: Any, *, variables: list[str], dates: list[Any], title: str) -> Any:
         """Filter and sort the data.
 
         Parameters
@@ -148,7 +148,7 @@ class EkdInput(Input):
             The filtered and sorted data.
         """
 
-        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
+        def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
@@ -158,7 +158,6 @@ class EkdInput(Input):
 
         # for f in data:
         #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
-
         data = data.sel(name=variables, valid_datetime=valid_datetime).order_by(
             name=variables, valid_datetime="ascending"
         )
@@ -185,7 +184,7 @@ class EkdInput(Input):
             The selected variable.
         """
 
-        def _name(field: Any, _: Any, original_metadata: Dict[str, Any]) -> str:
+        def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
         data = FieldArray([f.clone(name=_name) for f in data])
@@ -195,10 +194,10 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         *,
-        variables: Optional[List[str]] = None,
-        dates: List[Date],
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
+        variables: list[str] | None = None,
+        dates: list[Date],
+        latitudes: FloatArray | None = None,
+        longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         title: str = "Create state",
@@ -229,9 +228,7 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        for processor in self.context.pre_processors:
-            LOG.info("Processing with %s", processor)
-            fields = processor.process(fields)
+        fields = self.pre_process(fields)
 
         if variables is None:
             variables = self.checkpoint.variables_from_input(include_forcings=True)
@@ -280,7 +277,6 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in state_fields:
                 state_fields[name] = np.full(
@@ -331,10 +327,10 @@ class EkdInput(Input):
         self,
         input_fields: ekd.FieldList,
         *,
-        date: Optional[Date] = None,
-        variables: Optional[List[str]] = None,
-        latitudes: Optional[FloatArray] = None,
-        longitudes: Optional[FloatArray] = None,
+        date: Date | None = None,
+        variables: list[str] | None = None,
+        latitudes: FloatArray | None = None,
+        longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
     ) -> State:
@@ -368,8 +364,6 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        # TODO: where we do this might change in the future
-        date = to_datetime(date)
         dates = [date + h for h in self.checkpoint.lagged]
 
         return self._create_state(
@@ -387,8 +381,8 @@ class EkdInput(Input):
         self,
         fields: ekd.FieldList,
         *,
-        variables: List[str],
-        dates: List[Date],
+        variables: list[str],
+        dates: list[Date],
         current_state: State,
     ) -> State:
         """Load the forcings state.
@@ -409,10 +403,6 @@ class EkdInput(Input):
         State
             The loaded forcings state.
         """
-        for processor in self.context.pre_processors:
-            LOG.info("Processing with %s", processor)
-            fields = processor.process(fields)
-
         return self._create_state(
             fields,
             variables=variables,
@@ -423,3 +413,27 @@ class EkdInput(Input):
             flatten=True,
             title="Load forcings state",
         )
+
+    def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
+        """Set private attributes to the state.
+
+        Provides geography information if available retrieved from the fields.
+        """
+        geography_information = {}
+
+        def get_geography_info(key: str) -> str | None:
+            try:
+                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+            except NotImplementedError:  # Issue with earthkit.data throwing error here
+                return None
+            if len(set(map(str, combo))) == 1 and combo[0] != "None":
+                return combo[0]
+            return None
+
+        if area := get_geography_info("mars_area"):
+            geography_information["area"] = area
+        if grid := get_geography_info("mars_grid"):
+            geography_information["grid"] = grid
+
+        if geography_information:
+            state["_geography"] = geography_information

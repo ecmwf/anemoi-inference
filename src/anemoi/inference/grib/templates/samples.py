@@ -10,8 +10,6 @@
 import logging
 import os
 from typing import Any
-from typing import Dict
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -25,7 +23,7 @@ LOG = logging.getLogger(__name__)
 class SamplesTemplates(IndexTemplateProvider):
     """Class to provide GRIB templates from sample files."""
 
-    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
         """Load a GRIB template based on the provided lookup dictionary.
 
         Parameters

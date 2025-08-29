@@ -12,8 +12,10 @@ from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
-from typing import Optional
 
+from anemoi.inference.post_processors import create_post_processor
+from anemoi.inference.processor import Processor
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 if TYPE_CHECKING:
@@ -28,8 +30,10 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ):
         """Initialize the Output object.
 
@@ -37,6 +41,8 @@ class Output(ABC):
         ----------
         context : Context
             The context in which the output operates.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
@@ -46,8 +52,62 @@ class Output(ABC):
         self.checkpoint = context.checkpoint
         self.reference_date = None
 
+        self._post_processor_confs = post_processors or []
+
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
+
+        self.variables = variables
+        if self.variables is not None:
+            if not isinstance(self.variables, (list, tuple)):
+                self.variables = [self.variables]
+
+        self.typed_variables = self.checkpoint.typed_variables.copy()
+        self.typed_variables.update(self.context.typed_variables)
+
+    def skip_variable(self, variable: str) -> bool:
+        """Check if a variable should be skipped.
+
+        Parameters
+        ----------
+        variable : str
+            The variable to check.
+
+        Returns
+        -------
+        bool
+            True if the variable should be skipped, False otherwise.
+        """
+        return self.variables is not None and variable not in self.variables
+
+    @cached_property
+    def post_processors(self) -> list[Processor]:
+        """Return post-processors."""
+
+        processors = []
+
+        for processor in self._post_processor_confs:
+            processors.append(create_post_processor(self.context, processor))
+
+        return processors
+
+    def post_process(self, state: State) -> State:
+        """Apply post processors to the state.
+
+        Parameters
+        ----------
+        state : State
+            The state.
+
+        Returns
+        -------
+        State
+            The processed state.
+        """
+        for processor in self.post_processors:
+            LOG.info("Post processor: %s", processor)
+            state = processor.process(state)
+        return state
 
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -69,7 +129,7 @@ class Output(ABC):
         """
         state.setdefault("step", datetime.timedelta(0))
         if self.write_step_zero:
-            self.write_step(state)
+            self.write_step(self.post_process(state))
 
     def write_state(self, state: State) -> None:
         """Write the state.
@@ -79,14 +139,12 @@ class Output(ABC):
         state : State
             The state to write.
         """
-        self.open(state)
-
         step = state["step"]
         if self.output_frequency is not None:
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
-        return self.write_step(state)
+        return self.write_step(self.post_process(state))
 
     @classmethod
     def reduce(cls, state: State) -> State:
@@ -105,7 +163,10 @@ class Output(ABC):
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
-            reduced_state["fields"][field] = values[-1, :]
+            if len(values.shape) > 1:
+                reduced_state["fields"][field] = values[-1, :]
+            else:
+                reduced_state["fields"][field] = values
         return reduced_state
 
     def open(self, state: State) -> None:
@@ -143,7 +204,7 @@ class Output(ABC):
         return self.context.write_initial_state
 
     @cached_property
-    def output_frequency(self) -> Optional[datetime.timedelta]:
+    def output_frequency(self) -> datetime.timedelta | None:
         """Get the output frequency."""
         from anemoi.utils.dates import as_timedelta
 
@@ -177,10 +238,17 @@ class ForwardOutput(Output):
 
     Subclass from this class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves.
+
     """
 
     def __init__(
-        self, context: "Context", output_frequency: Optional[int] = None, write_initial_state: Optional[bool] = None
+        self,
+        context: "Context",
+        output: dict | None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ):
         """Initialize the ForwardOutput object.
 
@@ -188,16 +256,96 @@ class ForwardOutput(Output):
         ----------
         context : Context
             The context in which the output operates.
+        output : dict
+            The output configuration dictionary.
+        variables : list, optional
+            The list of variables, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
             Whether to write the initial state, by default None.
         """
-        super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
+
+        from anemoi.inference.outputs import create_output
+
+        super().__init__(
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=None,
+            write_initial_state=write_initial_state,
+        )
+
+        self.output = None if output is None else create_output(context, output)
+
         if self.context.output_frequency is not None:
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)
 
     @cached_property
-    def output_frequency(self) -> Optional[datetime.timedelta]:
+    def output_frequency(self) -> datetime.timedelta | None:
         """Get the output frequency."""
         return None
+
+    def modify_state(self, state: State) -> State:
+        """Modify the state before writing.
+
+        Parameters
+        ----------
+        state : State
+            The state to modify.
+
+        Returns
+        -------
+        State
+            The modified state.
+        """
+        return state
+
+    def open(self, state) -> None:
+        """Open the output for writing.
+        Parameters
+        ----------
+        state : State
+            The initial state.
+        """
+        self.output.open(self.modify_state(state))
+
+    def close(self) -> None:
+        """Close the output."""
+
+        self.output.close()
+
+    def write_initial_state(self, state: State) -> None:
+        """Write the initial step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
+        state.setdefault("step", datetime.timedelta(0))
+
+        self.output.write_initial_state(self.modify_state(state))
+
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state to write.
+        """
+        self.output.write_state(self.modify_state(state))
+
+    def print_summary(self, depth: int = 0) -> None:
+        """Print a summary of the output.
+
+        Parameters
+        ----------
+        depth : int, optional
+            The depth of the summary, by default 0.
+        """
+        super().print_summary(depth)
+        self.output.print_summary(depth + 1)

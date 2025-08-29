@@ -1,0 +1,5 @@
+output:
+  extract_lam:
+    output:
+      netcdf:
+        path: lam.nc

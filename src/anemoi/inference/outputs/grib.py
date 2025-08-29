@@ -13,14 +13,11 @@ import json
 import logging
 from abc import abstractmethod
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..grib.encoding import grib_keys
@@ -68,10 +65,9 @@ class HindcastOutput:
         else:
             date = keys.pop("date")
 
-        for k in ("date", "hdate"):
+        for k in ("date", "hdate", "eps", "productDefinitionTemplateNumber"):
             keys.pop(k, None)
 
-        keys["edition"] = 1
         keys["localDefinitionNumber"] = 30
         keys["dataDate"] = int(to_datetime(date).strftime("%Y%m%d"))
         keys["referenceDate"] = int(to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
@@ -113,21 +109,22 @@ def modifier_factory(modifiers: list) -> list:
     return result
 
 
-class GribOutput(Output):
+class BaseGribOutput(Output):
     """Handles grib."""
 
     def __init__(
         self,
         context: dict,
+        post_processors: list[ProcessorConfig] | None = None,
         *,
-        encoding: Optional[Dict[str, Any]] = None,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
-        variables: Optional[List[str]] = None,
+        encoding: dict[str, Any] | None = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ) -> None:
         """Initialize the GribOutput object.
 
@@ -135,6 +132,8 @@ class GribOutput(Output):
         ----------
         context : dict
             The context dictionary.
+        post_processors : Optional[List[ProcessorConfig]] = None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         templates : list or str, optional
@@ -153,9 +152,15 @@ class GribOutput(Output):
             The list of variables, by default None.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
         self._first = True
-        self.typed_variables = self.checkpoint.typed_variables
+
         self.encoding = encoding if encoding is not None else {}
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
@@ -196,14 +201,18 @@ class GribOutput(Output):
         # We trust the GribInput class to provide the templates
         # matching the input state
 
+        if not self.write_step_zero:
+            return
+
         state = state.copy()
 
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
 
-        out_vars = self.variables if self.variables is not None else state["fields"].keys()
+        for name in state["fields"].keys():
+            if self.skip_variable(name):
+                continue
 
-        for name in out_vars:
             variable = self.typed_variables[name]
 
             if variable.is_computed_forcing:
@@ -211,12 +220,12 @@ class GribOutput(Output):
 
             template = self.template(state, name)
             if template is None:
-                # We can currently only write grib output if we have a grib input
+                # grib output only reliably works when we have grib input, everything else relies on external templates
                 raise ValueError(
-                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_step` to `false`."
+                    f"No grib template found for initial state param `{name}`. Try setting `write_initial_state` to `false`."
                 )
 
-        return self.write_step(state)
+        return self.write_step(self.post_process(state))
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
@@ -232,8 +241,10 @@ class GribOutput(Output):
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
 
-        out_vars = self.variables if self.variables is not None else state["fields"].keys()
-        for name in out_vars:
+        for name in state["fields"].keys():
+            if self.skip_variable(name):
+                continue
+
             values = state["fields"][name]
             keys = {}
 
@@ -312,7 +323,7 @@ class GribOutput(Output):
         if self.template_manager is None:
             self.template_manager = TemplateManager(self, self.templates)
 
-        return self.template_manager.template(name, state)
+        return self.template_manager.template(name, state, self.typed_variables)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup the template for a variable.

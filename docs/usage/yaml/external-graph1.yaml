@@ -1,0 +1,3 @@
+runner:
+  external_graph:
+    graph: path/to/graph.pt

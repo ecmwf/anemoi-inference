@@ -10,13 +10,12 @@
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -39,7 +38,8 @@ class IconInput(GribInput):
         path: str,
         grid: str,
         refinement_level_c: int,
-        namer: Optional[Any] = None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the IconInput.
@@ -54,17 +54,19 @@ class IconInput(GribInput):
             The grid type.
         refinement_level_c : int
             The refinement level.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, pre_processors, namer=namer, **kwargs)
         self.path = path
         self.grid = grid
         self.refinement_level_c = refinement_level_c
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Creates the input state for the given date.
 
         Parameters
@@ -89,7 +91,7 @@ class IconInput(GribInput):
             longitudes=longitudes,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
         """Loads the forcings state for the given variables and dates.
 
         Parameters

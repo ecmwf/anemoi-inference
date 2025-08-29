@@ -11,14 +11,13 @@
 import datetime
 import logging
 from typing import Any
-from typing import List
 
 from anemoi.utils.humanize import plural
 
 LOG = logging.getLogger(__name__)
 
 
-def check_data(title: str, data: Any, variables: List[str], dates: List[datetime.datetime]) -> None:
+def check_data(title: str, data: Any, variables: list[str], dates: list[datetime.datetime]) -> None:
     """Check if the data matches the expected number of fields based on variables and dates.
 
     Parameters
@@ -53,7 +52,7 @@ def check_data(title: str, data: Any, variables: List[str], dates: List[datetime
 
         cols = {}
         rows = {}
-        t: List[List[str]] = []
+        t: list[list[str]] = []
         for i, d in enumerate(sorted(dates)):
             cols[d.isoformat()] = i + 1
 

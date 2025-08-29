@@ -1,6 +1,8 @@
-checkpoint: icon.ckpt
-icon_grid: icon_grid_0026_R03B07_G.nc
+checkpoint: inference-aifs-0.2.1-anemoi.ckpt
 
-env:
-  ECCODES_PYTHON_USE_FINDLIBS: 1
-  ECCODES_DEFINITION_PATH: definitions.edzw-2.31.0-2
+date: 2024-01-31T00:00:00
+
+input:
+  dataset:
+    cutout:
+      - dataset: ./analysis_20240101_00.zarr

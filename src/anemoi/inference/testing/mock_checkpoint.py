@@ -10,9 +10,6 @@
 import os
 from copy import deepcopy
 from typing import Any
-from typing import Dict
-from typing import Optional
-from typing import Tuple
 
 import yaml
 
@@ -63,7 +60,7 @@ SIMPLE_METADATA = {
 }
 
 
-def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load metadata from a YAML file.
 
     Parameters
@@ -82,7 +79,8 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
     if path is None:
         metadata = SIMPLE_METADATA
     else:
-        path = files_for_tests(os.path.join("checkpoints", path))
+        if not os.path.isabs(path):
+            path = files_for_tests(path)
         name, _ = os.path.splitext(path)
         for ext in (".yaml", ".json"):
             path = f"{name}{ext}"
@@ -92,7 +90,7 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
         with open(path) as f:
             metadata = yaml.safe_load(f)
 
-    arrays: Dict[str, Any] = {}
+    arrays: dict[str, Any] = {}
 
     if supporting_arrays:
         return metadata, arrays
@@ -100,7 +98,7 @@ def mock_load_metadata(path: Optional[str], *, supporting_arrays: bool = True) -
     return metadata
 
 
-def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
+def minimum_mock_checkpoint(metadata: dict[str, Any]) -> dict[str, Any]:
     """Create a minimum mock checkpoint from the given metadata.
 
     Parameters
@@ -118,7 +116,7 @@ def minimum_mock_checkpoint(metadata: Dict[str, Any]) -> Dict[str, Any]:
 
     metadata = deepcopy(metadata)
 
-    def drop(metadata: Dict[str, Any], reference: Dict[str, Any], *path: str) -> None:
+    def drop(metadata: dict[str, Any], reference: dict[str, Any], *path: str) -> None:
         """Recursively drop keys from metadata that are not in the reference.
 
         Parameters
@@ -183,7 +181,7 @@ class MockRunConfiguration:
     """Mock class for loading run configurations from `files_for_tests`."""
 
     @classmethod
-    def load(cls, path: str, *args, **kwargs) -> Dict[str, Any]:
+    def load(cls, path: str, *args, **kwargs) -> dict[str, Any]:
         """Load a run configuration from a given path.
 
         Parameters

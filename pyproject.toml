@@ -25,7 +25,7 @@ authors = [
   { name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int" },
 ]
 
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -33,7 +33,6 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -44,13 +43,14 @@ classifiers = [
 
 dynamic = [ "version" ]
 dependencies = [
-  "anemoi-transform>=0.1.4",
-  "anemoi-utils[text,provenance]>=0.4.16",
+  "anemoi-transform>0.1.13",
+  "anemoi-utils[text,provenance]>=0.4.32",
   "aniso8601",
   "anytree",
   "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
   "numpy",
+  "omegaconf>=2.2,<2.4",
   "packaging",
   "pydantic",
   "pyyaml",
@@ -58,8 +58,11 @@ dependencies = [
   "torch",
 ]
 
-optional-dependencies.all = [ "anemoi-inference[huggingface]", "anemoi-utils[all]>=0.4.16" ]
-
+optional-dependencies.all = [
+  "anemoi-datasets",
+  "anemoi-inference[huggingface,tests,zarr,plot]",
+  "anemoi-utils[all]>=0.4.32",
+]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
@@ -73,9 +76,12 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
+optional-dependencies.plot = [ "earthkit-plots" ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
-optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest" ]
+optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest", "pytest-mock" ]
+
+optional-dependencies.zarr = [ "zarr" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"

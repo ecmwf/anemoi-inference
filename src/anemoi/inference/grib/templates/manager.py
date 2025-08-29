@@ -11,10 +11,6 @@
 import json
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import earthkit.data as ekd
 
@@ -28,7 +24,7 @@ LOG = logging.getLogger(__name__)
 class TemplateManager:
     """A class to manage GRIB templates."""
 
-    def __init__(self, owner: Any, templates: Optional[Union[List[str], str]] = None) -> None:
+    def __init__(self, owner: Any, templates: list[str] | str | None = None) -> None:
         """Initialize the TemplateManager.
 
         Parameters
@@ -55,15 +51,17 @@ class TemplateManager:
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
-    def template(self, name: str, state: State) -> Optional[ekd.Field]:
+    def template(self, name: str, state: State, typed_variables: list[Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
 
         Parameters
         ----------
         name : str
             The name of the template.
-        state : Dict[str, Any]
-            The state dictionary containing template information.
+        state : State
+            The state object containing template information.
+        typed_variables : list of Any
+            The list of typed variables.
 
         Returns
         -------
@@ -76,19 +74,21 @@ class TemplateManager:
         self._template_cache.update(state.get("_grib_templates_for_output", {}))
 
         if name not in self._template_cache:
-            self.load_template(name, state)
+            self.load_template(name, state, typed_variables)
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: State) -> Optional[ekd.Field]:
+    def load_template(self, name: str, state: State, typed_variables: list[Any]) -> ekd.Field | None:
         """Load the template for a given name and state.
 
         Parameters
         ----------
         name : str
             The name of the template.
-        state : Dict[str, Any]
-            The state dictionary containing template information.
+        state : State
+            The state object containing template information.
+        typed_variables : list of Any
+            The list of typed variables.
 
         Returns
         -------
@@ -98,11 +98,15 @@ class TemplateManager:
 
         checkpoint = self.owner.context.checkpoint
 
-        typed = checkpoint.typed_variables[name]
+        typed = typed_variables[name]
+
+        grid = state.get("_geography", {}).get("grid", checkpoint.grid)
+        area = state.get("_geography", {}).get("area", checkpoint.area)
 
         lookup = dict(
             name=name,
-            grid=self._grid(checkpoint.grid),
+            grid=self._grid(grid),
+            area=area,
             time_processing=typed.time_processing,
             number_of_grid_points=checkpoint.number_of_grid_points,
         )
@@ -132,18 +136,18 @@ class TemplateManager:
         LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
-    def _grid(self, grid: Union[str, List[float], Tuple[int, int]]) -> Union[str, List[float]]:
-        """Convert the grid information to a standardized format.
+    def _grid(self, grid: str | list[float] | tuple[int, int]) -> str:
+        """Convert the grid information to a standardised format.
 
         Parameters
         ----------
-        grid : Union[str, List[int], Tuple[int, int]]
+        grid : Union[str, list of float, tuple of int]
             The grid information.
 
         Returns
         -------
-        Union[str, int]
-            The standardized grid format.
+        str
+            The standardised grid format.
         """
 
         if isinstance(grid, str):

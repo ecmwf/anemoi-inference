@@ -13,18 +13,13 @@ import logging
 import os
 import warnings
 from collections import defaultdict
+from collections.abc import Callable
+from collections.abc import Iterator
 from functools import cached_property
 from types import MappingProxyType as frozendict
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterator
-from typing import List
 from typing import Literal
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import earthkit.data as ekd
 import numpy as np
@@ -75,7 +70,7 @@ def _remove_full_paths(x: Any) -> Any:
 class Metadata(PatchMixin, LegacyMixin):
     """An object that holds metadata of a checkpoint."""
 
-    def __init__(self, metadata: Dict[str, Any], supporting_arrays: Dict[str, FloatArray] = {}):
+    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
         """Initialize the Metadata object.
 
         Parameters
@@ -114,11 +109,21 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the configuration."""
         return self._metadata.config
 
+    @property
+    def target_explicit_times(self) -> Any:
+        """Return the target explicit times from the training configuration."""
+        return self._config_training.explicit_times.target
+
+    @property
+    def input_explicit_times(self) -> Any:
+        """Return the input explicit times from the training configuration."""
+        return self._config_training.explicit_times.input
+
     ###########################################################################
     # Debugging
     ###########################################################################
 
-    def _print_indices(self, title: str, indices: Dict[str, List[int]], naming: Dict, skip: List[str] = []) -> None:
+    def _print_indices(self, title: str, indices: dict[str, list[int]], naming: dict, skip: list[str] = []) -> None:
         """Print indices for debugging purposes.
 
         Parameters
@@ -170,7 +175,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return timestep
 
     @cached_property
-    def precision(self) -> Union[str, int]:
+    def precision(self) -> str | int:
         """Return the precision of the model (bits per float)."""
         return self._config_training.precision
 
@@ -250,7 +255,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(self._indices.model.input.prognostic)
 
     @cached_property
-    def computed_time_dependent_forcings(self) -> Tuple[np.ndarray, list]:
+    def computed_time_dependent_forcings(self) -> tuple[np.ndarray, list]:
         """Return the indices and names of the computed forcings that are not constant in time."""
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -274,7 +279,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(indices), variables
 
     @cached_property
-    def computed_constant_forcings(self) -> Tuple[FloatArray, List[str]]:
+    def computed_constant_forcings(self) -> tuple[FloatArray, list[str]]:
         """Return the indices and names of the computed forcings that are  constant in time."""
         # Mapping between model and data indices
         mapping = self._make_indices_mapping(
@@ -307,7 +312,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return tuple(self._metadata.dataset.variables)
 
     @cached_property
-    def variables_metadata(self) -> Dict[str, Any]:
+    def variables_metadata(self) -> dict[str, Any]:
         """Return the variables and their metadata as found in the training dataset."""
         try:
             result = self._metadata.dataset.variables_metadata
@@ -320,6 +325,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
         if "constant_fields" in self._metadata.dataset:
             for name in self._metadata.dataset.constant_fields:
+                if name not in result:
+                    continue
                 result[name]["constant_in_time"] = True
 
         return result
@@ -340,7 +347,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
-    def typed_variables(self) -> dict:
+    def typed_variables(self) -> dict[str, Variable]:
         """Returns a strongly typed variables."""
         result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
 
@@ -359,7 +366,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the indices of the variables that are accumulations."""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
-    def name_fields(self, fields: ekd.FieldList, namer: Optional[Callable[..., str]] = None) -> "FieldList":
+    def name_fields(self, fields: ekd.FieldList, namer: Callable[..., str] | None = None) -> "FieldList":
         """Name fields using the provided namer.
 
         Parameters
@@ -379,7 +386,7 @@ class Metadata(PatchMixin, LegacyMixin):
         if namer is None:
             namer = self.default_namer()
 
-        def _name(field: ekd.Field, _: str, original_metadata: Dict[str, Any]) -> str:
+        def _name(field: ekd.Field, _: str, original_metadata: dict[str, Any]) -> str:
             return namer(field, original_metadata)
 
         return FieldArray([f.clone(name=_name) for f in fields])
@@ -388,7 +395,7 @@ class Metadata(PatchMixin, LegacyMixin):
         self,
         fields: ekd.FieldList,
         *args: Any,
-        namer: Optional[Callable[..., Any]] = None,
+        namer: Callable[..., Any] | None = None,
         **kwargs: Any,
     ) -> ekd.FieldList:
         """Sort fields by name.
@@ -434,7 +441,7 @@ class Metadata(PatchMixin, LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
-        def namer(field: ekd.Field, metadata: Dict[str, Any]) -> str:
+        def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
             # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
@@ -467,12 +474,12 @@ class Metadata(PatchMixin, LegacyMixin):
             return self._legacy_data_request()
 
     @property
-    def grid(self) -> Optional[str]:
+    def grid(self) -> str | None:
         """Return the grid information."""
         return self._data_request.get("grid")
 
     @property
-    def area(self) -> Optional[str]:
+    def area(self) -> str | None:
         """Return the area information."""
         return self._data_request.get("area")
 
@@ -528,7 +535,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             yield metadata["mars"].copy()
 
-    def mars_by_levtype(self, levtype: str) -> Tuple[set, set]:
+    def mars_by_levtype(self, levtype: str) -> tuple[set, set]:
         """Get MARS parameters and levels by levtype.
 
         Parameters
@@ -565,7 +572,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables: List[str]) -> Iterator[DataRequest]:
+    def mars_requests(self, *, variables: list[str]) -> Iterator[DataRequest]:
         """Generate MARS requests for the given variables.
 
         Parameters
@@ -596,7 +603,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             mars = self.variables_metadata[variable]["mars"].copy()
 
-            for k in ("date", "hdate", "time"):
+            for k in ("date", "hdate", "time", "valid_datetime", "variable"):
                 mars.pop(k, None)
 
             yield mars
@@ -609,7 +616,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """Report an error with provenance information."""
         provenance = self._metadata.provenance_training
 
-        def _print(title: str, provenance: Dict[str, Any]) -> None:
+        def _print(title: str, provenance: dict[str, Any]) -> None:
             LOG.info("")
             LOG.info("%s:", title)
             for package, git in sorted(provenance.get("git_versions", {}).items()):
@@ -631,23 +638,24 @@ class Metadata(PatchMixin, LegacyMixin):
         self,
         *,
         all_packages: bool = False,
-        on_difference: Literal["warn", "error", "ignore"] = "warn",
-        exempt_packages: Optional[list[str]] = None,
-    ) -> bool:
+        on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
+        exempt_packages: list[str] | None = None,
+    ) -> bool | str:
         """Validate environment of the checkpoint against the current environment.
 
         Parameters
         ----------
         all_packages : bool, optional
-            Check all packages in environment or just `anemoi`'s, by default False
-        on_difference : Literal['warn', 'error', 'ignore'], optional
+            Check all packages in the environment (True) or just anemoi's (False), by default False.
+        on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
             What to do on difference, by default "warn"
         exempt_packages : list[str], optional
             List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
-        bool
+        Union[bool, str]
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
             True if environment is valid, False otherwise
 
         Raises
@@ -700,9 +708,60 @@ class Metadata(PatchMixin, LegacyMixin):
         _find(self._config.dataloader.training.dataset)
         return result
 
+    def open_dataset(
+        self, *, use_original_paths: bool | None = None, from_dataloader: str | None = None
+    ) -> tuple[Any, Any]:
+        """Open the dataset.
+
+        Parameters
+        ----------
+        use_original_paths : bool
+            Whether to use the original paths.
+        from_dataloader : str, optional
+            The dataloader to use, by default None.
+
+        Returns
+        -------
+        tuple
+            The opened dataset and its arguments.
+        """
+        from anemoi.datasets import open_dataset
+        from anemoi.utils.config import temporary_config
+
+        if use_original_paths is not None:
+            args, kwargs = self.open_dataset_args_kwargs(
+                use_original_paths=use_original_paths, from_dataloader=from_dataloader
+            )
+            return open_dataset(*args, **kwargs)
+
+        args, kwargs = self.open_dataset_args_kwargs(use_original_paths=True, from_dataloader=from_dataloader)
+
+        #  Extract paths
+
+        paths = []
+
+        def _(x: Any) -> Any:
+            if isinstance(x, dict):
+                return {k: _(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [_(v) for v in x]
+
+            if isinstance(x, str):
+                if x.endswith(".zarr"):
+                    paths.append(os.path.basename(x))
+                    x = os.path.basename(x)
+                    x = os.path.splitext(x)[0]
+
+            return x
+
+        args, kwargs = _((args, kwargs))
+
+        with temporary_config(dict(datasets=dict(use_search_path_not_found=True))):
+            return open_dataset(*args, **kwargs)
+
     def open_dataset_args_kwargs(
-        self, *, use_original_paths: bool, from_dataloader: Optional[str] = None
-    ) -> Tuple[Any, Any]:
+        self, *, use_original_paths: bool, from_dataloader: str | None = None
+    ) -> tuple[Any, Any]:
         """Get the arguments and keyword arguments for opening the dataset.
 
         Parameters
@@ -884,7 +943,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return result
 
-    def dynamic_forcings_inputs(self, context: object, input_state: State) -> List[Forcings]:
+    def dynamic_forcings_inputs(self, context: object, input_state: State) -> list[Forcings]:
         """Get the dynamic forcings inputs.
 
         Parameters
@@ -914,7 +973,7 @@ class Metadata(PatchMixin, LegacyMixin):
         remaining = (
             set(self._config.data.forcing)
             - set(self.model_computed_variables)
-            - set([name for name, v in self.typed_variables.items() if v.is_constant_in_time])
+            - {name for name, v in self.typed_variables.items() if v.is_constant_in_time}
         )
         if not remaining:
             return result
@@ -958,16 +1017,13 @@ class Metadata(PatchMixin, LegacyMixin):
         list
             The list of boundary forcings inputs.
         """
-        result = []
+        if "output_mask" not in self._supporting_arrays:
+            return []
 
-        if "output_mask" in self._supporting_arrays:
-            result.append(
-                context.create_boundary_forcings(
-                    self.prognostic_variables,
-                    self.prognostic_input_mask,
-                )
-            )
-        return result
+        return context.create_boundary_forcings(
+            self.prognostic_variables,
+            self.prognostic_input_mask,
+        )
 
     ###########################################################################
     # Supporting arrays
@@ -1000,27 +1056,27 @@ class Metadata(PatchMixin, LegacyMixin):
         return self._supporting_arrays[name]
 
     @property
-    def supporting_arrays(self) -> Dict[str, FloatArray]:
+    def supporting_arrays(self) -> dict[str, FloatArray]:
         """Return the supporting arrays."""
         return self._supporting_arrays
 
     @property
-    def latitudes(self) -> Optional[FloatArray]:
+    def latitudes(self) -> FloatArray | None:
         """Return the latitudes."""
         return self._supporting_arrays.get("latitudes")
 
     @property
-    def longitudes(self) -> Optional[FloatArray]:
+    def longitudes(self) -> FloatArray | None:
         """Return the longitudes."""
         return self._supporting_arrays.get("longitudes")
 
     @property
-    def grid_points_mask(self) -> Optional[FloatArray]:
+    def grid_points_mask(self) -> FloatArray | None:
         """Return the grid points mask."""
         # TODO
         return None
 
-    def provenance_training(self) -> Dict[str, Any]:
+    def provenance_training(self) -> dict[str, Any]:
         """Get the environmental configuration when trained.
 
         Returns
@@ -1127,7 +1183,7 @@ class Metadata(PatchMixin, LegacyMixin):
             The patch to apply.
         """
 
-        def merge(main: Dict[str, Any], patch: Dict[str, Any]) -> None:
+        def merge(main: dict[str, Any], patch: dict[str, Any]) -> None:
 
             for k, v in patch.items():
                 if isinstance(v, dict):
@@ -1164,17 +1220,17 @@ class SourceMetadata(Metadata):
         self.name = name
 
     @property
-    def latitudes(self) -> Optional[FloatArray]:
+    def latitudes(self) -> FloatArray | None:
         """Return the latitudes."""
         return self._supporting_arrays.get(f"{self.name}/latitudes")
 
     @property
-    def longitudes(self) -> Optional[FloatArray]:
+    def longitudes(self) -> FloatArray | None:
         """Return the longitudes."""
         return self._supporting_arrays.get(f"{self.name}/longitudes")
 
     @property
-    def grid_points_mask(self) -> Optional[FloatArray]:
+    def grid_points_mask(self) -> FloatArray | None:
         """Return the grid points mask."""
         for k, v in self._supporting_arrays.items():
             # TODO: This is a bit of a hack

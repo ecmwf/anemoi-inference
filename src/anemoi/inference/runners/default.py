@@ -10,9 +10,8 @@
 
 import logging
 import warnings
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
 
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -37,6 +36,9 @@ from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    import torch
 
 
 @runner_registry.register("default")
@@ -79,7 +81,21 @@ class DefaultRunner(Runner):
             write_initial_state=config.write_initial_state,
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
+            typed_variables=config.typed_variables,
         )
+
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+    ) -> "torch.Tensor":
+        for key, value in self.config.predict_kwargs.items():
+            if key in kwargs:
+                warnings.warn(
+                    f"`predict_kwargs` contains illegal kwarg `{key}`. This kwarg is set by the runner and will be ignored."
+                )
+                continue
+            kwargs[key] = value
+
+        return super().predict_step(model, input_tensor_torch, **kwargs)
 
     def execute(self) -> None:
         """Execute the runner."""
@@ -96,28 +112,38 @@ class DefaultRunner(Runner):
         input = self.create_input()
         output = self.create_output()
 
-        # pre_processors = self.pre_processors
-        post_processors = self.post_processors
-
+        # Top-level pre-processors are applied by the input directly as it is applied on FieldList directly.
         input_state = input.create_input_state(date=self.config.date)
 
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)
 
-        state = Output.reduce(input_state)
-        for processor in post_processors:
-            state = processor.process(state)
+        initial_state = Output.reduce(input_state)
+        # Top-level post-processors on the other hand are applied on State and are executed here.
+        for processor in self.post_processors:
+            initial_state = processor.process(initial_state)
 
-        output.open(state)
-        output.write_initial_state(state)
+        output.open(initial_state)
+        LOG.info("write_initial_state: %s", output)
+        output.write_initial_state(initial_state)
 
         for state in self.run(input_state=input_state, lead_time=lead_time):
-            for processor in post_processors:
-                LOG.info("Post processor: %s", processor)
+            # Apply top-level post-processors
+            LOG.info("Top-level post-processors: %s", self.post_processors)
+            for processor in self.post_processors:
                 state = processor.process(state)
             output.write_state(state)
 
         output.close()
+
+        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
+            LOG.warning(
+                """
+                🚧 The default accumulation behaviour has changed. 🚧
+                🚧 Accumulation fields have NOT been accumulated from the beginning of the forecast. 🚧
+                🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
+                """  # ecmwf/anemoi-inference#131
+            )
 
     def input_state_hook(self, input_state: State) -> None:
         """Hook used by coupled runners to send the input state."""
@@ -144,11 +170,10 @@ class DefaultRunner(Runner):
             The created output.
         """
         output = create_output(self, self.config.output)
-        LOG.info("Output:")
-        output.print_summary()
+        LOG.info("Output: %s", output)
         return output
 
-    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant computed forcings.
 
         Parameters
@@ -167,7 +192,7 @@ class DefaultRunner(Runner):
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic computed forcings.
 
         Parameters
@@ -186,7 +211,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def _input_forcings(self, name: str) -> Dict[str, Any]:
+    def _input_forcings(self, name: str) -> dict[str, Any]:
         """Get the input forcings configuration.
 
         Parameters
@@ -211,7 +236,7 @@ class DefaultRunner(Runner):
 
         return self.config.forcings
 
-    def create_constant_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant coupled forcings.
 
         Parameters
@@ -231,7 +256,7 @@ class DefaultRunner(Runner):
         LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic coupled forcings.
 
         Parameters
@@ -251,7 +276,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create boundary forcings.
 
         Parameters
@@ -271,7 +296,7 @@ class DefaultRunner(Runner):
         LOG.info("Boundary forcing: %s", result)
         return [result]
 
-    def create_pre_processors(self) -> List[Processor]:
+    def create_pre_processors(self) -> list[Processor]:
         """Create pre-processors.
 
         Returns
@@ -279,26 +304,6 @@ class DefaultRunner(Runner):
         List[Processor]
             The created pre-processors.
         """
-        if self.config.post_processors is None:
-            self.config.post_processors = ["accumulate_from_start_of_forecast"]
-            warnings.warn(
-                """
-                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
-
-                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-                Update your config if you wish to keep accumulating from the beginning.
-                https://github.com/ecmwf/anemoi-inference/issues/131
-                """,
-            )
-
-        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
-            warnings.warn(
-                """
-                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
-                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
-                """
-            )
-
         result = []
         for processor in self.config.pre_processors:
             result.append(create_pre_processor(self, processor))
@@ -306,7 +311,7 @@ class DefaultRunner(Runner):
         LOG.info("Pre processors: %s", result)
         return result
 
-    def create_post_processors(self) -> List[Processor]:
+    def create_post_processors(self) -> list[Processor]:
         """Create post-processors.
 
         Returns

@@ -11,22 +11,20 @@
 import datetime
 import logging
 import warnings
+from collections.abc import Generator
 from functools import cached_property
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import torch
+from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
+from anemoi.inference.device import get_available_device
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
@@ -37,6 +35,9 @@ from .context import Context
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
+
+if TYPE_CHECKING:
+    from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
 
@@ -77,25 +78,27 @@ class Runner(Context):
         self,
         checkpoint: str,
         *,
-        device: str = "cuda",
-        precision: Optional[str] = None,
+        device: str | None = None,
+        precision: str | None = None,
         report_error: bool = False,
-        allow_nans: Optional[bool] = None,
+        allow_nans: bool | None = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
-        patch_metadata: Dict[str, Any] = {},
-        development_hacks: Dict[str, Any] = {},
-        trace_path: Optional[str] = None,
-        output_frequency: Optional[str] = None,
+        patch_metadata: dict[str, Any] = {},
+        development_hacks: dict[str, Any] = {},
+        trace_path: str | None = None,
+        output_frequency: str | None = None,
         write_initial_state: bool = True,
         use_profiler: bool = False,
+        typed_variables: dict[str, dict] = {},
     ) -> None:
         """Parameters
         -------------
         checkpoint : str
             Path to the checkpoint file.
-        device : str, optional
-            Device to run the model on, by default "cuda".
+        device : str | None, optional
+            Device to run the model on, by default None.
+            If None the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
         precision : Optional[str], optional
             Precision to use, by default None.
         report_error : bool, optional
@@ -130,7 +133,7 @@ class Runner(Context):
         else:
             self.trace = None
 
-        self.device = device
+        self._device = device
         self.precision = precision
         self.report_error = report_error
 
@@ -144,6 +147,9 @@ class Runner(Context):
         self.write_initial_state = write_initial_state
         self.use_profiler = use_profiler
 
+        # For the moment, until we have a better solution
+        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
+
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -154,6 +160,10 @@ class Runner(Context):
         self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
+            logging.basicConfig(level=logging.DEBUG)
+            for logger_name in logging.root.manager.loggerDict:
+                logging.getLogger(logger_name).setLevel(logging.DEBUG)
+
             self.checkpoint.print_indices()
 
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
@@ -170,8 +180,21 @@ class Runner(Context):
         """
         return self._checkpoint
 
+    @property
+    def device(self) -> "torch.device":
+        if self._device is None:
+            self._device = get_available_device()
+        elif isinstance(self._device, str):
+            self._device = torch.device(self._device)
+        return self._device
+
+    @device.setter
+    def device(self, value: "torch.device | str") -> None:
+        """Set the device for the runner."""
+        self._device = value
+
     def run(
-        self, *, input_state: State, lead_time: Union[str, int, datetime.timedelta]
+        self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -181,6 +204,9 @@ class Runner(Context):
             The input state.
         lead_time : Union[str, int, datetime.timedelta]
             The lead time.
+        return_numpy : bool, optional
+            Whether to return the output state fields as numpy arrays, by default True.
+            Otherwise, it will return torch tensors.
 
         Returns
         -------
@@ -219,13 +245,13 @@ class Runner(Context):
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
-                yield from self.forecast(lead_time, input_tensor, input_state)
+                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
             except (TypeError, ModuleNotFoundError, AttributeError):
                 if self.report_error:
                     self.checkpoint.report_error()
                 raise
 
-    def create_constant_forcings_inputs(self, input_state: State) -> List[Forcings]:
+    def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
         """Create constant forcings inputs.
 
         Parameters
@@ -240,7 +266,7 @@ class Runner(Context):
         """
         return self.checkpoint.constant_forcings_inputs(self, input_state)
 
-    def create_dynamic_forcings_inputs(self, input_state: State) -> List[Forcings]:
+    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
         """Create dynamic forcings inputs.
 
         Parameters
@@ -255,7 +281,7 @@ class Runner(Context):
         """
         return self.checkpoint.dynamic_forcings_inputs(self, input_state)
 
-    def create_boundary_forcings_inputs(self, input_state: State) -> List[Forcings]:
+    def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
         """Create boundary forcings inputs.
 
         Parameters
@@ -324,7 +350,7 @@ class Runner(Context):
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs: List[Forcings]) -> List[Forcings]:
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
         """Modify the constant forcings inputs for the first step.
 
         Parameters
@@ -340,7 +366,7 @@ class Runner(Context):
         # Give an opportunity to modify the forcings for the first step
         return constant_forcings_inputs
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: List[Forcings]) -> List[Forcings]:
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
         """Modify the dynamic forcings inputs for the first step.
 
         Parameters
@@ -397,7 +423,7 @@ class Runner(Context):
             shape=(
                 self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
@@ -422,12 +448,38 @@ class Runner(Context):
         if len(check) != self.checkpoint.number_of_input_features:
             missing = set(range(self.checkpoint.number_of_input_features)) - check
             mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
+            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
 
+    def prepare_output_state(
+        self, output: Generator[State, None, None], return_numpy: bool
+    ) -> Generator[State, None, None]:
+        """Prepare the output state.
+
+        Parameters
+        ----------
+        output : Generator[State, None, None]
+            Output state generator,
+            Expects fields to be torch tensors with shape (values, variables).
+        return_numpy : bool
+            Whether to return the output state fields as numpy arrays.
+
+        Yields
+        ------
+        Generator[State, None, None]
+            The prepared output state.
+        """
+        for state in output:
+            if return_numpy:
+                # Convert fields to numpy arrays
+                for name, field in state["fields"].items():
+                    if isinstance(field, torch.Tensor):
+                        state["fields"][name] = field.cpu().numpy()
+            yield state
+
     @cached_property
-    def autocast(self) -> Union[torch.dtype, str]:
+    def autocast(self) -> torch.dtype | str:
         """The autocast precision."""
         autocast = self.precision
 
@@ -448,7 +500,18 @@ class Runner(Context):
             The loaded model.
         """
         with Timer(f"Loading {self.checkpoint}"):
-            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            LOG.info("Device is '%s'", self.device)
+            LOG.info("Loading model from %s", self.checkpoint.path)
+
+            try:
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            except Exception as e:  # Wildcard exception to catch all errors
+                if self.report_error:
+                    self.checkpoint.report_error()
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                e.add_note("Model failed to load, check the stack trace above this message to find the real error")
+                e.add_note("Is your environment valid?:\n" + str(validation_result))
+                raise e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
@@ -464,18 +527,23 @@ class Runner(Context):
         input_tensor_torch : torch.Tensor
             The input tensor.
         **kwargs : Any
-            Additional keyword arguments
+            Additional keyword arguments that will be passed to the model's predict_step method.
 
         Returns
         -------
         torch.Tensor
             The predicted step.
         """
-        return model.predict_step(input_tensor_torch)
+        try:
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[Tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -571,15 +639,13 @@ class Runner(Context):
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
+                torch.autocast(device_type=self.device.type, dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
-            # Detach tensor and squeeze (should we detach here?)
-            with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+            output = torch.squeeze(y_pred)  # shape: (values, variables)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -587,11 +653,15 @@ class Runner(Context):
                     new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output)
+                self._print_output_tensor("Output tensor", output.cpu().numpy())
 
             if self.trace:
                 self.trace.write_output_tensor(
-                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    date,
+                    s,
+                    output.cpu().numpy(),
+                    self.checkpoint.output_tensor_index_to_variable,
+                    self.checkpoint.timestep,
                 )
 
             yield new_state
@@ -610,12 +680,12 @@ class Runner(Context):
 
                 del y_pred  # Recover memory
 
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, new_state, next_date, check
-            )
+                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
+                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                    input_tensor_torch, new_state, next_date, check
+                )
 
             if not check.all():
                 # Not all variables have been updated
@@ -705,7 +775,6 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-
             forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
@@ -819,7 +888,6 @@ class Runner(Context):
         with_nans = []
 
         for name, field in list(fields.items()):
-
             # Allow for 1D fields if multi_step is 1
             if len(field.shape) == 1:
                 field = fields[name] = field.reshape(1, field.shape[0])
@@ -845,7 +913,7 @@ class Runner(Context):
         return input_state
 
     def _print_tensor(
-        self, title: str, tensor_numpy: FloatArray, tensor_by_name: List[str], kinds: Dict[str, Kind]
+        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
     ) -> None:
         """Print the tensor.
 
@@ -919,7 +987,7 @@ class Runner(Context):
         """
         LOG.info(
             "%s",
-            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
         )
 
         if not self._output_tensor_by_name:
@@ -959,3 +1027,11 @@ class Runner(Context):
             request = p.patch_data_request(request)
 
         return request
+
+    def _configure_parallel_runner(self: "ParallelRunnerMixin") -> None:
+        """Configure the parallel runner (only applies when using the `parallel` runner).
+
+        This method is called by the parallel runner on initialisation.
+        Derived classes can implement this method to modify itself for parallel operation.
+        """
+        pass

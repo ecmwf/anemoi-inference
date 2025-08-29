@@ -10,11 +10,11 @@
 import logging
 import os
 import threading
-from typing import Optional
 
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -31,34 +31,57 @@ LOCK = threading.RLock()
 @output_registry.register("netcdf")
 @main_argument("path")
 class NetCDFOutput(Output):
-    """NetCDF output class.
-
-    Parameters
-    ----------
-    context : dict
-        The context dictionary.
-    path : str
-        The path to save the NetCDF file.
-    output_frequency : int, optional
-        The frequency of output, by default None.
-    write_initial_state : bool, optional
-        Whether to write the initial state, by default None.
-    """
+    """NetCDF output class."""
 
     def __init__(
         self,
         context: Context,
         path: str,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        float_size: str = "f4",
+        missing_value: float | None = np.nan,
     ) -> None:
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        """Initialize the NetCDF output object.
+
+        Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        path : str
+            The path to save the NetCDF file.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        float_size : str, optional
+            The size of the float, by default "f4".
+        missing_value : float, optional
+            The missing value, by default np.nan.
+        """
+
+        super().__init__(
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
 
         from netCDF4 import Dataset
 
         self.path = path
-        self.ncfile: Optional[Dataset] = None
-        self.float_size = "f4"
+        self.ncfile: Dataset | None = None
+        self.float_size = float_size
+        self.missing_value = missing_value
+        if self.write_step_zero:
+            self.extra_time = 1
+        else:
+            self.extra_time = 0
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -95,6 +118,8 @@ class NetCDFOutput(Output):
             lead_time := getattr(self.context, "lead_time", None)
         ):
             time = lead_time // time_step
+            time += self.extra_time
+
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
@@ -103,7 +128,7 @@ class NetCDFOutput(Output):
             self.time_dim = self.ncfile.createDimension("time", time)
             self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
-            self.time_var.units = "seconds since {0}".format(self.reference_date)
+            self.time_var.units = f"seconds since {self.reference_date}"
             self.time_var.long_name = "time"
             self.time_var.calendar = "gregorian"
 
@@ -123,7 +148,6 @@ class NetCDFOutput(Output):
         self.longitude_var[:] = longitudes
 
         self.vars = {}
-        self.ensure_variables(state)
 
         self.n = 0
 
@@ -135,26 +159,37 @@ class NetCDFOutput(Output):
         state : State
             The state dictionary.
         """
+
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)
 
         for name in state["fields"].keys():
+            if self.skip_variable(name):
+                continue
+
             if name in self.vars:
                 continue
+
             chunksizes = (1, values)
 
             while np.prod(chunksizes) > 1000000:
                 chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
 
             with LOCK:
+                missing_value = self.missing_value
+
                 self.vars[name] = self.ncfile.createVariable(
                     name,
                     self.float_size,
                     ("time", "values"),
                     chunksizes=chunksizes,
+                    fill_value=missing_value,
                     **compression,
                 )
+
+                self.vars[name].fill_value = missing_value
+                self.vars[name].missing_value = missing_value
 
     def write_step(self, state: State) -> None:
         """Write the state.
@@ -171,7 +206,11 @@ class NetCDFOutput(Output):
         self.time_var[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
+            if self.skip_variable(name):
+                continue
+
             with LOCK:
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
                 self.vars[name][self.n] = value
 
         self.n += 1

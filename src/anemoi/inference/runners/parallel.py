@@ -14,8 +14,6 @@ import os
 import socket
 import subprocess
 from typing import Any
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -24,7 +22,9 @@ import torch.distributed as dist
 from anemoi.inference.config import Configuration
 from anemoi.inference.output import Output
 
+from ..decorators import main_argument
 from ..outputs import create_output
+from ..runner import Runner
 from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
@@ -38,39 +38,67 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
     Parameters
     ----------
     config : Configuration
-        Configuration.
+        The configuration object for the runner.
     pid : int
-        Process ID.
+        The process ID.
     """
     runner = create_runner(config, pid=pid)
     runner.execute()
 
 
 @runner_registry.register("parallel")
-class ParallelRunner(DefaultRunner):
-    """Runner which splits a model over multiple devices."""
+@main_argument("base_runner")
+class ParallelRunnerFactory:
+    """Creates a ParallelRunner with a dynamic base class."""
 
-    def __new__(cls, context, *args, **kwargs):
+    def __new__(cls, config: Any, base_runner: str = "default", *args, **kwargs):
+        assert base_runner != "parallel", "Base runner cannot be `parallel` itself."
+
+        try:
+            base_class = runner_registry.lookup(base_runner)
+        except ValueError:
+            raise ValueError(f"Base runner '{base_runner}' not found in the registry.")
+
+        assert issubclass(base_class, Runner), f"Base runner '{base_runner}' must be a subclass of Runner."
+
+        LOG.info(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
+
+        ParallelRunner = cls.get_class(base_class)
+        return ParallelRunner(config, *args, **kwargs)
+
+    @staticmethod
+    def get_class(base_class: Runner):
+        """Returns a ParallelRunner class object of the given base class."""
+        return type("ParallelRunner", (ParallelRunnerMixin, base_class), {})
+
+
+class ParallelRunnerMixin:
+    """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
+
+    def __new__(cls, config, *args, **kwargs):
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
             LOG.warning("CUDA is not available. Falling back to DefaultRunner")
-            return DefaultRunner(context)
+            return DefaultRunner(config)
 
-    def __init__(self, context: Any, pid: int = 0) -> None:
+    def __init__(self, config: Any, pid: int = 0, **kwargs) -> None:
         """Initializes the ParallelRunner.
 
         Parameters
         ----------
-        context : Any
-            The context for the runner.
+        config : Any
+            The config for the runner.
         pid : int, optional
-            Process ID, by default 0.
+            The process ID, by default 0.
         """
-        super().__init__(context)
+        super().__init__(config, **kwargs)
 
         self.model_comm_group = None
         self.pid = pid
+
+        # give the base class an opportunity to modify the parallel runner
+        super()._configure_parallel_runner()
 
         self._bootstrap_processes()
 
@@ -78,7 +106,7 @@ class ParallelRunner(DefaultRunner):
         if self.global_rank != 0:
             logging.getLogger().setLevel(logging.WARNING)
 
-        if self.device == "cuda":
+        if str(self.device) == "cuda":
             self.device = f"{self.device}:{self.local_rank}"
             torch.cuda.set_device(self.local_rank)
 
@@ -103,18 +131,21 @@ class ParallelRunner(DefaultRunner):
         input_tensor_torch : torch.Tensor
             The input tensor for the model.
         **kwargs : Any
-            Additional arguments.
+            Additional arguments for the prediction step.
 
         Returns
         -------
         torch.Tensor
             The prediction result.
         """
+        # call the predict_step of the base class since it might do some modifications
+        # the base class is expected to forward the kwargs (including the comm group) to the model's predict_step method
+
         if self.model_comm_group is None:
-            return model.predict_step(input_tensor_torch)
+            return super().predict_step(model, input_tensor_torch, **kwargs)
         else:
             try:
-                return model.predict_step(input_tensor_torch, self.model_comm_group)
+                return super().predict_step(model, input_tensor_torch, model_comm_group=self.model_comm_group, **kwargs)
             except TypeError as err:
                 LOG.error(
                     "Please upgrade to a newer version of anemoi-models (at least version v0.4.2) to use parallel inference. If updating breaks your checkpoints, you can try reverting to your original version of anemoi-models and cherry-picking 'https://github.com/ecmwf/anemoi-core/pull/77'"
@@ -122,7 +153,7 @@ class ParallelRunner(DefaultRunner):
                 raise err
 
     def create_output(self) -> Output:
-        """Creates the output.
+        """Creates the real output on rank 0 and a `none` on the others.
 
         Returns
         -------
@@ -130,9 +161,7 @@ class ParallelRunner(DefaultRunner):
             The created output.
         """
         if self.global_rank == 0:
-            output = create_output(self, self.config.output)
-            LOG.info("Output: %s", output)
-            return output
+            return super().create_output()
         else:
             output = create_output(self, "none")
             return output
@@ -168,7 +197,7 @@ class ParallelRunner(DefaultRunner):
             torch.manual_seed(seed)
 
     def _srun_used(self) -> bool:
-        """Returns true if anemoi-inference was launched with srun.
+        """Checks if anemoi-inference was launched with srun.
 
         Returns
         -------
@@ -185,12 +214,12 @@ class ParallelRunner(DefaultRunner):
         Parameters
         ----------
         num_procs : int
-            Number of processes to spawn.
+            The number of processes to spawn.
         """
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
-        if self.device.startswith("cuda"):
+        if str(self.device).startswith("cuda"):
             num_gpus = torch.cuda.device_count()
             if num_procs > num_gpus:
                 raise ValueError(
@@ -206,9 +235,10 @@ class ParallelRunner(DefaultRunner):
             mp.Process(target=create_parallel_runner, args=(config, pid)).start()
 
     def _bootstrap_processes(self) -> None:
-        """Initializes processes and their network information.
-        If srun is available, slurm variables are read to determine network settings.
-        Otherwise, local processes are spawned and network info is inferred from config.
+        """Initialises processes and their network information.
+
+        If srun is available, Slurm variables are read to determine network settings.
+        Otherwise, local processes are spawned and network info is inferred from the configuration.
         """
         using_slurm = self._srun_used()
         if using_slurm:
@@ -258,7 +288,7 @@ class ParallelRunner(DefaultRunner):
             if self.local_rank == 0:
                 self._spawn_parallel_procs(self.world_size)
 
-    def _init_network_from_slurm(self) -> Tuple[str, str]:
+    def _init_network_from_slurm(self) -> tuple[str, str]:
         """Reads Slurm environment to set master address and port for parallel communication.
 
         Returns
@@ -309,7 +339,7 @@ class ParallelRunner(DefaultRunner):
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> Optional[dist.ProcessGroup]:
+    def _init_parallel(self) -> dist.ProcessGroup | None:
         """Creates a model communication group to be used for parallel inference.
 
         Returns
@@ -320,7 +350,7 @@ class ParallelRunner(DefaultRunner):
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'
-            if self.device.startswith("cuda"):
+            if str(self.device).startswith("cuda"):
                 backend = "nccl"
             else:
                 if dist.is_mpi_available():
@@ -344,7 +374,7 @@ class ParallelRunner(DefaultRunner):
 
         return model_comm_group
 
-    def _get_parallel_info_from_slurm(self) -> Tuple[int, int, int]:
+    def _get_parallel_info_from_slurm(self) -> tuple[int, int, int]:
         """Reads Slurm env vars, if they exist, to determine if inference is running in parallel.
 
         Returns

@@ -9,17 +9,16 @@
 
 import datetime
 import logging
+from collections.abc import Callable
 from functools import partial
 from typing import Any
-from typing import Callable
-from typing import List
 from typing import Literal
-from typing import Optional
 from typing import Union
 
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -28,14 +27,14 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
-ListOrAll = Union[List[str], Literal["all"]]
+ListOrAll = Union[list[str], Literal["all"]]
 
 
 def print_state(
     state: State,
     print: Callable[..., None] = print,
     max_lines: int = 4,
-    variables: Optional[ListOrAll] = None,
+    variables: ListOrAll | None = None,
 ) -> None:
     """Print the state.
 
@@ -53,7 +52,6 @@ def print_state(
     print()
     print("😀", end=" ")
     for key, value in state.items():
-
         if isinstance(value, datetime.datetime):
             print(f"{key}={value.isoformat()}", end=" ")
 
@@ -113,8 +111,9 @@ class PrinterOutput(Output):
     def __init__(
         self,
         context: Context,
-        path: Optional[str] = None,
-        variables: Optional[ListOrAll] = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        path: str | None = None,
+        variables: ListOrAll | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the PrinterOutput.
@@ -123,6 +122,8 @@ class PrinterOutput(Output):
         ----------
         context : Context
             The context.
+        post_processors : Optional[List[ProcessorConfig]] = None
+            Post-processors to apply to the input
         path : str, optional
             The path to save the printed output, by default None.
         variables : list, optional
@@ -131,7 +132,7 @@ class PrinterOutput(Output):
             Additional keyword arguments.
         """
 
-        super().__init__(context)
+        super().__init__(context, variables=variables, post_processors=post_processors)
         self.print = print
         self.variables = variables
 

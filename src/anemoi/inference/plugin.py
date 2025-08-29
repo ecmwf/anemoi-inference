@@ -14,13 +14,11 @@ import logging
 import os
 from functools import cached_property
 from typing import Any
-from typing import List
-from typing import Optional
 
 from ai_models.model import Model
 
 from anemoi.inference.inputs.grib import GribInput
-from anemoi.inference.outputs.grib import GribOutput
+from anemoi.inference.outputs.grib import BaseGribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
 from anemoi.inference.types import Date
@@ -45,7 +43,7 @@ class FieldListInput(GribInput):
         super().__init__(context)
         self.input_fields = input_fields
 
-    def create_input_state(self, *, date: Optional[Date]) -> Any:
+    def create_input_state(self, *, date: Date | None) -> Any:
         """Create the input state for the given date.
 
         Parameters
@@ -63,8 +61,8 @@ class FieldListInput(GribInput):
     def load_forcings_state(
         self,
         *,
-        variables: List[str],
-        dates: List[str],
+        variables: list[str],
+        dates: list[str],
         current_state: State,
     ) -> State:
         """Load the forcings state.
@@ -104,7 +102,7 @@ class FieldListInput(GribInput):
         state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
 
 
-class CallbackOutput(GribOutput):
+class CallbackOutput(BaseGribOutput):
     """Call ai-models write method."""
 
     def __init__(self, context: Any, *, write: Any, encoding: Any = None) -> None:
@@ -151,7 +149,7 @@ class AIModelPlugin(Model):
         """
         pass
 
-    def parse_model_args(self, args: List[str]) -> argparse.ArgumentParser:
+    def parse_model_args(self, args: list[str]) -> argparse.ArgumentParser:
         """Parse model-specific arguments.
 
         Parameters
