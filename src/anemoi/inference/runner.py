@@ -91,6 +91,7 @@ class Runner(Context):
         write_initial_state: bool = True,
         use_profiler: bool = False,
         typed_variables: dict[str, dict] = {},
+        variables_to_perturb: list = [],
     ) -> None:
         """Parameters
         -------------
@@ -146,6 +147,12 @@ class Runner(Context):
         self.output_frequency = output_frequency
         self.write_initial_state = write_initial_state
         self.use_profiler = use_profiler
+        self.variables_to_perturb = variables_to_perturb
+        if len(self.variables_to_perturb):
+            for v in self.variables_to_perturb:
+                assert (
+                    v in self.checkpoint._metadata.variable_to_output_tensor_index
+                ), f"The variable {v} is not in the output state."
 
         # For the moment, until we have a better solution
         self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
@@ -478,6 +485,14 @@ class Runner(Context):
                         state["fields"][name] = field.cpu().numpy()
             yield state
 
+    def perturb_output(self, output: torch.Tensor, idx: int) -> torch.Tensor:
+        """Perturb the output."""
+        # Use a perturbation of 1% of the forecasted value
+        pert = torch.zeros_like(output.clone())
+        pert[..., idx] = 0.01 * output[..., idx]
+
+        return pert
+
     @cached_property
     def autocast(self) -> torch.dtype | str:
         """The autocast precision."""
@@ -625,6 +640,13 @@ class Runner(Context):
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
+        def predict_model_with_torch(x):
+            x = x[:, :, None, ...]  # add dummy ensemble dimension as 3rd index
+            x = self.model.pre_processors(x, in_place=False)
+            y_hat = self.model.model(x)
+            y_hat = self.model.post_processors(y_hat, in_place=False)
+            return y_hat
+
         for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
             title = f"Forecasting step {step} ({date})"
 
@@ -644,6 +666,26 @@ class Runner(Context):
                 Timer(title),
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+
+            for var_name in self.variables_to_perturb:
+                var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[var_name] # perturb variable in 82-th index
+                LOG.info(f"Norm predicted field (var = {var_name}): {torch.norm(y_pred[..., var_idx])}")
+                perturbed_output = self.perturb_output(y_pred, idx=var_idx)
+                LOG.info(f"Norm perturbation (var = {var_name}): {torch.norm(perturbed_output[..., var_idx])}")                
+
+                # Compute the sensitivities
+                input_tensor_torch.requires_grad_(True)
+                with torch.enable_grad():
+                    with torch.autocast(device_type=self.device.type, dtype=self.autocast):
+                        _, t_dx_output = torch.autograd.functional.vjp(
+                            predict_model_with_torch,
+                            input_tensor_torch,
+                            v=perturbed_output,
+                            create_graph=False,
+                            strict=False,
+                        )
+                LOG.info(f"Norm sensitivities (var = {var_name}): {torch.norm(t_dx_output[..., var_idx])}")
+                y_pred = t_dx_output
 
             output = torch.squeeze(y_pred)  # shape: (values, variables)
 

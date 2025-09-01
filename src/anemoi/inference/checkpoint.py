@@ -184,6 +184,11 @@ class Checkpoint:
         return self._metadata.variable_to_input_tensor_index
 
     @property
+    def variable_to_output_tensor_index(self) -> Any:
+        """Get the variable to input tensor index."""
+        return self._metadata.variable_to_output_tensor_index
+
+    @property
     def model_computed_variables(self) -> Any:
         """Get the model computed variables."""
         return self._metadata.model_computed_variables
