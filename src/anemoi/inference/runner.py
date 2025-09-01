@@ -668,10 +668,10 @@ class Runner(Context):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
             for var_name in self.variables_to_perturb:
-                var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[var_name] # perturb variable in 82-th index
+                var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[var_name]
                 LOG.info(f"Norm predicted field (var = {var_name}): {torch.norm(y_pred[..., var_idx])}")
                 perturbed_output = self.perturb_output(y_pred, idx=var_idx)
-                LOG.info(f"Norm perturbation (var = {var_name}): {torch.norm(perturbed_output[..., var_idx])}")                
+                LOG.info(f"Norm perturbation (var = {var_name}): {torch.norm(perturbed_output[..., var_idx])}")
 
                 # Compute the sensitivities
                 input_tensor_torch.requires_grad_(True)
