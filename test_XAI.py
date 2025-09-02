@@ -8,14 +8,13 @@ import earthkit.data as ekd
 import earthkit.regrid as ekr
 from pathlib import Path
 
-initial_conditions_file = Path("input_state.npz")
 
-GRID_RESOLUTION = "N320"
+GRID_RESOLUTION = "O96"
 PARAM_SFC = ["10u", "10v", "2d", "2t", "msl", "skt", "sp", "tcw", "lsm", "z", "slor", "sdor"]
-PARAM_SOIL =["vsw","sot"]
+PARAM_SOIL =["vsw", "sot"]
 PARAM_PL = ["gh", "t", "u", "v", "w", "q"]
 LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
-SOIL_LEVELS = [1,2]
+SOIL_LEVELS = [1, 2]
 
 DATE = OpendataClient().latest()
 
@@ -39,7 +38,7 @@ def get_open_data(param, levelist=[]):
             # Open data is between -180 and 180, we need to shift it to 0-360
             assert f.to_numpy().shape == (721, 1440)
             values = np.roll(f.to_numpy(), -f.shape[1] // 2, axis=1)
-            # Interpolate the data to from 0.25 to N320
+            # Interpolate the data to from 0.25 to grid
             values = ekr.interpolate(values, {"grid": (0.25, 0.25)}, {"grid": GRID_RESOLUTION})
             # Add the values to the list
             name = f"{f.metadata('param')}_{f.metadata('levelist')}" if levelist else f.metadata("param")
@@ -52,35 +51,47 @@ def get_open_data(param, levelist=[]):
     return fields
 
 
+def rename_keys(state: dict, mapping: dict) -> dict:
+    for old_key, new_key in mapping.items():
+        state[new_key] = state.pop(old_key)
+
+    return state
+
+def transform_GH_to_Z(fields: dict, levels: list[str]) -> dict:
+    for level in levels:
+        fields[f"z_{level}"] = fields.pop(f"gh_{level}") * 9.80665
+
+    return fields
+
+
 def load_current_state() -> dict:
     fields = {}
     fields.update(get_open_data(param=PARAM_SFC))
-    soil = get_open_data(param=PARAM_SOIL,levelist=SOIL_LEVELS)
-    mapping = {'sot_1': 'stl1', 'sot_2': 'stl2', 'vsw_1': 'swvl1','vsw_2': 'swvl2'}
-    for k,v in soil.items():
-        fields[mapping[k]] = v
+    #fields.update(get_open_data(param=PARAM_SOIL,levelist=SOIL_LEVELS))
     fields.update(get_open_data(param=PARAM_PL, levelist=LEVELS))
-    # Transform GH to Z
-    for level in LEVELS:
-        gh = fields.pop(f"gh_{level}")
-        fields[f"z_{level}"] = gh * 9.80665
+
+    #fields = rename_keys(fields, {'sot_1': 'stl1', 'sot_2': 'stl2', 'vsw_1': 'swvl1', 'vsw_2': 'swvl2'})
+    fields = transform_GH_to_Z(fields, LEVELS)
+
     return dict(date=DATE, fields=fields)
+
 
 def save_state(state, outfile):
     np.savez(outfile, **state["fields"])
 
-def main():
+
+def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single-1.0"}):
     # Load initial conditions
     if initial_conditions_file.exists():
         input_state = load_state(initial_conditions_file)
         print("DATE is wrong")
     else:
         input_state = load_current_state()
+        print("State created")
         save_state(input_state, initial_conditions_file)
 
     # Load model
-    ckpt = {"huggingface": "ecmwf/aifs-single-1.0"}
-    runner = SimpleRunner(ckpt, device="cuda", variables_to_perturb=["2t"])
+    runner = SimpleRunner(ckpt, device="cpu", variables_to_perturb=["2t"])
 
     # Compute sensitivities
     for state in runner.run(input_state=input_state, lead_time="6h"):
@@ -88,4 +99,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(
+        Path("input_state-o96.npz"),
+        ckpt="inference-aifs-o96.ckpt"
+    )
