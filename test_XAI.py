@@ -1,4 +1,5 @@
 import datetime
+import logging
 import numpy as np
 from anemoi.inference.runners.simple import SimpleRunner
 from anemoi.inference.outputs.printer import print_state
@@ -6,7 +7,11 @@ from ecmwf.opendata import Client as OpendataClient
 from collections import defaultdict
 import earthkit.data as ekd
 import earthkit.regrid as ekr
+import matplotlib.pyplot as plt
 from pathlib import Path
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 GRID_RESOLUTION = "O96"
@@ -80,22 +85,47 @@ def save_state(state, outfile):
     np.savez(outfile, **state["fields"])
 
 
+def plot_sensitivities(state: dict, field: str):
+    num_times = state["fields"][field].shape[0]
+    fig, axs = plt.subplots(num_times, 1, figsize=(6 * num_times, 8))
+
+    # Get the combined min/max for color normalization
+    vmin = min(state["fields"][field][0].min(), state["fields"][field][1].min())
+    vmax = max(state["fields"][field][0].max(), state["fields"][field][1].max())
+    cmap_kwargs = dict(cmap="RdBu", vmin=vmin, vmax=vmax)
+    
+    for i in range(num_times):
+        axs[i].set_title(f"{field} (at -{(num_times-i)*6}H)")
+        axs[i].scatter(state["longitudes"], state["latitudes"], c=state["fields"][field][i], **cmap_kwargs)
+
+    # Remove x and y axes
+    for ax in axs:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+
+    fig.savefig(f"sensitivities_{field}.png")
+    
+
 def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single-1.0"}):
     # Load initial conditions
     if initial_conditions_file.exists():
         input_state = load_state(initial_conditions_file)
-        print("DATE is wrong")
+        LOGGER.info("DATE is wrong")
     else:
         input_state = load_current_state()
-        print("State created")
+        LOGGER.info("State created")
         save_state(input_state, initial_conditions_file)
 
     # Load model
-    runner = SimpleRunner(ckpt, device="cpu", variables_to_perturb=["2t"])
+    runner = SimpleRunner(ckpt, device="cuda", variables_to_perturb=["2t"])
 
     # Compute sensitivities
     for state in runner.run(input_state=input_state, lead_time="6h"):
         print_state(state)
+        plot_sensitivities(state, "2t")
+        plot_sensitivities(state, "z")
 
 
 if __name__ == "__main__":

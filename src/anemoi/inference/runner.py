@@ -42,6 +42,28 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
+def plot_perturbation(pred: np.ndarray, true: np.ndarray, lons: np.ndarray, lats: np.ndarray, field: str):
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(2, 1)
+
+    axs[0].set_title(f"{field} forecast")
+    sc0 = axs[0].scatter(lons, lats, c=pred)
+    axs[0].set_title(f"{field} forecast")
+    plt.colorbar(sc0, ax=axs[0], orientation='vertical', label='Value')
+
+    axs[1].set_title(f"{field} perturbation")
+    sc1 = axs[1].scatter(lons, lats, c=true)
+    plt.colorbar(sc1, ax=axs[1], orientation='vertical', label='Value')
+
+    for ax in axs:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+
+    fig.savefig(f"perturbation_{field}.png")
+
+
 class Kind:
     """Used for debugging purposes."""
 
@@ -672,6 +694,13 @@ class Runner(Context):
                 LOG.info(f"Norm predicted field (var = {var_name}): {torch.norm(y_pred[..., var_idx])}")
                 perturbed_output = self.perturb_output(y_pred, idx=var_idx)
                 LOG.info(f"Norm perturbation (var = {var_name}): {torch.norm(perturbed_output[..., var_idx])}")
+                plot_perturbation(
+                    y_pred.cpu().squeeze().numpy()[..., var_idx],
+                    perturbed_output.cpu().squeeze().numpy()[..., var_idx],
+                    lons=input_state["longitudes"],
+                    lats=input_state["latitudes"],
+                    field=var_name,
+                )
 
                 # Compute the sensitivities
                 input_tensor_torch.requires_grad_(True)
@@ -685,7 +714,14 @@ class Runner(Context):
                             strict=False,
                         )
                 LOG.info(f"Norm sensitivities (var = {var_name}): {torch.norm(t_dx_output[..., var_idx])}")
-                y_pred = t_dx_output
+                t_dx_output = t_dx_output[0, ...] # (time, values, variables)
+
+                # Update state
+                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                    for i in range(t_dx_output.shape[-1]):
+                        new_state["fields"][self.checkpoint.input_tensor_index_to_variable[i]] = t_dx_output[:, :, i]
+
+                yield new_state
 
             output = torch.squeeze(y_pred)  # shape: (values, variables)
 

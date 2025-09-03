@@ -219,6 +219,11 @@ class Checkpoint:
         return self._metadata.prognostic_input_mask
 
     @property
+    def input_tensor_index_to_variable(self) -> Any:
+        """Get the output tensor index to variable."""
+        return self._metadata.input_tensor_index_to_variable
+
+    @property
     def output_tensor_index_to_variable(self) -> Any:
         """Get the output tensor index to variable."""
         return self._metadata.output_tensor_index_to_variable
