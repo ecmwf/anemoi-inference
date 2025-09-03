@@ -1,22 +1,23 @@
 import datetime
 import logging
-import numpy as np
-from anemoi.inference.runners.simple import SimpleRunner
-from anemoi.inference.outputs.printer import print_state
-from ecmwf.opendata import Client as OpendataClient
 from collections import defaultdict
+from pathlib import Path
+
 import earthkit.data as ekd
 import earthkit.regrid as ekr
 import matplotlib.pyplot as plt
-from pathlib import Path
+import numpy as np
+from ecmwf.opendata import Client as OpendataClient
 
+from anemoi.inference.outputs.printer import print_state
+from anemoi.inference.runners.simple import SimpleRunner
 
 LOGGER = logging.getLogger(__name__)
 
 
 GRID_RESOLUTION = "O96"
 PARAM_SFC = ["10u", "10v", "2d", "2t", "msl", "skt", "sp", "tcw", "lsm", "z", "slor", "sdor"]
-PARAM_SOIL =["vsw", "sot"]
+PARAM_SOIL = ["vsw", "sot"]
 PARAM_PL = ["gh", "t", "u", "v", "w", "q"]
 LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
 SOIL_LEVELS = [1, 2]
@@ -27,10 +28,7 @@ DATE = OpendataClient().latest()
 def load_state(file) -> dict:
     with np.load(file, allow_pickle=False) as data:
         fields = {k: data[k] for k in data.files}
-    state = {
-        "date": datetime.datetime(2025, 8, 29, 6, 0),
-        "fields": fields
-    }
+    state = {"date": datetime.datetime(2025, 8, 29, 6, 0), "fields": fields}
     return state
 
 
@@ -62,6 +60,7 @@ def rename_keys(state: dict, mapping: dict) -> dict:
 
     return state
 
+
 def transform_GH_to_Z(fields: dict, levels: list[str]) -> dict:
     for level in levels:
         fields[f"z_{level}"] = fields.pop(f"gh_{level}") * 9.80665
@@ -72,10 +71,10 @@ def transform_GH_to_Z(fields: dict, levels: list[str]) -> dict:
 def load_current_state() -> dict:
     fields = {}
     fields.update(get_open_data(param=PARAM_SFC))
-    #fields.update(get_open_data(param=PARAM_SOIL,levelist=SOIL_LEVELS))
+    # fields.update(get_open_data(param=PARAM_SOIL,levelist=SOIL_LEVELS))
     fields.update(get_open_data(param=PARAM_PL, levelist=LEVELS))
 
-    #fields = rename_keys(fields, {'sot_1': 'stl1', 'sot_2': 'stl2', 'vsw_1': 'swvl1', 'vsw_2': 'swvl2'})
+    # fields = rename_keys(fields, {'sot_1': 'stl1', 'sot_2': 'stl2', 'vsw_1': 'swvl1', 'vsw_2': 'swvl2'})
     fields = transform_GH_to_Z(fields, LEVELS)
 
     return dict(date=DATE, fields=fields)
@@ -93,7 +92,7 @@ def plot_sensitivities(state: dict, field: str):
     vmin = min(state["fields"][field][0].min(), state["fields"][field][1].min())
     vmax = max(state["fields"][field][0].max(), state["fields"][field][1].max())
     cmap_kwargs = dict(cmap="RdBu", vmin=vmin, vmax=vmax)
-    
+
     for i in range(num_times):
         axs[i].set_title(f"{field} (at -{(num_times-i)*6}H)")
         axs[i].scatter(state["longitudes"], state["latitudes"], c=state["fields"][field][i], **cmap_kwargs)
@@ -102,11 +101,11 @@ def plot_sensitivities(state: dict, field: str):
     for ax in axs:
         ax.set_xticks([])
         ax.set_yticks([])
-        ax.set_xlabel('')
-        ax.set_ylabel('')
+        ax.set_xlabel("")
+        ax.set_ylabel("")
 
     fig.savefig(f"sensitivities_{field}.png")
-    
+
 
 def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single-1.0"}):
     # Load initial conditions
@@ -129,7 +128,4 @@ def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single
 
 
 if __name__ == "__main__":
-    main(
-        Path("input_state-o96.npz"),
-        ckpt="inference-aifs-o96.ckpt"
-    )
+    main(Path("input_state-o96.npz"), ckpt="inference-aifs-o96.ckpt")
