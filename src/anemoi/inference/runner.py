@@ -477,17 +477,20 @@ class Runner(Context):
         # We need to get their rank and the number of processes to determine
         # mapping from  local var id in the output shard to global var id in the output state
     def determine_global_vars(self, model_comm_group, num_global_vars):
-        rank=torch.distributed.get_rank(group=model_comm_group) # comes from parallel runner
-        world_size=torch.distributed.get_world_size(group=model_comm_group)
-        num_fields_per_rank=(num_global_vars//world_size)
-        field_start=num_fields_per_rank * rank
-        field_end= num_fields_per_rank * (rank+1)
-        if rank == world_size -1:
-            field_end=num_global_vars # handle remainders
-        #do i need this last part
-        #if num_global_vars % world_size != 0 and rank == world_size-1:
-        #    num_fields_per_rank+= num_global_vars % world_size
-        return field_start, field_end
+        if model_comm_group is not None:
+            rank=torch.distributed.get_rank(group=model_comm_group) # comes from parallel runner
+            world_size=torch.distributed.get_world_size(group=model_comm_group)
+            num_fields_per_rank=(num_global_vars//world_size)
+            field_start=num_fields_per_rank * rank
+            field_end= num_fields_per_rank * (rank+1)
+            if rank == world_size -1:
+                field_end=num_global_vars # handle remainders
+            #do i need this last part
+            #if num_global_vars % world_size != 0 and rank == world_size-1:
+            #    num_fields_per_rank+= num_global_vars % world_size
+            return field_start, field_end
+        else:
+            return 0,num_global_vars
 
     def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         """Predict the next step.
@@ -745,7 +748,7 @@ class Runner(Context):
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
-        if torch.distributed.get_rank(group=self.model_comm_group) == 0:
+        if self.model_comm_group is not None and torch.distributed.get_rank(group=self.model_comm_group) == 0:
             stats = pstats.Stats(pr)
             stats.strip_dirs().sort_stats("time").print_stats(20)
 
