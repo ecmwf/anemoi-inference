@@ -585,6 +585,9 @@ class Runner(Context):
             if os.getenv("PARALLEL_OUT", "0") == "1":
                 LOG.info("Anemoi inference: Parallel output")
                 self.sharded_output=True
+
+            if not hasattr(self, "model_comm_group"):
+                self.model_comm_group=None
         
 
             # Create pytorch input tensor

@@ -109,6 +109,8 @@ class Output(ABC):
         
         self.processes: List[mp.Process] = []
         self.queues: List[mp.Queue] = []
+
+        self.stop_event = mp.Event()
             
         # Create queues for each writer
         # Each writer will asynchronously write output
@@ -119,7 +121,7 @@ class Output(ABC):
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_function,
-                args=(i, self.queues[i])
+                args=(i, self.queues[i], self.stop_event)
             )
             #_pickle.PicklingError: Can't pickle <class 'anemoi.inference.outputs.gribfile.GribFileOutput'>: it's not the same object as anemoi.inference.outputs.gribfile.GribFileOutput
             #I get this error when using the default method, spawn?
@@ -128,7 +130,7 @@ class Output(ABC):
         
         LOG.info(f"Spawned {self.num_writers} writers per process") # this seems to get called all the time
         
-    def _writer_function(self, writer_id: int, queue: mp.Queue) -> None:
+    def _writer_function(self, writer_id: int, queue: mp.Queue, stop_event) -> None:
         """
         Worker function that runs in each writer process.
         Waits for messages from the main process and then writes them asyncronously.
@@ -143,7 +145,7 @@ class Output(ABC):
         
         self.per_writer_init(writer_id)
         
-        while True:
+        while not stop_event.is_set():
             try:
                 # Wait for message from main process
                 message = queue.get(timeout=1)  # 1 second timeout
@@ -297,8 +299,9 @@ class Output(ABC):
         """Terminate all writer processes gracefully."""
         if self.num_writers == 0:
             return
-        
-        LOG.debug("Terminating all worker processes...")
+        import pdb 
+        breakpoint()
+        LOG.info("Terminating all worker processes...")
         
         # Send termination signal to all writers
         for queue in self.queues:
@@ -309,20 +312,15 @@ class Output(ABC):
         
         # Wait for all processes to finish
         for i, process in enumerate(self.processes):
-            process.join(timeout=5)  # Wait up to 5 seconds
+            process.join(timeout=1)  # Wait up to 5 seconds
+            breakpoint()
             if process.is_alive():
-                LOG.debug(f"Force terminating worker {i}")
+                LOG.info(f"Force terminating worker {i}")
                 process.terminate()
                 process.join()
         
-        LOG.debug("All writer processes terminated")
+        LOG.info("All writer processes terminated")
         #TODO I could merge all writer procs messages at this point
-            
-    def __del__(self):
-        """Cleanup when object is destroyed."""
-        if self.num_writers > 1 and self.writers_running:
-            self.writers_running = False
-            self._terminate_all_writers()
 
     @classmethod
     def reduce(cls, state: State) -> State:
@@ -357,6 +355,13 @@ class Output(ABC):
 
     def close(self) -> None:
         """Close the output."""
+        if self.num_writers > 0:
+            self.stop_event.set()
+            for p in self.processes:
+                p.join(timeout=5)
+                if p.is_alive():
+                    p.terminate()
+                    p.join()
         pass
 
     @abstractmethod
