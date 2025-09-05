@@ -228,6 +228,10 @@ class ParallelRunnerMixin:
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
         return "SLURM_NTASKS" in os.environ and os.environ.get("SLURM_JOB_NAME") not in ("bash", "interactive")
 
+    def _torchrun_used(self) -> bool:
+        """ Returns true if anemoi-inference was launched with torchrun."""
+        return "TORCHELASTIC_RUN_ID" in os.environ
+
     def _spawn_parallel_procs(self, num_procs: int) -> None:
         """When srun is not available, this method creates N-1 child processes within the same node for parallel inference.
 
@@ -259,6 +263,8 @@ class ParallelRunnerMixin:
         If srun is available, slurm variables are read to determine network settings.
         Otherwise, local processes are spawned and network info is inferred from config.
         """
+
+        #TODO refactor into abstract base class and SLURM, torchrun and local subclasses
         using_slurm = self._srun_used()
         if using_slurm:
 
@@ -277,6 +283,22 @@ class ParallelRunnerMixin:
             if self.config.world_size != 1:
                 LOG.warning(
                     f"world size ({self.config.world_size}) set in the config is ignored because we are launching via srun, using 'SLURM_NTASKS' instead"
+                )
+        elif self._torchrun_used():
+            global_rank, local_rank, world_size = self._get_parallel_info_from_torchrun()
+            self.global_rank = global_rank
+            self.local_rank = local_rank
+            self.world_size = world_size
+
+            # determine master address and port from torchrun/override env vars
+            slurm_addr, slurm_port = self._init_network_from_torchrun()
+            self.master_addr = slurm_addr
+            self.master_port = slurm_port
+
+            # the world size entry in the config is only needed when not launching via torchrun
+            if self.config.world_size != 1:
+                LOG.warning(
+                    f"world size ({self.config.world_size}) set in the config is ignored because we are launching via torchrun"
                 )
         else:
             # If srun is not available, spawn procs manually on a node
@@ -306,6 +328,19 @@ class ParallelRunnerMixin:
             # Spawn the other processes manually
             if self.local_rank == 0:
                 self._spawn_parallel_procs(self.world_size)
+
+    def _init_network_from_torchrun(self) -> Tuple[str, str]:
+        """Reads Torchrun environment to set master address and port for parallel communication.
+
+        Returns
+        -------
+        Tuple[str, str]
+            The master address and port.
+        """
+        master_addr = os.environ.get("MASTER_ADDR")
+        master_port = os.environ.get("MASTER_PORT")
+        return master_addr, master_port
+        
 
     def _init_network_from_slurm(self) -> Tuple[str, str]:
         """Reads Slurm environment to set master address and port for parallel communication.
@@ -404,5 +439,19 @@ class ParallelRunnerMixin:
         local_rank = int(os.environ.get("SLURM_LOCALID", 0))  # Rank within a node, between 0 and num_gpus
         global_rank = int(os.environ.get("SLURM_PROCID", 0))  # Rank within all nodes
         world_size = int(os.environ.get("SLURM_NTASKS", 1))  # Total number of processes
+
+        return global_rank, local_rank, world_size
+
+    def _get_parallel_info_from_torchrun(self) -> Tuple[int, int, int]:
+        """Reads torchrun env vars, if they exist, to determine if inference is running in parallel.
+
+        Returns
+        -------
+        Tuple[int, int, int]
+            The global rank, local rank, and world size.
+        """
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))  # Rank within a node, between 0 and num_gpus
+        global_rank = int(os.environ.get("RANK", 0))  # Rank within all nodes
+        world_size = int(os.environ.get("WORLD_SIZE", 1))  # Total number of processes
 
         return global_rank, local_rank, world_size
