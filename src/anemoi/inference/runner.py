@@ -719,8 +719,6 @@ class Runner(Context):
 
                 # No need to prepare next input tensor if we are at the last step
                 if is_last_step:
-                    import pdb
-                    breakpoint()
                     break
 
                 # Update  tensor for next iteration
