@@ -17,6 +17,8 @@ from ..config.run import RunConfiguration
 from ..runners import create_runner
 from . import Command
 
+from anemoi.utils.timer import Timer
+
 LOG = logging.getLogger(__name__)
 
 
@@ -57,7 +59,8 @@ class RunCmd(Command):
         )
 
         runner = create_runner(config)
-        runner.execute()
+        with Timer("Inference completed in "):
+            runner.execute()
 
 
 command = RunCmd
