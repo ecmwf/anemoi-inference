@@ -646,6 +646,13 @@ class Runner(Context):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
             output = torch.squeeze(y_pred)  # shape: (values, variables)
+            if output.ndim == 1:
+                # If there is only one variable, we need to add a dimension
+                print(f"Predicted tensor shape: {y_pred.shape}")
+                print(f"Output shape: {output.shape}")
+                print(f" Reshape output to 2D tensor")
+                output = output.reshape(output.shape[0], 1)  # shape: (values, variables)
+                print(f"Output shape: {output.shape}")
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
