@@ -719,6 +719,8 @@ class Runner(Context):
 
                 # No need to prepare next input tensor if we are at the last step
                 if is_last_step:
+                    import pdb
+                    breakpoint()
                     break
 
                 # Update  tensor for next iteration
@@ -751,7 +753,8 @@ class Runner(Context):
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
-        if self.model_comm_group is not None and torch.distributed.get_rank(group=self.model_comm_group) == 0:
+
+        if self.model_comm_group is None or (self.model_comm_group is not None and torch.distributed.get_rank(group=self.model_comm_group) == 0):
             stats = pstats.Stats(pr)
             stats.strip_dirs().sort_stats("time").print_stats(20)
 
