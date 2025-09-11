@@ -9,16 +9,17 @@
 
 
 import logging
+from collections.abc import Generator
 from typing import Any
 
-import torch
 import numpy as np
+import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.timer import Timer
+
+from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
-from anemoi.inference.types import FloatArray
-from collections.abc import Generator
-from anemoi.utils.timer import Timer
 
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
@@ -162,7 +163,6 @@ class SimpleRunner(Runner):
         return []
 
 
-
 class SensitivitiesRunner(SimpleRunner):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the SimpleRunner.
@@ -177,7 +177,9 @@ class SensitivitiesRunner(SimpleRunner):
         super().__init__(*args, **kwargs)
         self.perturbed_variable = "2t"
 
-    def perturb_prediction_linearly(self, output: torch.Tensor, idx: int, perturbation_perc: float = 0.01) -> torch.Tensor:
+    def perturb_prediction_linearly(
+        self, output: torch.Tensor, idx: int, perturbation_perc: float = 0.01
+    ) -> torch.Tensor:
         """Perturb the output."""
         # Use a perturbation of 1% of the forecasted value
         pert = torch.zeros_like(output.clone())
@@ -187,7 +189,7 @@ class SensitivitiesRunner(SimpleRunner):
 
     def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[self.perturbed_variable]
-        
+
         y_pred = model.predict_step(input_tensor_torch)
         perturbed_output = self.perturb_prediction_linearly(y_pred, idx=var_idx, perturbation_perc=0.01)
 
@@ -211,7 +213,7 @@ class SensitivitiesRunner(SimpleRunner):
                 )
         LOG.info(f"Norm sensitivities (var = {self.perturbed_variable}): {torch.norm(t_dx_output[..., var_idx])}")
         LOG.info(f"Norm input (var = {self.perturbed_variable}): {torch.norm(input_tensor_torch[..., var_idx])}")
-        return t_dx_output[0, ...] # (time, values, variables)
+        return t_dx_output[0, ...]  # (time, values, variables)
 
     def forecast(
         self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
