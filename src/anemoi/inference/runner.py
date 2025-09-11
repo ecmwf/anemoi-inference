@@ -508,14 +508,6 @@ class Runner(Context):
                         state["fields"][name] = field.cpu().numpy()
             yield state
 
-    def perturb_output(self, output: torch.Tensor, idx: int) -> torch.Tensor:
-        """Perturb the output."""
-        # Use a perturbation of 1% of the forecasted value
-        pert = torch.zeros_like(output.clone())
-        pert[..., idx] = 0.01 * output[..., idx]
-
-        return pert
-
     @cached_property
     def autocast(self) -> torch.dtype | str:
         """The autocast precision."""
@@ -663,13 +655,6 @@ class Runner(Context):
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
-        def predict_model_with_torch(x):
-            x = x[:, :, None, ...]  # add dummy ensemble dimension as 3rd index
-            x = self.model.pre_processors(x, in_place=False)
-            y_hat = self.model.model(x)
-            y_hat = self.model.post_processors(y_hat, in_place=False)
-            return y_hat
-
         for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
             title = f"Forecasting step {step} ({date})"
 
@@ -689,40 +674,6 @@ class Runner(Context):
                 Timer(title),
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
-
-            for var_name in self.variables_to_perturb:
-                var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[var_name]
-                LOG.info(f"Norm predicted field (var = {var_name}): {torch.norm(y_pred[..., var_idx])}")
-                perturbed_output = self.perturb_output(y_pred, idx=var_idx)
-                LOG.info(f"Norm perturbation (var = {var_name}): {torch.norm(perturbed_output[..., var_idx])}")
-                plot_perturbation(
-                    y_pred.cpu().squeeze().numpy()[..., var_idx],
-                    perturbed_output.cpu().squeeze().numpy()[..., var_idx],
-                    lons=input_state["longitudes"],
-                    lats=input_state["latitudes"],
-                    field=var_name,
-                )
-
-                # Compute the sensitivities
-                input_tensor_torch.requires_grad_(True)
-                with torch.enable_grad():
-                    with torch.autocast(device_type=self.device.type, dtype=self.autocast):
-                        _, t_dx_output = torch.autograd.functional.vjp(
-                            predict_model_with_torch,
-                            input_tensor_torch,
-                            v=perturbed_output,
-                            create_graph=False,
-                            strict=False,
-                        )
-                LOG.info(f"Norm sensitivities (var = {var_name}): {torch.norm(t_dx_output[..., var_idx])}")
-                t_dx_output = t_dx_output[0, ...]  # (time, values, variables)
-
-                # Update state
-                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(t_dx_output.shape[-1]):
-                        new_state["fields"][self.checkpoint.input_tensor_index_to_variable[i]] = t_dx_output[:, :, i]
-
-                yield new_state
 
             output = torch.squeeze(y_pred)  # shape: (values, variables)
 

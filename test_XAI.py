@@ -10,7 +10,7 @@ import numpy as np
 from ecmwf.opendata import Client as OpendataClient
 
 from anemoi.inference.outputs.printer import print_state
-from anemoi.inference.runners.simple import SimpleRunner
+from anemoi.inference.runners.simple import SensitivitiesRunner
 
 LOGGER = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single
         save_state(input_state, initial_conditions_file)
 
     # Load model
-    runner = SimpleRunner(ckpt, device="cuda", variables_to_perturb=["2t"])
+    runner = SensitivitiesRunner(ckpt, device="cuda", variables_to_perturb=["2t"])
 
     # Compute sensitivities
     for state in runner.run(input_state=input_state, lead_time="6h"):
