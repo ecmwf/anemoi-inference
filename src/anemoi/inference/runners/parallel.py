@@ -25,7 +25,6 @@ from anemoi.inference.output import Output
 from ..decorators import main_argument
 from ..outputs import create_output
 from ..runner import Runner
-from ..runners import create_runner
 from . import runner_registry
 from .default import DefaultRunner
 
@@ -42,13 +41,14 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
     pid : int
         The process ID.
     """
-    runner = create_runner(config, pid=pid)
+
+    runner = ParallelRunner(config, pid=pid)
     runner.execute()
 
 
 @runner_registry.register("parallel")
 @main_argument("base_runner")
-class ParallelRunnerFactory:
+class ParallelRunner:
     """Creates a ParallelRunner with a dynamic base class."""
 
     def __new__(cls, config: Any, base_runner: str = "default", *args, **kwargs):
@@ -229,10 +229,18 @@ class ParallelRunnerMixin:
         # Create N-1 procs, each with a unique PID
         import torch.multiprocessing as mp
 
-        mp.set_start_method("spawn")
+        try:
+            mp.set_start_method("spawn")
+        except RuntimeError:
+            raise RuntimeError(
+                "Failed to set multiprocessing start method, have you guarded the main process with `if __name__ == '__main__'?`"
+            )
+
         config = self.config
         for pid in range(1, num_procs):
-            mp.Process(target=create_parallel_runner, args=(config, pid)).start()
+            mp.Process(
+                target=create_parallel_runner, args=(config,), kwargs={"pid": pid}, name=f"parallel_runner-{pid}"
+            ).start()
 
     def _bootstrap_processes(self) -> None:
         """Initialises processes and their network information.
