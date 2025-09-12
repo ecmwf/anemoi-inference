@@ -8,6 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 import json
+import logging
+import warnings
 from argparse import ArgumentParser
 from argparse import Namespace
 from collections.abc import Callable
@@ -32,6 +34,7 @@ class InspectCmd(Command):
         command_parser.add_argument(
             "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
         )
+        command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
 
     def run(self, args: Namespace) -> None:
         """Run the inspect command.
@@ -41,6 +44,12 @@ class InspectCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
+
+        if args.json:
+            # turn off all other logging so json output can be piped cleanly
+            logging.disable(logging.INFO)
+            warnings.filterwarnings("ignore")
+
         c = Checkpoint(args.path)
 
         if args.validate:
@@ -65,14 +74,21 @@ class InspectCmd(Command):
             except Exception as e:
                 return str(e)
 
+        data = {}
         for name in sorted(dir(c)):
 
             if name.startswith("_"):
                 continue
 
-            print(name, ":")
-            print("  ", json.dumps(_(lambda: getattr(c, name)), indent=4, default=str))
-            print()
+            data[name] = _(lambda: getattr(c, name))
+
+        if args.json:
+            print(json.dumps(data, indent=None, default=str))
+        else:
+            for key, value in data.items():
+                print(key, ":")
+                print("  ", json.dumps(value, indent=4, default=str))
+                print()
 
 
 command = InspectCmd
