@@ -975,8 +975,179 @@ class Metadata(PatchMixin, LegacyMixin):
 
             result[name] = sorted(result[name])
 
+<<<<<<< HEAD
         self._variables_categories = frozendict(result)
         return self._variables_categories
+=======
+        return result
+
+    def constant_forcings_inputs(self, context: object, input_state: dict) -> list:
+        """Get the constant forcings inputs.
+
+        Parameters
+        ----------
+        context : object
+            The context object.
+        input_state : dict
+            The input state.
+
+        Returns
+        -------
+        list
+            The list of constant forcings inputs.
+        """
+        # TODO: this does not belong here
+
+        result = []
+
+        provided_variables = set(input_state["fields"].keys())
+
+        # This will manage the dynamic forcings that are computed
+        forcing_mask, forcing_variables = self.computed_constant_forcings
+
+        # Ingore provided variables
+        new_forcing_mask = []
+        new_forcing_variables = []
+
+        for i, name in zip(forcing_mask, forcing_variables):
+            if name not in provided_variables:
+                new_forcing_mask.append(i)
+                new_forcing_variables.append(name)
+
+        LOG.info(
+            "Computed constant forcings: before %s, after %s",
+            forcing_variables,
+            new_forcing_variables,
+        )
+
+        forcing_mask = np.array(new_forcing_mask)
+        forcing_variables = new_forcing_variables
+
+        if len(forcing_mask) > 0:
+            result.extend(
+                context.create_constant_computed_forcings(
+                    forcing_variables,
+                    forcing_mask,
+                )
+            )
+
+        remaining = (
+            set(self._config.data.forcing)
+            - set(self.model_computed_variables)
+            - set(forcing_variables)
+            - set(self.accumulations)
+            - provided_variables
+        )
+        if not remaining:
+            return result
+
+        LOG.info("Remaining forcings: %s", remaining)
+
+        # We need the mask of the remaining variable in the model.input space
+
+        mapping = self._make_indices_mapping(
+            self._indices.data.input.full,
+            self._indices.model.input.full,
+        )
+
+        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
+
+        LOG.info("Will get the following from MARS for now: %s", remaining)
+
+        remaining_mask = [i for i, _ in remaining]
+        remaining = [name for _, name in remaining]
+
+        result.extend(
+            context.create_constant_coupled_forcings(
+                remaining,
+                remaining_mask,
+            )
+        )
+
+        return result
+
+    def dynamic_forcings_inputs(self, context: object, input_state: State) -> list[Forcings]:
+        """Get the dynamic forcings inputs.
+
+        Parameters
+        ----------
+        context : object
+            The context object.
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        list
+            The list of dynamic forcings inputs.
+        """
+        result = []
+
+        # This will manage the dynamic forcings that are computed
+        forcing_mask, forcing_variables = self.computed_time_dependent_forcings
+        if len(forcing_mask) > 0:
+            result.extend(
+                context.create_dynamic_computed_forcings(
+                    forcing_variables,
+                    forcing_mask,
+                )
+            )
+
+        remaining = (
+            set(self._config.data.forcing)
+            - set(self.model_computed_variables)
+            - {name for name, v in self.typed_variables.items() if v.is_constant_in_time}
+        )
+        if not remaining:
+            return result
+
+        LOG.info("Remaining forcings: %s", remaining)
+
+        # We need the mask of the remaining variable in the model.input space
+
+        mapping = self._make_indices_mapping(
+            self._indices.data.input.full,
+            self._indices.model.input.full,
+        )
+
+        remaining = sorted((mapping[self.variables.index(name)], name) for name in remaining)
+
+        LOG.info("Will get the following from `forcings.dynamic`: %s", remaining)
+
+        remaining_mask = [i for i, _ in remaining]
+        remaining = [name for _, name in remaining]
+
+        result.extend(
+            context.create_dynamic_coupled_forcings(
+                remaining,
+                remaining_mask,
+            )
+        )
+        return result
+
+    def boundary_forcings_inputs(self, context: object, input_state: dict) -> list:
+        """Get the boundary forcings inputs.
+
+        Parameters
+        ----------
+        context : object
+            The context object.
+        input_state : dict
+            The input state.
+
+        Returns
+        -------
+        list
+            The list of boundary forcings inputs.
+        """
+        if "output_mask" not in self._supporting_arrays:
+            return []
+
+        return context.create_boundary_forcings(
+            self.prognostic_variables,
+            self.prognostic_input_mask,
+        )
+>>>>>>> 107ecd4 (Ensure that accumulation forcings are not included in constant forcings)
 
     ###########################################################################
     # Supporting arrays
