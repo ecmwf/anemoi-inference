@@ -90,12 +90,11 @@ Each state variable is written in its own Zarr array.
 
 The ``plot`` output writes the output to a series of plots. The plots
 are produced in a directory, and the file are name according to a
-template. They are produced with `earthkit-plots`. You can specify
-which variables are plotted, and the domain to be shown.
+template. They are produced with `earthkit-plots`. You can specify which
+variables are plotted, and the domain to be shown.
 
 .. literalinclude:: yaml/outputs_4.yaml
    :language: yaml
-
 
 *****
  raw
