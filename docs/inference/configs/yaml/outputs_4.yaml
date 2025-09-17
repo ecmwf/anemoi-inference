@@ -3,6 +3,6 @@ output:
     path: /path/to/directory
     format: png
     domain: Europe
-    variables: 
+    variables:
       - 2t
       - msl
