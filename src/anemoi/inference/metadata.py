@@ -1117,7 +1117,7 @@ class Metadata(PatchMixin, LegacyMixin):
         ###########################################################################
 
         full_paths = self._get_datasets_full_paths()
-        print(full_paths)
+        LOG.info(full_paths)
         n = 0
 
         def _fix(x: Any) -> Any:
@@ -1128,7 +1128,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
             if isinstance(x, dict):
                 if x.get("action", "").startswith("zarr"):
-                    print(n, x)
+                    LOG.info(n, x)
                     path = full_paths[n]
                     n += 1
                     x["path"] = path
