@@ -12,9 +12,10 @@ import datetime
 import itertools
 import logging
 import warnings
-from typing import TYPE_CHECKING
 from typing import Any
 
+import torch
+import torch.distributed as dist
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from pydantic import BaseModel
@@ -38,9 +39,6 @@ from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    import torch
 
 
 @runner_registry.register("default")
@@ -167,7 +165,8 @@ class DefaultRunner(Runner):
             output.write_state(state)
 
         output.close()
-
+        if dist.is_initialized():
+            dist.destroy_process_group()
         if "accumulate_from_start_of_forecast" not in self.config.post_processors:
             LOG.warning(
                 """

@@ -10,14 +10,18 @@
 
 import datetime
 import logging
+import os
 import warnings
 from collections.abc import Generator
+from contextlib import nullcontext  # ADD
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Union
 
 import numpy as np
+import torch
+import torch.distributed as dist
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.text import table
@@ -176,6 +180,26 @@ class Runner(Context):
         if self.verbosity > 1:
             self.checkpoint.print_variable_categories()
 
+        rank = int(os.environ.get("RANK", -1))
+        local_rank = int(os.environ.get("LOCAL_RANK", os.environ.get("SLURM_LOCALID", 0)))
+        world = int(os.environ.get("WORLD_SIZE", 1))
+        LOG.info(
+            "Distributed env snapshot: RANK=%s LOCAL_RANK=%s WORLD_SIZE=%s device=%s",
+            rank,
+            local_rank,
+            world,
+            self.device,
+        )
+        if not dist.is_initialized():
+            if "WORLD_SIZE" in os.environ and int(os.environ["WORLD_SIZE"]) > 1:
+                dist.init_process_group(backend="nccl")
+                LOG.info(
+                    "Initialized distributed process group with WORLD_SIZE=%s",
+                    os.environ["WORLD_SIZE"],
+                )
+            else:
+                LOG.info("Distributed process group not initialized (WORLD_SIZE not > 1)")
+
     @property
     def checkpoint(self) -> Checkpoint:
         """Returns
@@ -201,7 +225,11 @@ class Runner(Context):
         self._device = value
 
     def run(
-        self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
+        self,
+        *,
+        input_state: State,
+        lead_time: str | int | datetime.timedelta,
+        return_numpy: bool = True,
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -514,10 +542,9 @@ class Runner(Context):
 
         for state in output:
             if return_numpy:
-                # Convert fields to numpy arrays
                 for name, field in state["fields"].items():
                     if isinstance(field, torch.Tensor):
-                        state["fields"][name] = field.cpu().numpy()
+                        state["fields"][name] = field.detach().contiguous().cpu().numpy().copy()
             yield state
 
     @cached_property
@@ -581,15 +608,18 @@ class Runner(Context):
             The predicted step.
         """
         try:
-            return model.predict_step(input_tensor_torch, **kwargs)
+            model_comm_group = kwargs.pop("model_comm_group", None)
+            return model.predict_step(input_tensor_torch, model_comm_group=model_comm_group, **kwargs)
         except TypeError:
             # This is for backward compatibility because old models did not
             # have kwargs in the forward or predict_step
             return model.predict_step(input_tensor_torch)
 
-    def forecast_stepper(
-        self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    def forecast_stepper(self, start_date: datetime.datetime, lead_time: datetime.timedelta) -> Generator[
+        tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool],
+        None,
+        None,
+    ]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -612,7 +642,12 @@ class Runner(Context):
         """
         steps = lead_time // self.checkpoint.timestep
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+        LOG.info(
+            "Lead time: %s, time stepping: %s Forecasting %s steps",
+            lead_time,
+            self.checkpoint.timestep,
+            steps,
+        )
 
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
@@ -655,11 +690,16 @@ class Runner(Context):
             new_state["fields"] = dict()
             new_state["step"] = to_timedelta(0)
 
-            start = input_state["date"]
+        start = input_state["date"]
+        if dist.is_initialized():
+            model_comm_group = dist.group.WORLD
+            LOG.info("Distributed environment detected, using sharding")
+        else:
+            model_comm_group = None
 
-            # The variable `check` is used to keep track of which variables have been updated
-            # In the input tensor. `reset` is used to reset `check` to False except
-            # when the values are of the constant in time variables
+        # The variable `check` is used to keep track of which variables have been updated
+        # In the input tensor. `reset` is used to reset `check` to False except
+        # when the values are constant in time
 
             reset = np.full((input_tensor_torch.shape[-1],), False)
             variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
@@ -668,7 +708,9 @@ class Runner(Context):
                 if typed_variables[variable].is_constant_in_time:
                     reset[i] = True
 
-            check = reset.copy()
+        check = reset.copy()
+        if hasattr(self.checkpoint, "prognostic_input_mask"):
+            check[self.checkpoint.prognostic_input_mask] = False
 
             if self.verbosity > 0:
                 self._print_input_tensor("First input tensor", input_tensor_torch)
@@ -680,22 +722,41 @@ class Runner(Context):
                 new_state["previous_step"] = new_state.get("step")
                 new_state["step"] = step
 
-                if self.trace:
-                    self.trace.write_input_tensor(
-                        date,
-                        s,
-                        input_tensor_torch.cpu().numpy(),
-                        variable_to_input_tensor_index,
-                        self.checkpoint.timestep,
-                    )
+            if self.trace:
+                self.trace.write_input_tensor(
+                    date,
+                    s,
+                    input_tensor_torch.cpu().numpy(),
+                    variable_to_input_tensor_index,
+                    self.checkpoint.timestep,
+                )
 
-                # Predict next state of atmosphere
-                with (
-                    torch.autocast(device_type=self.device.type, dtype=self.autocast),
-                    ProfilingLabel("Predict step", self.use_profiler),
-                    Timer(title),
-                ):
-                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+            # To make sure all processes start the step at the same time
+            if dist.is_initialized() and s == 0:
+                dist.barrier(dist.group.WORLD)
+
+            # Choose AMP/nullcontext depending on precision
+            amp_ctx = (
+                torch.autocast(device_type=self.device.type, dtype=self.autocast)
+                if self.autocast is not torch.float32
+                else nullcontext()
+            )
+
+            # Predict next state of atmosphere
+            with (
+                torch.inference_mode(),
+                amp_ctx,
+                ProfilingLabel("Predict step", self.use_profiler),
+                Timer(title),
+            ):
+                y_pred = self.predict_step(
+                    self.model,
+                    input_tensor_torch,
+                    fcstep=s,
+                    step=step,
+                    date=date,
+                    model_comm_group=model_comm_group,
+                )
 
                 output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
 
@@ -755,6 +816,42 @@ class Runner(Context):
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
 
+    def _filter_out_constant_prognostics(
+        self, pmask_in: "torch.Tensor", pmask_out: "torch.Tensor"
+    ) -> tuple["torch.Tensor", "torch.Tensor", list[str]]:
+        """Best-effort runtime guard: drop any constant-in-time vars from prognostic masks to avoid overwrites.
+        Returns (pmask_in_filtered, pmask_out_filtered, dropped_names).
+        """
+        idx_in_to_name = {idx: name for name, idx in self.checkpoint.variable_to_input_tensor_index.items()}
+        idx_out_to_name = self.checkpoint.output_tensor_index_to_variable
+        typed = self.checkpoint.typed_variables
+
+        in_idxs = pmask_in.detach().cpu().tolist()
+        out_idxs = pmask_out.detach().cpu().tolist()
+        keep_in, keep_out, dropped = [], [], []
+        for i_idx, o_idx in zip(in_idxs, out_idxs):
+            name = idx_in_to_name.get(i_idx, None)
+            if name is None:
+                name = idx_out_to_name.get(o_idx, f"<unknown_{i_idx}_{o_idx}>")
+            if name in typed and typed[name].is_constant_in_time:
+                dropped.append(name)
+            else:
+                keep_in.append(i_idx)
+                keep_out.append(o_idx)
+
+        if dropped:
+            LOG.warning(
+                "Filtering constants from prognostics at runtime: %s",
+                sorted(set(dropped)),
+            )
+
+        device_in = pmask_in.device
+        device_out = pmask_out.device
+        return (
+            torch.as_tensor(keep_in, device=device_in, dtype=torch.long),
+            torch.as_tensor(keep_out, device=device_out, dtype=torch.long),
+        )
+
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
     ) -> "torch.Tensor":
@@ -776,21 +873,34 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-
-        prognostic_output_mask = self.checkpoint.prognostic_output_mask
-        prognostic_input_mask = self.checkpoint.prognostic_input_mask
-
-        # Copy prognostic fields to input tensor
-        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
-        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
-            prognostic_fields  # Add new values to last 'multi_step_input' row
+        pmask_in = torch.as_tensor(
+            self.checkpoint.prognostic_input_mask,
+            device=input_tensor_torch.device,
+            dtype=torch.long,
         )
 
-        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
-        check[prognostic_input_mask] = True
+        pmask_out = torch.as_tensor(
+            self.checkpoint.prognostic_output_mask,
+            device=y_pred.device,
+            dtype=torch.long,
+        )
 
-        for n in prognostic_input_mask:
+        pmask_in, pmask_out = self._filter_out_constant_prognostics(pmask_in, pmask_out)
+
+        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
+        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields
+
+        pmask_in_np = pmask_in.detach().cpu().numpy()
+        if check[pmask_in_np].any():
+            # Report which ones are conflicting
+            conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
+            raise AssertionError(f"Overwriting prognostic input slots for {conflicting}")
+
+        check[pmask_in_np] = True
+
+        for n in pmask_in_np:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
             if self.trace:
                 self.trace.from_rollout(self._input_tensor_by_name[n])
@@ -798,7 +908,11 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        date: datetime.datetime,
+        check: BoolArray,
     ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
@@ -875,24 +989,20 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-
-        sources = self.boundary_forcings_inputs
-        for source in sources:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
-
+        for source in self.boundary_forcings_inputs:
+            forcings = source.load_forcings_array([date], state)  # (variables, dates, values)
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # (1,1,values,variables)
+            forcings = torch.from_numpy(forcings).to(self.device)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
-            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+            spat = torch.as_tensor(source.spatial_mask, device=self.device, dtype=torch.long)
+            vars = torch.as_tensor(source.variables_mask, device=self.device, dtype=torch.long)
 
-            for n in source.variables_mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+            # Copy forcings to last 'multi_step_input' row
+            input_tensor_torch[:, -1].index_put_((spat, vars), forcings.squeeze(0).squeeze(0))
 
-        # TO DO: add some consistency checks as above
+            # TO DO: add some consistency checks as above
+            check[source.mask] = True  # if source.mask is a flat 1D index array into the features axis
         return input_tensor_torch
 
     def validate_input_state(self, input_state: State) -> State:
@@ -911,7 +1021,12 @@ class Runner(Context):
         if not isinstance(input_state, dict):
             raise ValueError("Input state must be a dictionnary")
 
-        EXPECT = dict(date=datetime.datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
+        EXPECT = dict(
+            date=datetime.datetime,
+            latitudes=np.ndarray,
+            longitudes=np.ndarray,
+            fields=dict,
+        )
 
         for key, klass in EXPECT.items():
             if key not in input_state:
@@ -974,7 +1089,11 @@ class Runner(Context):
         return input_state
 
     def _print_tensor(
-        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
+        self,
+        title: str,
+        tensor_numpy: FloatArray,
+        tensor_by_name: list[str],
+        kinds: dict[str, Kind],
     ) -> None:
         """Print the tensor.
 
@@ -1012,7 +1131,13 @@ class Runner(Context):
 
         LOG.info("")
         LOG.info(
-            "%s:\n\n%s\n", title, table(t, header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"], align="><<<|<")
+            "%s:\n\n%s\n",
+            title,
+            table(
+                t,
+                header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"],
+                align="><<<|<",
+            ),
         )
         LOG.info("")
 
