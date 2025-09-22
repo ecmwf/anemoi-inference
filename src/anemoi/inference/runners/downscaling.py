@@ -190,7 +190,7 @@ class DownscalingRunner(DefaultRunner):
         extra_args = self.extra_config.get("extra_args", {})
 
         residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
+        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy(), dim=(0, 1))
 
         self._print_output_tensor("Residual output tensor", residual_output_numpy)
 
