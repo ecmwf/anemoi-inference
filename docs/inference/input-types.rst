@@ -64,8 +64,8 @@ The output will show something like:
 
 As shown above, some variables can belong to multiple categories.
 
-It is possible to specify different : The runner has now three
-:ref:`inputs <inputs>`, managing different categories of variables
+The runner has now three :ref:`inputs <inputs>`, managing different
+categories of variables
 
 -  ``input``: used to fetch the ``prognostics`` for the initial
    conditions (e.g. 2t in an atmospheric model).
