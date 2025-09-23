@@ -46,12 +46,16 @@ class InspectCmd(Command):
         """
         command_parser.add_argument("path", help="Path to the checkpoint.")
         group = command_parser.add_mutually_exclusive_group(required=True)
-        group.add_argument("--variables", action="store_true", help="Print the variables in the checkpoint")
-        group.add_argument("--requirements", action="store_true", help="Print the requirements in the checkpoint")
-        group.add_argument("--datasets", action="store_true", help="Print datasets in the checkpoint")
+        group.add_argument("--variables", action="store_true", help="List the training variables and their categories.")
         group.add_argument(
-            "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
+            "--requirements",
+            action="store_true",
+            help="Print a Python's requirements.txt based on the versions of the packages used during training.",
         )
+        group.add_argument(
+            "--datasets", action="store_true", help="Print the arguments passed to anemoi-dataset during training."
+        )
+
         command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
 
     def run(self, args: Namespace) -> None:
@@ -62,11 +66,6 @@ class InspectCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-
-        if args.json:
-            # turn off all other logging so json output can be piped cleanly
-            logging.disable(logging.INFO)
-            warnings.filterwarnings("ignore")
 
         c = Checkpoint(args.path)
 
@@ -95,6 +94,11 @@ class InspectCmd(Command):
             return
 
     def debug(self, c: Checkpoint, args: Namespace) -> None:
+
+        if args.json:
+            # turn off all other logging so json output can be piped cleanly
+            logging.disable(logging.INFO)
+            warnings.filterwarnings("ignore")
 
         def _(f: Callable[[], Any]) -> Any:
             """Wrapper function to handle exceptions.
