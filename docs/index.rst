@@ -128,6 +128,7 @@ You may also have to install pandoc on MacOS:
    :hidden:
    :caption: User Guide
 
+   inference/input-types
    inference/parallel
    inference/apis/introduction
    inference/configs/introduction
