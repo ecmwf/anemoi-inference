@@ -20,16 +20,15 @@ type of variables. Variables are classified using these categories:
    over time, such as total precipitation.
 
 To find out which category a variable belongs to, you can use the
-:ref:`anemoi-inference inspect <inspect-command>` command.
+:ref:`anemoi-inference inspect <inspect-command>` command:
 
-.. code-block:: console
+.. code:: console
 
    % anemoi-inference inspect --variables checkpoint.ckpt
 
+The output will show something like:
 
-Will show something like:
-
-.. code-block:: console
+.. code:: console
 
    100u           => diagnostic
    100v           => diagnostic
@@ -63,25 +62,32 @@ Will show something like:
    z_1000         => prognostic
    ...
 
-
 As shown above, some variables can belong to multiple categories.
 
-It is possible to specify different :
-The runner has now three :ref:`inputs <inputs>`, managing different categories of variables
+It is possible to specify different : The runner has now three
+:ref:`inputs <inputs>`, managing different categories of variables
 
+-  ``input``: used to fetch the ``prognostics`` for the initial
+   conditions (e.g. 2t in an atmospheric model).
 
+-  ``constant_forcings``: used to fetch the constants for the initial
+   conditions (e.g. lsm or orography). These are the variables that have
+   ``constant`` **and** ``forcing`` in their category, and are not
+   ``computed``, ``prognostic`` or ``diagnostic`` and are not
+   ``computed``, ``prognostic`` or ``diagnostic``.
 
-
-- ``input``: used to fetch the ``prognostics`` for the initial conditions (e.g. 2t in an atmospheric model).
-
-- ``constant_forcings``: used to fetch the constants for the initial conditions (e.g. lsm or orography). These are the variables that have ``constant`` **and** ``forcing`` in their category, and are not ``computed``, ``prognostic`` or ``diagnostic`` and are not ``computed``, ``prognostic`` or ``diagnostic``.
-
-- ``dynamic_forcings``: used to fetch the forcings needed be some models throughout the length of the forecast (e.g. atmospheric fields used as forcing to an ocean model). These are the variables that have ``forcing`` in their category, and are not ``computed`` or ``constant``.
+-  ``dynamic_forcings``: used to fetch the forcings needed be some
+   models throughout the length of the forecast (e.g. atmospheric fields
+   used as forcing to an ocean model). These are the variables that have
+   ``forcing`` in their category, and are not ``computed`` or
+   ``constant``.
 
 To ensure backward compatibility, unless given explicitly in the config,
-``constant_forcings`` and ``dynamic_forcings``  both fallback to the ``input`` entry.
+``constant_forcings`` and ``dynamic_forcings`` both fallback to the
+``input`` entry.
 
-A  ``initial_state_categories`` configuration option lets the user select a list of categories of variables to be
-written to the output if ``write_initial_conditions`` is ``true``. For backward
-compatibility, it defaults to ``prognostics`` and ``constant_forcings``. In that case, the ``input`` will
-also fetch the constants and the forcing fields
+A ``initial_state_categories`` configuration option lets the user select
+a list of categories of variables to be written to the output if
+``write_initial_conditions`` is ``true``. For backward compatibility, it
+defaults to ``prognostics`` and ``constant_forcings``. In that case, the
+``input`` will also fetch the constants and the forcing fields
