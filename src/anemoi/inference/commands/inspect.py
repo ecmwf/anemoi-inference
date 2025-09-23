@@ -8,7 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 import json
+import logging
 import sys
+import warnings
 from argparse import ArgumentParser
 from argparse import Namespace
 from collections.abc import Callable
@@ -47,18 +49,20 @@ class InspectCmd(Command):
         """
         command_parser.add_argument("path", help="Path to the checkpoint.")
         group = command_parser.add_mutually_exclusive_group(required=True)
-        group.add_argument("--variables", action="store_true", help="Print the variables in the checkpoint")
-        group.add_argument("--requirements", action="store_true", help="Print the requirements in the checkpoint")
-        group.add_argument("--datasets", action="store_true", help="Print datasets in the checkpoint")
+        group.add_argument("--variables", action="store_true", help="List the training variables and their categories.")
         group.add_argument(
-            "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
+            "--requirements",
+            action="store_true",
+            help="Print a Python's requirements.txt based on the versions of the packages used during training.",
         )
-        group.add_argument("--indices", action="store_true", help="Print variable indices in the checkpoint")
-        group.add_argument("--debug", action="store_true", help="Print all attributes of the checkpoint")
+        group.add_argument(
+            "--datasets", action="store_true", help="Print the arguments passed to anemoi-dataset during training."
+        )
 
-        command_parser.add_argument(
-            "--dump", action="store_true", help="Dump the relevant metadata (use with --requirements)."
-        )
+        group.add_argument("--dump", action="store_true", help="Dump information from the checkpoint.")
+
+        command_parser.add_argument("--json", action="store_true", help="Output in JSON format (with dump option)")
+        command_parser.add_argument("--validate", action="store_true", help="Validate the environment.")
 
     def run(self, args: Namespace) -> None:
         """Run the inspect command.
@@ -68,6 +72,7 @@ class InspectCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
+
         c = Checkpoint(args.path)
 
         if args.validate:
@@ -86,15 +91,16 @@ class InspectCmd(Command):
             self.datasets(c, args)
             return
 
-        if args.debug:
-            self.debug(c, args)
+        if args.dump:
+            self.dump(c, args)
             return
 
-        if args.indices:
-            self.indices(c, args)
-            return
+    def dump(self, c: Checkpoint, args: Namespace) -> None:
 
-    def debug(self, c: Checkpoint, args: Namespace) -> None:
+        if args.json:
+            # turn off all other logging so json output can be piped cleanly
+            logging.disable(logging.INFO)
+            warnings.filterwarnings("ignore")
 
         def _(f: Callable[[], Any]) -> Any:
             """Wrapper function to handle exceptions.
@@ -114,14 +120,21 @@ class InspectCmd(Command):
             except Exception as e:
                 return str(e)
 
+        data = {}
         for name in sorted(dir(c)):
 
             if name.startswith("_"):
                 continue
 
-            print(name, ":")
-            print("  ", json.dumps(_(lambda: getattr(c, name)), indent=4, default=str))
-            print()
+            data[name] = _(lambda: getattr(c, name))
+
+        if args.json:
+            print(json.dumps(data, indent=None, default=str))
+        else:
+            for key, value in data.items():
+                print(key, ":")
+                print("  ", json.dumps(value, indent=4, default=str))
+                print()
 
     def variables(self, c: Checkpoint, args: Namespace) -> None:
         """Print the variable categories in the checkpoint.

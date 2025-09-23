@@ -196,7 +196,7 @@ class Checkpoint:
     @property
     @deprecation.deprecated(
         deprecated_in="0.6.4",
-        removed_in="0.7.0",
+        removed_in="0.8.0",
         current_version=__version__,
         details="Use `select_variables` instead.",
     )
@@ -207,7 +207,7 @@ class Checkpoint:
     @property
     @deprecation.deprecated(
         deprecated_in="0.6.4",
-        removed_in="0.7.0",
+        removed_in="0.8.0",
         current_version=__version__,
         details="Use `select_variables` instead.",
     )

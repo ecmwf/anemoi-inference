@@ -693,7 +693,7 @@ class Runner(Context):
             ):
                 y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
-            output = torch.squeeze(y_pred)  # shape: (values, variables)
+            output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):

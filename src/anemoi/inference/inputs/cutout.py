@@ -123,6 +123,11 @@ class Cutout(Input):
 
         super().__init__(context, variables=variables, pre_processors=pre_processors, purpose=purpose)
 
+        if pre_processors:
+            raise ValueError(
+                "Input `cutout` does not support pre_processors. Please add pre_processors to each of the sub-input."
+            )
+
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
 
