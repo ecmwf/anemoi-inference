@@ -120,6 +120,7 @@ class Cutout(Input):
         sources : dict of sources
             A dictionary of sources to combine.
         """
+
         super().__init__(context, variables=variables, pre_processors=pre_processors, purpose=purpose)
 
         self.sources: dict[str, Input] = {}
