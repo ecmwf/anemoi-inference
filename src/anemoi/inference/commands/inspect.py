@@ -101,12 +101,17 @@ class InspectCmd(Command):
 
     def origins(self, c: Checkpoint, args: Namespace) -> None:
         from anemoi.datasets import open_dataset
+        from anemoi.transform.origins import make_origins
 
         open_dataset_args, open_dataset_kwargs = c.open_dataset_args_kwargs(use_original_paths=False)
         ds = open_dataset(*open_dataset_args, **open_dataset_kwargs)
+        result = {}
         for p in ds.components():
-            rich.print(p)
-            rich.print(p.origins())
+            o = make_origins(p.origins(compressed=True), p.dataset_name)
+            result.update(o)
+
+        print("Origins:")
+        rich.print(result)
 
 
 command = InspectCmd
