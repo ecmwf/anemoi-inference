@@ -59,6 +59,7 @@ class InspectCmd(Command):
         group.add_argument("--dump", action="store_true", help="Dump information from the checkpoint.")
 
         command_parser.add_argument("--json", action="store_true", help="Output in JSON format (with dump option)")
+        command_parser.add_argument("--validate", action="store_true", help="Validate the environment.")
 
     def run(self, args: Namespace) -> None:
         """Run the inspect command.
