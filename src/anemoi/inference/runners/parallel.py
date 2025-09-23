@@ -259,17 +259,23 @@ class ParallelRunnerMixin:
                 LOG.warning(
                     f"world size ({self.config.world_size}) set in the config is ignored because we are launching via srun, using 'SLURM_NTASKS' instead"
                 )
-        elif 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
+        elif "RANK" in os.environ and "WORLD_SIZE" in os.environ:
             # New branch for Azure ML / general distributed env (e.g., env:// mode)
-            self.global_rank = int(os.environ['RANK'])
-            self.local_rank = int(os.environ.get('LOCAL_RANK', self.global_rank))  # Fallback to global if LOCAL_RANK unset
-            self.world_size = int(os.environ['WORLD_SIZE'])
-            self.master_addr = os.environ.get('MASTER_ADDR')
-            self.master_port = os.environ.get('MASTER_PORT')
+            self.global_rank = int(os.environ["RANK"])
+            self.local_rank = int(
+                os.environ.get("LOCAL_RANK", self.global_rank)
+            )  # Fallback to global if LOCAL_RANK unset
+            self.world_size = int(os.environ["WORLD_SIZE"])
+            self.master_addr = os.environ.get("MASTER_ADDR")
+            self.master_port = os.environ.get("MASTER_PORT")
             if self.master_addr is None or self.master_port is None:
-                raise ValueError("MASTER_ADDR and MASTER_PORT must be set for distributed initialization (e.g., in Azure ML)")
+                raise ValueError(
+                    "MASTER_ADDR and MASTER_PORT must be set for distributed initialization (e.g., in Azure ML)"
+                )
             if self.config.world_size != 1 and self.config.world_size != self.world_size:
-                LOG.warning(f"Config world_size ({self.config.world_size}) ignored; using WORLD_SIZE from environment ({self.world_size})")
+                LOG.warning(
+                    f"Config world_size ({self.config.world_size}) ignored; using WORLD_SIZE from environment ({self.world_size})"
+                )
         else:
             # If srun is not available, spawn procs manually on a node
 
@@ -411,8 +417,8 @@ class ParallelRunnerMixin:
 
     def _using_distributed_env(self) -> bool:
         """Checks for distributed env vars like those in Azure ML."""
-        return 'RANK' in os.environ and 'WORLD_SIZE' in os.environ
+        return "RANK" in os.environ and "WORLD_SIZE" in os.environ
 
     def _is_mpi_env(self) -> bool:
         """Detects common MPI implementations (optional, for generality)."""
-        return 'OMPI_COMM_WORLD_SIZE' in os.environ or 'PMI_SIZE' in os.environ
+        return "OMPI_COMM_WORLD_SIZE" in os.environ or "PMI_SIZE" in os.environ
