@@ -15,6 +15,8 @@ from argparse import Namespace
 from collections.abc import Callable
 from typing import Any
 
+import rich
+
 from ..checkpoint import Checkpoint
 from . import Command
 
@@ -31,6 +33,9 @@ class InspectCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.add_argument("path", help="Path to the checkpoint.")
+        command_parser.add_argument(
+            "--origins", action="store_true", help="Print the origins of the variables in the checkpoint."
+        )
         command_parser.add_argument(
             "--validate", action="store_true", help="Validate the current virtual environment against the checkpoint"
         )
@@ -54,6 +59,10 @@ class InspectCmd(Command):
 
         if args.validate:
             c.validate_environment()
+            return
+
+        if args.origins:
+            self.origins(c, args)
             return
 
         def _(f: Callable[[], Any]) -> Any:
@@ -89,6 +98,15 @@ class InspectCmd(Command):
                 print(key, ":")
                 print("  ", json.dumps(value, indent=4, default=str))
                 print()
+
+    def origins(self, c: Checkpoint, args: Namespace) -> None:
+        from anemoi.datasets import open_dataset
+
+        open_dataset_args, open_dataset_kwargs = c.open_dataset_args_kwargs(use_original_paths=False)
+        ds = open_dataset(*open_dataset_args, **open_dataset_kwargs)
+        for p in ds.components():
+            rich.print(p)
+            rich.print(p.origins())
 
 
 command = InspectCmd
