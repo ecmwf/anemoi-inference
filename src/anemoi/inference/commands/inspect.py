@@ -56,7 +56,9 @@ class InspectCmd(Command):
             "--datasets", action="store_true", help="Print the arguments passed to anemoi-dataset during training."
         )
 
-        command_parser.add_argument("--json", action="store_true", help="Output in JSON format")
+        group.add_argument("--dump", action="store_true", help="Dump information from the checkpoint.")
+
+        command_parser.add_argument("--json", action="store_true", help="Output in JSON format (with dump option)")
 
     def run(self, args: Namespace) -> None:
         """Run the inspect command.
@@ -85,15 +87,11 @@ class InspectCmd(Command):
             self.datasets(c, args)
             return
 
-        if args.debug:
-            self.debug(c, args)
+        if args.dump:
+            self.dump(c, args)
             return
 
-        if args.indices:
-            self.indices(c, args)
-            return
-
-    def debug(self, c: Checkpoint, args: Namespace) -> None:
+    def dump(self, c: Checkpoint, args: Namespace) -> None:
 
         if args.json:
             # turn off all other logging so json output can be piped cleanly
