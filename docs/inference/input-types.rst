@@ -76,7 +76,7 @@ categories of variables
    ``computed``, ``prognostic`` or ``diagnostic`` and are not
    ``computed``, ``prognostic`` or ``diagnostic``.
 
--  ``dynamic_forcings``: used to fetch the forcings needed be some
+-  ``dynamic_forcings``: used to fetch the forcings needed by some
    models throughout the length of the forecast (e.g. atmospheric fields
    used as forcing to an ocean model). These are the variables that have
    ``forcing`` in their category, and are not ``computed`` or
