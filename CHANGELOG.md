@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.7.3](https://github.com/ecmwf/anemoi-inference/compare/0.7.2...0.7.3) (2025-09-22)
+
+
+### Features
+
+* **inspect:** JSON output ([#323](https://github.com/ecmwf/anemoi-inference/issues/323)) ([d475199](https://github.com/ecmwf/anemoi-inference/commit/d475199e6f51e405f30b72a2392d27881aec72ab))
+
+
+### Bug Fixes
+
+* Inference with single variable ([#328](https://github.com/ecmwf/anemoi-inference/issues/328)) ([6d72b0e](https://github.com/ecmwf/anemoi-inference/commit/6d72b0e6a6c36a72f7cc64efbde3daf239a9dc47))
+
+
+### Documentation
+
+* Update plot docs ([#327](https://github.com/ecmwf/anemoi-inference/issues/327)) ([a16fe42](https://github.com/ecmwf/anemoi-inference/commit/a16fe4218a15d38c7cfce9dd472eb96d97c7aa9d))
+
 ## [0.7.2](https://github.com/ecmwf/anemoi-inference/compare/0.7.1...0.7.2) (2025-08-21)
 
 
