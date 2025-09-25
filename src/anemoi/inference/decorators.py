@@ -20,7 +20,7 @@ F = TypeVar("F", bound=Callable)
 
 
 class main_argument:
-    """Decorator to set the main argument of a function.
+    """Decorator to set the main argument of a function or class.
 
     For example...
 
@@ -64,6 +64,18 @@ class main_argument:
             The decorated function.
         """
 
+        if isinstance(func, type):
+            # func is a class
+            # this is here so that if the result of the decorator is stored in the registry, it stays a class
+            class WrappedClass(func):
+                def __init__(wrapped_cls, context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
+                    if main is not MARKER:
+                        kwargs[self.name] = main
+                    super().__init__(context, *args, **kwargs)
+
+            return type(func.__name__, (WrappedClass,), {})
+
+        # func is a function
         @wraps(func)
         def wrapped(context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
             """Decorator function to set the main argument.
