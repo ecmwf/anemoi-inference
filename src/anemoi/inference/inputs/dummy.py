@@ -13,14 +13,11 @@ It will generate fields with constant values for each variable and date.
 These values are then tested in the mock model.
 """
 
-import datetime
 import logging
-from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
 
-from anemoi.inference.context import Context
 from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -38,19 +35,16 @@ class DummyInput(EkdInput):
 
     trace_name = "dummy"
 
-    def __init__(self, context: Context, *, namer: Any | None = None, **kwargs: Any) -> None:
+    def __init__(self, context, **kwargs) -> None:
         """Initialize the DummyInput.
 
         Parameters
         ----------
         context : Context
-            The context in which the input is used.
-        namer : Optional[Any]
-            Optional namer for the input.
-        **kwargs : Any
-            Additional keyword arguments.
+            The context for the input.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        kwargs.setdefault("variables", None)
+        super().__init__(context, **kwargs)
 
     def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
@@ -65,19 +59,16 @@ class DummyInput(EkdInput):
         State
             The created input state.
         """
-        if date is None:
-            date = datetime.datetime(2000, 1, 1)
+        assert date is not None, "date must be provided for dummy input"
 
         dates = [date + h for h in self.checkpoint.lagged]
-        return self._create_input_state(self._fields(dates), variables=None, date=date)
+        return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date)
 
-    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
         dates : List[Date]
             List of dates for which to load the forcings.
         current_state : State
@@ -89,13 +80,12 @@ class DummyInput(EkdInput):
             The loaded forcings state.
         """
         return self._load_forcings_state(
-            self._fields(dates),
-            variables=variables,
+            self._fields(dates, self.variables),
             dates=dates,
             current_state=current_state,
         )
 
-    def _fields(self, dates: list[Date], variables: list[str] | None = None) -> ekd.FieldList:
+    def _fields(self, dates: list[Date], variables) -> ekd.FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters
@@ -110,9 +100,6 @@ class DummyInput(EkdInput):
         ekd.FieldList
             The generated fields.
         """
-
-        if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=True)
 
         LOG.info("Generating fields for %s", variables)
 

@@ -132,20 +132,21 @@ class NetCDFOutput(Output):
             self.time_var.long_name = "time"
             self.time_var.calendar = "gregorian"
 
-        latitudes = state["latitudes"]
         with LOCK:
+            latitudes = state["latitudes"]
+
             self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
             self.latitude_var.units = "degrees_north"
             self.latitude_var.long_name = "latitude"
 
-        longitudes = state["longitudes"]
-        with LOCK:
+            longitudes = state["longitudes"]
+
             self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
             self.longitude_var.units = "degrees_east"
             self.longitude_var.long_name = "longitude"
 
-        self.latitude_var[:] = latitudes
-        self.longitude_var[:] = longitudes
+            self.latitude_var[:] = latitudes
+            self.longitude_var[:] = longitudes
 
         self.vars = {}
 

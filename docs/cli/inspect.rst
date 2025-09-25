@@ -1,4 +1,4 @@
-.. _inspect_command:
+.. _inspect-command:
 
 Inspect Command
 ===============

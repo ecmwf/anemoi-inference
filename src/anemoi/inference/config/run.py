@@ -52,7 +52,7 @@ class RunConfiguration(Configuration):
     """Number of parallel processes, used for parallel inference without SLURM."""
 
     report_error: bool = False
-    """If True, the runner list the training versions of the packages in case of error."""
+    """If True, the runner list the training versions of the packages in case of error. (Deprecated, unused)"""
 
     input: str | dict[str, Any] = "test"
     output: str | dict[str, Any] = "printer"
@@ -60,8 +60,11 @@ class RunConfiguration(Configuration):
     pre_processors: list[ProcessorConfig] = []
     post_processors: list[ProcessorConfig] = []
 
-    forcings: dict[str, dict[str, Any]] | None = None
-    """Where to find the forcings."""
+    dynamic_forcings: str | dict[str, Any] | None = None
+    """Where to find the dinamic forcings. (default is input)"""
+
+    constant_forcings: str | dict[str, Any] | None = None
+    """Where to find the constant forcings (default to input)."""
 
     device: str | None = None
     """
@@ -86,6 +89,9 @@ class RunConfiguration(Configuration):
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
     written.
     """
+
+    initial_state_categories: list[str] = ["prognostics", "constant_forcings"]
+    """A list of categories to use when writing step zero."""
 
     predict_kwargs: dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""

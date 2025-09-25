@@ -34,19 +34,36 @@ class Input(ABC):
 
     trace_name = "????"  # Override in subclass
 
-    def __init__(self, context: "Context", pre_processors: list[ProcessorConfig] | None = None):
-        """Initialize the Input object.
+    def __init__(
+        self,
+        context: "Context",
+        *,
+        variables: list[str] | None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        purpose: str | None = None,
+    ) -> None:
+        """Initialise the Input object.
 
         Parameters
         ----------
         context : Context
             The context for the input.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
+        variables : list of str or None
+            List of variable names to be handled by the input, or None for all available variables.
+        pre_processors : list of ProcessorConfig or None, optional
+            List of pre-processors to apply to the input. If None, no pre-processing is performed.
+        purpose : str or None, optional
+            The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
         """
         self.context = context
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
+
+        if variables is None:
+            variables = self.context.variables.default_input_variables()  # type: ignore
+
+        self.variables = variables
+        self.purpose = purpose
 
     @cached_property
     def pre_processors(self) -> list[Processor]:
@@ -90,7 +107,10 @@ class Input(ABC):
         str
             The string representation of the Input object.
         """
-        return f"{self.__class__.__name__}()"
+        if self.purpose is None:
+            return f"{self.__class__.__name__}(variables={self.variables})"
+        else:
+            return f"{self.__class__.__name__}({self.purpose})"
 
     @abstractmethod
     def create_input_state(self, *, date: Date | None) -> State:
@@ -109,13 +129,11 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables to load.
         dates : List[Date]
             The list of dates for which to load the forcings.
         current_state : State

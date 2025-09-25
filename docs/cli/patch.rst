@@ -1,4 +1,4 @@
-.. _patch_command:
+.. _patch-command:
 
 Patch Command
 =============

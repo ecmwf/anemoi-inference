@@ -23,7 +23,7 @@ class CoupleConfiguration(Configuration):
 
     description: str | None = None
 
-    lead_time: tuple[str, int, datetime.timedelta] | None = None
+    lead_time: str | int | datetime.timedelta | None = None
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """

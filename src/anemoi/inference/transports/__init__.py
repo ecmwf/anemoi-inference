@@ -7,6 +7,7 @@
 # nor does it submit to any jurisdiction.
 #
 
+
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration

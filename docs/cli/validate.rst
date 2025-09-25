@@ -1,4 +1,4 @@
-.. _validate_command:
+.. _validate-command:
 
 Validate Command
 ================

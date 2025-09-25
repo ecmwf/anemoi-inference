@@ -48,7 +48,7 @@ file, while ``mars`` will use yesterday's date.
 
 Setting the date in the configuration file can be useful for debugging.
 A more common use case is to set the date in the command line, as shown
-in the :ref:`anemoi-inference run <run_command>` documentation.
+in the :ref:`anemoi-inference run <run-command>` documentation.
 
 .. code:: bash
 
