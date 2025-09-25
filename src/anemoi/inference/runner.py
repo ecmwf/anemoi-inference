@@ -594,112 +594,118 @@ class Runner(Context):
         Any
             The forecasted state.
         """
-        self.model.eval()
+        # NOTE we are not using decorator of the top level function as we anticipate lazy torch load
+        with torch.inference_mode():
+            self.model.eval()
 
-        torch.set_grad_enabled(False)
+            # Create pytorch input tensor
+            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(
+                self.device
+            )
 
-        # Create pytorch input tensor
-        input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+            lead_time = to_timedelta(lead_time)
 
-        lead_time = to_timedelta(lead_time)
+            new_state = input_state.copy()  # We should not modify the input state
+            new_state["fields"] = dict()
+            new_state["step"] = to_timedelta(0)
 
-        new_state = input_state.copy()  # We should not modify the input state
-        new_state["fields"] = dict()
-        new_state["step"] = to_timedelta(0)
+            start = input_state["date"]
 
-        start = input_state["date"]
+            # The variable `check` is used to keep track of which variables have been updated
+            # In the input tensor. `reset` is used to reset `check` to False except
+            # when the values are of the constant in time variables
 
-        # The variable `check` is used to keep track of which variables have been updated
-        # In the input tensor. `reset` is used to reset `check` to False except
-        # when the values are of the constant in time variables
+            reset = np.full((input_tensor_torch.shape[-1],), False)
+            variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+            typed_variables = self.checkpoint.typed_variables
+            for variable, i in variable_to_input_tensor_index.items():
+                if typed_variables[variable].is_constant_in_time:
+                    reset[i] = True
 
-        reset = np.full((input_tensor_torch.shape[-1],), False)
-        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-        typed_variables = self.checkpoint.typed_variables
-        for variable, i in variable_to_input_tensor_index.items():
-            if typed_variables[variable].is_constant_in_time:
-                reset[i] = True
+            check = reset.copy()
 
-        check = reset.copy()
+            if self.verbosity > 0:
+                self._print_input_tensor("First input tensor", input_tensor_torch)
 
-        if self.verbosity > 0:
-            self._print_input_tensor("First input tensor", input_tensor_torch)
+            for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
+                title = f"Forecasting step {step} ({date})"
 
-        for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
-            title = f"Forecasting step {step} ({date})"
+                new_state["date"] = date
+                new_state["previous_step"] = new_state.get("step")
+                new_state["step"] = step
 
-            new_state["date"] = date
-            new_state["previous_step"] = new_state.get("step")
-            new_state["step"] = step
-
-            if self.trace:
-                self.trace.write_input_tensor(
-                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
-                )
-
-            # Predict next state of atmosphere
-            with (
-                torch.autocast(device_type=self.device.type, dtype=self.autocast),
-                ProfilingLabel("Predict step", self.use_profiler),
-                Timer(title),
-            ):
-                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
-
-            output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
-
-            # Update state
-            with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                for i in range(output.shape[1]):
-                    new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
-
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output.cpu().numpy())
-
-            if self.trace:
-                self.trace.write_output_tensor(
-                    date,
-                    s,
-                    output.cpu().numpy(),
-                    self.checkpoint.output_tensor_index_to_variable,
-                    self.checkpoint.timestep,
-                )
-
-            yield new_state
-
-            # No need to prepare next input tensor if we are at the last step
-            if is_last_step:
-                break
-
-            # Update  tensor for next iteration
-            with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                check[:] = reset
                 if self.trace:
-                    self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+                    self.trace.write_input_tensor(
+                        date,
+                        s,
+                        input_tensor_torch.cpu().numpy(),
+                        variable_to_input_tensor_index,
+                        self.checkpoint.timestep,
+                    )
 
-                input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                # Predict next state of atmosphere
+                with (
+                    torch.autocast(device_type=self.device.type, dtype=self.autocast),
+                    ProfilingLabel("Predict step", self.use_profiler),
+                    Timer(title),
+                ):
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
-                del y_pred  # Recover memory
+                output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
 
-                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                    input_tensor_torch, new_state, next_date, check
-                )
-                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                    input_tensor_torch, new_state, next_date, check
-                )
+                # Update state
+                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                    for i in range(output.shape[1]):
+                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
-            if not check.all():
-                # Not all variables have been updated
-                missing = []
-                variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                for i in range(check.shape[-1]):
-                    if not check[i]:
-                        missing.append(mapping[i])
+                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                    self._print_output_tensor("Output tensor", output.cpu().numpy())
 
-                raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                if self.trace:
+                    self.trace.write_output_tensor(
+                        date,
+                        s,
+                        output.cpu().numpy(),
+                        self.checkpoint.output_tensor_index_to_variable,
+                        self.checkpoint.timestep,
+                    )
 
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_input_tensor("Next input tensor", input_tensor_torch)
+                yield new_state
+
+                # No need to prepare next input tensor if we are at the last step
+                if is_last_step:
+                    break
+
+                # Update  tensor for next iteration
+                with ProfilingLabel("Update tensor for next step", self.use_profiler):
+                    check[:] = reset
+                    if self.trace:
+                        self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+
+                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+
+                    del y_pred  # Recover memory
+
+                    input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                        input_tensor_torch, new_state, next_date, check
+                    )
+                    input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                        input_tensor_torch, new_state, next_date, check
+                    )
+
+                if not check.all():
+                    # Not all variables have been updated
+                    missing = []
+                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                    for i in range(check.shape[-1]):
+                        if not check[i]:
+                            missing.append(mapping[i])
+
+                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+
+                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                    self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
