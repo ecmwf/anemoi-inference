@@ -10,7 +10,8 @@
 
 import logging
 from collections.abc import Generator
-from typing import Any, Callable
+from typing import Any
+from typing import Callable
 
 import numpy as np
 import torch
@@ -69,7 +70,7 @@ class SensitivitiesRunner(SimpleRunner):
     def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         """Predict sensitivities."""
         model_func = self.wrap_model(model)
-        
+
         var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[self.perturbed_variable]
 
         y_pred = model_func(input_tensor_torch)
