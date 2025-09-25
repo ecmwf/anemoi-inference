@@ -234,7 +234,7 @@ class Cutout(Input):
 
         for source in self.sources.keys():
             source_state = self.sources[source].load_forcings_state(
-                variables=self.variables, dates=dates, current_state=current_state
+                dates=dates, current_state=current_state
             )["fields"]
             source_mask = self.masks[source]
 
