@@ -17,14 +17,14 @@ from pathlib import Path
 from typing import Any
 from typing import Literal
 
+import deprecation
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.forcings import Forcings
+from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
-from anemoi.inference.types import State
 
 from .metadata import Metadata
 from .metadata import Variable
@@ -194,11 +194,23 @@ class Checkpoint:
         return self._metadata.typed_variables
 
     @property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.8.0",
+        current_version=__version__,
+        details="Use `select_variables` instead.",
+    )
     def diagnostic_variables(self) -> Any:
         """Get the diagnostic variables."""
         return self._metadata.diagnostic_variables
 
     @property
+    @deprecation.deprecated(
+        deprecated_in="0.6.4",
+        removed_in="0.8.0",
+        current_version=__version__,
+        details="Use `select_variables` instead.",
+    )
     def prognostic_variables(self) -> Any:
         """Get the prognostic variables."""
         return self._metadata.prognostic_variables
@@ -337,57 +349,6 @@ class Checkpoint:
             from_dataloader=from_dataloader,
         )
 
-    def constant_forcings_inputs(self, runner: Any, input_state: State) -> list[Forcings]:
-        """Get constant forcings inputs.
-
-        Parameters
-        ----------
-        runner : Any
-            The runner.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        List[Forcings]
-            The constant forcings inputs.
-        """
-        return self._metadata.constant_forcings_inputs(runner, input_state)
-
-    def dynamic_forcings_inputs(self, runner: Any, input_state: State) -> list[Forcings]:
-        """Get dynamic forcings inputs.
-
-        Parameters
-        ----------
-        runner : Any
-            The runner.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        List[Forcings]
-            The dynamic forcings inputs.
-        """
-        return self._metadata.dynamic_forcings_inputs(runner, input_state)
-
-    def boundary_forcings_inputs(self, runner: Any, input_state: State) -> list[Forcings]:
-        """Get boundary forcings inputs.
-
-        Parameters
-        ----------
-        runner : Any
-            The runner.
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        List[Forcings]
-            The boundary forcings inputs.
-        """
-        return self._metadata.boundary_forcings_inputs(runner, input_state)
-
     def name_fields(self, fields: Any, namer: Callable[..., str] | None = None) -> Any:
         """Name fields.
 
@@ -428,9 +389,16 @@ class Checkpoint:
         """
         return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
 
-    def print_indices(self) -> None:
+    def print_indices(self, print=LOG.info) -> None:
         """Print the indices."""
-        return self._metadata.print_indices()
+        return self._metadata.print_indices(print=print)
+
+    ###########################################################################
+    # Variable categories
+    ###########################################################################
+    def print_variable_categories(self, print=LOG.info) -> None:
+        """Print the variable categories."""
+        return self._metadata.print_variable_categories(print=print)
 
     def variable_categories(self) -> Any:
         """Get the variable categories.
@@ -442,6 +410,46 @@ class Checkpoint:
         """
         return self._metadata.variable_categories()
 
+    def select_variables(self, *, include: list[str] | None = None, exclude: list[str] | None = None) -> list[str]:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include : Optional[List[str]]
+            Categories to include.
+
+        exclude : Optional[List[str]]
+            Categories to exclude.
+
+        Returns
+        -------
+        List[str]
+            The selected variables.
+
+        """
+        return self._metadata.select_variables(include=include, exclude=exclude)
+
+    def select_variables_and_masks(
+        self, *, include: list[str] | None = None, exclude: list[str] | None = None
+    ) -> list[str]:
+        """Get variables from input.
+
+        Parameters
+        ----------
+        include : Optional[List[str]]
+            Categories to include.
+
+        exclude : Optional[List[str]]
+            Categories to exclude.
+
+        Returns
+        -------
+        List[str]
+            The selected variables.
+        """
+        return self._metadata.select_variables_and_masks(include=include, exclude=exclude)
+
+    ###########################################################################
     def load_supporting_array(self, name: str) -> Any:
         """Load a supporting array.
 
@@ -477,29 +485,9 @@ class Checkpoint:
         """Get the multi-step input."""
         return self._metadata.multi_step_input
 
-    def print_variable_categories(self) -> None:
-        """Print the variable categories."""
-        return self._metadata.print_variable_categories()
-
     ###########################################################################
     # Data retrieval
     ###########################################################################
-
-    def variables_from_input(self, *, include_forcings: bool) -> Any:
-        """Get variables from input.
-
-        Parameters
-        ----------
-        include_forcings : bool
-            Whether to include forcings.
-
-        Returns
-        -------
-        Any
-            The variables from input.
-        """
-        return self._metadata.variables_from_input(include_forcings=include_forcings)
-
     @property
     def grid(self) -> Any:
         """Get the grid."""
@@ -533,6 +521,7 @@ class Checkpoint:
         use_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Callable[[DataRequest], DataRequest] | None = None,
+        dont_fail_for_missing_paramid: bool = False,
         **kwargs: Any,
     ) -> list[DataRequest]:
         """Generate MARS requests for the given variables and dates.
@@ -549,6 +538,8 @@ class Checkpoint:
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
             A callable to patch the request, by default None.
+        dont_fail_for_missing_paramid : bool, optional
+            Whether to not fail for missing param ids, by default False.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -579,7 +570,6 @@ class Checkpoint:
         KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 
         requests = defaultdict(list)
-
         for r in self._metadata.mars_requests(variables=variables):
             for date in dates:
 
@@ -614,22 +604,13 @@ class Checkpoint:
                 if not r:
                     continue
 
-                changed = True
-                while changed:
-                    changed = False
-                    for k, v in r.items():
-                        if isinstance(v, tuple):
-                            r[k] = list(v)
-                            changed = True
-
-                        if isinstance(v, (list, tuple)) and len(v) == 1:
-                            r[k] = v[0]
-                            changed = True
+                r = r.copy()
 
                 # Convert all to lists
                 for k, v in r.items():
-                    if not isinstance(v, list):
-                        r[k] = [v]
+                    if not isinstance(v, (list, tuple, set)):
+                        v = [v]
+                    r[k] = sorted(set(v))
 
                 # Patch BEFORE the shortname to paramid
 
@@ -638,13 +619,25 @@ class Checkpoint:
 
                 # Convert all to lists (again)
                 for k, v in r.items():
-                    if isinstance(v, tuple):
-                        r[k] = list(*v)
-                    if not isinstance(v, list):
-                        r[k] = [v]
+                    if not isinstance(v, (list, tuple, set)):
+                        v = [v]
+                    r[k] = sorted(set(v))
 
                 if use_grib_paramid and "param" in r:
-                    r["param"] = [shortname_to_paramid(_) for _ in r["param"]]
+
+                    def shortname_to_paramid_no_fail(x: str) -> str:
+                        try:
+                            return shortname_to_paramid(x)
+                        except KeyError:
+                            LOG.warning("Could not convert shortname '%s' to paramid", x)
+                            return x
+
+                    if dont_fail_for_missing_paramid:
+                        _ = shortname_to_paramid_no_fail
+                    else:
+                        _ = shortname_to_paramid
+
+                    r["param"] = [_(p) for p in r["param"]]
 
                 # Simplify the request
 
@@ -675,6 +668,21 @@ class Checkpoint:
     def name(self) -> Any:
         """Get the name."""
         return self._metadata.name
+
+    def has_supporting_array(self, name: str) -> bool:
+        """Check if the checkpoint has a supporting array with the given name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the supporting array.
+
+        Returns
+        -------
+        bool
+            True if the supporting array exists, False otherwise.
+        """
+        return self._metadata.has_supporting_array(name)
 
     ###########################################################################
     # Misc
@@ -717,3 +725,8 @@ class SourceCheckpoint(Checkpoint):
             String representation of the SourceCheckpoint.
         """
         return f"Source({self.name}@{self.path})"
+
+    @property
+    def operational_config(self) -> dict[str, Any]:
+        LOG.warning("The `operational_config` property is deprecated.")
+        return False

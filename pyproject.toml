@@ -47,6 +47,7 @@ dependencies = [
   "anemoi-utils[text,provenance]>=0.4.32",
   "aniso8601",
   "anytree",
+  "deprecation",
   "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
   "numpy",

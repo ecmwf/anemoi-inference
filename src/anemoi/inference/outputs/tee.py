@@ -9,8 +9,8 @@
 
 import datetime
 import logging
+from collections.abc import Sequence
 from typing import Any
-from typing import Sequence
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context

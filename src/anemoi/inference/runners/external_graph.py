@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +17,9 @@ from functools import cached_property
 from typing import Any
 from typing import Literal
 
-import torch
+import numpy as np
+
+from anemoi.inference.lazy import torch
 
 from ..decorators import main_argument
 from ..runners.default import DefaultRunner
@@ -90,8 +93,6 @@ def _get_supporting_arrays_from_graph(update_supporting_arrays: dict[str, str], 
 def _get_supporting_arrays_from_file(update_supporting_arrays: dict[str, str]) -> dict:
     """Update the supporting arrays from a file."""
     updated_supporting_arrays = {}
-
-    import numpy as np
 
     for key, value in update_supporting_arrays.items():
         if os.path.isfile(value):
@@ -257,6 +258,7 @@ class ExternalGraphRunner(DefaultRunner):
 
     @cached_property
     def graph(self):
+
         graph_path = self.graph_path
         assert os.path.isfile(
             graph_path
