@@ -10,7 +10,7 @@ import numpy as np
 from ecmwf.opendata import Client as OpendataClient
 
 from anemoi.inference.outputs.printer import print_state
-from anemoi.inference.runners.simple import SensitivitiesRunner
+from anemoi.inference.runners.sensitivities import SensitivitiesRunner
 
 LOGGER = logging.getLogger(__name__)
 
@@ -128,4 +128,4 @@ def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single
 
 
 if __name__ == "__main__":
-    main(Path("input_state-o96.npz"), ckpt="inference-aifs-o96.ckpt")
+    main(Path("input_state-o96.npz"), ckpt="../inference-aifs-o96.ckpt")
