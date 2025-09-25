@@ -233,9 +233,7 @@ class Cutout(Input):
         combined_fields = {}
 
         for source in self.sources.keys():
-            source_state = self.sources[source].load_forcings_state(
-                dates=dates, current_state=current_state
-            )["fields"]
+            source_state = self.sources[source].load_forcings_state(dates=dates, current_state=current_state)["fields"]
             source_mask = self.masks[source]
 
             combined_fields = _mask_and_combine_states(combined_fields, source_state, source_mask, source_state.keys())
