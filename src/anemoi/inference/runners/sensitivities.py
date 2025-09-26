@@ -10,7 +10,8 @@
 import datetime
 import logging
 from collections.abc import Generator
-from typing import Any, Callable
+from typing import Any
+from typing import Callable
 
 import numpy as np
 import torch
