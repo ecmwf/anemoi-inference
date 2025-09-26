@@ -1,3 +1,5 @@
+import pytest
+
 from anemoi.inference.decorators import main_argument
 
 
@@ -16,3 +18,6 @@ def test_main_argument():
     assert cls.path == "path"
 
     assert isinstance(main_argument("path")(_Cls), type)
+
+    with pytest.raises(TypeError):
+        main_argument("path")(lambda x: x)
