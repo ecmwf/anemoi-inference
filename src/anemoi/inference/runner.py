@@ -96,6 +96,7 @@ class Runner(Context):
         initial_state_categories: list[str] | None = None,
         use_profiler: bool = False,
         typed_variables: dict[str, dict] = {},
+        variables_to_perturb: list = [],
     ) -> None:
         """Parameters
         -------------
@@ -151,6 +152,12 @@ class Runner(Context):
         self.write_initial_state = write_initial_state
         self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
+        self.variables_to_perturb = variables_to_perturb
+        if len(self.variables_to_perturb):
+            for v in self.variables_to_perturb:
+                assert (
+                    v in self.checkpoint._metadata.variable_to_output_tensor_index
+                ), f"The variable {v} is not in the output state."
 
         # For the moment, until we have a better solution
         self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
