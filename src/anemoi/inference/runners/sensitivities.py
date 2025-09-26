@@ -7,7 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
+import datetime
 import logging
 from collections.abc import Generator
 from typing import Any, Callable
@@ -20,7 +20,9 @@ from anemoi.utils.timer import Timer
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
+from ..perturbation import Perturbation
 from ..profiler import ProfilingLabel
+from ..profiler import ProfilingRunner
 from .simple import SimpleRunner
 
 LOG = logging.getLogger(__name__)
@@ -29,7 +31,7 @@ LOG = logging.getLogger(__name__)
 class SensitivitiesRunner(SimpleRunner):
     """Sensitivities runner."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, perturb_normalised_space: bool = False, **kwargs: Any) -> None:
         """Initialize the SimpleRunner.
 
         Parameters
@@ -40,8 +42,7 @@ class SensitivitiesRunner(SimpleRunner):
             Keyword arguments.
         """
         super().__init__(*args, **kwargs)
-        self.perturbed_variable = "2t"
-        self.perturb_normalised_space = False
+        self.perturb_normalised_space = perturb_normalised_space
 
     def wrap_model(self, model: torch.nn.Module) -> Callable:
         """Wrap the model to be used for sensitivities."""
@@ -66,14 +67,11 @@ class SensitivitiesRunner(SimpleRunner):
 
         return pert
 
-    def predict_step(self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(
+        self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, perturbation: torch.Tensor, **kwargs: Any
+        ) -> torch.Tensor:
         """Predict sensitivities."""
         model_func = self.wrap_model(model)
-        
-        var_idx = self.checkpoint._metadata.variable_to_output_tensor_index[self.perturbed_variable]
-
-        y_pred = model_func(input_tensor_torch)
-        perturbed_output = self.perturb_prediction_linearly(y_pred, idx=var_idx, perturbation_perc=0.01)
 
         # Compute the sensitivities
         input_tensor_torch.requires_grad_(True)
@@ -86,7 +84,7 @@ class SensitivitiesRunner(SimpleRunner):
                     y_pred, t_dx_output = torch.autograd.functional.vjp(
                         model_func,
                         input_tensor_torch,
-                        v=perturbed_output,
+                        v=perturbation,
                         create_graph=False,
                         strict=False,
                     )
@@ -98,7 +96,7 @@ class SensitivitiesRunner(SimpleRunner):
                 y_pred, t_dx_output = torch.autograd.functional.vjp(
                     model_func,
                     input_tensor_torch,
-                    v=perturbed_output,
+                    v=perturbation,
                     create_graph=False,
                     strict=False,
                 )
@@ -106,7 +104,7 @@ class SensitivitiesRunner(SimpleRunner):
         return t_dx_output[0, ...]  # (time, values, variables)
 
     def forecast(
-        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State, perturbation: Perturbation
     ) -> Generator[State, None, None]:
         """Forecast the future states.
 
@@ -155,6 +153,8 @@ class SensitivitiesRunner(SimpleRunner):
         if self.verbosity > 0:
             self._print_input_tensor("First input tensor", input_tensor_torch)
 
+        output_perturbation = perturbation.create(self.model).to(self.device)
+
         for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
             title = f"Forecasting step {step} ({date})"
 
@@ -173,7 +173,9 @@ class SensitivitiesRunner(SimpleRunner):
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
-                y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                y_pred = self.predict_step(
+                    self.model, input_tensor_torch, perturbation=output_perturbation, fcstep=s, step=step, date=date
+                )
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -184,3 +186,61 @@ class SensitivitiesRunner(SimpleRunner):
                 self._print_input_tensor("Sensitivities tensor", y_pred)
 
             yield new_state
+
+    def run(
+        self, *, input_state: State, perturbation: Perturbation, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
+    ) -> Generator[State, None, None]:
+        """Run the model.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        lead_time : Union[str, int, datetime.timedelta]
+            The lead time.
+        return_numpy : bool, optional
+            Whether to return the output state fields as numpy arrays, by default True.
+            Otherwise, it will return torch tensors.
+
+        Returns
+        -------
+        Generator[State, None, None]
+            The forecasted state.
+        """
+        # Shallow copy to avoid modifying the user's input state
+        input_state = input_state.copy()
+        input_state["fields"] = input_state["fields"].copy()
+
+        self.constant_forcings_inputs = self.create_constant_forcings_inputs(input_state)
+        self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
+        self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
+
+        LOG.info("-" * 80)
+        LOG.info("Input state:")
+        LOG.info(f"  {list(input_state['fields'].keys())}")
+
+        LOG.info("Constant forcings inputs:")
+        for f in self.constant_forcings_inputs:
+            LOG.info(f"  {f}")
+
+        LOG.info("Dynamic forcings inputs:")
+        for f in self.dynamic_forcings_inputs:
+            LOG.info(f"  {f}")
+
+        LOG.info("Boundary forcings inputs:")
+        for f in self.boundary_forcings_inputs:
+            LOG.info(f"  {f}")
+        LOG.info("-" * 80)
+
+        lead_time = to_timedelta(lead_time)
+
+        with ProfilingRunner(self.use_profiler):
+            with ProfilingLabel("Prepare input tensor", self.use_profiler):
+                input_tensor = self.prepare_input_tensor(input_state)
+
+            try:
+                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state, perturbation), return_numpy)
+            except (TypeError, ModuleNotFoundError, AttributeError):
+                if self.report_error:
+                    self.checkpoint.report_error()
+                raise

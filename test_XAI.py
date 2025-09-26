@@ -10,7 +10,7 @@ import numpy as np
 from ecmwf.opendata import Client as OpendataClient
 
 from anemoi.inference.outputs.printer import print_state
-from anemoi.inference.runners.sensitivities import SensitivitiesRunner
+from anemoi.inference.runners.sensitivities import SensitivitiesRunner, Perturbation
 
 LOGGER = logging.getLogger(__name__)
 
@@ -91,7 +91,8 @@ def plot_sensitivities(state: dict, field: str):
     # Get the combined min/max for color normalization
     vmin = min(state["fields"][field][0].min(), state["fields"][field][1].min())
     vmax = max(state["fields"][field][0].max(), state["fields"][field][1].max())
-    cmap_kwargs = dict(cmap="RdBu", vmin=vmin, vmax=vmax)
+    lim = max(abs(vmin), abs(vmax))
+    cmap_kwargs = dict(cmap="PuOr", vmin=-lim, vmax=lim)
 
     for i in range(num_times):
         axs[i].set_title(f"{field} (at -{(num_times-i)*6}H)")
@@ -118,10 +119,14 @@ def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single
         save_state(input_state, initial_conditions_file)
 
     # Load model
-    runner = SensitivitiesRunner(ckpt, device="cuda", variables_to_perturb=["2t"])
+    runner = SensitivitiesRunner(ckpt, device="cuda", perturb_normalised_space=True)
+
+    perturbation = Perturbation(
+        ckpt, perturbed_variable="2t", perturbation_location=(40, 120), perturbation_radius_km=150.0
+    )
 
     # Compute sensitivities
-    for state in runner.run(input_state=input_state, lead_time="6h"):
+    for state in runner.run(input_state=input_state, perturbation=perturbation, lead_time="6h"):
         print_state(state)
         plot_sensitivities(state, "2t")
         plot_sensitivities(state, "z")

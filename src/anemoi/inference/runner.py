@@ -42,29 +42,6 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
-def plot_perturbation(pred: np.ndarray, true: np.ndarray, lons: np.ndarray, lats: np.ndarray, field: str):
-    import matplotlib.pyplot as plt
-
-    fig, axs = plt.subplots(2, 1)
-
-    axs[0].set_title(f"{field} forecast")
-    sc0 = axs[0].scatter(lons, lats, c=pred)
-    axs[0].set_title(f"{field} forecast")
-    plt.colorbar(sc0, ax=axs[0], orientation="vertical", label="Value")
-
-    axs[1].set_title(f"{field} perturbation")
-    sc1 = axs[1].scatter(lons, lats, c=true)
-    plt.colorbar(sc1, ax=axs[1], orientation="vertical", label="Value")
-
-    for ax in axs:
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-
-    fig.savefig(f"perturbation_{field}.png")
-
-
 class Kind:
     """Used for debugging purposes."""
 
