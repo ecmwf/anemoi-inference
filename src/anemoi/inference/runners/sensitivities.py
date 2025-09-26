@@ -70,7 +70,7 @@ class SensitivitiesRunner(SimpleRunner):
 
     def predict_step(
         self, model: torch.nn.Module, input_tensor_torch: torch.Tensor, perturbation: torch.Tensor, **kwargs: Any
-        ) -> torch.Tensor:
+    ) -> torch.Tensor:
         """Predict sensitivities."""
         model_func = self.wrap_model(model)
 
@@ -189,7 +189,12 @@ class SensitivitiesRunner(SimpleRunner):
             yield new_state
 
     def run(
-        self, *, input_state: State, perturbation: Perturbation, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
+        self,
+        *,
+        input_state: State,
+        perturbation: Perturbation,
+        lead_time: str | int | datetime.timedelta,
+        return_numpy: bool = True,
     ) -> Generator[State, None, None]:
         """Run the model.
 
@@ -240,7 +245,9 @@ class SensitivitiesRunner(SimpleRunner):
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
-                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state, perturbation), return_numpy)
+                yield from self.prepare_output_state(
+                    self.forecast(lead_time, input_tensor, input_state, perturbation), return_numpy
+                )
             except (TypeError, ModuleNotFoundError, AttributeError):
                 if self.report_error:
                     self.checkpoint.report_error()

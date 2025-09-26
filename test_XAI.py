@@ -10,7 +10,8 @@ import numpy as np
 from ecmwf.opendata import Client as OpendataClient
 
 from anemoi.inference.outputs.printer import print_state
-from anemoi.inference.runners.sensitivities import SensitivitiesRunner, Perturbation
+from anemoi.inference.runners.sensitivities import Perturbation
+from anemoi.inference.runners.sensitivities import SensitivitiesRunner
 
 LOGGER = logging.getLogger(__name__)
 

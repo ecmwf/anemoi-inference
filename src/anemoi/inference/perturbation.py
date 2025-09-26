@@ -9,7 +9,9 @@
 
 import logging
 from typing import Any
+
 import torch
+
 from .checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
@@ -17,8 +19,7 @@ R = 6371.0  # Earth radius in km
 
 
 def haversine(coords: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
-    """
-    Compute haversine distance between multiple coordinates and a single point.
+    """Compute haversine distance between multiple coordinates and a single point.
 
     Args:
         coords: (N, 2) tensor of [lat, lon] in degrees
@@ -26,7 +27,7 @@ def haversine(coords: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
 
     Returns:
         (N,) tensor of distances in kilometers
-    """    
+    """
     coords_rad = torch.deg2rad(coords)
     point_rad = torch.deg2rad(point)
 
@@ -35,7 +36,7 @@ def haversine(coords: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
 
     dlat, dlon = lat2 - lat1, lon2 - lon1
 
-    a = torch.sin(dlat / 2)**2 + torch.cos(lat1) * torch.cos(lat2) * torch.sin(dlon / 2)**2
+    a = torch.sin(dlat / 2) ** 2 + torch.cos(lat1) * torch.cos(lat2) * torch.sin(dlon / 2) ** 2
     c = 2 * torch.atan2(torch.sqrt(a), torch.sqrt(1 - a))
 
     return R * c
@@ -45,12 +46,12 @@ class Perturbation:
     """Perturbation class."""
 
     def __init__(
-        self, 
-        checkpoint: str, 
-        perturbed_variable: str, 
-        perturbation_location: float, 
+        self,
+        checkpoint: str,
+        perturbed_variable: str,
+        perturbation_location: float,
         perturbation_radius_km: float = 100.0,
-        patch_metadata: dict[str, Any] = {}
+        patch_metadata: dict[str, Any] = {},
     ) -> None:
         """Initialize the Perturbation.
 
@@ -75,9 +76,9 @@ class Perturbation:
     def output_shape(self) -> tuple[int, ...]:
         return (
             1,
-            1, 
-            self._checkpoint._metadata.number_of_grid_points, 
-            len(self._checkpoint._metadata.variable_to_output_tensor_index)
+            1,
+            self._checkpoint._metadata.number_of_grid_points,
+            len(self._checkpoint._metadata.variable_to_output_tensor_index),
         )
 
     @property
