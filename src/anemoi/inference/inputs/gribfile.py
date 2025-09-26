@@ -68,8 +68,6 @@ class GribFileInput(GribInput):
             Additional keyword arguments, including:
             - ref_date_index: int, default -1
                 The reference date index to use.
-            - include_forcings: bool, default True
-                Whether to include forcings in the state.
 
         Returns
         -------
@@ -77,8 +75,7 @@ class GribFileInput(GribInput):
             The created input state.
         """
         ref_date_index = kwargs.get("ref_date_index", -1)
-        include_forcings = kwargs.get("include_forcings", True)
-        return self._create_input_state(self._fieldlist, date=date, include_forcings=include_forcings, ref_date_index=ref_date_index)
+        return self._create_input_state(self._fieldlist, date=date, ref_date_index=ref_date_index)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.

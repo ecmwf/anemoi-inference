@@ -20,7 +20,6 @@ from typing import Any
 from typing import Union
 
 import numpy as np
-import torch
 import torch.distributed as dist
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -697,9 +696,9 @@ class Runner(Context):
         else:
             model_comm_group = None
 
-        # The variable `check` is used to keep track of which variables have been updated
-        # In the input tensor. `reset` is used to reset `check` to False except
-        # when the values are constant in time
+            # The variable `check` is used to keep track of which variables have been updated
+            # In the input tensor. `reset` is used to reset `check` to False except
+            # when the values are constant in time
 
             reset = np.full((input_tensor_torch.shape[-1],), False)
             variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
@@ -781,7 +780,7 @@ class Runner(Context):
 
                 # No need to prepare next input tensor if we are at the last step
                 if is_last_step:
-                    break
+                    break  # noqa: F701
 
                 self.output_state_hook(new_state)
 

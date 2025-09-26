@@ -199,7 +199,6 @@ class EkdInput(Input):
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         ref_date_index: int = -1,
-        include_forcings: bool = True,
         title: str = "Create state",
     ) -> State:
         """Create a state from an ekd.FieldList.
@@ -220,8 +219,6 @@ class EkdInput(Input):
             Whether to flatten the data.
         ref_date_index : int
             The index of the reference date in the dates list.
-        include_forcings : bool
-            Whether to include forcings in the state.
         title : str
             The title for logging.
 
@@ -231,9 +228,6 @@ class EkdInput(Input):
             The created input state.
         """
         fields = self.pre_process(fields)
-
-        if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=include_forcings)
 
         if len(fields) == 0:
             # return dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
@@ -279,16 +273,11 @@ class EkdInput(Input):
         fields = state["fields"]
         state_fields = {}
 
-        if variables is None:
-            variables = self.checkpoint.variables_from_input(include_forcings=include_forcings)
-
         if len(fields) == 0:
             raise ValueError("No input fields provided")
 
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-        fields = self._filter_and_sort(fields, variables=variables, dates=dates, title="Create input state")
-
         check = defaultdict(set)
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
@@ -353,7 +342,6 @@ class EkdInput(Input):
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         ref_date_index: int = -1,
-        include_forcings: bool = True,
     ) -> State:
         """Create the input state.
 
@@ -375,8 +363,6 @@ class EkdInput(Input):
             Whether to flatten the data.
         ref_date_index : int
             The index of the reference date in the dates list.
-        include_forcings : bool
-            Whether to include forcings in the state.
 
         Returns
         -------
@@ -399,7 +385,6 @@ class EkdInput(Input):
             dtype=dtype,
             flatten=flatten,
             ref_date_index=ref_date_index,
-            include_forcings=include_forcings,
             title="Create input state",
         )
 
