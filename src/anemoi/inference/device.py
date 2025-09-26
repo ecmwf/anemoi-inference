@@ -36,6 +36,7 @@ def get_available_device() -> "torch.device":
             local_rank = 0
         torch.cuda.set_device(local_rank)  # important for NCCL
         return torch.device(f"cuda:{local_rank}")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():  # mac fallback
         return torch.device("mps")
     else:
         return torch.device("cpu")
