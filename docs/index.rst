@@ -153,7 +153,7 @@ You may also have to install pandoc on MacOS:
    cli/inspect
    cli/patch
    cli/requests
-   cli/redefine
+   cli/redefine_graph
 
 .. toctree::
    :maxdepth: 1

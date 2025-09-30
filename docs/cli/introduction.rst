@@ -19,4 +19,4 @@ The commands are:
 - :ref:`Validate Command <validate-command>`
 - :ref:`Patch Command <patch-command>`
 - :ref:`Requests Command <requests-command>`
-- :ref:`Redefine Command <redefine-command>`
+- :ref:`redefine_graph Command <redefine-command>`

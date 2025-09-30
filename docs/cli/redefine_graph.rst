@@ -1,7 +1,7 @@
-.. _redefine-command:
+.. _redefine_graph-command:
 
-Redefine Command
-===============
+Redefine Graph Command
+======================
 
 With this command, you can redefine the graph of a checkpoint file.
 This is useful when you want to change / reconfigure the local-domain of a model, or rebuild with a new graph.
@@ -21,7 +21,7 @@ Subcommands allow for a graph to be made from a lat/lon coordinate file, boundin
 
 .. code-block:: bash
 
-    % anemoi-inference redefine --help
+    % anemoi-inference redefine_graph --help
 
     Redefine the graph of a checkpoint file.
 
@@ -49,19 +49,19 @@ Subcommands allow for a graph to be made from a lat/lon coordinate file, boundin
 Examples
 *********
 
-Here are some examples of how to use the `redefine` command:
+Here are some examples of how to use the `redefine_graph` command:
 
 #. Using a graph file:
 
     .. code-block:: bash
 
-          anemoi-inference redefine path/to/checkpoint --graph path/to/graph
+          anemoi-inference redefine_graph path/to/checkpoint --graph path/to/graph
 
 #. Using a graph configuration:
 
     .. code-block:: bash
 
-          anemoi-inference redefine path/to/checkpoint --graph_config path/to/graph_config
+          anemoi-inference redefine_graph path/to/checkpoint --graph_config path/to/graph_config
 
     .. note::
         The configuration of the existing graph can be found using:
@@ -85,19 +85,19 @@ Here are some examples of how to use the `redefine` command:
 
     .. code-block:: bash
 
-          anemoi-inference redefine path/to/checkpoint --latlon path/to/latlon.npy
+          anemoi-inference redefine_graph path/to/checkpoint --latlon path/to/latlon.npy
 
 #. Using bounding box coordinates:
 
     .. code-block:: bash
 
-          anemoi-inference redefine path/to/checkpoint --coords North West South East Resolution
+          anemoi-inference redefine_graph path/to/checkpoint --coords North West South East Resolution
 
     i.e.
 
     .. code-block:: bash
 
-          anemoi-inference redefine path/to/checkpoint --coords 30.0 -10.0 20.0 0.0 0.1/0.1 --global_resolution n320
+          anemoi-inference redefine_graph path/to/checkpoint --coords 30.0 -10.0 20.0 0.0 0.1/0.1 --global_resolution n320
 
 
 All examples can optionally save the updated graph and checkpoint using the `--save-graph` and `--output` options.
@@ -114,7 +114,7 @@ Redefine the checkpoint
 
 .. code-block:: bash
 
-    anemoi-inference redefine path/to/checkpoint --coords 30.0 -10.0 20.0 0.0 0.1/0.1 --global_resolution n320 --save-graph path/to/updated_graph --output path/to/updated_checkpoint
+    anemoi-inference redefine_graph path/to/checkpoint --coords 30.0 -10.0 20.0 0.0 0.1/0.1 --global_resolution n320 --save-graph path/to/updated_graph --output path/to/updated_checkpoint
 
 Create the inference config
 ---------------------------
@@ -157,4 +157,4 @@ Reference
     :module: anemoi.inference.__main__
     :func: create_parser
     :prog: anemoi-inference
-    :path: redefine
+    :path: redefine_graph

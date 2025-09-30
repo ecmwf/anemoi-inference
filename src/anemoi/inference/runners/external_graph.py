@@ -23,7 +23,7 @@ from anemoi.inference.lazy import torch
 
 from ..decorators import main_argument
 from ..runners.default import DefaultRunner
-from ..utils.redefine import update_checkpoint
+from ..utils.redefine_graph import update_checkpoint
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)

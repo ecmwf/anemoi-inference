@@ -52,7 +52,7 @@ def format_namespace_as_str(namespace: Namespace) -> str:
     return " ".join(args)
 
 
-class RedefineCmd(Command):
+class RedefineGraphCmd(Command):
     """Redefine the graph of a checkpoint file."""
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
@@ -89,19 +89,19 @@ class RedefineCmd(Command):
         command_parser.add_argument("--output", type=str, help="Path to save the updated checkpoint.", default=None)
 
     def run(self, args: Namespace) -> None:
-        """Run the redefine command.
+        """Run the redefine_graph command.
 
         Parameters
         ----------
         args : Namespace
             The arguments passed to the command.
         """
-        from anemoi.inference.utils.redefine import create_graph_from_config
-        from anemoi.inference.utils.redefine import get_coordinates_from_file
-        from anemoi.inference.utils.redefine import get_coordinates_from_mars_request
-        from anemoi.inference.utils.redefine import load_graph_from_file
-        from anemoi.inference.utils.redefine import make_graph_from_coordinates
-        from anemoi.inference.utils.redefine import update_checkpoint
+        from anemoi.inference.utils.redefine_graph import create_graph_from_config
+        from anemoi.inference.utils.redefine_graph import get_coordinates_from_file
+        from anemoi.inference.utils.redefine_graph import get_coordinates_from_mars_request
+        from anemoi.inference.utils.redefine_graph import load_graph_from_file
+        from anemoi.inference.utils.redefine_graph import make_graph_from_coordinates
+        from anemoi.inference.utils.redefine_graph import update_checkpoint
 
         check_redefine_imports()
 
@@ -116,7 +116,7 @@ class RedefineCmd(Command):
 
         # Add command to history
         metadata.setdefault("history", [])
-        metadata["history"].append(f"anemoi-inference redefine {format_namespace_as_str(args)}")
+        metadata["history"].append(f"anemoi-inference redefine_graph {format_namespace_as_str(args)}")
 
         # Create or load the graph
         if args.graph is not None:
@@ -162,4 +162,4 @@ class RedefineCmd(Command):
         LOG.info("Updated checkpoint saved to %s", model_path)
 
 
-command = RedefineCmd
+command = RedefineGraphCmd
