@@ -18,7 +18,7 @@ F = TypeVar("F", bound=type)
 
 
 class main_argument:
-    """Decorator to set the main argument of a class.
+    """Decorator to set the main argument of a class. Only for classes with a 'context' argument.
 
     For example:
     ```
