@@ -12,13 +12,14 @@ import logging
 from collections.abc import Generator
 
 import numpy as np
+import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.lazy import torch
+from anemoi.inference.device import get_available_device
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
 
@@ -72,8 +73,9 @@ class TimeInterpolatorRunner(DefaultRunner):
         from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 
         super().__init__(config)
-
+        self.from_analysis = True if hasattr(config.input, "test") else False
         self.patch_checkpoint_lagged_property()
+        self.device = get_available_device()
         assert (
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
@@ -125,7 +127,6 @@ class TimeInterpolatorRunner(DefaultRunner):
 
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
-
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
@@ -159,7 +160,12 @@ class TimeInterpolatorRunner(DefaultRunner):
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
             # Create input state for this window
-            input_state = input.create_input_state(date=window_start_date)
+            if self.from_analysis:
+                input_state = input.create_input_state(date=window_start_date)
+            else:
+                input_state = input.create_input_state(
+                    date=window_start_date, ref_date_index=0
+                )  # for interpolator, the first date is present and the last is future. For AR models with multiple input states, the last date is the current date. This is why the distinction is made here.
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
@@ -313,8 +319,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         Any
             The forecasted state.
         """
-        import torch
-
         # This does interpolation but called forecast so we can reuse run()
         self.model.eval()
         torch.set_grad_enabled(False)
@@ -375,11 +379,13 @@ class TimeInterpolatorRunner(DefaultRunner):
             result["interpolated"] = True
 
             if self.trace:
-                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
+                self.trace.write_input_tensor(
+                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                )
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
+                torch.autocast(device_type=str(self.device), dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
@@ -391,7 +397,9 @@ class TimeInterpolatorRunner(DefaultRunner):
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             if self.trace:
-                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
+                self.trace.write_output_tensor(
+                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                )
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
