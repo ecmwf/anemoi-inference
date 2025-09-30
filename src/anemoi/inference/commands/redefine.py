@@ -69,7 +69,7 @@ class RedefineCmd(Command):
         group = command_parser.add_mutually_exclusive_group(required=True)
 
         group.add_argument("-g", "--graph", type=Path, help="Path to graph file to use")
-        group.add_argument("-y", "--graph_config", type=Path, help="Path to graph config to use")
+        group.add_argument("-y", "--graph-config", type=Path, help="Path to graph config to use")
         group.add_argument(
             "-ll",
             "--latlon",
@@ -80,7 +80,7 @@ class RedefineCmd(Command):
 
         command_parser.add_argument(
             "-gr",
-            "--global_resolution",
+            "--global-resolution",
             type=str,
             help="Global grid resolution required with --coords, (e.g. n320, o96).",
         )
