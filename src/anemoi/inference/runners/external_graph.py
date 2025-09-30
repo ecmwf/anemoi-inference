@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024- Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
-from copy import deepcopy
+from contextlib import contextmanager
 from functools import cached_property
 from typing import Any
 from typing import Literal
@@ -23,58 +23,10 @@ from anemoi.inference.lazy import torch
 
 from ..decorators import main_argument
 from ..runners.default import DefaultRunner
+from ..utils.redefine import update_checkpoint
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
-
-# Possibly move the function(s) below to anemoi-models or anemoi-utils since it could be used in transfer learning.
-
-
-def contains_any(key, specifications):
-    contained = False
-    for specification in specifications:
-        if specification in key:
-            contained = True
-            break
-    return contained
-
-
-def update_state_dict(
-    model, external_state_dict, keywords="", ignore_mismatched_layers=False, ignore_additional_layers=False
-):
-    """Update the model's stated_dict with entries from an external state_dict. Only entries whose keys contain the specified keywords are considered."""
-
-    LOG.info("Updating model state dictionary.")
-
-    if isinstance(keywords, str):
-        keywords = [keywords]
-
-    # select relevant part of external_state_dict
-    reduced_state_dict = {k: v for k, v in external_state_dict.items() if contains_any(k, keywords)}
-    model_state_dict = model.state_dict()
-
-    # check layers and their shapes
-    for key in list(reduced_state_dict):
-        if key not in model_state_dict:
-            if ignore_additional_layers:
-                LOG.info("Skipping injection of %s, which is not in the model.", key)
-                del reduced_state_dict[key]
-            else:
-                raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
-        elif reduced_state_dict[key].shape != model_state_dict[key].shape:
-            if ignore_mismatched_layers:
-                LOG.info("Skipping injection of %s due to shape mismatch.", key)
-                LOG.info("Model shape: %s", model_state_dict[key].shape)
-                LOG.info("Provided shape: %s", reduced_state_dict[key].shape)
-                del reduced_state_dict[key]
-            else:
-                raise AssertionError(
-                    "Mismatch in shape of %s. Consider setting 'ignore_mismatched_layers = True'.", key
-                )
-
-    # update
-    model.load_state_dict(reduced_state_dict, strict=False)
-    return model
 
 
 def _get_supporting_arrays_from_graph(update_supporting_arrays: dict[str, str], graph: Any) -> dict:
@@ -258,35 +210,36 @@ class ExternalGraphRunner(DefaultRunner):
 
     @cached_property
     def graph(self):
-
+        """Get the external graph from file."""
         graph_path = self.graph_path
+
         assert os.path.isfile(
             graph_path
         ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+
         LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
+
+    def on_device(self, device: str = "cpu"):
+        """Temporally reassign the device of the runner"""
+
+        @contextmanager
+        def _device_manager(runner: ExternalGraphRunner, device: str):  # type: ignore
+            original_device = runner.device
+            try:
+                runner.device = device
+                yield
+            finally:
+                runner.device = original_device
+
+        return _device_manager(self, device)
 
     @cached_property
     def model(self):
         # load the model from the checkpoint
-        device = self.device
-        self.device = "cpu"
-        model_instance = super().model
-        state_dict_ckpt = deepcopy(model_instance.state_dict())
-
-        # rebuild the model with the new graph
-        model_instance.graph_data = self.graph
-        model_instance.config = self.checkpoint._metadata._config
-        model_instance._build_model()
-
-        # reinstate the weights, biases and normalizer from the checkpoint
-        # reinstating the normalizer is necessary for checkpoints that were created
-        # using transfer learning, where the statistics as stored in the checkpoint
-        # do not match the statistics used to build the normalizer in the checkpoint.
-        model_instance = update_state_dict(
-            model_instance, state_dict_ckpt, keywords=["bias", "weight", "processors.normalizer"]
-        )
+        with self.on_device("cpu"):
+            model = update_checkpoint(super().model, self.checkpoint._metadata, self.graph)
 
         LOG.info("Successfully built model with external graph and reassigned model weights!")
-        self.device = device
-        return model_instance.to(self.device)
+
+        return model.to(self.device)
