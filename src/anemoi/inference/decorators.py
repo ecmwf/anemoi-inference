@@ -55,7 +55,7 @@ class main_argument:
         """Decorate the class to set the main argument."""
 
         if not isinstance(cls, type):
-            raise TypeError("main_argument can only be used to decorate classes")
+            raise TypeError("'main_argument' can only be used to decorate classes")
 
         class WrappedClass(cls):
             def __init__(wrapped_cls, context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
