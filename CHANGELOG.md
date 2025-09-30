@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.7.4](https://github.com/ecmwf/anemoi-inference/compare/0.7.3...0.7.4) (2025-09-30)
+
+
+### Features
+
+* Add requirements subcommand ([#245](https://github.com/ecmwf/anemoi-inference/issues/245)) ([fd0877c](https://github.com/ecmwf/anemoi-inference/commit/fd0877cd2ca054a3c57804a79dc7e9471a019cba))
+* Better support for dynamic forcings and coupling in prepml ([#262](https://github.com/ecmwf/anemoi-inference/issues/262)) ([fd0877c](https://github.com/ecmwf/anemoi-inference/commit/fd0877cd2ca054a3c57804a79dc7e9471a019cba))
+* Lazy torch loading ([#277](https://github.com/ecmwf/anemoi-inference/issues/277)) ([fd0877c](https://github.com/ecmwf/anemoi-inference/commit/fd0877cd2ca054a3c57804a79dc7e9471a019cba))
+* Replace no grad with inference mode ([#331](https://github.com/ecmwf/anemoi-inference/issues/331)) ([4b7c495](https://github.com/ecmwf/anemoi-inference/commit/4b7c4955d97b49ae232a836bba09773a69e0c807))
+
+
+### Bug Fixes
+
+* **parallel runner:** Support base class with main_argument decorator ([#333](https://github.com/ecmwf/anemoi-inference/issues/333)) ([7ec5cce](https://github.com/ecmwf/anemoi-inference/commit/7ec5cce1d83c9be008ad4e64dde9cd16e99a09f1))
+* Update cutout due to [#262](https://github.com/ecmwf/anemoi-inference/issues/262) ([#334](https://github.com/ecmwf/anemoi-inference/issues/334)) ([35c1cdb](https://github.com/ecmwf/anemoi-inference/commit/35c1cdbb694e9eb799b0e3ab4c1b37c69abe3ba9))
+
 ## [0.7.3](https://github.com/ecmwf/anemoi-inference/compare/0.7.2...0.7.3) (2025-09-22)
 
 
