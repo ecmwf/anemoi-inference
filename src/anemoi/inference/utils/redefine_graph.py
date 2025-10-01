@@ -142,17 +142,18 @@ def make_data_graph(
     lons: "np.ndarray",
     local_mask: "np.ndarray",
     global_mask: "np.ndarray",
+    reference_node_name: str = "data",
     *,
-    mask_attr_name: str = "cutout",
-    attrs,
+    mask_attr_name: str = "cutout_mask",
+    attrs: dict | None = None,
 ) -> "HeteroData":
     """Make a data graph with the given lat/lon nodes and attributes."""
     import torch
     from anemoi.graphs.nodes import LatLonNodes
     from torch_geometric.data import HeteroData
 
-    graph = LatLonNodes(lats, lons, name="data").update_graph(HeteroData(), attrs_config=attrs)
-    graph["data"][mask_attr_name] = torch.from_numpy(local_mask)
+    graph = LatLonNodes(lats, lons, name=reference_node_name).update_graph(HeteroData(), attrs_config=attrs)  # type: ignore
+    graph[reference_node_name][mask_attr_name] = torch.from_numpy(local_mask).unsqueeze(1)
     return graph
 
 
@@ -205,8 +206,21 @@ def make_graph_from_coordinates(
 
     mask_attr_name = nested_get(graph_config, ["nodes", "hidden", "node_builder", "mask_attr_name"], "cutout")
 
+    data_graph_attributes = None
+    # if mask_attr_name in data_graph.get("attributes", {}):
+    #     data_graph_attributes = {mask_attr_name: data_graph["attributes"][mask_attr_name]}
+
+    LOG.info("Found mask attribute name: %r", mask_attr_name)
+    # LOG.info("Found data graph attributes: %s", data_graph_attributes)
+
     data_graph = make_data_graph(
-        lats, lons, local_mask, global_mask, mask_attr_name=mask_attr_name, attrs=data_graph.get("attrs", None)
+        lats,
+        lons,
+        local_mask,
+        global_mask,
+        reference_node_name="data",
+        mask_attr_name=mask_attr_name,
+        attrs=data_graph_attributes,
     )
 
     LOG.info("Created data graph with %d nodes.", data_graph.num_nodes)
