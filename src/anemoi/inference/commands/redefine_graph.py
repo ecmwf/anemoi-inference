@@ -146,7 +146,7 @@ class RedefineGraphCmd(Command):
 
         # Update checkpoint
         LOG.info("Updating checkpoint...")
-        model = torch.load(str(path), weights_only=False, map_location=torch.device("cpu"))
+        model = torch.load(path, weights_only=False, map_location=torch.device("cpu"))
         model = update_checkpoint(model, metadata, graph)
 
         # Save updated checkpoint

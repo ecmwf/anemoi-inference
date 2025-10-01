@@ -224,7 +224,7 @@ def make_graph_from_coordinates(
     )
 
     LOG.info("Created data graph with %d nodes.", data_graph.num_nodes)
-    graph = creator.update_graph(data_graph)
+    graph = creator.clean(creator.update_graph(data_graph))
 
     supporting_arrays[f"global/{mask_attr_name}"] = global_mask
     supporting_arrays[f"lam_0/{mask_attr_name}"] = np.array([True] * len(local_lats))
