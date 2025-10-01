@@ -5,7 +5,7 @@
 #########
 
 This document provides an overview of the configuration to provide to
-the :ref:`anemoi-inference run <run_command>` command line tool.
+the :ref:`anemoi-inference run <run-command>` command line tool.
 
 The configuration file is a YAML file that specifies various options. It
 is extended by `OmegaConf <https://github.com/omry/omegaconf>`_ such

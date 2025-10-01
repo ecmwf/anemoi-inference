@@ -9,9 +9,8 @@
 
 import datetime
 import logging
+from collections.abc import Sequence
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
@@ -31,11 +30,8 @@ class TeeOutput(ForwardOutput):
     def __init__(
         self,
         context: Context,
-        *args: Any,
-        outputs: List[Configuration],
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        *args: Configuration,
+        outputs: Sequence[Configuration] | None = None,
         **kwargs: Any,
     ):
         """Initialize the TeeOutput.
@@ -44,24 +40,17 @@ class TeeOutput(ForwardOutput):
         ----------
         context : object
             The context object.
-        *args : Any
+        *args : Configuration
             Additional positional arguments.
-        outputs : list or tuple, optional
-            List of outputs to be created.
-        output_frequency : int, optional
-            Frequency of output.
-        write_initial_state : bool, optional
-            Flag to write the initial state.
+        outputs : Sequence[Configuration], optional
+            Outputs to be created.
         **kwargs : Any
             Additional keyword arguments.
         """
         super().__init__(
             context,
             None,
-            variables=variables,
-            post_processors=None,
-            output_frequency=output_frequency,
-            write_initial_state=write_initial_state,
+            **kwargs,
         )
 
         if outputs is None:
@@ -81,6 +70,7 @@ class TeeOutput(ForwardOutput):
             The state dictionary.
         """
         state.setdefault("step", datetime.timedelta(0))
+        state = self.post_process(state)
         for output in self.outputs:
             output.write_initial_state(state)
 
@@ -92,6 +82,7 @@ class TeeOutput(ForwardOutput):
         state : State
             The state dictionary.
         """
+        state = self.post_process(state)
         for output in self.outputs:
             output.write_state(state)
 

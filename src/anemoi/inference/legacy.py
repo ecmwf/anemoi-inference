@@ -11,10 +11,9 @@
 import logging
 import warnings
 from collections import defaultdict
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
-from typing import Callable
-from typing import Dict
 
 from anemoi.inference.types import DataRequest
 
@@ -50,7 +49,7 @@ class LegacyMixin(MetadataProtocol):
     # `self` is a `Metadata` object
 
     @warn
-    def _legacy_variables_metadata(self) -> Dict[str, Dict[str, Any]]:
+    def _legacy_variables_metadata(self) -> dict[str, dict[str, Any]]:
         """Generate metadata for legacy variables.
 
         Returns
@@ -58,7 +57,7 @@ class LegacyMixin(MetadataProtocol):
         Dict[str, Dict[str, Any]]
             Metadata for each variable.
         """
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         unkowns = []
         for variable in self.variables:
             if variable in (
@@ -125,7 +124,7 @@ class LegacyMixin(MetadataProtocol):
 
         return result
 
-    def _legacy_check_variables_metadata(self, variables: Dict[str, Dict[str, Any]]) -> None:
+    def _legacy_check_variables_metadata(self, variables: dict[str, dict[str, Any]]) -> None:
         """Check and update metadata for legacy variables.
 
         Parameters

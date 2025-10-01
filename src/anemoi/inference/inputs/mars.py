@@ -10,11 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -30,7 +25,7 @@ from .grib import GribInput
 LOG = logging.getLogger(__name__)
 
 
-def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
+def rounded_area(area: list[float] | None) -> list[float] | None:
     """Round the area to a global extent if the surface is greater than 0.98.
 
     Parameters
@@ -52,7 +47,7 @@ def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
     return area
 
 
-def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
+def grid_is_valid(grid: str | list[float] | None) -> bool:
     """Check if the grid is valid.
 
     Parameters
@@ -78,7 +73,7 @@ def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
         return False
 
 
-def area_is_valid(area: Optional[List[float]]) -> bool:
+def area_is_valid(area: list[float] | None) -> bool:
     """Check if the area is valid.
 
     Parameters
@@ -104,9 +99,7 @@ def area_is_valid(area: Optional[List[float]]) -> bool:
         return False
 
 
-def postproc(
-    grid: Optional[Union[str, List[float]]], area: Optional[List[float]]
-) -> Dict[str, Union[str, List[float]]]:
+def postproc(grid: str | list[float] | None, area: list[float] | None) -> dict[str, str | list[float]]:
     """Post-process the grid and area.
 
     Parameters
@@ -135,10 +128,10 @@ def postproc(
 
 
 def retrieve(
-    requests: List[Dict[str, Any]],
-    grid: Optional[Union[str, List[float]]],
-    area: Optional[List[float]],
-    patch: Optional[Any] = None,
+    requests: list[dict[str, Any]],
+    grid: str | list[float] | None,
+    area: list[float] | None,
+    patch: Any | None = None,
     log: bool = True,
     **kwargs: Any,
 ) -> Any:
@@ -211,12 +204,12 @@ class MarsInput(GribInput):
         self,
         context: Context,
         *,
-        patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
+        patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
         log: bool = True,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
-        namer: Optional[Any] = None,
-        purpose: Optional[str] = None,
+        variables: list[str] | None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
+        purpose: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -246,7 +239,7 @@ class MarsInput(GribInput):
         self.patches = patches or []
         self.log = log
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -272,7 +265,7 @@ class MarsInput(GribInput):
             date=date,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
@@ -291,11 +284,11 @@ class MarsInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.context.patch_data_request,
+            patch_request=self.patch_data_request,
         )
 
         if not requests:
-            raise ValueError("No requests for %s (%s)" % (variables, dates))
+            raise ValueError(f"No requests for {variables} ({dates})")
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
@@ -309,7 +302,7 @@ class MarsInput(GribInput):
             **kwargs,
         )
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
@@ -330,7 +323,7 @@ class MarsInput(GribInput):
             current_state=current_state,
         )
 
-    def patch(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def patch(self, request: dict[str, Any]) -> dict[str, Any]:
         """Patch the given request with predefined patches.
 
         Parameters

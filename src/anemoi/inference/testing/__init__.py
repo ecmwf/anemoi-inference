@@ -12,10 +12,9 @@ import datetime
 import functools
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from typing import Callable
-from typing import Union
 
 from anemoi.utils.checkpoints import save_metadata
 from anemoi.utils.registry import Registry
@@ -58,7 +57,7 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def save_fake_checkpoint(metadata: Union[dict, str, Path], save_path: Path, supporting_arrays: dict = {}) -> None:
+def save_fake_checkpoint(metadata: dict | str | Path, save_path: Path, supporting_arrays: dict = {}) -> None:
     """Create a fake PyTorch checkpoint.
 
     Parameters
@@ -75,7 +74,7 @@ def save_fake_checkpoint(metadata: Union[dict, str, Path], save_path: Path, supp
     from anemoi.inference.testing.mock_model import SimpleMockModel
 
     if not isinstance(metadata, dict):
-        with open(metadata, "r") as f:
+        with open(metadata) as f:
             metadata = json.load(f)
 
     model = SimpleMockModel(metadata, supporting_arrays)

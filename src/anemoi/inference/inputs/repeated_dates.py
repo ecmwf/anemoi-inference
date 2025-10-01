@@ -10,8 +10,6 @@
 
 import logging
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.utils.dates import as_datetime
 
@@ -50,7 +48,7 @@ class RepeatedDatesInput(Input):
         super().__init__(context, **kwargs)
         self.source = create_input(context, source, variables=self.variables, purpose=self.purpose)
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
@@ -70,7 +68,7 @@ class RepeatedDatesInput(Input):
         state["date"] = date
         return state
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for repeated dates input.
 
         Parameters

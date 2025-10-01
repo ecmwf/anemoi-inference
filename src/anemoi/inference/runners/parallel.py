@@ -15,7 +15,6 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
-from typing import Tuple
 
 import numpy as np
 from anemoi.utils.logs import enable_logging_name
@@ -111,14 +110,20 @@ class ParallelRunnerMixin:
 
         self._bootstrap_processes()
 
-        if self.device == "cuda":
-            self.device = f"{self.device}:{self.local_rank}"
-            torch.cuda.set_device(self.local_rank)
+        LOG.info(
+            f"ParallelRunner local/global ranks: {self.local_rank}/{self.global_rank}, host: {socket.gethostname()}"
+        )
 
-        LOG.info(f"ParallelRunner initialized with global rank {self.global_rank} on device {self.device}")
+        if self.device.type == "cuda":
+            self.device = torch.device("cuda", index=self.local_rank)
+            torch.cuda.set_device(self.device)
+            LOG.info(f"ParallelRunner changing to device `{self.device}`")
+        else:
+            LOG.info(f"ParallelRunner device `{self.device}` is unchanged")
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0 and self.verbosity == 0:
+            LOG.info("ParallelRunner logging disabled on non-zero rank")
             logging.getLogger().setLevel(logging.WARNING)
 
         # Create a model comm group for parallel inference
@@ -231,7 +236,7 @@ class ParallelRunnerMixin:
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
-        if self.device.startswith("cuda"):
+        if str(self.device).startswith("cuda"):
             num_gpus = torch.cuda.device_count()
             if num_procs > num_gpus:
                 raise ValueError(
@@ -300,7 +305,7 @@ class ParallelRunnerMixin:
             if self.local_rank == 0:
                 self._spawn_parallel_procs(self.world_size)
 
-    def _init_network_from_slurm(self) -> Tuple[str, str]:
+    def _init_network_from_slurm(self) -> tuple[str, str]:
         """Reads Slurm environment to set master address and port for parallel communication.
 
         Returns
@@ -364,7 +369,7 @@ class ParallelRunnerMixin:
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'
-            if self.device.startswith("cuda"):
+            if str(self.device).startswith("cuda"):
                 backend = "nccl"
             else:
                 if dist.is_mpi_available():
@@ -388,7 +393,7 @@ class ParallelRunnerMixin:
 
         return model_comm_group
 
-    def _get_parallel_info_from_slurm(self) -> Tuple[int, int, int]:
+    def _get_parallel_info_from_slurm(self) -> tuple[int, int, int]:
         """Reads Slurm env vars, if they exist, to determine if inference is running in parallel.
 
         Returns

@@ -10,8 +10,6 @@
 import logging
 import os
 import threading
-from typing import List
-from typing import Optional
 
 import numpy as np
 
@@ -39,12 +37,12 @@ class NetCDFOutput(Output):
         self,
         context: Context,
         path: str,
-        variables: Optional[List[str]] = None,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
         float_size: str = "f4",
-        missing_value: Optional[float] = np.nan,
+        missing_value: float | None = np.nan,
     ) -> None:
         """Initialize the NetCDF output object.
 
@@ -77,7 +75,7 @@ class NetCDFOutput(Output):
         from netCDF4 import Dataset
 
         self.path = path
-        self.ncfile: Optional[Dataset] = None
+        self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
         if self.write_step_zero:
@@ -130,24 +128,25 @@ class NetCDFOutput(Output):
             self.time_dim = self.ncfile.createDimension("time", time)
             self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
-            self.time_var.units = "seconds since {0}".format(self.reference_date)
+            self.time_var.units = f"seconds since {self.reference_date}"
             self.time_var.long_name = "time"
             self.time_var.calendar = "gregorian"
 
-        latitudes = state["latitudes"]
         with LOCK:
+            latitudes = state["latitudes"]
+
             self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
             self.latitude_var.units = "degrees_north"
             self.latitude_var.long_name = "latitude"
 
-        longitudes = state["longitudes"]
-        with LOCK:
+            longitudes = state["longitudes"]
+
             self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
             self.longitude_var.units = "degrees_east"
             self.longitude_var.long_name = "longitude"
 
-        self.latitude_var[:] = latitudes
-        self.longitude_var[:] = longitudes
+            self.latitude_var[:] = latitudes
+            self.longitude_var[:] = longitudes
 
         self.vars = {}
 

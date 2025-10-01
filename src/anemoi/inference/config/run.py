@@ -12,11 +12,7 @@ from __future__ import annotations
 import datetime
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Literal
-from typing import Optional
-from typing import Union
 
 from pydantic import Field
 
@@ -30,20 +26,20 @@ LOG = logging.getLogger(__name__)
 class RunConfiguration(Configuration):
     """Configuration class for a default runner."""
 
-    description: Optional[str] = None
+    description: str | None = None
 
-    checkpoint: Union[str, Dict[Literal["huggingface"], Union[Dict[str, Any], str]]]
+    checkpoint: str | dict[Literal["huggingface"], dict[str, Any] | str]
     """A path to an Anemoi checkpoint file."""
 
-    runner: Union[str, Dict[str, Any]] = "default"
+    runner: str | dict[str, Any] = "default"
     """The runner to use."""
 
-    lead_time: Union[str, int, datetime.timedelta] = "10d"
+    lead_time: str | int | datetime.timedelta = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
     If an integer, it represents a number of hours. Otherwise, it is parsed by :func:`anemoi.utils.dates.as_timedelta`.
     """
 
-    name: Optional[str] = None
+    name: str | None = None
     """Used by prepml."""
 
     verbosity: int = 0
@@ -52,31 +48,34 @@ class RunConfiguration(Configuration):
     use_profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""
 
-    world_size: Optional[int] = 1
+    world_size: int | None = 1
     """Number of parallel processes, used for parallel inference without SLURM."""
 
     report_error: bool = False
-    """If True, the runner list the training versions of the packages in case of error."""
+    """If True, the runner list the training versions of the packages in case of error. (Deprecated, unused)"""
 
-    input: Union[str, Dict[str, Any]] = "test"
-    output: Union[str, Dict[str, Any]] = "printer"
+    input: str | dict[str, Any] = "test"
+    output: str | dict[str, Any] = "printer"
 
-    pre_processors: List[ProcessorConfig] = []
-    post_processors: List[ProcessorConfig] = []
+    pre_processors: list[ProcessorConfig] = []
+    post_processors: list[ProcessorConfig] = []
 
-    dynamic_forcings: Optional[Union[str, Dict[str, Any]]] = None
+    dynamic_forcings: str | dict[str, Any] | None = None
     """Where to find the dinamic forcings. (default is input)"""
 
-    constant_forcings: Optional[Union[str, Dict[str, Any]]] = None
+    constant_forcings: str | dict[str, Any] | None = None
     """Where to find the constant forcings (default to input)."""
 
-    device: str = "cuda"
-    """The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch."""
+    device: str | None = None
+    """
+    The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch.
+    If None, the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
+    """
 
-    precision: Optional[str] = None
+    precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
 
-    allow_nans: Optional[bool] = None
+    allow_nans: bool | None = None
     """
     - If None (default), the model will check for NaNs in the input. If NaNs are found, the model issue a warning and `allow_nans` to True.
     - If False, the model will raise an exception if NaNs are found in the input and output.
@@ -91,34 +90,34 @@ class RunConfiguration(Configuration):
     written.
     """
 
-    initial_state_categories: List[str] = ["prognostics", "constant_forcings"]
+    initial_state_categories: list[str] = ["prognostics", "constant_forcings"]
     """A list of categories to use when writing step zero."""
 
-    predict_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    predict_kwargs: dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""
 
-    typed_variables: Dict[str, Dict] = Field(default_factory=dict)
+    typed_variables: dict[str, dict] = Field(default_factory=dict)
     """A list of typed variables to support the encoding of outputs."""
 
-    output_frequency: Optional[str] = None
+    output_frequency: str | None = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
 
-    env: Dict[str, Union[str, int]] = {}
+    env: dict[str, str | int] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
     is already loaded when the runner is configured.
     """
 
-    patch_metadata: Dict[str, Any] = {}
+    patch_metadata: dict[str, Any] = {}
     """A dictionary of metadata to patch the checkpoint metadata with. This is used to test new features or to work around
     issues with the checkpoint metadata.
     """
 
-    development_hacks: Dict[str, Any] = {}
+    development_hacks: dict[str, Any] = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around."""
 
-    trace_path: Optional[str] = None
+    trace_path: str | None = None
     """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
 
-    debugging_info: Dict[str, Any] = {}
+    debugging_info: dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""

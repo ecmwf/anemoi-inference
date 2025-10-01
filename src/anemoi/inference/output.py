@@ -12,8 +12,6 @@ from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
-from typing import List
-from typing import Optional
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
@@ -32,10 +30,10 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
-        variables: Optional[List[str]] = None,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ):
         """Initialize the Output object.
 
@@ -83,7 +81,7 @@ class Output(ABC):
         return self.variables is not None and variable not in self.variables
 
     @cached_property
-    def post_processors(self) -> List[Processor]:
+    def post_processors(self) -> list[Processor]:
         """Return post-processors."""
 
         processors = []
@@ -206,7 +204,7 @@ class Output(ABC):
         return self.context.write_initial_state
 
     @cached_property
-    def output_frequency(self) -> Optional[datetime.timedelta]:
+    def output_frequency(self) -> datetime.timedelta | None:
         """Get the output frequency."""
         from anemoi.utils.dates import as_timedelta
 
@@ -246,11 +244,11 @@ class ForwardOutput(Output):
     def __init__(
         self,
         context: "Context",
-        output: dict,
-        variables: Optional[List[str]] = None,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        output: dict | None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ):
         """Initialize the ForwardOutput object.
 
@@ -286,7 +284,7 @@ class ForwardOutput(Output):
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)
 
     @cached_property
-    def output_frequency(self) -> Optional[datetime.timedelta]:
+    def output_frequency(self) -> datetime.timedelta | None:
         """Get the output frequency."""
         return None
 

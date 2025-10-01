@@ -10,8 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
@@ -47,7 +45,7 @@ class CoupledRunner(DefaultRunner):
     using the provided configuration and input.
     """
 
-    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
+    def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:
         """Initialize the CoupledRunner.
 
         Parameters
@@ -68,7 +66,7 @@ class CoupledRunner(DefaultRunner):
         """Hook used by coupled runners to send the input state."""
         self.coupled_input.output_state(reduce_state(state))
 
-    def create_dynamic_coupled_forcings(self, variables: List[str], mask: Any) -> List[CoupledForcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: Any) -> list[CoupledForcings]:
         """Create dynamic coupled forcings.
 
         Parameters
@@ -136,7 +134,7 @@ class CoupledInput:
 
     trace_name = "coupled"
 
-    def __init__(self, task: Task, transport: Any, couplings: List[Coupling]) -> None:
+    def __init__(self, task: Task, transport: Any, couplings: list[Coupling]) -> None:
         """Initialize the CoupledInput.
 
         Parameters
@@ -151,12 +149,12 @@ class CoupledInput:
         self.task = task
         self.transport = transport
         self.couplings = couplings
-        self.constants: Dict[str, FloatArray] = {}
+        self.constants: dict[str, FloatArray] = {}
         self.tag = 0
         self.send_only = sum(1 if c.target is task else 0 for c in couplings) == 0
         self.variables_to_recieve = set(sum([c.variables for c in couplings if c.target is task], []))
 
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state.
 
         Parameters
@@ -238,7 +236,7 @@ class CoupledInput:
 class TestCoupledRunner(TestingMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
-    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
+    def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:
         """Initialize the TestCoupledRunner.
 
         Parameters
@@ -255,7 +253,7 @@ class TestCoupledRunner(TestingMixing, CoupledRunner):
 class NoModelCoupledRunner(NoModelMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
-    def __init__(self, config: Dict[str, Any], coupled_input: "CoupledInput") -> None:
+    def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:
         """Initialize the NoModelCoupledRunner.
 
         Parameters
@@ -278,7 +276,7 @@ class RunnerTask(Task):
     """
 
     def __init__(
-        self, name: str, config: Dict[str, Any], overrides: Dict[str, Any] = {}, global_config: Dict[str, Any] = {}
+        self, name: str, config: dict[str, Any], overrides: dict[str, Any] = {}, global_config: dict[str, Any] = {}
     ) -> None:
         """Initialize the RunnerTask.
 

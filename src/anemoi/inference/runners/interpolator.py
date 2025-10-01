@@ -9,9 +9,7 @@
 
 import datetime
 import logging
-from typing import Generator
-from typing import List
-from typing import Tuple
+from collections.abc import Generator
 
 import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -38,7 +36,7 @@ def get_interpolation_window(data_frequency, input_explicit_times) -> datetime.t
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
 
-def checkpoint_lagged_interpolator_patch(self) -> List[datetime.timedelta]:
+def checkpoint_lagged_interpolator_patch(self) -> list[datetime.timedelta]:
     # For interpolator, we always want positive timedeltas
     result = [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
     return sorted(result)
@@ -189,7 +187,7 @@ class TimeInterpolatorRunner(DefaultRunner):
     ) -> "torch.Tensor":
         return model.predict_step(input_tensor_torch, target_forcing=target_forcing)
 
-    def target_computed_forcings(self, variables: List[str], mask=None) -> List[Forcings]:
+    def target_computed_forcings(self, variables: list[str], mask=None) -> list[Forcings]:
         """Create forcings for the bounding target state.
 
         Parameters
@@ -210,7 +208,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
     def interpolator_stepper(
         self, start_date: datetime.datetime
-    ) -> Generator[Tuple[datetime.timedelta, datetime.datetime, int, bool], None, None]:
+    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, int, bool], None, None]:
         """Generate step and date variables for the forecast loop.
 
         Parameters

@@ -9,7 +9,6 @@
 
 
 from typing import Any
-from typing import Dict
 
 
 class Variables:
@@ -27,7 +26,7 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def default_runner_input_variables_include_exclude(cls) -> Dict[str, list[str]]:
+    def default_runner_input_variables_include_exclude(cls) -> dict[str, list[str]]:
         """Get include/exclude lists for default runner input variables.
 
         Returns
@@ -66,7 +65,7 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def retrieved_constant_forcings_variables_include_exclude(cls) -> Dict[str, list[str]]:
+    def retrieved_constant_forcings_variables_include_exclude(cls) -> dict[str, list[str]]:
         """Get include/exclude lists for retrieved constant forcings variables.
 
         Returns
@@ -105,7 +104,7 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def retrieved_prognostic_variables_include_exclude(cls) -> Dict[str, list[str]]:
+    def retrieved_prognostic_variables_include_exclude(cls) -> dict[str, list[str]]:
         """Get include/exclude lists for retrieved prognostic variables.
 
         Returns
@@ -144,7 +143,7 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def computed_constant_forcings_variables_include_exclude(cls) -> Dict[str, list[str]]:
+    def computed_constant_forcings_variables_include_exclude(cls) -> dict[str, list[str]]:
         """Get include/exclude lists for computed constant forcings variables.
 
         Returns
@@ -182,7 +181,7 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def retrieved_dynamic_forcings_variables_include_exclude(cls) -> Dict[str, list[str]]:
+    def retrieved_dynamic_forcings_variables_include_exclude(cls) -> dict[str, list[str]]:
         """Get include/exclude lists for retrieved dynamic forcings variables.
 
         Returns
@@ -222,7 +221,7 @@ class Variables:
     ###############################################################################
 
     @classmethod
-    def input_types(cls) -> Dict[str, Dict[str, list[str]]]:
+    def input_types(cls) -> dict[str, dict[str, list[str]]]:
         """Get all input types and their include/exclude lists.
 
         Returns
@@ -238,7 +237,7 @@ class Variables:
         }
 
     @classmethod
-    def input_type_to_include_exclude(cls, input_type: str) -> Dict[str, list[str]]:
+    def input_type_to_include_exclude(cls, input_type: str) -> dict[str, list[str]]:
         """Get the include/exclude dict for a given input type.
 
         Parameters

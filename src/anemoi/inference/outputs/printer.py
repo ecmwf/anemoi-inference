@@ -9,12 +9,10 @@
 
 import datetime
 import logging
+from collections.abc import Callable
 from functools import partial
 from typing import Any
-from typing import Callable
-from typing import List
 from typing import Literal
-from typing import Optional
 from typing import Union
 
 import numpy as np
@@ -29,14 +27,14 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
-ListOrAll = Union[List[str], Literal["all"]]
+ListOrAll = Union[list[str], Literal["all"]]
 
 
 def print_state(
     state: State,
     print: Callable[..., None] = print,
     max_lines: int = 4,
-    variables: Optional[ListOrAll] = None,
+    variables: ListOrAll | None = None,
 ) -> None:
     """Print the state.
 
@@ -113,9 +111,9 @@ class PrinterOutput(Output):
     def __init__(
         self,
         context: Context,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        path: Optional[str] = None,
-        variables: Optional[ListOrAll] = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        path: str | None = None,
+        variables: ListOrAll | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the PrinterOutput.
@@ -134,7 +132,7 @@ class PrinterOutput(Output):
             Additional keyword arguments.
         """
 
-        super().__init__(context, post_processors)
+        super().__init__(context, variables=variables, post_processors=post_processors)
         self.print = print
         self.variables = variables
 

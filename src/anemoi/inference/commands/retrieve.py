@@ -14,11 +14,8 @@ import logging
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
 
 from anemoi.utils.dates import frequency_to_timedelta
 from earthkit.data.utils.dates import to_datetime
@@ -55,18 +52,18 @@ def checkpoint_to_requests(
     checkpoint: Checkpoint,
     *,
     date: Date,
-    staging_dates: Optional[str] = None,
+    staging_dates: str | None = None,
     forecast_dates: bool = False,
     use_grib_paramid: bool = False,
     dont_fail_for_missing_paramid: bool = False,
-    extra: Optional[List[str]] = None,
-    patch_request: Optional[Callable[[DataRequest], DataRequest]] = None,
+    extra: list[str] | None = None,
+    patch_request: Callable[[DataRequest], DataRequest] | None = None,
     use_scda: bool = False,
-    include: Optional[List[str]] = None,
-    exclude: Optional[List[str]] = None,
-    lead_time: Optional[Any] = None,
-    time_step: Optional[Any] = None,
-) -> List[DataRequest]:
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
+    lead_time: Any | None = None,
+    time_step: Any | None = None,
+) -> list[DataRequest]:
     """Convert a checkpoint to a list of data requests.
 
     Parameters
@@ -296,7 +293,7 @@ class RetrieveCmd(Command):
             json.dump(requests, f, indent=4)
 
 
-def _patch_scda(request: Dict[str, Any]) -> None:
+def _patch_scda(request: dict[str, Any]) -> None:
     """Patch the SCDA stream in the request if necessary.
     ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC.
 

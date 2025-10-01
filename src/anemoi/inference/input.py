@@ -12,8 +12,6 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
@@ -40,27 +38,35 @@ class Input(ABC):
         self,
         context: "Context",
         *,
-        variables: Optional[List[str]],
-        pre_processors: Optional[List[ProcessorConfig]] = None,
-        purpose=None,
+        variables: list[str] | None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        purpose: str | None = None,
     ) -> None:
-        """Initialize the Input object.
+        """Initialise the Input object.
 
         Parameters
         ----------
         context : Context
             The context for the input.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
+        variables : list of str or None
+            List of variable names to be handled by the input, or None for all available variables.
+        pre_processors : list of ProcessorConfig or None, optional
+            List of pre-processors to apply to the input. If None, no pre-processing is performed.
+        purpose : str or None, optional
+            The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
         """
         self.context = context
         self.checkpoint = context.checkpoint
         self._pre_processor_confs = pre_processors or []
+
+        if variables is None:
+            variables = self.context.variables.default_input_variables()  # type: ignore
+
         self.variables = variables
         self.purpose = purpose
 
     @cached_property
-    def pre_processors(self) -> List[Processor]:
+    def pre_processors(self) -> list[Processor]:
         """Return pre-processors."""
 
         processors = []
@@ -107,7 +113,7 @@ class Input(ABC):
             return f"{self.__class__.__name__}({self.purpose})"
 
     @abstractmethod
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state dictionary.
 
         Parameters
@@ -123,7 +129,7 @@ class Input(ABC):
         pass
 
     @abstractmethod
-    def load_forcings_state(self, *, dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load forcings (constant and dynamic).
 
         Parameters
@@ -140,7 +146,7 @@ class Input(ABC):
         """
         pass
 
-    def input_variables(self) -> List[str]:
+    def input_variables(self) -> list[str]:
         """Return the list of input variables.
 
         Returns
@@ -149,6 +155,27 @@ class Input(ABC):
             The list of input variables.
         """
         return list(self.checkpoint.variable_to_input_tensor_index.keys())
+
+    def patch_data_request(self, request: Any) -> Any:
+        """Patch the data request.
+
+        Uses both the context and input preprocessors.
+
+        Parameters
+        ----------
+        request : Any
+            The data request.
+
+        Returns
+        -------
+        Any
+            The patched data request.
+        """
+        request = self.context.patch_data_request(request)
+        for p in self.pre_processors:
+            request = p.patch_data_request(request)
+
+        return request
 
     def set_private_attributes(self, state: State, value: Any) -> None:
         """Provide a way to a subclass to set private attributes in the state

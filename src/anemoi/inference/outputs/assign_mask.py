@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-from typing import List
-from typing import Optional
+import warnings
 
 import numpy as np
 
@@ -60,12 +59,17 @@ class AssignMask(ForwardOutput):
         output: Configuration,
         mask: str,
         fill_value: float = np.nan,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ) -> None:
         super().__init__(
             context, output, post_processors, output_frequency=output_frequency, write_initial_state=write_initial_state
+        )
+        warnings.warn(
+            "The AssignMask output is deprecated and will be removed in a future release. "
+            "Use the `assign_mask` post-processor instead.",
+            DeprecationWarning,
         )
 
         if mask not in self.checkpoint.supporting_arrays:
