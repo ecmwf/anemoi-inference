@@ -42,7 +42,13 @@ def test_patch(initial, patch, expected):
 
 
 def test_constant_fields_patch():
-    metadata = Metadata(mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False))
+    model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
+    metadata = Metadata(model_metadata)
+
     fields = ["z", "sdor", "slor", "lsm"]
     metadata.patch({"dataset": {"constant_fields": fields}})
     assert metadata._metadata["dataset"]["constant_fields"] == fields
+
+    # check that the rest of the metadata is still the same after patching
+    metadata._metadata["dataset"].pop("constant_fields")
+    assert model_metadata == metadata._metadata
