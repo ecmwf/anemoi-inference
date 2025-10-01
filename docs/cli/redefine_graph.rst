@@ -32,13 +32,13 @@ Subcommands allow for a graph to be made from a lat/lon coordinate file, boundin
       -h, --help            show this help message and exit
       -g GRAPH, --graph GRAPH
                             Path to graph file to use
-      -y GRAPH_CONFIG, --graph_config GRAPH_CONFIG
+      -y GRAPH_CONFIG, --graph-config GRAPH_CONFIG
                             Path to graph config to use
       -ll LATLON, --latlon LATLON
                             Path to coordinate npy, should be of shape (N, 2) with latitudes and longitudes.
       -c COORDS COORDS COORDS COORDS COORDS, --coords COORDS COORDS COORDS COORDS COORDS
                             Coordinates, (North West South East Resolution).
-      -gr GLOBAL_RESOLUTION, --global_resolution GLOBAL_RESOLUTION
+      -gr GLOBAL_RESOLUTION, --global_-esolution GLOBAL_RESOLUTION
                             Global grid resolution required with --coords, (e.g. n320, o96).
       --save-graph SAVE_GRAPH
                             Path to save the updated graph.
