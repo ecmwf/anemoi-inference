@@ -12,6 +12,7 @@ import logging
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 
 LOG = logging.getLogger(__name__)
 
@@ -77,15 +78,20 @@ def get_coordinates_from_file(latlon_path: Path) -> tuple["np.ndarray", "np.ndar
     return latlon[:, 0], latlon[:, 1]
 
 
-COORDINATE = tuple[float, float, float, float, float]
+class Coordinate(NamedTuple):
+    north: float
+    west: float
+    south: float
+    east: float
+    resolution: float
 
 
-def get_coordinates_from_mars_request(coords: COORDINATE) -> tuple["np.ndarray", "np.ndarray"]:
+def get_coordinates_from_mars_request(coords: Coordinate) -> tuple["np.ndarray", "np.ndarray"]:
     """Get coordinates from MARS request parameters.
 
     Parameters
     ----------
-    coords : COORDINATE
+    coords : Coordinate
         Coordinates (North West South East Resolution)
 
     Returns
@@ -95,9 +101,9 @@ def get_coordinates_from_mars_request(coords: COORDINATE) -> tuple["np.ndarray",
     """
     import earthkit.data as ekd
 
-    area = [coords[0], coords[1], coords[2], coords[3]]
+    area = [coords.north, coords.west, coords.south, coords.east]
 
-    resolution = str(coords[4])
+    resolution = str(coords.resolution)
     if resolution.replace(".", "", 1).isdigit():
         resolution = f"{resolution}/{resolution}"
 
