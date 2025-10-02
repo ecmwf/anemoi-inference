@@ -203,7 +203,6 @@ class Runner(Context):
 
         self.constant_forcings_inputs = self.create_constant_forcings_inputs(input_state)
         self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
-        #self.dynamic_forcings_inputs = self.dynamic_forcings_inputs.append("cos_solar_zenith_angle")
         self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
 
         LOG.info("-" * 80)
@@ -657,24 +656,24 @@ class Runner(Context):
                 ):
                     y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
-                # Detach tensor and squeeze (should we detach here?)
-                with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                    #copy from device into pinned memory on the host
-                    if y_pred_cpu is None:
-                        y_pred_cpu = torch.zeros_like(y_pred, device="cpu", pin_memory=True)
-                    y_pred_cpu.copy_(y_pred, non_blocking=True)
 
-                    if self.sharded_output:
-                        field_start, field_end = self.determine_global_vars(self.model_comm_group, y_pred_cpu.shape[-1])
-                        output_shard_torch_cpu = y_pred_cpu[..., field_start:field_end]
-                    
-                    output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
-                    if self.sharded_output:
-                        output_shard = np.squeeze(output_shard_torch_cpu.numpy())  # shape: (values, variables)
-                    
+                if y_pred_cpu is None:
+                    y_pred_cpu = torch.empty(y_pred.shape, pin_memory=True)
+                y_pred_cpu.copy_(y_pred) 
+               
+                if self.sharded_output:
+                    field_start, field_end = self.determine_global_vars(self.model_comm_group, y_pred_cpu.shape[-1])
+                    output_shard_torch = y_pred_cpu[..., field_start:field_end]
+               
+                output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
+                #LOG.info(output_full[0:4,0:4])
+                #LOG.info((output_full[0:4,0:4]).flatten())
+                #LOG.info(output_full[0:4,0])
+                if self.sharded_output:
+                    output_shard = np.squeeze(output_shard_torch.numpy())  # shape: (values, variables)
 
                 # Update state
-                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                with ProfilingLabel("Updating state (GPU)", self.use_profiler):
                     for i in range(output_full.shape[1]):
                         new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
                         
@@ -711,7 +710,9 @@ class Runner(Context):
                 #dont do anythign here, in pred_step return y_pred and index
                 #add index to a new key to new_state
                 #then in parallel runner, overload forecast and iterare over supr()
-                with Timer("Writing output..."):
+                with (Timer("Writing output..."),
+                      ProfilingLabel("Writing output", self.use_profiler)
+                     ):
                     if self.sharded_output:
                         yield new_state_shard
                     else:
@@ -731,23 +732,25 @@ class Runner(Context):
 
                     del y_pred  # Recover memory
 
-                input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                    input_tensor_torch, new_state, next_date, check
-                )
-                input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                    input_tensor_torch, new_state, next_date, check
-                )
+                with  ProfilingLabel("Add dynamic forcings to input tensor", self.use_profiler):
+                    input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                        input_tensor_torch, new_state, next_date, check
+                    )
+                with  ProfilingLabel("Add boundary forcings to input tensor", self.use_profiler):
+                    input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                        input_tensor_torch, new_state, next_date, check
+                    )
+                with ProfilingLabel("Checking missing variables", self.use_profiler):
+                    if not check.all():
+                        # Not all variables have been updated
+                        missing = []
+                        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                        mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                        for i in range(check.shape[-1]):
+                            if not check[i]:
+                                missing.append(mapping[i])
 
-                if not check.all():
-                    # Not all variables have been updated
-                    missing = []
-                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                    for i in range(check.shape[-1]):
-                        if not check[i]:
-                            missing.append(mapping[i])
-
-                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                        raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
@@ -830,26 +833,33 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
+            with Timer(f"Loading {source} dynamic forcing"):
 
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+                #forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+                #forcings = torch.from_numpy(forcings).to(self.device)
+                #Add synthetic data here since the real function is too slow at 4km scale
+                forcings = torch.zeros(5,1, 26306560, device=self.device)
+            with Timer(f"Adding {source} dynamic forcing to input tensor"):
 
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+                # Drop the dates dimension (squeeze axis 1)
+                forcings = forcings.squeeze(dim=1)  # shape: (variables, values)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+                # Add two leading dimensions and swap last two dimensions
+                forcings = forcings.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, variables, values)
+                forcings = forcings.transpose(-2, -1)  # shape: (1, 1, values, variables)
 
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+                input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
-            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
+                assert not check[source.mask].any()  # Make sure we are not overwriting some values
+                check[source.mask] = True
 
-            assert not check[source.mask].any()  # Make sure we are not overwriting some values
-            check[source.mask] = True
-
-            for n in source.mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
-
-            if self.trace:
                 for n in source.mask:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
+                    self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+
+                if self.trace:
+                    for n in source.mask:
+                        self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
+
 
         return input_tensor_torch
 
@@ -887,7 +897,7 @@ class Runner(Context):
             total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
             input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
-        # TO DO: add some consistency checks as above
+            # TO DO: add some consistency checks as above
         return input_tensor_torch
 
     def validate_input_state(self, input_state: State) -> State:
