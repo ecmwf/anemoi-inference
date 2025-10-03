@@ -8,13 +8,14 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
+from pathlib import Path
 
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
+from anemoi.inference.utils.templating import render_template
 
 from ..decorators import main_argument
 from ..output import Output
@@ -31,7 +32,7 @@ class RawOutput(Output):
     def __init__(
         self,
         context: Context,
-        path: str,
+        path: Path,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
         variables: list[str] | None = None,
@@ -39,14 +40,15 @@ class RawOutput(Output):
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
     ) -> None:
-        """Initialize the RawOutput class.
+        """Initialise the RawOutput class.
 
         Parameters
         ----------
         context : dict
             The context.
-        path : str
+        path : Path
             The path to save the raw output.
+            If the parent directory does not exist, it will be created.
         template : str, optional
             The template for filenames, by default "{date}.npz".
         strftime : str, optional
@@ -65,6 +67,9 @@ class RawOutput(Output):
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
         self.path = path
         self.template = template
         self.strftime = strftime
@@ -87,9 +92,8 @@ class RawOutput(Output):
         state : State
             The state to be written.
         """
-        os.makedirs(self.path, exist_ok=True)
         date = state["date"].strftime(self.strftime)
-        fn_state = f"{self.path}/{self.template.format(date=date)}"
+        fn_state = f"{self.path}/{render_template(self.template, {'date': date})}"
         restate = {f"field_{key}": val for key, val in state["fields"].items() if not self.skip_variable(key)}
 
         for key in ["date"]:

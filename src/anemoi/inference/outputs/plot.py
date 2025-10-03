@@ -8,7 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
+from pathlib import Path
 
 import numpy as np
 from anemoi.utils.grib import units
@@ -18,6 +18,7 @@ from anemoi.inference.decorators import main_argument
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
+from anemoi.inference.utils.templating import render_template
 
 from ..output import Output
 from . import output_registry
@@ -42,49 +43,50 @@ def fix(lons: FloatArray) -> FloatArray:
 
 
 @output_registry.register("plot")
-@main_argument("path")
+@main_argument("dir")
 class PlotOutput(Output):
     """Use `earthkit-plots` to plot the outputs."""
 
     def __init__(
         self,
         context: Context,
-        path: str,
+        dir: Path,
         *,
         variables: list[str] | None = None,
         mode: str = "subplots",
         domain: str | list[str] | None = None,
-        strftime: str = "%Y%m%d%H%M%S",
         template: str = "plot_{date}.{format}",
         format: str = "png",
-        missing_value: float | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         **kwargs,
     ) -> None:
-        """Initialize the PlotOutput.
+        """Initialise the PlotOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
-            The path to save the plots.
+        dir : Path
+            The directory to save the plots.
+            If the directory does not exist, it will be created.
         variables : list, optional
             The list of variables to plot, by default all.
         mode : str, optional
             The plotting mode, can be "subplots" or "overlay", by default "subplots".
         domain : str | list[str] | None, optional
             The domain/s to plot, by default None.
-        strftime : str, optional
-            The date format string, by default "%Y%m%d%H%M%S".
         template : str, optional
             The template for plot filenames, by default "plot_{date}.{format}".
+            Has access to the following variables:
+            - date: the date of the forecast step
+            - basetime: the base time of the forecast
+            - domain: the domain being plotted
+            - format: the format of the plot
+            - variables: the variables being plotted (joined by underscores)
         format : str, optional
             The format of the plot, by default "png".
-        missing_value : float, optional
-            The value to use for missing data, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional
@@ -100,12 +102,11 @@ class PlotOutput(Output):
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
-        self.path = path
+
+        self.dir = Path(dir)
         self.format = format
         self.variables = variables
-        self.strftime = strftime
         self.template = template
-        self.missing_value = missing_value
         self.domain = domain
         self.mode = mode
         self.kwargs = kwargs
@@ -121,8 +122,6 @@ class PlotOutput(Output):
         import earthkit.data as ekd
         import earthkit.plots as ekp
 
-        os.makedirs(self.path, exist_ok=True)
-
         longitudes = fix(state["longitudes"])
         latitudes = state["latitudes"]
         date = state["date"]
@@ -134,7 +133,7 @@ class PlotOutput(Output):
             if self.skip_variable(name):
                 continue
 
-            variable = self.context.checkpoint.typed_variables[name]
+            variable = self.typed_variables[name]
             param = variable.param
 
             plotting_fields.append(
@@ -155,8 +154,18 @@ class PlotOutput(Output):
         fig = ekp.quickplot(
             ekd.FieldList.from_fields((plotting_fields)), mode=self.mode, domain=self.domain, **self.kwargs
         )
-        fname = self.template.format(date=date, format=self.format)
-        fname = os.path.join(self.path, fname)
+        fname = render_template(
+            self.template,
+            {
+                "date": date,
+                "basetime": basetime,
+                "domain": self.domain,
+                "format": self.format,
+                "variables": "_".join(self.variables or []),
+            },
+        )
+        self.dir.mkdir(parents=True, exist_ok=True)
+        fname = self.dir / fname
 
         fig.save(fname)
         del fig

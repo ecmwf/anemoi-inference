@@ -11,6 +11,7 @@ import datetime
 import logging
 from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 from typing import Any
 from typing import Literal
 from typing import Union
@@ -112,11 +113,11 @@ class PrinterOutput(Output):
         self,
         context: Context,
         post_processors: list[ProcessorConfig] | None = None,
-        path: str | None = None,
+        path: Path | None = None,
         variables: ListOrAll | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the PrinterOutput.
+        """Initialise the PrinterOutput.
 
         Parameters
         ----------
@@ -124,8 +125,9 @@ class PrinterOutput(Output):
             The context.
         post_processors : Optional[List[ProcessorConfig]] = None
             Post-processors to apply to the input
-        path : str, optional
+        path : Path, optional
             The path to save the printed output, by default None.
+            If the parent directory does not exist, it will be created.
         variables : list, optional
             The list of variables to print, by default None.
         **kwargs : Any
@@ -137,6 +139,9 @@ class PrinterOutput(Output):
         self.variables = variables
 
         if path is not None:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 
