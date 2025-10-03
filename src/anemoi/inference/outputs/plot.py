@@ -93,6 +93,8 @@ class PlotOutput(Output):
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
+        **kwargs : Any
+            Additional keyword arguments to pass to `earthkit.plots.quickplot`.
         """
 
         super().__init__(
@@ -152,7 +154,7 @@ class PlotOutput(Output):
             )
 
         fig = ekp.quickplot(
-            ekd.FieldList.from_fields((plotting_fields)), mode=self.mode, domain=self.domain, **self.kwargs
+            ekd.FieldList.from_fields(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs
         )
         fname = render_template(
             self.template,

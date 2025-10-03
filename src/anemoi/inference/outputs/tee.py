@@ -15,7 +15,6 @@ from typing import Any
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
-from ..decorators import main_argument
 from ..output import Output
 from . import create_output
 from . import output_registry
@@ -24,7 +23,6 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("tee")
-@main_argument("outputs")
 class TeeOutput(Output):
     """TeeOutput class to manage multiple outputs."""
 
@@ -55,8 +53,9 @@ class TeeOutput(Output):
 
         if outputs is None:
             outputs = args
+        else:
+            outputs = [*args, *outputs]
 
-        assert isinstance(outputs, (list, tuple)), outputs
         self.outputs = [create_output(context, output) for output in outputs]
 
     # We override write_initial_state and write_state
