@@ -11,6 +11,7 @@ import datetime
 import logging
 from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 from typing import Any
 from typing import Literal
 from typing import Union
@@ -18,7 +19,6 @@ from typing import Union
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -111,32 +111,40 @@ class PrinterOutput(Output):
     def __init__(
         self,
         context: Context,
-        post_processors: list[ProcessorConfig] | None = None,
-        path: str | None = None,
+        path: Path | None = None,
         variables: ListOrAll | None = None,
+        max_lines: int = 4,
         **kwargs: Any,
     ) -> None:
-        """Initialize the PrinterOutput.
+        """Initialise the PrinterOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        post_processors : Optional[List[ProcessorConfig]] = None
-            Post-processors to apply to the input
-        path : str, optional
+        path : Path, optional
             The path to save the printed output, by default None.
+            If the parent directory does not exist, it will be created.
         variables : list, optional
             The list of variables to print, by default None.
+        max_lines : int, optional
+            The maximum number of lines to print, by default 4.
+            If set to 0, all variables will be printed.
         **kwargs : Any
             Additional keyword arguments.
         """
 
-        super().__init__(context, variables=variables, post_processors=post_processors)
+        super().__init__(context, variables=variables, **kwargs)
         self.print = print
         self.variables = variables
+        self.max_lines = max_lines
+
+        self.f = None
 
         if path is not None:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 
@@ -148,4 +156,9 @@ class PrinterOutput(Output):
         state : State
             The state dictionary.
         """
-        print_state(state, print=self.print, variables=self.variables)
+        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
+
+    def close(self) -> None:
+        if self.f is not None:
+            self.f.close()
+        return super().close()

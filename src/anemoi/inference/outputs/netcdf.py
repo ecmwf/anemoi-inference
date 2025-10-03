@@ -10,6 +10,7 @@
 import logging
 import os
 import threading
+from pathlib import Path
 
 import numpy as np
 
@@ -36,7 +37,7 @@ class NetCDFOutput(Output):
     def __init__(
         self,
         context: Context,
-        path: str,
+        path: Path,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -44,14 +45,15 @@ class NetCDFOutput(Output):
         float_size: str = "f4",
         missing_value: float | None = np.nan,
     ) -> None:
-        """Initialize the NetCDF output object.
+        """Initialise the NetCDF output object.
 
         Parameters
         ----------
         context : dict
             The context dictionary.
-        path : str
-            The path to save the NetCDF file.
+        path : Path
+            The path to save the NetCDF file to.
+            If the parent directory does not exist, it will be created.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional
@@ -74,7 +76,7 @@ class NetCDFOutput(Output):
 
         from netCDF4 import Dataset
 
-        self.path = path
+        self.path = Path(path)
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
@@ -101,6 +103,7 @@ class NetCDFOutput(Output):
             if self.ncfile is not None:
                 return
 
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
             os.remove(self.path)

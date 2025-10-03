@@ -51,7 +51,7 @@ class TemplateManager:
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
-    def template(self, name: str, state: State, typed_variables: list[Any]) -> ekd.Field | None:
+    def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
 
         Parameters
@@ -60,8 +60,8 @@ class TemplateManager:
             The name of the template.
         state : State
             The state object containing template information.
-        typed_variables : list of Any
-            The list of typed variables.
+        typed_variables : dict[str, Any]
+            The dictionary of typed variables.
 
         Returns
         -------
@@ -78,7 +78,7 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: State, typed_variables: list[Any]) -> ekd.Field | None:
+    def load_template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
         """Load the template for a given name and state.
 
         Parameters
@@ -87,8 +87,8 @@ class TemplateManager:
             The name of the template.
         state : State
             The state object containing template information.
-        typed_variables : list of Any
-            The list of typed variables.
+        typed_variables : dict[str, Any]
+            The dictionary of typed variables.
 
         Returns
         -------
