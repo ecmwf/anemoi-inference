@@ -95,6 +95,16 @@ class Metadata(PatchMixin, LegacyMixin):
         self._supporting_arrays = supporting_arrays
         self._variables_categories = None
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the Metadata object to a dictionary.
+
+        Returns
+        -------
+        dict
+            A copy of the metadata dictionary.
+        """
+        return dict(self._metadata).copy()
+
     @property
     def _indices(self) -> DotDict:
         """Return the data indices."""

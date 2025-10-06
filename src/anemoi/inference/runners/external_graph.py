@@ -238,7 +238,8 @@ class ExternalGraphRunner(DefaultRunner):
     def model(self):
         # load the model from the checkpoint
         with self.on_device("cpu"):
-            model = update_checkpoint(super().model, self.checkpoint._metadata, self.graph)
+            metadata = self.checkpoint._metadata.to_dict()
+            model = update_checkpoint(super().model, metadata, self.graph)
 
         LOG.info("Successfully built model with external graph and reassigned model weights!")
 
