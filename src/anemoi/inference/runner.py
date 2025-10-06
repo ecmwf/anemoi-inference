@@ -803,7 +803,13 @@ class Runner(Context):
                         self.model, input_tensor_torch, fcstep=s, input_date=date - step
                     )
 
-                output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
+                # Detach tensor and squeeze (should we detach here?)
+                with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                    output = np.squeeze(
+                        y_pred.cpu().numpy()
+                    )  # , axis=(0, 1))  # shape: (values, variables)
+                    if output.ndim == 1:
+                        output = output[:, np.newaxis]
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
