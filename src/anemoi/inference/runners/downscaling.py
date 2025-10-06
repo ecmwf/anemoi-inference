@@ -46,14 +46,29 @@ class DsMetadata(Metadata):
         # treat all high res outputs as diagnostics
         self._metadata.data_indices.model.output.diagnostic = self._indices.model.output.full
         self._metadata.data_indices.model.output.prognostic = []
-
+    
     @property
     def low_res_input_variables(self):
-        return self._metadata.dataset.specific.zip[0]["variables"]
+        spec = self._metadata.dataset.specific
+        if "zip" in spec:
+            return spec.zip[0]["variables"]
+        elif spec.get("action") == "zip":
+            return spec["variables"]
+        else:
+            raise ValueError(f"Unsupported specific structure: {spec}")
+
 
     @property
     def high_res_output_variables(self):
-        return self._metadata.dataset.specific.zip[2]["variables"]
+        spec = self._metadata.dataset.specific
+        if "zip" in spec:
+            # old format
+            return spec.zip[2]["variables"]
+        elif spec.get("action") == "zip":
+            # new format
+            return spec["datasets"][2]["variables"]
+        else:
+            raise ValueError(f"Unsupported specific structure: {spec}")
 
     # @cached_property
     # def grid(self):
@@ -140,10 +155,24 @@ class DownscalingRunner(DefaultRunner):
             var for var in self.extra_config.high_res_input if var not in self.extra_config.constant_high_res_forcings
         ]
         return ComputedForcings(self, computed_forcings, [])
-
+    
     @cached_property
     def template(self):
-        return ekd.from_source("file", self.extra_config.output_template)[0]
+        # TODO: Add a check so that it works for grib and netcdf.
+        src = ekd.from_source("file", self.extra_config.output_template)
+        
+        # GRIB: still works as before
+        #if hasattr(src, "metadata") and len(src) > 0:
+        #    return src[0]
+
+        import xarray as xr
+        ds = xr.open_dataset(self.extra_config.output_template)
+
+        def grid_points():
+            return ds["latitude"].values, ds["longitude"].values
+
+        # return a bare object with just grid_points
+        return type("TemplateShim", (), {"grid_points": staticmethod(grid_points)})()
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
@@ -190,7 +219,10 @@ class DownscalingRunner(DefaultRunner):
         extra_args = self.extra_config.get("extra_args", {})
 
         residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy(), dim=(0, 1))
+        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy(), dim=(0, 1)) #, axis=(0, 1)) #dim=(0, 1))
+        #if residual_output_numpy.ndim == 1:
+        #    residual_output_numpy = residual_output_numpy[:, np.newaxis]
+
 
         self._print_output_tensor("Residual output tensor", residual_output_numpy)
 
