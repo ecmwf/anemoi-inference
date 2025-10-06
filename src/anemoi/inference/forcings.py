@@ -149,6 +149,14 @@ class ComputedForcings(Forcings):
 
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
+            
+        # Handle zero computed forcings
+        if len(self.variables) == 0:
+            # determine number of grid points from the provided state
+            # current_state["latitudes"] is an array of length n_points
+            n_points = int(np.asarray(current_state["latitudes"]).size)
+            # return empty array with shape (variables=0, dates, points)
+            return np.zeros((0, len(dates), n_points), dtype=np.float32)
 
         source = UnstructuredGridFieldList.from_values(
             latitudes=current_state["latitudes"],
