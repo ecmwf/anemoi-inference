@@ -599,7 +599,9 @@ class Runner(Context):
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                output = np.squeeze(y_pred.cpu().numpy()) #, axis=(0, 1))  # shape: (values, variables)
+                if output.ndim == 1:
+                    output = output[:, np.newaxis]
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):

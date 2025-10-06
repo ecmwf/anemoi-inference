@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from argparse import ArgumentParser
 from argparse import Namespace
+import yaml
 
 from ..config.run import RunConfiguration
 from ..runners import create_runner
@@ -37,7 +38,7 @@ class RunCmd(Command):
             help="Path to config file. Can be omitted to pass config with overrides and defaults.",
         )
         command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
-
+        
     def run(self, args: Namespace) -> None:
         """Run the inference command.
 
@@ -49,12 +50,12 @@ class RunCmd(Command):
         if "=" in args.config:
             args.overrides.append(args.config)
             args.config = {}
+        
+        with open(args.config) as f:
+            cfg_dict = yaml.safe_load(f)
 
-        config = RunConfiguration.load(
-            args.config,
-            args.overrides,
-            defaults=args.defaults,
-        )
+        # Bypass Pydantic validation
+        config = RunConfiguration.construct(**cfg_dict)
 
         runner = create_runner(config)
         runner.execute()
