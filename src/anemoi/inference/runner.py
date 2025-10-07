@@ -375,6 +375,7 @@ class Runner(Context):
         dates = [date + h for h in self.checkpoint.lagged]
 
         # For output object. Should be moved elsewhere
+        self.reference_date = dates[-1]
         self.initial_dates = dates
 
         # TODO: Check for user provided forcings
@@ -541,6 +542,7 @@ class Runner(Context):
 
         for state in output:
             if return_numpy:
+                # Convert fields to numpy arrays
                 for name, field in state["fields"].items():
                     if isinstance(field, torch.Tensor):
                         state["fields"][name] = field.detach().contiguous().cpu().numpy().copy()
@@ -698,7 +700,7 @@ class Runner(Context):
 
             # The variable `check` is used to keep track of which variables have been updated
             # In the input tensor. `reset` is used to reset `check` to False except
-            # when the values are constant in time
+            # when the values are of the constant in time variables
 
             reset = np.full((input_tensor_torch.shape[-1],), False)
             variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
@@ -721,135 +723,99 @@ class Runner(Context):
                 new_state["previous_step"] = new_state.get("step")
                 new_state["step"] = step
 
-            if self.trace:
-                self.trace.write_input_tensor(
-                    date,
-                    s,
-                    input_tensor_torch.cpu().numpy(),
-                    variable_to_input_tensor_index,
-                    self.checkpoint.timestep,
-                )
-
-            # To make sure all processes start the step at the same time
-            if dist.is_initialized() and s == 0:
-                dist.barrier(dist.group.WORLD)
-
-            # Choose AMP/nullcontext depending on precision
-            amp_ctx = (
-                torch.autocast(device_type=self.device.type, dtype=self.autocast)
-                if self.autocast is not torch.float32
-                else nullcontext()
-            )
-
-            # Predict next state of atmosphere
-            with (
-                torch.inference_mode(),
-                amp_ctx,
-                ProfilingLabel("Predict step", self.use_profiler),
-                Timer(title),
-            ):
-                y_pred = self.predict_step(
-                    self.model,
-                    input_tensor_torch,
-                    fcstep=s,
-                    step=step,
-                    date=date,
-                    model_comm_group=model_comm_group,
-                )
-
-                output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
-
-                # Update state
-                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(output.shape[1]):
-                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
-
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_output_tensor("Output tensor", output.cpu().numpy())
-
                 if self.trace:
-                    self.trace.write_output_tensor(
+                    self.trace.write_input_tensor(
                         date,
                         s,
-                        output.cpu().numpy(),
-                        self.checkpoint.output_tensor_index_to_variable,
+                        input_tensor_torch.cpu().numpy(),
+                        variable_to_input_tensor_index,
                         self.checkpoint.timestep,
                     )
 
-                yield new_state
+                # To make sure all processes start the step at the same time
+                if dist.is_initialized() and s == 0:
+                    dist.barrier(dist.group.WORLD)
 
-                # No need to prepare next input tensor if we are at the last step
-                if is_last_step:
-                    break  # noqa: F701
+                # Choose AMP/nullcontext depending on precision
+                amp_ctx = (
+                    torch.autocast(device_type=self.device.type, dtype=self.autocast)
+                    if self.autocast is not torch.float32
+                    else nullcontext()
+                )
 
-                self.output_state_hook(new_state)
+                # Predict next state of atmosphere
+                with (
+                    torch.inference_mode(),
+                    amp_ctx,
+                    ProfilingLabel("Predict step", self.use_profiler),
+                    Timer(title),
+                ):
+                    y_pred = self.predict_step(
+                        self.model,
+                        input_tensor_torch,
+                        fcstep=s,
+                        step=step,
+                        date=date,
+                        model_comm_group=model_comm_group,
+                    )
 
-                # Update  tensor for next iteration
-                with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                    check[:] = reset
+                    output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
+
+                    # Update state
+                    with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                        for i in range(output.shape[1]):
+                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+
+                    if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                        self._print_output_tensor("Output tensor", output.cpu().numpy())
+
                     if self.trace:
-                        self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+                        self.trace.write_output_tensor(
+                            date,
+                            s,
+                            output.cpu().numpy(),
+                            self.checkpoint.output_tensor_index_to_variable,
+                            self.checkpoint.timestep,
+                        )
 
-                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                    yield new_state
 
-                    del y_pred  # Recover memory
+                    # No need to prepare next input tensor if we are at the last step
+                    if is_last_step:
+                        break
 
-                    input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                        input_tensor_torch, new_state, next_date, check
-                    )
-                    input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                        input_tensor_torch, new_state, next_date, check
-                    )
+                    self.output_state_hook(new_state)
 
-                if not check.all():
-                    # Not all variables have been updated
-                    missing = []
-                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                    for i in range(check.shape[-1]):
-                        if not check[i]:
-                            missing.append(mapping[i])
+                    # Update  tensor for next iteration
+                    with ProfilingLabel("Update tensor for next step", self.use_profiler):
+                        check[:] = reset
+                        if self.trace:
+                            self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
-                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                        input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_input_tensor("Next input tensor", input_tensor_torch)
+                        del y_pred  # Recover memory
 
-    def _filter_out_constant_prognostics(
-        self, pmask_in: "torch.Tensor", pmask_out: "torch.Tensor"
-    ) -> tuple["torch.Tensor", "torch.Tensor", list[str]]:
-        """Best-effort runtime guard: drop any constant-in-time vars from prognostic masks to avoid overwrites.
-        Returns (pmask_in_filtered, pmask_out_filtered, dropped_names).
-        """
-        idx_in_to_name = {idx: name for name, idx in self.checkpoint.variable_to_input_tensor_index.items()}
-        idx_out_to_name = self.checkpoint.output_tensor_index_to_variable
-        typed = self.checkpoint.typed_variables
+                        input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                            input_tensor_torch, new_state, next_date, check
+                        )
+                        input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                            input_tensor_torch, new_state, next_date, check
+                        )
 
-        in_idxs = pmask_in.detach().cpu().tolist()
-        out_idxs = pmask_out.detach().cpu().tolist()
-        keep_in, keep_out, dropped = [], [], []
-        for i_idx, o_idx in zip(in_idxs, out_idxs):
-            name = idx_in_to_name.get(i_idx, None)
-            if name is None:
-                name = idx_out_to_name.get(o_idx, f"<unknown_{i_idx}_{o_idx}>")
-            if name in typed and typed[name].is_constant_in_time:
-                dropped.append(name)
-            else:
-                keep_in.append(i_idx)
-                keep_out.append(o_idx)
+                    if not check.all():
+                        # Not all variables have been updated
+                        missing = []
+                        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                        mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                        for i in range(check.shape[-1]):
+                            if not check[i]:
+                                missing.append(mapping[i])
 
-        if dropped:
-            LOG.warning(
-                "Filtering constants from prognostics at runtime: %s",
-                sorted(set(dropped)),
-            )
+                        raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
-        device_in = pmask_in.device
-        device_out = pmask_out.device
-        return (
-            torch.as_tensor(keep_in, device=device_in, dtype=torch.long),
-            torch.as_tensor(keep_out, device=device_out, dtype=torch.long),
-        )
+                    if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                        self._print_input_tensor("Next input tensor", input_tensor_torch)
 
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
@@ -883,8 +849,6 @@ class Runner(Context):
             device=y_pred.device,
             dtype=torch.long,
         )
-
-        pmask_in, pmask_out = self._filter_out_constant_prognostics(pmask_in, pmask_out)
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
 

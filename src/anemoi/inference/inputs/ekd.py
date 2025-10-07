@@ -111,8 +111,6 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
@@ -227,21 +225,6 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        fields = self.pre_process(fields)
-
-        if len(fields) == 0:
-            # return dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-            raise ValueError("No input fields provided")
-
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=dict())
-
-        state_fields = state["fields"]
-
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
-
         if latitudes is None and longitudes is None:
             try:
                 latitudes, longitudes = fields[0].grid_points()
@@ -278,6 +261,8 @@ class EkdInput(Input):
 
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
+
         check = defaultdict(set)
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size

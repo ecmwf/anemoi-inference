@@ -47,8 +47,6 @@ class GribFileInput(GribInput):
             The context in which the input is used.
         path : str
             The path to the GRIB file.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any

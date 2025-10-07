@@ -22,13 +22,12 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.device import get_available_device
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
-
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
 from . import runner_registry
-
+from itertools import chain
 LOG = logging.getLogger(__name__)
 
 
@@ -73,7 +72,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         from anemoi.models.models import AnemoiModelEncProcDecInterpolator
 
         super().__init__(config)
-        self.from_analysis = True if hasattr(config.input, "test") else False
+        self.from_analysis = "use_original_paths" in [k for k in chain.from_iterable(config.input.values())]
+        self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
         self.device = get_available_device()
         assert (
@@ -125,6 +125,30 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
 
+    def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
+        prognostic_input = self.create_prognostics_input()
+        LOG.info("📥 Prognostic input: %s", prognostic_input)
+        prognostic_state = prognostic_input.create_input_state(date=date, **kwargs)
+        self._check_state(prognostic_state, "prognostics")
+
+        constants_input = self.create_constant_coupled_forcings_input()
+        LOG.info("📥 Constant forcings input: %s", constants_input)
+        constants_state = constants_input.create_input_state(date=date, **kwargs)
+        self._check_state(constants_state, "constant_forcings")
+
+        forcings_input = self.create_dynamic_forcings_input()
+        LOG.info("📥 Dynamic forcings input: %s", forcings_input)
+        forcings_state = forcings_input.create_input_state(date=date, **kwargs)
+        self._check_state(forcings_state, "dynamic_forcings")
+        input_state = self._combine_states(
+            prognostic_state,
+            constants_state,
+            forcings_state,
+        )
+        # This hook is needed for the coupled runner
+        self.input_state_hook(constants_state)
+        return input_state
+
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
         if self.config.description is not None:
@@ -136,9 +160,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.interpolation_window = get_interpolation_window(
             self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
         )
-        # Not really timestep but the size of the interpolation window, not sure if this is used
         self.time_step = self.interpolation_window
-        input = self.create_input()
         output = self.create_output()
 
         post_processors = self.post_processors
@@ -149,24 +171,23 @@ class TimeInterpolatorRunner(DefaultRunner):
         num_windows = int(lead_time / self.interpolation_window)
         if lead_time % self.interpolation_window != to_timedelta(0):
             LOG.warning(
-                f"Lead time {lead_time} is not a multiple of interpolation window {self.interpolation_window}. "
-                f"Will interpolate for {num_windows * self.interpolation_window}"
+                "Lead time %s is not a multiple of interpolation window %s. Will interpolate for %s",
+                lead_time, self.interpolation_window, num_windows * self.interpolation_window
             )
 
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.interpolation_window
 
-            LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
+            LOG.info("Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date)
 
             # Create input state for this window
             if self.from_analysis:
-                input_state = input.create_input_state(date=window_start_date)
+                input_state = self.create_input_state(date=window_start_date)
             else:
-                input_state = input.create_input_state(
+                input_state = self.create_input_state(
                     date=window_start_date, ref_date_index=0
                 )  # for interpolator, the first date is present and the last is future. For AR models with multiple input states, the last date is the current date. This is why the distinction is made here.
-            self.input_state_hook(input_state)
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
