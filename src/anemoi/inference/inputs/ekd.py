@@ -287,7 +287,6 @@ class EkdInput(Input):
                 LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
                 raise
 
-            state["fields"] = state_fields
             if date_idx in check[name]:
                 LOG.error("Duplicate dates for %s: %s", name, date_idx)
                 LOG.error("Expected %s", list(date_to_index.keys()))
@@ -295,7 +294,7 @@ class EkdInput(Input):
                 raise ValueError(f"Duplicate dates for {name}")
 
             check[name].add(date_idx)
-
+        state["fields"] = state_fields
         for name, idx in check.items():
             if len(idx) != len(dates):
                 LOG.error("Missing dates for %s: %s", name, idx)
