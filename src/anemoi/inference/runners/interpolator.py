@@ -190,7 +190,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             else:
                 input_state = self.create_input_state(
                     date=window_start_date, ref_date_index=0
-                )  # for interpolator, the first date is present and the last is future. For AR models with multiple input states, the last date is the current date. This is why the distinction is made here.
+                )
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
