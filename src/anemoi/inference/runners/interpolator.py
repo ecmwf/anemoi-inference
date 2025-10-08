@@ -77,7 +77,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.from_analysis = "use_original_paths" in [k for k in chain.from_iterable(config.input.values())]
         self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
-        self.device = get_available_device()
         assert (
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
