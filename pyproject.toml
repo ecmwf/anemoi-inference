@@ -44,7 +44,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
-  "anemoi-utils[text,provenance]>=0.4.32",
+  "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
   "anytree",
   "deprecation",
@@ -61,7 +61,7 @@ dependencies = [
 
 optional-dependencies.all = [
   "anemoi-datasets",
-  "anemoi-inference[huggingface,tests,zarr,plot]",
+  "anemoi-inference[huggingface,plot,tests,zarr]",
   "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
