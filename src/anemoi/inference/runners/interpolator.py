@@ -10,6 +10,7 @@
 import datetime
 import logging
 from collections.abc import Generator
+from itertools import chain
 
 import numpy as np
 import torch
@@ -22,12 +23,13 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.device import get_available_device
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
+
 from ..forcings import ComputedForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
 from . import runner_registry
-from itertools import chain
+
 LOG = logging.getLogger(__name__)
 
 
@@ -170,14 +172,18 @@ class TimeInterpolatorRunner(DefaultRunner):
         if lead_time % self.interpolation_window != to_timedelta(0):
             LOG.warning(
                 "Lead time %s is not a multiple of interpolation window %s. Will interpolate for %s",
-                lead_time, self.interpolation_window, num_windows * self.interpolation_window
+                lead_time,
+                self.interpolation_window,
+                num_windows * self.interpolation_window,
             )
 
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.interpolation_window
 
-            LOG.info("Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date)
+            LOG.info(
+                "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
+            )
 
             # Create input state for this window
             if self.from_analysis:

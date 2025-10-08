@@ -13,9 +13,13 @@ from collections import defaultdict
 from collections.abc import Iterable
 
 import numpy as np
+
 from anemoi.inference.input import Input
-from anemoi.inference.inputs import create_input, input_registry
-from anemoi.inference.types import Date, ProcessorConfig, State
+from anemoi.inference.inputs import create_input
+from anemoi.inference.inputs import input_registry
+from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -133,9 +137,7 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            self.sources[src] = create_input(
-                context, cfg, variables=variables, purpose=purpose
-            )
+            self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
