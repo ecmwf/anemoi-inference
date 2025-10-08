@@ -349,7 +349,7 @@ class Runner(Context):
         dates = [date + h for h in self.checkpoint.lagged]
 
         # For output object. Should be moved elsewhere
-        self.reference_date = dates[-1]
+        self.reference_date = self.reference_date or date
         self.initial_dates = dates
 
         # TODO: Check for user provided forcings

@@ -54,7 +54,7 @@ class NoMissingValues(Processor):
             List of processed state with NaNs replaced by the mean value.
         """
         result = []
-        fields = state["fields"].copy()
+        fields = state["fields"]
         for field in tqdm.tqdm(fields):
             import numpy as np
 

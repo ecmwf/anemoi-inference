@@ -64,7 +64,7 @@ class ForwardTransformFilter(Processor):
         State
             The processed state.
         """
-        fields = state["fields"].copy()
+        fields = state["fields"]
         result = self.filter.forward(fields)
         state["fields"] = result
         return state
