@@ -800,7 +800,9 @@ class Runner(Context):
         if check[pmask_in_np].any():
             # Report which ones are conflicting
             conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
-            raise AssertionError(f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}")
+            raise AssertionError(
+                f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
+            )
 
         check[pmask_in_np] = True
 
