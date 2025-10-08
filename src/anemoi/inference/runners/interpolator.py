@@ -188,9 +188,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             if self.from_analysis:
                 input_state = self.create_input_state(date=window_start_date)
             else:
-                input_state = self.create_input_state(
-                    date=window_start_date, ref_date_index=0
-                )
+                input_state = self.create_input_state(date=window_start_date, ref_date_index=0)
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
