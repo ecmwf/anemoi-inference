@@ -519,7 +519,7 @@ class Runner(Context):
                 # Convert fields to numpy arrays
                 for name, field in state["fields"].items():
                     if isinstance(field, torch.Tensor):
-                        state["fields"][name] = field.detach().contiguous().cpu().numpy().copy()
+                        state["fields"][name] = field.detach().contiguous().cpu().numpy()
             yield state
 
     @cached_property
