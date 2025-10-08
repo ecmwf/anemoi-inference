@@ -603,6 +603,9 @@ class Runner(Context):
             #These will eventually become references to CPU pinned memory buffers
             #This is done to speed up the DtoH data transfers
             y_pred_cpu=None
+
+            self.dynamic_forcings_for_input_tensor=None # hack, dyanmic forcings take almost 3s per step at 4km. so cache and reuse them
+            self.input_state=None 
             
             new_state_shard=dict()
             #shallow copy input_state, except for the stuff we care about
@@ -648,13 +651,17 @@ class Runner(Context):
                         date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
                     )
 
+                if self.input_state is None:
+                    #always feed the initial state to rpevent accumulation of errors
+                    self.input_state=input_tensor_torch
+
                 # Predict next state of atmosphere
                 with (
                     torch.autocast(device_type=self.device, dtype=self.autocast),
                     ProfilingLabel("Predict step", self.use_profiler),
                     Timer(title),
                 ):
-                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                    y_pred = self.predict_step(self.model, self.input_state, fcstep=s, step=step, date=date)
 
 
                 if y_pred_cpu is None:
@@ -666,9 +673,6 @@ class Runner(Context):
                     output_shard_torch = y_pred_cpu[..., field_start:field_end]
                
                 output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
-                #LOG.info(output_full[0:4,0:4])
-                #LOG.info((output_full[0:4,0:4]).flatten())
-                #LOG.info(output_full[0:4,0])
                 if self.sharded_output:
                     output_shard = np.squeeze(output_shard_torch.numpy())  # shape: (values, variables)
 
@@ -834,11 +838,11 @@ class Runner(Context):
 
         for source in self.dynamic_forcings_inputs:
             with Timer(f"Loading {source} dynamic forcing"):
-
-                #forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
-                #forcings = torch.from_numpy(forcings).to(self.device)
-                #Add synthetic data here since the real function is too slow at 4km scale
-                forcings = torch.zeros(5,1, 26306560, device=self.device)
+                # WARNING this can take almost as long as a predict step at 4km (2s)
+                # please ensure you are not running with any dynamic forcings
+                # The distributed checjpoint should not have forcings
+                forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+                forcings = torch.from_numpy(forcings).to(self.device)
             with Timer(f"Adding {source} dynamic forcing to input tensor"):
 
                 # Drop the dates dimension (squeeze axis 1)
