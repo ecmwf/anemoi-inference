@@ -140,7 +140,7 @@ class Output(ABC):
         """
         #LOG.debug(f"Initialising writer {writer_id}...")
         #self.__init__(context=context)
-        #LOG.debug(f"Writer {writer_id} started and waiting for messages...")
+        LOG.info(f"Writer {writer_id} started and waiting for messages...")
         
         self.per_writer_init(writer_id)
         
@@ -148,24 +148,26 @@ class Output(ABC):
             try:
                 # Wait for message from main process
                 message = queue.get(timeout=1)  # 1 second timeout
-                #pp.pprint(f"writer {writer_id}: {message=}")
                 
                 if message == "TERMINATE":
                     LOG.debug(f"Writer {writer_id} received termination signal")
                     break
-                
+               
+                LOG.info(f"Writer {writer_id} about to write: {message['date']}") 
                 self.write_step(message)
-                LOG.debug(f"Writer {writer_id} finished processing: {message}")
+                LOG.info(f"Writer {writer_id} finished processing: {message['date']}")
                 
             except mp.queues.Empty:
                 # No message received, continue waiting
+                #LOG.info(f"Writer {writer_id} has an empty queue")
+                #break
                 continue
             except Exception as e:
                 print(traceback.format_exc())
                 LOG.error(f"Writer {writer_id} encountered error: {e}")
                 break
         
-        LOG.debug(f"Worker {writer_id} shutting down")
+        LOG.info(f"Worker {writer_id} shutting down")
         
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -229,11 +231,6 @@ class Output(ABC):
             #subset_of_fields = list(itertools.islice(state["fields"].items(), start_idx, end_idx))
             #[rank0]: IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed
             for field, values in subset_of_fields:
-                #print(f"Field: {field}")
-                #print(f"Values type: {type(values)}")
-                #print(f"Values shape: {values.shape if hasattr(values, 'shape') else 'No shape attr'}")
-                #print(f"Values: {values}")
-                #print("-" * 40)
                 chunk["fields"][field] = values #[-1]
             
             chunks.append(chunk)
@@ -292,8 +289,6 @@ class Output(ABC):
         """Terminate all writer processes gracefully."""
         if self.num_writers == 0:
             return
-        import pdb 
-        breakpoint()
         LOG.info("Terminating all worker processes...")
         
         # Send termination signal to all writers
@@ -350,11 +345,6 @@ class Output(ABC):
         """Close the output."""
         if self.num_writers > 0:
             self.stop_event.set()
-            for p in self.processes:
-                p.join(timeout=5)
-                if p.is_alive():
-                    p.terminate()
-                    p.join()
         pass
 
     @abstractmethod
