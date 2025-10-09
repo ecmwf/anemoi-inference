@@ -158,21 +158,20 @@ class DownscalingRunner(DefaultRunner):
     
     @cached_property
     def template(self):
-        # TODO: Add a check so that it works for grib and netcdf.
-        src = ekd.from_source("file", self.extra_config.output_template)
-        
-        # GRIB: still works as before
-        #if hasattr(src, "metadata") and len(src) > 0:
-        #    return src[0]
+        # The the output type, may not be robust
+        if "grib" in self.config.output:
+            return ekd.from_source("file", self.extra_config.output_template)[0]
+        elif "netcdf" in self.config.output:
+            import xarray as xr
+            ds = xr.open_dataset(self.extra_config.output_template)
 
-        import xarray as xr
-        ds = xr.open_dataset(self.extra_config.output_template)
+            def grid_points():
+                return ds["latitude"].values, ds["longitude"].values
 
-        def grid_points():
-            return ds["latitude"].values, ds["longitude"].values
-
-        # return a bare object with just grid_points
-        return type("TemplateShim", (), {"grid_points": staticmethod(grid_points)})()
+            # return a bare object with just grid_points
+            return type("TemplateShim", (), {"grid_points": staticmethod(grid_points)})()
+        else:
+            raise Exception('Only grib and netcdf ouputs are available with runner type downscaling.')
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
