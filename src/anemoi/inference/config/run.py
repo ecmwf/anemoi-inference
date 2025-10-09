@@ -90,6 +90,12 @@ class RunConfiguration(Configuration):
     output_frequency: Optional[str] = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
 
+    parallel_output: Optional[bool] = False
+    """ If true, and output is being written and you are running in parallel across multiple devices, the output will be sharded and written in parallel across devices"""
+    
+    writers_per_device: Optional[int] = 0
+    """ How many processes a device will spawn to write output. 0 -> blocking output. 1 -> non-blocking output in child process. 2+ -> non-blocking sharded output across child processes"""
+
     env: Dict[str, Union[str, int]] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended

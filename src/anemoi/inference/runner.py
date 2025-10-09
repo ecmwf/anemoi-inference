@@ -580,8 +580,8 @@ class Runner(Context):
                 torch.backends.cudnn.benchmark = False
                 torch.use_deterministic_algorithms(True) 
                 
-            self.sharded_output=False
-            if os.getenv("PARALLEL_OUT", "0") == "1":
+            self.shard_output=self.config.parallel_output
+            if  self.shard_output:
                 LOG.info("Anemoi inference: Parallel output")
                 self.sharded_output=True
 

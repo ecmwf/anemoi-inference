@@ -96,13 +96,9 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
         
-        #if num_writers is None:
-        if os.getenv("WRITERS_PER_GPU", "0") == "0":
-            self.num_writers = 0
-        else:
-            #self.num_writers = num_writers
-            self.num_writers = int(os.getenv("WRITERS_PER_GPU"))
-            self.writers_running=False
+        self.num_writers = self.context.config.writers_per_device
+        if  self.num_writers > 0:
+             self.writers_running=False
         
     def _spawn_writers(self):
         """Spawn all writer processes."""

@@ -97,15 +97,18 @@ class ParallelRunnerMixin:
 
         self.model_comm_group = None
         self.pid = pid
-        self.shard_output=False
-        if os.getenv("PARALLEL_OUT", "0") == "1":
+        self.shard_output=config.parallel_output
+        if  self.shard_output:
             LOG.info("Anemoi inference: Parallel output")
-            self.shard_output=True
 
         # give the base class an opportunity to modify the parallel runner
         super()._configure_parallel_runner()
 
         self._bootstrap_processes()
+
+        if self.global_rank != 0:
+            # this does not seem to get called for non-zero procs
+            self.create_output()
 
         # disable most logging on non-zero ranks
         if self.global_rank != 0:
@@ -173,16 +176,17 @@ class ParallelRunnerMixin:
         else:
             if self.shard_output:
                 if hasattr(self.config.output, 'grib'):
-                    self.config.output.grib.path=self.config.output.grib.path + f"_g{self.pid}"
+                    self.config.output.grib.path=self.config.output.grib.path + f"_g{self.global_rank}"
                 output = create_output(self, self.config.output)
-                if self.pid != 0:
+                if self.global_rank != 0:
+                    #raise ValueError("inside parallel create_output pid !=0, sharding")
                     output.write_step_zero=False
                 LOG.info("Output: %s", output)
             elif self.global_rank == 0:
-                #print(f"{self.config.output=}")
                 output = create_output(self, self.config.output)
                 LOG.info("Output: %s", output)
             else:
+                #raise ValueError("inside parallel create_output pid !=0, none")
                 output = create_output(self, "none")
         return output
     
