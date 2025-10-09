@@ -276,7 +276,8 @@ class GribFileOutput(GribOutput):
     #so after the output class has been initialised
     def per_writer_init(self, writer_id) -> None:
         split_output = self.output.split_output
-        self.output = GribWriter(self.path + f"_w{writer_id}", split_output=split_output)
+        if "/dev/null" not in self.path:
+            self.output = GribWriter(self.path + f"_w{writer_id}", split_output=split_output)
         return super().per_writer_init(writer_id)        
 
     def close(self) -> None:

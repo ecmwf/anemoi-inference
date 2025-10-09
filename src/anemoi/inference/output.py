@@ -114,10 +114,13 @@ class Output(ABC):
             self.queues.append(mp.Queue())
 
         mp.set_start_method('fork', force=True)
+        import os
+        parent_pid=os.getpid()
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_function,
-                args=(i, self.queues[i], self.stop_event)
+                args=(i, self.queues[i], self.stop_event),
+                name=f"w{i}_for_p{parent_pid}",
             )
             #_pickle.PicklingError: Can't pickle <class 'anemoi.inference.outputs.gribfile.GribFileOutput'>: it's not the same object as anemoi.inference.outputs.gribfile.GribFileOutput
             #I get this error when using the default method, spawn?
@@ -151,12 +154,6 @@ class Output(ABC):
                     LOG.debug(f"Writer {writer_id} received termination signal")
                     break
                 
-                #TODO need some way to generate unique file output names for each writer proc
-                if hasattr(self.context.config.output, 'grib'):
-                    #self.context.config.output.grib.path=self.context.config.output.grib.path + f"_w{writer_id}"
-                    #too late to change congif bc the class has already been initialised
-                    self.path = self.path + f"_w{writer_id}" #path attribute should exist since this is a gribFileOutput
-                    #TODO replace with a per-writer-init function in gribFileOutput.py
                 self.write_step(message)
                 LOG.debug(f"Writer {writer_id} finished processing: {message}")
                 

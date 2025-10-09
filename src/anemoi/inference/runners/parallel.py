@@ -175,8 +175,9 @@ class ParallelRunnerMixin:
             output = create_output(self, self.config.output)
         else:
             if self.shard_output:
-                if hasattr(self.config.output, 'grib'):
-                    self.config.output.grib.path=self.config.output.grib.path + f"_g{self.global_rank}"
+                # otherwise we try write to /dev/null_p0
+                if hasattr(self.config.output, 'grib') and self.config.output.grib.path != "/dev/null":
+                    self.config.output.grib.path=self.config.output.grib.path + f"_p{self.global_rank}"
                 output = create_output(self, self.config.output)
                 if self.global_rank != 0:
                     #raise ValueError("inside parallel create_output pid !=0, sharding")
