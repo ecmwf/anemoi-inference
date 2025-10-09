@@ -196,7 +196,7 @@
 
 - name: grib-in-tee-output
   input: input.grib
-  output: output.grib
+  output: output
   checks:
     - check_files_in_directory:
         expected_files: 3
