@@ -16,6 +16,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
 
+from ..decorators import ensure_dir
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -25,6 +26,7 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("raw")
 @main_argument("path")
+@ensure_dir("dir")
 class RawOutput(Output):
     """Raw output class."""
 
@@ -53,7 +55,7 @@ class RawOutput(Output):
             The date format string, by default "%Y%m%d%H%M%S".
         """
         super().__init__(context, variables=variables, **kwargs)
-        self.dir = Path(dir)
+        self.dir = dir
         self.template = template
         self.strftime = strftime
 
@@ -65,7 +67,7 @@ class RawOutput(Output):
         str
             String representation of the RawOutput object.
         """
-        return f"RawOutput({self.path})"
+        return f"RawOutput({self.dir})"
 
     def write_step(self, state: State) -> None:
         """Write the state to a compressed .npz file.
@@ -77,8 +79,6 @@ class RawOutput(Output):
         """
         date = state["date"]
         basetime = date - state["step"]
-
-        self.dir.mkdir(parents=True, exist_ok=True)
 
         format_info = {
             "date": date.strftime(self.strftime),

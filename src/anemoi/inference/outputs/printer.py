@@ -21,6 +21,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -105,6 +106,7 @@ def print_state(
 
 @output_registry.register("printer")
 @main_argument("max_lines")
+@ensure_path("path")
 class PrinterOutput(Output):
     """Printer output class."""
 
@@ -142,9 +144,6 @@ class PrinterOutput(Output):
         self.f = None
 
         if path is not None:
-            path = Path(path)
-            path.parent.mkdir(parents=True, exist_ok=True)
-
             self.f = open(path, "w")
             self.print = partial(print, file=self.f)
 

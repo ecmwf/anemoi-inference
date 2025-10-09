@@ -18,6 +18,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -31,6 +32,7 @@ LOCK = threading.RLock()
 
 @output_registry.register("netcdf")
 @main_argument("path")
+@ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""
 
@@ -76,7 +78,7 @@ class NetCDFOutput(Output):
 
         from netCDF4 import Dataset
 
-        self.path = Path(path)
+        self.path = path
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
@@ -103,7 +105,6 @@ class NetCDFOutput(Output):
             if self.ncfile is not None:
                 return
 
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
             os.remove(self.path)

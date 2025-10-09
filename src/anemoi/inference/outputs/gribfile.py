@@ -23,6 +23,7 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
@@ -312,6 +313,7 @@ class GribIoOutput(BaseGribOutput):
 
 @output_registry.register("grib")
 @main_argument("path")
+@ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
 
@@ -367,10 +369,6 @@ class GribFileOutput(GribIoOutput):
         split_output : bool, optional
             Whether to split the output, by default True.
         """
-        path = Path(path)
-        if not path.parent.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-
         super().__init__(
             context,
             out=path,

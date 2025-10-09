@@ -14,6 +14,7 @@ import numpy as np
 from anemoi.utils.grib import units
 
 from anemoi.inference.context import Context
+from anemoi.inference.decorators import ensure_dir
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
@@ -44,6 +45,7 @@ def fix(lons: FloatArray) -> FloatArray:
 
 @output_registry.register("plot")
 @main_argument("dir")
+@ensure_dir("dir")
 class PlotOutput(Output):
     """Use `earthkit-plots` to plot the outputs."""
 
@@ -105,7 +107,7 @@ class PlotOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-        self.dir = Path(dir)
+        self.dir = dir
         self.format = format
         self.variables = variables
         self.template = template
@@ -166,7 +168,6 @@ class PlotOutput(Output):
                 "variables": "_".join(self.variables or []),
             },
         )
-        self.dir.mkdir(parents=True, exist_ok=True)
         fname = self.dir / fname
 
         fig.save(fname)
