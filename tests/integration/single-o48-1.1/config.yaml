@@ -83,3 +83,132 @@
       grib: ${input:}
     output:
       zarr: ${output:}
+
+- name: grib-in-plots-out
+  input: input.grib
+  output: plots
+  checks:
+    - check_files_in_directory:
+        expected_files: 8 # 48h / 6
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      plot:
+        dir: ${output:}
+        variables: [2t, 10u, 10v]
+
+- name: grib-in-plots-out
+  input: input.grib
+  output: plots
+  checks:
+    - check_files_in_directory:
+        expected_files: 9 # 48h / 6 + 1
+  inference_config:
+    write_initial_state: true
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      plot:
+        dir: ${output:}
+        mode: overlay
+        variables: [2t]
+
+- name: grib-in-truth-out
+  input:
+  output: output.grib
+  checks:
+    - check_grib:
+        expected_variables:
+          - 2t
+          - q
+        grib_keys:
+          stream: oper
+          class: ai
+          type: fc
+        check_nans: true
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input: dummy
+    date: '20250101'
+    output:
+      truth:
+        output:
+          grib:
+            path: ${output:}
+            encoding:
+              stream: oper
+              class: ai
+              type: fc
+            variables:
+              - 2t
+              - q_600
+
+- name: grib-in-print-output
+  input: input.grib
+  output: output.txt
+  checks:
+    - check_file_exist: {}
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      printer:
+        path: ${output:}
+
+- name: grib-in-raw-output
+  input: input.grib
+  output: output
+  checks:
+    - check_files_in_directory:
+        expected_files: 8
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      raw:
+        dir: ${output:}
+
+- name: grib-in-raw-output-templated
+  input: input.grib
+  output: output
+  checks:
+    - check_files_in_directory:
+        expected_files: 8
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      raw:
+        dir: ${output:}
+        template: "{date}_step{step}.npz"
+
+
+- name: grib-in-tee-output
+  input: input.grib
+  output: output
+  checks:
+    - check_files_in_directory:
+        expected_files: 3
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      tee:
+        - grib: ${output:}/output.grib
+        - netcdf: ${output:}/output.nc
+        - tee:
+            outputs:
+              - netcdf: ${output:}/output.nc2

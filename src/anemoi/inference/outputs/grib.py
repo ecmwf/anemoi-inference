@@ -174,7 +174,7 @@ class BaseGribOutput(Output):
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
     ) -> None:
-        """Initialize the GribOutput object.
+        """Initialise the GribOutput object.
 
         Parameters
         ----------
@@ -285,6 +285,8 @@ class BaseGribOutput(Output):
         """
 
         reference_date = self.reference_date or self.context.reference_date
+        assert reference_date is not None, "No reference date set"
+
         step = state["step"]
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
@@ -367,10 +369,6 @@ class BaseGribOutput(Output):
         object
             The template object.
         """
-
-        if self.template_manager is None:
-            self.template_manager = TemplateManager(self, self.templates)
-
         return self.template_manager.template(name, state, self.typed_variables)
 
     def template_lookup(self, name: str) -> dict:
