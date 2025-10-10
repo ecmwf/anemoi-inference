@@ -173,6 +173,10 @@ class DownscalingRunner(DefaultRunner):
         else:
             raise Exception('Only grib and netcdf ouputs are available with runner type downscaling.')
 
+    @cached_property
+    def pred_grid(self):
+        return np.load(self.extra_config.pred_grid)
+
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
         request = super().patch_data_request(request)
@@ -203,7 +207,10 @@ class DownscalingRunner(DefaultRunner):
     def forecast(self, lead_time, input_tensor_numpy, input_state):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
-            state["latitudes"], state["longitudes"] = self.template.grid_points()
+            # fix: does not work when the predicted grid is not the same as the template 
+            #state["latitudes"], state["longitudes"] = self.template.grid_points()
+            state["latitudes"] = self.pred_grid["latitudes"]
+            state["longitudes"] = self.pred_grid["longitudes"]
             state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
             yield state
 
@@ -240,7 +247,10 @@ class DownscalingRunner(DefaultRunner):
 
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
-        state["latitudes"], state["longitudes"] = self.template.grid_points()
+        # fix: does not work when the predicted grid is not the same as the template 
+        #state["latitudes"], state["longitudes"] = self.template.grid_points()
+        state["latitudes"] = self.pred_grid["latitudes"]
+        state["longitudes"] = self.pred_grid["longitudes"]
 
         computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
         computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
@@ -309,29 +319,28 @@ def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input
 
     matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
     print("matching_channel_indices", matching_channel_indices)
-    # [64, 25, 36, 46,  3,  0,  1, 16]
 
-    print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
+    print("low_res_in", low_res_in.shape)
 
     interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
         ..., matching_channel_indices
     ]
-    print("interp_high_res_in", interp_high_res_in.shape)  # [1, 1, 1, 421120, 8]
+    print("interp_high_res_in", interp_high_res_in.shape)
 
     high_res_out = interp_high_res_in + high_res_residuals
     print(
         "interp_high_res_in is denormalised",
-        interp_high_res_in[..., 0].mean(),  # 56081.4609
-        interp_high_res_in[..., 0].std(),  # 2634.4143
+        interp_high_res_in[..., 0].mean(),  
+        interp_high_res_in[..., 0].std(),
     )
 
     print(
         "high_res_residuals is denormalised",
-        high_res_residuals[..., 0].mean(),  # 168.26504510123863
-        high_res_residuals[..., 0].std(),  # 576.3987445776402
+        high_res_residuals[..., 0].mean(),  
+        high_res_residuals[..., 0].std(), 
     )
 
-    print("high_res_out", high_res_out.shape)  # [1, 1, 1, 421120, 8]
-    print("high_res_out is denormalised", high_res_out[..., 0].mean(), high_res_out[..., 0].std())  # 56249 2677
+    print("high_res_out", high_res_out.shape) 
+    print("high_res_out is denormalised", high_res_out[..., 0].mean(), high_res_out[..., 0].std())
 
     return high_res_out
