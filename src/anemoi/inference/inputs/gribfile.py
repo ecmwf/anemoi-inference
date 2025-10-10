@@ -47,8 +47,6 @@ class GribFileInput(GribInput):
             The context in which the input is used.
         path : str
             The path to the GRIB file.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any
@@ -57,21 +55,25 @@ class GribFileInput(GribInput):
         super().__init__(context, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments, including:
+            - ref_date_index: int, default -1
+                The reference date index to use.
 
         Returns
         -------
         State
             The created input state.
         """
-
-        return self._create_input_state(self._fieldlist, date=date)
+        ref_date_index = kwargs.get("ref_date_index", -1)
+        return self._create_input_state(self._fieldlist, date=date, ref_date_index=ref_date_index)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.

@@ -111,8 +111,6 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
@@ -198,6 +196,8 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        ref_date_index: int = -1,
+        title: str = "Create state",
     ) -> State:
         """Create a state from an ekd.FieldList.
 
@@ -215,30 +215,19 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        ref_date_index : int
+            The index of the reference date in the dates list.
+        title : str
+            The title for logging.
 
         Returns
         -------
         State
             The created input state.
         """
-        fields = self.pre_process(fields)
-
-        if len(fields) == 0:
-            # return dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-            raise ValueError("No input fields provided")
-
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-
-        state_fields = state["fields"]
-
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
-
         if latitudes is None and longitudes is None:
             try:
-                state["latitudes"], state["longitudes"] = fields[0].grid_points()
+                latitudes, longitudes = fields[0].grid_points()
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -251,8 +240,6 @@ class EkdInput(Input):
                 latitudes = self.checkpoint.latitudes
                 longitudes = self.checkpoint.longitudes
                 if latitudes is not None and longitudes is not None:
-                    state["latitudes"] = latitudes
-                    state["longitudes"] = longitudes
                     LOG.info(
                         "%s: using `latitudes` and `longitudes` found in the checkpoint.",
                         self.__class__.__name__,
@@ -263,6 +250,18 @@ class EkdInput(Input):
                         self.__class__.__name__,
                     )
                     raise e
+
+        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = self.pre_process(state)
+        fields = state["fields"]
+        state_fields = {}
+
+        if len(fields) == 0:
+            raise ValueError("No input fields provided")
+
+        dates = sorted([to_datetime(d) for d in dates])
+        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
 
         check = defaultdict(set)
 
@@ -295,7 +294,7 @@ class EkdInput(Input):
                 raise ValueError(f"Duplicate dates for {name}")
 
             check[name].add(date_idx)
-
+        state["fields"] = state_fields
         for name, idx in check.items():
             if len(idx) != len(dates):
                 LOG.error("Missing dates for %s: %s", name, idx)
@@ -326,6 +325,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        ref_date_index: int = -1,
     ) -> State:
         """Create the input state.
 
@@ -345,6 +345,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        ref_date_index : int
+            The index of the reference date in the dates list.
 
         Returns
         -------
@@ -366,6 +368,8 @@ class EkdInput(Input):
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
+            ref_date_index=ref_date_index,
+            title="Create input state",
         )
 
     def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:

@@ -51,7 +51,7 @@ class Output(ABC):
         """
         self.context = context
         self.checkpoint = context.checkpoint
-        self.reference_date = None
+        self.reference_date = context.reference_date
 
         self._post_processor_confs = post_processors or []
 
