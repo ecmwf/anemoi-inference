@@ -23,6 +23,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
@@ -115,6 +116,7 @@ class GribFileOutput(GribOutput):
         context: Context,
         *,
         path: str,
+        post_processors: list[ProcessorConfig] | None = None,
         encoding: Optional[Dict[str, Any]] = None,
         archive_requests: Optional[Dict[str, Any]] = None,
         check_encoding: bool = True,
@@ -135,6 +137,8 @@ class GribFileOutput(GribOutput):
             The context.
         path : str
             The path to save the grib files.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         archive_requests : dict, optional
@@ -160,6 +164,7 @@ class GribFileOutput(GribOutput):
         """
         super().__init__(
             context,
+            post_processors=post_processors,
             encoding=encoding,
             templates=templates,
             grib1_keys=grib1_keys,

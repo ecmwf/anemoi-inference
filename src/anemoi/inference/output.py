@@ -14,6 +14,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Optional
 
+from anemoi.inference.post_processors import create_post_processor
+from anemoi.inference.processor import Processor
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 if TYPE_CHECKING:
@@ -28,6 +31,7 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):
@@ -37,6 +41,8 @@ class Output(ABC):
         ----------
         context : Context
             The context in which the output operates.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
@@ -46,8 +52,39 @@ class Output(ABC):
         self.checkpoint = context.checkpoint
         self.reference_date = None
 
+        self._post_processor_confs = post_processors or []
+
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
+
+    @cached_property
+    def post_processors(self) -> list[Processor]:
+        """Return post-processors."""
+
+        processors = []
+
+        for processor in self._post_processor_confs:
+            processors.append(create_post_processor(self.context, processor))
+
+        return processors
+
+    def post_process(self, state: State) -> State:
+        """Apply post processors to the state.
+
+        Parameters
+        ----------
+        state : State
+            The state.
+
+        Returns
+        -------
+        State
+            The processed state.
+        """
+        for processor in self.post_processors:
+            LOG.info("Post processor: %s", processor)
+            state = processor.process(state)
+        return state
 
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -69,7 +106,7 @@ class Output(ABC):
         """
         state.setdefault("step", datetime.timedelta(0))
         if self.write_step_zero:
-            self.write_step(state)
+            self.write_step(self.post_process(state))
 
     def write_state(self, state: State) -> None:
         """Write the state.
@@ -84,7 +121,7 @@ class Output(ABC):
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
-        return self.write_step(state)
+        return self.write_step(self.post_process(state))
 
     @classmethod
     def reduce(cls, state: State) -> State:
@@ -181,6 +218,7 @@ class ForwardOutput(Output):
         self,
         context: "Context",
         output: dict,
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ):
@@ -192,6 +230,8 @@ class ForwardOutput(Output):
             The context in which the output operates.
         output : dict
             The output configuration dictionary.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
@@ -200,7 +240,12 @@ class ForwardOutput(Output):
 
         from anemoi.inference.outputs import create_output
 
-        super().__init__(context, output_frequency=None, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            post_processors=post_processors,
+            output_frequency=None,
+            write_initial_state=write_initial_state
+        )
 
         self.output = None if output is None else create_output(context, output)
 

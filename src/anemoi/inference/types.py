@@ -39,3 +39,6 @@ BoolArray = NDArray[Any]
 
 Shape = Tuple[int, ...]
 """A tuple of integers representing the shape of an array."""
+
+ProcessorConfig = Union[str, dict[str, Any]]
+"""A str or dict of str representing a pre- or post-processor configuration."""

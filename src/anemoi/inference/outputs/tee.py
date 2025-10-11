@@ -73,6 +73,7 @@ class TeeOutput(ForwardOutput):
             The state dictionary.
         """
         state.setdefault("step", datetime.timedelta(0))
+        state = self.post_process(state)
         for output in self.outputs:
             output.write_initial_state(state)
 
@@ -84,6 +85,7 @@ class TeeOutput(ForwardOutput):
         state : State
             The state dictionary.
         """
+        state = self.post_process(state)
         for output in self.outputs:
             output.write_state(state)
 

@@ -14,6 +14,7 @@ import numpy as np
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..output import ForwardOutput
@@ -43,6 +44,8 @@ class AssignMask(ForwardOutput):
         The mask supporting array name.
     fill_value : float, optional
         The fill value to use for the masked area, by default np.nan.
+    post_processors : Optional[List[ProcessorConfig]], default None
+        Post-processors to apply to the input
     output_frequency : int, optional
         The frequency of output, by default None.
     write_initial_state : bool, optional
@@ -56,10 +59,11 @@ class AssignMask(ForwardOutput):
         output: Configuration,
         mask: str,
         fill_value: float = np.nan,
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
-        super().__init__(context, output, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(context, output, post_processors, output_frequency=output_frequency, write_initial_state=write_initial_state)
 
         if mask not in self.checkpoint.supporting_arrays:
             raise ValueError(f"Assignment mask '{mask}' not found in supporting arrays.")

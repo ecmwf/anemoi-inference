@@ -14,6 +14,7 @@ import numpy as np
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
+from anemoi.inference.types import ProcessorConfig
 
 from . import output_registry
 from .masked import MaskedOutput
@@ -33,6 +34,8 @@ class ExtractLamOutput(MaskedOutput):
         The output configuration dictionary.
     lam : str, optional
         The LAM identifier, by default "lam_0".
+    post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
     output_frequency : int, optional
         The frequency of output, by default None.
     write_initial_state : bool, optional
@@ -45,6 +48,7 @@ class ExtractLamOutput(MaskedOutput):
         *,
         output: Configuration,
         lam: str = "lam_0",
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: Optional[int] = None,
         write_initial_state: Optional[bool] = None,
     ) -> None:
@@ -69,6 +73,7 @@ class ExtractLamOutput(MaskedOutput):
             context,
             mask=points,
             output=output,
+            post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )

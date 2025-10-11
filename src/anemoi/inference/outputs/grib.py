@@ -21,6 +21,7 @@ from typing import Union
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..grib.encoding import grib_keys
@@ -119,6 +120,7 @@ class GribOutput(Output):
     def __init__(
         self,
         context: dict,
+        post_processors: list[ProcessorConfig] | None = None,
         *,
         encoding: Optional[Dict[str, Any]] = None,
         templates: Optional[Union[List[str], str]] = None,
@@ -135,6 +137,8 @@ class GribOutput(Output):
         ----------
         context : dict
             The context dictionary.
+        post_processors : Optional[List[ProcessorConfig]] = None
+            Post-processors to apply to the input
         encoding : dict, optional
             The encoding dictionary, by default None.
         templates : list or str, optional
@@ -153,7 +157,12 @@ class GribOutput(Output):
             The list of variables, by default None.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
+        super().__init__(
+            context,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state
+        )
         self._first = True
         self.typed_variables = self.checkpoint.typed_variables
         self.encoding = encoding if encoding is not None else {}
@@ -219,7 +228,7 @@ class GribOutput(Output):
                     f"No grib template found for initial state param `{name}`. Try setting `write_initial_state` to `false`."
                 )
 
-        return self.write_step(state)
+        return self.write_step(self.post_process(state))
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
