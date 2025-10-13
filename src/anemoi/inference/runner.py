@@ -12,7 +12,6 @@ import datetime
 import logging
 import warnings
 from collections.abc import Generator
-from contextlib import nullcontext
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
@@ -690,9 +689,7 @@ class Runner(Context):
                         variable_to_input_tensor_index,
                         self.checkpoint.timestep,
                     )
-                amp_ctx = (
-                    torch.autocast(device_type=self.device.type, dtype=self.autocast)
-                )
+                amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
