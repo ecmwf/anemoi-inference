@@ -9,6 +9,7 @@
 
 
 import logging
+import os
 from functools import cached_property
 from typing import Any
 
@@ -100,4 +101,7 @@ class GribFileInput(GribInput):
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:
         """Get the input fieldlist from the GRIB file."""
+        if os.path.getsize(self.path) == 0:
+            LOG.warning("GRIB file %r is empty", self.path)
+            return ekd.from_source("empty")
         return ekd.from_source("file", self.path)
