@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
+import glob
 import logging
 import os
 from functools import cached_property
@@ -16,8 +17,7 @@ from typing import Any
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, State
 
 from ..decorators import main_argument
 from . import input_registry
@@ -100,8 +100,30 @@ class GribFileInput(GribInput):
 
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:
-        """Get the input fieldlist from the GRIB file."""
-        if os.path.getsize(self.path) == 0:
-            LOG.warning("GRIB file %r is empty", self.path)
+        """Get the input fieldlist from the GRIB file or collection."""
+        path = self.path
+        if os.path.isdir(path):
+            patterns = ("*.grib", "*.grib1", "*.grib2")
+            files: list[str] = []
+            for pat in patterns:
+                files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
+            files = sorted(set(files))
+            if not files:
+                LOG.warning("GRIB directory %r contains no GRIB files", path)
+                return ekd.from_source("empty")
+            return ekd.from_source("file", files)
+
+        matches = glob.glob(path)
+        if len(matches) > 1:
+            return ekd.from_source("file", sorted(matches))
+        if len(matches) == 1:
+            path = matches[0]
+        try:
+            if os.path.getsize(path) == 0:
+                LOG.warning("GRIB file %r is empty", path)
+                return ekd.from_source("empty")
+        except FileNotFoundError:
+            LOG.warning("GRIB path %r not found", path)
             return ekd.from_source("empty")
-        return ekd.from_source("file", self.path)
+
+        return ekd.from_source("file", path)

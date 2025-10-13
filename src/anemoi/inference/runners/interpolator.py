@@ -71,8 +71,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         # if not isinstance(config, BaseModel):
         #     config = RunConfiguration.load(config)
 
-        from anemoi.models.models import AnemoiModelEncProcDecInterpolator
-
         super().__init__(config)
         self.from_analysis = "use_original_paths" in [k for k in chain.from_iterable(config.input.values())]
         self.device = get_available_device()
@@ -80,9 +78,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         assert (
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
-        assert isinstance(
-            self.model.model, AnemoiModelEncProcDecInterpolator
-        ), "Model must be an interpolator model for this runner"
+
 
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data

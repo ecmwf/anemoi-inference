@@ -756,34 +756,39 @@ class Runner(Context):
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
     ) -> "torch.Tensor":
-        """Copy prognostic fields to the input tensor."""
+        """Copy prognostic fields to the input tensor.
+
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        y_pred : torch.Tensor
+            The predicted tensor.
+        check : BoolArray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
-        prognostic_output_mask = self.checkpoint.prognostic_output_mask  # expected boolean mask
-        prognostic_input_mask = self.checkpoint.prognostic_input_mask  # expected boolean mask
-
-        # Convert masks to torch bool tensors for indexing
-        pmask_out = torch.as_tensor(prognostic_output_mask, device=y_pred.device, dtype=torch.bool)
-        pmask_in = torch.as_tensor(prognostic_input_mask, device=input_tensor_torch.device, dtype=torch.bool)
+        prognostic_output_mask = self.checkpoint.prognostic_output_mask
+        prognostic_input_mask = self.checkpoint.prognostic_input_mask
 
         # Copy prognostic fields to input tensor
-        prognostic_fields = y_pred[..., pmask_out]  # Get new predicted values
+        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
         input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
-        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields  # Add new values to last 'multi_step_input' row
+        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
+            prognostic_fields  # Add new values to last 'multi_step_input' row
+        )
 
-        # Conflict check uses numpy; work with boolean masks by deriving indices
-        mask_np = np.asarray(prognostic_input_mask, dtype=bool)
-        conflict_idx = np.flatnonzero(check & mask_np)
-        if conflict_idx.size:  # Make sure we are not overwriting some values
-            conflicting = [self._input_tensor_by_name[i] for i in conflict_idx]
-            raise AssertionError(
-                f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
-            )
+        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
+        check[prognostic_input_mask] = True
 
-        check[mask_np] = True
-
-        for n in np.flatnonzero(mask_np):
+        for n in prognostic_input_mask:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
             if self.trace:
                 self.trace.from_rollout(self._input_tensor_by_name[n])
