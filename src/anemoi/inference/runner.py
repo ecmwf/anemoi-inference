@@ -759,45 +759,45 @@ class Runner(Context):
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
     ) -> "torch.Tensor":
-            """Copy prognostic fields to the input tensor.
+        """Copy prognostic fields to the input tensor.
 
-            Parameters
-            ----------
-            input_tensor_torch : torch.Tensor
-                The input tensor.
-            y_pred : torch.Tensor
-                The predicted tensor.
-            check : BoolArray
-                The check array.
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        y_pred : torch.Tensor
+            The predicted tensor.
+        check : BoolArray
+            The check array.
 
-            Returns
-            -------
-            torch.Tensor
-                The updated input tensor.
-            """
-            # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
-            # batch is always 1
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
+        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
+        # batch is always 1
 
-            prognostic_output_mask = self.checkpoint.prognostic_output_mask
-            prognostic_input_mask = self.checkpoint.prognostic_input_mask
+        prognostic_output_mask = self.checkpoint.prognostic_output_mask
+        prognostic_input_mask = self.checkpoint.prognostic_input_mask
 
-            # Copy prognostic fields to input tensor
-            prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
-            input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
-            input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
-                prognostic_fields  # Add new values to last 'multi_step_input' row
-            )
+        # Copy prognostic fields to input tensor
+        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
+        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
+            prognostic_fields  # Add new values to last 'multi_step_input' row
+        )
 
-            assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
-            check[prognostic_input_mask] = True
+        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
+        check[prognostic_input_mask] = True
 
-            for n in prognostic_input_mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
-                if self.trace:
-                    self.trace.from_rollout(self._input_tensor_by_name[n])
+        for n in prognostic_input_mask:
+            self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+            if self.trace:
+                self.trace.from_rollout(self._input_tensor_by_name[n])
 
-            return input_tensor_torch
-    
+        return input_tensor_torch
+
     def add_dynamic_forcings_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
     ) -> "torch.Tensor":
