@@ -223,7 +223,6 @@ class EkdInput(Input):
         """
         fields = self.pre_process(fields)
 
-
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
