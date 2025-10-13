@@ -223,14 +223,14 @@ class EkdInput(Input):
         """
         fields = self.pre_process(fields)
 
-        if len(fields) == 0:
-            # return dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-            raise ValueError("No input fields provided")
-
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
+
+        if len(fields) == 0:
+            LOG.warning("No input fields found for dates %s (%s)", [d.isoformat() for d in dates], self)
+            return state
 
         state_fields = state["fields"]
 

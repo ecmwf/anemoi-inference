@@ -1139,7 +1139,7 @@ class Metadata(PatchMixin, LegacyMixin):
         def merge(main: dict[str, Any], patch: dict[str, Any]) -> None:
 
             for k, v in patch.items():
-                if isinstance(v, dict):
+                if isinstance(v, dict) and isinstance(main.get(k, {}), dict):
                     if k not in main:
                         main[k] = {}
                     merge(main[k], v)

@@ -158,3 +158,24 @@ def check_lam(
     elif reference_file:
         # check against a reference file, implement when needed
         raise NotImplementedError("Reference file check is not implemented yet.")
+
+
+@testing_registry.register("check_file_exist")
+def check_file_exist(*, file: Path, **kwargs) -> None:
+    LOG.info(f"Checking file exists: {file}")
+    assert file.exists(), f"File {file} does not exist."
+    assert file.stat().st_size > 0, f"File {file} is empty."
+
+
+@testing_registry.register("check_files_in_directory")
+def check_files_in_directory(*, file: Path, expected_files: int | None = None, **kwargs) -> None:
+    LOG.info(f"Checking directory: {file}")
+    assert file.exists() and file.is_dir(), f"Directory {file} does not exist or is not a directory."
+    if expected_files is not None:
+        actual_files = [f for f in file.iterdir() if f.is_file()]
+        if expected_files < 0:
+            assert len(actual_files) > 0, "Expected at least one file, but found none."
+        else:
+            assert (
+                len(actual_files) == expected_files
+            ), f"Expected {expected_files} files, but found {len(actual_files)}."

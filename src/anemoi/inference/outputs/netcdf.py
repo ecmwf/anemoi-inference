@@ -10,6 +10,7 @@
 import logging
 import os
 import threading
+from pathlib import Path
 
 import numpy as np
 
@@ -17,6 +18,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -30,13 +32,14 @@ LOCK = threading.RLock()
 
 @output_registry.register("netcdf")
 @main_argument("path")
+@ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""
 
     def __init__(
         self,
         context: Context,
-        path: str,
+        path: Path,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -44,14 +47,15 @@ class NetCDFOutput(Output):
         float_size: str = "f4",
         missing_value: float | None = np.nan,
     ) -> None:
-        """Initialize the NetCDF output object.
+        """Initialise the NetCDF output object.
 
         Parameters
         ----------
         context : dict
             The context dictionary.
-        path : str
-            The path to save the NetCDF file.
+        path : Path
+            The path to save the NetCDF file to.
+            If the parent directory does not exist, it will be created.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional
