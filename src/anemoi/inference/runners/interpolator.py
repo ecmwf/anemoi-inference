@@ -68,19 +68,13 @@ class TimeInterpolatorRunner(DefaultRunner):
         # # Remove that when the Pydantic model is ready
         # if not isinstance(config, BaseModel):
         #     config = RunConfiguration.load(config)
-
-        from anemoi.models.models import AnemoiModelEncProcDecInterpolator
-
         super().__init__(config)
 
         self.patch_checkpoint_lagged_property()
         assert (
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
-        assert isinstance(
-            self.model.model, AnemoiModelEncProcDecInterpolator
-        ), "Model must be an interpolator model for this runner"
-
+        
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
