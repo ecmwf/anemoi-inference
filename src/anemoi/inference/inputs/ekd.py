@@ -197,7 +197,6 @@ class EkdInput(Input):
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         ref_date_index: int = -1,
-        title: str = "Create state",
     ) -> State:
         """Create a state from an ekd.FieldList.
 
@@ -217,8 +216,6 @@ class EkdInput(Input):
             Whether to flatten the data.
         ref_date_index : int
             The index of the reference date in the dates list.
-        title : str
-            The title for logging.
 
         Returns
         -------
@@ -369,7 +366,6 @@ class EkdInput(Input):
             dtype=dtype,
             flatten=flatten,
             ref_date_index=ref_date_index,
-            title="Create input state",
         )
 
     def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:

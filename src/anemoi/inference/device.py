@@ -21,22 +21,10 @@ def get_available_device() -> "torch.device":
     torch.device
         The available device, either 'cuda', 'mps', or 'cpu'.
     """
-    import os
-
     import torch
 
     if torch.cuda.is_available():
-        local_rank_env = os.environ.get("LOCAL_RANK")
-        slurm_local = os.environ.get("SLURM_LOCALID")
-        if local_rank_env is not None:
-            local_rank = int(local_rank_env)
-        elif slurm_local is not None:
-            local_rank = int(slurm_local)
-        else:
-            local_rank = 0
-        torch.cuda.set_device(local_rank)  # important for NCCL
-        return torch.device(f"cuda:{local_rank}")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():  # mac fallback
+        return torch.device("cuda")
+    elif torch.backends.mps.is_available():
         return torch.device("mps")
-    else:
-        return torch.device("cpu")
+    return torch.device("cpu")

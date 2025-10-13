@@ -100,13 +100,15 @@ class SplitInput(Input):
 
         super().__init__(context, **kwargs)
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
         ----------
         date : Date or None
             The date for the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -115,7 +117,7 @@ class SplitInput(Input):
         """
 
         # TODO: Consider caching the result
-        states = [split.create_input_state(date=date) for split in self.splits]
+        states = [split.create_input_state(date=date, **kwargs) for split in self.splits]
 
         state = combine_states(*states)
 

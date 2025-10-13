@@ -113,13 +113,15 @@ class Input(ABC):
             return f"{self.__class__.__name__}({self.purpose})"
 
     @abstractmethod
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state dictionary.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
