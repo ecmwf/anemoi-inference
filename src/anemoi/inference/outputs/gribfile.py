@@ -12,6 +12,7 @@ import json
 import logging
 from collections import defaultdict
 from io import IOBase
+from pathlib import Path
 from typing import Any
 
 import earthkit.data as ekd
@@ -22,6 +23,7 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
@@ -114,7 +116,7 @@ class GribIoOutput(BaseGribOutput):
         self,
         context: Context,
         *,
-        out: str | IOBase,
+        out: Path | IOBase,
         post_processors: list[ProcessorConfig] | None = None,
         encoding: dict[str, Any] | None = None,
         archive_requests: dict[str, Any] | None = None,
@@ -134,9 +136,8 @@ class GribIoOutput(BaseGribOutput):
         ----------
         context : Context
             The context.
-        out : Union[str, IOBase]
+        out : Union[Path, IOBase]
             Path or file-like object to write the grib data to.
-            If a string, it should be a file path.
             If a file-like object, it should be opened in binary write mode.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
@@ -312,6 +313,7 @@ class GribIoOutput(BaseGribOutput):
 
 @output_registry.register("grib")
 @main_argument("path")
+@ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
 
@@ -319,7 +321,7 @@ class GribFileOutput(GribIoOutput):
         self,
         context: Context,
         *,
-        path: str,
+        path: Path,
         post_processors: list[ProcessorConfig] | None = None,
         encoding: dict[str, Any] | None = None,
         archive_requests: dict[str, Any] | None = None,
@@ -333,14 +335,15 @@ class GribFileOutput(GribIoOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
     ) -> None:
-        """Initialize the GribFileOutput.
+        """Initialise the GribFileOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
+        path : Path
             Path to the grib file to write the data to.
+            If the parent directory does not exist, it will be created.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         encoding : dict, optional
