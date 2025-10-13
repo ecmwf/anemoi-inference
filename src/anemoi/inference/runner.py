@@ -692,8 +692,6 @@ class Runner(Context):
                     )
                 amp_ctx = (
                     torch.autocast(device_type=self.device.type, dtype=self.autocast)
-                    if self.autocast is not torch.float32
-                    else nullcontext()
                 )
 
                 # Predict next state of atmosphere
