@@ -74,7 +74,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         assert (
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
-        
+
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
