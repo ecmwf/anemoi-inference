@@ -126,12 +126,12 @@ class EkdInput(Input):
         assert callable(self._namer), type(self._namer)
 
     def _filter_and_sort(self, data: Any, *, dates: list[Any], title: str) -> Any:
-        """Filter and sort the data.
+        """Filter and sort the data (earthkit FieldList/FieldArray).
 
         Parameters
         ----------
         data : Any
-            The data to filter and sort.
+            The data to filter and sort (FieldList or FieldArray).
         dates : List[Any]
             The list of dates to select.
         title : str
@@ -140,7 +140,7 @@ class EkdInput(Input):
         Returns
         -------
         Any
-            The filtered and sorted data.
+            The filtered and sorted data (FieldArray).
         """
 
         def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
@@ -164,12 +164,12 @@ class EkdInput(Input):
         return data
 
     def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
-        """Find a variable in the data.
+        """Find a variable in the data (earthkit FieldList/FieldArray selection).
 
         Parameters
         ----------
         data : Any
-            The data to search.
+            The data to search (FieldList or FieldArray).
         name : str
             The name of the variable to find.
         **kwargs : Any
@@ -178,7 +178,7 @@ class EkdInput(Input):
         Returns
         -------
         Any
-            The selected variable.
+            The selected variable (FieldArray subset).
         """
 
         def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
@@ -200,6 +200,15 @@ class EkdInput(Input):
     ) -> State:
         """Create a state from an ekd.FieldList.
 
+        Notes
+        -----
+        - The `fields` argument must be an earthkit FieldList (or FieldArray-compatible).
+        - This method intentionally converts state["fields"] from a FieldList to
+          a Dict[str, np.ndarray] with shape (len(dates), n_points).
+        - For clarity and provenance, the original FieldList is preserved under
+          state["_ekd_fields"] before conversion.
+        - Pre-processors are run while state["fields"] is still a FieldList.
+
         Parameters
         ----------
         fields : ekd.FieldList
@@ -220,7 +229,8 @@ class EkdInput(Input):
         Returns
         -------
         State
-            The created input state.
+            The created input state with state["fields"] as Dict[str, np.ndarray], and
+            state["_ekd_fields"] holding the original FieldList.
         """
         if latitudes is None and longitudes is None:
             try:
@@ -249,7 +259,13 @@ class EkdInput(Input):
                     raise e
 
         state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+
+        # Preserve the original FieldList for clarity/debugging/outputs
+        state["_ekd_fields"] = fields
+
+        # Allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
+
         fields = state["fields"]
         state_fields = {}
 
@@ -306,7 +322,8 @@ class EkdInput(Input):
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
         # to be used as output
-        self.set_private_attributes(state, fields)
+        # Use the original FieldList we preserved
+        self.set_private_attributes(state, state["_ekd_fields"])
 
         state["_input"] = self
 
@@ -397,7 +414,7 @@ class EkdInput(Input):
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
         """Set private attributes to the state.
 
-        Provides geography information if available retrieved from the fields.
+        Provides geography information if available retrieved from the fields (FieldList/FieldArray).
         """
         geography_information = {}
 

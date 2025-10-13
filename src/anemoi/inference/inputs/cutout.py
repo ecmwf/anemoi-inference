@@ -137,7 +137,12 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
+            if "pre_processors" in cfg:
+                pre_processors = cfg.pop("pre_processors")
+
+            self.sources[src] = create_input(
+                context, cfg, pre_processors=pre_processors, variables=variables, purpose=purpose
+            )
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
