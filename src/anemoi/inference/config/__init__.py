@@ -31,7 +31,7 @@ T = TypeVar("T", bound="Configuration")
 class Configuration(BaseModel):
     """Configuration class."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     date: datetime | None = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`earthkit.data.utils.dates`."""
