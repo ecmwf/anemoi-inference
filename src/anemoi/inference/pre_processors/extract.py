@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ExtractBase(Processor):
-    """Base class for processors that extract data from the state."""
+    """Base class for pre-processors that extract data from the state."""
 
     # this needs to be set in subclasses
     indexer: BoolArray | slice
