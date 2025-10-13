@@ -64,9 +64,7 @@ class ForwardTransformFilter(Processor):
         State
             The processed state.
         """
-        fields = state["fields"]
-        result = self.filter.forward(fields)
-        state["fields"] = result
+        state["fields"] = self.filter.forward(state["fields"])
         return state
 
     def patch_data_request(self, data_request: Any) -> Any:
