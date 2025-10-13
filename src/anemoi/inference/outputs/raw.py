@@ -8,14 +8,15 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
+from pathlib import Path
 
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
+from anemoi.inference.utils.templating import render_template
 
+from ..decorators import ensure_dir
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -25,47 +26,36 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("raw")
 @main_argument("path")
+@ensure_dir("dir")
 class RawOutput(Output):
     """Raw output class."""
 
     def __init__(
         self,
         context: Context,
-        path: str,
+        dir: Path,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
         variables: list[str] | None = None,
-        post_processors: list[ProcessorConfig] | None = None,
-        output_frequency: int | None = None,
-        write_initial_state: bool | None = None,
+        **kwargs,
     ) -> None:
-        """Initialize the RawOutput class.
+        """Initialise the RawOutput class.
 
         Parameters
         ----------
         context : dict
             The context.
-        path : str
-            The path to save the raw output.
+        dir : Path
+            The directory to save the raw output.
+            If the parent directory does not exist, it will be created.
         template : str, optional
             The template for filenames, by default "{date}.npz".
+            Variables available are `date`, `basetime` `step`.
         strftime : str, optional
             The date format string, by default "%Y%m%d%H%M%S".
-        post_processors : Optional[List[ProcessorConfig]], default None
-            Post-processors to apply to the input
-        output_frequency : int, optional
-            The frequency of output, by default None.
-        write_initial_state : bool, optional
-            Whether to write the initial state, by default None.
         """
-        super().__init__(
-            context,
-            variables=variables,
-            post_processors=post_processors,
-            output_frequency=output_frequency,
-            write_initial_state=write_initial_state,
-        )
-        self.path = path
+        super().__init__(context, variables=variables, **kwargs)
+        self.dir = dir
         self.template = template
         self.strftime = strftime
 
@@ -77,7 +67,7 @@ class RawOutput(Output):
         str
             String representation of the RawOutput object.
         """
-        return f"RawOutput({self.path})"
+        return f"RawOutput({self.dir})"
 
     def write_step(self, state: State) -> None:
         """Write the state to a compressed .npz file.
@@ -87,9 +77,16 @@ class RawOutput(Output):
         state : State
             The state to be written.
         """
-        os.makedirs(self.path, exist_ok=True)
-        date = state["date"].strftime(self.strftime)
-        fn_state = f"{self.path}/{self.template.format(date=date)}"
+        date = state["date"]
+        basetime = date - state["step"]
+
+        format_info = {
+            "date": date.strftime(self.strftime),
+            "step": state["step"],
+            "basetime": basetime.strftime(self.strftime),
+        }
+
+        fn_state = f"{self.dir}/{render_template(self.template, format_info)}"
         restate = {f"field_{key}": val for key, val in state["fields"].items() if not self.skip_variable(key)}
 
         for key in ["date"]:
