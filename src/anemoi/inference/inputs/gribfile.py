@@ -100,6 +100,6 @@ class GribFileInput(GribInput):
     def _fieldlist(self) -> ekd.FieldList:
         """Get the input fieldlist from the GRIB file."""
         if os.path.getsize(self.path) == 0:
-            LOG.warning(f"GRIB file {self.path} is empty")
+            LOG.warning("GRIB file %r is empty", self.path)
             return ekd.from_source("empty")
         return ekd.from_source("file", self.path)
