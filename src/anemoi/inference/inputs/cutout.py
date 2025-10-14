@@ -10,13 +10,17 @@
 
 import logging
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
+from collections.abc import Mapping
 
 import numpy as np
 
 from anemoi.inference.input import Input
-from anemoi.inference.inputs import create_input, input_registry
-from anemoi.inference.types import Date, ProcessorConfig, State
+from anemoi.inference.inputs import create_input
+from anemoi.inference.inputs import input_registry
+from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
