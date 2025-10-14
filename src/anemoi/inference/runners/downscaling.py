@@ -238,6 +238,8 @@ class DownscalingRunner(DefaultRunner):
         )
         """
 
+        print("output_tensor shape", output_tensor.shape)
+
         return output_tensor
 
     def _prepare_high_res_input_tensor(self, input_date):
