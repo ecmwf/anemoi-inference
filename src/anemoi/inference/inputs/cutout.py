@@ -256,24 +256,3 @@ class Cutout(Input):
 
         current_state["fields"] |= combined_fields
         return current_state
-        return current_state
-
-        current_state["fields"] |= combined_fields
-        return current_state
-        return current_state
-
-        current_state["fields"] |= combined_fields
-        return current_state
-        return current_state
-
-        current_state["fields"] |= combined_fields
-        return current_state
-        return current_state
-
-        current_state["fields"] |= combined_fields
-        return current_state
-        return current_state
-
-        current_state["fields"] |= combined_fields
-        return current_state
-        return current_state
