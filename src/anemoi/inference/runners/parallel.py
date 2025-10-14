@@ -277,6 +277,9 @@ class ParallelRunnerMixin:
                     f"world size ({self.config.world_size}) set in the config is ignored because we are launching via srun, using 'SLURM_NTASKS' instead"
                 )
         elif "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+            # TODO(refactor): Extract AzureML/general env bootstrap (RANK/WORLD_SIZE/LOCAL_RANK and
+            # MASTER_ADDR/MASTER_PORT wiring) into a delegated ClusterEnvironment
+            # (e.g., AzureMLEnvironment.bootstrap()) in a follow-up PR.
             # New branch for Azure ML / general distributed env (e.g., env:// mode)
             self.global_rank = int(os.environ["RANK"])
             self.local_rank = int(
@@ -400,6 +403,8 @@ class ParallelRunnerMixin:
                 model_comm_group_ranks = np.arange(self.world_size, dtype=int)
                 model_comm_group = dist.new_group(model_comm_group_ranks)
             else:
+                # TODO(refactor): Delegate backend + init_method selection and dist.init_process_group(...)
+                # to a ClusterEnvironment (e.g., env.init_parallel()) so ParallelRunner has no branching here.
                 if self._using_distributed_env():
                     init_method = "env://"  # Azure ML recommended
                 else:
