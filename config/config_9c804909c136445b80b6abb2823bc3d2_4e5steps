@@ -1,8 +1,9 @@
-description: 5cfa2a40fa214167847fb1d9b5161812 - 02 to 09 / 2024 - 10 members - o96->o320
+description: 9c804909c136445b80b6abb2823bc3d2 - febr 2024 - 10 members - o96->o320 - inference-anemoi-by_epoch-epoch_082-step_384124.ckpt
+# ip6p - done on 2025-05-19
 
 dates:
   start: 2024-02-01
-  end: 2024-09-01
+  end: 2024-03-01
   frequency: 24  # hours
 
 ensemble:
@@ -31,7 +32,7 @@ runner:
 model:
   name: anemoi
   runner: downscaling
-  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/5cfa2a40fa214167847fb1d9b5161812/inference-anemoi-by_time-epoch_475-step_1085561.ckpt
+  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/9c804909c136445b80b6abb2823bc3d2/inference-anemoi-by_epoch-epoch_082-step_384124.ckpt
   lead_time: 240h
   development_hacks:
     time_step: 24h
@@ -56,6 +57,8 @@ model:
       - sin_local_time
       - sin_longitude
       - z
+    extra_args:
+      nsteps: 20  
 
 evaluation: False
 

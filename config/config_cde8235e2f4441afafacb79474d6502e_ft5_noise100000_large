@@ -1,13 +1,14 @@
-description: 5cfa2a40fa214167847fb1d9b5161812 - febr 2024 - 10 members - o96->o320
+description: cde8235e2f4441afafacb79474d6502e - 2023.08 - 10 members - o96->o320 - inference-anemoi-by_epoch-epoch_021-step_101728.ckpt
+# iv5o - done on 2025-09-04
 
 dates:
-  start: 2024-02-01
-  end: 2024-03-01
+  start: 2023-05-01
+  end: 2023-12-30
   frequency: 24  # hours
 
 ensemble:
   loop:
-    number: 1/to/10
+    number: 1/to/50
 
 input:
   class: od
@@ -31,8 +32,7 @@ runner:
 model:
   name: anemoi
   runner: downscaling
-  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/5cfa2a40fa214167847fb1d9b5161812/inference-anemoi-by_time-epoch_309-step_893541.ckpt
-  lead_time: 240h
+  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/cde8235e2f4441afafacb79474d6502e/inference-anemoi-by_epoch-epoch_021-step_101728.ckpt
   development_hacks:
     time_step: 24h
     output_template: /home/ecm5702/hpcperm/data/o320-template.grib
@@ -56,6 +56,11 @@ model:
       - sin_local_time
       - sin_longitude
       - z
+    extra_args:
+      nsteps: 40
+      sigma_max: 100000
+      S_max: 100000
+      
 
 evaluation: False
 
