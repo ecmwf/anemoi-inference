@@ -166,7 +166,7 @@ class Runner(Context):
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
-            for logger_name in logging.root.manager.loggerDict:
+            for logger_name in logging.Logger.manager.loggerDict:
                 logging.getLogger(logger_name).setLevel(logging.DEBUG)
 
             self.checkpoint.print_indices()
@@ -774,21 +774,35 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-
-        prognostic_output_mask = self.checkpoint.prognostic_output_mask
-        prognostic_input_mask = self.checkpoint.prognostic_input_mask
-
-        # Copy prognostic fields to input tensor
-        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
-        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
-            prognostic_fields  # Add new values to last 'multi_step_input' row
+        pmask_in = torch.as_tensor(
+            self.checkpoint.prognostic_input_mask,
+            device=input_tensor_torch.device,
+            dtype=torch.long,
         )
 
-        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
-        check[prognostic_input_mask] = True
+        pmask_out = torch.as_tensor(
+            self.checkpoint.prognostic_output_mask,
+            device=y_pred.device,
+            dtype=torch.long,
+        )  # index_select requires long dtype, can be bool (mask)
+        # or int (index) tensors
 
-        for n in prognostic_input_mask:
+        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
+        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields
+
+        pmask_in_np = pmask_in.detach().cpu().numpy()
+        if check[pmask_in_np].any():
+            # Report which ones are conflicting
+            conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
+            raise AssertionError(
+                f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
+            )
+
+        check[pmask_in_np] = True
+
+        for n in pmask_in_np:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
             if self.trace:
                 self.trace.from_rollout(self._input_tensor_by_name[n])
@@ -873,21 +887,17 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-        sources = self.boundary_forcings_inputs
-        for source in sources:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
-
+        for source in self.boundary_forcings_inputs:
+            forcings = source.load_forcings_array([date], state)  # (variables, dates, values)
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # (1,1,values,variables)
+            forcings = torch.from_numpy(forcings).to(self.device)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
-            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+            spat = torch.as_tensor(source.spatial_mask, device=self.device, dtype=torch.long)
+            vars = torch.as_tensor(source.variables_mask, device=self.device, dtype=torch.long)
 
-            for n in source.variables_mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+            # Copy forcings to last 'multi_step_input' row
+            input_tensor_torch[:, -1].index_put_((spat, vars), forcings.squeeze(0).squeeze(0))
 
         # TO DO: add some consistency checks as above
         return input_tensor_torch

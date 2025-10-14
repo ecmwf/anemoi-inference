@@ -11,9 +11,9 @@ import datetime
 import logging
 from collections.abc import Generator
 from itertools import chain
+from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
@@ -21,6 +21,7 @@ from numpy.typing import NDArray
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.device import get_available_device
+from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
 
@@ -29,6 +30,9 @@ from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
 from . import runner_registry
+
+if TYPE_CHECKING:
+    import torch
 
 LOG = logging.getLogger(__name__)
 
