@@ -220,7 +220,6 @@ class DownscalingRunner(DefaultRunner):
         residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
 
         self._print_output_tensor("Residual output tensor", residual_output_numpy)
-        print("test")
 
         if not isinstance(self.config.output, str) and (
             raw_path := self.config.output.get("raw", {}).get("path")
