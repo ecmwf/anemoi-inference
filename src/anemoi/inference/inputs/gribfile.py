@@ -17,7 +17,8 @@ from typing import Any
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..decorators import main_argument
 from . import input_registry
