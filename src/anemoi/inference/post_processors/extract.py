@@ -23,12 +23,32 @@ from . import post_processor_registry
 
 LOG = logging.getLogger(__name__)
 
+_UNSET = object()  # Sentinel for unset indexer
+
 
 class ExtractBase(Processor):
     """Base class for processors that extract data from the state."""
 
     # this needs to be set in subclasses
     indexer: BoolArray | slice
+
+    def __init__(self, context: Context) -> None:
+        super().__init__(context)
+        self._indexer: BoolArray | slice | object = _UNSET
+
+    @property
+    def indexer(self) -> BoolArray | slice:
+        if self._indexer is _UNSET:
+            raise RuntimeError(f"{type(self).__name__}.indexer is not set. Set it before process().")
+        return self._indexer
+
+    @indexer.setter
+    def indexer(self, value: BoolArray | slice) -> None:
+        if isinstance(value, slice):
+            self._indexer = value
+            return
+        arr = np.asarray(value)
+        self._indexer = arr
 
     def process(self, state: State) -> State:
         """Process the state to extract a subset of points based on the indexer.
@@ -46,10 +66,11 @@ class ExtractBase(Processor):
         state = state.copy()
         state["fields"] = state["fields"].copy()
 
-        state["latitudes"] = state["latitudes"][self.indexer]
-        state["longitudes"] = state["longitudes"][self.indexer]
+        idx = self.indexer  # validate indexer is set
+        state["latitudes"] = state["latitudes"][idx]
+        state["longitudes"] = state["longitudes"][idx]
         for field in state["fields"]:
-            state["fields"][field] = state["fields"][field][self.indexer]
+            state["fields"][field] = state["fields"][field][idx]
 
         return state
 
