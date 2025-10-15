@@ -104,13 +104,15 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
-    def create_input_state(self, *, date: Date | None = None) -> State:
+    def create_input_state(self, *, date: Date | None = None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Any]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------

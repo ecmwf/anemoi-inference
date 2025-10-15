@@ -43,20 +43,22 @@ class FieldListInput(GribInput):
         super().__init__(context, **kwargs)
         self.input_fields = input_fields
 
-    def create_input_state(self, *, date: Date | None) -> Any:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> Any:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : str
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
         Any
             The created input state.
         """
-        return self._create_input_state(self.input_fields, date=date)
+        return self._create_input_state(self.input_fields, date=date, **kwargs)
 
     def load_forcings_state(
         self,
