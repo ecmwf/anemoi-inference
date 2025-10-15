@@ -887,18 +887,22 @@ class Runner(Context):
         """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-        for source in self.boundary_forcings_inputs:
-            forcings = source.load_forcings_array([date], state)  # (variables, dates, values)
+        sources = self.boundary_forcings_inputs
+        for source in sources:
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # (1,1,values,variables)
-            forcings = torch.from_numpy(forcings).to(self.device)
 
-            spat = torch.as_tensor(source.spatial_mask, device=self.device, dtype=torch.long)
-            vars = torch.as_tensor(source.variables_mask, device=self.device, dtype=torch.long)
+            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
+            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
-            # Copy forcings to last 'multi_step_input' row
-            input_tensor_torch[:, -1].index_put_((spat, vars), forcings.squeeze(0).squeeze(0))
-
+            for n in source.variables_mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+     
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
