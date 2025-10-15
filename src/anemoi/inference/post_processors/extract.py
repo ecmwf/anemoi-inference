@@ -23,9 +23,6 @@ from . import post_processor_registry
 
 LOG = logging.getLogger(__name__)
 
-_UNSET = object()  # Sentinel for unset indexer
-
-
 class ExtractBase(Processor):
     """Base class for processors that extract data from the state."""
 
@@ -34,11 +31,11 @@ class ExtractBase(Processor):
 
     def __init__(self, context: Context) -> None:
         super().__init__(context)
-        self._indexer: BoolArray | slice | object = _UNSET
+        self._indexer: BoolArray | slice | None = None
 
     @property
     def indexer(self) -> BoolArray | slice:
-        if self._indexer is _UNSET:
+        if self._indexer is None:
             raise RuntimeError(f"{type(self).__name__}.indexer is not set. Set it before process().")
         return self._indexer
 

@@ -71,9 +71,7 @@ class GribFileInput(GribInput):
         ref_date_index : int, default -1
             The reference date index to use.
         **kwargs : Any
-            Additional keyword arguments, including:
-            - ref_date_index: int, default -1
-                The reference date index to use.
+            Additional keyword arguments.
 
         Returns
         -------

@@ -258,9 +258,6 @@ class EkdInput(Input):
 
         state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
 
-        # preserve the original FieldList
-        ekd_fields = fields
-
         # allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
 
