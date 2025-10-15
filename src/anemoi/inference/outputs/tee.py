@@ -103,6 +103,8 @@ class TeeOutput(Output):
         state : State
             The state dictionary.
         """
+        state = self.post_process(state)
+
         for output in self.outputs:
             output.open(state)
 
