@@ -112,6 +112,8 @@ class NetCDFOutput(Output):
         with LOCK:
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
+        state = self.post_process(state)
+
         compression = {}  # dict(zlib=False, complevel=0)
 
         values = len(state["latitudes"])

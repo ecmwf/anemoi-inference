@@ -160,6 +160,7 @@ class ZarrOutput(Output):
         else:
             self.zarr_group = zarr.open_group(self.zarr_store, mode="w")
 
+        state = self.post_process(state)  # make sure state is post-processed
         values = len(state["latitudes"])
 
         time = 0
