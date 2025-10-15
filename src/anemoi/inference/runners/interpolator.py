@@ -10,7 +10,6 @@
 import datetime
 import logging
 from collections.abc import Generator
-from itertools import chain
 
 import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
