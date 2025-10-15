@@ -44,6 +44,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
+  "anemoi-models",
   "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
   "anytree",
