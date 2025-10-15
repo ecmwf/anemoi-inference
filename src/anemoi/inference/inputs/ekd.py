@@ -320,8 +320,7 @@ class EkdInput(Input):
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
         # to be used as output
-        # Use the original FieldList we preserved
-        self.set_private_attributes(state, ekd_fields)
+        self.set_private_attributes(state, fields)
 
         state["_input"] = self
 
