@@ -402,7 +402,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=str(self.device), dtype=self.autocast),
+                torch.autocast(device_type=self.device.type, dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
