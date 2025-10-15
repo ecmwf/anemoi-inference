@@ -48,7 +48,10 @@ class GribFileInput(GribInput):
         context : Any
             The context in which the input is used.
         path : str
-            The path to the GRIB file.
+            Path or glob pattern to GRIB file(s). Examples:
+              - "/path/to/file.grib"
+              - "/path/to/*.grib"
+              - "/path/to/**/*.grib2"
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any

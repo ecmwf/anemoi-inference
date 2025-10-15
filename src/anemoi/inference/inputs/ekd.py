@@ -260,10 +260,10 @@ class EkdInput(Input):
 
         state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
 
-        # Preserve the original FieldList for clarity/debugging/outputs
-        state["_ekd_fields"] = fields
+        # preserve the original FieldList
+        ekd_fields = fields
 
-        # Allow hooks to operate on the FieldList before conversion to numpy
+        # allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
 
         fields = state["fields"]
@@ -323,7 +323,7 @@ class EkdInput(Input):
         # This is useful for GRIB that requires a template field
         # to be used as output
         # Use the original FieldList we preserved
-        self.set_private_attributes(state, state["_ekd_fields"])
+        self.set_private_attributes(state, ekd_fields)
 
         state["_input"] = self
 
