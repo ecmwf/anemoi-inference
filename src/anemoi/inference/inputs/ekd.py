@@ -205,8 +205,6 @@ class EkdInput(Input):
         - The `fields` argument must be an earthkit FieldList (or FieldArray-compatible).
         - This method intentionally converts state["fields"] from a FieldList to
           a Dict[str, np.ndarray] with shape (len(dates), n_points).
-        - For clarity and provenance, the original FieldList is preserved under
-          state["_ekd_fields"] before conversion.
         - Pre-processors are run while state["fields"] is still a FieldList.
 
         Parameters
