@@ -902,7 +902,7 @@ class Runner(Context):
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
                 if self.trace:
                     self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
-     
+
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
