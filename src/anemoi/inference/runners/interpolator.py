@@ -72,7 +72,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         #     config = RunConfiguration.load(config)
 
         super().__init__(config)
-        self.from_analysis = "use_original_paths" in [k for k in chain.from_iterable(config.input.values())]
+        self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
         self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
         assert (
