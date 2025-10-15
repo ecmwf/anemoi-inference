@@ -138,13 +138,15 @@ class CDSInput(GribInput):
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -162,6 +164,7 @@ class CDSInput(GribInput):
             ),
             variables=self.variables,
             date=date,
+            **kwargs,
         )
 
     def retrieve(self, variables: list[str], dates: list[Date]) -> Any:

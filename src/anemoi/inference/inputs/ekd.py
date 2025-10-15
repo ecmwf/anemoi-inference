@@ -111,8 +111,6 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
@@ -128,12 +126,12 @@ class EkdInput(Input):
         assert callable(self._namer), type(self._namer)
 
     def _filter_and_sort(self, data: Any, *, dates: list[Any], title: str) -> Any:
-        """Filter and sort the data.
+        """Filter and sort the data (earthkit FieldList/FieldArray).
 
         Parameters
         ----------
         data : Any
-            The data to filter and sort.
+            The data to filter and sort (FieldList or FieldArray).
         dates : List[Any]
             The list of dates to select.
         title : str
@@ -142,7 +140,7 @@ class EkdInput(Input):
         Returns
         -------
         Any
-            The filtered and sorted data.
+            The filtered and sorted data (FieldArray).
         """
 
         def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
@@ -166,12 +164,12 @@ class EkdInput(Input):
         return data
 
     def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
-        """Find a variable in the data.
+        """Find a variable in the data (earthkit FieldList/FieldArray selection).
 
         Parameters
         ----------
         data : Any
-            The data to search.
+            The data to search (FieldList or FieldArray).
         name : str
             The name of the variable to find.
         **kwargs : Any
@@ -180,7 +178,7 @@ class EkdInput(Input):
         Returns
         -------
         Any
-            The selected variable.
+            The selected variable (FieldArray subset).
         """
 
         def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
@@ -198,8 +196,16 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        ref_date_index: int = -1,
     ) -> State:
         """Create a state from an ekd.FieldList.
+
+        Notes
+        -----
+        - The `fields` argument must be an earthkit FieldList (or FieldArray-compatible).
+        - This method intentionally converts state["fields"] from a FieldList to
+          a Dict[str, np.ndarray] with shape (len(dates), n_points).
+        - Pre-processors are run while state["fields"] is still a FieldList.
 
         Parameters
         ----------
@@ -215,30 +221,17 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        ref_date_index : int
+            The index of the reference date in the dates list.
 
         Returns
         -------
         State
-            The created input state.
+            The created input state with state["fields"] as Dict[str, np.ndarray].
         """
-        fields = self.pre_process(fields)
-
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        state = dict(date=dates[-1], latitudes=latitudes, longitudes=longitudes, fields=dict())
-
-        if len(fields) == 0:
-            LOG.warning("No input fields found for dates %s (%s)", [d.isoformat() for d in dates], self)
-            return state
-
-        state_fields = state["fields"]
-
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
-
         if latitudes is None and longitudes is None:
             try:
-                state["latitudes"], state["longitudes"] = fields[0].grid_points()
+                latitudes, longitudes = fields[0].grid_points()
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -251,8 +244,6 @@ class EkdInput(Input):
                 latitudes = self.checkpoint.latitudes
                 longitudes = self.checkpoint.longitudes
                 if latitudes is not None and longitudes is not None:
-                    state["latitudes"] = latitudes
-                    state["longitudes"] = longitudes
                     LOG.info(
                         "%s: using `latitudes` and `longitudes` found in the checkpoint.",
                         self.__class__.__name__,
@@ -263,6 +254,21 @@ class EkdInput(Input):
                         self.__class__.__name__,
                     )
                     raise e
+
+        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+
+        # allow hooks to operate on the FieldList before conversion to numpy
+        state = self.pre_process(state)
+
+        fields = state["fields"]
+        state_fields = {}
+
+        if len(fields) == 0:
+            raise ValueError("No input fields provided")
+
+        dates = sorted([to_datetime(d) for d in dates])
+        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
 
         check = defaultdict(set)
 
@@ -295,7 +301,7 @@ class EkdInput(Input):
                 raise ValueError(f"Duplicate dates for {name}")
 
             check[name].add(date_idx)
-
+        state["fields"] = state_fields
         for name, idx in check.items():
             if len(idx) != len(dates):
                 LOG.error("Missing dates for %s: %s", name, idx)
@@ -326,6 +332,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        ref_date_index: int = -1,
     ) -> State:
         """Create the input state.
 
@@ -345,6 +352,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        ref_date_index : int
+            The index of the reference date in the dates list.
 
         Returns
         -------
@@ -366,6 +375,7 @@ class EkdInput(Input):
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
+            ref_date_index=ref_date_index,
         )
 
     def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
@@ -397,7 +407,7 @@ class EkdInput(Input):
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
         """Set private attributes to the state.
 
-        Provides geography information if available retrieved from the fields.
+        Provides geography information if available retrieved from the fields (FieldList/FieldArray).
         """
         geography_information = {}
 

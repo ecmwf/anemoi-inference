@@ -46,13 +46,15 @@ class EmptyInput(Input):
         super().__init__(context, **kwargs)
         assert self.variables in (None, []), "EmptyInput should not have variables"
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create an empty input state.
 
         Parameters
         ----------
         date : Date or None
             The date for the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------

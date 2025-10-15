@@ -63,13 +63,15 @@ class IconInput(GribInput):
         self.grid = grid
         self.refinement_level_c = refinement_level_c
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Creates the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -86,6 +88,7 @@ class IconInput(GribInput):
             date=date,
             latitudes=latitudes,
             longitudes=longitudes,
+            **kwargs,
         )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:

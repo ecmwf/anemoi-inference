@@ -55,11 +55,11 @@ class FDBInput(GribInput):
         # NOTE: this is a temporary workaround for #191 thus not documented
         self.param_id_map = kwargs.pop("param_id_map", {})
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         date = np.datetime64(date).astype(datetime.datetime)
         dates = [date + h for h in self.checkpoint.lagged]
         ds = self.retrieve(variables=self.variables, dates=dates)
-        res = self._create_input_state(ds, variables=None, date=date)
+        res = self._create_input_state(ds, variables=None, date=date, **kwargs)
         return res
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
