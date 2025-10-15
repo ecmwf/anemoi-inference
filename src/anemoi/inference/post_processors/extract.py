@@ -23,6 +23,7 @@ from . import post_processor_registry
 
 LOG = logging.getLogger(__name__)
 
+
 class ExtractBase(Processor):
     """Base class for processors that extract data from the state."""
 

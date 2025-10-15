@@ -25,6 +25,7 @@ from . import pre_processor_registry
 
 LOG = logging.getLogger(__name__)
 
+
 class ExtractBase(Processor):
     """Base class for pre-processors that extract data from the state."""
 
