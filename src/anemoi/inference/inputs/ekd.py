@@ -227,8 +227,7 @@ class EkdInput(Input):
         Returns
         -------
         State
-            The created input state with state["fields"] as Dict[str, np.ndarray], and
-            state["_ekd_fields"] holding the original FieldList.
+            The created input state with state["fields"] as Dict[str, np.ndarray].
         """
         if latitudes is None and longitudes is None:
             try:
