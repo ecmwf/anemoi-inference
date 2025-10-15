@@ -121,7 +121,7 @@ class GribFileInput(GribInput):
         # Case 2: directory path -> search for GRIB files recursively
         if os.path.isdir(path):
             patterns = ("*.grib", "*.grib1", "*.grib2", "*.grb", "*.grb2")
-            files: list[str] = []
+            files = []
             for pat in patterns:
                 files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
