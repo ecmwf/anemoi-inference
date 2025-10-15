@@ -144,6 +144,7 @@ class PlotOutput(Output):
                 ekd.ArrayField(
                     values,
                     {
+                        "param": param,
                         "shortName": param,
                         "variable_name": param,
                         "step": state["step"],
