@@ -11,7 +11,6 @@ import datetime
 import logging
 from collections.abc import Generator
 from itertools import chain
-from typing import TYPE_CHECKING
 
 import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -30,7 +29,6 @@ from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
 from . import runner_registry
-
 
 LOG = logging.getLogger(__name__)
 
