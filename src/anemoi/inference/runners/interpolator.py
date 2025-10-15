@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.device import get_available_device
 from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
@@ -69,7 +70,8 @@ class TimeInterpolatorRunner(DefaultRunner):
         # if not isinstance(config, BaseModel):
         #     config = RunConfiguration.load(config)
         super().__init__(config)
-
+        self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
+        self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
         assert (
             self.config.write_initial_state
@@ -117,9 +119,30 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
 
+    def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
+        prognostic_input = self.create_prognostics_input()
+        LOG.info("📥 Prognostic input: %s", prognostic_input)
+        prognostic_state = prognostic_input.create_input_state(date=date, **kwargs)
+        self._check_state(prognostic_state, "prognostics")
+
+        constants_input = self.create_constant_coupled_forcings_input()
+        LOG.info("📥 Constant forcings input: %s", constants_input)
+        constants_state = constants_input.create_input_state(date=date, **kwargs)
+        self._check_state(constants_state, "constant_forcings")
+
+        forcings_input = self.create_dynamic_forcings_input()
+        LOG.info("📥 Dynamic forcings input: %s", forcings_input)
+        forcings_state = forcings_input.create_input_state(date=date, **kwargs)
+        self._check_state(forcings_state, "dynamic_forcings")
+        input_state = self._combine_states(
+            prognostic_state,
+            constants_state,
+            forcings_state,
+        )
+        return input_state
+
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
-
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
@@ -129,9 +152,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.interpolation_window = get_interpolation_window(
             self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
         )
-        # Not really timestep but the size of the interpolation window, not sure if this is used
         self.time_step = self.interpolation_window
-        input = self.create_input()
         output = self.create_output()
 
         post_processors = self.post_processors
@@ -142,18 +163,25 @@ class TimeInterpolatorRunner(DefaultRunner):
         num_windows = int(lead_time / self.interpolation_window)
         if lead_time % self.interpolation_window != to_timedelta(0):
             LOG.warning(
-                f"Lead time {lead_time} is not a multiple of interpolation window {self.interpolation_window}. "
-                f"Will interpolate for {num_windows * self.interpolation_window}"
+                "Lead time %s is not a multiple of interpolation window %s. Will interpolate for %s",
+                lead_time,
+                self.interpolation_window,
+                num_windows * self.interpolation_window,
             )
 
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.interpolation_window
 
-            LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
+            LOG.info(
+                "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
+            )
 
             # Create input state for this window
-            input_state = input.create_input_state(date=window_start_date)
+            if self.from_analysis:
+                input_state = self.create_input_state(date=window_start_date)
+            else:
+                input_state = self.create_input_state(date=window_start_date, ref_date_index=0)
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
@@ -307,8 +335,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         Any
             The forecasted state.
         """
-        import torch
-
         # This does interpolation but called forecast so we can reuse run()
         self.model.eval()
         torch.set_grad_enabled(False)
@@ -369,11 +395,13 @@ class TimeInterpolatorRunner(DefaultRunner):
             result["interpolated"] = True
 
             if self.trace:
-                self.trace.write_input_tensor(date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index)
+                self.trace.write_input_tensor(
+                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                )
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device, dtype=self.autocast),
+                torch.autocast(device_type=self.device.type, dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(title),
             ):
@@ -385,7 +413,9 @@ class TimeInterpolatorRunner(DefaultRunner):
                 output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             if self.trace:
-                self.trace.write_output_tensor(date, s, output, self.checkpoint.output_tensor_index_to_variable)
+                self.trace.write_output_tensor(
+                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                )
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):

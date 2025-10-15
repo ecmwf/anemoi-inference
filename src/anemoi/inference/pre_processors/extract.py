@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 
 import numpy as np
+from anemoi.transform.fields import new_field_from_numpy
+from anemoi.transform.fields import new_fieldlist_from_list
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
@@ -19,13 +21,13 @@ from anemoi.inference.types import BoolArray
 from anemoi.inference.types import State
 
 from ..processor import Processor
-from . import post_processor_registry
+from . import pre_processor_registry
 
 LOG = logging.getLogger(__name__)
 
 
 class ExtractBase(Processor):
-    """Base class for processors that extract data from the state."""
+    """Base class for pre-processors that extract data from the state."""
 
     # this needs to be set in subclasses
     indexer: BoolArray | slice
@@ -49,31 +51,20 @@ class ExtractBase(Processor):
         self._indexer = arr
 
     def process(self, state: State) -> State:
-        """Process the state to extract a subset of points based on the indexer.
-
-        Parameters
-        ----------
-        state : State
-            The state containing fields to be extracted.
-
-        Returns
-        -------
-        State
-            The updated state with extracted fields.
-        """
+        """Process the state to extract a subset of points based on the indexer."""
         state = state.copy()
-        state["fields"] = state["fields"].copy()
-
-        idx = self.indexer  # validate indexer is set
+        idx = self.indexer  # validate indexer is set and correct
+        result = []
+        for field in state["fields"]:
+            data = field.to_numpy().flatten()[idx]
+            result.append(new_field_from_numpy(data, template=field))
+        state["fields"] = new_fieldlist_from_list(result)
         state["latitudes"] = state["latitudes"][idx]
         state["longitudes"] = state["longitudes"][idx]
-        for field in state["fields"]:
-            state["fields"][field] = state["fields"][field][idx]
-
         return state
 
 
-@post_processor_registry.register("extract_mask")
+@pre_processor_registry.register("extract_mask")
 @main_argument("mask")
 class ExtractMask(ExtractBase):
     """Extract a subset of points from the state based on a boolean mask.
@@ -99,7 +90,7 @@ class ExtractMask(ExtractBase):
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(
-                "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
+                f"Expected the mask to be a boolean numpy array. Got {type(mask)} with dtype {mask.dtype}."
             )
 
         self.indexer = mask
@@ -116,7 +107,7 @@ class ExtractMask(ExtractBase):
         return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer.size})"
 
 
-@post_processor_registry.register("extract_slice")
+@pre_processor_registry.register("extract_slice")
 class ExtractSlice(ExtractBase):
     """Extract a subset of points from the state based on a slice.
 
@@ -142,69 +133,3 @@ class ExtractSlice(ExtractBase):
             String representation of the object.
         """
         return f"ExtractSlice({self.indexer})"
-
-
-@post_processor_registry.register("extract_from_state")
-@main_argument("cutout_source")
-class ExtractState(ExtractBase):
-    """Extract a subset of points based on a mask included in the state.
-
-    Must be used with the Cutout input.
-    """
-
-    def __init__(self, context: Context, cutout_source: str) -> None:
-        """Initialize the ExtractState processor.
-
-        Must be used with the Cutout input.
-
-        Parameters
-        ----------
-        context : Context
-            The context in which the processor is running.
-        cutout_source : str
-            The source to use for the cutout mask for extraction.
-        """
-        super().__init__(context)
-        self._source = cutout_source
-
-    def process(self, state: State) -> State:
-        """Process the state to extract a subset of points based on the mask.
-
-        Parameters
-        ----------
-        state : State
-            The state containing fields to be extracted.
-
-        Returns
-        -------
-        State
-            The updated state with extracted fields.
-        """
-        if "_mask" not in state:
-            raise ValueError("Private attribute '_mask' not found in the state. Are you using the Cutout Input?")
-
-        if self._source not in state["_mask"]:
-            raise ValueError(f"Mask '{self._source}' not found in the state.")
-
-        mask = state["_mask"][self._source]
-        if not isinstance(mask, np.ndarray) or mask.dtype != bool:
-            raise ValueError(f"Expected the mask '{self._source}' to be a boolean numpy array.")
-
-        self.indexer = mask
-        extraced_state = super().process(state)
-
-        for key in (k for k in state.keys() if k.startswith("_")):
-            if isinstance(state[key], dict) and self._source in state[key]:
-                extraced_state[key] = state[key][self._source]
-
-        return extraced_state
-
-    def __repr__(self) -> str:
-        """Return a string representation of the ExtractSlice object.
-
-        Returns
-        -------
-        str
-            String representation of the object.
-        """
-        return f"ExtractState(source={self._source!r})"
