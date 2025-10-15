@@ -31,8 +31,6 @@ from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
 from . import runner_registry
 
-if TYPE_CHECKING:
-    import torch
 
 LOG = logging.getLogger(__name__)
 
