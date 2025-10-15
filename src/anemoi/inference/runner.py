@@ -166,7 +166,7 @@ class Runner(Context):
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
-            for logger_name in logging.Logger.manager.loggerDict:
+            for logger_name in logging.root.manager.loggerDict:
                 logging.getLogger(logger_name).setLevel(logging.DEBUG)
 
             self.checkpoint.print_indices()
