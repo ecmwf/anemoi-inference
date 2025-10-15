@@ -113,6 +113,16 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
 def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     """Run the integration test suite."""
 
+    if test_setup.config.get("cosmo"):
+        import sys
+        from pathlib import Path
+
+        import eccodes
+
+        cosmo = str(Path(sys.prefix) / "share/eccodes-cosmo-resources/definitions")
+        current_path = eccodes.codes_definition_path()
+        eccodes.codes_set_definitions_path(f"{cosmo}:{current_path}")
+
     overrides = {"lead_time": "48h", "device": "cpu"}
     LOG.info(f"Config overrides: {overrides}")
 

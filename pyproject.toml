@@ -80,7 +80,14 @@ optional-dependencies.huggingface = [ "huggingface-hub" ]
 optional-dependencies.plot = [ "earthkit-plots" ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
-optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest", "pytest-mock" ]
+optional-dependencies.tests = [
+  "anemoi-datasets[all]",
+  "anemoi-inference[all]",
+  "eccodes-cosmo-resources-python",
+  "hypothesis",
+  "pytest",
+  "pytest-mock",
+]
 
 optional-dependencies.zarr = [ "zarr" ]
 
