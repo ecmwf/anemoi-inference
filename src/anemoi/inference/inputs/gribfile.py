@@ -48,10 +48,11 @@ class GribFileInput(GribInput):
         context : Any
             The context in which the input is used.
         path : str
-            Path or glob pattern to GRIB file(s). Examples:
+            Path, directory or glob pattern to GRIB file(s). Examples:
               - "/path/to/file.grib"
               - "/path/to/*.grib"
               - "/path/to/**/*.grib2"
+              - "/path/to/directory/"
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any
@@ -107,22 +108,29 @@ class GribFileInput(GribInput):
     def _fieldlist(self) -> ekd.FieldList:
         """Get the input fieldlist from the GRIB file or collection."""
         path = self.path
+
+        # Case 1: explicit glob pattern
+        if glob.has_magic(path):
+            matches = glob.glob(path, recursive=True)
+            files = [p for p in matches if os.path.isfile(p)]
+            if not files:
+                LOG.warning("No GRIB files matched pattern %r", path)
+                return ekd.from_source("empty")
+            return ekd.from_source("file", sorted(files))
+
+        # Case 2: directory path -> search for GRIB files recursively
         if os.path.isdir(path):
-            patterns = ("*.grib", "*.grib1", "*.grib2")
+            patterns = ("*.grib", "*.grib1", "*.grib2", "*.grb", "*.grb2")
             files: list[str] = []
             for pat in patterns:
                 files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
-            files = sorted(set(files))
+            files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
                 LOG.warning("GRIB directory %r contains no GRIB files", path)
                 return ekd.from_source("empty")
             return ekd.from_source("file", files)
 
-        matches = glob.glob(path)
-        if len(matches) > 1:
-            return ekd.from_source("file", sorted(matches))
-        if len(matches) == 1:
-            path = matches[0]
+        # Case 3: single file path
         try:
             if os.path.getsize(path) == 0:
                 LOG.warning("GRIB file %r is empty", path)

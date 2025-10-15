@@ -36,9 +36,6 @@ class Configuration(BaseModel):
     date: datetime | None = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`earthkit.data.utils.dates`."""
 
-    forcings: dict | None = None
-    """Forcings configuration. If not provided, defaults to None."""
-
     @field_validator("date", mode="before")
     @classmethod
     def to_datetime(cls, date: str | int | datetime | None) -> datetime | None:
