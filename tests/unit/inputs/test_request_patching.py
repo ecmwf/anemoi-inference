@@ -10,13 +10,14 @@
 import pytest
 
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.inputs.dummy import DummyInput
 from anemoi.inference.processor import Processor
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
 
 
-class TestingProcessor(Processor):
+class DummyProcessor(Processor):
     def __init__(self, context, mark: str):
         super().__init__(context)
         self.mark = mark
@@ -43,10 +44,10 @@ def runner() -> None:
 
 @fake_checkpoints
 def test_patched_by_input_and_context(runner):
-    runner.pre_processors.append(TestingProcessor(runner, "context"))
+    runner.pre_processors.append(DummyProcessor(runner, "context"))
 
-    input = runner.create_input()
-    input.pre_processors.append(TestingProcessor(runner, "input"))
+    input = DummyInput(runner)
+    input.pre_processors.append(DummyProcessor(runner, "input"))
 
     empty_request = {}
     patched_request = input.patch_data_request(empty_request)

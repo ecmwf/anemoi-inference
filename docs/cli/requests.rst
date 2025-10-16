@@ -1,4 +1,4 @@
-.. _requests_command:
+.. _requests-command:
 
 Requests Command
 ================

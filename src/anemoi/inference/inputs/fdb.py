@@ -14,8 +14,6 @@ from typing import Any
 import earthkit.data as ekd
 import numpy as np
 
-from anemoi.inference.types import ProcessorConfig
-
 from ..types import Date
 from ..types import State
 from . import input_registry
@@ -33,9 +31,7 @@ class FDBInput(GribInput):
     def __init__(
         self,
         context,
-        pre_processors: list[ProcessorConfig] | None = None,
         *,
-        namer=None,
         fdb_config: dict | None = None,
         fdb_userconfig: dict | None = None,
         **kwargs: dict[str, Any],
@@ -45,11 +41,7 @@ class FDBInput(GribInput):
         Parameters
         ----------
         context : dict
-            The context runner.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input
-        namer : optional
-            The namer to use for the input.
+            The context runner.pytest
         fdb_config : dict, optional
             The FDB config to use.
         fdb_userconfig : dict, optional
@@ -57,23 +49,22 @@ class FDBInput(GribInput):
         kwargs : dict, optional
             Additional keyword arguments for the request to FDB.
         """
-        super().__init__(context, pre_processors, namer=namer)
+        super().__init__(context, **kwargs)
         self.kwargs = kwargs
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         # NOTE: this is a temporary workaround for #191 thus not documented
         self.param_id_map = kwargs.pop("param_id_map", {})
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         date = np.datetime64(date).astype(datetime.datetime)
         dates = [date + h for h in self.checkpoint.lagged]
         ds = self.retrieve(variables=self.variables, dates=dates)
-        res = self._create_input_state(ds, variables=None, date=date)
+        res = self._create_input_state(ds, variables=None, date=date, **kwargs)
         return res
 
-    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
-        ds = self.retrieve(variables=variables, dates=dates)
-        return self._load_forcings_state(ds, variables=variables, dates=dates, current_state=current_state)
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
+        ds = self.retrieve(variables=self.variables, dates=dates)
+        return self._load_forcings_state(ds, dates=dates, current_state=current_state)
 
     def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
         requests = self.checkpoint.mars_requests(

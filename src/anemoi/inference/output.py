@@ -12,6 +12,7 @@ from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
+from typing import Any
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
@@ -50,7 +51,7 @@ class Output(ABC):
         """
         self.context = context
         self.checkpoint = context.checkpoint
-        self.reference_date = None
+        self.reference_date = context.reference_date
 
         self._post_processor_confs = post_processors or []
 
@@ -244,20 +245,20 @@ class ForwardOutput(Output):
     def __init__(
         self,
         context: "Context",
-        output: dict | None,
+        output: Output | Any,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
     ):
-        """Initialize the ForwardOutput object.
+        """Initialise the ForwardOutput object.
 
         Parameters
         ----------
         context : Context
             The context in which the output operates.
-        output : dict
-            The output configuration dictionary.
+        output : Output | Any
+            The output configuration dictionary or an Output instance.
         variables : list, optional
             The list of variables, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
@@ -277,8 +278,9 @@ class ForwardOutput(Output):
             output_frequency=None,
             write_initial_state=write_initial_state,
         )
-
-        self.output = None if output is None else create_output(context, output)
+        if not isinstance(output, Output):
+            output = create_output(context, output)
+        self.output = output
 
         if self.context.output_frequency is not None:
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)

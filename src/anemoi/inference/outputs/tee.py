@@ -9,14 +9,13 @@
 
 import datetime
 import logging
+from collections.abc import Sequence
 from typing import Any
-from typing import Sequence
 
-from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
 
-from ..output import ForwardOutput
+from ..output import Output
 from . import create_output
 from . import output_registry
 
@@ -24,39 +23,39 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("tee")
-class TeeOutput(ForwardOutput):
+class TeeOutput(Output):
     """TeeOutput class to manage multiple outputs."""
 
     def __init__(
         self,
         context: Context,
-        *args: Configuration,
-        outputs: Sequence[Configuration] | None = None,
+        *args,
+        outputs: Sequence | None = None,
         **kwargs: Any,
     ):
-        """Initialize the TeeOutput.
+        """Initialise the TeeOutput.
 
         Parameters
         ----------
         context : object
             The context object.
-        *args : Configuration
+        *args :
             Additional positional arguments.
-        outputs : Sequence[Configuration], optional
+        outputs : Sequence, optional
             Outputs to be created.
         **kwargs : Any
             Additional keyword arguments.
         """
         super().__init__(
             context,
-            None,
             **kwargs,
         )
 
         if outputs is None:
             outputs = args
+        else:
+            outputs = [*args, *outputs]
 
-        assert isinstance(outputs, (list, tuple)), outputs
         self.outputs = [create_output(context, output) for output in outputs]
 
     # We override write_initial_state and write_state
@@ -104,6 +103,8 @@ class TeeOutput(ForwardOutput):
         state : State
             The state dictionary.
         """
+        state = self.post_process(state)
+
         for output in self.outputs:
             output.open(state)
 

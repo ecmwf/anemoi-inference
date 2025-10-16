@@ -44,9 +44,10 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
-  "anemoi-utils[text,provenance]>=0.4.32",
+  "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
   "anytree",
+  "deprecation",
   "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
   "numpy",
@@ -60,8 +61,8 @@ dependencies = [
 
 optional-dependencies.all = [
   "anemoi-datasets",
-  "anemoi-inference[huggingface,tests,zarr,plot]",
-  "anemoi-utils[all]>=0.4.26",
+  "anemoi-inference[huggingface,plot,tests,zarr]",
+  "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
@@ -76,7 +77,7 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-optional-dependencies.plot = [ "cartopy", "matplotlib" ]
+optional-dependencies.plot = [ "earthkit-plots" ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 optional-dependencies.tests = [ "anemoi-datasets[all]", "anemoi-inference[all]", "hypothesis", "pytest", "pytest-mock" ]

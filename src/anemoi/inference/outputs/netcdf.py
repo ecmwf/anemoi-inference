@@ -10,6 +10,7 @@
 import logging
 import os
 import threading
+from pathlib import Path
 
 import numpy as np
 
@@ -17,6 +18,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -30,13 +32,14 @@ LOCK = threading.RLock()
 
 @output_registry.register("netcdf")
 @main_argument("path")
+@ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""
 
     def __init__(
         self,
         context: Context,
-        path: str,
+        path: Path,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -44,14 +47,15 @@ class NetCDFOutput(Output):
         float_size: str = "f4",
         missing_value: float | None = np.nan,
     ) -> None:
-        """Initialize the NetCDF output object.
+        """Initialise the NetCDF output object.
 
         Parameters
         ----------
         context : dict
             The context dictionary.
-        path : str
-            The path to save the NetCDF file.
+        path : Path
+            The path to save the NetCDF file to.
+            If the parent directory does not exist, it will be created.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional
@@ -108,6 +112,8 @@ class NetCDFOutput(Output):
         with LOCK:
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
+        state = self.post_process(state)
+
         compression = {}  # dict(zlib=False, complevel=0)
 
         values = len(state["latitudes"])
@@ -132,20 +138,21 @@ class NetCDFOutput(Output):
             self.time_var.long_name = "time"
             self.time_var.calendar = "gregorian"
 
-        latitudes = state["latitudes"]
         with LOCK:
+            latitudes = state["latitudes"]
+
             self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
             self.latitude_var.units = "degrees_north"
             self.latitude_var.long_name = "latitude"
 
-        longitudes = state["longitudes"]
-        with LOCK:
+            longitudes = state["longitudes"]
+
             self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
             self.longitude_var.units = "degrees_east"
             self.longitude_var.long_name = "longitude"
 
-        self.latitude_var[:] = latitudes
-        self.longitude_var[:] = longitudes
+            self.latitude_var[:] = latitudes
+            self.longitude_var[:] = longitudes
 
         self.vars = {}
 

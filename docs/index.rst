@@ -128,9 +128,18 @@ You may also have to install pandoc on MacOS:
    :hidden:
    :caption: User Guide
 
+   inference/input-types
    inference/parallel
    inference/apis/introduction
    inference/configs/introduction
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Contributing
+
+   dev/contributing
+   dev/integration-tests
 
 .. toctree::
    :maxdepth: 1
@@ -157,10 +166,3 @@ You may also have to install pandoc on MacOS:
    modules/metadata
    modules/outputs
    modules/processor
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Contributing
-
-   dev/contributing

@@ -220,13 +220,17 @@ class CoupledForcings(Forcings):
         """
         return self._state_to_numpy(
             self.input.load_forcings_state(
-                variables=self.variables,
                 dates=dates,
                 current_state=current_state,
             ),
             self.variables,
             dates,
         )
+
+
+class ConstantForcings(CoupledForcings):
+    # Just to have a different __repr__
+    pass
 
 
 class BoundaryForcings(Forcings):

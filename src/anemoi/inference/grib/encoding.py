@@ -9,14 +9,17 @@
 
 
 import logging
-import re
 import warnings
 from io import IOBase
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Hashable
 
 import earthkit.data as ekd
 from anemoi.utils.dates import as_timedelta
+
+from anemoi.inference.utils.templating import render_template
 
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
@@ -144,8 +147,6 @@ def encode_time_processing(
 
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)
-        # result["startStep"] = _step_in_hours(step)
-        # result["endStep"] = _step_in_hours(step)
         result["stepType"] = "instant"
         return
 
@@ -305,6 +306,9 @@ def grib_keys(
             "date",
             "hdate",
             "time",
+            "timespan",
+            "valid_datetime",
+            "variable",
         ):
             if k == "stream":
                 if v in ("oper", "wave"):
@@ -468,12 +472,12 @@ def encode_message(
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, out: str | IOBase, split_output: bool = True) -> None:
+    def __init__(self, out: Path | IOBase, split_output: bool = True) -> None:
         """Initialize the GribWriter.
 
         Parameters
         ----------
-        out : Union[str, IOBase]
+        out : Union[Path, IOBase]
             Path or file-like object to write the grib data to.
             If a string, it should be a file path.
             If a file-like object, it should be opened in binary write mode.
@@ -486,7 +490,7 @@ class GribWriter:
 
         self.out = out
         self.split_output = split_output
-        self._files: dict[str, IOBase] = {}
+        self._files: dict[Hashable, IOBase] = {}
 
     def close(self) -> None:
         """Close all open files."""
@@ -546,20 +550,30 @@ class GribWriter:
         tuple
             The encoded GRIB handle and the file path.
         """
-        handle = encode_message(
-            values=values,
-            check_nans=check_nans,
-            metadata=metadata,
-            template=template,
-            missing_value=missing_value,
-        )
+
+        while True:
+            try:
+                handle = encode_message(
+                    values=values,
+                    check_nans=check_nans,
+                    metadata=metadata,
+                    template=template,
+                    missing_value=missing_value,
+                )
+                break
+            except Exception as e:
+                if metadata.get("edition") == 2:
+                    raise
+                # Try again with edition 2
+                LOG.warning("Failed to encode GRIB message with edition 1, retrying with edition 2: %s", e)
+                metadata["edition"] = 2
 
         file, path = self.target(handle)
         handle.write(file)
 
         return handle, path
 
-    def target(self, handle: Any) -> tuple[IOBase, str]:
+    def target(self, handle: Any) -> tuple[IOBase, Path | str]:
         """Determine the target file for the GRIB message.
 
         Parameters
@@ -573,7 +587,8 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            out = render_template(self.out, handle)
+            assert not isinstance(self.out, IOBase), "Cannot split output when `out` is a file-like object."
+            out = render_template(str(self.out), handle)
         else:
             out = self.out
 
@@ -585,37 +600,3 @@ class GribWriter:
             self._files[out] = open(out, "wb")
 
         return self._files[out], out
-
-
-_TEMPLATE_EXPRESSION_PATTERN = re.compile(r"\{(.*?)\}")
-
-
-def render_template(template: str, handle: dict) -> str:
-    """Render a template string with the given keyword arguments.
-
-    Given a template string such as '{dateTime}_{step:03}.grib' and
-    the GRIB handle, this function will replace the expressions in the
-    template with the corresponding values from the handle, formatted
-    according to the optional format specifier.
-
-    For example, the template '{dateTime}_{step:03}.grib' with a handle
-    containing 'dateTime' as '202501011200' and 'step' as 6 will
-    produce '202501011200_006.grib'.
-
-    Parameters
-    ----------
-    template : str
-        The template string to render.
-    handle : Dict
-        The earthkit.data handle manager.
-
-    Returns
-    -------
-    str
-        The rendered template string.
-    """
-    expressions = _TEMPLATE_EXPRESSION_PATTERN.findall(template)
-    expr_format = [el.split(":") if ":" in el else [el, ""] for el in expressions]
-    keys = {k[0]: format(handle.get(k[0]), k[1]) for k in expr_format}
-    path = template.format(**keys)
-    return path

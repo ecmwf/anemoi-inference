@@ -30,6 +30,24 @@ class ExtractBase(Processor):
     # this needs to be set in subclasses
     indexer: BoolArray | slice
 
+    def __init__(self, context: Context) -> None:
+        super().__init__(context)
+        self._indexer: BoolArray | slice | None = None
+
+    @property
+    def indexer(self) -> BoolArray | slice:
+        if self._indexer is None:
+            raise RuntimeError(f"{type(self).__name__}.indexer is not set. Set it before process().")
+        return self._indexer
+
+    @indexer.setter
+    def indexer(self, value: BoolArray | slice) -> None:
+        if isinstance(value, slice):
+            self._indexer = value
+            return
+        arr = np.asarray(value)
+        self._indexer = arr
+
     def process(self, state: State) -> State:
         """Process the state to extract a subset of points based on the indexer.
 
@@ -46,10 +64,11 @@ class ExtractBase(Processor):
         state = state.copy()
         state["fields"] = state["fields"].copy()
 
-        state["latitudes"] = state["latitudes"][self.indexer]
-        state["longitudes"] = state["longitudes"][self.indexer]
+        idx = self.indexer  # validate indexer is set
+        state["latitudes"] = state["latitudes"][idx]
+        state["longitudes"] = state["longitudes"][idx]
         for field in state["fields"]:
-            state["fields"][field] = state["fields"][field][self.indexer]
+            state["fields"][field] = state["fields"][field][idx]
 
         return state
 
@@ -123,3 +142,69 @@ class ExtractSlice(ExtractBase):
             String representation of the object.
         """
         return f"ExtractSlice({self.indexer})"
+
+
+@post_processor_registry.register("extract_from_state")
+@main_argument("cutout_source")
+class ExtractState(ExtractBase):
+    """Extract a subset of points based on a mask included in the state.
+
+    Must be used with the Cutout input.
+    """
+
+    def __init__(self, context: Context, cutout_source: str) -> None:
+        """Initialize the ExtractState processor.
+
+        Must be used with the Cutout input.
+
+        Parameters
+        ----------
+        context : Context
+            The context in which the processor is running.
+        cutout_source : str
+            The source to use for the cutout mask for extraction.
+        """
+        super().__init__(context)
+        self._source = cutout_source
+
+    def process(self, state: State) -> State:
+        """Process the state to extract a subset of points based on the mask.
+
+        Parameters
+        ----------
+        state : State
+            The state containing fields to be extracted.
+
+        Returns
+        -------
+        State
+            The updated state with extracted fields.
+        """
+        if "_mask" not in state:
+            raise ValueError("Private attribute '_mask' not found in the state. Are you using the Cutout Input?")
+
+        if self._source not in state["_mask"]:
+            raise ValueError(f"Mask '{self._source}' not found in the state.")
+
+        mask = state["_mask"][self._source]
+        if not isinstance(mask, np.ndarray) or mask.dtype != bool:
+            raise ValueError(f"Expected the mask '{self._source}' to be a boolean numpy array.")
+
+        self.indexer = mask
+        extraced_state = super().process(state)
+
+        for key in (k for k in state.keys() if k.startswith("_")):
+            if isinstance(state[key], dict) and self._source in state[key]:
+                extraced_state[key] = state[key][self._source]
+
+        return extraced_state
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ExtractSlice object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"ExtractState(source={self._source!r})"

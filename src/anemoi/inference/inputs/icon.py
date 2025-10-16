@@ -9,13 +9,11 @@
 
 
 import logging
-from typing import Any
 
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -35,12 +33,11 @@ class IconInput(GribInput):
     def __init__(
         self,
         context: Context,
+        *,
         path: str,
         grid: str,
         refinement_level_c: int,
-        pre_processors: list[ProcessorConfig] | None = None,
-        namer: Any | None = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         """Initialize the IconInput.
 
@@ -61,18 +58,20 @@ class IconInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, pre_processors, namer=namer, **kwargs)
+        super().__init__(context, **kwargs)
         self.path = path
         self.grid = grid
         self.refinement_level_c = refinement_level_c
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Creates the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -89,15 +88,14 @@ class IconInput(GribInput):
             date=date,
             latitudes=latitudes,
             longitudes=longitudes,
+            **kwargs,
         )
 
-    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Loads the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variable names.
         dates : List[Date]
             List of dates for which to load the forcings state.
         current_state : State
@@ -110,7 +108,6 @@ class IconInput(GribInput):
         """
         return self._load_forcings_state(
             ekd.from_source("file", self.path),
-            variables=variables,
             dates=dates,
             current_state=current_state,
         )

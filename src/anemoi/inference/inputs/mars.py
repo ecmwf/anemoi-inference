@@ -203,11 +203,13 @@ class MarsInput(GribInput):
     def __init__(
         self,
         context: Context,
-        pre_processors: list[ProcessorConfig] | None = None,
         *,
-        namer: Any | None = None,
         patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
         log: bool = True,
+        variables: list[str] | None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
+        purpose: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -225,20 +227,27 @@ class MarsInput(GribInput):
         **kwargs : Any
             Additional keyword to pass to the request to MARS.
         """
-        super().__init__(context, pre_processors, namer=namer)
-        self.kwargs = kwargs
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
+        super().__init__(
+            context,
+            variables=variables,
+            pre_processors=pre_processors,
+            purpose=purpose,
+            namer=namer,
+        )
+
         self.kwargs = kwargs
         self.patches = patches or []
         self.log = log
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -256,6 +265,7 @@ class MarsInput(GribInput):
             ),
             variables=self.variables,
             date=date,
+            **kwargs,
         )
 
     def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
@@ -295,13 +305,11 @@ class MarsInput(GribInput):
             **kwargs,
         )
 
-    def load_forcings_state(self, *, variables: list[str], dates: list[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables for which to load the forcings state.
         dates : List[Date]
             The list of dates for which to load the forcings state.
         current_state : State
@@ -313,7 +321,9 @@ class MarsInput(GribInput):
             The loaded forcings state.
         """
         return self._load_forcings_state(
-            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+            self.retrieve(self.variables, dates),
+            dates=dates,
+            current_state=current_state,
         )
 
     def patch(self, request: dict[str, Any]) -> dict[str, Any]:
