@@ -6,8 +6,6 @@ on:
   push:
     branches:
       - main
-  schedule:
-    - cron: "9 2 * * 0" # at 9:02 on sunday
 
 jobs:
   cosmo:
