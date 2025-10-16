@@ -32,6 +32,15 @@ LOG = logging.getLogger(__name__)
 
 INTEGRATION_ROOT = Path(__file__).resolve().parent
 
+
+def _marker(config):
+    """Add markers at collection time based on values in the test config."""
+    marks = []
+    if config.get("cosmo"):
+        marks.append(pytest.mark.cosmo)
+    return marks
+
+
 # each model has its own folder in the integration tests directory
 # and contains at least a metadata.json and config.yaml file
 MODELS = [
@@ -42,9 +51,15 @@ MODELS = [
 
 # each model can have more than one test configuration, defined as a listconfig in config.yaml
 # the integration test is parameterised over the models and their test configurations
-MODEL_CONFIGS = [
-    (model, config) for model in MODELS for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
-]
+MODEL_CONFIGS = (
+    pytest.param(
+        (model, config),
+        id=f"{model}/{config.name}",
+        marks=_marker(config),
+    )
+    for model in MODELS
+    for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
+)
 
 
 class Setup(NamedTuple):
@@ -52,7 +67,7 @@ class Setup(NamedTuple):
     output: Path
 
 
-@pytest.fixture(params=MODEL_CONFIGS, ids=[f"{model}/{config.name}" for model, config in MODEL_CONFIGS])
+@pytest.fixture(params=MODEL_CONFIGS)
 def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     model, config = request.param
     input = config.input
