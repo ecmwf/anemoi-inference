@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.8.0](https://github.com/ecmwf/anemoi-inference/compare/0.7.3...0.8.0) (2025-10-15)
+
+
+### Features
+
+* Add requirements subcommand ([#245](https://github.com/ecmwf/anemoi-inference/issues/245)) ([fd0877c](https://github.com/ecmwf/anemoi-inference/commit/fd0877cd2ca054a3c57804a79dc7e9471a019cba))
+* Better support for dynamic forcings and coupling in prepml ([#262](https://github.com/ecmwf/anemoi-inference/issues/262)) ([fd0877c](https://github.com/ecmwf/anemoi-inference/commit/fd0877cd2ca054a3c57804a79dc7e9471a019cba))
+* Lazy torch loading ([#277](https://github.com/ecmwf/anemoi-inference/issues/277)) ([fd0877c](https://github.com/ecmwf/anemoi-inference/commit/fd0877cd2ca054a3c57804a79dc7e9471a019cba))
+* Replace no grad with inference mode ([#331](https://github.com/ecmwf/anemoi-inference/issues/331)) ([4b7c495](https://github.com/ecmwf/anemoi-inference/commit/4b7c4955d97b49ae232a836bba09773a69e0c807))
+* Support empty input files ([#342](https://github.com/ecmwf/anemoi-inference/issues/342)) ([8078a89](https://github.com/ecmwf/anemoi-inference/commit/8078a8975bb6bce2b2404ce4a1a21d3da4ca03cb))
+
+
+### Bug Fixes
+
+* Consolidate path behaviour on outputs ([#339](https://github.com/ecmwf/anemoi-inference/issues/339)) ([ba8faf1](https://github.com/ecmwf/anemoi-inference/commit/ba8faf1a9a4d9b41bc45174d350cd2c0f767acd8))
+* **metadata:** Patching when receiving entry is not a dict ([#338](https://github.com/ecmwf/anemoi-inference/issues/338)) ([ff222e2](https://github.com/ecmwf/anemoi-inference/commit/ff222e212ba571c804b8214e8c1765344a0427e2))
+* Netcdf incorrect shape when using extract post-processors ([#346](https://github.com/ecmwf/anemoi-inference/issues/346)) ([95c23ae](https://github.com/ecmwf/anemoi-inference/commit/95c23ae659daae8fb97b9b31e80df72e069c1269)), closes [#341](https://github.com/ecmwf/anemoi-inference/issues/341)
+* **parallel runner:** Support base class with main_argument decorator ([#333](https://github.com/ecmwf/anemoi-inference/issues/333)) ([7ec5cce](https://github.com/ecmwf/anemoi-inference/commit/7ec5cce1d83c9be008ad4e64dde9cd16e99a09f1))
+* Update cutout due to [#262](https://github.com/ecmwf/anemoi-inference/issues/262) ([#334](https://github.com/ecmwf/anemoi-inference/issues/334)) ([35c1cdb](https://github.com/ecmwf/anemoi-inference/commit/35c1cdbb694e9eb799b0e3ab4c1b37c69abe3ba9))
+
+
+### Miscellaneous Chores
+
+* Bump 0.8.0 ([ec25c99](https://github.com/ecmwf/anemoi-inference/commit/ec25c99a90cc1036393874f490b0602fe13bda15))
+
 ## [0.7.3](https://github.com/ecmwf/anemoi-inference/compare/0.7.2...0.7.3) (2025-09-22)
 
 

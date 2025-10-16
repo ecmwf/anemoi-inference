@@ -11,10 +11,10 @@
 import logging
 from typing import Any
 
-import earthkit.data as ekd
 from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import pre_processor_registry
@@ -51,20 +51,21 @@ class ForwardTransformFilter(Processor):
         super().__init__(context)
         self.filter = filter_registry.create(filter, **kwargs)
 
-    def process(self, fields: ekd.FieldList) -> ekd.FieldList:
+    def process(self, state: State) -> State:
         """Process the given fields using the forward filter.
 
         Parameters
         ----------
-        fields : ekd.FieldList
-            The fields to be processed.
+        state : State
+            The state containing the fields to be processed.
 
         Returns
         -------
-        ekd.FieldList
-            The processed fields.
+        State
+            The processed state.
         """
-        return self.filter.forward(fields)
+        state["fields"] = self.filter.forward(state["fields"])
+        return state
 
     def patch_data_request(self, data_request: Any) -> Any:
         """Patch the data request using the filter.

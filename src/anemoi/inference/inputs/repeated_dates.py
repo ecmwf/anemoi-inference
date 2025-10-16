@@ -48,13 +48,15 @@ class RepeatedDatesInput(Input):
         super().__init__(context, **kwargs)
         self.source = create_input(context, source, variables=self.variables, purpose=self.purpose)
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
         ----------
         date : Date or None
             The date for the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -63,7 +65,7 @@ class RepeatedDatesInput(Input):
         """
 
         # TODO: Consider caching the result
-        state = self.source.create_input_state(date=self.date)
+        state = self.source.create_input_state(date=self.date, **kwargs)
         state["_input"] = self
         state["date"] = date
         return state

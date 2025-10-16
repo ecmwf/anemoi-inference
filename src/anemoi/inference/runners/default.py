@@ -68,6 +68,7 @@ class DefaultRunner(Runner):
             config = DotDict(config.model_dump())
 
         self.config = config
+        self.reference_date = self.config.date if hasattr(self.config, "date") else None
 
         super().__init__(
             config.checkpoint,

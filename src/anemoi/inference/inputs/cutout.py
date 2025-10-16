@@ -11,18 +11,29 @@
 import logging
 from collections import defaultdict
 from collections.abc import Iterable
+from collections.abc import Mapping
 
 import numpy as np
 
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
+from anemoi.inference.inputs import input_registry
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
-from . import input_registry
-
 LOG = logging.getLogger(__name__)
+
+
+def contains_key(obj, key: str) -> bool:
+    """Recursively check if `key` exists anywhere in a nested config (dict/DotDict/lists)."""
+    if isinstance(obj, Mapping):
+        if key in obj:
+            return True
+        return any(contains_key(v, key) for v in obj.values())
+    if isinstance(obj, (list, tuple, set)):
+        return any(contains_key(v, key) for v in obj)
+    return False
 
 
 def _mask_and_combine_states(
@@ -138,9 +149,12 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            self.sources[src] = create_input(
-                context, cfg, variables=variables, pre_processors=pre_processors, purpose=purpose
-            )
+            if contains_key(cfg, "pre_processors"):
+                self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
+            else:
+                self.sources[src] = create_input(
+                    context, cfg, variables=variables, purpose=purpose, pre_processors=pre_processors
+                )
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
@@ -151,13 +165,15 @@ class Cutout(Input):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date: Date | None) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : dict
+            Additional keyword arguments for the source input state creation.
 
         Returns
         -------
@@ -173,7 +189,7 @@ class Cutout(Input):
         combined_state = {}
 
         for source in self.sources.keys():
-            source_state = self.sources[source].create_input_state(date=date)
+            source_state = self.sources[source].create_input_state(date=date, **kwargs)
             source_mask = self.masks[source]
 
             # Create the mask front padded with zeros
