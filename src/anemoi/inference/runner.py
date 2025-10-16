@@ -84,7 +84,6 @@ class Runner(Context):
         *,
         device: str | None = None,
         precision: str | None = None,
-        # report_error: bool = False,
         allow_nans: bool | None = None,
         use_grib_paramid: bool = False,
         verbosity: int = 0,
@@ -106,8 +105,6 @@ class Runner(Context):
             If None the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
         precision : Optional[str], optional
             Precision to use, by default None.
-        report_error : bool, optional
-            Whether to report errors, by default False.
         allow_nans : Optional[bool], optional
             Whether to allow NaNs, by default None.
         use_grib_paramid : bool, optional
