@@ -117,6 +117,7 @@ markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]
 testpaths = "tests"
+addopts = "--isolate"
 
 [tool.mypy]
 exclude = [ "docs/" ]

@@ -110,7 +110,6 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     return Setup(config=config, output=output)
 
 
-@pytest.mark.isolate
 def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     """Run the integration test suite."""
 
