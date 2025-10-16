@@ -51,9 +51,6 @@ class RunConfiguration(Configuration):
     world_size: int | None = 1
     """Number of parallel processes, used for parallel inference without SLURM."""
 
-    report_error: bool = False
-    """If True, the runner list the training versions of the packages in case of error. (Deprecated, unused)"""
-
     input: str | dict[str, Any] = "test"
     output: str | dict[str, Any] = "printer"
 
