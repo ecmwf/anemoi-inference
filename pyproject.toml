@@ -64,6 +64,12 @@ optional-dependencies.all = [
   "anemoi-inference[huggingface,plot,tests,zarr]",
   "anemoi-utils[all]>=0.4.32",
 ]
+optional-dependencies.cosmo = [
+  "eccodes<=2.39.1",
+  "eccodes-cosmo-resources-python",
+  "pytest-isolate==0.0.13",
+]
+
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
 
 optional-dependencies.docs = [
@@ -82,13 +88,11 @@ optional-dependencies.plot = [ "earthkit-plots" ]
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
-  "anemoi-inference[all]",
-  "eccodes-cosmo-resources-python",
+  "anemoi-inference[all,cosmo]",
   "hypothesis",
   "pytest",
   "pytest-mock",
 ]
-
 optional-dependencies.zarr = [ "zarr" ]
 
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
