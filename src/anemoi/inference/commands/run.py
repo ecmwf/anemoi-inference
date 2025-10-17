@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 from argparse import Namespace
 import yaml
 
-from ..config.run import RunConfiguration
+from ..config.run import RunConfiguration, ExtraArgs
 from ..runners import create_runner
 from . import Command
 
@@ -56,6 +56,10 @@ class RunCmd(Command):
             args.overrides,
             defaults=args.defaults,
         )
+
+        # Enforce types in development_hacks.extra_args
+        if config.development_hacks["extra_args"] is not None:
+           config.development_hacks["extra_args"] = ExtraArgs(**config.development_hacks["extra_args"])
 
         runner = create_runner(config)
         runner.execute()

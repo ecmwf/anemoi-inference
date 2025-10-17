@@ -22,7 +22,6 @@ from . import Configuration
 
 LOG = logging.getLogger(__name__)
 
-
 class RunConfiguration(Configuration):
     """Configuration class for a default runner."""
 
@@ -109,3 +108,9 @@ class RunConfiguration(Configuration):
 
     debugging_info: Dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
+
+class ExtraArgs(Configuration):
+    """Extra noise sampling args from develop_hacks"""
+    nsteps: int
+    sigma_max: float
+    sigma_min: float
