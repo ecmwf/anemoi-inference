@@ -204,9 +204,9 @@ class MarsInput(GribInput):
         self,
         context: Context,
         *,
+        variables: list[str] | None = None,
         patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
         log: bool = True,
-        variables: list[str] | None,
         pre_processors: list[ProcessorConfig] | None = None,
         namer: Any | None = None,
         purpose: str | None = None,
@@ -218,6 +218,8 @@ class MarsInput(GribInput):
         ----------
         context : Any
             The context in which the input is used.
+        variables : list[str] | None
+            List of variables to be handled by the input, or None for a sensible default variables.
         namer : Optional[Any]
             Optional namer for the input.
         patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]

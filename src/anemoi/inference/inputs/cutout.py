@@ -117,7 +117,8 @@ class Cutout(Input):
     def __init__(
         self,
         context,
-        variables: list[str] | None,
+        *,
+        variables: list[str] | None = None,
         pre_processors: list[ProcessorConfig] | None = None,
         purpose: str | None = None,
         **sources: dict[str, dict],
@@ -130,14 +131,15 @@ class Cutout(Input):
             The context runner.
         sources : dict of sources
             A dictionary of sources to combine.
+        variables : list[str] | None
+            List of variables to be handled by the input, or None for a sensible default variables.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input. Note that pre_processors are applied to each sub-input.
+        purpose : Optional[str]
+            The purpose of the input.
         """
 
         super().__init__(context, variables=variables, pre_processors=pre_processors, purpose=purpose)
-
-        if pre_processors:
-            raise ValueError(
-                "Input `cutout` does not support pre_processors. Please add pre_processors to each of the sub-input."
-            )
 
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
@@ -150,10 +152,17 @@ class Cutout(Input):
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
             if contains_key(cfg, "pre_processors"):
-                self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
+                combined_pre_processors = (pre_processors or []).extend(cfg.get("pre_processors", []))
+                self.sources[src] = create_input(
+                    context, cfg, variables=variables, pre_processors=combined_pre_processors, purpose=purpose
+                )
             else:
                 self.sources[src] = create_input(
-                    context, cfg, variables=variables, purpose=purpose, pre_processors=pre_processors
+                    context,
+                    cfg,
+                    variables=variables,
+                    purpose=purpose,
+                    pre_processors=pre_processors,
                 )
 
             if isinstance(mask, str):
