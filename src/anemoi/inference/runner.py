@@ -961,13 +961,12 @@ class Runner(Context):
                     else:
                         self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
 
-        # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
-
-        if len(output_tensor_numpy.shape) == 2:
+        if output_tensor_numpy.ndim == 1:
+            output_tensor_numpy = output_tensor_numpy[np.newaxis, np.newaxis, :]  # Single variable, single step 
+        elif output_tensor_numpy.ndim == 2:
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
-
-        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
-
+            output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+    
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
 
     def patch_data_request(self, request: Any) -> Any:
