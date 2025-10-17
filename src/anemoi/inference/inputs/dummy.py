@@ -52,6 +52,8 @@ class DummyInput(EkdInput):
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
