@@ -945,12 +945,21 @@ class Runner(Context):
         )
 
         if not self._output_tensor_by_name:
-            for i in range(output_tensor_numpy.shape[1]):
-                self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
-                if i in self.checkpoint.prognostic_output_mask:
-                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+            # Check if output_tensor_numpy is 1D or 2D
+            if output_tensor_numpy.ndim == 1:
+                # Only one variable
+                self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[0])
+                if 0 in self.checkpoint.prognostic_output_mask:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[0]] = Kind(prognostic=True)
                 else:
-                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[0]] = Kind(diagnostic=True)
+            else:
+                for i in range(output_tensor_numpy.shape[1]):
+                    self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
+                    if i in self.checkpoint.prognostic_output_mask:
+                        self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+                    else:
+                        self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
 
         # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
 
