@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.8.1](https://github.com/ecmwf/anemoi-inference/compare/0.8.0...0.8.1) (2025-10-17)
+
+
+### Features
+
+* Add support for interpolator ([#335](https://github.com/ecmwf/anemoi-inference/issues/335)) ([1418990](https://github.com/ecmwf/anemoi-inference/commit/14189907b4f4e3b204b7994f828831b8aa51e9b6))
+
+
+### Bug Fixes
+
+* Cleanup inputs due to recent merges ([#352](https://github.com/ecmwf/anemoi-inference/issues/352)) ([fd5a070](https://github.com/ecmwf/anemoi-inference/commit/fd5a070e85d81439985aad66555feb596f308acf))
+* Remove pre_processors from top level cutout ([7353824](https://github.com/ecmwf/anemoi-inference/commit/735382427273245ed89bc36654c9630d7bc8f25b))
+
 ## [0.8.0](https://github.com/ecmwf/anemoi-inference/compare/0.7.3...0.8.0) (2025-10-15)
 
 
