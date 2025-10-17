@@ -8,13 +8,18 @@
     - templates/co2-coarse-typeOfLevel-surface.grib
     - templates/co2-coarse-shortName-TOT_PREC.grib
   output: output.grib
-  checks: []
+  checks:
+    - check_grib:
+        check_nans: true
+    - check_grib_lam:
+        reference_grib: ${input:0}
   inference_config:
     checkpoint: ${checkpoint:}
     env:
       ECCODES_DEFINITION_PATH: ${sys.prefix:}/share/eccodes-cosmo-resources/definitions
     post_processors:
       - extract_from_state: lam_0
+    write_initial_state: false
     input:
       cutout:
         lam_0:
