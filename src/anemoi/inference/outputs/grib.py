@@ -227,17 +227,6 @@ class BaseGribOutput(Output):
 
         self.template_manager = TemplateManager(self, templates)
 
-        self.ensemble = False
-        for d in (self.grib1_keys, self.grib2_keys, self.encoding):
-            if "eps" in d:
-                self.ensemble = d["eps"]
-                break
-            if d.get("type") in ("pf", "cf"):
-                self.ensemble = True
-                break
-
-        self.template_manager = TemplateManager(self, templates)
-
     def write_initial_state(self, state: State) -> None:
         """Write the initial step of the state.
 
