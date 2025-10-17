@@ -100,14 +100,6 @@ verbosity:
 The ``verbosity`` option specifies the verbosity level of the output. It
 is set to 0 by default.
 
-report_errors:
-==============
-
-The ``report_errors`` option specifies whether to produce a longer error
-report when the code of the model cannot be loaded. The aim od that
-report is to troubleshoot versioning issues (git branches, python
-modules, etc.). It is set to ``false`` by default.
-
 use_profiler:
 =============
 
