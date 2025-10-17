@@ -78,6 +78,52 @@ def check_grib(
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
+@testing_registry.register("check_grib_lam")
+def check_grib_lam(
+    *,
+    file: Path,
+    checkpoint: "Checkpoint",
+    reference_grib: str,
+    reference_datetime: str | None = None,
+    mask="lam_0",
+    **kwargs,
+):
+    """check shape and values of inner region against a reference GRIB"""
+
+    LOG.info(f"Checking LAM: {file}")
+    import earthkit.data as ekd
+    import numpy as np
+
+    ds = ekd.from_source("file", file)
+    ref_ds = ekd.from_source("file", reference_grib)
+
+    if not reference_datetime:
+        reference_datetime = ref_ds.order_by(valid_datetime="ascending")[-1].metadata("valid_time")
+
+    assert len(ds) > 0, "No fields found in the LAM GRIB file."
+    assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
+
+    mask = checkpoint.load_supporting_array(f"{mask}/cutout_mask")
+    prognostic_params = [
+        var.param for var in checkpoint.typed_variables.values() if var.name in checkpoint.prognostic_variables
+    ]
+
+    for param in prognostic_params:
+        lam_fields = ds.sel(param=param)
+        ref_fields = ref_ds.sel(param=param, valid_time=reference_datetime)
+
+        assert len(lam_fields) > 0, f"No fields found for variable {param} in LAM file."
+        assert len(ref_fields) > 0, f"No fields found for variable {param} in reference file at {reference_datetime}."
+
+        for field in lam_fields:
+            assert field.values.shape[-1] == np.sum(
+                mask
+            ), f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
+            assert np.allclose(
+                field.values, ref_fields.sel(level=field.metadata("level"))[0].values
+            ), f"Variable {param} in LAM does not match reference data at {reference_datetime}."
+
+
 @testing_registry.register("check_with_xarray")
 def check_with_xarray(
     *, file: Path, expected_variables: list["Variable"], check_accum: str | None = None, check_nans=False, **kwargs
@@ -118,7 +164,7 @@ def check_with_xarray(
 
 
 @testing_registry.register("check_lam_with_xarray")
-def check_lam(
+def check_lam_with_xarray(
     *,
     file: Path,
     checkpoint: "Checkpoint",
