@@ -51,11 +51,11 @@ class RunCmd(Command):
             args.overrides.append(args.config)
             args.config = {}
         
-        with open(args.config) as f:
-            cfg_dict = yaml.safe_load(f)
-
-        # Bypass Pydantic validation
-        config = RunConfiguration.construct(**cfg_dict)
+        config = RunConfiguration.load(
+            args.config,
+            args.overrides,
+            defaults=args.defaults,
+        )
 
         runner = create_runner(config)
         runner.execute()
