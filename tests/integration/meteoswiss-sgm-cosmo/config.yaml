@@ -9,9 +9,10 @@
     - templates/co2-coarse-shortName-TOT_PREC.grib
   output: output.grib
   checks: []
-  cosmo: true
   inference_config:
     checkpoint: ${checkpoint:}
+    env:
+      ECCODES_DEFINITION_PATH: ${sys.prefix:}/share/eccodes-cosmo-resources/definitions
     post_processors:
       - extract_from_state: lam_0
     input:

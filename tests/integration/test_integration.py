@@ -10,6 +10,7 @@
 import json
 import logging
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
@@ -19,6 +20,7 @@ import pytest
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData
+from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
 
@@ -33,10 +35,10 @@ LOG = logging.getLogger(__name__)
 INTEGRATION_ROOT = Path(__file__).resolve().parent
 
 
-def _marker(config):
-    """Add markers at collection time based on values in the test config."""
+def _marker(model: str, config: DictConfig):
+    """Add markers at collection time based on the model test config."""
     marks = []
-    if config.get("cosmo"):
+    if "cosmo" in model or config.get("cosmo"):
         marks.append(pytest.mark.cosmo)
     return marks
 
@@ -51,11 +53,12 @@ MODELS = [
 
 # each model can have more than one test configuration, defined as a listconfig in config.yaml
 # the integration test is parameterised over the models and their test configurations
+# with optional markers (see _marker)
 MODEL_CONFIGS = (
     pytest.param(
         (model, config),
         id=f"{model}/{config.name}",
-        marks=_marker(config),
+        marks=_marker(model, config),
     )
     for model in MODELS
     for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
@@ -114,6 +117,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     OmegaConf.register_new_resolver("output", lambda: str(output), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
     OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
+    OmegaConf.register_new_resolver("sys.prefix", lambda: sys.prefix, replace=True)
 
     # save the inference config to disk
     inference_config = OmegaConf.to_yaml(inference_config, resolve=True)
@@ -127,16 +131,6 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
 
 def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     """Run the integration test suite."""
-
-    if test_setup.config.get("cosmo"):
-        import sys
-        from pathlib import Path
-
-        import eccodes
-
-        cosmo = str(Path(sys.prefix) / "share/eccodes-cosmo-resources/definitions")
-        current_path = eccodes.codes_definition_path()
-        eccodes.codes_set_definitions_path(f"{cosmo}:{current_path}")
 
     overrides = {"lead_time": "48h", "device": "cpu"}
     LOG.info(f"Config overrides: {overrides}")
