@@ -11,7 +11,6 @@
 import logging
 from collections import defaultdict
 from collections.abc import Iterable
-from collections.abc import Mapping
 
 import numpy as np
 
@@ -19,21 +18,9 @@ from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
-
-
-def contains_key(obj, key: str) -> bool:
-    """Recursively check if `key` exists anywhere in a nested config (dict/DotDict/lists)."""
-    if isinstance(obj, Mapping):
-        if key in obj:
-            return True
-        return any(contains_key(v, key) for v in obj.values())
-    if isinstance(obj, (list, tuple, set)):
-        return any(contains_key(v, key) for v in obj)
-    return False
 
 
 def _mask_and_combine_states(
@@ -119,7 +106,6 @@ class Cutout(Input):
         context,
         *,
         variables: list[str] | None = None,
-        pre_processors: list[ProcessorConfig] | None = None,
         purpose: str | None = None,
         **sources: dict[str, dict],
     ):
@@ -133,13 +119,11 @@ class Cutout(Input):
             A dictionary of sources to combine.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input. Note that pre_processors are applied to each sub-input.
         purpose : Optional[str]
             The purpose of the input.
         """
 
-        super().__init__(context, variables=variables, pre_processors=pre_processors, purpose=purpose)
+        super().__init__(context, variables=variables, pre_processors=None, purpose=purpose)
 
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
@@ -151,19 +135,7 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            if contains_key(cfg, "pre_processors"):
-                combined_pre_processors = (pre_processors or []).extend(cfg.get("pre_processors", []))
-                self.sources[src] = create_input(
-                    context, cfg, variables=variables, pre_processors=combined_pre_processors, purpose=purpose
-                )
-            else:
-                self.sources[src] = create_input(
-                    context,
-                    cfg,
-                    variables=variables,
-                    purpose=purpose,
-                    pre_processors=pre_processors,
-                )
+            self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
