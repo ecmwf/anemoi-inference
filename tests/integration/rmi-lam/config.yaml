@@ -22,9 +22,11 @@
               area: [70, -55, 10, 70]
             - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o32-2020-6h.zarr.zip
     output:
-      extract_lam:
-        lam: 'lam_0'
-        output:
-          netcdf: ${output:}
+      netcdf:
+        post_processors:
+          - extract_mask:
+              mask: lam_0/cutout_mask
+              as_slice: true
+        path: ${output:}
     post_processors:
       - accumulate_from_start_of_forecast
