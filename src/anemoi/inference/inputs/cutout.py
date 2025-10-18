@@ -9,6 +9,7 @@
 
 
 import logging
+from collections import OrderedDict
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -107,6 +108,7 @@ class Cutout(Input):
         *,
         variables: list[str] | None = None,
         purpose: str | None = None,
+        order: list[str] | None = None,
         **sources: dict[str, dict],
     ):
         """Create a cutout input from a list of sources.
@@ -115,12 +117,15 @@ class Cutout(Input):
         ----------
         context : dict
             The context runner.
-        sources : dict of sources
-            A dictionary of sources to combine.
+        **sources : dict of sources
+            Kwargs of sources to combine.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
         purpose : Optional[str]
             The purpose of the input.
+        order : Optional[list[str]]
+            Explicit order in which to combine the sources.
+            Defaults to the order in which they are defined in sources.
         """
 
         super().__init__(context, variables=variables, pre_processors=None, purpose=purpose)
@@ -141,6 +146,14 @@ class Cutout(Input):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
             else:
                 self.masks[src] = mask if mask is not None else slice(0, None)  # type: ignore
+
+        if order is not None:
+            ordered_sources = OrderedDict()
+            for src in order:
+                if src not in self.sources:
+                    raise ValueError(f"Source '{src}' specified in order but not in sources.")
+                ordered_sources[src] = self.sources[src]
+            self.sources = ordered_sources
 
     def __repr__(self):
         """Return a string representation of the Cutout object."""
