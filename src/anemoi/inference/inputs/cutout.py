@@ -208,6 +208,8 @@ class Cutout(Input):
         _private_attributes["_mask"] = _mask_private_attributes
 
         combined_state.update(_private_attributes)
+        combined_state["_input"] = self
+
         return combined_state
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -236,4 +238,6 @@ class Cutout(Input):
             combined_fields = _mask_and_combine_states(combined_fields, source_state, source_mask, source_state.keys())
 
         current_state["fields"] |= combined_fields
+        current_state["_input"] = self
+
         return current_state
