@@ -146,11 +146,18 @@ domain, and the last source is the outermost, global domain,
 consistently with what is done in ``anemoi-datasets``, see `here
 <https://anemoi.readthedocs.io/projects/datasets/en/latest/using/combining.html#cutout>`_.
 
+.. note::
+
+   As the order of the sources matters, from innermost to outermost, you
+   can specify an explicit ``order`` key in the configuration to define
+   the order of the sources. If not given, the order in which the
+   sources are defined in the configuration file is used.
+
 .. warning::
 
    The ``cutout`` input nests the ``private_attributes`` of the sources
    states so may prevent usage of some keys. To restore these, use the
-   ``extract_source`` postprocessor.
+   ``extract_from_state`` postprocessor.
 
 To extract regions from different sources within the ``cutout`` input,
 your checkpoint must contain the cutout masks as supporting arrays. You
@@ -188,11 +195,11 @@ The different sources are specified exactly as you would for a single
 source, as shown in the previous sections.
 
 An easy way to then extract regions from the predicated state is to use
-the ``extract_source`` postprocessor, which will subset the state to the
-specified source. For example, to extract the ``lam_0`` source from the
-state, you can use the following configuration:
+the ``extract_from_state`` postprocessor, which will subset the state to
+the specified source. For example, to extract the ``lam_0`` source from
+the state, you can use the following configuration:
 
 .. code:: yaml
 
    post_processors:
-   - extract_source: 'lam_0'
+   - extract_from_state: 'lam_0'
