@@ -157,6 +157,8 @@ available in the repo to add the model to the integration test:
      --files [FILES ...], -f [FILES ...]
                        Additional files to upload to the model directory on S3
      --overwrite, -o   Overwrite existing files
+     --save-fake-checkpoint
+                       Save a fake checkpoint file locally alongside the real checkpoint for testing purposes.
 
 To run this script, S3 credentials with write access must be set up, see
 `anemoi.utils.remote.s3
@@ -170,11 +172,47 @@ example, an input.grib file). Supporting-arrays will be extracted from
 the checkpoint and also uploaded to S3. Make sure to give your model a
 unique and descriptive name.
 
-**Note that this S3 bucket is public.** Any files uploaded need to have
-appropricate licenses and permissions to share.
+You can pass ``--save-fake-checkpoint`` to the script to save a copy of
+the "fake" checkpoint that is created in the integration test. This can
+be useful for debugging purposes, for example you can put this fake
+checkpoint in your inference config and run it manually with
+``anemoi-inference run`` to simulate the integration test.
 
 After running the script, a new directory will be created in
 ``tests/integration/{model}`` with the metadata and an example config
 file. Modify the config file and add test cases as needed. Commit the
 ``config.yaml`` and ``metadata.json`` files to the repository and open a
 PR.
+
+**Note that the test data S3 bucket is public.** Any files uploaded need
+to have appropricate licenses and permissions to share.
+
+***************************
+ eccodes local definitions
+***************************
+
+If the inference setup relies on local eccodes definitions, these need
+to be made available during the integration tests. This is done by
+setting the ``ECCODES_DEFINITION_PATH`` in the `inference config
+<https://github.com/ecmwf/anemoi-inference/blob/a053a9ad34f34a32c3f59317faf52bbec3217f6b/tests/integration/meteoswiss-sgm-cosmo/config.yaml#L19>`_.
+
+Because eccodes caches the definitions on first use, model setups that
+use local definitions have to be isolated from each other during the
+integration tests. There is a separate workflow
+``.github/workflows/python-integration.yml`` that only runs the
+integration tests for models that use local definitions. This is done
+with pytest markers.
+
+See `here
+<https://github.com/ecmwf/anemoi-inference/blob/a053a9ad34f34a32c3f59317faf52bbec3217f6b/tests/integration/test_integration.py#L38-L43>`_
+for an example of how to mark your model with a custom marker. This can
+be done based on the model name, or a flag in the config file. The
+marker also needs to be registered in the `conftest.py
+<https://github.com/ecmwf/anemoi-inference/blob/test/meteoswiss-integration/tests/conftest.py>`_,
+and a corresponding command line flag added to pytest.
+
+For `example
+<https://github.com/ecmwf/anemoi-inference/blob/a053a9ad34f34a32c3f59317faf52bbec3217f6b/tests/conftest.py#L23-L42>`_,
+there is the ``cosmo`` marker that is triggered with the ``--cosmo``
+flag in pytest, for tests that rely on cosmo local definitions. If the
+flag is not present, the cosmo tests are skipped.
