@@ -87,7 +87,7 @@ optional-dependencies.plot = [ "earthkit-plots" ]
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
-  "anemoi-inference[all,cosmo]",
+  "anemoi-inference[all]",
   "hypothesis",
   "pytest",
   "pytest-mock",
