@@ -1,4 +1,5 @@
 - name: grib-in-grib-out
+  markers: cosmo
   input:
     - input-local-8km.grib
     - input-global-o48.grib

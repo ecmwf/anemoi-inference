@@ -35,12 +35,14 @@ LOG = logging.getLogger(__name__)
 INTEGRATION_ROOT = Path(__file__).resolve().parent
 
 
-def _marker(model: str, config: DictConfig):
-    """Add markers at collection time based on the model test config."""
-    marks = []
-    if "cosmo" in model or config.get("cosmo"):
-        marks.append(pytest.mark.cosmo)
-    return marks
+def _markers(config: DictConfig):
+    """Add markers at collection time from `markers` entry in the config.
+    Note that to avoid pytest showing a warning, markers must also be registered in the conftest.py
+    """
+    markers = config.get("markers", [])
+    if not isinstance(markers, (list, ListConfig)):
+        markers = [markers]
+    return [getattr(pytest.mark, marker) for marker in markers]
 
 
 # each model has its own folder in the integration tests directory
@@ -53,12 +55,12 @@ MODELS = [
 
 # each model can have more than one test configuration, defined as a listconfig in config.yaml
 # the integration test is parameterised over the models and their test configurations
-# with optional markers (see _marker)
+# with optional markers (see _markers)
 MODEL_CONFIGS = (
     pytest.param(
         (model, config),
         id=f"{model}/{config.name}",
-        marks=_marker(model, config),
+        marks=_markers(config),
     )
     for model in MODELS
     for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
