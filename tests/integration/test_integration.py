@@ -106,7 +106,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
         def load_array(name):
             return name, np.load(get_test_data(f"{s3_path}/supporting-arrays/{name}.npy"))
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             results = list(executor.map(load_array, array_names))
 
         supporting_arrays = dict(results)

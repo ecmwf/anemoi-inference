@@ -100,7 +100,7 @@ def check_grib_cutout(
     if not reference_datetime:
         reference_datetime = ref_ds.order_by(valid_datetime="ascending")[-1].metadata("valid_time")
 
-    assert len(ds) > 0, "No fields found in the LAM GRIB file."
+    assert len(ds) > 0, "No fields found in the output GRIB file."
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
 
     mask = checkpoint.load_supporting_array(f"{mask}/cutout_mask")
@@ -109,13 +109,13 @@ def check_grib_cutout(
     ]
 
     for param in prognostic_params:
-        lam_fields = ds.sel(param=param)
+        fields = ds.sel(param=param)
         ref_fields = ref_ds.sel(param=param, valid_time=reference_datetime)
 
-        assert len(lam_fields) > 0, f"No fields found for variable {param} in LAM file."
+        assert len(fields) > 0, f"No fields found for variable {param} in output file."
         assert len(ref_fields) > 0, f"No fields found for variable {param} in reference file at {reference_datetime}."
 
-        for field in lam_fields:
+        for field in fields:
             assert field.values.shape[-1] == np.sum(
                 mask
             ), f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
