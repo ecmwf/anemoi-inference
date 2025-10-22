@@ -12,7 +12,7 @@
   checks:
     - check_grib:
         check_nans: true
-    - check_grib_lam:
+    - check_grib_cutout:
         reference_grib: ${input:0}
   inference_config:
     checkpoint: ${checkpoint:}

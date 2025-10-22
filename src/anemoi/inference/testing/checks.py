@@ -78,8 +78,8 @@ def check_grib(
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
-@testing_registry.register("check_grib_lam")
-def check_grib_lam(
+@testing_registry.register("check_grib_cutout")
+def check_grib_cutout(
     *,
     file: Path,
     checkpoint: "Checkpoint",
@@ -90,7 +90,7 @@ def check_grib_lam(
 ):
     """check shape and values of inner region against a reference GRIB"""
 
-    LOG.info(f"Checking LAM: {file}")
+    LOG.info(f"Checking cutout: {file}")
     import earthkit.data as ekd
     import numpy as np
 
@@ -163,8 +163,8 @@ def check_with_xarray(
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
-@testing_registry.register("check_lam_with_xarray")
-def check_lam_with_xarray(
+@testing_registry.register("check_cutout_with_xarray")
+def check_cutout_with_xarray(
     *,
     file: Path,
     checkpoint: "Checkpoint",
@@ -174,7 +174,7 @@ def check_lam_with_xarray(
     reference_file=None,
     **kwargs,
 ) -> None:
-    LOG.info(f"Checking LAM: {file}")
+    LOG.info(f"Checking cutout: {file}")
     import numpy as np
     import xarray as xr
 
