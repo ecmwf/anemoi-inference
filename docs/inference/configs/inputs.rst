@@ -146,13 +146,6 @@ domain, and the last source is the outermost, global domain,
 consistently with what is done in ``anemoi-datasets``, see `here
 <https://anemoi.readthedocs.io/projects/datasets/en/latest/using/combining.html#cutout>`_.
 
-.. note::
-
-   As the order of the sources matters, from innermost to outermost, you
-   can specify an explicit ``order`` key in the configuration to define
-   the order of the sources. If not given, the order in which the
-   sources are defined in the configuration file is used.
-
 .. warning::
 
    The ``cutout`` input nests the ``private_attributes`` of the sources
@@ -182,11 +175,13 @@ running ``anemoi-inference patch <your_checkpoint>``.
 
    input:
      cutout:
-       lam_0:
+       - lam_0:
          mars: {}
          mask: null
 
-An example configuration for the ``cutout`` input is shown below:
+An example configuration for the ``cutout`` input is shown below, the
+sources can be provided as a list of positional arguments, with each
+source specified as a mapping from source name to source configuration:
 
 .. literalinclude:: yaml/inputs_11.yaml
    :language: yaml

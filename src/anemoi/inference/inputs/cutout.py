@@ -9,12 +9,12 @@
 
 
 import logging
-from collections import OrderedDict
 from collections import defaultdict
 from collections.abc import Iterable
 
 import numpy as np
 
+from anemoi.inference.decorators import main_argument
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
@@ -97,19 +97,17 @@ def _extract_and_add_private_attributes(
 
 
 @input_registry.register("cutout")
+@main_argument("sources", capture_all_args=True)
 class Cutout(Input):
     """Combines one or more LAMs into a global source using cutouts."""
-
-    # TODO: Does this need an ordering?
 
     def __init__(
         self,
         context,
+        sources: list[dict[str, dict]],
         *,
         variables: list[str] | None = None,
         purpose: str | None = None,
-        order: list[str] | None = None,
-        **sources: dict[str, dict],
     ):
         """Create a cutout input from a list of sources.
 
@@ -117,15 +115,13 @@ class Cutout(Input):
         ----------
         context : dict
             The context runner.
-        **sources : dict of sources
-            Kwargs of sources to combine.
+        sources : list[dict[str, dict]]
+            List of sources / inputs to combine, the order defines the order in which they are combined.
+            Must be consistent with training.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
         purpose : Optional[str]
             The purpose of the input.
-        order : Optional[list[str]]
-            Explicit order in which to combine the sources.
-            Defaults to the order in which they are defined in sources.
         """
 
         super().__init__(context, variables=variables, pre_processors=None, purpose=purpose)
@@ -133,7 +129,11 @@ class Cutout(Input):
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
 
-        for src, cfg in sources.items():
+        for inp in sources:
+            if not isinstance(inp, dict) or len(inp) != 1:
+                raise ValueError("Each source in cutout inputs must be a dict with a single key-value pair.")
+            src, cfg = next(iter(inp.items()))
+
             if isinstance(cfg, str):
                 mask = f"{src}/cutout_mask"
             else:
@@ -146,14 +146,6 @@ class Cutout(Input):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
             else:
                 self.masks[src] = mask if mask is not None else slice(0, None)  # type: ignore
-
-        if order is not None:
-            ordered_sources = OrderedDict()
-            for src in order:
-                if src not in self.sources:
-                    raise ValueError(f"Source '{src}' specified in order but not in sources.")
-                ordered_sources[src] = self.sources[src]
-            self.sources = ordered_sources
 
     def __repr__(self):
         """Return a string representation of the Cutout object."""

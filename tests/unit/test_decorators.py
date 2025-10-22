@@ -21,3 +21,18 @@ def test_main_argument():
 
     with pytest.raises(TypeError):
         main_argument("path")(lambda x: x)
+
+
+def test_main_argument_with_capture_all():
+    @main_argument("paths", capture_all_args=True)
+    class _Cls:
+        def __init__(self, context, paths=None):
+            self.context = context
+            self.paths = paths
+
+    cls = _Cls("context", "path1", "path2")
+
+    assert cls.context == "context"
+    assert cls.paths == ("path1", "path2")
+
+    assert isinstance(main_argument("paths", capture_all_args=True)(_Cls), type)
