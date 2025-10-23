@@ -58,6 +58,7 @@ class PlotOutput(Output):
         variables: list[str] | None = None,
         mode: str = "subplots",
         domain: str | list[str] | None = None,
+        schema: str | None = None,
         template: str = "plot_{date}.{format}",
         format: str = "png",
         post_processors: list[ProcessorConfig] | None = None,
@@ -80,6 +81,8 @@ class PlotOutput(Output):
             The plotting mode, can be "subplots" or "overlay", by default "subplots".
         domain : str | list[str] | None, optional
             The domain/s to plot, by default None.
+        schema : str | None, optional
+            The schema to use, by default None.
         template : str, optional
             The template for plot filenames, by default "plot_{date}.{format}".
             Has access to the following variables:
@@ -114,6 +117,7 @@ class PlotOutput(Output):
         self.template = template
         self.domain = domain
         self.mode = mode
+        self.schema = schema
         self.kwargs = kwargs
 
     def write_step(self, state: State) -> None:
@@ -126,6 +130,9 @@ class PlotOutput(Output):
         """
         import earthkit.data as ekd
         import earthkit.plots as ekp
+
+        if self.schema:
+            ekp.schema.use(self.schema)
 
         longitudes = fix(state["longitudes"])
         latitudes = state["latitudes"]
