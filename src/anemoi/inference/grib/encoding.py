@@ -311,7 +311,7 @@ def grib_keys(
             "variable",
         ):
             if k == "stream":
-                if v in ("oper", "wave"):
+                if v in ("oper", "wave") and template.metadata("localUsePresent", default=0):
                     result.setdefault(k, v)
                 continue
 
