@@ -26,7 +26,7 @@ from . import input_registry
 from .ekd import EkdInput
 
 LOG = logging.getLogger(__name__)
-SKIP_KEYS = ["date", "time", "step"]
+SKIP_KEYS = ["date", "time", "step", "valid_datetime"]
 
 
 @input_registry.register("dummy")
