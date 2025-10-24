@@ -120,7 +120,7 @@ class ExtractMask(ExtractBase):
         str
             String representation of the object.
         """
-        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer if not isinstance(self.indexer, slice) else self.indexer.size})"
+        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer if isinstance(self.indexer, slice) else self.indexer.size})"
 
 
 @post_processor_registry.register("extract_slice")
