@@ -2,7 +2,7 @@
   input: null  # anemoi-datasets will download the zarr.zip at runtime
   output: output.nc
   checks:
-    - check_lam_with_xarray:
+    - check_cutout_with_xarray:
         mask: 'lam_0'
         reference_date: 2020-01-02T00:00:00
         reference_dataset:
