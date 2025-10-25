@@ -20,6 +20,27 @@ pytest_plugins = "anemoi.utils.testing"
 STATE_NPOINTS = 50
 
 
+def pytest_addoption(parser):
+    parser.addoption("--cosmo", action="store_true", default=False, help="only run cosmo tests")
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "cosmo: mark test as requiring cosmo eccodes definitions and isolation")
+
+
+def pytest_collection_modifyitems(config, items):
+    skip_cosmo = pytest.mark.skip(reason="skipping cosmo tests, use --cosmo to run")
+    skip_non_cosmo = pytest.mark.skip(reason="skipping non-cosmo tests")
+
+    for item in items:
+        if config.getoption("--cosmo"):
+            if "cosmo" not in item.keywords:
+                item.add_marker(skip_non_cosmo)
+        else:
+            if "cosmo" in item.keywords:
+                item.add_marker(skip_cosmo)
+
+
 @pytest.fixture
 def state():
     """Fixture to create a mock state for testing."""
