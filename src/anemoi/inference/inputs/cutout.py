@@ -11,29 +11,17 @@
 import logging
 from collections import defaultdict
 from collections.abc import Iterable
-from collections.abc import Mapping
 
 import numpy as np
 
+from anemoi.inference.decorators import main_argument
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
 from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
-
-
-def contains_key(obj, key: str) -> bool:
-    """Recursively check if `key` exists anywhere in a nested config (dict/DotDict/lists)."""
-    if isinstance(obj, Mapping):
-        if key in obj:
-            return True
-        return any(contains_key(v, key) for v in obj.values())
-    if isinstance(obj, (list, tuple, set)):
-        return any(contains_key(v, key) for v in obj)
-    return False
 
 
 def _mask_and_combine_states(
@@ -109,19 +97,17 @@ def _extract_and_add_private_attributes(
 
 
 @input_registry.register("cutout")
+@main_argument("sources", capture_all_args=True)
 class Cutout(Input):
     """Combines one or more LAMs into a global source using cutouts."""
-
-    # TODO: Does this need an ordering?
 
     def __init__(
         self,
         context,
+        sources: list[dict[str, dict]],
         *,
         variables: list[str] | None = None,
-        pre_processors: list[ProcessorConfig] | None = None,
         purpose: str | None = None,
-        **sources: dict[str, dict],
     ):
         """Create a cutout input from a list of sources.
 
@@ -129,41 +115,32 @@ class Cutout(Input):
         ----------
         context : dict
             The context runner.
-        sources : dict of sources
-            A dictionary of sources to combine.
+        sources : list[dict[str, dict]]
+            List of sources / inputs to combine, the order defines the order in which they are combined.
+            Must be consistent with training.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
-        pre_processors : Optional[List[ProcessorConfig]], default None
-            Pre-processors to apply to the input. Note that pre_processors are applied to each sub-input.
         purpose : Optional[str]
             The purpose of the input.
         """
 
-        super().__init__(context, variables=variables, pre_processors=pre_processors, purpose=purpose)
+        super().__init__(context, variables=variables, pre_processors=None, purpose=purpose)
 
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
 
-        for src, cfg in sources.items():
+        for inp in sources:
+            if not isinstance(inp, dict) or len(inp) != 1:
+                raise ValueError("Each source in cutout inputs must be a dict with a single key-value pair.")
+            src, cfg = next(iter(inp.items()))
+
             if isinstance(cfg, str):
                 mask = f"{src}/cutout_mask"
             else:
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            if contains_key(cfg, "pre_processors"):
-                combined_pre_processors = (pre_processors or []).extend(cfg.get("pre_processors", []))
-                self.sources[src] = create_input(
-                    context, cfg, variables=variables, pre_processors=combined_pre_processors, purpose=purpose
-                )
-            else:
-                self.sources[src] = create_input(
-                    context,
-                    cfg,
-                    variables=variables,
-                    purpose=purpose,
-                    pre_processors=pre_processors,
-                )
+            self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
@@ -236,6 +213,8 @@ class Cutout(Input):
         _private_attributes["_mask"] = _mask_private_attributes
 
         combined_state.update(_private_attributes)
+        combined_state["_input"] = self
+
         return combined_state
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -264,4 +243,6 @@ class Cutout(Input):
             combined_fields = _mask_and_combine_states(combined_fields, source_state, source_mask, source_state.keys())
 
         current_state["fields"] |= combined_fields
+        current_state["_input"] = self
+
         return current_state
