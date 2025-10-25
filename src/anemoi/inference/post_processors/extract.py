@@ -85,9 +85,13 @@ class ExtractMask(ExtractBase):
     mask : str
         Either a path to a `.npy` file containing the boolean mask or
         the name of a supporting array found in the checkpoint.
+    as_slice: bool, optional
+        Convert the boolean mask to a slice object by selecting all True values.
+        Requires that the region extracted by the mask is contiguous and starts at 0.
+        Default is False.
     """
 
-    def __init__(self, context: Context, mask: str) -> None:
+    def __init__(self, context: Context, *, mask: str, as_slice: bool = False) -> None:
         super().__init__(context)
 
         self._maskname = mask
@@ -102,7 +106,10 @@ class ExtractMask(ExtractBase):
                 "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
             )
 
-        self.indexer = mask
+        if as_slice:
+            self.indexer = slice(None, np.sum(mask))
+        else:
+            self.indexer = mask
         self.npoints = np.sum(mask)
 
     def __repr__(self) -> str:
@@ -113,7 +120,7 @@ class ExtractMask(ExtractBase):
         str
             String representation of the object.
         """
-        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer.size})"
+        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer if isinstance(self.indexer, slice) else self.indexer.size})"
 
 
 @post_processor_registry.register("extract_slice")
