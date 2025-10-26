@@ -10,6 +10,7 @@
 
 import datetime
 import logging
+import sys
 from collections import defaultdict
 from typing import Any
 
@@ -48,7 +49,7 @@ def check_data(title: str, data: Any, variables: list[str], dates: list[datetime
         from rich.table import Table
 
         table = Table(title=title)
-        console = Console()
+        console = Console(file=sys.stderr)
 
         LOG.error("Data check failed for %s", title)
 
