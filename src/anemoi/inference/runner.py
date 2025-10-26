@@ -180,7 +180,18 @@ class Runner(Context):
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
-            self.checkpoint.print_variable_categories()
+            from rich.console import Console
+            from rich.table import Table
+
+            console = Console(file=sys.stderr)
+            table = Table(title="Variable categories")
+            table.add_column("Variable", no_wrap=True)
+            table.add_column("Categories", no_wrap=True)
+
+            for name, categories in self.checkpoint.variable_categories().items():
+                table.add_row(name, ", ".join(categories))
+
+            console.print(table)
 
     @property
     def checkpoint(self) -> Checkpoint:
