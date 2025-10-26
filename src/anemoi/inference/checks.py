@@ -62,7 +62,6 @@ def check_data(title: str, data: Any, variables: list[str], dates: list[datetime
         table.add_column("Name", justify="left")
 
         dates = sorted(dates)
-        variables = sorted(variables)
 
         for d in dates:
             table.add_column(d.isoformat(), justify="center")
