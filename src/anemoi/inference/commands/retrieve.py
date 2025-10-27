@@ -220,7 +220,7 @@ class RetrieveCmd(Command):
         # This is a alias to pairs of include/exclude
         command_parser.add_argument(
             "--input-type",
-            default="default",
+            default="default-input",
             choices=sorted(Variables.input_types()),
             help="Type of input variables to retrieve.",
         )
