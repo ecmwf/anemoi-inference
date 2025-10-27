@@ -1,0 +1,19 @@
+name: Integration test isolation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+
+jobs:
+  cosmo:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    uses: ecmwf/reusable-workflows/.github/workflows/qa-pytest-pyproject.yml@v2
+    with:
+      optional-dependencies: "all,tests,cosmo"
+      custom-pytest: pytest tests/integration --cosmo
+      python-version: ${{ matrix.python-version }}
