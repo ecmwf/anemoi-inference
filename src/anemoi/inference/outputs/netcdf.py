@@ -146,42 +146,6 @@ class NetCDFOutput(Output):
 
         LOG.info(f"🕒 Reference date set to {self.reference_date}")
         LOG.info(f"✅ Created NetCDF file {self.path} with dimensions: time=unlimited, values={values}")
-
-    def ensure_variables(self, state: State) -> None:
-        """Ensure that all variables are created in the NetCDF file.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-
-        values = len(state["latitudes"])
-
-        compression = {}  # dict(zlib=False, complevel=0)
-
-        for name in state["fields"].keys():
-            if name in self.vars:
-                continue
-            chunksizes = (1, values)
-
-            while np.prod(chunksizes) > 1000000:
-                chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
-
-            with LOCK:
-                missing_value = self.missing_value
-
-                self.vars[name] = self.ncfile.createVariable(
-                    name,
-                    self.float_size,
-                    ("time", "values"),
-                    chunksizes=chunksizes,
-                    fill_value=missing_value,
-                    **compression,
-                )
-
-                self.vars[name].fill_value = missing_value
-                self.vars[name].missing_value = missing_value
                 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
