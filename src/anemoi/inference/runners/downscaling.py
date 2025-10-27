@@ -218,9 +218,9 @@ class DownscalingRunner(DefaultRunner):
         extra_args = self.extra_config.get("extra_args", {})
 
         residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy(), dim=(0, 1)) #, axis=(0, 1)) #dim=(0, 1))
-        #if residual_output_numpy.ndim == 1:
-        #    residual_output_numpy = residual_output_numpy[:, np.newaxis]
+        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy()):
+        if residual_output_numpy.ndim == 1:
+            residual_output_numpy = residual_output_numpy[:, np.newaxis]
 
 
         self._print_output_tensor("Residual output tensor", residual_output_numpy)
