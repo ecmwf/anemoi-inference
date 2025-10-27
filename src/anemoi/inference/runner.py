@@ -571,7 +571,7 @@ class Runner(Context):
                         pass
             LOG.info("Preloading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
 
-        with Timer(f"Loading {self.checkpoint}"):
+        with Timer(f"Loading {self.checkpoint}") as t:
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
