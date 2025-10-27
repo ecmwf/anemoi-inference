@@ -14,7 +14,6 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from anemoi.inference.decorators import main_argument
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
@@ -97,17 +96,15 @@ def _extract_and_add_private_attributes(
 
 
 @input_registry.register("cutout")
-@main_argument("sources", capture_all_args=True)
 class Cutout(Input):
     """Combines one or more LAMs into a global source using cutouts."""
 
     def __init__(
         self,
         context,
-        sources: list[dict[str, dict]],
-        *,
-        variables: list[str] | None = None,
-        purpose: str | None = None,
+        *args: dict[str, dict],
+        sources: list[dict[str, dict]] | None = None,
+        **kwargs,
     ):
         """Create a cutout input from a list of sources.
 
@@ -117,14 +114,13 @@ class Cutout(Input):
             The context runner.
         sources : list[dict[str, dict]]
             List of sources / inputs to combine, the order defines the order in which they are combined.
-            Must be consistent with training.
-        variables : list[str] | None
-            List of variables to be handled by the input, or None for a sensible default variables.
-        purpose : Optional[str]
-            The purpose of the input.
         """
 
-        super().__init__(context, variables=variables, pre_processors=None, purpose=purpose)
+        super().__init__(context, pre_processors=None, **kwargs)
+
+        if not sources:
+            sources = []
+        sources = [*args, *sources]
 
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
@@ -140,7 +136,7 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            self.sources[src] = create_input(context, cfg, variables=variables, purpose=purpose)
+            self.sources[src] = create_input(context, cfg, variables=self.variables, purpose=self.purpose)
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
