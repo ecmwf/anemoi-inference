@@ -51,6 +51,5 @@ or if it expects a single argument, it can be simplified as:
    outputs
    processors
    forcings
-   icon-input
    grib-input
    grib-output
