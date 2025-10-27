@@ -65,7 +65,7 @@ optional-dependencies.all = [
   "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.cosmo = [
-  "eccodes<=2.44.0",
+  "eccodes<=2.44",
   "eccodes-cosmo-resources-python",
 ]
 
