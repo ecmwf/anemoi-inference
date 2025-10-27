@@ -43,29 +43,17 @@ class main_argument:
         grib:
             path: out.grib
     ```
-
-    Also supports capturing all positional arguments into the main argument as a tuple:
-    ```
-    @main_argument("paths", capture_all_args=True)
-    class MultiFileOutput
-        def __init__(context, paths=None, archive_requests=None):
-            ...
-    output = MultiFileOutput(context, "out1.grib", "out2.grib")
-    ```
     """
 
-    def __init__(self, name: str, *, capture_all_args: bool = False):
+    def __init__(self, name: str):
         """Initialize the main_argument decorator.
 
         Parameters
         ----------
         name : str
             The name of the main argument.
-        capture_all_args : bool, optional
-            If True, captures all positional arguments into the main argument as a tuple.
         """
         self.name = name
-        self._capture_all_args = capture_all_args
 
     def __call__(self, cls: F) -> F:
         """Decorate the class to set the main argument."""
@@ -76,11 +64,7 @@ class main_argument:
         class WrappedClass(cls):
             def __init__(wrapped_cls, context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
                 if main is not MARKER:
-                    if self._capture_all_args:
-                        kwargs[self.name] = (main,) + args
-                        args = tuple()
-                    else:
-                        kwargs[self.name] = main
+                    kwargs[self.name] = main
                 super().__init__(context, *args, **kwargs)
 
         return type(cls.__name__, (WrappedClass,), {})
