@@ -87,7 +87,10 @@ class ManualCluster(Cluster):
 
         import torch.multiprocessing as mp
 
-        mp.set_start_method("spawn")
+        try:
+            mp.set_start_method("spawn")
+        except RuntimeError:
+            LOG.warning("Multiprocessing start method has already been set.")
 
         for pid in range(1, self.world_size):
             process = mp.Process(target=fn, args=args, kwargs={"pid": pid})
