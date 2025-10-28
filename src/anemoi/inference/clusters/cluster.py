@@ -46,7 +46,7 @@ class Cluster(ABC):
     @abstractmethod
     def used(cls) -> bool:
         """Check if this cluster is valid in the current environment."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
 
     def spawn(self, fn: Any, *args: Any) -> None:
         """Spawn processes in the cluster environment.
@@ -144,31 +144,31 @@ class Cluster(ABC):
     @abstractmethod
     def local_rank(self) -> int:
         """Return the rank of the current process."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
 
     @property
     @abstractmethod
     def global_rank(self) -> int:
         """Return the rank of the current process."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
 
     @property
     @abstractmethod
     def world_size(self) -> int:
         """Return the total number of processes in the cluster."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
 
     @property
     @abstractmethod
     def master_addr(self) -> str:
         """Return the master address."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
 
     @property
     @abstractmethod
     def master_port(self) -> int:
         """Return the master port."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method.")
 
     @property
     def address(self) -> ADDRESS:
