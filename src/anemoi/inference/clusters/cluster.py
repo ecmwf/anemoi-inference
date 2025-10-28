@@ -30,7 +30,17 @@ class Cluster(ABC):
     _model_comm_group: torch.distributed.ProcessGroup | None = None  # type: ignore
 
     def __init__(self, context: Context, **kwargs: Any) -> None:
+        """Cluster class for parallel inference
+
+        Parameters
+        ----------
+        context : Context
+            Runner context
+        kwargs : Any
+            Additional keyword arguments
+        """
         self.context = context
+        _ = kwargs  # To avoid unused variable warning
 
     @classmethod
     @abstractmethod
