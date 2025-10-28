@@ -233,6 +233,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def input_tensor_index_to_variable(self) -> frozendict:
         """Return the mapping between input tensor index and variable name."""
         return frozendict({v: k for k, v in self.variable_to_input_tensor_index.items()})
+
     @cached_property
     def output_tensor_index_to_variable(self) -> frozendict:
         """Return the mapping between output tensor index and variable name."""
