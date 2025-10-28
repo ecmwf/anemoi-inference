@@ -224,6 +224,25 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
 
+    @property
+    def variable_to_output_tensor_index(self) -> frozendict:
+        """Return the mapping between variable name and output tensor index."""
+        mapping = self._make_indices_mapping(
+            self._indices.data.output.full,
+            self._indices.model.output.full,
+        )
+
+        return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
+
+    @cached_property
+    def input_tensor_index_to_variable(self) -> frozendict:
+        """Return the mapping between input tensor index and variable name."""
+        mapping = self._make_indices_mapping(
+            self._indices.model.input.full,
+            self._indices.data.input.full,
+        )
+        return frozendict({k: self.variables[v] for k, v in mapping.items()})
+
     @cached_property
     def output_tensor_index_to_variable(self) -> frozendict:
         """Return the mapping between output tensor index and variable name."""
