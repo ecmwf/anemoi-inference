@@ -27,6 +27,7 @@ class EnvMapping:
     master_addr: str
     master_port: str
 
+    backend: str | None = None
     init_method: str = "env://"
 
 
@@ -80,6 +81,11 @@ class MappingCluster(Cluster):
     def init_method(self) -> str:
         """Return the initialisation method string for distributed computing."""
         return self._mapping.init_method.format(master_addr=self.master_addr, master_port=self.master_port)
+
+    @property
+    def backend(self) -> str:
+        """Return the backend string for distributed computing."""
+        return self._mapping.backend or super().backend
 
     @property
     def world_size(self) -> int:

@@ -24,7 +24,7 @@ MPI_MAPPING = EnvMapping(
     world_size="OMPI_COMM_WORLD_SIZE",
     master_addr="MASTER_ADDR",
     master_port="MASTER_PORT",
-    init_method="env://",
+    init_method="tcp://{master_addr}:{master_port}",
 )
 
 
@@ -32,8 +32,18 @@ MPI_MAPPING = EnvMapping(
 class MPICluster(MappingCluster):  # type: ignore
     """MPI cluster that uses MPI environment variables for distributed setup."""
 
-    def __init__(self, context: Context, **kwargs) -> None:
+    def __init__(self, context: Context, use_mpi_backend: bool = False, **kwargs) -> None:
+        """Initialise the MPICluster.
+
+        Parameters
+        ----------
+        context : Context
+            Runner context
+        use_mpi_backend : bool, optional
+            Use the `mpi` backend in torch, by default False
+        """
         super().__init__(context, mapping=MPI_MAPPING, **kwargs)
+        self._use_mpi_backend = use_mpi_backend
 
     @classmethod
     def used(cls) -> bool:
@@ -42,10 +52,14 @@ class MPICluster(MappingCluster):  # type: ignore
     @property
     def backend(self) -> str:
         """Return the backend string for distributed computing."""
-        return "mpi"
+        if self._use_mpi_backend:
+            return "mpi"
+        return super().backend
 
     def init_process_group(self) -> torch.distributed.ProcessGroup:  # type: ignore
         """Initialise the process group for distributed computing."""
-        import torch.distributed as dist
+        if self._use_mpi_backend:
+            import torch.distributed as dist
 
-        return dist.init_process_group(backend=self.backend)
+            return dist.init_process_group(backend=self.backend)
+        return super().init_process_group()

@@ -28,7 +28,7 @@ cluster (e.g. Slurm), no additional configuration is required.
 
    Supported cluster types which are automatically detected are:
       -  Slurm
-      -  MPI
+      -  MPI, optionally with `mpi` torch backend
       -  Env Distributed, i.e. torchrun
 
 If you are running in parallel without Slurm or a known cluster, you can
