@@ -159,7 +159,7 @@ class EkdInput(Input):
             valid_datetime="ascending",
         )
 
-        check_data(title, data, self.variables, dates, self.context.checkpoint)
+        check_data(title, data, self.variables, dates)
 
         return data
 

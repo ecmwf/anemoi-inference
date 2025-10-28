@@ -55,7 +55,6 @@ dependencies = [
   "packaging",
   "pydantic",
   "pyyaml",
-  "rich",
   "semantic-version",
   "torch",
 ]
