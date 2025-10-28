@@ -280,7 +280,7 @@ class TestMPICluster:
                 "MASTER_PORT": "29500",
             },
         ):
-            cluster = MPICluster(mock_context)
+            cluster = MPICluster(mock_context, use_mpi_backend=True)
 
             assert cluster.world_size == 8
             assert cluster.global_rank == 3
