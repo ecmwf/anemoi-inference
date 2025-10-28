@@ -7,6 +7,8 @@
 # nor does it submit to any jurisdiction.
 #
 
+from typing import Any
+
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.context import Context
@@ -16,13 +18,21 @@ from .cluster import Cluster
 cluster_registry: Registry[Cluster] = Registry(__name__)
 
 
-def create_cluster(context: Context, config: dict, *args, **kwargs) -> Cluster:
+def create_cluster(context: Context, config: dict[str, Any] | str, *args, **kwargs) -> Cluster:
     """Find and return the appropriate cluster for the current environment.
+
+    Parameters
+    ----------
+    context : Context
+        Context for the cluster.
+    config : dict
+        Configuration for the cluster.
+        Can be string or dict.
 
     Returns
     -------
     Cluster
-        The found cluster instance.
+         The created cluster instance.
     """
     if config:
         return cluster_registry.from_config(config, context, *args, **kwargs)

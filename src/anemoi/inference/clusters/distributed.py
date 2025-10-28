@@ -23,7 +23,6 @@ DISTRIBUTED_MAPPING = EnvMapping(
     world_size="WORLD_SIZE",
     master_addr="MASTER_ADDR",
     master_port="MASTER_PORT",
-    # backend="nccl",
     init_method="env://",
 )
 
