@@ -6,12 +6,6 @@ If the memory requirements of your model are too large to fit within a
 single GPU, you can run Anemoi-Inference in parallel across multiple
 GPUs.
 
-You have two options to launch parallel inference:
-   -  Launch without Slurm. This allows you to run inference across
-      multiple GPUs **on a single node**.
-   -  Launch via Slurm. Slurm is needed to run inference **across
-      multiple nodes**.
-
 ***************
  Prerequisites
 ***************
@@ -26,23 +20,32 @@ old version of Anemoi-Models.
 ***************
 
 To run in parallel, you must add '``runner:parallel``' to your inference
-config file. If you are running in parallel without Slurm, you must also
-add a '``world_size: num_gpus``' field. This informs Anemoi-Inference
-how many GPUs you want to run across. It cannot be greater then the
-number of GPUs on a single node.
+config file. By default it will attempt to detect your cluster
+environment (e.g. Slurm, MPI, etc). If you are running on a known
+cluster (e.g. Slurm), no additional configuration is required.
 
 .. note::
 
-   If you are launching parallel inference via Slurm, '``world_size``'
-   will be ignored in favour of the '``SLURM_NTASKS``' environment
-   variable.
+   Supported cluster types which are automatically detected are:
+      -  Slurm
+      -  MPI
+      -  Env Distributed, i.e. torchrun
+
+If you are running in parallel without Slurm or a known cluster, you can
+use the manual cluster
+(:class:`anemoi.inference.clusters.manual.ManualCluster`) by setting the
+cluster key in config.
+
+Set ``world_size`` to the number of GPUs you want to use, this cannot
+exceed the number of available GPUs on your system.
 
 .. code:: yaml
 
    checkpoint: /path/to/inference-last.ckpt
    lead_time: 60
    runner: parallel
-   world_size: 4 #Only required if running parallel inference without Slurm
+   cluster: # Only required if running parallel inference without a known cluster
+      manual: 4
    input:
      grib: /path/to/input.grib
    output:
@@ -62,13 +65,13 @@ option:
 Any additional options passed to the `parallel` runner will be forwarded
 to the ``base_runner``.
 
-*********************************************
- Running inference in parallel without Slurm
-*********************************************
+**************************************************
+ Running inference in parallel with ManualCluster
+**************************************************
 
-Once you have added '``runner:parallel``' and '``world_size: num_gpus``'
-to your config file, you can launch parallel inference by calling
-'``anemoi-inferece run config.yaml``' as normal.
+Once you have added '``runner:parallel``' and configured the cluster in
+your config file, you can launch parallel inference by calling
+'``anemoi-inference run config.yaml``' as normal.
 
 ******************************************
  Running inference in parallel with Slurm
