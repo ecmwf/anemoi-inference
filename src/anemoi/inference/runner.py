@@ -10,7 +10,6 @@
 
 import datetime
 import logging
-import os
 import sys
 import warnings
 from collections.abc import Generator
@@ -167,8 +166,6 @@ class Runner(Context):
 
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
-        self.preload_checkpoint = preload_checkpoint
-        self.preload_buffer_size = preload_buffer_size
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
@@ -559,19 +556,8 @@ class Runner(Context):
         Any
             The loaded model.
         """
-        from anemoi.utils.humanize import bytes_to_human
 
-        size = os.path.getsize(self.checkpoint.path)
-        LOG.info("Checkpoint size: %s", bytes_to_human(size))
-
-        if self.preload_checkpoint:
-            with Timer(f"Preloading {self.checkpoint}") as t:
-                with open(self.checkpoint.path, "rb") as f:
-                    while f.read(self.preload_buffer_size):
-                        pass
-            LOG.info("Preloading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
-
-        with Timer(f"Loading {self.checkpoint}") as t:
+        with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
@@ -587,9 +573,6 @@ class Runner(Context):
                 raise e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
-
-            LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
-
             model.runner = self
             return model
 

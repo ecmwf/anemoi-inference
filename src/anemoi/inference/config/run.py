@@ -121,9 +121,3 @@ class RunConfiguration(Configuration):
 
     debugging_info: dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
-
-    preload_checkpoint: bool = False
-    """Whether to read the checkpoint file from disk before loading the model."""
-
-    preload_buffer_size: int = 32 * 1024 * 1024
-    """Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB."""
