@@ -91,7 +91,7 @@ class ExtractMask(ExtractBase):
         Default is False.
     """
 
-    def __init__(self, context: Context, *, mask: str, as_slice: bool = False) -> None:
+    def __init__(self, context: Context, *, mask: str, as_slice: bool = False, inverse: bool = False) -> None:
         super().__init__(context)
 
         self._maskname = mask
@@ -107,9 +107,9 @@ class ExtractMask(ExtractBase):
             )
 
         if as_slice:
-            self.indexer = slice(None, np.sum(mask))
+            self.indexer = slice(None, np.sum(mask)) if not inverse else slice(np.sum(mask), None)
         else:
-            self.indexer = mask
+            self.indexer = mask if not inverse else ~mask
         self.npoints = np.sum(mask)
 
     def __repr__(self) -> str:
