@@ -116,7 +116,7 @@ class ParallelRunnerMixin(Runner):
         self.model_comm_group = self.create_model_comm_group(self.cluster)
 
         if self.device.type == "cuda":
-            self.device = torch.device("cuda", index=self.cluster.local_rank)
+            self.device = torch.device("cuda", index=self.cluster.device_index)
             torch.cuda.set_device(self.device)
             LOG.info(f"ParallelRunner changing to device `{self.device}`")
         else:

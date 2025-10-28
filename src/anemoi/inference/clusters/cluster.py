@@ -125,6 +125,11 @@ class Cluster(ABC):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @property
+    def device_index(self) -> int:
+        """Return the device index for the current process, defaults to local rank."""
+        return self.local_rank
+
+    @property
     @abstractmethod
     def global_rank(self) -> int:
         """Return the rank of the current process."""
