@@ -550,10 +550,17 @@ class Runner(Context):
         """
         from anemoi.utils.humanize import bytes_to_human
 
-        size = os.path.getsize(self.checkpoint.path)
-        LOG.info("Checkpoint size: %s", bytes_to_human(size))
+        try:
+            size = os.path.getsize(self.checkpoint.path)
+            LOG.info("Checkpoint size: %s", bytes_to_human(size))
+        except FileNotFoundError:
+            # This happens during testing, with mocked checkpoints
+            # If we are not in a testing environment, torch.load will raise
+            # the proper error
+            size = 0
+            LOG.warning("Checkpoint file not found: %s", self.checkpoint.path)
 
-        if self.preload_checkpoint:
+        if self.preload_checkpoint and size > 0:
             with Timer(f"Preloading {self.checkpoint}") as t:
                 with open(self.checkpoint.path, "rb") as f:
                     while f.read(self.preload_buffer_size):
