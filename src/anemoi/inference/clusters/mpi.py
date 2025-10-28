@@ -11,10 +11,10 @@ import logging
 import os
 
 from anemoi.inference.clusters import cluster_registry
+from anemoi.inference.clusters.cluster import CommsGroup
 from anemoi.inference.clusters.mapping import EnvMapping
 from anemoi.inference.clusters.mapping import MappingCluster
 from anemoi.inference.context import Context
-from anemoi.inference.lazy import torch
 
 LOG = logging.getLogger(__name__)
 
@@ -56,10 +56,16 @@ class MPICluster(MappingCluster):  # type: ignore
             return "mpi"
         return super().backend
 
-    def init_process_group(self) -> torch.distributed.ProcessGroup:  # type: ignore
+    @property
+    def comm_group_init(self) -> CommsGroup:  # type: ignore
         """Initialise the process group for distributed computing."""
         if self._use_mpi_backend:
-            import torch.distributed as dist
+            return CommsGroup(
+                world_size=self.world_size,
+                global_rank=self.global_rank,
+                init_kwargs={
+                    "backend": self.backend,
+                },
+            )
 
-            return dist.init_process_group(backend=self.backend)
-        return super().init_process_group()
+        return super().comm_group_init

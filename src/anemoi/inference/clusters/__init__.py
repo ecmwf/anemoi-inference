@@ -14,6 +14,7 @@ from anemoi.utils.registry import Registry
 from anemoi.inference.context import Context
 
 from .cluster import Cluster
+from .cluster import CommsGroup
 
 cluster_registry: Registry[Cluster] = Registry(__name__)
 
@@ -46,3 +47,6 @@ def create_cluster(context: Context, config: dict[str, Any] | str, *args, **kwar
     raise RuntimeError(
         f"No suitable cluster found for the current environment,\nDiscovered implementations were {cluster_registry.registered}."
     )
+
+
+__all__ = ["Cluster", "CommsGroup", "cluster_registry", "create_cluster"]

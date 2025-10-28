@@ -9,19 +9,27 @@
 
 import datetime
 import logging
-import os
 from abc import ABC
 from abc import abstractmethod
+from dataclasses import dataclass
 from typing import Any
 from typing import NamedTuple
-
-import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.lazy import torch
 
 ADDRESS = NamedTuple("Address", [("host", str), ("port", int)])
 LOG = logging.getLogger(__name__)
+
+
+@dataclass
+class CommsGroup:
+    """Data class for communication group initialisation parameters."""
+
+    world_size: int
+    global_rank: int
+
+    init_kwargs: dict[str, Any]
 
 
 class Cluster(ABC):
@@ -73,64 +81,24 @@ class Cluster(ABC):
         """Return the backend for distributed computing."""
         return "nccl" if self.context.device.type == "cuda" else "gloo"  # type: ignore
 
-    def init_process_group(self) -> torch.distributed.ProcessGroup:  # type: ignore
-        import torch.distributed as dist
-
-        return dist.init_process_group(
-            backend=self.backend,
-            init_method=self.init_method,
-            timeout=datetime.timedelta(minutes=3),
-            world_size=self.world_size,
-            rank=self.global_rank,
-        )
-
-    def initialise(self) -> None:  # type: ignore
-        """Initialise the process group for distributed computing."""
-        import torch.distributed as dist
-
-        if self.world_size > 1:
-            LOG.info(
-                f"Creating a model communication group with {self.world_size} devices with the {self.backend!r} backend"
-            )
-            model_comm_group = self.init_process_group()
-
-            model_comm_group_ranks = np.arange(self.world_size, dtype=int)
-            model_comm_group = dist.new_group(model_comm_group_ranks)
-        else:
-            model_comm_group = None
-
-        self._model_comm_group = model_comm_group
-
     @property
-    def model_comm_group(self) -> torch.distributed.ProcessGroup | None:  # type: ignore
-        """Return the model communication group."""
-        return self._model_comm_group
-
-    def seed(self) -> None:
-        seed = None
-        seed_threshold = 1000
-        env_var = "ANEMOI_BASE_SEED"
-
-        if env_var in os.environ:
-            seed = int(os.environ[env_var])
-            if seed < seed_threshold:
-                seed *= seed_threshold  # Ensure seed is sufficiently large
-
-        if self.global_rank == 0:
-            seed = seed or torch.initial_seed()
-            seed_list = [seed]
-            torch.distributed.broadcast_object_list(seed_list, src=0, group=self.model_comm_group)
-        else:
-            seed_list = [None]
-            torch.distributed.broadcast_object_list(seed_list, src=0, group=self.model_comm_group)
-            seed = seed_list[0]
-
-        torch.manual_seed(seed)
+    def comm_group_init(self) -> CommsGroup:
+        """Return the communication group initialisation parameters."""
+        return CommsGroup(
+            world_size=self.world_size,
+            global_rank=self.global_rank,
+            init_kwargs={
+                "backend": self.backend,
+                "init_method": self.init_method,
+                "timeout": datetime.timedelta(minutes=3),
+                "world_size": self.world_size,
+                "rank": self.global_rank,
+            },
+        )
 
     def teardown(self) -> None:
         """Tear down the cluster environment."""
-        if self.model_comm_group is not None:
-            torch.distributed.destroy_process_group()
+        pass
 
     def __del__(self) -> None:
         self.teardown()
