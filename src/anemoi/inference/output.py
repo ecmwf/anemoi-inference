@@ -138,8 +138,6 @@ class Output(ABC):
             worker_id: Unique identifier for this worker
             queue: Queue to receive messages from main process
         """
-        #LOG.debug(f"Initialising writer {writer_id}...")
-        #self.__init__(context=context)
         LOG.info(f"Writer {writer_id} started and waiting for messages...")
         
         self.per_writer_init(writer_id)
@@ -147,7 +145,7 @@ class Output(ABC):
         while not stop_event.is_set():
             try:
                 # Wait for message from main process
-                message = queue.get(timeout=1)  # 1 second timeout
+                message = queue.get(timeout=60)  # 1 minute timeout
                 
                 if message == "TERMINATE":
                     LOG.debug(f"Writer {writer_id} received termination signal")
@@ -159,15 +157,16 @@ class Output(ABC):
                 
             except mp.queues.Empty:
                 # No message received, continue waiting
-                #LOG.info(f"Writer {writer_id} has an empty queue")
-                #break
-                continue
+                LOG.info(f"Writer {writer_id} has an empty queue")
+                break
+                #continue
             except Exception as e:
                 print(traceback.format_exc())
                 LOG.error(f"Writer {writer_id} encountered error: {e}")
                 break
         
         LOG.info(f"Worker {writer_id} shutting down")
+        self._terminate_all_writers()
         
     def __repr__(self) -> str:
         """Return a string representation of the Output object.
@@ -255,60 +254,46 @@ class Output(ABC):
         if self.num_writers == 0:
             return self.write_step(state)
         else:
-            #use self.num_writers and state['num_fields'] to split state up into chunks
-            #spawn 'self.num_writers' processes and have them each write a chunk of 'state'
-            #find_unpicklable(state)
-            #pp.pprint(state)
-            #state
-            #I have to spawn the writers at runtime
-            #if i spawn at init time, then the output subclass hasnt been initialised,
-            # so per_writer_init is too early
             if not self.writers_running:
                 self._spawn_writers()
                 self.writers_running=True
             state_chunks= self._split_state(state, self.num_writers)
             for i in range(self.num_writers):
-                # Find the problematic lambdas
-                #check_picklability(state_chunks[i])
-                #chunk = sanitize_state(state_chunks[i])
-                #self.queues[i].put(chunk)
-                #find_unpicklable(state_chunks[i])
-                state_chunks[i]['_grib_templates_for_output']={} #check if this is causing the pickle errors
-                #i have an error writing grib outptu
-                #passing variables through queue.put forces them to be pickled
-                # and _grib_templates_for_output cant be pickled bc there's some lambda unctions for earthkit in there
-                #self.grib_templates=state['_grib_templates_for_output']
-                #pp.pprint(state_chunks[i])
-                #exit()
+                state_chunks[i]['_grib_templates_for_output']={} #stop pickling errors
                 self.queues[i].put(state_chunks[i])
-            #raise ValueError("Multiple writer procs not supported yet")
-            
-    
             
     def _terminate_all_writers(self):
         """Terminate all writer processes gracefully."""
         if self.num_writers == 0:
             return
-        LOG.info("Terminating all worker processes...")
-        
-        # Send termination signal to all writers
-        for queue in self.queues:
+
+        self.writers_running=False
+
+        LOG.info("Initiating writer shutdown...")
+
+        # Step 1 — Tell them to stop
+        for i, queue in enumerate(self.queues):
             try:
-                queue.put("TERMINATE")
+                queue.put_nowait("TERMINATE")
             except Exception as e:
-                LOG.error(f"Failed to send termination signal: {e}")
-        
-        # Wait for all processes to finish
+                LOG.error(f"Failed to send termination to writer {i}: {e}")
+
+        # Step 2 — Give them a moment to shut down cleanly
         for i, process in enumerate(self.processes):
-            process.join(timeout=1)  # Wait up to 5 seconds
-            breakpoint()
+            process.join(timeout=2)
+
+        # Step 3 — Hard kill anything still moving 🔪
+        for i, process in enumerate(self.processes):
             if process.is_alive():
-                LOG.info(f"Force terminating worker {i}")
-                process.terminate()
-                process.join()
-        
-        LOG.info("All writer processes terminated")
-        #TODO I could merge all writer procs messages at this point
+                process.kill()   # requires Python 3.7+
+                process.join(timeout=1)
+
+        # Step 4 — Clean up queues explicitly
+        for q in self.queues:
+            q.close()
+            q.cancel_join_thread()  # Critical: prevents main-process hang
+
+        LOG.info("All writer processes terminated and cleaned up.")
 
     @classmethod
     def reduce(cls, state: State) -> State:

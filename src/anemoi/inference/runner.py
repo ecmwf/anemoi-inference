@@ -467,6 +467,9 @@ class Runner(Context):
                 error_msg = f"Error loading model - {validation_result}"
                 raise RuntimeError(error_msg) from e
             # model.set_inference_options(**self.inference_options)
+
+            
+
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
             return model
@@ -583,7 +586,6 @@ class Runner(Context):
             self.shard_output=self.config.parallel_output
             if  self.shard_output:
                 LOG.info("Anemoi inference: Parallel output")
-                self.sharded_output=True
 
             if not hasattr(self, "model_comm_group"):
                 self.model_comm_group=None
@@ -668,12 +670,12 @@ class Runner(Context):
                     y_pred_cpu = torch.empty(y_pred.shape, pin_memory=True)
                 y_pred_cpu.copy_(y_pred) 
                
-                if self.sharded_output:
+                if self.shard_output:
                     field_start, field_end = self.determine_global_vars(self.model_comm_group, y_pred_cpu.shape[-1])
                     output_shard_torch = y_pred_cpu[..., field_start:field_end]
                
                 output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
-                if self.sharded_output:
+                if self.shard_output:
                     output_shard = np.squeeze(output_shard_torch.numpy())  # shape: (values, variables)
 
                 # Update state
@@ -682,26 +684,16 @@ class Runner(Context):
                         new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
                         
                         
-                    if self.sharded_output:
-                        # Each GPU returns a subset of the global vars
-                        # E.g. 88 vars in total, each GPU will have a shard with 22
+                    if self.shard_output:
+                        # Each device returns a subset of the global vars
+                        # E.g. 88 vars in total, each device will have a shard with 22
                         # We need to get their rank and the number of processes to determine
                         # mapping from  local var id in the output shard to global var id in the output state
                         #LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
                             
-                        #debug stuff
-                        #local_fields=""
-                        #fields_to_write=0
                         for i in range(field_end-field_start):
                             new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
 
-                            #debug stuff
-                            #local_fields += f"{field_start+i}: {self.checkpoint.output_tensor_index_to_variable[field_start+i]},"
-                            #fields_to_write += 1
-                            
-                        #debug stuff
-                        #rank=torch.distributed.get_rank(group=self.model_comm_group)
-                        #LOG.debug(f"{rank} to write {fields_to_write} fields, fields = {local_fields} ({field_start}-{field_end})")
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_output_tensor("Output tensor", output_full)
@@ -717,7 +709,7 @@ class Runner(Context):
                 with (Timer("Writing output..."),
                       ProfilingLabel("Writing output", self.use_profiler)
                      ):
-                    if self.sharded_output:
+                    if self.shard_output:
                         yield new_state_shard
                     else:
                         yield new_state
