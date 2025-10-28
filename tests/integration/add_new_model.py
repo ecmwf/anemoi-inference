@@ -13,8 +13,6 @@ from anemoi.utils.remote import transfer
 from anemoi.utils.remote.s3 import _list_objects
 from anemoi.utils.sanitise import sanitise
 
-from anemoi.inference.testing import save_fake_checkpoint
-
 warnings.filterwarnings(
     "ignore",
     message=".*DotDict.*",  # ignore DotDict immutable warning triggered by `transfer`
@@ -51,11 +49,6 @@ parser.add_argument(
     "-o",
     action="store_true",
     help="Overwrite existing files.",
-)
-parser.add_argument(
-    "--save-fake-checkpoint",
-    action="store_true",
-    help="Save a fake checkpoint file locally alongside the real checkpoint for testing purposes.",
 )
 args = parser.parse_args()
 
@@ -95,11 +88,6 @@ metadata["config"] = {
     "training": metadata["config"]["training"],
 }
 
-if args.save_fake_checkpoint:
-    fake_checkpoint_path = Path(args.checkpoint).parent / f"{args.model}-fake.ckpt"
-    print(f"💾 Saving fake checkpoint to {fake_checkpoint_path}")
-    save_fake_checkpoint(metadata, fake_checkpoint_path, supporting_arrays=supporting_arrays)
-
 # save metadata and example config file in the local repo
 with open(metadata_path, "w") as f:
     json.dump(metadata, f, indent=2)
@@ -125,13 +113,8 @@ with open(config_path, "w") as f:
 
 # upload files to S3
 for file in args.files:
-    if file.is_dir():
-        for subfile in file.iterdir():
-            s3_path = f"{S3_ROOT}/{args.model}/{file}/{subfile.name}"
-            transfer(str(subfile), s3_path, overwrite=args.overwrite, resume=not args.overwrite)
-    else:
-        s3_path = f"{S3_ROOT}/{args.model}/{file.name}"
-        transfer(str(file), s3_path, overwrite=args.overwrite, resume=not args.overwrite)
+    s3_path = f"{S3_ROOT}/{args.model}/{file.name}"
+    transfer(str(file), s3_path, overwrite=args.overwrite, resume=not args.overwrite)
 
 with tempfile.TemporaryDirectory() as temp_dir:
     temp_dir_path = Path(temp_dir)
@@ -154,6 +137,6 @@ for item in model_path.iterdir():
 
 print(f"☁️ Files in {S3_ROOT}/{args.model}:")
 for item in _list_objects(f"{S3_ROOT}/{args.model}"):
-    print(f" - {item['path'].split(f'{args.model}/')[-1]}")
+    print(f" - {item['Key'].split(f'{args.model}/')[-1]}")
 
 print(f"✅ Model {args.model} added successfully.")

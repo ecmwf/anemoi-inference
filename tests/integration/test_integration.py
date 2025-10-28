@@ -10,7 +10,6 @@
 import json
 import logging
 import os
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
@@ -20,7 +19,6 @@ import pytest
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData
-from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
 
@@ -34,17 +32,6 @@ LOG = logging.getLogger(__name__)
 
 INTEGRATION_ROOT = Path(__file__).resolve().parent
 
-
-def _markers(config: DictConfig):
-    """Add markers at collection time from `markers` entry in the config.
-    Note that to avoid pytest showing a warning, markers must also be registered in the conftest.py
-    """
-    markers = config.get("markers", [])
-    if not isinstance(markers, (list, ListConfig)):
-        markers = [markers]
-    return [getattr(pytest.mark, marker) for marker in markers]
-
-
 # each model has its own folder in the integration tests directory
 # and contains at least a metadata.json and config.yaml file
 MODELS = [
@@ -55,16 +42,9 @@ MODELS = [
 
 # each model can have more than one test configuration, defined as a listconfig in config.yaml
 # the integration test is parameterised over the models and their test configurations
-# with optional markers (see _markers)
-MODEL_CONFIGS = (
-    pytest.param(
-        (model, config),
-        id=f"{model}/{config.name}",
-        marks=_markers(config),
-    )
-    for model in MODELS
-    for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
-)
+MODEL_CONFIGS = [
+    (model, config) for model in MODELS for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
+]
 
 
 class Setup(NamedTuple):
@@ -72,7 +52,7 @@ class Setup(NamedTuple):
     output: Path
 
 
-@pytest.fixture(params=MODEL_CONFIGS)
+@pytest.fixture(params=MODEL_CONFIGS, ids=[f"{model}/{config.name}" for model, config in MODEL_CONFIGS])
 def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     model, config = request.param
     input = config.input
@@ -119,7 +99,6 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     OmegaConf.register_new_resolver("output", lambda: str(output), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
     OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
-    OmegaConf.register_new_resolver("sys.prefix", lambda: sys.prefix, replace=True)
 
     # save the inference config to disk
     inference_config = OmegaConf.to_yaml(inference_config, resolve=True)

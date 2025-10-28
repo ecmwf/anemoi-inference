@@ -21,7 +21,6 @@ import deprecation
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
-from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -578,7 +577,8 @@ class Checkpoint:
 
                 base = date
                 step = str(r.get("step", 0)).split("-")[-1]
-                base = base - to_timedelta(step)
+                step = int(step)
+                base = base - datetime.timedelta(hours=step)
 
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
