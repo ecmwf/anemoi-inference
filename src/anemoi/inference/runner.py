@@ -10,7 +10,7 @@
 
 import datetime
 import logging
-import sys
+import os
 import warnings
 from collections.abc import Generator
 from functools import cached_property
@@ -21,6 +21,7 @@ from typing import Union
 import numpy as np
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
@@ -177,18 +178,7 @@ class Runner(Context):
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
-            from rich.console import Console
-            from rich.table import Table
-
-            console = Console(file=sys.stderr)
-            table = Table(title="Variable categories")
-            table.add_column("Variable", no_wrap=True)
-            table.add_column("Categories", no_wrap=True)
-
-            for name, categories in self.checkpoint.variable_categories().items():
-                table.add_row(name, ", ".join(categories))
-
-            console.print(table)
+            self.checkpoint.print_variable_categories()
 
     @property
     def checkpoint(self) -> Checkpoint:
@@ -556,8 +546,26 @@ class Runner(Context):
         Any
             The loaded model.
         """
+        from anemoi.utils.humanize import bytes_to_human
 
-        with Timer(f"Loading {self.checkpoint}"):
+        try:
+            size = os.path.getsize(self.checkpoint.path)
+            LOG.info("Checkpoint size: %s", bytes_to_human(size))
+        except FileNotFoundError:
+            # This happens during testing, with mocked checkpoints
+            # If we are not in a testing environment, torch.load will raise
+            # the proper error
+            size = 0
+            LOG.warning("Checkpoint file not found: %s", self.checkpoint.path)
+
+        if self.preload_checkpoint and size > 0:
+            with Timer(f"Preloading {self.checkpoint}") as t:
+                with open(self.checkpoint.path, "rb") as f:
+                    while f.read(self.preload_buffer_size):
+                        pass
+            LOG.info("Preloading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
+        with Timer(f"Loading {self.checkpoint}") as t:
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
@@ -1017,18 +1025,8 @@ class Runner(Context):
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
-        from rich.console import Console
-        from rich.table import Table
 
-        table = Table(title=title)
-        console = Console(file=sys.stderr)
-        table.add_column("Index", justify="right")
-        table.add_column("Variable", justify="left")
-        table.add_column("Min", justify="right")
-        table.add_column("Max", justify="right")
-        table.add_column("NaNs", justify="center")
-        table.add_column("Kind", justify="left")
-
+        t = []
         for k, v in enumerate(tensor_by_name):
             data = tensor_numpy[-1, k]
 
@@ -1043,18 +1041,13 @@ class Runner(Context):
             if np.isinf(data).any():
                 nans = "∞"
 
-            table.add_row(
-                str(k),
-                v,
-                f"{np.nanmin(data):g}",
-                f"{np.nanmax(data):g}",
-                nans,
-                str(kinds.get(v, Kind())),
-            )
+            t.append((k, v, np.nanmin(data), np.nanmax(data), nans, kinds.get(v, Kind())))
 
-        console.print()
-        console.print(table)
-        console.print()
+        LOG.info("")
+        LOG.info(
+            "%s:\n\n%s\n", title, table(t, header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"], align="><<<|<")
+        )
+        LOG.info("")
 
     def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
         """Print the input tensor.
