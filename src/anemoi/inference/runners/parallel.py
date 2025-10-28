@@ -132,8 +132,8 @@ class ParallelRunnerMixin(Runner):
 
         Parameters
         ----------
-        comm_group_init : CommGroupInit
-            The communication group initialisation parameters.
+        cluster : Cluster
+            The cluster to use for the communication group.
 
         Returns
         -------

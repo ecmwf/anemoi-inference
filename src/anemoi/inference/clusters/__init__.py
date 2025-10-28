@@ -29,6 +29,10 @@ def create_cluster(context: Context, config: dict[str, Any] | str, *args, **kwar
     config : dict
         Configuration for the cluster.
         Can be string or dict.
+    args : Any
+        Additional positional arguments.
+    kwargs : Any
+        Additional keyword arguments.
 
     Returns
     -------
