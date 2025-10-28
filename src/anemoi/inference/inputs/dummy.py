@@ -43,17 +43,16 @@ class DummyInput(EkdInput):
         context : Context
             The context for the input.
         """
+        kwargs.setdefault("variables", None)
         super().__init__(context, **kwargs)
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, date: Date | None) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
-        **kwargs : Any
-            Additional keyword arguments.
 
         Returns
         -------
@@ -63,7 +62,7 @@ class DummyInput(EkdInput):
         assert date is not None, "date must be provided for dummy input"
 
         dates = [date + h for h in self.checkpoint.lagged]
-        return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date, **kwargs)
+        return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.

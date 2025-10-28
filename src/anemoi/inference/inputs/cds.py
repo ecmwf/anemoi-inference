@@ -112,12 +112,10 @@ class CDSInput(GribInput):
     def __init__(
         self,
         context: Context,
-        *,
-        variables: list[str] | None = None,
         pre_processors: list[ProcessorConfig] | None = None,
+        *,
         dataset: str | dict[str, Any],
         namer: Any | None = None,
-        purpose: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the CDSInput.
@@ -126,8 +124,6 @@ class CDSInput(GribInput):
         ----------
         context : Context
             The context in which the input is used.
-        variables : list[str] | None
-            List of variables to be handled by the input, or None for a sensible default variables.
         pre_processors : Optional[List[ProcessorConfig]], default None
             Pre-processors to apply to the input
         dataset : Union[str, Dict[str, Any]]
@@ -137,7 +133,7 @@ class CDSInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, purpose=purpose)
+        super().__init__(context, pre_processors, namer=namer)
 
         self.dataset = dataset
         self.kwargs = kwargs

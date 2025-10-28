@@ -38,7 +38,7 @@ class Input(ABC):
         self,
         context: "Context",
         *,
-        variables: list[str] | None = None,
+        variables: list[str] | None,
         pre_processors: list[ProcessorConfig] | None = None,
         purpose: str | None = None,
     ) -> None:
@@ -62,7 +62,6 @@ class Input(ABC):
         if variables is None:
             variables = self.context.variables.default_input_variables()  # type: ignore
 
-        assert isinstance(variables, list), "variables must be a list of strings"
         self.variables = variables
         self.purpose = purpose
 
