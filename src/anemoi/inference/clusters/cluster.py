@@ -16,7 +16,6 @@ from typing import Any
 from typing import NamedTuple
 
 from anemoi.inference.context import Context
-from anemoi.inference.lazy import torch
 
 ADDRESS = NamedTuple("Address", [("host", str), ("port", int)])
 LOG = logging.getLogger(__name__)
@@ -34,8 +33,6 @@ class CommsGroup:
 
 class Cluster(ABC):
     """Abstract base class for cluster and parallel environment handling."""
-
-    _model_comm_group: torch.distributed.ProcessGroup | None = None  # type: ignore
 
     def __init__(self, context: Context) -> None:
         """Cluster class for parallel inference
