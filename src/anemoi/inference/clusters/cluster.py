@@ -37,7 +37,7 @@ class Cluster(ABC):
 
     _model_comm_group: torch.distributed.ProcessGroup | None = None  # type: ignore
 
-    def __init__(self, context: Context, **kwargs: Any) -> None:
+    def __init__(self, context: Context) -> None:
         """Cluster class for parallel inference
 
         Parameters
@@ -48,7 +48,17 @@ class Cluster(ABC):
             Additional keyword arguments
         """
         self.context = context
-        _ = kwargs  # To avoid unused variable warning
+
+    def configure(self, *, pid: int) -> None:
+        """Configure the cluster with additional parameters.
+
+        Parameters
+        ----------
+        pid : int
+            The process ID.
+            Used to set local rank in some cluster implementations.
+        """
+        pass
 
     @classmethod
     @abstractmethod

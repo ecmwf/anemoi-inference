@@ -39,7 +39,8 @@ class TestManualCluster:
 
     def test_manual_cluster_initialization(self, mock_context):
         """Test ManualCluster initialization."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=0)
 
         assert cluster.world_size == 4
         assert cluster.global_rank == 0
@@ -51,16 +52,19 @@ class TestManualCluster:
     def test_manual_cluster_invalid_world_size(self, mock_context):
         """Test ManualCluster with invalid world_size."""
         with pytest.raises(ValueError, match="world_size.*must be greater then 1"):
-            ManualCluster(mock_context, world_size=0, pid=0)
+            ManualCluster(mock_context, world_size=0)
 
         with pytest.raises(ValueError, match="world_size.*must be greater then 1"):
-            ManualCluster(mock_context, world_size=-1, pid=0)
+            ManualCluster(mock_context, world_size=-1)
 
     def test_manual_cluster_different_ranks(self, mock_context):
         """Test ManualCluster with different process ranks."""
-        cluster0 = ManualCluster(mock_context, world_size=4, pid=0)
-        cluster1 = ManualCluster(mock_context, world_size=4, pid=1)
-        cluster3 = ManualCluster(mock_context, world_size=4, pid=3)
+        cluster0 = ManualCluster(mock_context, world_size=4)
+        cluster0.configure(pid=0)
+        cluster1 = ManualCluster(mock_context, world_size=4)
+        cluster1.configure(pid=1)
+        cluster3 = ManualCluster(mock_context, world_size=4)
+        cluster3.configure(pid=3)
 
         assert cluster0.global_rank == 0
         assert cluster1.global_rank == 1
@@ -72,7 +76,8 @@ class TestManualCluster:
 
     def test_manual_cluster_spawn(self, mock_context):
         """Test ManualCluster spawn functionality."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=0)
 
         mock_fn = MagicMock()
 
@@ -88,7 +93,7 @@ class TestManualCluster:
 
     def test_manual_cluster_spawn_non_master(self, mock_context):
         """Test that non-master processes don't spawn."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=2)
+        cluster = ManualCluster(mock_context, world_size=4)
 
         mock_fn = MagicMock()
 
@@ -100,7 +105,7 @@ class TestManualCluster:
 
     def test_manual_cluster_teardown(self, mock_context):
         """Test ManualCluster teardown with process cleanup."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
 
         # Create mock processes
         mock_processes = [MagicMock() for _ in range(3)]
@@ -118,7 +123,7 @@ class TestManualCluster:
 
     def test_manual_cluster_teardown_with_alive_processes(self, mock_context):
         """Test ManualCluster teardown when processes are still alive."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
 
         # Create mock processes that are alive
         mock_process = MagicMock()
@@ -140,7 +145,8 @@ class TestManualCluster:
 
     def test_manual_cluster_repr(self, mock_context):
         """Test ManualCluster string representation."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=2)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=2)
         repr_str = repr(cluster)
 
         assert "ManualCluster" in repr_str
@@ -420,7 +426,8 @@ class TestClusterRegistry:
         """Test create_cluster with explicit config."""
         config = {"manual": {"world_size": 4}}
 
-        cluster = create_cluster(mock_context, config, pid=1)
+        cluster = create_cluster(mock_context, config)
+        cluster.configure(pid=1)
 
         assert isinstance(cluster, ManualCluster)
         assert cluster.world_size == 4
@@ -458,7 +465,8 @@ class TestClusterBase:
 
     def test_cluster_init_method(self, mock_context):
         """Test cluster init_method property."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=0)
 
         init_method = cluster.init_method
         assert init_method.startswith("tcp://")
@@ -468,28 +476,33 @@ class TestClusterBase:
     def test_cluster_backend_cuda(self, mock_context):
         """Test cluster backend selection for CUDA."""
         mock_context.device.type = "cuda"
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=0)
 
         assert cluster.backend == "nccl"
 
     def test_cluster_backend_cpu(self, mock_context):
         """Test cluster backend selection for CPU."""
         mock_context.device.type = "cpu"
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=0)
 
         assert cluster.backend == "gloo"
 
     def test_cluster_is_master(self, mock_context):
         """Test cluster is_master property."""
-        cluster0 = ManualCluster(mock_context, world_size=4, pid=0)
-        cluster1 = ManualCluster(mock_context, world_size=4, pid=1)
+        cluster0 = ManualCluster(mock_context, world_size=4)
+        cluster0.configure(pid=0)
+        cluster1 = ManualCluster(mock_context, world_size=4)
+        cluster1.configure(pid=1)
 
         assert cluster0.is_master
         assert not cluster1.is_master
 
     def test_cluster_address_property(self, mock_context):
         """Test cluster address property returns named tuple."""
-        cluster = ManualCluster(mock_context, world_size=4, pid=0)
+        cluster = ManualCluster(mock_context, world_size=4)
+        cluster.configure(pid=0)
 
         address = cluster.address
         assert address.host == cluster.master_addr

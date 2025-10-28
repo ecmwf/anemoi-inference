@@ -40,27 +40,37 @@ class ManualCluster(Cluster):
     ```
     """
 
-    _master_addr: str
-    _master_port: int
+    pid: int | None = None
 
-    def __init__(self, context: Context, *, world_size: int, pid: int = 0) -> None:
+    def __init__(self, context: Context, *, world_size: int) -> None:
         super().__init__(context)
         self._world_size = world_size
-        self.pid = pid
         self._spawned_processes = []
         if self.world_size <= 0:
             raise ValueError(
                 "Error. 'world_size' must be greater then 1 to use parallel inference, set `cluster.manual.world_size`."
             )
 
+    def configure(self, *, pid: int) -> None:
+        """Configure the cluster with additional parameters.
+
+        Parameters
+        ----------
+        pid : int
+            The process ID.
+        """
+        self.pid = pid
+
     @property
     def global_rank(self) -> int:
         """Return the rank of the current process."""
+        assert self.pid is not None, "Cluster not configured with pid."
         return self.pid
 
     @property
     def local_rank(self) -> int:
         """Return the rank of the current process."""
+        assert self.pid is not None, "Cluster not configured with pid."
         return self.pid
 
     @property

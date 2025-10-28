@@ -104,7 +104,9 @@ class ParallelRunnerMixin(Runner):
         # give the base class an opportunity to modify the parallel runner
         super()._configure_parallel_runner()
 
-        self.cluster = cluster or create_cluster(self, config.cluster or {}, pid=pid)
+        self.cluster = cluster or create_cluster(self, config.cluster or {})
+        self.cluster.configure(pid=pid)
+
         LOG.info(f"Using cluster: {self.cluster!r}")
 
         # Set up logging name based on actual cluster rank
