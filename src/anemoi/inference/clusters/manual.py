@@ -9,20 +9,44 @@
 
 import logging
 import os
-from functools import cached_property
 from typing import Any
+from typing import Callable
 
-from anemoi.inference.clusters import Cluster
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.context import Context
-from anemoi.inference.decorators import main_argument
+from anemoi.inference.clusters.mapping import EnvMapping
+from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.spawner import ComputeSpawner
 
 LOG = logging.getLogger(__name__)
 
+MANUAL_ENV_MARKER = "ANEMOI_INFERENCE_MANUAL_CLUSTER"
+
+MANUAL_ENV_MAPPING = EnvMapping(
+    local_rank="ANEMOI_INFERENCE_MANUAL_LOCAL_RANK",
+    global_rank="ANEMOI_INFERENCE_MANUAL_RANK",
+    world_size="ANEMOI_INFERENCE_MANUAL_WORLD_SIZE",
+    master_addr="ANEMOI_INFERENCE_MANUAL_MASTER_ADDR",
+    master_port="ANEMOI_INFERENCE_MANUAL_MASTER_PORT",
+    init_method="tcp://{master_addr}:{master_port}",
+)
+
+
+def _execute_with_env(
+    fn: Callable, *args: tuple[Any, ...], env_kwargs: dict[str, Any], **kwargs: dict[str, Any]
+) -> None:
+    """Execute the function with environment variables set."""
+    saved_env = os.environ.copy()
+
+    for key, env_var in env_kwargs.items():
+        os.environ[key] = str(env_var)
+    return_var = fn(*args, **kwargs)
+
+    os.environ.update(saved_env)
+    return return_var
+
 
 @cluster_registry.register("manual")  # type: ignore
-@main_argument("world_size")
-class ManualCluster(Cluster):
+class ManualSpawner(ComputeSpawner):
     """Manual cluster that uses user-defined world size for distributed setup.
 
     Example usage
@@ -32,58 +56,31 @@ class ManualCluster(Cluster):
     cluster:
         manual:
             world_size: 4
-    ```
-
-    ```python
-    from anemoi.inference.clusters.manual import ManualCluster
-    cluster = ManualCluster(context, world_size=4)
+            port: 12345
     ```
     """
 
-    pid: int | None = None
+    def __new__(cls, *args: Any, **kwargs: Any):
+        if os.environ.get(MANUAL_ENV_MARKER) == "active":
+            return ManualClient()
+        return super().__new__(cls)
 
-    def __init__(self, context: Context, *, world_size: int) -> None:
-        super().__init__(context)
+    def __init__(self, world_size: int, port: int | None = None) -> None:
+        if world_size < 1:
+            raise ValueError("world_size must be at least 1.")
         self._world_size = world_size
+        self._port = port
         self._spawned_processes = []
-        if self.world_size <= 0:
-            raise ValueError(
-                "Error. 'world_size' must be greater then 1 to use parallel inference, set `cluster.manual.world_size`."
-            )
 
-    def configure(self, *, pid: int) -> None:
-        """Configure the cluster with additional parameters.
+    @classmethod
+    def used(cls) -> bool:
+        return False
 
-        Parameters
-        ----------
-        pid : int
-            The process ID.
-        """
-        self.pid = pid
+    def _create_port(self) -> int:
+        """Create a unique port based on the node name."""
+        if self._port is not None:
+            return self._port
 
-    @property
-    def global_rank(self) -> int:
-        """Return the rank of the current process."""
-        assert self.pid is not None, "Cluster not configured with pid."
-        return self.pid
-
-    @property
-    def local_rank(self) -> int:
-        """Return the rank of the current process."""
-        assert self.pid is not None, "Cluster not configured with pid."
-        return self.pid
-
-    @property
-    def world_size(self) -> int:
-        """Return the total number of processes in the cluster."""
-        return self._world_size
-
-    @property
-    def master_addr(self) -> str:
-        return "localhost"
-
-    @cached_property
-    def master_port(self) -> int:  # type: ignore
         import hashlib
 
         node_name = os.uname().nodename.encode()  # Convert to bytes
@@ -92,9 +89,7 @@ class ManualCluster(Cluster):
         return master_port
 
     def spawn(self, fn: Any, *args: Any) -> None:
-        if self.pid != 0:
-            return  # only the main process should spawn others
-
+        os.environ[MANUAL_ENV_MARKER] = "active"
         import torch.multiprocessing as mp
 
         try:
@@ -102,15 +97,31 @@ class ManualCluster(Cluster):
         except RuntimeError:
             LOG.warning("Multiprocessing start method has already been set.")
 
-        for pid in range(1, self.world_size):
-            process = mp.Process(target=fn, args=args, kwargs={"pid": pid})
+        port = self._create_port()
+        mapping = {
+            MANUAL_ENV_MAPPING.world_size: str(self._world_size),
+            MANUAL_ENV_MAPPING.master_addr: "localhost",
+            MANUAL_ENV_MAPPING.master_port: str(port),
+            MANUAL_ENV_MARKER: "active",
+        }
+
+        for pid in range(self._world_size):
+            pid_mapping = {
+                **mapping,
+                MANUAL_ENV_MAPPING.global_rank: str(pid),
+                MANUAL_ENV_MAPPING.local_rank: str(pid),
+            }
+
+            process = mp.Process(target=_execute_with_env, args=(fn, *args), kwargs={"env_kwargs": pid_mapping})
             process.start()
             self._spawned_processes.append(process)
 
+        # Ensure all spawned processes complete execution
+        for process in self._spawned_processes:
+            process.join()
+
     def teardown(self) -> None:
         """Tear down the cluster environment and join spawned processes."""
-        super().teardown()
-
         # Join all spawned processes to ensure clean shutdown
         for process in self._spawned_processes:
             if process.is_alive():
@@ -120,6 +131,12 @@ class ManualCluster(Cluster):
                     process.terminate()
                     process.join(timeout=5)
 
+
+class ManualClient(MappingCluster):  # type: ignore
+    def __init__(self) -> None:
+        """Initialise the ManualClient."""
+        super().__init__(mapping=MANUAL_ENV_MAPPING)
+
     @classmethod
     def used(cls) -> bool:
-        return False
+        return bool(os.environ.get(MANUAL_ENV_MARKER))

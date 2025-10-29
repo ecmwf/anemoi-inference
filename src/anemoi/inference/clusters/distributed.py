@@ -13,7 +13,6 @@ import os
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.mapping import EnvMapping
 from anemoi.inference.clusters.mapping import MappingCluster
-from anemoi.inference.context import Context
 
 LOG = logging.getLogger(__name__)
 
@@ -31,8 +30,8 @@ DISTRIBUTED_MAPPING = EnvMapping(
 class DistributedCluster(MappingCluster):  # type: ignore
     """Distributed cluster that uses environment variables for distributed setup."""
 
-    def __init__(self, context: Context, **kwargs) -> None:
-        super().__init__(context, mapping=DISTRIBUTED_MAPPING, **kwargs)
+    def __init__(self) -> None:
+        super().__init__(mapping=DISTRIBUTED_MAPPING)
 
     @classmethod
     def used(cls) -> bool:

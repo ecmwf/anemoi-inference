@@ -9,13 +9,14 @@
 
 import logging
 import os
-from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
 
 from anemoi.utils.logs import enable_logging_name
 
-from anemoi.inference.clusters import Cluster
 from anemoi.inference.clusters import create_cluster
+from anemoi.inference.clusters.client import ComputeClient
+from anemoi.inference.clusters.spawner import ComputeSpawner
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch
 from anemoi.inference.output import Output
@@ -25,15 +26,11 @@ from ..outputs import create_output
 from ..runner import Runner
 from ..runners import create_runner
 from . import runner_registry
-from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    import torch
 
-
-def create_parallel_runner(config: Configuration, pid: int) -> None:
+def create_parallel_runner(config: Configuration) -> None:
     """Creates and runs a parallel runner.
 
     Parameters
@@ -43,8 +40,14 @@ def create_parallel_runner(config: Configuration, pid: int) -> None:
     pid : int
         The process ID.
     """
-    runner = create_runner(config, pid=pid)
+    runner = create_runner(config)
     runner.execute()
+    torch.distributed.destroy_process_group()
+
+
+class NoOp:
+    def __getattr__(self, *a, **k) -> Callable[..., None]:
+        return lambda *a, **k: None
 
 
 @runner_registry.register("parallel")  # type: ignore
@@ -65,7 +68,14 @@ class ParallelRunnerFactory:
         LOG.info(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
         ParallelRunner = cls.get_class(base_class)
-        return ParallelRunner(config, *args, **kwargs)
+        compute_client = create_cluster(config.cluster or {})
+
+        if isinstance(compute_client, ComputeSpawner):
+            with compute_client:
+                compute_client.spawn(create_parallel_runner, config)
+            return NoOp()
+
+        return ParallelRunner(config, *args, compute_client=compute_client, **kwargs)
 
     @staticmethod
     def get_class(base_class: Runner):
@@ -76,88 +86,44 @@ class ParallelRunnerFactory:
 class ParallelRunnerMixin(Runner):
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
-    def __new__(cls, config, *args, **kwargs):
-
-        if torch.cuda.is_available():
-            return super().__new__(cls)
-        else:
-            LOG.warning("CUDA is not available. Falling back to DefaultRunner")
-            return DefaultRunner(config)
-
-    def __init__(self, config: Any, pid: int = 0, cluster: Cluster | None = None, **kwargs) -> None:
+    def __init__(self, config: Any, compute_client: ComputeClient, **kwargs) -> None:
         """Initialises the ParallelRunner.
 
         Parameters
         ----------
         config : Any
             The config for the runner.
-        cluster : Cluster, optional
-            The cluster to use for distributed inference. If None, a cluster is created based on the config.
-        pid : int, optional
-            The process ID, by default 0.
+        computeClient : ComputeClient
+            The compute client to use for distributed inference
         """
 
         super().__init__(config, **kwargs)
 
-        self.model_comm_group = None
+        LOG.info(f"Using compute client: {compute_client!r}")
+
+        # Set up logging name based on actual cluster rank
+        enable_logging_name(f"rank{compute_client.global_rank:02d}")
+
+        self.compute_client = compute_client
+        self.model_comm_group = compute_client.create_model_comm_group()
 
         # give the base class an opportunity to modify the parallel runner
         super()._configure_parallel_runner()
 
-        self.cluster = cluster or create_cluster(self, config.cluster or {})
-        self.cluster.configure(pid=pid)
-
-        LOG.info(f"Using cluster: {self.cluster!r}")
-
-        # Set up logging name based on actual cluster rank
-        enable_logging_name(f"rank{self.cluster.global_rank:02d}")
-
-        self.cluster.spawn(create_parallel_runner, config)  # TODO: How to split concern?
-        self.model_comm_group = self.create_model_comm_group(self.cluster)
-
         if self.device.type == "cuda":
-            self.device = torch.device("cuda", index=self.cluster.device_index)
+            self.device = torch.device("cuda", index=compute_client.device_index)
             torch.cuda.set_device(self.device)
             LOG.info(f"ParallelRunner changing to device `{self.device}`")
         else:
             LOG.info(f"ParallelRunner device `{self.device}` is unchanged")
 
+        self.is_master = compute_client.is_master
         self.seed(self.model_comm_group)
 
         # disable most logging on non-zero ranks
-        if not self.cluster.is_master and self.verbosity == 0:
+        if not self.is_master and self.verbosity == 0:
             LOG.info("ParallelRunner logging disabled on non-zero rank")
             logging.getLogger().setLevel(logging.WARNING)
-
-    def create_model_comm_group(self, cluster: Cluster) -> torch.distributed.ProcessGroup | None:
-        """Create a model communication group for the cluster.
-
-        Parameters
-        ----------
-        cluster : Cluster
-            The cluster to use for the communication group.
-
-        Returns
-        -------
-        torch.distributed.ProcessGroup | None
-            The created communication group, or None if not applicable.
-        """
-        comm_group_init = cluster.comm_group_init
-        if comm_group_init.world_size <= 1:
-            return None
-
-        import torch.distributed as dist
-
-        LOG.info("Creating model communication group for parallel inference")
-        group = dist.init_process_group(**comm_group_init.init_kwargs)
-
-        # Create a new process group for model communication
-        group = dist.new_group(
-            ranks=list(range(comm_group_init.world_size)),
-        )
-        LOG.info("Model communication group created")
-
-        return group
 
     def seed(self, comm_group: "torch.distributed.ProcessGroup | None") -> None:
         """Seed all processes in the cluster to ensure reproducibility."""
@@ -170,7 +136,7 @@ class ParallelRunnerMixin(Runner):
             if seed < seed_threshold:
                 seed *= seed_threshold  # Ensure seed is sufficiently large
 
-        if self.cluster.global_rank == 0:
+        if self.is_master:
             seed = seed or torch.initial_seed()
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
@@ -220,13 +186,8 @@ class ParallelRunnerMixin(Runner):
         Output
             The created output.
         """
-        if self.cluster.is_master:
+        if self.is_master:
             return super().create_output()
         else:
             output = create_output(self, "none")
             return output
-
-    def __del__(self):
-        """Cleans up the model communication group on deletion."""
-        if self.model_comm_group is not None:
-            torch.distributed.destroy_process_group()

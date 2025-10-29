@@ -11,9 +11,8 @@ import dataclasses
 import logging
 import os
 
-from anemoi.inference.clusters import Cluster
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.context import Context
+from anemoi.inference.clusters.client import ComputeClient
 
 LOG = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class EnvMapping:
 
 
 @cluster_registry.register("custom")  # type: ignore
-class MappingCluster(Cluster):
+class MappingCluster(ComputeClient):
     """Custom cluster that uses user-defined environment variables for distributed setup.
 
     Example usage
@@ -64,17 +63,14 @@ class MappingCluster(Cluster):
     ```
     """
 
-    def __init__(self, context: Context, mapping: dict | EnvMapping, **kwargs) -> None:
+    def __init__(self, mapping: dict | EnvMapping) -> None:
         """Initalise the MappingCluster
 
         Parameters
         ----------
-        context : Context
-            Runner context
         mapping : dict | EnvMapping
             Mapping of environment variables to cluster properties
         """
-        super().__init__(context, **kwargs)
         self._mapping = EnvMapping(**mapping) if isinstance(mapping, dict) else mapping
 
     @property

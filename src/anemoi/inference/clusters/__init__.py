@@ -11,21 +11,16 @@ from typing import Any
 
 from anemoi.utils.registry import Registry
 
-from anemoi.inference.context import Context
+from .client import ClusterClientProtocol
 
-from .cluster import Cluster
-from .cluster import CommsGroup
-
-cluster_registry: Registry[Cluster] = Registry(__name__)
+cluster_registry: Registry[ClusterClientProtocol] = Registry(__name__)
 
 
-def create_cluster(context: Context, config: dict[str, Any] | str, *args, **kwargs) -> Cluster:
+def create_cluster(config: dict[str, Any] | str, *args, **kwargs) -> ClusterClientProtocol:
     """Find and return the appropriate cluster for the current environment.
 
     Parameters
     ----------
-    context : Context
-        Context for the cluster.
     config : dict
         Configuration for the cluster.
         Can be string or dict.
@@ -40,17 +35,15 @@ def create_cluster(context: Context, config: dict[str, Any] | str, *args, **kwar
          The created cluster instance.
     """
     if config:
-        return cluster_registry.from_config(config, context, *args, **kwargs)
+        return cluster_registry.from_config(config, *args, **kwargs)
 
     for cluster in cluster_registry.factories:
         cluster_cls = cluster_registry.lookup(cluster)
         assert cluster_cls is not None
 
         if cluster_cls.used():
-            return cluster_cls(context, *args, **kwargs)
+            return cluster_cls(*args, **kwargs)
+
     raise RuntimeError(
         f"No suitable cluster found for the current environment,\nDiscovered implementations were {cluster_registry.registered}."
     )
-
-
-__all__ = ["Cluster", "CommsGroup", "cluster_registry", "create_cluster"]

@@ -16,7 +16,8 @@ import pytest
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters import create_cluster
 from anemoi.inference.clusters.distributed import DistributedCluster
-from anemoi.inference.clusters.manual import ManualCluster
+from anemoi.inference.clusters.manual import ManualClient
+from anemoi.inference.clusters.manual import ManualSpawner
 from anemoi.inference.clusters.mapping import EnvMapping
 from anemoi.inference.clusters.mapping import MappingCluster
 from anemoi.inference.clusters.mpi import MPICluster
@@ -34,50 +35,29 @@ def mock_context():
     return context
 
 
-class TestManualCluster:
-    """Tests for ManualCluster."""
+class TestManualSpawner:
+    """Tests for ManualSpawner."""
 
-    def test_manual_cluster_initialization(self, mock_context):
-        """Test ManualCluster initialization."""
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=0)
+    def test_manual_spawner_initialization(self):
+        """Test ManualSpawner initialization."""
+        # ManualSpawner is decorated with @main_argument("world_size")
+        # So world_size can be passed as the second positional arg (after context)
+        spawner = ManualSpawner(4)
 
-        assert cluster.world_size == 4
-        assert cluster.global_rank == 0
-        assert cluster.local_rank == 0
-        assert cluster.master_addr == "localhost"
-        assert isinstance(cluster.master_port, int)
-        assert 10000 <= cluster.master_port < 20000
+        assert spawner._world_size == 4
+        assert spawner._spawned_processes == []
 
-    def test_manual_cluster_invalid_world_size(self, mock_context):
-        """Test ManualCluster with invalid world_size."""
-        with pytest.raises(ValueError, match="world_size.*must be greater then 1"):
-            ManualCluster(mock_context, world_size=0)
+    def test_manual_spawner_invalid_world_size(self):
+        """Test ManualSpawner with invalid world_size."""
+        with pytest.raises(ValueError, match="world_size must be at least 1"):
+            ManualSpawner(0)
 
-        with pytest.raises(ValueError, match="world_size.*must be greater then 1"):
-            ManualCluster(mock_context, world_size=-1)
+        with pytest.raises(ValueError, match="world_size must be at least 1"):
+            ManualSpawner(-1)
 
-    def test_manual_cluster_different_ranks(self, mock_context):
-        """Test ManualCluster with different process ranks."""
-        cluster0 = ManualCluster(mock_context, world_size=4)
-        cluster0.configure(pid=0)
-        cluster1 = ManualCluster(mock_context, world_size=4)
-        cluster1.configure(pid=1)
-        cluster3 = ManualCluster(mock_context, world_size=4)
-        cluster3.configure(pid=3)
-
-        assert cluster0.global_rank == 0
-        assert cluster1.global_rank == 1
-        assert cluster3.global_rank == 3
-
-        assert cluster0.is_master
-        assert not cluster1.is_master
-        assert not cluster3.is_master
-
-    def test_manual_cluster_spawn(self, mock_context):
-        """Test ManualCluster spawn functionality."""
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=0)
+    def test_manual_spawner_spawn(self):
+        """Test ManualSpawner spawn functionality."""
+        spawner = ManualSpawner(4, port=12345)
 
         mock_fn = MagicMock()
 
@@ -85,73 +65,123 @@ class TestManualCluster:
             mock_process_instance = MagicMock()
             mock_process.return_value = mock_process_instance
 
-            cluster.spawn(mock_fn, "arg1", "arg2")
+            spawner.spawn(mock_fn, "arg1", "arg2")
 
-            # Should spawn world_size - 1 processes (ranks 1, 2, 3)
-            assert mock_process.call_count == 3
-            assert len(cluster._spawned_processes) == 3
+            # Should spawn world_size processes (ranks 0, 1, 2, 3)
+            assert mock_process.call_count == 4
+            assert len(spawner._spawned_processes) == 4
 
-    def test_manual_cluster_spawn_non_master(self, mock_context):
-        """Test that non-master processes don't spawn."""
-        cluster = ManualCluster(mock_context, world_size=4)
+    def test_manual_spawner_teardown(self):
+        """Test ManualSpawner teardown with process cleanup."""
+        # Ensure environment marker is not set
+        with patch.dict(os.environ, {}, clear=True):
+            spawner = ManualSpawner(4)
 
-        mock_fn = MagicMock()
+            # Create mock processes
+            mock_processes = [MagicMock() for _ in range(4)]
+            for mock_proc in mock_processes:
+                mock_proc.is_alive.return_value = False
 
-        with patch("torch.multiprocessing.Process") as mock_process:
-            cluster.spawn(mock_fn)
+            spawner._spawned_processes = mock_processes
 
-            # Non-master should not spawn
-            mock_process.assert_not_called()
+            spawner.teardown()
 
-    def test_manual_cluster_teardown(self, mock_context):
-        """Test ManualCluster teardown with process cleanup."""
-        cluster = ManualCluster(mock_context, world_size=4)
+            # All processes should have is_alive checked
+            for mock_proc in mock_processes:
+                mock_proc.is_alive.assert_called()
 
-        # Create mock processes
-        mock_processes = [MagicMock() for _ in range(3)]
-        for mock_proc in mock_processes:
-            mock_proc.is_alive.return_value = False
+    def test_manual_spawner_teardown_with_alive_processes(self):
+        """Test ManualSpawner teardown when processes are still alive."""
+        # Ensure environment marker is not set
+        with patch.dict(os.environ, {}, clear=True):
+            spawner = ManualSpawner(4)
 
-        cluster._spawned_processes = mock_processes
-        cluster._model_comm_group = None
+            # Create mock processes that are alive
+            mock_process = MagicMock()
+            mock_process.is_alive.return_value = True
+            mock_process.pid = 12345
 
-        cluster.teardown()
+            spawner._spawned_processes = [mock_process]
 
-        # All processes should have join called
-        for mock_proc in mock_processes:
-            mock_proc.is_alive.assert_called()
+            spawner.teardown()
 
-    def test_manual_cluster_teardown_with_alive_processes(self, mock_context):
-        """Test ManualCluster teardown when processes are still alive."""
-        cluster = ManualCluster(mock_context, world_size=4)
+            # Should try to join, then terminate
+            mock_process.join.assert_called()
+            mock_process.terminate.assert_called()
 
-        # Create mock processes that are alive
-        mock_process = MagicMock()
-        mock_process.is_alive.return_value = True
-        mock_process.pid = 12345
+    def test_manual_spawner_not_used(self):
+        """Test that ManualSpawner.used() returns False."""
+        assert not ManualSpawner.used()
 
-        cluster._spawned_processes = [mock_process]
-        cluster._model_comm_group = None
 
-        cluster.teardown()
+class TestManualClient:
+    """Tests for ManualClient."""
 
-        # Should try to join, then terminate
-        mock_process.join.assert_called()
-        mock_process.terminate.assert_called()
+    def test_manual_client_initialization(self):
+        """Test ManualClient initialization."""
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            client = ManualClient()
 
-    def test_manual_cluster_not_used(self):
-        """Test that ManualCluster.used() returns False."""
-        assert not ManualCluster.used()
+            assert client.world_size == 4
+            assert client.global_rank == 0
+            assert client.local_rank == 0
+            assert client.master_addr == "localhost"
+            assert client.master_port == 12345
 
-    def test_manual_cluster_repr(self, mock_context):
-        """Test ManualCluster string representation."""
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=2)
-        repr_str = repr(cluster)
+    def test_manual_client_different_ranks(self):
+        """Test ManualClient with different process ranks."""
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "1",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "1",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            client = ManualClient()
 
-        assert "ManualCluster" in repr_str
-        assert "world_size=4" in repr_str
-        assert "global_rank=2" in repr_str
+            assert client.global_rank == 1
+            assert not client.is_master
+
+    def test_manual_client_used(self):
+        """Test ManualClient.used() detection."""
+        # Not in manual environment
+        with patch.dict(os.environ, {}, clear=True):
+            assert not ManualClient.used()
+
+        # In manual environment
+        with patch.dict(os.environ, {"ANEMOI_INFERENCE_MANUAL_CLUSTER": "active"}):
+            assert ManualClient.used()
+
+    def test_manual_client_repr(self):
+        """Test ManualClient string representation."""
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "2",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "2",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            client = ManualClient()
+            repr_str = repr(client)
+
+            assert "ManualClient" in repr_str
+            assert "world_size=4" in repr_str
+            assert "global_rank=2" in repr_str
 
 
 class TestSlurmCluster:
@@ -171,7 +201,7 @@ class TestSlurmCluster:
         with patch.dict(os.environ, {"SLURM_NTASKS": "4", "SLURM_JOB_NAME": "bash"}):
             assert not SlurmCluster.used()
 
-    def test_slurm_cluster_initialization(self, mock_context):
+    def test_slurm_cluster_initialization(self):
         """Test SlurmCluster initialization."""
         with patch.dict(
             os.environ,
@@ -185,7 +215,7 @@ class TestSlurmCluster:
                 "MASTER_PORT": "29500",
             },
         ):
-            cluster = SlurmCluster(mock_context)
+            cluster = SlurmCluster()
 
             assert cluster.world_size == 8
             assert cluster.global_rank == 3
@@ -193,7 +223,7 @@ class TestSlurmCluster:
             assert cluster.master_addr == "192.168.1.1"
             assert cluster.master_port == 29500
 
-    def test_slurm_cluster_master_addr_from_nodelist(self, mock_context):
+    def test_slurm_cluster_master_addr_from_nodelist(self):
         """Test SlurmCluster master_addr resolution from SLURM_NODELIST."""
         with patch.dict(
             os.environ,
@@ -210,12 +240,12 @@ class TestSlurmCluster:
                 mock_run.return_value.stdout = "node001\nnode002\nnode003\nnode004\n"
 
                 with patch("socket.gethostbyname", return_value="192.168.1.1"):
-                    cluster = SlurmCluster(mock_context)
+                    cluster = SlurmCluster()
 
                     assert cluster.master_addr == "192.168.1.1"
                     mock_run.assert_called_once()
 
-    def test_slurm_cluster_master_port_from_jobid(self, mock_context):
+    def test_slurm_cluster_master_port_from_jobid(self):
         """Test SlurmCluster master_port generation from SLURM_JOBID."""
         with patch.dict(
             os.environ,
@@ -232,13 +262,13 @@ class TestSlurmCluster:
                 mock_run.return_value.stdout = "node001\n"
 
                 with patch("socket.gethostbyname", return_value="192.168.1.1"):
-                    cluster = SlurmCluster(mock_context)
+                    cluster = SlurmCluster()
 
                     # Port should be 10000 + last 4 digits of job ID
                     expected_port = 10000 + 8765
                     assert cluster.master_port == expected_port
 
-    def test_slurm_cluster_scontrol_failure(self, mock_context):
+    def test_slurm_cluster_scontrol_failure(self):
         """Test SlurmCluster when scontrol fails."""
         with patch.dict(
             os.environ,
@@ -253,7 +283,7 @@ class TestSlurmCluster:
         ):
             with patch("subprocess.run", side_effect=Exception("scontrol failed")):
                 with pytest.raises(Exception, match="scontrol failed"):
-                    cluster = SlurmCluster(mock_context)
+                    cluster = SlurmCluster()
                     _ = cluster.master_addr
 
 
@@ -274,7 +304,7 @@ class TestMPICluster:
         with patch.dict(os.environ, {"PMI_SIZE": "4"}):
             assert MPICluster.used()
 
-    def test_mpi_cluster_initialization(self, mock_context):
+    def test_mpi_cluster_initialization(self):
         """Test MPICluster initialization."""
         with patch.dict(
             os.environ,
@@ -286,7 +316,7 @@ class TestMPICluster:
                 "MASTER_PORT": "29500",
             },
         ):
-            cluster = MPICluster(mock_context, use_mpi_backend=True)
+            cluster = MPICluster(use_mpi_backend=True)
 
             assert cluster.world_size == 8
             assert cluster.global_rank == 3
@@ -309,13 +339,13 @@ class TestDistributedCluster:
         with patch.dict(os.environ, {"RANK": "3", "LOCAL_RANK": "1"}):
             assert DistributedCluster.used()
 
-    def test_distributed_cluster_initialization(self, mock_context):
+    def test_distributed_cluster_initialization(self):
         """Test DistributedCluster initialization."""
         with patch.dict(
             os.environ,
             {"WORLD_SIZE": "8", "RANK": "3", "LOCAL_RANK": "1", "MASTER_ADDR": "192.168.1.1", "MASTER_PORT": "29500"},
         ):
-            cluster = DistributedCluster(mock_context)
+            cluster = DistributedCluster()
 
             assert cluster.world_size == 8
             assert cluster.global_rank == 3
@@ -327,7 +357,7 @@ class TestDistributedCluster:
 class TestMappingCluster:
     """Tests for MappingCluster (custom mapping)."""
 
-    def test_mapping_cluster_with_dict(self, mock_context):
+    def test_mapping_cluster_with_dict(self):
         """Test MappingCluster with dict mapping."""
         mapping = {
             "local_rank": "MY_LOCAL_RANK",
@@ -348,7 +378,7 @@ class TestMappingCluster:
                 "MY_MASTER_PORT": "29500",
             },
         ):
-            cluster = MappingCluster(mock_context, mapping=mapping)
+            cluster = MappingCluster(mapping=mapping)
 
             assert cluster.world_size == 8
             assert cluster.global_rank == 3
@@ -356,7 +386,7 @@ class TestMappingCluster:
             assert cluster.master_addr == "192.168.1.1"
             assert cluster.master_port == 29500
 
-    def test_mapping_cluster_with_env_mapping(self, mock_context):
+    def test_mapping_cluster_with_env_mapping(self):
         """Test MappingCluster with EnvMapping object."""
         mapping = EnvMapping(
             local_rank="MY_LOCAL_RANK",
@@ -377,14 +407,14 @@ class TestMappingCluster:
                 "MY_MASTER_PORT": "12345",
             },
         ):
-            cluster = MappingCluster(mock_context, mapping=mapping)
+            cluster = MappingCluster(mapping=mapping)
 
             assert cluster.world_size == 4
             assert cluster.global_rank == 2
             assert cluster.local_rank == 0
             assert cluster.init_method == "env://"
 
-    def test_mapping_cluster_defaults(self, mock_context):
+    def test_mapping_cluster_defaults(self):
         """Test MappingCluster with missing environment variables."""
         mapping = EnvMapping(
             local_rank="MY_LOCAL_RANK",
@@ -395,7 +425,7 @@ class TestMappingCluster:
         )
 
         with patch.dict(os.environ, {}, clear=True):
-            cluster = MappingCluster(mock_context, mapping=mapping)
+            cluster = MappingCluster(mapping=mapping)
 
             # Should use defaults
             assert cluster.world_size == 1
@@ -422,18 +452,19 @@ class TestClusterRegistry:
         assert "distributed" in registered
         assert "custom" in registered
 
-    def test_create_cluster_with_config(self, mock_context):
+    def test_create_cluster_with_config(self):
         """Test create_cluster with explicit config."""
         config = {"manual": {"world_size": 4}}
 
-        cluster = create_cluster(mock_context, config)
-        cluster.configure(pid=1)
+        # Ensure the environment marker is not set
+        with patch.dict(os.environ, {}, clear=True):
+            # create_cluster with manual config returns a ManualSpawner
+            cluster = create_cluster(config)
 
-        assert isinstance(cluster, ManualCluster)
-        assert cluster.world_size == 4
-        assert cluster.global_rank == 1
+            assert isinstance(cluster, ManualSpawner)
+            assert cluster._world_size == 4
 
-    def test_create_cluster_auto_detection(self, mock_context):
+    def test_create_cluster_auto_detection(self):
         """Test create_cluster with auto-detection."""
         with patch.dict(
             os.environ,
@@ -448,62 +479,97 @@ class TestClusterRegistry:
                 "MASTER_PORT": "29500",
             },
         ):
-            cluster = create_cluster(mock_context, {})
+            cluster = create_cluster({})
 
             assert isinstance(cluster, SlurmCluster)
             assert cluster.world_size == 4
 
-    def test_create_cluster_no_suitable_cluster(self, mock_context):
+    def test_create_cluster_no_suitable_cluster(self):
         """Test create_cluster when no suitable cluster found."""
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(RuntimeError, match="No suitable cluster found"):
-                create_cluster(mock_context, {})
+                create_cluster({})
 
 
 class TestClusterBase:
     """Tests for base Cluster class functionality."""
 
-    def test_cluster_init_method(self, mock_context):
+    def test_cluster_init_method(self):
         """Test cluster init_method property."""
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=0)
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            client = ManualClient()
 
-        init_method = cluster.init_method
-        assert init_method.startswith("tcp://")
-        assert "localhost" in init_method
-        assert str(cluster.master_port) in init_method
+            init_method = client.init_method
+            assert init_method.startswith("tcp://")
+            assert "localhost" in init_method
+            assert str(client.master_port) in init_method
 
     def test_cluster_backend_cuda(self, mock_context):
         """Test cluster backend selection for CUDA."""
         mock_context.device.type = "cuda"
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=0)
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            with patch("anemoi.inference.lazy.torch.cuda.is_available", return_value=True):
+                client = ManualClient()
+                assert client.backend == "nccl"
 
-        assert cluster.backend == "nccl"
-
-    def test_cluster_backend_cpu(self, mock_context):
+    def test_cluster_backend_cpu(self):
         """Test cluster backend selection for CPU."""
-        mock_context.device.type = "cpu"
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=0)
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            with patch("anemoi.inference.lazy.torch.cuda.is_available", return_value=False):
+                client = ManualClient()
+                assert client.backend == "gloo"
 
-        assert cluster.backend == "gloo"
-
-    def test_cluster_is_master(self, mock_context):
+    def test_cluster_is_master(self):
         """Test cluster is_master property."""
-        cluster0 = ManualCluster(mock_context, world_size=4)
-        cluster0.configure(pid=0)
-        cluster1 = ManualCluster(mock_context, world_size=4)
-        cluster1.configure(pid=1)
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            client0 = ManualClient()
+            assert client0.is_master
 
-        assert cluster0.is_master
-        assert not cluster1.is_master
-
-    def test_cluster_address_property(self, mock_context):
-        """Test cluster address property returns named tuple."""
-        cluster = ManualCluster(mock_context, world_size=4)
-        cluster.configure(pid=0)
-
-        address = cluster.address
-        assert address.host == cluster.master_addr
-        assert address.port == cluster.master_port
+        with patch.dict(
+            os.environ,
+            {
+                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
+                "ANEMOI_INFERENCE_MANUAL_RANK": "1",
+                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "1",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
+                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
+            },
+        ):
+            client1 = ManualClient()
+            assert not client1.is_master

@@ -11,10 +11,9 @@ import logging
 import os
 
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters.cluster import CommsGroup
 from anemoi.inference.clusters.mapping import EnvMapping
 from anemoi.inference.clusters.mapping import MappingCluster
-from anemoi.inference.context import Context
+from anemoi.inference.lazy import torch
 
 LOG = logging.getLogger(__name__)
 
@@ -32,17 +31,15 @@ MPI_MAPPING = EnvMapping(
 class MPICluster(MappingCluster):  # type: ignore
     """MPI cluster that uses MPI environment variables for distributed setup."""
 
-    def __init__(self, context: Context, use_mpi_backend: bool = False, **kwargs) -> None:
+    def __init__(self, use_mpi_backend: bool = False, **kwargs) -> None:
         """Initialise the MPICluster.
 
         Parameters
         ----------
-        context : Context
-            Runner context
         use_mpi_backend : bool, optional
             Use the `mpi` backend in torch, by default False
         """
-        super().__init__(context, mapping=MPI_MAPPING, **kwargs)
+        super().__init__(mapping=MPI_MAPPING, **kwargs)
         self._use_mpi_backend = use_mpi_backend
 
     @classmethod
@@ -56,16 +53,25 @@ class MPICluster(MappingCluster):  # type: ignore
             return "mpi"
         return super().backend
 
-    @property
-    def comm_group_init(self) -> CommsGroup:  # type: ignore
-        """Initialise the process group for distributed computing."""
-        if self._use_mpi_backend:
-            return CommsGroup(
-                world_size=self.world_size,
-                global_rank=self.global_rank,
-                init_kwargs={
-                    "backend": self.backend,
-                },
-            )
+    def create_model_comm_group(self) -> torch.distributed.ProcessGroup | None:
+        """Create the communication group for model parallelism."""
+        if not self._use_mpi_backend:
+            return super().create_model_comm_group()
 
-        return super().comm_group_init
+        if self.world_size <= 1:
+            return None
+
+        import torch.distributed as dist
+
+        LOG.info("Creating model communication group for parallel inference")
+        group = dist.init_process_group(
+            backend=self.backend,
+        )
+
+        # Create a new process group for model communication
+        group = dist.new_group(
+            ranks=list(range(self.world_size)),
+        )
+        LOG.info("Model communication group created")
+
+        return group
