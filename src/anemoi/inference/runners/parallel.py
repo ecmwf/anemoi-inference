@@ -37,8 +37,6 @@ def create_parallel_runner(config: Configuration) -> None:
     ----------
     config : Configuration
         The configuration object for the runner.
-    pid : int
-        The process ID.
     """
     runner = create_runner(config)
     runner.execute()
