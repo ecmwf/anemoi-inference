@@ -84,18 +84,21 @@ class ParallelRunnerFactory:
 class ParallelRunnerMixin(Runner):
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
-    def __init__(self, config: Any, compute_client: ComputeClient, **kwargs) -> None:
+    def __init__(self, config: Any, compute_client: ComputeClient | None = None, **kwargs) -> None:
         """Initialises the ParallelRunner.
 
         Parameters
         ----------
         config : Any
             The config for the runner.
-        computeClient : ComputeClient
+        compute_client : ComputeClient, optional
             The compute client to use for distributed inference
         """
 
         super().__init__(config, **kwargs)
+
+        compute_client = compute_client or create_cluster(config.cluster or {})  # type: ignore
+        assert isinstance(compute_client, ComputeClient), "Compute client must be an instance of ComputeClient."
 
         LOG.info(f"Using compute client: {compute_client!r}")
 
