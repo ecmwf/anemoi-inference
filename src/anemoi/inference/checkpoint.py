@@ -185,6 +185,11 @@ class Checkpoint:
         return self._metadata.variable_to_input_tensor_index
 
     @property
+    def variable_to_output_tensor_index(self) -> Any:
+        """Get the variable to output tensor index."""
+        return self._metadata.variable_to_output_tensor_index
+
+    @property
     def model_computed_variables(self) -> Any:
         """Get the model computed variables."""
         return self._metadata.model_computed_variables
@@ -225,6 +230,11 @@ class Checkpoint:
     def prognostic_input_mask(self) -> Any:
         """Get the prognostic input mask."""
         return self._metadata.prognostic_input_mask
+
+    @property
+    def input_tensor_index_to_variable(self) -> Any:
+        """Get the output tensor index to variable."""
+        return self._metadata.input_tensor_index_to_variable
 
     @property
     def output_tensor_index_to_variable(self) -> Any:
