@@ -48,8 +48,10 @@ class RunConfiguration(Configuration):
     use_profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""
 
-    world_size: int | None = 1
-    """Number of parallel processes, used for parallel inference without SLURM."""
+    cluster: dict[str, Any] | str | None = None
+    """Cluster configuration for distributed inference.
+    e.g., `manual: 4`, `mpi`.
+    """
 
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error. (Deprecated, unused)"""
