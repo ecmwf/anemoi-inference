@@ -12,7 +12,6 @@ import logging
 import os
 import socket
 import subprocess
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
 
@@ -31,9 +30,6 @@ from . import runner_registry
 from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    import torch
 
 
 def create_parallel_runner(config: Configuration, pid: int) -> None:
