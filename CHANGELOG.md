@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.8.1](https://github.com/ecmwf/anemoi-inference/compare/0.8.0...0.8.1) (2025-10-30)
+
+
+### Features
+
+* Add support for interpolator ([#335](https://github.com/ecmwf/anemoi-inference/issues/335)) ([1418990](https://github.com/ecmwf/anemoi-inference/commit/14189907b4f4e3b204b7994f828831b8aa51e9b6))
+* **checkpoint,metadata:** Add more variable to index mapping functions ([#364](https://github.com/ecmwf/anemoi-inference/issues/364)) ([60c2d86](https://github.com/ecmwf/anemoi-inference/commit/60c2d8664d20fd9dc2062bcdb6f5417e06fdb674))
+* **post-processor:** Add `as_slice` option to `extract_mask` post-processor ([#358](https://github.com/ecmwf/anemoi-inference/issues/358)) ([0ad4d96](https://github.com/ecmwf/anemoi-inference/commit/0ad4d960d878fe250249acac521c62296ab76368))
+
+
+### Bug Fixes
+
+* Cleanup inputs due to recent merges ([#352](https://github.com/ecmwf/anemoi-inference/issues/352)) ([fd5a070](https://github.com/ecmwf/anemoi-inference/commit/fd5a070e85d81439985aad66555feb596f308acf))
+* **dummy input:** Skip `valid_datetime` from metadata ([#359](https://github.com/ecmwf/anemoi-inference/issues/359)) ([fc7a474](https://github.com/ecmwf/anemoi-inference/commit/fc7a47476d4414e3e5590d484c671dc2b9579d62))
+* **plot output:** Plotting metadata needed paramID ([#357](https://github.com/ecmwf/anemoi-inference/issues/357)) ([91a6625](https://github.com/ecmwf/anemoi-inference/commit/91a6625c9a988b961f99bfd598ba40f8326ab0a5))
+* **retrieve:** Default input type ([#361](https://github.com/ecmwf/anemoi-inference/issues/361)) ([fd1bbdc](https://github.com/ecmwf/anemoi-inference/commit/fd1bbdcbd58f2375371a25e7898e33201acf66c0))
+
 ## [0.8.0](https://github.com/ecmwf/anemoi-inference/compare/0.7.3...0.8.0) (2025-10-15)
 
 
