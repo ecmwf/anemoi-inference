@@ -448,7 +448,7 @@ class DefaultRunner(Runner):
                     if not np.array_equal(combined[key], value):
                         raise ValueError(
                             f"Key '{key}' has different array values in the states: "
-                            f"{combined[key]} and {value}."
+                            f"{combined[key]} ({combined[key].shape}) and {value} ({value.shape})."
                             f" Input: {first_input} vs {this_input}."
                         )
                     continue

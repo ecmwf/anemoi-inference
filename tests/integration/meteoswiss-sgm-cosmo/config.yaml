@@ -23,7 +23,7 @@
     write_initial_state: false
     input:
       cutout:
-        lam_0:
+       - lam_0:
           grib:
             path: ${input:0}
             namer:
@@ -60,7 +60,7 @@
                   - lsm
                 - - shortName: TOT_PREC
                   - tp
-        global:
+       - global:
           grib: ${input:1}
     output:
       grib:

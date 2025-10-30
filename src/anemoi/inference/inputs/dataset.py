@@ -153,6 +153,8 @@ class DatasetInput(Input):
             if self.context.trace:
                 self.context.trace.from_input(variable, self)
 
+        input_state["_input"] = self
+
         return input_state
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
