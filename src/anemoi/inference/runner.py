@@ -39,8 +39,6 @@ from .profiler import ProfilingRunner
 from .variables import Variables
 
 if TYPE_CHECKING:
-    import torch
-
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)

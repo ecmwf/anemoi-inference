@@ -32,7 +32,8 @@ class LazyModule:
 
 # add heavy imports here, then they can be used in the rest of the codebase as regular imports
 # with type checking and autocompletion: `from anemoi.inference.lazy import torch`
+# note: when used in a type hint, use quotes, e.g. "torch.Tensor" instead of torch.Tensor to avoid triggering the import
 if TYPE_CHECKING:
-    import torch as real_torch
-
-torch: "real_torch" = LazyModule("torch")
+    import torch
+else:
+    torch = LazyModule("torch")
