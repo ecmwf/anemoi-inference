@@ -605,6 +605,7 @@ class Runner(Context):
             #These will eventually become references to CPU pinned memory buffers
             #This is done to speed up the DtoH data transfers
             y_pred_cpu=None
+            y_pred_t=None
 
             self.dynamic_forcings_for_input_tensor=None # hack, dyanmic forcings take almost 3s per step at 4km. so cache and reuse them
             self.input_state=None 
@@ -638,6 +639,9 @@ class Runner(Context):
             if self.verbosity > 0:
                 self._print_input_tensor("First input tensor", input_tensor_torch)
 
+            omask = torch.tensor(self.checkpoint.prognostic_output_mask).to(self.device)
+            imask = torch.tensor(self.checkpoint.prognostic_input_mask).to(self.device)
+            
             for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 title = f"Forecasting step {step} ({date})"
 
@@ -648,13 +652,15 @@ class Runner(Context):
                 new_state_shard["previous_step"] = new_state_shard.get("step")
                 new_state_shard["step"] = step
 
+                self.transpose_output= os.getenv("TRANSPOSE_ON_GPU", "0") == "1"
+
                 if self.trace:
                     self.trace.write_input_tensor(
                         date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
                     )
 
                 if self.input_state is None:
-                    #always feed the initial state to rpevent accumulation of errors
+                    #always feed the initial state to prevent accumulation of errors
                     self.input_state=input_tensor_torch
 
                 # Predict next state of atmosphere
@@ -665,35 +671,54 @@ class Runner(Context):
                 ):
                     y_pred = self.predict_step(self.model, self.input_state, fcstep=s, step=step, date=date)
 
+                if self.transpose_output:
+                    LOG.info("Transposing prediction on gpu before writing output")
+                    with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                        #copy from device into pinned memory on the host
+                        s = list(y_pred.shape)
+                        if y_pred_t is None:
+                            y_pred_t = torch.zeros(s[0],s[1],s[-1],s[-2], device=self.device)
+                        y_pred_t = torch.transpose(y_pred,-2,-1)
 
-                if y_pred_cpu is None:
-                    y_pred_cpu = torch.empty(y_pred.shape, pin_memory=True)
-                y_pred_cpu.copy_(y_pred) 
-               
-                if self.shard_output:
+                        if y_pred_cpu is None:
+                            y_pred_cpu = torch.zeros(s[0],s[1],s[-1],s[-2], device="cpu", pin_memory=True)
+                        y_pred_cpu.copy_(y_pred_t, non_blocking=True)
+
+                    field_start, field_end = self.determine_global_vars(self.model_comm_group, y_pred_cpu.shape[-2])
+
+
+                else:
+                    with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                        if y_pred_cpu is None:
+                            y_pred_cpu = torch.empty(y_pred.shape, pin_memory=True)
+                        y_pred_cpu.copy_(y_pred,  non_blocking=True) 
+                   
                     field_start, field_end = self.determine_global_vars(self.model_comm_group, y_pred_cpu.shape[-1])
-                    output_shard_torch = y_pred_cpu[..., field_start:field_end]
-               
+                   
                 output_full = np.squeeze(y_pred_cpu.numpy())  # shape: (values, variables)
-                if self.shard_output:
-                    output_shard = np.squeeze(output_shard_torch.numpy())  # shape: (values, variables)
 
                 # Update state
                 with ProfilingLabel("Updating state (GPU)", self.use_profiler):
-                    for i in range(output_full.shape[1]):
-                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:, i]
+                    if self.transpose_output:
+                        for i in range(output_full.shape[0]):
+                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[i,:]
                         
+                        if self.shard_output:
+                            # We need to get their rank and the number of processes to determine
+                            # mapping from  local var id in the output shard to global var id in the output state
                         
-                    if self.shard_output:
-                        # Each device returns a subset of the global vars
-                        # E.g. 88 vars in total, each device will have a shard with 22
-                        # We need to get their rank and the number of processes to determine
-                        # mapping from  local var id in the output shard to global var id in the output state
-                        #LOG.info(f"{self.checkpoint.output_tensor_index_to_variable=}")
-                            
-                        for i in range(field_end-field_start):
-                            new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_shard[:, i]
+                            for i in range(field_end-field_start):
+                                new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_full[field_start+i, :]
+                    else:
+                        for i in range(output_full.shape[1]):
+                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output_full[:,i]
+                        
+                        if self.shard_output:
+                            # We need to get their rank and the number of processes to determine
+                            # mapping from  local var id in the output shard to global var id in the output state
 
+                            for i in range(field_end-field_start):
+                                new_state_shard["fields"][self.checkpoint.output_tensor_index_to_variable[field_start+i]] = output_full[:, field_start+i]
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_output_tensor("Output tensor", output_full)
@@ -724,7 +749,7 @@ class Runner(Context):
                     if self.trace:
                         self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
-                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check, omask, imask)
 
                     del y_pred  # Recover memory
 
@@ -747,16 +772,28 @@ class Runner(Context):
                                 missing.append(mapping[i])
 
                         raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                if not check.all():
+                    # Not all variables have been updated
+                    missing = []
+                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                    for i in range(check.shape[-1]):
+                        if not check[i]:
+                            missing.append(mapping[i])
+
+                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
+
+            del y_pred_t
 
         if self.model_comm_group is None or (self.model_comm_group is not None and torch.distributed.get_rank(group=self.model_comm_group) == 0):
             stats = pstats.Stats(pr)
             stats.strip_dirs().sort_stats("time").print_stats(20)
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray
+            self, input_tensor_torch: torch.Tensor, y_pred: torch.Tensor, check: BoolArray, omask: torch.Tensor, imask: torch.Tensor
     ) -> torch.Tensor:
         """Copy prognostic fields to the input tensor.
 
@@ -781,9 +818,9 @@ class Runner(Context):
         prognostic_input_mask = self.checkpoint.prognostic_input_mask
         
         # Copy prognostic fields to input tensor
-        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values 
+        prognostic_fields = y_pred[..., omask]  # Get new predicted values 
         input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
-        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
+        input_tensor_torch[:, -1, :, imask] = (
             prognostic_fields  # Add new values to last 'multi_step_input' row
         )
 
@@ -798,7 +835,7 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray
+            self, input_tensor_torch: torch.Tensor, state: State, date: datetime.datetime, check: BoolArray,
     ) -> torch.Tensor:
         """Add dynamic forcings to the input tensor.
 
@@ -828,6 +865,7 @@ class Runner(Context):
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
+        s = input_tensor_torch.shape
         for source in self.dynamic_forcings_inputs:
             with Timer(f"Loading {source} dynamic forcing"):
                 # WARNING this can take almost as long as a predict step at 4km (2s)
@@ -855,7 +893,6 @@ class Runner(Context):
                 if self.trace:
                     for n in source.mask:
                         self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
-
 
         return input_tensor_torch
 
