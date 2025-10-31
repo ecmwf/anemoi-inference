@@ -294,6 +294,9 @@ def grib_keys(
         ensemble=ensemble,
     )
 
+    # 1 if local definition is present, like for ECMWF GRIBs
+    local_use_present = template.metadata("localUsePresent", default=0)
+
     for k, v in variable.grib_keys.items():
         if k not in (
             "domain",
@@ -311,7 +314,7 @@ def grib_keys(
             "variable",
         ):
             if k == "stream":
-                if v in ("oper", "wave") and template.metadata("localUsePresent", default=0):
+                if v in ("oper", "wave") and local_use_present:
                     result.setdefault(k, v)
                 continue
 
