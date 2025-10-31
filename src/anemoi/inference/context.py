@@ -15,12 +15,12 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
-from anemoi.inference.processor import Processor
-from anemoi.inference.types import IntArray
-
 if TYPE_CHECKING:
     from anemoi.inference.input import Input
+    from anemoi.inference.modifiers import Modifier
     from anemoi.inference.output import Output
+    from anemoi.inference.processor import Processor
+    from anemoi.inference.types import IntArray
 
     from .checkpoint import Checkpoint
     from .forcings import Forcings
@@ -166,5 +166,15 @@ class Context(ABC):
         -------
         List[Processor]
             List of post-processors.
+        """
+        return []
+
+    def create_model_modifiers(self) -> list[Modifier]:
+        """Creates a list of model modifiers.
+
+        Returns
+        -------
+        List[Modifier]
+            List of model modifiers.
         """
         return []

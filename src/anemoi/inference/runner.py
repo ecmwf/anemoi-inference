@@ -555,6 +555,10 @@ class Runner(Context):
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
+
+            for modifier in self.create_model_modifiers():
+                LOG.info("Applying model modifier: %s", modifier)
+                model = modifier.modify(model)
             return model
 
     def predict_step(

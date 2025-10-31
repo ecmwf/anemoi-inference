@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.input import Input
+from anemoi.inference.modifiers import Modifier
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
@@ -31,6 +32,7 @@ from ..forcings import ConstantForcings
 from ..forcings import CoupledForcings
 from ..forcings import Forcings
 from ..inputs import create_input
+from ..modifiers import create_modifier
 from ..outputs import create_output
 from ..post_processors import create_post_processor
 from ..pre_processors import create_pre_processor
@@ -381,6 +383,13 @@ class DefaultRunner(Runner):
             result.append(create_post_processor(self, processor))
 
         LOG.info("Post processors: %s", result)
+        return result
+
+    def create_model_modifiers(self) -> list[Modifier]:
+        result = []
+        for modifier in self.config.model_modifiers:
+            result.append(create_modifier(self, modifier))
+        LOG.info("Model modifiers: %s", result)
         return result
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
