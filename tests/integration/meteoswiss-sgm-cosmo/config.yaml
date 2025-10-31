@@ -1,0 +1,70 @@
+- name: grib-in-grib-out
+  markers: cosmo
+  input:
+    - input-local-8km.grib
+    - input-global-o48.grib
+    - templates.yaml
+    - templates/co2-coarse-typeOfLevel-isobaricInhPa.grib
+    - templates/co2-coarse-typeOfLevel-heightAboveGround.grib
+    - templates/co2-coarse-typeOfLevel-surface.grib
+    - templates/co2-coarse-shortName-TOT_PREC.grib
+  output: output.grib
+  checks:
+    - check_grib:
+        check_nans: true
+    - check_grib_cutout:
+        reference_grib: ${input:0}
+  inference_config:
+    checkpoint: ${checkpoint:}
+    env:
+      ECCODES_DEFINITION_PATH: ${sys.prefix:}/share/eccodes-cosmo-resources/definitions
+    post_processors:
+      - extract_from_state: lam_0
+    write_initial_state: false
+    input:
+      cutout:
+        lam_0:
+          grib:
+            path: ${input:0}
+            namer:
+              rules:
+                - - shortName: T
+                  - t_{level}
+                - - shortName: U
+                  - u_{level}
+                - - shortName: V
+                  - v_{level}
+                - - shortName: W
+                  - w_{level}
+                - - shortName: QV
+                  - q_{level}
+                - - shortName: FI
+                  - z_{level}
+                - - shortName: PMSL
+                  - msl
+                - - shortName: FIS
+                  - z
+                - - shortName: PS
+                  - sp
+                - - shortName: T_2M
+                  - 2t
+                - - shortName: TD_2M
+                  - 2d
+                - - shortName: T_G
+                  - skt
+                - - shortName: U_10M
+                  - 10u
+                - - shortName: V_10M
+                  - 10v
+                - - shortName: FR_LAND
+                  - lsm
+                - - shortName: TOT_PREC
+                  - tp
+        global:
+          grib: ${input:1}
+    output:
+      grib:
+        path: ${output:}
+        templates:
+          - samples:
+              index_path: ${input:2}

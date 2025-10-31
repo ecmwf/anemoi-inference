@@ -21,6 +21,7 @@ import deprecation
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
+from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -184,6 +185,11 @@ class Checkpoint:
         return self._metadata.variable_to_input_tensor_index
 
     @property
+    def variable_to_output_tensor_index(self) -> Any:
+        """Get the variable to output tensor index."""
+        return self._metadata.variable_to_output_tensor_index
+
+    @property
     def model_computed_variables(self) -> Any:
         """Get the model computed variables."""
         return self._metadata.model_computed_variables
@@ -224,6 +230,11 @@ class Checkpoint:
     def prognostic_input_mask(self) -> Any:
         """Get the prognostic input mask."""
         return self._metadata.prognostic_input_mask
+
+    @property
+    def input_tensor_index_to_variable(self) -> Any:
+        """Get the output tensor index to variable."""
+        return self._metadata.input_tensor_index_to_variable
 
     @property
     def output_tensor_index_to_variable(self) -> Any:
@@ -577,8 +588,7 @@ class Checkpoint:
 
                 base = date
                 step = str(r.get("step", 0)).split("-")[-1]
-                step = int(step)
-                base = base - datetime.timedelta(hours=step)
+                base = base - to_timedelta(step)
 
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
