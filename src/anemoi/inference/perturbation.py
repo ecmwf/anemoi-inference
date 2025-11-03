@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from abc import ABC, abstractmethod
 from typing import Any
 
 import torch
@@ -42,15 +43,15 @@ def haversine(coords: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
     return R * c
 
 
-class Perturbation:
-    """Perturbation class."""
-
+class Perturbation(ABC):
+    """Abstract base class for input or output perturbations."""
     def __init__(
         self,
         checkpoint: str,
         perturbed_variable: str,
         perturbation_location: float,
         perturbation_radius_km: float = 100.0,
+        perturbation_magnitude: float = 1.0,
         patch_metadata: dict[str, Any] = {},
     ) -> None:
         """Initialize the Perturbation.
@@ -66,31 +67,29 @@ class Perturbation:
         self.perturbed_variable = perturbed_variable
         self.perturbation_location = torch.tensor(perturbation_location)
         self.perturbation_radius_km = perturbation_radius_km
+        self.perturbation_magnitude = perturbation_magnitude
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
 
     @property
-    def variable_to_output_tensor_index(self) -> dict[str, int]:
-        return self._checkpoint._metadata.variable_to_output_tensor_index
+    @abstractmethod
+    def variable_to_tensor_index(self) -> dict[str, int]:
+        pass
 
     @property
-    def output_shape(self) -> tuple[int, ...]:
-        return (
-            1,
-            1,
-            self._checkpoint._metadata.number_of_grid_points,
-            len(self._checkpoint._metadata.variable_to_output_tensor_index),
-        )
+    @abstractmethod
+    def perturbation_shape(self) -> tuple[int, ...]:
+        pass
 
     @property
     def coords(self) -> torch.Tensor:
         lats = torch.from_numpy(self._checkpoint._metadata._supporting_arrays["latitudes"])
         lons = torch.from_numpy(self._checkpoint._metadata._supporting_arrays["longitudes"])
-        return torch.stack([lats, lons], dim=-1)
+        return torch.stack([lats, lons], dim=-1)    
 
     def create(self, *args, **kwargs) -> torch.Tensor:
         """Get the perturbation data."""
-        var_idx = self.variable_to_output_tensor_index[self.perturbed_variable]
-        perturbation = torch.zeros(self.output_shape)
+        var_idx = self.variable_to_tensor_index[self.perturbed_variable]
+        perturbation = torch.zeros(self.perturbation_shape)
 
         # Get index of the closest point
         dists = haversine(self.coords, self.perturbation_location)
@@ -98,5 +97,92 @@ class Perturbation:
 
         assert len(closest_idx) > 0, "No grid points found within the specified perturbation radius."
 
-        perturbation[..., closest_idx, var_idx] = 1.0
+        perturbation[..., closest_idx, var_idx] = self.perturbation_magnitude
         return perturbation
+
+    # @abstractmethod
+    # def update(self) -> torch.Tensor:
+    #     """Update the perturbation for the next time step."""
+    #     pass
+
+class InputPerturbation(Perturbation):
+    """Input perturbation class."""
+
+    def __init__(
+        self,
+        checkpoint: str,
+        perturbed_variable: str,
+        perturbation_location: float,
+        perturbation_radius_km: float = 100.0,
+        perturbation_magnitude: float = 1.0,
+        patch_metadata: dict[str, Any] = {},
+    ) -> None:
+        """Initialize the OutputPerturbation.
+
+        Parameters
+        ----------
+        perturbed_variable : str
+            The variable to perturb.
+        """
+        super().__init__(
+            checkpoint,
+            perturbed_variable,
+            perturbation_location,
+            perturbation_radius_km,
+            perturbation_magnitude,
+            patch_metadata,
+        )
+
+    @property
+    def variable_to_tensor_index(self) -> dict[str, int]:
+        return self._checkpoint._metadata.variable_to_input_tensor_index
+
+    @property
+    def perturbation_shape(self) -> tuple[int, ...]:
+        return (
+            1,
+            1,  # TODO: this should really be == multi-step (!)
+            self._checkpoint._metadata.number_of_grid_points,
+            len(self._checkpoint._metadata.variable_to_input_tensor_index),
+        )
+
+class OutputPerturbation(Perturbation):
+    """Output perturbation class."""
+
+    def __init__(
+        self,
+        checkpoint: str,
+        perturbed_variable: str,
+        perturbation_location: float,
+        perturbation_radius_km: float = 100.0,
+        perturbation_magnitude: float = 1.0,
+        patch_metadata: dict[str, Any] = {},
+    ) -> None:
+        """Initialize the OutputPerturbation.
+
+        Parameters
+        ----------
+        perturbed_variable : str
+            The variable to perturb.
+        """
+        super().__init__(
+            checkpoint,
+            perturbed_variable,
+            perturbation_location,
+            perturbation_radius_km,
+            perturbation_magnitude,
+            patch_metadata,
+        )
+
+    @property
+    def variable_to_tensor_index(self) -> dict[str, int]:
+        return self._checkpoint._metadata.variable_to_output_tensor_index
+
+    @property
+    def perturbation_shape(self) -> tuple[int, ...]:
+        return (
+            1,
+            1,
+            self._checkpoint._metadata.number_of_grid_points,
+            len(self._checkpoint._metadata.variable_to_output_tensor_index),
+        )

@@ -483,6 +483,12 @@ class Runner(Context):
                 for name, field in state["fields"].items():
                     if isinstance(field, torch.Tensor):
                         state["fields"][name] = field.cpu().numpy()
+                for name, field in state.get("jvp", {}).items():
+                    if isinstance(field, torch.Tensor):
+                        state["jvp"][name] = field.cpu().numpy()
+                for name, field in state.get("vjp", {}).items():
+                    if isinstance(field, torch.Tensor):
+                        state["vjp"][name] = field.cpu().numpy()                
             yield state
 
     @cached_property

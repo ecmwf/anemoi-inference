@@ -7,19 +7,24 @@ import earthkit.data as ekd
 import earthkit.regrid as ekr
 import matplotlib.pyplot as plt
 import numpy as np
+import cartopy.crs as ccrs
+
 from ecmwf.opendata import Client as OpendataClient
 
 from anemoi.inference.outputs.printer import print_state
-from anemoi.inference.runners.sensitivities import Perturbation
-from anemoi.inference.runners.sensitivities import SensitivitiesRunner
+from anemoi.inference.outputs.printer import print_tangent_linear
+from anemoi.inference.perturbation import InputPerturbation
+from anemoi.inference.runners.tangent_linear import TangentLinearRunner
 
 LOGGER = logging.getLogger(__name__)
 
 
 GRID_RESOLUTION = "O96"
-PARAM_SFC = ["10u", "10v", "2d", "2t", "msl", "skt", "sp", "tcw", "lsm", "z", "slor", "sdor"]
-PARAM_SOIL = ["vsw", "sot"]
-PARAM_PL = ["gh", "t", "u", "v", "w", "q"]
+# PARAM_SFC = ["10u", "10v", "2d", "2t", "msl", "skt", "sp", "tcw", "lsm", "z", "slor", "sdor"]
+# PARAM_SFC = ["10u", "10v", "2t", "msl", "lsm", "z", "slor", "sdor"]
+# PARAM_SOIL = ["vsw", "sot"]
+PARAM_SFC = ["z", "lsm", "slor", "sdor", "skt", "sp", "msl", "tcw"]
+PARAM_PL = ["gh", "t", "u", "v", "q"]
 LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
 SOIL_LEVELS = [1, 2]
 
@@ -35,8 +40,8 @@ def load_state(file) -> dict:
 
 def get_open_data(param, levelist=[]):
     fields = defaultdict(list)
-    # Get the data for the current date and the previous date
-    for date in [DATE - datetime.timedelta(hours=6), DATE]:
+    # Get the data for the current date ONLY (not the previous date)
+    for date in [DATE]:  # [DATE - datetime.timedelta(hours=6), DATE]:
         data = ekd.from_source("ecmwf-open-data", date=date, param=param, levelist=levelist)
         for f in data:
             # Open data is between -180 and 180, we need to shift it to 0-360
@@ -85,19 +90,39 @@ def save_state(state, outfile):
     np.savez(outfile, **state["fields"])
 
 
-def plot_sensitivities(state: dict, field: str):
+def plot_jvp(state: dict, time_step: int, field: str):
     num_times = state["fields"][field].shape[0]
-    fig, axs = plt.subplots(num_times, 1, figsize=(6 * num_times, 8))
-
-    # Get the combined min/max for color normalization
-    vmin = min(state["fields"][field][0].min(), state["fields"][field][1].min())
-    vmax = max(state["fields"][field][0].max(), state["fields"][field][1].max())
-    lim = max(abs(vmin), abs(vmax))
-    cmap_kwargs = dict(cmap="PuOr", vmin=-lim, vmax=lim)
+    assert num_times == 1, f"Expected 1 time step in fields for {field}, got {num_times}!"
+    LOGGER.warning(f"Plotting jvp for field {field} at {num_times} times ...")
+    fig, axs = plt.subplots(num_times, 1, figsize=(12 * num_times, 9), subplot_kw={"projection": ccrs.PlateCarree()})
+    if num_times == 1:
+        axs = [axs]
 
     for i in range(num_times):
-        axs[i].set_title(f"{field} (at -{(num_times-i)*6}H)")
-        axs[i].scatter(state["longitudes"], state["latitudes"], c=state["fields"][field][i], **cmap_kwargs)
+        axs[i].set_title(f"JVP: {field} (at {(time_step+1)*6}h)")
+        vmin, vmax = np.nanmin(state["jvp"][field][i]), np.nanmax(state["jvp"][field][i])
+        lim = max(abs(vmin), abs(vmax))
+        cmap_kwargs = dict(cmap="bwr", vmin=-lim, vmax=lim, s=20, transform=ccrs.PlateCarree())
+        # LOGGER.warning("SHAPES: longitudes %s, latitudes %s, perturbation %s", state["longitudes"].shape, state["latitudes"].shape, state["jvp"][field].shape)
+        # LOGGER.warning("jvp min/max: %.5f / %.5f", np.nanmin(state["jvp"][field][i]), np.nanmax(state["jvp"][field][i]))
+        sc = axs[i].scatter(state["longitudes"], state["latitudes"], c=state["jvp"][field][i], **cmap_kwargs)
+        import cartopy.feature as cfeature
+
+        axs[i].add_feature(cfeature.COASTLINE)
+        # set lat/lon boundaries for plot
+        axs[i].set_extent([90, 160, 10, 70], crs=ccrs.PlateCarree())
+        gl = axs[i].gridlines(draw_labels=True, linewidth=0.5, color='lightgray', linestyle='--')
+        gl.bottom_labels = False
+    
+        cbar = fig.colorbar(
+            sc,
+            ax=axs[i],
+            orientation='horizontal',
+            pad=0.1,      # space between plot and colorbar
+            fraction=0.05, # relative size
+        )
+        cbar.ax.xaxis.set_label_position('top')
+        cbar.ax.xaxis.set_ticks_position('top')
 
     # Remove x and y axes
     for ax in axs:
@@ -106,7 +131,7 @@ def plot_sensitivities(state: dict, field: str):
         ax.set_xlabel("")
         ax.set_ylabel("")
 
-    fig.savefig(f"sensitivities_{field}.png")
+    fig.savefig(f"./plots/jvp_{field}_step_{time_step:02d}.png")
 
 
 def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single-1.0"}):
@@ -120,18 +145,25 @@ def main(initial_conditions_file, ckpt: str = {"huggingface": "ecmwf/aifs-single
         save_state(input_state, initial_conditions_file)
 
     # Load model
-    runner = SensitivitiesRunner(ckpt, device="cuda", perturb_normalised_space=True)
+    runner = TangentLinearRunner(ckpt, device="cuda")
 
-    perturbation = Perturbation(
-        ckpt, perturbed_variable="2t", perturbation_location=(40, 120), perturbation_radius_km=150.0
+    # The perturbation has physical units (e.g., K for temperature, m for geopotential height, etc.)
+    perturbation = InputPerturbation(
+        # 10m perturbation in z_500 input inside a 150km radius around the given location
+        ckpt, perturbed_variable="z_500", perturbation_location=(40, 120), perturbation_radius_km=300.0, perturbation_magnitude=10.0
     )
 
     # Compute sensitivities
-    for state in runner.run(input_state=input_state, perturbation=perturbation, lead_time="6h"):
+    for time_step, state in enumerate(runner.run(input_state=input_state, perturbation=perturbation, lead_time="120h")):
         print_state(state)
-        plot_sensitivities(state, "2t")
-        plot_sensitivities(state, "z")
+        print_tangent_linear(state)
+        plot_jvp(state, time_step, "t_850")
+        plot_jvp(state, time_step, "z_500")
 
 
 if __name__ == "__main__":
-    main(Path("input_state-o96.npz"), ckpt="../inference-aifs-o96.ckpt")
+    # I'm using a single-input step model (multistep inputs are not yet supported!)
+    main(
+        Path("input_state-o96.npz"),
+        ckpt="/lus/h2resw01/scratch/syma/aifs/o96/checkpoint/a32fb94c1fdc4d9e8d103a6c1b7c3212/inference-last.ckpt"
+    )

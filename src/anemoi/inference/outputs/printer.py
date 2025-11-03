@@ -103,6 +103,79 @@ def print_state(
     print()
 
 
+def print_tangent_linear(
+    state: State,
+    print: Callable[..., None] = print,
+    max_lines: int = 8,
+    variables: ListOrAll | None = None,
+) -> None:
+    """Print the state.
+
+    Parameters
+    ----------
+    state : State
+        The state dictionary.
+    print : function, optional
+        The print function to use, by default print.
+    max_lines : int, optional
+        The maximum number of lines to print, by default 4.
+    variables : list, optional
+        The list of variables to print, by default None.
+    """
+    print()
+    print("😀", end=" ")
+    for key, value in state.items():
+        if isinstance(value, datetime.datetime):
+            print(f"{key}={value.isoformat()}", end=" ")
+
+        if isinstance(value, (str, float, int, bool, type(None))):
+            print(f"{key}={value}", end=" ")
+
+        if isinstance(value, np.ndarray):
+            print(f"{key}={value.shape}", end=" ")
+
+    fields = state.get("jvp", {})
+
+    print(f"tangent={len(fields)}")
+    print()
+
+    names = list(fields.keys())
+
+    if variables == "all":
+        variables = names
+        max_lines = 0
+
+    if variables is None:
+        variables = names
+
+    if not isinstance(variables, (list, tuple, set)):
+        variables = [variables]
+
+    variables = set(variables)
+
+    n = max_lines
+
+    if max_lines == 0 or max_lines >= len(names):
+        idx = list(range(len(names)))
+    else:
+        idx = list(range(0, len(names), len(names) // n))
+        idx.append(len(names) - 1)
+        idx = sorted(set(idx))
+
+    length = max(len(name) for name in names)
+
+    for i in idx:
+        name = names[i]
+        if name not in variables:
+            continue
+        field = fields[name]
+        min_value = f"min={np.nanmin(field):g}"
+        max_value = f"max={np.nanmax(field):g}"
+        print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
+
+    print()
+
+
 @output_registry.register("printer")
 @main_argument("max_lines")
 class PrinterOutput(Output):
@@ -149,3 +222,4 @@ class PrinterOutput(Output):
             The state dictionary.
         """
         print_state(state, print=self.print, variables=self.variables)
+        print_tangent_linear(state, print=self.print, variables=self.variables)
