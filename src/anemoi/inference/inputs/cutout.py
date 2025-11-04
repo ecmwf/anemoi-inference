@@ -115,6 +115,10 @@ class Cutout(Input):
         sources : list[dict[str, dict]]
             List of sources / inputs to combine, the order defines the order in which they are combined.
         """
+        if any(x in kwargs for x in ["lam_0", "global"]):  # Capture common update issues
+            raise KeyError(
+                "Cutout input has changed to set the sub-inputs as a list, provide them as args, or if using the config prefix each input with `-` to update."
+            )
 
         super().__init__(context, pre_processors=None, **kwargs)
 
