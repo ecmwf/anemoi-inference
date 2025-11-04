@@ -46,8 +46,7 @@ def create_parallel_runner(config: Configuration, client_factory: ComputeClientF
     runner_config["cluster"] = client_factory.create_client()
 
     runner = ParallelRunnerFactory(config, **runner_config)  # type: ignore
-    runner.execute()  # type: ignore
-    torch.distributed.destroy_process_group()
+    runner.execute()
 
 
 class NoOp:
@@ -57,7 +56,7 @@ class NoOp:
         return None
 
 
-@runner_registry.register("parallel")  # type: ignore
+@runner_registry.register("parallel")
 @main_argument("base_runner")
 class ParallelRunnerFactory:
     """Creates a ParallelRunner with a dynamic base class.
@@ -68,6 +67,7 @@ class ParallelRunnerFactory:
         The config for the runner.
     base_runner : str
         The base runner to use for the parallel runner.
+        Must subclass from at least `DefaultRunner`.
     cluster : str | dict[str, str] | ComputeClient | None, optional
         The cluster configuration or instance to use for distributed inference, by default None
     """
@@ -113,7 +113,7 @@ class ParallelRunnerFactory:
         return type("ParallelRunner", (ParallelRunnerMixin, base_class), {})
 
 
-class ParallelRunnerMixin:
+class ParallelRunnerMixin(Runner):
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __init__(self, config: Any, compute_client: ComputeClient | None = None, **kwargs) -> None:
@@ -212,6 +212,11 @@ class ParallelRunnerMixin:
                     "Please upgrade to a newer version of anemoi-models (at least version v0.4.2) to use parallel inference. If updating breaks your checkpoints, you can try reverting to your original version of anemoi-models and cherry-picking 'https://github.com/ecmwf/anemoi-core/pull/77'"
                 )
                 raise err
+
+    def complete_forecast_hook(self) -> None:
+        """Hook called at the end of the forecast."""
+        super().complete_forecast_hook()
+        torch.distributed.destroy_process_group()
 
     def create_output(self) -> Output:
         """Creates the real output on rank 0 and a `none` on the others.
