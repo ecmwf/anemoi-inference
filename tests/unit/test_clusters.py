@@ -60,12 +60,13 @@ class TestManualSpawner:
         spawner = ManualSpawner(4, port=12345)
 
         mock_fn = MagicMock()
+        mock_config = MagicMock()
 
         with patch("torch.multiprocessing.Process") as mock_process:
             mock_process_instance = MagicMock()
             mock_process.return_value = mock_process_instance
 
-            spawner.spawn(mock_fn, "arg1", "arg2")
+            spawner.spawn(mock_fn, mock_config)
 
             # Should spawn world_size processes (ranks 0, 1, 2, 3)
             assert mock_process.call_count == 4
@@ -119,69 +120,52 @@ class TestManualClient:
 
     def test_manual_client_initialization(self):
         """Test ManualClient initialization."""
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            client = ManualClient()
+        client = ManualClient(
+            world_size=4,
+            local_rank=0,
+            global_rank=0,
+            master_addr="localhost",
+            master_port=12345,
+        )
 
-            assert client.world_size == 4
-            assert client.global_rank == 0
-            assert client.local_rank == 0
-            assert client.master_addr == "localhost"
-            assert client.master_port == 12345
+        assert client.world_size == 4
+        assert client.global_rank == 0
+        assert client.local_rank == 0
+        assert client.master_addr == "localhost"
+        assert client.master_port == 12345
 
     def test_manual_client_different_ranks(self):
         """Test ManualClient with different process ranks."""
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "1",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "1",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            client = ManualClient()
+        client = ManualClient(
+            world_size=4,
+            local_rank=1,
+            global_rank=1,
+            master_addr="localhost",
+            master_port=12345,
+        )
 
-            assert client.global_rank == 1
-            assert not client.is_master
+        assert client.global_rank == 1
+        assert not client.is_master
 
     def test_manual_client_used(self):
         """Test ManualClient.used() detection."""
-        # Not in manual environment
-        with patch.dict(os.environ, {}, clear=True):
-            assert not ManualClient.used()
-
-        # In manual environment
-        with patch.dict(os.environ, {"ANEMOI_INFERENCE_MANUAL_CLUSTER": "active"}):
-            assert ManualClient.used()
+        # ManualClient is now always available (returns True) since it's explicitly instantiated
+        assert ManualClient.used()
 
     def test_manual_client_repr(self):
         """Test ManualClient string representation."""
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "2",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "2",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            client = ManualClient()
-            repr_str = repr(client)
+        client = ManualClient(
+            world_size=4,
+            local_rank=2,
+            global_rank=2,
+            master_addr="localhost",
+            master_port=12345,
+        )
+        repr_str = repr(client)
 
-            assert "ManualClient" in repr_str
-            assert "world_size=4" in repr_str
-            assert "global_rank=2" in repr_str
+        assert "ManualClient" in repr_str
+        assert "world_size=4" in repr_str
+        assert "global_rank=2" in repr_str
 
 
 class TestSlurmCluster:
@@ -496,80 +480,60 @@ class TestClusterBase:
 
     def test_cluster_init_method(self):
         """Test cluster init_method property."""
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            client = ManualClient()
+        client = ManualClient(
+            world_size=4,
+            local_rank=0,
+            global_rank=0,
+            master_addr="localhost",
+            master_port=12345,
+        )
 
-            init_method = client.init_method
-            assert init_method.startswith("tcp://")
-            assert "localhost" in init_method
-            assert str(client.master_port) in init_method
+        init_method = client.init_method
+        assert init_method.startswith("tcp://")
+        assert "localhost" in init_method
+        assert str(client.master_port) in init_method
 
     def test_cluster_backend_cuda(self, mock_context):
         """Test cluster backend selection for CUDA."""
         mock_context.device.type = "cuda"
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            with patch("anemoi.inference.lazy.torch.cuda.is_available", return_value=True):
-                client = ManualClient()
-                assert client.backend == "nccl"
+        with patch("anemoi.inference.lazy.torch.cuda.is_available", return_value=True):
+            client = ManualClient(
+                world_size=4,
+                local_rank=0,
+                global_rank=0,
+                master_addr="localhost",
+                master_port=12345,
+            )
+            assert client.backend == "nccl"
 
     def test_cluster_backend_cpu(self):
         """Test cluster backend selection for CPU."""
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            with patch("anemoi.inference.lazy.torch.cuda.is_available", return_value=False):
-                client = ManualClient()
-                assert client.backend == "gloo"
+        with patch("anemoi.inference.lazy.torch.cuda.is_available", return_value=False):
+            client = ManualClient(
+                world_size=4,
+                local_rank=0,
+                global_rank=0,
+                master_addr="localhost",
+                master_port=12345,
+            )
+            assert client.backend == "gloo"
 
     def test_cluster_is_master(self):
         """Test cluster is_master property."""
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "0",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            client0 = ManualClient()
-            assert client0.is_master
+        client0 = ManualClient(
+            world_size=4,
+            local_rank=0,
+            global_rank=0,
+            master_addr="localhost",
+            master_port=12345,
+        )
+        assert client0.is_master
 
-        with patch.dict(
-            os.environ,
-            {
-                "ANEMOI_INFERENCE_MANUAL_WORLD_SIZE": "4",
-                "ANEMOI_INFERENCE_MANUAL_RANK": "1",
-                "ANEMOI_INFERENCE_MANUAL_LOCAL_RANK": "1",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_ADDR": "localhost",
-                "ANEMOI_INFERENCE_MANUAL_MASTER_PORT": "12345",
-            },
-        ):
-            client1 = ManualClient()
-            assert not client1.is_master
+        client1 = ManualClient(
+            world_size=4,
+            local_rank=1,
+            global_rank=1,
+            master_addr="localhost",
+            master_port=12345,
+        )
+        assert not client1.is_master

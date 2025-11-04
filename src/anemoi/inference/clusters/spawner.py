@@ -9,11 +9,18 @@
 
 from abc import ABC
 from abc import abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING
+from typing import Callable
+
+if TYPE_CHECKING:
+    from anemoi.inference.clusters.client import ComputeClientFactory
+    from anemoi.inference.config import Configuration
+
+SPAWN_FUNCTION = Callable[["Configuration", "ComputeClientFactory"], None]
 
 
 class ComputeSpawner(ABC):
-    """Abstract base class for cluster operation."""
+    """Abstract base class for cluster operations for parallel execution."""
 
     @classmethod
     @abstractmethod
@@ -22,18 +29,16 @@ class ComputeSpawner(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def spawn(self, fn: Any, *args: Any) -> None:
-        """Spawn processes in the client environment.
-
-        Should be overridden by subclasses if specific spawning logic is required.
-        By default, this method does nothing.
+    def spawn(self, fn: SPAWN_FUNCTION, config: "Configuration") -> None:
+        """Spawn processes for parallel execution.
 
         Parameters
         ----------
-        fn : Any
+        fn : SPAWN_FUNCTION
             The function to run in each process.
-        args : tuple[Any, ...]
-            The arguments to pass to the function.
+            Expects to receive the configuration and compute client factory as arguments.
+        config : Configuration
+            The configuration object for the runner.
         """
         raise NotImplementedError
 

@@ -16,6 +16,7 @@ from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.clusters import create_cluster
 from anemoi.inference.clusters.client import ComputeClient
+from anemoi.inference.clusters.client import ComputeClientFactory
 from anemoi.inference.clusters.spawner import ComputeSpawner
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch
@@ -24,22 +25,28 @@ from anemoi.inference.output import Output
 from ..decorators import main_argument
 from ..outputs import create_output
 from ..runner import Runner
-from ..runners import create_runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
 
-def create_parallel_runner(config: Configuration) -> None:
+def create_parallel_runner(config: Configuration, client_factory: ComputeClientFactory) -> None:
     """Creates and runs a parallel runner.
 
     Parameters
     ----------
     config : Configuration
         The configuration object for the runner.
+    client_factory : ComputeClientFactory
+        The compute client factory to use for distributed inference.
     """
-    runner = create_runner(config)
-    runner.execute()
+    runner_config: dict[str, Any] = config.runner.get("parallel", {})  # type: ignore
+    if isinstance(runner_config, str):
+        runner_config = {"base_runner": runner_config}
+    runner_config["cluster"] = client_factory.create_client()
+
+    runner = ParallelRunnerFactory(config, **runner_config)  # type: ignore
+    runner.execute()  # type: ignore
     torch.distributed.destroy_process_group()
 
 
@@ -53,9 +60,26 @@ class NoOp:
 @runner_registry.register("parallel")  # type: ignore
 @main_argument("base_runner")
 class ParallelRunnerFactory:
-    """Creates a ParallelRunner with a dynamic base class."""
+    """Creates a ParallelRunner with a dynamic base class.
 
-    def __new__(cls, config: Any, base_runner: str = "default", *args, **kwargs):
+    Parameters
+    ----------
+    config : Any
+        The config for the runner.
+    base_runner : str
+        The base runner to use for the parallel runner.
+    cluster : str | dict[str, str] | ComputeClient | None, optional
+        The cluster configuration or instance to use for distributed inference, by default None
+    """
+
+    def __new__(
+        cls,
+        config: Any,
+        base_runner: str = "default",
+        *args,
+        cluster: str | dict[str, str] | ComputeClient | None = None,
+        **kwargs,
+    ):
         assert base_runner != "parallel", "Base runner cannot be `parallel` itself."
 
         try:
@@ -68,18 +92,20 @@ class ParallelRunnerFactory:
         LOG.debug(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
         ParallelRunner = cls.get_class(base_class)
+        if not isinstance(cluster, (ComputeClient,)):
+            compute = create_cluster(cluster or {})
+        else:
+            compute = cluster
 
-        kwargs = kwargs.copy()
-        cluster_config = kwargs.pop("cluster", {})
-        compute_client = create_cluster(cluster_config)
-
-        if isinstance(compute_client, ComputeSpawner):
-            with compute_client:
-                compute_client.spawn(create_parallel_runner, config)
+        if isinstance(compute, ComputeSpawner):
+            with compute:
+                compute.spawn(create_parallel_runner, config)
             return NoOp()
 
-        LOG.info(f"Using compute client provider: {compute_client!r}")
-        return ParallelRunner(config, *args, compute_client=compute_client.create_client(), **kwargs)
+        compute_client = compute if isinstance(compute, ComputeClient) else compute.create_client()
+
+        LOG.info(f"Using compute client provider: {compute!r}")
+        return ParallelRunner(config, *args, compute_client=compute_client, **kwargs)
 
     @staticmethod
     def get_class(base_class: Runner):

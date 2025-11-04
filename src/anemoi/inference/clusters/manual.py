@@ -9,40 +9,14 @@
 
 import logging
 import os
-from typing import Any
-from typing import Callable
 
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters.mapping import EnvMapping
-from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.client import ComputeClientFactory
+from anemoi.inference.clusters.spawner import SPAWN_FUNCTION
 from anemoi.inference.clusters.spawner import ComputeSpawner
+from anemoi.inference.config import Configuration
 
 LOG = logging.getLogger(__name__)
-
-MANUAL_ENV_MARKER = "ANEMOI_INFERENCE_MANUAL_CLUSTER"
-
-MANUAL_ENV_MAPPING = EnvMapping(
-    local_rank="ANEMOI_INFERENCE_MANUAL_LOCAL_RANK",
-    global_rank="ANEMOI_INFERENCE_MANUAL_RANK",
-    world_size="ANEMOI_INFERENCE_MANUAL_WORLD_SIZE",
-    master_addr="ANEMOI_INFERENCE_MANUAL_MASTER_ADDR",
-    master_port="ANEMOI_INFERENCE_MANUAL_MASTER_PORT",
-    init_method="tcp://{master_addr}:{master_port}",
-)
-
-
-def _execute_with_env(
-    fn: Callable, *args: tuple[Any, ...], env_kwargs: dict[str, Any], **kwargs: dict[str, Any]
-) -> None:
-    """Execute the function with environment variables set."""
-    saved_env = os.environ.copy()
-
-    for key, env_var in env_kwargs.items():
-        os.environ[key] = str(env_var)
-    return_var = fn(*args, **kwargs)
-
-    os.environ.update(saved_env)
-    return return_var
 
 
 @cluster_registry.register("manual")
@@ -59,11 +33,6 @@ class ManualSpawner(ComputeSpawner):
             port: 12345
     ```
     """
-
-    def __new__(cls, *args: Any, **kwargs: Any):
-        if os.environ.get(MANUAL_ENV_MARKER) == "active":
-            return ManualClient()
-        return super().__new__(cls)
 
     def __init__(self, world_size: int, port: int | None = None) -> None:
         if world_size < 1:
@@ -88,8 +57,7 @@ class ManualSpawner(ComputeSpawner):
         master_port = 10000 + (hash_val % 9999)
         return master_port
 
-    def spawn(self, fn: Any, *args: Any) -> None:
-        os.environ[MANUAL_ENV_MARKER] = "active"
+    def spawn(self, fn: SPAWN_FUNCTION, config: "Configuration") -> None:
         import torch.multiprocessing as mp
 
         try:
@@ -98,21 +66,12 @@ class ManualSpawner(ComputeSpawner):
             LOG.warning("Multiprocessing start method has already been set.")
 
         port = self._create_port()
-        mapping = {
-            MANUAL_ENV_MAPPING.world_size: str(self._world_size),
-            MANUAL_ENV_MAPPING.master_addr: "localhost",
-            MANUAL_ENV_MAPPING.master_port: str(port),
-            MANUAL_ENV_MARKER: "active",
-        }
 
         for pid in range(self._world_size):
-            pid_mapping = {
-                **mapping,
-                MANUAL_ENV_MAPPING.global_rank: str(pid),
-                MANUAL_ENV_MAPPING.local_rank: str(pid),
-            }
-
-            process = mp.Process(target=_execute_with_env, args=(fn, *args), kwargs={"env_kwargs": pid_mapping})
+            factory = ManualClient(
+                world_size=self._world_size, local_rank=pid, global_rank=pid, master_addr="localhost", master_port=port
+            )
+            process = mp.Process(target=fn, args=(config, factory))
             process.start()
             self._spawned_processes.append(process)
 
@@ -134,11 +93,40 @@ class ManualSpawner(ComputeSpawner):
                 process.kill()
 
 
-class ManualClient(MappingCluster):
-    def __init__(self) -> None:
+class ManualClient(ComputeClientFactory):
+    def __init__(self, world_size: int, local_rank: int, global_rank: int, master_addr: str, master_port: int) -> None:
         """Initialise the ManualClient."""
-        super().__init__(mapping=MANUAL_ENV_MAPPING)
+        self._world_size = world_size
+        self._local_rank = local_rank
+        self._global_rank = global_rank
+        self._master_addr = master_addr
+        self._master_port = master_port
 
     @classmethod
     def used(cls) -> bool:
-        return bool(os.environ.get(MANUAL_ENV_MARKER))
+        return True
+
+    @property
+    def world_size(self) -> int:
+        """Return the total number of processes in the cluster."""
+        return self._world_size
+
+    @property
+    def global_rank(self) -> int:
+        """Return the rank of the current process."""
+        return self._global_rank
+
+    @property
+    def local_rank(self) -> int:
+        """Return the rank of the current process."""
+        return self._local_rank
+
+    @property
+    def master_addr(self) -> str:
+        """Return the master address."""
+        return self._master_addr
+
+    @property
+    def master_port(self) -> int:
+        """Return the master port."""
+        return self._master_port
