@@ -11,14 +11,13 @@ from typing import Any
 
 from anemoi.utils.registry import Registry
 
-from .client import ClusterClientProtocol
-from .client import ComputeClient
+from .client import ComputeClientFactory
 from .spawner import ComputeSpawner
 
-cluster_registry: Registry[ClusterClientProtocol] = Registry(__name__)
+cluster_registry: Registry[ComputeClientFactory | ComputeSpawner] = Registry(__name__)
 
 
-def create_cluster(config: dict[str, Any] | str, *args, **kwargs) -> ComputeClient | ComputeSpawner:
+def create_cluster(config: dict[str, Any] | str, *args, **kwargs) -> ComputeClientFactory | ComputeSpawner:
     """Find and return the appropriate cluster for the current environment.
 
     Parameters

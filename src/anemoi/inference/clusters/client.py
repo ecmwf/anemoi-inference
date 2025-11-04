@@ -12,26 +12,11 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from typing import Any
 from typing import Protocol
 
 from anemoi.inference.lazy import torch
 
 LOG = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    import torch
-
-
-@dataclass
-class CommsGroupParams:
-    """Data class for communication group initialisation parameters."""
-
-    world_size: int
-    global_rank: int
-
-    init_kwargs: dict[str, Any]
 
 
 class ClusterClientProtocol(Protocol):
@@ -41,8 +26,36 @@ class ClusterClientProtocol(Protocol):
         ...
 
 
-class ComputeClient(ABC):
-    """Abstract base class for cluster operation."""
+@dataclass
+class ComputeClient:
+    process_group: "torch.distributed.ProcessGroup | None"
+    world_size: int
+
+    local_rank: int
+    global_rank: int
+
+    master_addr: str
+    master_port: int
+
+    @property
+    def is_master(self) -> bool:
+        """Return True if the current process is the master process."""
+        return self.global_rank == 0
+
+
+class ComputeClientFactory(ABC):
+    """Abstract factory class for compute client creation."""
+
+    def create_client(self) -> ComputeClient:
+        """Create and return a ComputeClient instance."""
+        return ComputeClient(
+            process_group=self.create_model_comm_group(),
+            world_size=self.world_size,
+            local_rank=self.local_rank,
+            global_rank=self.global_rank,
+            master_addr=self.master_addr,
+            master_port=self.master_port,
+        )
 
     @classmethod
     @abstractmethod
@@ -65,10 +78,8 @@ class ComputeClient(ABC):
         if self.world_size <= 1:
             return None
 
-        import torch.distributed as dist
-
         LOG.info("Creating model communication group for parallel inference")
-        group = dist.init_process_group(
+        group = torch.distributed.init_process_group(
             backend=self.backend,
             init_method=self.init_method,
             timeout=datetime.timedelta(minutes=3),
@@ -77,7 +88,7 @@ class ComputeClient(ABC):
         )
 
         # Create a new process group for model communication
-        group = dist.new_group(
+        group = torch.distributed.new_group(
             ranks=list(range(self.world_size)),
         )
         LOG.info("Model communication group created")

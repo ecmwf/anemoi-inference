@@ -27,8 +27,8 @@ MPI_MAPPING = EnvMapping(
 )
 
 
-@cluster_registry.register("mpi")  # type: ignore
-class MPICluster(MappingCluster):  # type: ignore
+@cluster_registry.register("mpi")
+class MPICluster(MappingCluster):
     """MPI cluster that uses MPI environment variables for distributed setup."""
 
     def __init__(self, use_mpi_backend: bool = False, **kwargs) -> None:
@@ -53,7 +53,7 @@ class MPICluster(MappingCluster):  # type: ignore
             return "mpi"
         return super().backend
 
-    def create_model_comm_group(self) -> torch.distributed.ProcessGroup | None:
+    def create_model_comm_group(self) -> "torch.distributed.ProcessGroup | None":
         """Create the communication group for model parallelism."""
         if not self._use_mpi_backend:
             return super().create_model_comm_group()
@@ -61,15 +61,13 @@ class MPICluster(MappingCluster):  # type: ignore
         if self.world_size <= 1:
             return None
 
-        import torch.distributed as dist
-
         LOG.info("Creating model communication group for parallel inference")
-        group = dist.init_process_group(
+        group = torch.distributed.init_process_group(
             backend=self.backend,
         )
 
         # Create a new process group for model communication
-        group = dist.new_group(
+        group = torch.distributed.new_group(
             ranks=list(range(self.world_size)),
         )
         LOG.info("Model communication group created")

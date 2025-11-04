@@ -9,8 +9,8 @@
 
 import logging
 import os
+import warnings
 from typing import Any
-from typing import Callable
 
 from anemoi.utils.logs import enable_logging_name
 
@@ -44,8 +44,10 @@ def create_parallel_runner(config: Configuration) -> None:
 
 
 class NoOp:
-    def __getattr__(self, *a, **k) -> Callable[..., None]:
-        return lambda *a, **k: None
+    """No operation class used when returning after spawning processes."""
+
+    def execute(self, *a, **k) -> None:
+        return None
 
 
 @runner_registry.register("parallel")  # type: ignore
@@ -66,14 +68,18 @@ class ParallelRunnerFactory:
         LOG.info(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
         ParallelRunner = cls.get_class(base_class)
-        compute_client = create_cluster(config.cluster or {})
+
+        kwargs = kwargs.copy()
+        cluster_config = kwargs.pop("cluster", {})
+        compute_client = create_cluster(cluster_config)
+        LOG.info(f"Using compute client: {compute_client!r}")
 
         if isinstance(compute_client, ComputeSpawner):
             with compute_client:
                 compute_client.spawn(create_parallel_runner, config)
             return NoOp()
 
-        return ParallelRunner(config, *args, compute_client=compute_client, **kwargs)
+        return ParallelRunner(config, *args, compute_client=compute_client.create_client(), **kwargs)
 
     @staticmethod
     def get_class(base_class: Runner):
@@ -81,7 +87,7 @@ class ParallelRunnerFactory:
         return type("ParallelRunner", (ParallelRunnerMixin, base_class), {})
 
 
-class ParallelRunnerMixin(Runner):
+class ParallelRunnerMixin:
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __init__(self, config: Any, compute_client: ComputeClient | None = None, **kwargs) -> None:
@@ -97,7 +103,7 @@ class ParallelRunnerMixin(Runner):
 
         super().__init__(config, **kwargs)
 
-        compute_client = compute_client or create_cluster(config.cluster or {})  # type: ignore
+        compute_client = compute_client or create_cluster(config.cluster or {}).create_client()  # type: ignore
         assert isinstance(compute_client, ComputeClient), "Compute client must be an instance of ComputeClient."
 
         LOG.info(f"Using compute client: {compute_client!r}")
@@ -106,25 +112,26 @@ class ParallelRunnerMixin(Runner):
         enable_logging_name(f"rank{compute_client.global_rank:02d}")
 
         self.compute_client = compute_client
-        self.model_comm_group = compute_client.create_model_comm_group()
 
         # give the base class an opportunity to modify the parallel runner
         super()._configure_parallel_runner()
 
         if self.device.type == "cuda":
-            self.device = torch.device("cuda", index=compute_client.device_index)
+            self.device = torch.device("cuda", index=compute_client.local_rank)
             torch.cuda.set_device(self.device)
             LOG.info(f"ParallelRunner changing to device `{self.device}`")
         else:
             LOG.info(f"ParallelRunner device `{self.device}` is unchanged")
 
+        self.compute_client = compute_client
         self.is_master = compute_client.is_master
-        self.seed(self.model_comm_group)
+        self.seed(compute_client.process_group)
 
         # disable most logging on non-zero ranks
         if not self.is_master and self.verbosity == 0:
             LOG.info("ParallelRunner logging disabled on non-zero rank")
             logging.getLogger().setLevel(logging.WARNING)
+            warnings.filterwarnings("ignore")
 
     def seed(self, comm_group: "torch.distributed.ProcessGroup | None") -> None:
         """Seed all processes in the cluster to ensure reproducibility."""
@@ -168,11 +175,13 @@ class ParallelRunnerMixin(Runner):
         # call the predict_step of the base class since it might do some modifications
         # the base class is expected to forward the kwargs (including the comm group) to the model's predict_step method
 
-        if self.model_comm_group is None:
+        if self.compute_client.process_group is None:
             return super().predict_step(model, input_tensor_torch, **kwargs)
         else:
             try:
-                return super().predict_step(model, input_tensor_torch, model_comm_group=self.model_comm_group, **kwargs)
+                return super().predict_step(
+                    model, input_tensor_torch, model_comm_group=self.compute_client.process_group, **kwargs
+                )
             except TypeError as err:
                 LOG.error(
                     "Please upgrade to a newer version of anemoi-models (at least version v0.4.2) to use parallel inference. If updating breaks your checkpoints, you can try reverting to your original version of anemoi-models and cherry-picking 'https://github.com/ecmwf/anemoi-core/pull/77'"

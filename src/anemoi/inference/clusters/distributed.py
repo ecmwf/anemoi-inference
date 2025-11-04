@@ -7,14 +7,11 @@
 # nor does it submit to any jurisdiction.
 #
 
-import logging
 import os
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.mapping import EnvMapping
 from anemoi.inference.clusters.mapping import MappingCluster
-
-LOG = logging.getLogger(__name__)
 
 DISTRIBUTED_MAPPING = EnvMapping(
     local_rank="LOCAL_RANK",
@@ -26,8 +23,8 @@ DISTRIBUTED_MAPPING = EnvMapping(
 )
 
 
-@cluster_registry.register("distributed")  # type: ignore
-class DistributedCluster(MappingCluster):  # type: ignore
+@cluster_registry.register("distributed")
+class DistributedCluster(MappingCluster):
     """Distributed cluster that uses environment variables for distributed setup."""
 
     def __init__(self) -> None:

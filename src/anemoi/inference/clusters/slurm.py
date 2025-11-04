@@ -11,7 +11,6 @@ import logging
 import os
 import socket
 import subprocess
-from functools import cached_property
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.mapping import EnvMapping
@@ -33,6 +32,9 @@ SLURM_MAPPING = EnvMapping(
 class SlurmCluster(MappingCluster):  # type: ignore
     """Slurm cluster that uses SLURM environment variables for distributed setup."""
 
+    _master_addr: str | None = None
+    _master_port: int | None = None
+
     def __init__(self) -> None:
         super().__init__(mapping=SLURM_MAPPING)
 
@@ -48,8 +50,10 @@ class SlurmCluster(MappingCluster):  # type: ignore
     @property
     def master_addr(self) -> str:
         """Return the master address."""
-        # Get the master address from the SLURM_NODELIST environment variable
+        if self._master_addr is not None:
+            return self._master_addr
 
+        # Get the master address from the SLURM_NODELIST environment variable
         slurm_nodelist = os.environ.get("SLURM_NODELIST")
         if not slurm_nodelist:
             raise ValueError("SLURM_NODELIST environment variable is not set.")
@@ -76,13 +80,16 @@ class SlurmCluster(MappingCluster):  # type: ignore
             except socket.gaierror:
                 raise ValueError(f"Could not resolve hostname: {master_addr}")
 
+        self._master_addr = master_addr
         return master_addr
 
-    @cached_property
+    @property
     def master_port(self) -> int:
         """Return the master port."""
-        # Check if MASTER_PORT is given, otherwise generate one based on SLURM_JOBID
+        if self._master_port is not None:
+            return self._master_port
 
+        # Check if MASTER_PORT is given, otherwise generate one based on SLURM_JOBID
         master_port = super().master_port
         if master_port is None or master_port == 0:
             LOG.debug("'MASTER_PORT' environment variable not set. Trying to set via SLURM")
@@ -92,4 +99,5 @@ class SlurmCluster(MappingCluster):  # type: ignore
 
             master_port = 10000 + int(slurm_jobid[-4:])
 
+        self._master_port = master_port
         return master_port

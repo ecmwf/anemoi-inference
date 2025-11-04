@@ -12,7 +12,7 @@ import logging
 import os
 
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters.client import ComputeClient
+from anemoi.inference.clusters.client import ComputeClientFactory
 
 LOG = logging.getLogger(__name__)
 
@@ -30,8 +30,8 @@ class EnvMapping:
     init_method: str = "env://"
 
 
-@cluster_registry.register("custom")  # type: ignore
-class MappingCluster(ComputeClient):
+@cluster_registry.register("custom")
+class MappingCluster(ComputeClientFactory):
     """Custom cluster that uses user-defined environment variables for distributed setup.
 
     Example usage
@@ -39,20 +39,22 @@ class MappingCluster(ComputeClient):
 
     In the config
     ```yaml
-    cluster:
-      custom:
-        mapping:
-            local_rank: LOCAL_RANK_ENV_VAR
-            global_rank: GLOBAL_RANK_ENV_VAR
-            world_size: WORLD_SIZE_ENV_VAR
-            master_addr: MASTER_ADDR_ENV_VAR
-            master_port: MASTER_PORT_ENV_VAR
-            init_method: env://
+    runner:
+      parallel:
+        cluster:
+          custom:
+            mapping:
+                local_rank: LOCAL_RANK_ENV_VAR
+                global_rank: GLOBAL_RANK_ENV_VAR
+                world_size: WORLD_SIZE_ENV_VAR
+                master_addr: MASTER_ADDR_ENV_VAR
+                master_port: MASTER_PORT_ENV_VAR
+                init_method: env://
     ```
 
     ```python
     from anemoi.inference.clusters.mapping import MappingCluster
-    cluster = MappingCluster(context, mapping={
+    cluster = MappingCluster(mapping={
         "local_rank": "LOCAL_RANK_ENV_VAR",
         "global_rank": "GLOBAL_RANK_ENV_VAR",
         "world_size": "WORLD_SIZE_ENV_VAR",

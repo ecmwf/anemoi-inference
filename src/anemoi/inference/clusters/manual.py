@@ -45,7 +45,7 @@ def _execute_with_env(
     return return_var
 
 
-@cluster_registry.register("manual")  # type: ignore
+@cluster_registry.register("manual")
 class ManualSpawner(ComputeSpawner):
     """Manual cluster that uses user-defined world size for distributed setup.
 
@@ -124,12 +124,14 @@ class ManualSpawner(ComputeSpawner):
         """Tear down the cluster environment and join spawned processes."""
         # Join all spawned processes to ensure clean shutdown
         for process in self._spawned_processes:
-            if process.is_alive():
-                process.join(timeout=10)
-                if process.is_alive():
-                    LOG.warning(f"Process {process.pid} did not terminate, forcing...")
-                    process.terminate()
-                    process.join(timeout=5)
+            if not process.is_alive():
+                continue
+
+            process.terminate()
+            process.join(1)
+            if process.exitcode is None:
+                LOG.debug(f"Kill hung process - PID: {process.pid}")
+                process.kill()
 
 
 class ManualClient(MappingCluster):  # type: ignore

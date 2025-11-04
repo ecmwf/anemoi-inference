@@ -32,7 +32,7 @@ class RunConfiguration(Configuration):
     """A path to an Anemoi checkpoint file."""
 
     runner: str | dict[str, Any] = "default"
-    """The runner to use."""
+    """The runner to use. If using `parallel`, can set `cluster` options here"""
 
     lead_time: str | int | datetime.timedelta = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
@@ -47,11 +47,6 @@ class RunConfiguration(Configuration):
 
     use_profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""
-
-    cluster: dict[str, Any] | str | None = None
-    """Cluster configuration for distributed inference.
-    e.g., `manual: 4`, `mpi`.
-    """
 
     report_error: bool = False
     """If True, the runner list the training versions of the packages in case of error. (Deprecated, unused)"""
