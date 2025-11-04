@@ -117,7 +117,7 @@ class Cutout(Input):
         """
         if any(x in kwargs for x in ["lam_0", "global"]):  # Capture common update issues
             raise KeyError(
-                "Cutout input has changed to set the sub-inputs as a list, provide them as args, or if using the config prefix each input with `-` to update."
+                "Cutout input has changed to set the sub-inputs as a list, if using the config, prefix each input with `-` to update."
             )
 
         super().__init__(context, pre_processors=None, **kwargs)
