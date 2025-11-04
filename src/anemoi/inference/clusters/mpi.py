@@ -61,7 +61,7 @@ class MPICluster(MappingCluster):
         if self.world_size <= 1:
             return None
 
-        LOG.info("Creating model communication group for parallel inference")
+        LOG.debug("Creating model communication group for parallel inference")
         group = torch.distributed.init_process_group(
             backend=self.backend,
         )

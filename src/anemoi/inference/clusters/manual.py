@@ -134,7 +134,7 @@ class ManualSpawner(ComputeSpawner):
                 process.kill()
 
 
-class ManualClient(MappingCluster):  # type: ignore
+class ManualClient(MappingCluster):
     def __init__(self) -> None:
         """Initialise the ManualClient."""
         super().__init__(mapping=MANUAL_ENV_MAPPING)

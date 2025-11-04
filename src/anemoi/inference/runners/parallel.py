@@ -65,20 +65,20 @@ class ParallelRunnerFactory:
 
         assert issubclass(base_class, Runner), f"Base runner '{base_runner}' must be a subclass of Runner."
 
-        LOG.info(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
+        LOG.debug(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
         ParallelRunner = cls.get_class(base_class)
 
         kwargs = kwargs.copy()
         cluster_config = kwargs.pop("cluster", {})
         compute_client = create_cluster(cluster_config)
-        LOG.info(f"Using compute client: {compute_client!r}")
 
         if isinstance(compute_client, ComputeSpawner):
             with compute_client:
                 compute_client.spawn(create_parallel_runner, config)
             return NoOp()
 
+        LOG.info(f"Using compute client provider: {compute_client!r}")
         return ParallelRunner(config, *args, compute_client=compute_client.create_client(), **kwargs)
 
     @staticmethod
@@ -106,10 +106,9 @@ class ParallelRunnerMixin:
         compute_client = compute_client or create_cluster(config.cluster or {}).create_client()  # type: ignore
         assert isinstance(compute_client, ComputeClient), "Compute client must be an instance of ComputeClient."
 
-        LOG.info(f"Using compute client: {compute_client!r}")
-
         # Set up logging name based on actual cluster rank
         enable_logging_name(f"rank{compute_client.global_rank:02d}")
+        LOG.info(f"{compute_client!r}")
 
         self.compute_client = compute_client
 
@@ -119,9 +118,9 @@ class ParallelRunnerMixin:
         if self.device.type == "cuda":
             self.device = torch.device("cuda", index=compute_client.local_rank)
             torch.cuda.set_device(self.device)
-            LOG.info(f"ParallelRunner changing to device `{self.device}`")
+            LOG.debug(f"ParallelRunner changing to device `{self.device}`")
         else:
-            LOG.info(f"ParallelRunner device `{self.device}` is unchanged")
+            LOG.warning(f"ParallelRunner device `{self.device}` is unchanged")
 
         self.compute_client = compute_client
         self.is_master = compute_client.is_master
@@ -129,7 +128,7 @@ class ParallelRunnerMixin:
 
         # disable most logging on non-zero ranks
         if not self.is_master and self.verbosity == 0:
-            LOG.info("ParallelRunner logging disabled on non-zero rank")
+            LOG.debug("ParallelRunner logging disabled on non-zero rank")
             logging.getLogger().setLevel(logging.WARNING)
             warnings.filterwarnings("ignore")
 

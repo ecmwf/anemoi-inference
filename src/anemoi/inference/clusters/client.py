@@ -28,7 +28,6 @@ class ClusterClientProtocol(Protocol):
 
 @dataclass
 class ComputeClient:
-    process_group: "torch.distributed.ProcessGroup | None"
     world_size: int
 
     local_rank: int
@@ -36,6 +35,8 @@ class ComputeClient:
 
     master_addr: str
     master_port: int
+
+    process_group: "torch.distributed.ProcessGroup | None"
 
     @property
     def is_master(self) -> bool:
@@ -78,7 +79,7 @@ class ComputeClientFactory(ABC):
         if self.world_size <= 1:
             return None
 
-        LOG.info("Creating model communication group for parallel inference")
+        LOG.debug("Creating model communication group for parallel inference")
         group = torch.distributed.init_process_group(
             backend=self.backend,
             init_method=self.init_method,

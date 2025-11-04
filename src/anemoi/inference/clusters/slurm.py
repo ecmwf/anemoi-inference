@@ -28,8 +28,8 @@ SLURM_MAPPING = EnvMapping(
 )
 
 
-@cluster_registry.register("slurm")  # type: ignore
-class SlurmCluster(MappingCluster):  # type: ignore
+@cluster_registry.register("slurm")
+class SlurmCluster(MappingCluster):
     """Slurm cluster that uses SLURM environment variables for distributed setup."""
 
     _master_addr: str | None = None
