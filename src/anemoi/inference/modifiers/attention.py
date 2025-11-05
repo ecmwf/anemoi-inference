@@ -20,23 +20,6 @@ from anemoi.inference.modifiers.modifier import Modifier
 LOG = logging.getLogger(__name__)
 
 
-DEFAULT_KERNELS = {
-    "Linear": {"_target_": "torch.nn.Linear"},
-    "LayerNorm": {"_target_": "torch.nn.LayerNorm"},
-    "Activation": {"_target_": "torch.nn.GELU"},
-    "QueryNorm": {
-        "_target_": "torch.nn.LayerNorm",
-        "_partial_": True,
-        "bias": False,
-    },
-    "KeyNorm": {
-        "_target_": "torch.nn.LayerNorm",
-        "_partial_": True,
-        "bias": False,
-    },
-}
-
-
 @modifier_registry.register("attention")
 @main_argument("attention_implementation")
 class AttentionModifier(Modifier):
@@ -97,7 +80,6 @@ class AttentionModifier(Modifier):
             )
 
         processor_config["attention_implementation"] = self.attention_implementation
-        processor_config.setdefault("layer_kernels", DEFAULT_KERNELS)
 
         LOG.info("Set attention implementation to: %s", self.attention_implementation)
         LOG.info("Processor config after modification:\n%s", pprint.pformat(dict(processor_config)))
