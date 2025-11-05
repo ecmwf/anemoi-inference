@@ -95,8 +95,6 @@ class Runner(Context):
         initial_state_categories: list[str] | None = None,
         use_profiler: bool = False,
         typed_variables: dict[str, dict] = {},
-        preload_checkpoint: bool = False,
-        preload_buffer_size: int = 32 * 1024 * 1024,
     ) -> None:
         """Parameters
         -------------
