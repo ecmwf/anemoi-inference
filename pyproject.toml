@@ -53,6 +53,7 @@ dependencies = [
   "omegaconf>=2.2,<2.4",
   "packaging",
   "pydantic",
+  "pyproj>=3.6.1",
   "pyyaml",
   "rich",
   "semantic-version",

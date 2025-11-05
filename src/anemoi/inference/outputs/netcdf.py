@@ -12,8 +12,11 @@ import logging
 import os
 import threading
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
+import pyproj
+from netCDF4 import Dataset, Variable
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig, State
@@ -69,28 +72,98 @@ class NetCDFOutput(Output):
 
         super().__init__(
             context,
-            variables=variables,
-            post_processors=post_processors,
+            # variables=variables,
+            # post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
 
-        from netCDF4 import Dataset
-
         self.path = path
-        self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
+        self.compression = {}  # dict(zlib=False, complevel=0)
+
         if self.write_step_zero:
             self.extra_time = 1
         else:
             self.extra_time = 0
-        self.vars = {}
+
         self.template = None  # Add this one line so open() won't crash
+
+        # timestep number
+        self.n = 0
+
+        # TODO: to be fair this doesn't look that good?
+        # Why can't we have __init__ actually open the file?
+        self.ncfile: Optional[Dataset] = None
+        self.field_shape: tuple[int, ...]
+        # dimesions for the field variables
+        self.dimesions: tuple[str, ...]
+        self.reference_date: datetime.datetime
+        self.time: Variable
+        self.vars: dict[str, Variable]
+
+    def _set_reference_date(self, state: State):
+        # TODO: this should be "reference_date" but it's not implemented?
+        ref_date = getattr(self.context, "date", None)
+
+        if ref_date is None:
+            dates_obj = getattr(self.context, "dates", None)
+            if dates_obj is not None:
+                ref_date = getattr(dates_obj, "start", None)
+
+        if isinstance(ref_date, str):
+            ref_date = datetime.datetime.fromisoformat(ref_date)
+
+        if ref_date is None:
+            # fallback: use state date
+            ref_date = state["date"]
+
+        self.reference_date = ref_date
+        LOG.info(f"Reference date set to {ref_date}")
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
         return f"NetCDFOutput({self.path})"
+
+    def create_var(
+        self,
+        name: str,
+        dtype: str,
+        dims: tuple[str, ...],
+        units: str,
+        values: Optional[np.ndarray] = None,
+    ) -> Variable:
+        assert self.ncfile is not None
+
+        var = self.ncfile.createVariable(name, dtype, dims)
+        var.units = units
+        if values is not None:
+            var[:] = values
+
+        return var
+
+    def create_field_var(self, name: str, units: Optional[str] = None) -> Variable:
+        """Create a variable with missing values"""
+        assert self.ncfile is not None
+
+        var = self.ncfile.createVariable(
+            name,
+            self.float_size,
+            self.dimesions,
+            fill_value=self.missing_value,
+            **self.compression,
+        )
+
+        var.missing_value = self.missing_value
+        var.fill_value = self.missing_value
+        var.grid_mapping = "projection"
+        var.coordinate = "latitude longitude"
+
+        if units is not None:
+            var.units = units
+
+        return var
 
     def open(self, state: State) -> None:
         """Open the NetCDF file and initialize dimensions and variables.
@@ -100,8 +173,6 @@ class NetCDFOutput(Output):
         state : State
             The state dictionary.
         """
-        from netCDF4 import Dataset
-
         with LOCK:
             if self.ncfile is not None:
                 return
@@ -110,32 +181,11 @@ class NetCDFOutput(Output):
         if os.path.exists(self.path):
             os.remove(self.path)
 
-        # Try to get template path from context
-        template_path = getattr(self.context, "output_template", None) or getattr(
-            getattr(self.context, "development_hacks", {}), "output_template", None
-        )
-
-        if template_path is not None and os.path.exists(template_path):
-            LOG.info(f"📄 Using output template: {template_path}")
-            with Dataset(template_path) as tmpl:
-                values = len(tmpl.dimensions["values"])
-                latitudes = tmpl.variables["latitude"][:]
-                longitudes = tmpl.variables["longitude"][:]
-        else:
-            LOG.info("⚠️ No template provided, falling back to state lat/lon")
-            values = len(state["latitudes"])
-            latitudes = state["latitudes"]
-            longitudes = state["longitudes"]
-
-        LOG.info(f"📏 NetCDFOutput.open: values={values}")
-
-        with LOCK:
-            self.ncfile = Dataset(self.path, "w", format="NETCDF4")
+        self._set_reference_date(state)
 
         state = self.post_process(state)
-        compression = {}  # dict(zlib=False, complevel=0)
 
-        time = 0
+        time = None
         self.reference_date = state["date"]
         if (time_step := getattr(self.context, "time_step", None)) and (
             lead_time := getattr(self.context, "lead_time", None)
@@ -143,39 +193,62 @@ class NetCDFOutput(Output):
             time = lead_time // time_step
             time += self.extra_time
 
-        if reference_date := getattr(self.context, "reference_date", None):
-            self.reference_date = reference_date
+        # TODO: provide these by template or via config file
+        self.field_shape = (989, 789)
+        (y_size, x_size) = self.field_shape
 
+        # TODO: also keep previous dimensions? (time, values)?
+        self.dimesions = ("time", "height", "y", "x")
+
+        lats = np.reshape(state["latitudes"][:], self.field_shape)
+        lons = np.reshape(state["longitudes"][:], self.field_shape)
+
+        proj_str = getattr(self.context, "projection_string", None)
+
+        # Create new NetCDF file at self.path
         with LOCK:
-            self.values_dim = self.ncfile.createDimension("values", values)
-            self.time_dim = self.ncfile.createDimension("time", time)
-            self.time_var = self.ncfile.createVariable(
-                "time", "i4", ("time",), **compression
+            self.ncfile = Dataset(self.path, "w", format="NETCDF4")
+            self.ncfile.createDimension("time", time)
+            self.ncfile.createDimension("y", y_size)
+            self.ncfile.createDimension("x", x_size)
+            self.ncfile.createDimension("height", 1)
+
+            # TODO: i4 or f8 for time?
+            self.time = self.create_var(
+                "time", "i4", ("time",), "seconds since 1970-01-01T00:00:00Z"
             )
 
-            self.time_var.units = f"seconds since {self.reference_date}"
-            self.time_var.long_name = "time"
-            self.time_var.calendar = "gregorian"
+            self.create_var("latitude", "f8", self.dimesions, "degrees_north", lats)
+            self.create_var("longitude", "f8", self.dimesions, "degrees_east", lons)
 
-        with LOCK:
-            self.latitude_var = self.ncfile.createVariable(
-                "latitude", self.float_size, ("values",), **compression
-            )
-            self.latitude_var.units = "degrees_north"
-            self.latitude_var.long_name = "latitude"
+            if proj_str is not None:
+                # TODO: lats and lons are supposed to be 2D
+                x, y = self._get_projections(lats, lons, proj_str)
 
-            self.longitude_var = self.ncfile.createVariable(
-                "longitude", self.float_size, ("values",), **compression
-            )
-            self.longitude_var.units = "degrees_east"
-            self.longitude_var.long_name = "longitude"
+                self.create_var("x", "f4", ("x",), "m", x)
+                self.create_var("y", "f4", ("y",), "m", y)
+                self.create_projection_var(proj_str)
 
-            self.latitude_var[:] = latitudes
-            self.longitude_var[:] = longitudes
+        LOG.info(
+            f"Created NetCDF file {self.path} with dimensions: "
+            f"(time=unlimited, height=1, y={y_size}, x={x_size})"
+        )
 
-        self.n = 0
+    def create_projection_var(self, proj_str: str):
+        assert self.ncfile is not None
 
-        LOG.info(f"🕒 Reference date set to {self.reference_date}")
+        var = self.ncfile.createVariable("projection", "i4", [])
+        var.earth_radius = 6_371_000.0
+
+        # Convert projection string to dictionary of attributes
+        crs = pyproj.CRS.from_proj4(proj_str)
+
+        # Set those attributes to the projection variable
+        for key, value in crs.to_cf().items():
+            if value == "unknown" or key == "crs_wkt":
+                continue
+
+            setattr(var, key, value)
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
@@ -185,9 +258,7 @@ class NetCDFOutput(Output):
         state : State
             The state dictionary.
         """
-        # Use the dimension already defined in open()
-        values = len(self.ncfile.dimensions["values"])
-        compression = {}  # dict(zlib=False, complevel=0)
+        assert isinstance(self.ncfile, Dataset), "netcdf file not initialized"
 
         for name in state["fields"].keys():
             if name in self.vars:
@@ -196,24 +267,32 @@ class NetCDFOutput(Output):
             if self.skip_variable(name):
                 continue
 
-            chunksizes = (1, min(values, 100000))
-
-            while np.prod(chunksizes) > 1000000:
-                chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
+            # TODO: actually chunk? Not used right now
+            # chunksizes = (1, min(values, 100000))
+            #
+            # while np.prod(chunksizes) > 1000000:
+            #     chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
 
             with LOCK:
-                missing_value = self.missing_value
+                # TODO: units?
+                self.vars[name] = self.create_field_var(name)
 
-                self.vars[name] = self.ncfile.createVariable(
-                    name,
-                    self.float_size,
-                    ("time", "values"),
-                    fill_value=missing_value,
-                    **compression,
-                )
+    @staticmethod
+    def _get_projections(
+        lats: np.ndarray, lons: np.ndarray, proj_str: str
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Reverse engineer x and y vectors from lats and lons"""
 
-                self.vars[name].fill_value = missing_value
-                self.vars[name].missing_value = missing_value
+        proj_from = pyproj.Proj("proj+=longlat")
+        proj_to = pyproj.Proj(proj_str)
+
+        transformer = pyproj.Transformer.from_proj(proj_from, proj_to)
+
+        xx, yy = transformer.transform(lons, lats)
+        x = xx[0, :]
+        y = yy[:, 0]
+
+        return x, y
 
     def write_step(self, state: State) -> None:
         """Write the state.
@@ -224,20 +303,26 @@ class NetCDFOutput(Output):
             The state dictionary.
         """
 
+        # TODO: why are these not initialized inside open()?
         self.ensure_variables(state)
 
         # Store absolute time since 1970 (not relative to reference_date)
         epoch = datetime.datetime(1970, 1, 1)
         step = state["date"] - epoch
-        self.time_var[self.n] = step.total_seconds()
+
+        self.time[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
             if self.skip_variable(name):
                 continue
 
             with LOCK:
-                LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
-                self.vars[name][self.n] = value
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
+
+                field_2d = np.reshape(value, self.field_shape)
+
+                # TODO: abstract away the slice object?
+                self.vars[name][self.n, 0, :, :] = field_2d
 
         self.n += 1
 
