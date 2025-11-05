@@ -123,10 +123,6 @@ class Runner(Context):
             Whether to write the initial state, by default True.
         use_profiler : bool, optional
             Whether to use profiler, by default False.
-        preload_checkpoint : bool
-            Whether to read the checkpoint file from disk before loading the model, by default False.
-        preload_buffer_size : int
-            Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
         self.variables = Variables(self)
