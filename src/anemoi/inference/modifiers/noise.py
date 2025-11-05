@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 class NoiseModifier(Modifier):
     """Model modifier that overrides the NoiseInjector std."""
 
-    def __init__(self, context, stddev: int):
+    def __init__(self, context, stddev: int | float):
         super().__init__(context)
         self.stddev = stddev
 
@@ -50,7 +50,7 @@ class NoiseModifier(Modifier):
 
         for layer in model.modules():
             if isinstance(layer, NoiseInjector):
-                layer.noise_std = self.stddev
+                layer.noise_std = self.stddev  # type: ignore
                 count += 1
 
         LOG.info("Set noise stddev to %s for %d NoiseInjector layers.", self.stddev, count)
