@@ -20,6 +20,14 @@ class Modifier(ABC):
     def __init__(self, context: Context):
         self.context = context
 
+    def pre_modify(self) -> None:
+        """Hook method called before loading the model.
+
+        This method can be overridden by subclasses to perform any setup
+        required before the `load` and `modify` method is called.
+        """
+        pass
+
     @abstractmethod
     def modify(self, model: "torch.nn.Module") -> "torch.nn.Module":
         """Modify the given model.

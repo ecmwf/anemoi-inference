@@ -541,7 +541,9 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}"):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
-
+            modifiers = self.create_model_modifiers()
+            for m in modifiers:
+                m.pre_modify()
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except RuntimeError:
@@ -556,7 +558,7 @@ class Runner(Context):
             assert getattr(model, "runner", None) is None, model.runner
             model.runner = self
 
-            for modifier in self.create_model_modifiers():
+            for modifier in modifiers:
                 LOG.info("Applying model modifier: %s", modifier)
                 model = modifier.modify(model)
             return model
