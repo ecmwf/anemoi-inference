@@ -17,10 +17,14 @@ from typing import Any
 from anemoi.utils.humanize import plural
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.checkpoint import Checkpoint
+
 LOG = logging.getLogger(__name__)
 
 
-def check_data(title: str, data: Any, variables: list[str], dates: list[datetime.datetime], checkpoint: Any) -> None:
+def check_data(
+    title: str, data: Any, variables: list[str], dates: list[datetime.datetime], checkpoint: Checkpoint
+) -> None:
     """Check if the data matches the expected number of fields based on variables and dates.
 
     Parameters
@@ -33,7 +37,7 @@ def check_data(title: str, data: Any, variables: list[str], dates: list[datetime
         The list of variable names.
     dates : List[datetime.datetime]
         The list of dates.
-    checkpoint : Any
+    checkpoint : Checkpoint
         The checkpoint
 
     Raises
