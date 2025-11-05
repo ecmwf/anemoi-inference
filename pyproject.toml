@@ -43,6 +43,8 @@ classifiers = [
 
 dynamic = [ "version" ]
 dependencies = [
+  "anemoi-graphs",
+  "anemoi-models",
   "anemoi-transform>0.1.13",
   "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
