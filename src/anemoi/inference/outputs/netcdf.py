@@ -32,6 +32,22 @@ LOG = logging.getLogger(__name__)
 LOCK = threading.RLock()
 
 
+class Attrs:
+    def __init__(self, units: str, standard_name: str) -> None:
+        self.units = units
+        self.standard_name = standard_name
+
+        # TODO: these should not be default?
+        self.grid_mapping = "projection"
+        self.coordinate = "latitude longitude"
+
+
+class FieldVar:
+    def __init__(self, name: str, attrs: Attrs) -> None:
+        self.name = name
+        self.attrs = attrs
+
+
 @output_registry.register("netcdf")
 @main_argument("path")
 @ensure_path("path")
@@ -93,6 +109,15 @@ class NetCDFOutput(Output):
         # timestep number
         self.n = 0
 
+        # TODO: is something like this available somewhere inside state?
+        # Otherwise we probably need to have it as input in the config?
+        self.variable_metadata = {
+            "2t": FieldVar(
+                name="air_temperature_2m",
+                attrs=Attrs(units="K", standard_name="air_temperature"),
+            )
+        }
+
         # TODO: to be fair this doesn't look that good?
         # Why can't we have __init__ actually open the file?
         self.ncfile: Optional[Dataset] = None
@@ -143,7 +168,7 @@ class NetCDFOutput(Output):
 
         return var
 
-    def create_field_var(self, name: str, units: Optional[str] = None) -> Variable:
+    def create_field_var(self, name: str) -> Variable:
         """Create a variable with missing values"""
         assert self.ncfile is not None
 
@@ -157,11 +182,12 @@ class NetCDFOutput(Output):
 
         var.missing_value = self.missing_value
         var.fill_value = self.missing_value
-        var.grid_mapping = "projection"
-        var.coordinate = "latitude longitude"
 
-        if units is not None:
-            var.units = units
+        if name in self.variable_metadata:
+            attrs = self.variable_metadata[name].attrs
+
+            for key, value in vars(attrs).items():
+                setattr(var, key, value)
 
         return var
 
@@ -222,7 +248,6 @@ class NetCDFOutput(Output):
             self.create_var("longitude", "f8", self.dimesions, "degrees_east", lons)
 
             if proj_str is not None:
-                # TODO: lats and lons are supposed to be 2D
                 x, y = self._get_projections(lats, lons, proj_str)
 
                 self.create_var("x", "f4", ("x",), "m", x)
@@ -274,7 +299,6 @@ class NetCDFOutput(Output):
             #     chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
 
             with LOCK:
-                # TODO: units?
                 self.vars[name] = self.create_field_var(name)
 
     @staticmethod
