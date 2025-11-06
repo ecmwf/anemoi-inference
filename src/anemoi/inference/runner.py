@@ -10,8 +10,8 @@
 
 import datetime
 import logging
-import sys
 import os
+import sys
 import warnings
 from collections.abc import Generator
 from functools import cached_property
