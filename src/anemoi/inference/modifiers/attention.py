@@ -94,6 +94,11 @@ class AttentionModifier(Modifier):
         processor_config["num_channels"] = model_with_processor.num_channels
 
         model_processor = instantiate(processor_config, _recursive_=False).to(self.context.device)
+
+        old_processor_state = getattr(model_with_processor, self.processor_model_path.split(".")[-1]).state_dict()
         setattr(model_with_processor, self.processor_model_path.split(".")[-1], model_processor)
+        getattr(model_with_processor, self.processor_model_path.split(".")[-1]).load_state_dict(
+            old_processor_state, strict=True
+        )
 
         return model
