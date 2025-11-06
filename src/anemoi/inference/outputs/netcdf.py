@@ -225,12 +225,34 @@ class NetCDFOutput(Output):
         # TODO: also keep previous dimensions? (time, values)?
         self.dimesions = ("time", "height", "y", "x")
 
-        # TODO: these don't have the correct shape somehow?
-        lats = np.reshape(state["latitudes"][:], self.field_shape)
-        lons = np.reshape(state["longitudes"][:], self.field_shape)
+        template_path = getattr(
+            getattr(self.context, "development_hacks", {}), "output_template"
+        )
+
+        if template_path is not None:
+            with Dataset(template_path, "r") as template:
+                # x_size = len(template.dimensions["x"])
+                # y_size = len(template.dimensions["x"])
+                # self.field_shape = (y_size, x_size)
+
+                lat_values = template.variables["latitude"][:]
+                lon_values = template.variables["longitude"][:]
+        else:
+            # TODO: fix this path
+            lat_values = state["latitudes"]
+            lon_values = state["longitudes"]
+            n_values = len(lat_values)
+            self.dimesions = ("time", "height", "values")
+
+        # TODO: these don't have the correct shape if loaded from state?
+        lats = np.reshape(lat_values, self.field_shape)
+        lons = np.reshape(lon_values, self.field_shape)
 
         # Create new NetCDF file at self.path
         with LOCK:
+            if self.ncfile is not None:
+                return
+
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
             self.ncfile.createDimension("time", time)
             self.ncfile.createDimension("y", y_size)
