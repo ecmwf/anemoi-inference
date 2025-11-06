@@ -161,6 +161,7 @@ class NetCDFOutput(Output):
         if values is not None:
             var[:] = values
 
+        LOG.info(f"Created variable {name}")
         return var
 
     def _create_field_var(self, name: str) -> Variable:
@@ -188,6 +189,7 @@ class NetCDFOutput(Output):
 
         var.setncatts(attrs)
 
+        LOG.info(f"Created variable {outname}")
         return var
 
     def open(self, state: State) -> None:
@@ -230,6 +232,7 @@ class NetCDFOutput(Output):
         )
 
         if template_path is not None:
+            LOG.info(f"Using template defined in {template_path}")
             with Dataset(template_path, "r") as template:
                 # x_size = len(template.dimensions["x"])
                 # y_size = len(template.dimensions["x"])
