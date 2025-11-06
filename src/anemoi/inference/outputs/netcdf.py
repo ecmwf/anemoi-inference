@@ -32,10 +32,11 @@ LOG = logging.getLogger(__name__)
 LOCK = threading.RLock()
 
 
-class FieldVar:
+class VarMetadata:
     def __init__(self, name: str, attrs: dict[str, Any], projected: bool) -> None:
         self.name = name
         self.attrs = attrs
+
         if projected:
             self.attrs["grid_mapping"] = "projection"
             self.attrs["coordinate"] = "latitude longitude"
@@ -101,47 +102,40 @@ class NetCDFOutput(Output):
 
         # timestep number
         self.n = 0
-        self.proj_str = getattr(self.context, "projection_string", None)
+        self.proj_str = getattr(self.context.development_hacks, "projection_string")
 
         # TODO: is something like this available somewhere inside state?
         # Otherwise we probably need to have it as input in the config?
         self.variable_metadata = {
-            "2t": FieldVar(
+            "2t": VarMetadata(
                 name="air_temperature_2m",
                 attrs={"units": "K", "standard_name": "air_temperature"},
                 projected=self.proj_str is not None,
             )
         }
 
-        # TODO: to be fair this doesn't look that good?
-        # Why can't we have __init__ actually open the file?
         self.ncfile: Optional[Dataset] = None
         self.vars: dict[str, Variable] = {}
 
-        self.field_shape: tuple[int, ...]
+        # shape of the 2D field
+        self.field_shape: tuple[int, int]
         # dimesions for the field variables
-        self.dimesions: tuple[str, ...]
+        self.dimensions: tuple[str, ...]
         self.reference_date: datetime.datetime
         self.time: Variable
 
-    def _set_reference_date(self, state: State):
+    def _get_reference_date(self, state: State) -> datetime.datetime:
         # TODO: this should be "reference_date" but it's not implemented?
-        ref_date = getattr(self.context, "date", None)
+        ref_date = self.context.reference_date
 
         if ref_date is None:
-            dates_obj = getattr(self.context, "dates", None)
-            if dates_obj is not None:
-                ref_date = getattr(dates_obj, "start", None)
+            ref_date = state["date"]
 
         if isinstance(ref_date, str):
             ref_date = datetime.datetime.fromisoformat(ref_date)
 
-        if ref_date is None:
-            # fallback: use state date
-            ref_date = state["date"]
-
-        self.reference_date = ref_date
         LOG.info(f"Reference date set to {ref_date}")
+        return ref_date
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -180,7 +174,7 @@ class NetCDFOutput(Output):
         var = self.ncfile.createVariable(
             outname,
             self.float_size,
-            self.dimesions,
+            self.dimensions,
             fill_value=self.missing_value,
             **self.compression,
         )
@@ -209,7 +203,7 @@ class NetCDFOutput(Output):
         if os.path.exists(self.path):
             os.remove(self.path)
 
-        self._set_reference_date(state)
+        self.reference_date = self._get_reference_date(state)
 
         state = self.post_process(state)
 
@@ -226,10 +220,10 @@ class NetCDFOutput(Output):
         (y_size, x_size) = self.field_shape
 
         # TODO: also keep previous dimensions? (time, values)?
-        self.dimesions = ("time", "height", "y", "x")
+        self.dimensions = ("time", "height", "y", "x")
 
-        template_path = getattr(
-            getattr(self.context, "development_hacks", {}), "output_template"
+        template_path: Optional[str] = getattr(
+            self.context.development_hacks, "output_template"
         )
 
         if template_path is not None:
@@ -239,16 +233,14 @@ class NetCDFOutput(Output):
                 # y_size = len(template.dimensions["x"])
                 # self.field_shape = (y_size, x_size)
 
-                lat_values = template.variables["latitude"][:]
-                lon_values = template.variables["longitude"][:]
+                lat_values: np.ndarray = template.variables["latitude"][:]
+                lon_values: np.ndarray = template.variables["longitude"][:]
         else:
-            # TODO: fix this path
+            # TODO: these don't have the correct shape if loaded from state,
+            # since our input and output shapes are different
             lat_values = state["latitudes"]
             lon_values = state["longitudes"]
-            n_values = len(lat_values)
-            self.dimesions = ("time", "height", "values")
 
-        # TODO: these don't have the correct shape if loaded from state?
         lats = np.reshape(lat_values, self.field_shape)
         lons = np.reshape(lon_values, self.field_shape)
 
@@ -259,17 +251,20 @@ class NetCDFOutput(Output):
 
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
             self.ncfile.createDimension("time", time)
+            self.ncfile.createDimension("height", 1)
+
+            # TODO: move out, need separate paths for 1D and 2D
             self.ncfile.createDimension("y", y_size)
             self.ncfile.createDimension("x", x_size)
-            self.ncfile.createDimension("height", 1)
 
             # TODO: i4 or f8 for time?
             self.time = self._create_var(
-                "time", "i4", ("time",), "seconds since 1970-01-01T00:00:00Z"
+                "time", "i4", ("time",), f"seconds since {self.reference_date}"
             )
 
-            self._create_var("latitude", "f8", self.dimesions, "degrees_north", lats)
-            self._create_var("longitude", "f8", self.dimesions, "degrees_east", lons)
+            # TODO: need separate paths for 1D and 2D
+            self._create_var("latitude", "f8", ("y", "x"), "degrees_north", lats)
+            self._create_var("longitude", "f8", ("y", "x"), "degrees_east", lons)
 
             if self.proj_str is not None:
                 x, y = self._get_projections(lats, lons, self.proj_str)
@@ -354,10 +349,7 @@ class NetCDFOutput(Output):
         # TODO: why are these not initialized inside open()?
         self.ensure_variables(state)
 
-        # Store absolute time since 1970 (not relative to reference_date)
-        epoch = datetime.datetime(1970, 1, 1)
-        step = state["date"] - epoch
-
+        step = state["date"] - self.reference_date
         self.time[self.n] = step.total_seconds()
 
         for name, value in state["fields"].items():
@@ -365,9 +357,8 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
-
                 field_2d = np.reshape(value, self.field_shape)
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
 
                 # TODO: abstract away the slice object?
                 self.vars[name][self.n, 0, :, :] = field_2d
