@@ -106,12 +106,13 @@ class NetCDFOutput(Output):
         # TODO: to be fair this doesn't look that good?
         # Why can't we have __init__ actually open the file?
         self.ncfile: Dataset | None = None
+        self.vars: dict[str, Variable] = {}
+
         self.field_shape: tuple[int, ...]
         # dimesions for the field variables
         self.dimesions: tuple[str, ...]
         self.reference_date: datetime.datetime
         self.time: Variable
-        self.vars: dict[str, Variable]
 
     def _set_reference_date(self, state: State):
         ref_date = getattr(self.context, "date", None)
