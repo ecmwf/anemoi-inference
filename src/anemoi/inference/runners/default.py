@@ -85,6 +85,8 @@ class DefaultRunner(Runner):
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
+            preload_checkpoint=config.preload_checkpoint,
+            preload_buffer_size=config.preload_buffer_size,
         )
 
     def predict_step(
