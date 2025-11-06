@@ -10,6 +10,7 @@
 
 import datetime
 import logging
+import os
 import warnings
 from collections.abc import Generator
 from functools import cached_property
@@ -93,6 +94,8 @@ class Runner(Context):
         initial_state_categories: list[str] | None = None,
         use_profiler: bool = False,
         typed_variables: dict[str, dict] = {},
+        preload_checkpoint: bool = False,
+        preload_buffer_size: int = 32 * 1024 * 1024,
     ) -> None:
         """Parameters
         -------------
@@ -121,6 +124,10 @@ class Runner(Context):
             Whether to write the initial state, by default True.
         use_profiler : bool, optional
             Whether to use profiler, by default False.
+        preload_checkpoint : bool
+            Whether to read the checkpoint file from disk before loading the model, by default False.
+        preload_buffer_size : int
+            Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
         self.variables = Variables(self)
@@ -158,6 +165,8 @@ class Runner(Context):
 
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
+        self.preload_checkpoint = preload_checkpoint
+        self.preload_buffer_size = preload_buffer_size
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
@@ -537,8 +546,26 @@ class Runner(Context):
         Any
             The loaded model.
         """
+        from anemoi.utils.humanize import bytes_to_human
 
-        with Timer(f"Loading {self.checkpoint}"):
+        try:
+            size = os.path.getsize(self.checkpoint.path)
+            LOG.info("Checkpoint size: %s", bytes_to_human(size))
+        except FileNotFoundError:
+            # This happens during testing, with mocked checkpoints
+            # If we are not in a testing environment, torch.load will raise
+            # the proper error
+            size = 0
+            LOG.warning("Checkpoint file not found: %s", self.checkpoint.path)
+
+        if self.preload_checkpoint and size > 0:
+            with Timer(f"Preloading {self.checkpoint}") as t:
+                with open(self.checkpoint.path, "rb") as f:
+                    while f.read(self.preload_buffer_size):
+                        pass
+            LOG.info("Preloading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
+        with Timer(f"Loading {self.checkpoint}") as t:
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
@@ -554,6 +581,9 @@ class Runner(Context):
                 raise e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
+
+            LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
             model.runner = self
             return model
 
