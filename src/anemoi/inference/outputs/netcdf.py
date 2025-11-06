@@ -12,7 +12,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pyproj
@@ -32,20 +32,13 @@ LOG = logging.getLogger(__name__)
 LOCK = threading.RLock()
 
 
-class Attrs:
-    def __init__(self, units: str, standard_name: str) -> None:
-        self.units = units
-        self.standard_name = standard_name
-
-        # TODO: these should not be default?
-        self.grid_mapping = "projection"
-        self.coordinate = "latitude longitude"
-
-
 class FieldVar:
-    def __init__(self, name: str, attrs: Attrs) -> None:
+    def __init__(self, name: str, attrs: dict[str, Any], projected: bool) -> None:
         self.name = name
         self.attrs = attrs
+        if projected:
+            self.attrs["grid_mapping"] = "projection"
+            self.attrs["coordinate"] = "latitude longitude"
 
 
 @output_registry.register("netcdf")
@@ -88,8 +81,8 @@ class NetCDFOutput(Output):
 
         super().__init__(
             context,
-            # variables=variables,
-            # post_processors=post_processors,
+            variables=variables,
+            post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
@@ -108,13 +101,15 @@ class NetCDFOutput(Output):
 
         # timestep number
         self.n = 0
+        self.proj_str = getattr(self.context, "projection_string", None)
 
         # TODO: is something like this available somewhere inside state?
         # Otherwise we probably need to have it as input in the config?
         self.variable_metadata = {
             "2t": FieldVar(
                 name="air_temperature_2m",
-                attrs=Attrs(units="K", standard_name="air_temperature"),
+                attrs={"units": "K", "standard_name": "air_temperature"},
+                projected=self.proj_str is not None,
             )
         }
 
@@ -151,7 +146,7 @@ class NetCDFOutput(Output):
         """Return a string representation of the NetCDFOutput object."""
         return f"NetCDFOutput({self.path})"
 
-    def create_var(
+    def _create_var(
         self,
         name: str,
         dtype: str,
@@ -168,12 +163,20 @@ class NetCDFOutput(Output):
 
         return var
 
-    def create_field_var(self, name: str) -> Variable:
+    def _create_field_var(self, name: str) -> Variable:
         """Create a variable with missing values"""
         assert self.ncfile is not None
 
+        if name in self.variable_metadata:
+            metadata = self.variable_metadata[name]
+            outname = metadata.name
+            attrs = metadata.attrs
+        else:
+            outname = name
+            attrs = {}
+
         var = self.ncfile.createVariable(
-            name,
+            outname,
             self.float_size,
             self.dimesions,
             fill_value=self.missing_value,
@@ -183,11 +186,7 @@ class NetCDFOutput(Output):
         var.missing_value = self.missing_value
         var.fill_value = self.missing_value
 
-        if name in self.variable_metadata:
-            attrs = self.variable_metadata[name].attrs
-
-            for key, value in vars(attrs).items():
-                setattr(var, key, value)
+        var.setncatts(attrs)
 
         return var
 
@@ -226,10 +225,9 @@ class NetCDFOutput(Output):
         # TODO: also keep previous dimensions? (time, values)?
         self.dimesions = ("time", "height", "y", "x")
 
+        # TODO: these don't have the correct shape somehow?
         lats = np.reshape(state["latitudes"][:], self.field_shape)
         lons = np.reshape(state["longitudes"][:], self.field_shape)
-
-        proj_str = getattr(self.context, "projection_string", None)
 
         # Create new NetCDF file at self.path
         with LOCK:
@@ -240,40 +238,40 @@ class NetCDFOutput(Output):
             self.ncfile.createDimension("height", 1)
 
             # TODO: i4 or f8 for time?
-            self.time = self.create_var(
+            self.time = self._create_var(
                 "time", "i4", ("time",), "seconds since 1970-01-01T00:00:00Z"
             )
 
-            self.create_var("latitude", "f8", self.dimesions, "degrees_north", lats)
-            self.create_var("longitude", "f8", self.dimesions, "degrees_east", lons)
+            self._create_var("latitude", "f8", self.dimesions, "degrees_north", lats)
+            self._create_var("longitude", "f8", self.dimesions, "degrees_east", lons)
 
-            if proj_str is not None:
-                x, y = self._get_projections(lats, lons, proj_str)
+            if self.proj_str is not None:
+                x, y = self._get_projections(lats, lons, self.proj_str)
 
-                self.create_var("x", "f4", ("x",), "m", x)
-                self.create_var("y", "f4", ("y",), "m", y)
-                self.create_projection_var(proj_str)
+                self._create_var("x", "f4", ("x",), "m", x)
+                self._create_var("y", "f4", ("y",), "m", y)
+                self._create_projection_var(self.proj_str)
 
         LOG.info(
             f"Created NetCDF file {self.path} with dimensions: "
             f"(time=unlimited, height=1, y={y_size}, x={x_size})"
         )
 
-    def create_projection_var(self, proj_str: str):
+    def _create_projection_var(self, proj_str: str):
         assert self.ncfile is not None
 
         var = self.ncfile.createVariable("projection", "i4", [])
-        var.earth_radius = 6_371_000.0
 
         # Convert projection string to dictionary of attributes
         crs = pyproj.CRS.from_proj4(proj_str)
 
         # Set those attributes to the projection variable
-        for key, value in crs.to_cf().items():
-            if value == "unknown" or key == "crs_wkt":
-                continue
+        attrs = {
+            k: v for k, v in crs.to_cf().items() if v != "unknown" or k != "crs_wkt"
+        }
+        attrs["earth_radius"] = 6_371_000.0
 
-            setattr(var, key, value)
+        var.setncatts(attrs)
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
@@ -299,7 +297,7 @@ class NetCDFOutput(Output):
             #     chunksizes = tuple(int(np.ceil(x / 2)) for x in chunksizes)
 
             with LOCK:
-                self.vars[name] = self.create_field_var(name)
+                self.vars[name] = self._create_field_var(name)
 
     @staticmethod
     def _get_projections(
