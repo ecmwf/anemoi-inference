@@ -10,14 +10,21 @@
 
 import datetime
 import logging
+import sys
+from collections import defaultdict
 from typing import Any
 
 from anemoi.utils.humanize import plural
+from earthkit.data.utils.dates import to_datetime
+
+from anemoi.inference.checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
 
 
-def check_data(title: str, data: Any, variables: list[str], dates: list[datetime.datetime]) -> None:
+def check_data(
+    title: str, data: Any, variables: list[str], dates: list[datetime.datetime], checkpoint: Checkpoint
+) -> None:
     """Check if the data matches the expected number of fields based on variables and dates.
 
     Parameters
@@ -30,6 +37,8 @@ def check_data(title: str, data: Any, variables: list[str], dates: list[datetime
         The list of variable names.
     dates : List[datetime.datetime]
         The list of dates.
+    checkpoint : Checkpoint
+        The checkpoint
 
     Raises
     ------
@@ -40,7 +49,11 @@ def check_data(title: str, data: Any, variables: list[str], dates: list[datetime
 
     if len(data) != expected:
 
-        from anemoi.utils.text import table
+        from rich.console import Console
+        from rich.table import Table
+
+        table = Table(title=title)
+        console = Console(file=sys.stderr)
 
         LOG.error("Data check failed for %s", title)
 
@@ -50,27 +63,52 @@ def check_data(title: str, data: Any, variables: list[str], dates: list[datetime
         msg = f"Expected ({nvars}) x ({ndates}) = {nfields}, got {len(data)}"
         LOG.error("%s", msg)
 
-        cols = {}
-        rows = {}
-        t: list[list[str]] = []
-        for i, d in enumerate(sorted(dates)):
-            cols[d.isoformat()] = i + 1
+        table.add_column("Name", justify="left")
 
-        for i in range(len(variables)):
-            name = variables[i]
-            while len(t) <= i:
-                t.append([name] + (["❌"] * len(cols)))
+        dates = sorted(dates)
 
-            t[i][0] = name
-            rows[name] = i
+        for d in dates:
+            table.add_column(d.isoformat(), justify="center")
 
+        table.add_column("Categories")
+
+        avail = defaultdict(set)
+        duplicates = defaultdict(set)
         for field in data:
-            name, date = field.metadata("name"), field.metadata("valid_datetime")
-            if t[rows[name]][cols[date]] == "❌":
-                t[rows[name]][cols[date]] = ""
-            t[rows[name]][cols[date]] += "✅"
+            name, date = field.metadata("name"), to_datetime(field.metadata("valid_datetime"))
+            if date in avail[name]:
+                duplicates[name].add(date)
+                LOG.warning(
+                    "Duplicate field for variable '%s' at date %s in %s",
+                    name,
+                    date.isoformat(),
+                    title,
+                )
+            avail[name].add(date)
 
-        print(table(t, ["name"] + [_.isoformat() for _ in sorted(dates)], "<||"))
+        variable_categories = checkpoint.variable_categories()
+        for name in variables:
+            row = [name]
+            for d in dates:
+                if d not in avail[name]:
+                    row.append("❌")
+                else:
+                    if d in duplicates[name]:
+                        row.append("⚠️")
+                    else:
+                        row.append("✅")
+
+            if name in variable_categories:
+                cats = ", ".join(sorted(variable_categories[name]))
+                row.append(cats)
+            else:
+                row.append("N/A")
+
+            table.add_row(*row)
+
+        console.print()
+        console.print(table)
+        console.print()
 
         raise ValueError(msg)
 
