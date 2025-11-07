@@ -336,7 +336,7 @@ Verification Checklist
 Before running parallel inference, verify:
 
 #. ✓ Anemoi-Models version >= v0.4.2
-#. ✓ Multiple GPUs available (``nvidia-smi`` or equivalent)
+#. ✓ Multiple devices available (``nvidia-smi`` or equivalent)
 #. ✓ Configuration includes ``runner: parallel``
 #. ✓ Using appropriate launcher (``srun``, ``mpirun``, or ``torchrun``)
 #. ✓ Number of processes matches available devices
