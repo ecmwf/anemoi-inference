@@ -320,7 +320,7 @@ class TestDistributedCluster:
             assert not DistributedCluster.used()
 
         # In distributed environment (torchrun)
-        with patch.dict(os.environ, {"RANK": "3", "LOCAL_RANK": "1"}):
+        with patch.dict(os.environ, {"RANK": "3", "WORLD_SIZE": "4"}):
             assert DistributedCluster.used()
 
     def test_distributed_cluster_initialization(self):
@@ -421,6 +421,35 @@ class TestMappingCluster:
     def test_mapping_cluster_not_used(self):
         """Test that MappingCluster.used() returns False."""
         assert not MappingCluster.used()
+
+    def test_mapping_cluster_list(self):
+        """Test MappingCluster with list mapping, such that the first found env var is used."""
+        mapping = EnvMapping(
+            local_rank=["MY_LOCAL_RANK_A", "MY_LOCAL_RANK_B"],
+            global_rank=["MY_GLOBAL_RANK_A", "MY_GLOBAL_RANK_B"],
+            world_size=["MY_WORLD_SIZE_A", "MY_WORLD_SIZE_B"],
+            master_addr=["MY_MASTER_ADDR_A", "MY_MASTER_ADDR_B"],
+            master_port=["MY_MASTER_PORT_A", "MY_MASTER_PORT_B"],
+            init_method="tcp://{master_addr}:{master_port}",
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "MY_WORLD_SIZE_B": "16",
+                "MY_GLOBAL_RANK_A": "5",
+                "MY_LOCAL_RANK_B": "2",
+                "MY_MASTER_ADDR_A": "192.168.1.1",
+                "MY_MASTER_PORT_B": "40000",
+            },
+        ):
+            cluster = MappingCluster(mapping=mapping)
+
+            assert cluster.world_size == 16
+            assert cluster.global_rank == 5
+            assert cluster.local_rank == 2
+            assert cluster.master_addr == "192.168.1.1"
+            assert cluster.master_port == 40000
 
 
 class TestClusterRegistry:

@@ -7,7 +7,6 @@
 # nor does it submit to any jurisdiction.
 #
 
-import os
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.mapping import EnvMapping
@@ -32,4 +31,4 @@ class DistributedCluster(MappingCluster):
 
     @classmethod
     def used(cls) -> bool:
-        return DISTRIBUTED_MAPPING.global_rank in os.environ and DISTRIBUTED_MAPPING.local_rank in os.environ
+        return bool(DISTRIBUTED_MAPPING.get_env("world_size")) and bool(DISTRIBUTED_MAPPING.get_env("global_rank"))

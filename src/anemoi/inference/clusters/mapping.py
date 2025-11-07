@@ -10,6 +10,7 @@
 import dataclasses
 import logging
 import os
+from typing import Any
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.client import ComputeClientFactory
@@ -19,15 +20,33 @@ LOG = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class EnvMapping:
-    local_rank: str
-    global_rank: str
-    world_size: str
+    """Dataclass to hold environment variable mappings for cluster configuration.
 
-    master_addr: str
-    master_port: str
+    Elements can be either strings or lists of strings.
+    If a list is provided, the first found environment variable will be used.
+    """
+
+    local_rank: str | list[str]
+    global_rank: str | list[str]
+    world_size: str | list[str]
+
+    master_addr: str | list[str]
+    master_port: str | list[str]
 
     backend: str | None = None
     init_method: str = "env://"
+
+    def get_env(self, key: str, default: Any = None):
+        """Get the environment variable value for the given key."""
+        mapped_value = getattr(self, key)
+        if mapped_value is None:
+            return default
+
+        for env_var in (mapped_value if isinstance(mapped_value, list) else [mapped_value]):
+            value = os.environ.get(env_var)
+            if value is not None:
+                return value
+        return default
 
 
 @cluster_registry.register("custom")
@@ -88,27 +107,27 @@ class MappingCluster(ComputeClientFactory):
     @property
     def world_size(self) -> int:
         """Return the total number of processes in the cluster."""
-        return int(os.environ.get(self._mapping.world_size, 1))
+        return int(self._mapping.get_env("world_size", 1))
 
     @property
     def global_rank(self) -> int:
         """Return the rank of the current process."""
-        return int(os.environ.get(self._mapping.global_rank, 0))
+        return int(self._mapping.get_env("global_rank", 0))
 
     @property
     def local_rank(self) -> int:
         """Return the rank of the current process."""
-        return int(os.environ.get(self._mapping.local_rank, self.global_rank))
+        return int(self._mapping.get_env("local_rank", self.global_rank))
 
     @property
     def master_addr(self) -> str:
         """Return the master address."""
-        return os.environ.get(self._mapping.master_addr, "")
+        return self._mapping.get_env("master_addr", "")
 
     @property
     def master_port(self) -> int:
         """Return the master port."""
-        return int(os.environ.get(self._mapping.master_port, 0))
+        return int(self._mapping.get_env("master_port", 0))
 
     @classmethod
     def used(cls) -> bool:

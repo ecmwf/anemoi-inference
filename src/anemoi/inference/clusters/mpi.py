@@ -8,7 +8,6 @@
 #
 
 import logging
-import os
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.mapping import EnvMapping
@@ -18,9 +17,9 @@ from anemoi.inference.lazy import torch
 LOG = logging.getLogger(__name__)
 
 MPI_MAPPING = EnvMapping(
-    local_rank="OMPI_COMM_WORLD_LOCAL_RANK",
-    global_rank="OMPI_COMM_WORLD_RANK",
-    world_size="OMPI_COMM_WORLD_SIZE",
+    local_rank=["OMPI_COMM_WORLD_LOCAL_RANK", "PMI_RANK"],
+    global_rank=["OMPI_COMM_WORLD_RANK", "PMI_RANK"],
+    world_size=["OMPI_COMM_WORLD_SIZE", "PMI_SIZE"],
     master_addr="MASTER_ADDR",
     master_port="MASTER_PORT",
     init_method="tcp://{master_addr}:{master_port}",
@@ -44,7 +43,7 @@ class MPICluster(MappingCluster):
 
     @classmethod
     def used(cls) -> bool:
-        return MPI_MAPPING.world_size in os.environ or "PMI_SIZE" in os.environ
+        return bool(MPI_MAPPING.get_env("world_size"))
 
     @property
     def backend(self) -> str:

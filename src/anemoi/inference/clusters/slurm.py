@@ -42,7 +42,7 @@ class SlurmCluster(MappingCluster):
     def used(cls) -> bool:
         # from pytorch lightning
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
-        return SLURM_MAPPING.world_size in os.environ and os.environ.get("SLURM_JOB_NAME") not in (
+        return bool(SLURM_MAPPING.get_env("world_size")) and os.environ.get("SLURM_JOB_NAME") not in (
             "bash",
             "interactive",
         )
