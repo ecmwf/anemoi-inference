@@ -85,6 +85,8 @@ class DefaultRunner(Runner):
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
+            preload_checkpoint=config.preload_checkpoint,
+            preload_buffer_size=config.preload_buffer_size,
         )
 
     def predict_step(
@@ -448,7 +450,7 @@ class DefaultRunner(Runner):
                     if not np.array_equal(combined[key], value):
                         raise ValueError(
                             f"Key '{key}' has different array values in the states: "
-                            f"{combined[key]} and {value}."
+                            f"{combined[key]} ({combined[key].shape}) and {value} ({value.shape})."
                             f" Input: {first_input} vs {this_input}."
                         )
                     continue
