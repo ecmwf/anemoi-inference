@@ -91,6 +91,7 @@ class ExtractMask(ExtractBase):
         Default is False.
     inverse : bool, optional
         If True, extract the points where the mask is False instead of True.
+        Default is False.
     """
 
     def __init__(self, context: Context, *, mask: str, as_slice: bool = False, inverse: bool = False) -> None:
