@@ -7,8 +7,8 @@
    :depth: 2
 
 If the memory requirements of your model are too large to fit within a
-single GPU, you can run Anemoi-Inference in parallel across multiple
-GPUs. The parallel runner distributes the model across devices and
+single device, you can run Anemoi-Inference in parallel across multiple
+devices. The parallel runner distributes the model across devices and
 coordinates inference execution.
 
 ***************
@@ -18,7 +18,7 @@ coordinates inference execution.
 Parallel inference requires:
 
 -  Anemoi-Models >= v0.4.2 (for model parallelism support)
--  Multiple GPUs available on your system or cluster
+-  Multiple devices available on your system or cluster
 
 .. note::
 
@@ -87,7 +87,7 @@ Manual Cluster Configuration
 If you are running in an environment without automatic detection, use
 the manual cluster
 (:class:`anemoi.inference.clusters.manual.ManualCluster`) by specifying
-the ``world_size`` (number of GPUs):
+the cluster as ``manual`` and the ``world_size`` (number of devices):
 
 .. code:: yaml
 
@@ -96,7 +96,7 @@ the ``world_size`` (number of GPUs):
    runner:
       parallel:
          cluster:
-            manual: 4  # Use 4 GPUs
+            manual: 4  # Use 4 devices
 
    input:
      grib: /path/to/input.grib
@@ -105,8 +105,8 @@ the ``world_size`` (number of GPUs):
 
 .. warning::
 
-   The ``world_size`` cannot exceed the number of available GPUs on your
-   system.
+   The ``world_size`` cannot exceed the number of available devices on
+   your system.
 
 Custom Cluster Mapping
 ======================
@@ -223,14 +223,17 @@ launch your job:
    source /path/to/venv/bin/activate
 
    # Set master address and port for communication
-   export MASTER_ADDR=$(hostname)
+   MASTER_ADDR=$(scontrol show hostname $SLURM_NODELIST | head -n 1)
+   export MASTER_ADDR=$(nslookup $MASTER_ADDR | grep -oP '(?<=Address: ).*')
    export MASTER_PORT=29500
 
    mpirun -np 4 anemoi-inference run parallel.yaml
 
 .. note::
 
-   You can optionally use the ``mpi`` torch backend by configuring:
+   If your torch supports it (PyTorch must be compiled from source with
+   MPI support to use the MPI backend to torch.distributed), you can use
+   the ``mpi`` torch backend by configuring:
 
    .. code:: yaml
 
@@ -314,8 +317,10 @@ Common Issues
          inference PR <https://github.com/ecmwf/anemoi-core/pull/77>`_.
 
    -  -  **CUDA out of memory**
-      -  Increase the number of GPUs (``world_size``) to distribute the
-         model across more devices.
+
+      -  Increase the number of devices (``world_size``) to distribute
+         the model across more devices. Or, increase the chunking with
+         ``ANEMOI_INFERENCE_NUM_CHUNKS``.
 
    -  -  **Port already in use**
       -  Set ``MASTER_PORT`` to a different port number, or let Slurm
@@ -334,7 +339,7 @@ Before running parallel inference, verify:
 #. ✓ Multiple GPUs available (``nvidia-smi`` or equivalent)
 #. ✓ Configuration includes ``runner: parallel``
 #. ✓ Using appropriate launcher (``srun``, ``mpirun``, or ``torchrun``)
-#. ✓ Number of processes matches available GPUs
+#. ✓ Number of processes matches available devices
 #. ✓ Network connectivity between nodes (multi-node only)
 
 Expected Output
