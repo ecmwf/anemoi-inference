@@ -136,8 +136,8 @@ class NetCDFOutput(Output):
 
         if ref_date is None:
             ref_date = state["date"]
-        else:
-            ref_date = datetime.datetime.fromisoformat(ref_date)
+
+        LOG.info(f"Reference date is of type {type(ref_date)}")
 
         LOG.info(f"Reference date set to {ref_date}")
         return ref_date
