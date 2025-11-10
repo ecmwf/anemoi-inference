@@ -125,7 +125,7 @@ class DsCheckpoint(Checkpoint):
 class ZarrTemplate:
     # TODO: document this better and eventually change name
     def __init__(self, zarr_path: str):
-        with xr.open_zarr(zarr_path) as ds:
+        with xr.open_zarr(zarr_path, consolidated=False) as ds:
             self.lats = ds.latitudes.values
             self.lons = ds.longitudes.values
 
