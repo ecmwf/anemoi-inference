@@ -139,10 +139,10 @@ class NetCDFOutput(Output):
         if ref_date is None:
             ref_date = state["date"]
 
-        LOG.info(f"Reference date is of type {type(ref_date)}")
-
         LOG.info(f"Reference date set to {ref_date}")
-        return ref_date
+
+        # TODO: not ideal, but state["date"] is not timezone aware
+        return ref_date.replace(tzinfo=None)
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
