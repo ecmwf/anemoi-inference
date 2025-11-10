@@ -16,6 +16,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pyproj
+import xarray as xr
 from netCDF4 import Dataset, Variable
 
 from anemoi.inference.context import Context
@@ -117,21 +118,25 @@ class NetCDFOutput(Output):
         self.ncfile: Optional[Dataset] = None
         self.vars: dict[str, Variable] = {}
 
-        # shape of the 2D field
-        self.field_shape: tuple[int, int]
-        # dimesions for the field variables
+        # shape of the fields
+        self.field_shape: int | tuple[int, int]
+
+        # netcdf dimesions for the field variables
         self.dimensions: tuple[str, ...]
+
+        # Reference date for the time axis
         self.reference_date: datetime.datetime
+
+        # netcdf time variable
         self.time: Variable
 
     def _get_reference_date(self, state: State) -> datetime.datetime:
-        # TODO: this should be "reference_date" but it's not implemented?
-        ref_date = self.context.reference_date
+        # TODO: this should be "reference_date" in the base context but it's not implemented?
+        ref_date = getattr(self.context.development_hacks, "reference_date")
 
         if ref_date is None:
             ref_date = state["date"]
-
-        if isinstance(ref_date, str):
+        else:
             ref_date = datetime.datetime.fromisoformat(ref_date)
 
         LOG.info(f"Reference date set to {ref_date}")
@@ -208,41 +213,11 @@ class NetCDFOutput(Output):
         state = self.post_process(state)
 
         time = None
-        self.reference_date = state["date"]
         if (time_step := getattr(self.context, "time_step", None)) and (
             lead_time := getattr(self.context, "lead_time", None)
         ):
             time = lead_time // time_step
             time += self.extra_time
-
-        # TODO: provide these by template or via config file
-        self.field_shape = (989, 789)
-        (y_size, x_size) = self.field_shape
-
-        # TODO: also keep previous dimensions? (time, values)?
-        self.dimensions = ("time", "height", "y", "x")
-
-        template_path: Optional[str] = getattr(
-            self.context.development_hacks, "output_template"
-        )
-
-        if template_path is not None:
-            LOG.info(f"Using template defined in {template_path}")
-            with Dataset(template_path, "r") as template:
-                # x_size = len(template.dimensions["x"])
-                # y_size = len(template.dimensions["x"])
-                # self.field_shape = (y_size, x_size)
-
-                lat_values: np.ndarray = template.variables["latitude"][:]
-                lon_values: np.ndarray = template.variables["longitude"][:]
-        else:
-            # TODO: these don't have the correct shape if loaded from state,
-            # since our input and output shapes are different
-            lat_values = state["latitudes"]
-            lon_values = state["longitudes"]
-
-        lats = np.reshape(lat_values, self.field_shape)
-        lons = np.reshape(lon_values, self.field_shape)
 
         # Create new NetCDF file at self.path
         with LOCK:
@@ -253,29 +228,56 @@ class NetCDFOutput(Output):
             self.ncfile.createDimension("time", time)
             self.ncfile.createDimension("height", 1)
 
-            # TODO: move out, need separate paths for 1D and 2D
-            self.ncfile.createDimension("y", y_size)
-            self.ncfile.createDimension("x", x_size)
-
             # TODO: i4 or f8 for time?
             self.time = self._create_var(
-                "time", "i4", ("time",), f"seconds since {self.reference_date}"
+                "time", "f8", ("time",), f"seconds since {self.reference_date}"
             )
 
-            # TODO: need separate paths for 1D and 2D
-            self._create_var("latitude", "f8", ("y", "x"), "degrees_north", lats)
-            self._create_var("longitude", "f8", ("y", "x"), "degrees_east", lons)
+        output_template: Optional[str] = getattr(
+            self.context.development_hacks, "output_template"
+        )
 
-            if self.proj_str is not None:
+        if output_template is not None:
+            with xr.open_dataset(output_template, consolidated=False) as template:
+                lats = template.latitudes
+                lons = template.longitudes
+
+                self.field_shape = template.field_shape
+                (y_size, x_size) = template.field_shape
+
+                self.dimensions = ("time", "height", "y", "x")
+
+                coord_dims = ("y", "x")
                 x, y = self._get_projections(lats, lons, self.proj_str)
 
-                self._create_var("x", "f4", ("x",), "m", x)
-                self._create_var("y", "f4", ("y",), "m", y)
-                self._create_projection_var(self.proj_str)
+                with LOCK:
+                    self.ncfile.createDimension("y", y_size)
+                    self.ncfile.createDimension("x", x_size)
+
+                    self._create_var("x", "f4", ("x",), "m", x)
+                    self._create_var("y", "f4", ("y",), "m", y)
+                    self._create_projection_var(self.proj_str)
+
+                log_str = f"y={y_size}, x={x_size}"
+        else:
+            lats = state["latitudes"]
+            lons = state["longitudes"]
+            values = len(lats)
+
+            coord_dims = ("values",)
+
+            self.field_shape = values
+            self.dimensions = ("time", "height", "values")
+            self.ncfile.createDimension("values", values)
+            log_str = f"{values=}"
+
+        with LOCK:
+            self._create_var("latitude", "f8", coord_dims, "degrees_north", lats)
+            self._create_var("longitude", "f8", coord_dims, "degrees_east", lons)
 
         LOG.info(
             f"Created NetCDF file {self.path} with dimensions: "
-            f"(time=unlimited, height=1, y={y_size}, x={x_size})"
+            f"(time=unlimited, height=1, {log_str})"
         )
 
     def _create_projection_var(self, proj_str: str):
@@ -288,7 +290,7 @@ class NetCDFOutput(Output):
 
         # Set those attributes to the projection variable
         attrs = {
-            k: v for k, v in crs.to_cf().items() if v != "unknown" or k != "crs_wkt"
+            k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"
         }
         attrs["earth_radius"] = 6_371_000.0
 
@@ -337,6 +339,7 @@ class NetCDFOutput(Output):
 
         return x, y
 
+    # TODO: need to add samples and ensemble members? Probably needs to be done at the runner level?
     def write_step(self, state: State) -> None:
         """Write the state.
 
@@ -357,11 +360,9 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                field_2d = np.reshape(value, self.field_shape)
+                field = np.reshape(value, self.field_shape)
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
-
-                # TODO: abstract away the slice object?
-                self.vars[name][self.n, 0, :, :] = field_2d
+                self.vars[name][self.n, 0, ...] = field
 
         self.n += 1
 

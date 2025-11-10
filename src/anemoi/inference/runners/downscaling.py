@@ -166,7 +166,7 @@ class DownscalingRunner(DefaultRunner):
             ds = xr.open_dataset(self.extra_config.output_template)
 
             def grid_points():
-                return ds["latitude"].values, ds["longitude"].values
+                return ds["latitudes"].values, ds["longitudes"].values
 
             # return a bare object with just grid_points
             return type("TemplateShim", (), {"grid_points": staticmethod(grid_points)})()
