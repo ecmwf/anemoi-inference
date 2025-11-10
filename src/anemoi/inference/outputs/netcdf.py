@@ -239,15 +239,15 @@ class NetCDFOutput(Output):
 
         if output_template is not None:
             with xr.open_dataset(output_template, consolidated=False) as template:
-                lats = template.latitudes
-                lons = template.longitudes
-
                 self.field_shape = template.field_shape
                 (y_size, x_size) = template.field_shape
 
-                self.dimensions = ("time", "height", "y", "x")
+                lats = np.reshape(template.latitudes, self.field_shape)
+                lons = np.reshape(template.longitudes, self.field_shape)
 
+                self.dimensions = ("time", "height", "y", "x")
                 coord_dims = ("y", "x")
+
                 x, y = self._get_projections(lats, lons, self.proj_str)
 
                 with LOCK:
