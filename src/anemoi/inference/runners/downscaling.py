@@ -162,8 +162,9 @@ class DownscalingRunner(DefaultRunner):
         if "grib" in self.config.output:
             return ekd.from_source("file", self.extra_config.output_template)[0]
         elif "netcdf" in self.config.output:
+            # TODO: document this better and eventually change name
             import xarray as xr
-            ds = xr.open_dataset(self.extra_config.output_template)
+            ds = xr.open_zarr(self.extra_config.output_template)
 
             def grid_points():
                 return ds["latitudes"].values, ds["longitudes"].values

@@ -238,7 +238,7 @@ class NetCDFOutput(Output):
         )
 
         if output_template is not None:
-            with xr.open_dataset(output_template, consolidated=False) as template:
+            with xr.open_zarr(output_template, consolidated=False) as template:
                 self.field_shape = template.field_shape
                 (y_size, x_size) = template.field_shape
 
