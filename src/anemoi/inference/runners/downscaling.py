@@ -15,9 +15,10 @@ from types import MappingProxyType as frozendict
 import earthkit.data as ekd
 import numpy as np
 import torch
+import xarray as xr
+
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
-
 from anemoi.inference.forcings import ComputedForcings
 
 from ..checkpoint import Checkpoint
@@ -121,6 +122,16 @@ class DsCheckpoint(Checkpoint):
         # include forcings in initial conditions retrieval
         return super().variables_from_input(include_forcings=True)
 
+class ZarrTemplate:
+    # TODO: document this better and eventually change name
+    def __init__(self, zarr_path: str):
+        with xr.open_zarr(zarr_path) as ds:
+            self.lats = ds.latitudes.values
+            self.lons = ds.longitudes.values
+
+    def grid_points(self):
+        return (self.lats, self.lons)
+
 
 @runner_registry.register("downscaling")
 class DownscalingRunner(DefaultRunner):
@@ -162,15 +173,7 @@ class DownscalingRunner(DefaultRunner):
         if "grib" in self.config.output:
             return ekd.from_source("file", self.extra_config.output_template)[0]
         elif "netcdf" in self.config.output:
-            # TODO: document this better and eventually change name
-            import xarray as xr
-            ds = xr.open_zarr(self.extra_config.output_template)
-
-            def grid_points():
-                return ds["latitudes"].values, ds["longitudes"].values
-
-            # return a bare object with just grid_points
-            return type("TemplateShim", (), {"grid_points": staticmethod(grid_points)})()
+            return ZarrTemplate(self.extra_config.output_template)
         else:
             raise Exception('Only grib and netcdf ouputs are available with runner type downscaling.')
 
