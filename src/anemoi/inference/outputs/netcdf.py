@@ -241,12 +241,11 @@ class NetCDFOutput(Output):
 
         if output_template is not None:
             with xr.open_zarr(output_template, consolidated=False) as template:
-                LOG.info(template.attrs)
                 self.field_shape = template.field_shape
                 (y_size, x_size) = template.field_shape
 
-                lats = np.reshape(template.latitudes, self.field_shape)
-                lons = np.reshape(template.longitudes, self.field_shape)
+                lats = np.reshape(template.latitudes.values, self.field_shape)
+                lons = np.reshape(template.longitudes.values, self.field_shape)
 
                 self.dimensions = ("time", "height", "y", "x")
                 coord_dims = ("y", "x")
