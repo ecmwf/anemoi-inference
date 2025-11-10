@@ -153,8 +153,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.time_step = self.interpolation_window
 =======
         self.time_step = self.checkpoint.timestep
-        self.interpolation_window = to_timedelta(self.checkpoint.timestep) * (input_explicit_times[1] - input_explicit_times[0])
-        # Not really timestep but the size of the interpolation window, not sure if this is used
+        self.interpolation_window = get_interpolation_window(self.checkpoint.timestep, self.checkpoint.input_explicit_times)
         input = self.create_input()
 >>>>>>> 1cad1f3 (feature: added logic for energy accumulation)
         output = self.create_output()
