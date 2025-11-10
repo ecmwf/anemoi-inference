@@ -103,7 +103,9 @@ class NetCDFOutput(Output):
 
         # timestep number
         self.n = 0
-        self.proj_str = getattr(self.context.development_hacks, "projection_string")
+        self.proj_str: Optional[str] = getattr(
+            self.context.development_hacks, "projection_string"
+        )
 
         # TODO: is something like this available somewhere inside state?
         # Otherwise we probably need to have it as input in the config?
@@ -248,15 +250,12 @@ class NetCDFOutput(Output):
                 self.dimensions = ("time", "height", "y", "x")
                 coord_dims = ("y", "x")
 
-                x, y = self._get_projections(lats, lons, self.proj_str)
-
                 with LOCK:
                     self.ncfile.createDimension("y", y_size)
                     self.ncfile.createDimension("x", x_size)
 
-                    self._create_var("x", "f4", ("x",), "m", x)
-                    self._create_var("y", "f4", ("y",), "m", y)
-                    self._create_projection_var(self.proj_str)
+                if self.proj_str is not None:
+                    self._create_projections(lats, lons)
 
                 log_str = f"y={y_size}, x={x_size}"
         else:
@@ -280,21 +279,26 @@ class NetCDFOutput(Output):
             f"(time=unlimited, height=1, {log_str})"
         )
 
-    def _create_projection_var(self, proj_str: str):
+    def _create_projections(self, lats, lons):
         assert self.ncfile is not None
-
-        var = self.ncfile.createVariable("projection", "i4", [])
+        assert self.proj_str is not None
 
         # Convert projection string to dictionary of attributes
-        crs = pyproj.CRS.from_proj4(proj_str)
+        crs = pyproj.CRS.from_proj4(self.proj_str)
 
-        # Set those attributes to the projection variable
         attrs = {
             k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"
         }
         attrs["earth_radius"] = 6_371_000.0
 
-        var.setncatts(attrs)
+        x, y = self._get_projections(lats, lons)
+        with LOCK:
+            self._create_var("x", "f4", ("x",), "m", x)
+            self._create_var("y", "f4", ("y",), "m", y)
+
+            # Create and set attributes to the projection var
+            var = self.ncfile.createVariable("projection", "i4", [])
+            var.setncatts(attrs)
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
@@ -322,14 +326,18 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.vars[name] = self._create_field_var(name)
 
-    @staticmethod
     def _get_projections(
-        lats: np.ndarray, lons: np.ndarray, proj_str: str
+        self, lats: np.ndarray, lons: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Reverse engineer x and y vectors from lats and lons"""
+        """Reverse engineer x and y vectors from lats and lons."""
 
-        proj_from = pyproj.Proj("proj+=longlat")
-        proj_to = pyproj.Proj(proj_str)
+        lonlat_proj = "proj+=longlat"
+        proj_from = pyproj.Proj(lonlat_proj)
+
+        if self.proj_str is not None:
+            proj_to = pyproj.Proj(self.proj_str)
+        else:
+            proj_to = pyproj.Proj(lonlat_proj)
 
         transformer = pyproj.Transformer.from_proj(proj_from, proj_to)
 
