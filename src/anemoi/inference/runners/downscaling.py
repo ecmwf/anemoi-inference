@@ -16,10 +16,11 @@ import earthkit.data as ekd
 import numpy as np
 import torch
 import xarray as xr
-
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+
 from anemoi.inference.forcings import ComputedForcings
+from anemoi.inference.types import FloatArray, State
 
 from ..checkpoint import Checkpoint
 from ..metadata import Metadata
@@ -34,8 +35,12 @@ class DsMetadata(Metadata):
         super().__init__(*args, **kwargs)
 
         # we only need to retrieve from the low res input_0
-        self._metadata.data_indices.data.input = self._metadata.data_indices.data.input_0
-        self._metadata.data_indices.model.input = self._metadata.data_indices.model.input_0
+        self._metadata.data_indices.data.input = (
+            self._metadata.data_indices.data.input_0
+        )
+        self._metadata.data_indices.model.input = (
+            self._metadata.data_indices.model.input_0
+        )
 
         # treat all low res inputs as forcings
         self._config.data.forcing = self.low_res_input_variables
@@ -45,9 +50,11 @@ class DsMetadata(Metadata):
         self._metadata.data_indices.model.input.prognostic = []
 
         # treat all high res outputs as diagnostics
-        self._metadata.data_indices.model.output.diagnostic = self._indices.model.output.full
+        self._metadata.data_indices.model.output.diagnostic = (
+            self._indices.model.output.full
+        )
         self._metadata.data_indices.model.output.prognostic = []
-    
+
     @property
     def low_res_input_variables(self):
         spec = self._metadata.dataset.specific
@@ -57,7 +64,6 @@ class DsMetadata(Metadata):
             return spec["variables"]
         else:
             raise ValueError(f"Unsupported specific structure: {spec}")
-
 
     @property
     def high_res_output_variables(self):
@@ -85,7 +91,9 @@ class DsMetadata(Metadata):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        return frozendict({k: self.high_res_output_variables[v] for k, v in mapping.items()})
+        return frozendict(
+            {k: self.high_res_output_variables[v] for k, v in mapping.items()}
+        )
 
     @cached_property
     def number_of_grid_points(self):
@@ -103,10 +111,16 @@ class DsMetadata(Metadata):
         s = self.output_tensor_index_to_variable
 
         self._print_indices(
-            "Data indices", self._indices.data, dict(input=v, output=v), skip=["output", "input_0", "input_1"]
+            "Data indices",
+            self._indices.data,
+            dict(input=v, output=v),
+            skip=["output", "input_0", "input_1"],
         )
         self._print_indices(
-            "Model indices", self._indices.model, dict(input=r, output=s), skip=["output.full", "input_0", "input_1"]
+            "Model indices",
+            self._indices.model,
+            dict(input=r, output=s),
+            skip=["output.full", "input_0", "input_1"],
         )
 
 
@@ -121,6 +135,7 @@ class DsCheckpoint(Checkpoint):
     def variables_from_input(self, *, include_forcings):
         # include forcings in initial conditions retrieval
         return super().variables_from_input(include_forcings=True)
+
 
 class ZarrTemplate:
     # TODO: document this better and eventually change name
@@ -145,6 +160,9 @@ class DownscalingRunner(DefaultRunner):
         # some parts of the runner call the checkpoint directly so also overwrite it here
         self._checkpoint.timestep = self.time_step
 
+        # self.samples = getattr(self.extra_config, "n_samples")
+        self.members: int = getattr(self.extra_config, "n_members", 1)
+
         self.checkpoint.print_indices()
         self.checkpoint.print_variable_categories()
         self.verbosity = 3
@@ -156,17 +174,22 @@ class DownscalingRunner(DefaultRunner):
     @cached_property
     def constant_high_res_focings_numpy(self):
         file = np.load(self.extra_config.constant_high_res_forcings_npz)
-        high_res = np.stack([file[forcing] for forcing in self.extra_config.constant_high_res_forcings], axis=1)
+        high_res = np.stack(
+            [file[forcing] for forcing in self.extra_config.constant_high_res_forcings],
+            axis=1,
+        )
 
         return high_res[np.newaxis, np.newaxis, ...]  # shape: (1, 1, values, variables)
 
     @cached_property
     def computed_high_res_forcings(self):
         computed_forcings = [
-            var for var in self.extra_config.high_res_input if var not in self.extra_config.constant_high_res_forcings
+            var
+            for var in self.extra_config.high_res_input
+            if var not in self.extra_config.constant_high_res_forcings
         ]
         return ComputedForcings(self, computed_forcings, [])
-    
+
     @cached_property
     def template(self):
         # The the output type, may not be robust
@@ -175,7 +198,9 @@ class DownscalingRunner(DefaultRunner):
         elif "netcdf" in self.config.output:
             return ZarrTemplate(self.extra_config.output_template)
         else:
-            raise Exception('Only grib and netcdf ouputs are available with runner type downscaling.')
+            raise Exception(
+                "Only grib and netcdf ouputs are available with runner type downscaling."
+            )
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
@@ -195,7 +220,12 @@ class DownscalingRunner(DefaultRunner):
         # for downscaling we do a prediction for each step of the input
         steps = (lead_time // self.time_step) + 1  # include step 0
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.time_step, steps)
+        LOG.info(
+            "Lead time: %s, time stepping: %s Forecasting %s steps",
+            lead_time,
+            self.time_step,
+            steps,
+        )
 
         for s in range(steps):
             step = s * self.time_step
@@ -204,11 +234,15 @@ class DownscalingRunner(DefaultRunner):
             is_last_step = s == steps - 1
             yield step, valid_date, next_date, is_last_step
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
+    def forecast(
+        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+    ):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"], state["longitudes"] = self.template.grid_points()
-            state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
+            state["_grib_templates_for_output"] = {
+                name: self.template for name in state["fields"].keys()
+            }
             yield state
 
     def predict_step(self, model, input_tensor_torch, date, step, **kwargs):
@@ -221,33 +255,47 @@ class DownscalingRunner(DefaultRunner):
 
         extra_args = self.extra_config.get("extra_args", {})
 
-        residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
-        if residual_output_numpy.ndim == 1:
-            residual_output_numpy = residual_output_numpy[:, np.newaxis]
+        # TODO: is this the correct thing to do to get an ensamble out?
+        outputs = []
+        for _ in range(self.members):
+            residual_output_tensor = model.predict_step(
+                low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs
+            )
+            residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
+            if residual_output_numpy.ndim == 1:
+                residual_output_numpy = residual_output_numpy[:, np.newaxis]
 
+            self._print_output_tensor("Residual output tensor", residual_output_numpy)
 
-        self._print_output_tensor("Residual output tensor", residual_output_numpy)
+            if not isinstance(self.config.output, str) and (
+                raw_path := self.config.output.get("raw", {}).get("path")
+            ):
+                self._save_residual_tensor(
+                    residual_output_numpy, f"{raw_path}/output-residuals-o320.npz"
+                )
 
-        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
-            self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
+            output_tensor_interp = _prepare_high_res_output_tensor(
+                model,
+                low_res_tensor[0],  # remove batch dimension
+                residual_output_tensor,
+                self.checkpoint.variable_to_input_tensor_index,
+                self.checkpoint._metadata.high_res_output_variables,
+            )
 
-        output_tensor_interp = _prepare_high_res_output_tensor(
-            model,
-            low_res_tensor[0],  # remove batch dimension
-            residual_output_tensor,
-            self.checkpoint.variable_to_input_tensor_index,
-            self.checkpoint._metadata.high_res_output_variables,
-        )
+            outputs.append(output_tensor_interp)
 
-        return output_tensor_interp
+        return torch.stack(outputs)
 
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
         state["latitudes"], state["longitudes"] = self.template.grid_points()
 
-        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
-        computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
+        computed_high_res_forcings = (
+            self.computed_high_res_forcings.load_forcings_array(input_date, state)
+        )
+        computed_high_res_forcings = np.squeeze(
+            computed_high_res_forcings, axis=1
+        )  # Drop the dates dimension
         computed_high_res_forcings = np.swapaxes(
             computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
         )  # shape: (1, 1, values, variables)
@@ -267,10 +315,17 @@ class DownscalingRunner(DefaultRunner):
         assert set(forcings_dict.keys()) == set(self.extra_config.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
-        high_res_numpy = np.stack([forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1)
+        high_res_numpy = np.stack(
+            [forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1
+        )
 
         # print expects shape (step, variables, values)
-        self._print_tensor("High res input tensor", np.swapaxes(high_res_numpy[0], -2, -1), forcings_dict.keys(), {})
+        self._print_tensor(
+            "High res input tensor",
+            np.swapaxes(high_res_numpy[0], -2, -1),
+            forcings_dict.keys(),
+            {},
+        )
 
         return torch.from_numpy(high_res_numpy).to(self.device)
 
@@ -308,7 +363,9 @@ def _match_tensor_channels(input_name_to_index, output_names):
     return channel_indices
 
 
-def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input_name_to_index, output_names):
+def _prepare_high_res_output_tensor(
+    model, low_res_in, high_res_residuals, input_name_to_index, output_names
+):
     # interpolate the low res input tensor to high res, and add the residuals to get the final high res output
 
     matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
@@ -317,9 +374,9 @@ def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input
 
     print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
 
-    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
-        ..., matching_channel_indices
-    ]
+    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[
+        :, None, None, ...
+    ][..., matching_channel_indices]
     print("interp_high_res_in", interp_high_res_in.shape)  # [1, 1, 1, 421120, 8]
 
     high_res_out = interp_high_res_in + high_res_residuals
@@ -336,6 +393,10 @@ def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input
     )
 
     print("high_res_out", high_res_out.shape)  # [1, 1, 1, 421120, 8]
-    print("high_res_out is denormalised", high_res_out[..., 0].mean(), high_res_out[..., 0].std())  # 56249 2677
+    print(
+        "high_res_out is denormalised",
+        high_res_out[..., 0].mean(),
+        high_res_out[..., 0].std(),
+    )  # 56249 2677
 
     return high_res_out
