@@ -106,6 +106,7 @@ class NetCDFOutput(Output):
         self.proj_str: Optional[str] = getattr(
             self.context.development_hacks, "projection_string"
         )
+        self.members = getattr(self.context.development_hacks, "n_members", 1)
 
         # TODO: is something like this available somewhere inside state?
         # Otherwise we probably need to have it as input in the config?
@@ -148,38 +149,19 @@ class NetCDFOutput(Output):
         """Return a string representation of the NetCDFOutput object."""
         return f"NetCDFOutput({self.path})"
 
-    def _create_var(
-        self,
-        name: str,
-        dtype: str,
-        dims: tuple[str, ...],
-        units: str,
-        values: Optional[np.ndarray] = None,
-    ) -> Variable:
-        assert self.ncfile is not None
-
-        var = self.ncfile.createVariable(name, dtype, dims)
-        var.units = units
-        if values is not None:
-            var[:] = values
-
-        LOG.info(f"Created variable {name}")
-        return var
-
     def _create_field_var(self, name: str) -> Variable:
         """Create a variable with missing values"""
         assert self.ncfile is not None
 
-        if name in self.variable_metadata:
-            metadata = self.variable_metadata[name]
-            outname = metadata.name
+        if metadata := self.variable_metadata.get(name):
+            var_name = metadata.name
             attrs = metadata.attrs
         else:
-            outname = name
+            var_name = name
             attrs = {}
 
         var = self.ncfile.createVariable(
-            outname,
+            var_name,
             self.float_size,
             self.dimensions,
             fill_value=self.missing_value,
@@ -191,7 +173,7 @@ class NetCDFOutput(Output):
 
         var.setncatts(attrs)
 
-        LOG.info(f"Created variable {outname}")
+        LOG.info(f"Created variable {var_name}")
         return var
 
     def open(self, state: State) -> None:
@@ -231,9 +213,9 @@ class NetCDFOutput(Output):
             self.ncfile.createDimension("height", 1)
 
             # TODO: i4 or f8 for time?
-            self.time = self._create_var(
-                "time", "f8", ("time",), f"seconds since {self.reference_date}"
-            )
+            self.time = self.ncfile.createVariable("time", "f8", ("time",))
+            self.time.units = f"seconds since {self.reference_date}"
+            self.time.standard_name = "time"
 
         output_template: Optional[str] = getattr(
             self.context.development_hacks, "output_template"
@@ -247,12 +229,13 @@ class NetCDFOutput(Output):
                 lats = np.reshape(template.latitudes.values, self.field_shape)
                 lons = np.reshape(template.longitudes.values, self.field_shape)
 
-                self.dimensions = ("time", "height", "y", "x")
+                self.dimensions = ("time", "height", "members", "y", "x")
                 coord_dims = ("y", "x")
 
                 with LOCK:
                     self.ncfile.createDimension("y", y_size)
                     self.ncfile.createDimension("x", x_size)
+                    self.ncfile.createDimension("members", self.members)
 
                 if self.proj_str is not None:
                     self._create_projections(lats, lons)
@@ -271,8 +254,15 @@ class NetCDFOutput(Output):
             log_str = f"{values=}"
 
         with LOCK:
-            self._create_var("latitude", "f8", coord_dims, "degrees_north", lats)
-            self._create_var("longitude", "f8", coord_dims, "degrees_east", lons)
+            var = self.ncfile.createVariable("latitude", "f8", coord_dims)
+            var.standard_name = "latitude"
+            var.units = "degrees_north"
+            var[:] = lats
+
+            var = self.ncfile.createVariable("longitude", "f8", coord_dims)
+            var.standard_name = "longitude"
+            var.units = "degrees_east"
+            var[:] = lons
 
         LOG.info(
             f"Created NetCDF file {self.path} with dimensions: "
@@ -293,8 +283,15 @@ class NetCDFOutput(Output):
 
         x, y = self._get_projections(lats, lons)
         with LOCK:
-            self._create_var("x", "f4", ("x",), "m", x)
-            self._create_var("y", "f4", ("y",), "m", y)
+            var = self.ncfile.createVariable("x", "f4", ("x",))
+            var.standard_name = "projection_x_coordinate"
+            var.units = "m"
+            var[:] = x
+
+            var = self.ncfile.createVariable("y", "f4", ("y",))
+            var.standard_name = "projection_y_coordinate"
+            var.units = "m"
+            var[:] = y
 
             # Create and set attributes to the projection var
             var = self.ncfile.createVariable("projection", "i4", [])
@@ -330,14 +327,11 @@ class NetCDFOutput(Output):
         self, lats: np.ndarray, lons: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         """Reverse engineer x and y vectors from lats and lons."""
+        assert self.proj_str is not None
 
         lonlat_proj = "proj+=longlat"
         proj_from = pyproj.Proj(lonlat_proj)
-
-        if self.proj_str is not None:
-            proj_to = pyproj.Proj(self.proj_str)
-        else:
-            proj_to = pyproj.Proj(lonlat_proj)
+        proj_to = pyproj.Proj(self.proj_str)
 
         transformer = pyproj.Transformer.from_proj(proj_from, proj_to)
 

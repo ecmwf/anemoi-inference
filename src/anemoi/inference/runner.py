@@ -758,20 +758,18 @@ class Runner(Context):
                     ProfilingLabel("Predict step", self.use_profiler),
                     Timer(title),
                 ):
-                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, input_date=date - step)
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
 
                 # Detach tensor and squeeze (should we detach here?)
                 with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                    output = np.squeeze(
-                        y_pred.cpu().numpy()
-                    )  # , axis=(0, 1))  # shape: (values, variables)
+                    output = np.squeeze(y_pred.cpu().numpy())  # , axis=(0, 1))  # shape: (values, variables)
                     if output.ndim == 1:
-                        output = output[:, np.newaxis]
+                        output = output[..., np.newaxis]
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                     for i in range(output.shape[1]):
-                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[..., i]
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_output_tensor("Output tensor", output.cpu().numpy())
