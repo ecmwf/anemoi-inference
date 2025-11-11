@@ -813,7 +813,7 @@ class Runner(Context):
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(output.shape[1]):
+                    for i in range(output.shape[-1]):
                         new_state["fields"][
                             self.checkpoint.output_tensor_index_to_variable[i]
                         ] = output[..., i]
