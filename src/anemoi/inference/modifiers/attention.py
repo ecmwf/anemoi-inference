@@ -30,11 +30,15 @@ class AttentionModifier(Modifier):
         *,
         config_path: str = "model.processor",
         processor_model_path: str = "model.processor",
+        layer_kernels: dict | None = None,
+        instantiation_kwargs: dict | None = None,
     ):
         super().__init__(context)
         self.attention_implementation = attention_implementation
         self.config_path = config_path
         self.processor_model_path = processor_model_path
+        self._layer_kernels = layer_kernels
+        self._instantiation_kwargs = instantiation_kwargs or {"recursive": False}
 
     def pre_modify(self) -> None:
         """Mock flash_attn module before modifying the model."""
@@ -80,20 +84,28 @@ class AttentionModifier(Modifier):
             )
 
         processor_config["attention_implementation"] = self.attention_implementation
+        if self._layer_kernels is not None:
+            processor_config["layer_kernels"] = self._layer_kernels
 
-        LOG.info("Set attention implementation to: %s", self.attention_implementation)
-        LOG.info("Processor config after modification:\n%s", pprint.pformat(dict(processor_config)))
+        if "layer_kernels" not in processor_config:
+            LOG.warning(
+                "Layer kernels not specified in processor config; you may need to set the `layer_kernels` key to the same as the `layer_kernels` in the model configuration."
+            )
 
         model_with_processor = model
         for attr in self.processor_model_path.split(".")[:-1]:
             if not hasattr(model_with_processor, attr):
                 raise AttributeError(f"Attribute '{attr}' not found in the model path '{self.processor_model_path}'.")
             model_with_processor = getattr(model_with_processor, attr)
+
         from hydra.utils import instantiate
 
         processor_config["num_channels"] = model_with_processor.num_channels
 
-        model_processor = instantiate(processor_config, _recursive_=False).to(self.context.device)
+        LOG.info("Set attention implementation to: %s", self.attention_implementation)
+        LOG.info("Processor config after modification:\n%s", pprint.pformat(dict(processor_config)))
+
+        model_processor = instantiate(processor_config, **self._instantiation_kwargs).to(self.context.device)
 
         old_processor_state = getattr(model_with_processor, self.processor_model_path.split(".")[-1]).state_dict()
         setattr(model_with_processor, self.processor_model_path.split(".")[-1], model_processor)
