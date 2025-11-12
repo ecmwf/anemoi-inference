@@ -112,7 +112,7 @@ class NetCDFOutput(Output):
         self.vars: dict[str, Variable] = {}
 
         # shape of the fields
-        self.field_shape: int | tuple[int, int]
+        self.field_shape: tuple[int, ...]
 
         # netcdf dimesions for the field variables
         self.dimensions: tuple[str, ...]
@@ -221,7 +221,7 @@ class NetCDFOutput(Output):
 
             coord_dims = ("values",)
 
-            self.field_shape = values
+            self.field_shape = (values,)
             self.dimensions = ("time", "height", "values")
             self.ncfile.createDimension("values", values)
             log_str = f"{values=}"
@@ -329,7 +329,8 @@ class NetCDFOutput(Output):
 
         for name, value in state["fields"].items():
             with LOCK:
-                field = np.reshape(value, self.field_shape)
+                # value has shape (n_members, values), we need to reshape to (n_members, *field_shape)
+                field = np.reshape(value, (-1, *self.field_shape))
                 LOG.info(f"Writing {name}, {self.n}, {field.shape}")
                 self.vars[name][self.n, 0, ...] = field
 

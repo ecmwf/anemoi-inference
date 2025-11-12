@@ -889,9 +889,9 @@ class Runner(Context):
         kinds : dict
             The kinds.
         """
-        assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
+        assert tensor_numpy.ndim == 4, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
-        assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
+        assert tensor_numpy.shape[2] == len(tensor_by_name), tensor_numpy.shape
 
         t = []
         for k, v in enumerate(tensor_by_name):
@@ -961,7 +961,7 @@ class Runner(Context):
 
         # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
 
-        if len(output_tensor_numpy.shape) == 2:
+        if len(output_tensor_numpy.shape) == 3:
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
 
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
