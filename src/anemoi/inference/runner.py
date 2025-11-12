@@ -762,8 +762,16 @@ class Runner(Context):
 
                 # Detach tensor and squeeze (should we detach here?)
                 with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                    output = np.squeeze(y_pred.cpu().numpy())  # , axis=(0, 1))  # shape: (values, variables)
-                    if output.ndim == 1:
+                    detached_pred = y_pred.cpu().numpy()
+                    LOG.info(f"Prediction shape before squeeze: {detached_pred.shape}")
+
+                    # TODO: maybe we don't need to squeeze?
+                    output = np.squeeze(detached_pred)
+
+                    # should have shape (members, values, variables)?
+                    LOG.info(f"Prediction shape after squeeze: {output.shape}")
+                    # TODO: squeeze actually removes the 'members' dim if there's only one
+                    if output.ndim == 2:
                         output = output[..., np.newaxis]
 
                 # Update state

@@ -284,6 +284,7 @@ class DownscalingRunner(DefaultRunner):
 
             outputs.append(output_tensor_interp)
 
+        # This produces an [n_members, values, variables]
         return torch.stack(outputs)
 
     def _prepare_high_res_input_tensor(self, input_date):
