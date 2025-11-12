@@ -31,11 +31,13 @@ from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
-
+def get_interpolation_window(model_timestep, input_explicit_times) -> datetime.timedelta:
+    """Get the interpolation window."""
+    return to_timedelta(model_timestep) * (input_explicit_times[1] - input_explicit_times[0])
 
 def checkpoint_lagged_interpolator_patch(self) -> list[datetime.timedelta]:
     # For interpolator, we always want positive timedeltas
-    result = [s * to_timedelta(self.checkpoint.timestep) for s in self.input_explicit_times]
+    result = [s * to_timedelta(self.timestep) for s in self.input_explicit_times]
     return sorted(result)
 
 
@@ -77,6 +79,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.target_forcings = self.target_computed_forcings(
             self.checkpoint._metadata._config_training.target_forcing.data
         )
+        self.time_fraction_size = getattr(self.checkpoint._metadata._config_training.target_forcing, "time_fraction_size", 1)
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
@@ -84,10 +87,11 @@ class TimeInterpolatorRunner(DefaultRunner):
         )
         assert (
             len(self.checkpoint.target_explicit_times)
-            == self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1
+            in [self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
+             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0]]
         ), (
             "Interpolator runner requires the number of target explicit times to be equal to "
-            "interpolation_window / frequency - 1, but got "
+            "interpolation_window / timestep - 1 or interpolation_window / timestep, but got "
             f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
@@ -146,16 +150,9 @@ class TimeInterpolatorRunner(DefaultRunner):
         lead_time = to_timedelta(self.config.lead_time)
         # This may be used by Output objects to compute the step
         self.lead_time = lead_time
-<<<<<<< HEAD
-        self.interpolation_window = get_interpolation_window(
-            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
-        )
-        self.time_step = self.interpolation_window
-=======
         self.time_step = self.checkpoint.timestep
-        self.interpolation_window = get_interpolation_window(self.checkpoint.timestep, self.checkpoint.input_explicit_times)
-        input = self.create_input()
->>>>>>> 1cad1f3 (feature: added logic for energy accumulation)
+        self.interpolation_window = get_interpolation_window(self.time_step, self.checkpoint.input_explicit_times)
+
         output = self.create_output()
 
         post_processors = self.post_processors
@@ -230,6 +227,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
+
     def forecast(
         self, lead_time: datetime.timedelta, input_tensor_numpy: NDArray, input_state: State
         ) -> Generator[State, None, None]:
@@ -403,7 +401,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             batch_size,
             1,
             grid,
-            len(self.target_forcings) + use_time_fraction,
+            len(self.target_forcings) + use_time_fraction * self.time_fraction_size,
             device=input_tensor_torch.device,
             dtype=input_tensor_torch.dtype,
         )
@@ -421,12 +419,11 @@ class TimeInterpolatorRunner(DefaultRunner):
         if use_time_fraction:
             boundary_times = self.checkpoint.input_explicit_times
             # this only works with two boundary times?
-            target_forcings[..., -1] = (interpolation_step - boundary_times[-2]) / (
+            target_forcings[..., -self.time_fraction_size:] = (interpolation_step - boundary_times[-2]) / (
                 boundary_times[-1] - boundary_times[-2]
             )
         return target_forcings
 
-<<<<<<< HEAD
     def forecast(
         self, lead_time: datetime.timedelta, input_tensor_numpy: NDArray, input_state: State
     ) -> Generator[State, None, None]:
@@ -556,5 +553,3 @@ class TimeInterpolatorRunner(DefaultRunner):
                     if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
                         final_result["fields"][var_name] = input_numpy[:, i]
                 yield final_result
-=======
->>>>>>> 1cad1f3 (feature: added logic for energy accumulation)
