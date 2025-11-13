@@ -627,7 +627,7 @@ class Runner(Context):
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
     ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
-        """Generate step and date variables for the forecast loop.
+        """Generate step and date variables for the forecast autoregressive loop.
 
         Parameters
         ----------
@@ -647,12 +647,14 @@ class Runner(Context):
         is_last_step : bool
             True if it's the last step of the forecast
         """
-        steps = lead_time // self.checkpoint.timestep
+        rollout_step = self.checkpoint.timestep * self.checkpoint.multi_step_output
+        steps = lead_time // rollout_step
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s predictions each.", 
+                lead_time, self.checkpoint.timestep, self.checkpoint.multi_step_output * steps, steps, self.checkpoint.multi_step_output)
 
         for s in range(steps):
-            step = (s + 1) * self.checkpoint.timestep
+            step = (s + 1) * rollout_step
             valid_date = start_date + step
             next_date = valid_date
             is_last_step = s == steps - 1
