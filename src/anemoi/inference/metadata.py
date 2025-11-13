@@ -275,7 +275,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def multi_step_output(self) -> int:
         """Number of future steps predicted by single model forward."""
         # For backward compatibility we set a default of 1
-        return self._config_training.get('multistep_output', 1)
+        return self._config_training.get("multistep_output", 1)
 
     @cached_property
     def prognostic_output_mask(self) -> IntArray:
