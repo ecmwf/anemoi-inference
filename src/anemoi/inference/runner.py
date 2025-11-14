@@ -904,7 +904,7 @@ class Runner(Context):
             The input tensor.
         state : State
             The state.
-        date : datetime.datetime
+        dates : list[datetime.datetime]
             The date.
         check : BoolArray
             The check array.
@@ -969,7 +969,7 @@ class Runner(Context):
             The input tensor.
         state : State
             The state.
-        date : datetime.datetime
+        dates : list[datetime.datetime]
             The date.
         check : BoolArray
             The check array.
