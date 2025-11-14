@@ -60,6 +60,9 @@ class RunConfiguration(Configuration):
     pre_processors: list[ProcessorConfig] = []
     post_processors: list[ProcessorConfig] = []
 
+    model_modifiers: list[dict[str, Any] | str] = []
+    """A list of model modifiers to apply to the model after loading the checkpoint."""
+
     dynamic_forcings: str | dict[str, Any] | None = None
     """Where to find the dinamic forcings. (default is input)"""
 
