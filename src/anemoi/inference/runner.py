@@ -929,7 +929,7 @@ class Runner(Context):
         for source in self.dynamic_forcings_inputs:
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.swapaxes(forcings, 0, 1)  # Put the dates dimension first
+            forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
             forcings = np.swapaxes(
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
@@ -985,7 +985,7 @@ class Runner(Context):
         for source in sources:
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.swapaxes(forcings, 0, 1)  # Put the dates dimension first
+            forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
             forcings = np.swapaxes(
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
