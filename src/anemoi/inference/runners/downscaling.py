@@ -55,6 +55,11 @@ class DsMetadata(Metadata):
         )
         self._metadata.data_indices.model.output.prognostic = []
 
+        print()
+        print("DS METADATA.DATA_INDICES")
+        print(self._metadata.data_indices)
+        print()
+
     @property
     def low_res_input_variables(self):
         spec = self._metadata.dataset.specific
