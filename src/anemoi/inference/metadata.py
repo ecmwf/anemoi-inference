@@ -11,6 +11,8 @@
 import datetime
 import logging
 import os
+import sys
+import traceback
 import warnings
 from collections import defaultdict
 from collections.abc import Callable
@@ -146,7 +148,12 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     def _print_indices(
-        self, title: str, indices: dict[str, list[int]], naming: dict, skip: list[str] = [], print=LOG.info
+        self,
+        title: str,
+        indices: dict[str, list[int]],
+        naming: dict,
+        skip: list[str] = [],
+        print=LOG.info,
     ) -> None:
         """Print indices for debugging purposes.
 
@@ -186,9 +193,18 @@ class Metadata(PatchMixin, LegacyMixin):
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
-        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"], print=print)
         self._print_indices(
-            "Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]), print=print
+            "Data indices",
+            self._indices.data,
+            dict(input=v, output=v),
+            skip=["output"],
+            print=print,
+        )
+        self._print_indices(
+            "Model indices",
+            self._indices.model,
+            dict(input=r, output=s, skip=["output.full"]),
+            print=print,
         )
 
     ###########################################################################
@@ -613,7 +629,6 @@ class Metadata(PatchMixin, LegacyMixin):
                 raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
 
         for variable, metadata in self.variables_metadata.items():
-
             categories = set(variable_categories[variable])
 
             if not categories < VARIABLE_CATEGORIES:
@@ -634,7 +649,6 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     def variables_mask(self, *, variables: list[str]) -> IntArray:
-
         variable_to_input_tensor_index = self.variable_to_input_tensor_index
         indices = [variable_to_input_tensor_index[v] for v in variables]
 
@@ -681,7 +695,6 @@ class Metadata(PatchMixin, LegacyMixin):
             include=["prognostic", "forcing"],
             exclude=["computed", "diagnostic"],
         ):
-
             metadata = self.variables_metadata[variable]
 
             mars = metadata["mars"]
@@ -718,7 +731,6 @@ class Metadata(PatchMixin, LegacyMixin):
             raise ValueError("No variables requested")
 
         for variable in variables:
-
             if variable not in self.variables_metadata:
                 raise ValueError(f"Variable {variable} not found in the metadata")
 
@@ -814,7 +826,6 @@ class Metadata(PatchMixin, LegacyMixin):
         result = []
 
         def _find(x: Any) -> None:
-
             if isinstance(x, list):
                 for y in x:
                     if isinstance(y, str):
@@ -833,7 +844,10 @@ class Metadata(PatchMixin, LegacyMixin):
         return result
 
     def open_dataset(
-        self, *, use_original_paths: bool | None = None, from_dataloader: str | None = None
+        self,
+        *,
+        use_original_paths: bool | None = None,
+        from_dataloader: str | None = None,
     ) -> tuple[Any, Any]:
         """Open the dataset.
 
@@ -957,7 +971,13 @@ class Metadata(PatchMixin, LegacyMixin):
         variables_in_data_space = self.variables
         variables_in_model_space = self.output_tensor_index_to_variable
 
-        for name in self._config_data.forcing:
+        print()
+        print(traceback.print_stack(file=sys.stdout))
+        print("SELF._INDICES.DATA")
+        print(self._indices.data)
+        print()
+
+        for name in self._config.data.forcing:
             result[name].add("forcing")
 
         for idx in self._indices.data.input.diagnostic:
@@ -1147,7 +1167,6 @@ class Metadata(PatchMixin, LegacyMixin):
         """
 
         def merge(main: dict[str, Any], patch: dict[str, Any]) -> None:
-
             for k, v in patch.items():
                 if isinstance(v, dict) and isinstance(main.get(k, {}), dict):
                     if k not in main:
