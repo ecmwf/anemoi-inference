@@ -40,7 +40,7 @@ class VarMetadata:
 
         if projected:
             self.attrs["grid_mapping"] = "projection"
-            self.attrs["coordinate"] = "latitude longitude"
+            self.attrs["coordinates"] = "latitude longitude"
 
 
 @output_registry.register("netcdf")
@@ -209,13 +209,19 @@ class NetCDFOutput(Output):
                 return
 
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
-            self.ncfile.createDimension("time", time)
-            self.ncfile.createDimension("height", 1)
 
             # TODO: i4 or f8 for time?
+            self.ncfile.createDimension("time", time)  # unlimited
             self.time = self.ncfile.createVariable("time", "f8", ("time",))
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
+
+            # TODO: this is too specific?
+            var = self.ncfile.createDimension("height", 1)
+            var = self.ncfile.createVariable("height", "f8", ("height",))
+            var[:] = np.array([2.0])
+            var.units = "m"
+            var.standard_name = "height"
 
         output_template: Optional[str] = getattr(
             self.context.development_hacks, "output_template"
@@ -235,7 +241,11 @@ class NetCDFOutput(Output):
                 with LOCK:
                     self.ncfile.createDimension("y", y_size)
                     self.ncfile.createDimension("x", x_size)
-                    self.ncfile.createDimension("members", self.members)
+                    self.ncfile.createDimension("ensemble_member", self.members)
+                    var = self.ncfile.createVariable(
+                        "ensemble_member", "i4", ("ensemble_member",)
+                    )
+                    var[:] = np.arange(self.members, dtype=np.int32)
 
                 if self.proj_str is not None:
                     self._create_projections(lats, lons)
@@ -341,7 +351,6 @@ class NetCDFOutput(Output):
 
         return x, y
 
-    # TODO: need to add samples and ensemble members? Probably needs to be done at the runner level?
     def write_step(self, state: State) -> None:
         """Write the state.
 
