@@ -650,20 +650,12 @@ class Runner(Context):
         rollout_step = self.checkpoint.timestep * self.checkpoint.multi_step_output
         steps = lead_time // rollout_step
 
-        LOG.info(
-            "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s predictions each.",
-            lead_time,
-            self.checkpoint.timestep,
-            self.checkpoint.multi_step_output * steps,
-            steps,
-            self.checkpoint.multi_step_output,
-        )
+        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s predictions each.", 
+                lead_time, self.checkpoint.timestep, self.checkpoint.multi_step_output * steps, steps, self.checkpoint.multi_step_output)
 
         for s in range(steps):
             step = (s + 1) * rollout_step
-            valid_dates = [
-                start_date + self.checkpoint.timestep * (i + 1) for i in range(self.checkpoint.multi_step_output)
-            ]
+            valid_dates = [start_date + s * rollout_step + self.checkpoint.timestep * (i+1) for i in range(self.checkpoint.multi_step_output)]
             next_dates = valid_dates
             is_last_step = s == steps - 1
             yield step, valid_dates, next_dates, is_last_step
@@ -721,7 +713,11 @@ class Runner(Context):
                 self._print_input_tensor("First input tensor", input_tensor_torch)
 
             for s, (step, dates, next_dates, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
-                title = f"Forecasting autoregressive step {s}: horizon {step}, freq. {self.checkpoint.timestep} {tuple(dates)}"
+                dates_str = "("
+                for d in dates:
+                    dates_str += f"{d}, "
+                dates_str = f"{dates_str[:-2]})"
+                title = f"Forecasting autoregressive step {s}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
 
                 if self.trace:
                     self.trace.write_input_tensor(
@@ -735,17 +731,17 @@ class Runner(Context):
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    # TODO(dieter) what are these kwargs about? maybe related to interpolator?? check out
+                    #TODO(dieter) what are these kwargs about? maybe related to interpolator?? check out
                     y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=dates[-1])
                 # (batch, [time], ensemble, grid/values, variables) -> (time, values, variables)
                 ndim = y_pred.ndim
                 if ndim != 5:
-                    # for backwards compatibility
+                    #for backwards compatibility
                     outputs = torch.squeeze(y_pred, dim=(0, 1)).unsqueeze(0)
                 else:
-                    outputs = torch.squeeze(y_pred, dim=(0, 2))
+                    outputs = torch.squeeze(y_pred, dim=(0, 2))  
 
-                new_states = []  # TODO(dieter) not clear if needed, but some forcings might need the new states
+                new_states = [] #TODO(dieter) not clear if needed, but some forcings might need the new states
 
                 for i in range(self.checkpoint.multi_step_output):
                     new_state["date"] = dates[i]
@@ -753,7 +749,7 @@ class Runner(Context):
                     new_state["step"] = step + i * self.checkpoint.timestep
 
                     output = outputs[i, ...]
-
+                    
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                         for i in range(output.shape[1]):
@@ -763,7 +759,7 @@ class Runner(Context):
                         self._print_output_tensor("Output tensor", output.cpu().numpy())
 
                     if self.trace:
-                        # TODO(dieter): check if the below still works as intended
+                        #TODO(dieter): check if the below still works as intended
                         self.trace.write_output_tensor(
                             date,
                             s,
@@ -778,9 +774,9 @@ class Runner(Context):
                 # No need to prepare next input tensor if we are at the last autoregressive step
                 if is_last_step:
                     break
-
-                # TODO(dieter) support this hook with multi-step output
-                # self.output_state_hook(new_state)
+                
+                #TODO(dieter) support this hook with multi-step output
+                #self.output_state_hook(new_state)
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
@@ -792,7 +788,7 @@ class Runner(Context):
 
                     del y_pred  # Recover memory
 
-                    # TODO(dieter):
+                    #TODO(dieter):
                     # how do forcings use the new_state(s)?
                     # ComputedForcings only uses it to get latlons
                     # For CoupledForcings unclear how it is used: don't worry just yet about supporting it
@@ -860,8 +856,8 @@ class Runner(Context):
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
 
         input_tensor_torch = input_tensor_torch.roll(-self.checkpoint.multi_step_output, dims=1)
-
-        for i in range(1, self.checkpoint.multi_step_output + 1):
+        
+        for i in range(1, self.checkpoint.multi_step_output+1):
             input_tensor_torch[:, -i, :, pmask_in] = prognostic_fields[:, -i, ...]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
@@ -882,11 +878,7 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self,
-        input_tensor_torch: "torch.Tensor",
-        state: State,
-        dates: list,
-        check: BoolArray,  # TODO(dieter) dates is list of datetime.datetime
+        self, input_tensor_torch: "torch.Tensor", state: State, dates: list, check: BoolArray #TODO(dieter) dates is list of datetime.datetime
     ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
@@ -921,18 +913,14 @@ class Runner(Context):
         for source in self.dynamic_forcings_inputs:
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.swapaxes(forcings, 0, 1)  # Put the dates dimension first
+            forcings = np.swapaxes(forcings, 0, 1)  # Put the dates dimension first 
 
-            forcings = np.swapaxes(
-                forcings[np.newaxis, :, np.newaxis, ...], -2, -1
-            )  # shape: (1, dates, 1, values, variables)
+            forcings = np.swapaxes(forcings[np.newaxis, :, np.newaxis, ...], -2, -1)  # shape: (1, dates, 1, values, variables)
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
             for i in range(1, self.checkpoint.multi_step_output + 1):
-                input_tensor_torch[:, -i, :, source.mask] = forcings[
-                    :, -i, ...
-                ]  # Copy forcings to corresponding 'multi_step_input' row
+                input_tensor_torch[:, -i, :, source.mask] = forcings[:, -i, ...]  # Copy forcings to corresponding 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
@@ -947,11 +935,7 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self,
-        input_tensor_torch: "torch.Tensor",
-        state: State,
-        dates: list,
-        check: BoolArray,  # TODO(dieter) dates is list of datetime.datetime
+        self, input_tensor_torch: "torch.Tensor", state: State, dates: list, check: BoolArray #TODO(dieter) dates is list of datetime.datetime
     ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
@@ -979,16 +963,12 @@ class Runner(Context):
 
             forcings = np.swapaxes(forcings, 0, 1)  # Put the dates dimension first
 
-            forcings = np.swapaxes(
-                forcings[np.newaxis, :, np.newaxis, ...], -2, -1
-            )  # shape: (1, dates, 1, values, variables)
+            forcings = np.swapaxes(forcings[np.newaxis, :, np.newaxis, ...], -2, -1)  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-
+            
             for i in range(1, self.checkpoint.multi_step_output + 1):
                 total_mask = np.ix_([0], [-i], source.spatial_mask, source.variables_mask)
-                input_tensor_torch[total_mask] = forcings[
-                    :, -i, ...
-                ]  # Copy forcings to corresponding 'multi_step_input' row
+                input_tensor_torch[total_mask] = forcings[:, -i, ...]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
