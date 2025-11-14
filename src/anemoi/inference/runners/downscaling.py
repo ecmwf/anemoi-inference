@@ -105,7 +105,7 @@ class DsMetadata(Metadata):
         except AttributeError:
             return self._legacy_number_of_grid_points()
 
-    def print_indices(self):
+    def print_indices(self, print=LOG.info):
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
