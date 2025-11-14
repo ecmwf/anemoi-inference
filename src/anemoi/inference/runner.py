@@ -731,8 +731,9 @@ class Runner(Context):
                 )
 
                 if self.trace:
+                    # TODO(dieter): check what below is about and how to handle date(s)
                     self.trace.write_input_tensor(
-                        date,
+                        dates[-1],
                         s,
                         input_tensor_torch.cpu().numpy(),
                         variable_to_input_tensor_index,
@@ -770,9 +771,9 @@ class Runner(Context):
                         self._print_output_tensor("Output tensor", output.cpu().numpy())
 
                     if self.trace:
-                        # TODO(dieter): check if the below still works as intended
+                        # TODO(dieter): check what below is about and how to handle date(s)
                         self.trace.write_output_tensor(
-                            date,
+                            dates[-1],
                             s,
                             output.cpu().numpy(),
                             self.checkpoint.output_tensor_index_to_variable,
