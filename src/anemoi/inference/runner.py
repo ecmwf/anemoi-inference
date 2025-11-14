@@ -893,8 +893,8 @@ class Runner(Context):
         self,
         input_tensor_torch: "torch.Tensor",
         state: State,
-        dates: list,
-        check: BoolArray,  # TODO(dieter) dates is list of datetime.datetime
+        dates: list[datetime.datetime],
+        check: BoolArray,  
     ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
@@ -958,8 +958,8 @@ class Runner(Context):
         self,
         input_tensor_torch: "torch.Tensor",
         state: State,
-        dates: list,
-        check: BoolArray,  # TODO(dieter) dates is list of datetime.datetime
+        dates: list[datetime.datetime],
+        check: BoolArray,  
     ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
