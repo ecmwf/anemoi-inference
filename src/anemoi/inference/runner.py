@@ -371,7 +371,7 @@ class Runner(Context):
             The input state.
         """
 
-        for k, v in input_state.keys():
+        for k, v in input_state.items():
             print(k, v)
 
         # Should that be alreay a list of dates
