@@ -21,11 +21,12 @@ class Variables:
             The runner object containing the checkpoint.
         """
         print()
-        print("Types")
+        print("Variables __init__")
         print(type(runner))
         print(type(runner.checkpoint))
         print(type(runner.checkpoint._metadata))
         print()
+
         self.runner = runner
         self.checkpoint = runner.checkpoint
 
