@@ -24,8 +24,8 @@ class Variables:
         print("Types")
         print(type(runner))
         print(type(runner.checkpoint))
+        print(type(runner.checkpoint._metadata))
         print()
-
         self.runner = runner
         self.checkpoint = runner.checkpoint
 
