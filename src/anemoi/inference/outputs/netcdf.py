@@ -34,13 +34,9 @@ LOCK = threading.RLock()
 
 
 class VarMetadata:
-    def __init__(self, name: str, attrs: dict[str, Any], projected: bool) -> None:
+    def __init__(self, name: str, attrs: dict[str, Any]) -> None:
         self.name = name
         self.attrs = attrs
-
-        if projected:
-            self.attrs["grid_mapping"] = "projection"
-            self.attrs["coordinates"] = "latitude longitude"
 
 
 @output_registry.register("netcdf")
@@ -114,7 +110,6 @@ class NetCDFOutput(Output):
             "2t": VarMetadata(
                 name="air_temperature_2m",
                 attrs={"units": "K", "standard_name": "air_temperature"},
-                projected=self.proj_str is not None,
             )
         }
 
@@ -168,10 +163,15 @@ class NetCDFOutput(Output):
             **self.compression,
         )
 
+        # Set metadata based attributes
+        var.setncatts(attrs)
+
+        # Set output based attributes
         var.missing_value = self.missing_value
         var.fill_value = self.missing_value
-
-        var.setncatts(attrs)
+        if self.proj_str is not None:
+            var.grid_mapping = "projection"
+            var.coordinates = "latitude longitude"
 
         LOG.info(f"Created variable {var_name}")
         return var
@@ -216,7 +216,7 @@ class NetCDFOutput(Output):
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
 
-            # TODO: this is too specific?
+            # TODO: this is too specific? And we probably need to handle different heights
             var = self.ncfile.createDimension("height", 1)
             var = self.ncfile.createVariable("height", "f8", ("height",))
             var[:] = np.array([2.0])
@@ -235,9 +235,6 @@ class NetCDFOutput(Output):
                 lats = np.reshape(template.latitudes.values, self.field_shape)
                 lons = np.reshape(template.longitudes.values, self.field_shape)
 
-                self.dimensions = ("time", "height", "members", "y", "x")
-                coord_dims = ("y", "x")
-
                 with LOCK:
                     self.ncfile.createDimension("y", y_size)
                     self.ncfile.createDimension("x", x_size)
@@ -249,6 +246,9 @@ class NetCDFOutput(Output):
 
                 if self.proj_str is not None:
                     self._create_projections(lats, lons)
+
+                self.dimensions = ("time", "height", "ensemble_member", "y", "x")
+                coord_dims = ("y", "x")
 
                 log_str = f"y={y_size}, x={x_size}"
         else:
