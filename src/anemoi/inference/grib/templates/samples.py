@@ -33,20 +33,6 @@ class SamplesTemplates(IndexTemplateProvider):
         return super().__init__(manager, [*args])
 
     def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
-        """Load a GRIB template based on the provided lookup dictionary.
-
-        Parameters
-        ----------
-        grib : str
-            The GRIB template string.
-        lookup : Dict[str, Any]
-            The lookup dictionary to format the GRIB template string.
-
-        Returns
-        -------
-        Optional[ekd.Field]
-            The loaded GRIB template field, or None if the template is not found.
-        """
         template = grib.format(**lookup)
         if not os.path.exists(template):
             LOG.warning(f"Template not found: {template}")
