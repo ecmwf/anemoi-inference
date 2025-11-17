@@ -124,9 +124,9 @@ class DsMetadata(Metadata):
 
 
 class DsCheckpoint(Checkpoint):
-    def __init__(self, path: str):
+    def __init__(self, path: str, *, patch_metadata: dict):
         # timestep is not read from the metadata, but set by us
-        super().__init__(path, patch_metadata={"timestep": None})
+        super().__init__(path, patch_metadata=patch_metadata)
 
     @cached_property
     def _metadata(self):
@@ -148,14 +148,16 @@ class ZarrTemplate:
 class DownscalingRunner(DefaultRunner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._checkpoint = DsCheckpoint(self._checkpoint.path)
 
-        self.write_initial_state = False
         self.time_step = to_timedelta(self.extra_config.time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
+        self.write_initial_state = False
 
-        # some parts of the runner call the checkpoint directly so also overwrite it here
-        self._checkpoint.timestep = self.time_step
+        self._checkpoint = DsCheckpoint(
+            self._checkpoint.path,
+            # some parts of the runner call the checkpoint directly so also overwrite it here
+            patch_metadata={"timestep": self.time_step},
+        )
 
         # self.samples = getattr(self.extra_config, "n_samples")
         self.members: int = getattr(self.extra_config, "n_members", 1)
