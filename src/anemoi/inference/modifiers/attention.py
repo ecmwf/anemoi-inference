@@ -38,7 +38,7 @@ class AttentionModifier(Modifier):
         self.config_path = config_path
         self.processor_model_path = processor_model_path
         self._layer_kernels = layer_kernels
-        self._instantiation_kwargs = instantiation_kwargs or {"recursive": False}
+        self._instantiation_kwargs = instantiation_kwargs or {"_recursive_": False}
 
     def pre_modify(self) -> None:
         """Mock flash_attn module before modifying the model."""
