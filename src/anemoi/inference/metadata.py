@@ -600,6 +600,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """
 
         variable_categories = self.variable_categories()
+        print(variable_categories)
         result = []
 
         def parse_category(categories: str) -> set:
@@ -645,6 +646,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
             if include is None or match(include, categories, variable):
                 result.append(variable)
+
+        print("select_variables", result)
 
         return result
 
