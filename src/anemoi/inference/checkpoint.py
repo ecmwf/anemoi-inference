@@ -438,7 +438,9 @@ class Checkpoint:
             The selected variables.
 
         """
-        return self._metadata.select_variables(include=include, exclude=exclude)
+        result = self._metadata.select_variables(include=include, exclude=exclude)
+        print("checkpoint.select_variables", result)
+        return result
 
     def select_variables_and_masks(
         self, *, include: list[str] | None = None, exclude: list[str] | None = None
