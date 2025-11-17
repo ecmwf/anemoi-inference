@@ -252,14 +252,14 @@ class DefaultRunner(Runner):
         Input
             The created prognostics input.
         """
+
+        print("\nPROGNOSTIC")
         variables = self.variables.retrieved_prognostic_variables()
         config = (
             self._input_forcings("prognostic_input", "input") if variables else "empty"
         )
         input = create_input(self, config, variables=variables, purpose="prognostics")
-        print(variables)
-        print(config)
-        print(input)
+        print(f"{variables}\n{config}\n{input}\n")
         LOG.info("Prognostic input: %s", input)
         return input
 
@@ -271,6 +271,7 @@ class DefaultRunner(Runner):
         Input
             The created constant coupled forcings input.
         """
+        print("\nCONSTANT COUPLED FORCINGS")
         variables = self.variables.retrieved_constant_forcings_variables()
         config = (
             self._input_forcings("constant_forcings", "forcings", "input")
@@ -280,9 +281,7 @@ class DefaultRunner(Runner):
         input = create_input(
             self, config, variables=variables, purpose="constant_forcings"
         )
-        print(variables)
-        print(config)
-        print(input)
+        print(f"{variables}\n{config}\n{input}\n")
         LOG.info("Constant coupled forcings input: %s", input)
         return input
 
@@ -294,6 +293,7 @@ class DefaultRunner(Runner):
         Input
             The created dynamic forcings input.
         """
+        print("\nCONSTANT DYNAMIC FORCINGS")
         variables = self.variables.retrieved_dynamic_forcings_variables()
         config = (
             self._input_forcings("dynamic_forcings", "-forcings", "input")
@@ -303,9 +303,7 @@ class DefaultRunner(Runner):
         input = create_input(
             self, config, variables=variables, purpose="dynamic_forcings"
         )
-        print(variables)
-        print(config)
-        print(input)
+        print(f"{variables}\n{config}\n{input}\n")
         LOG.info("Dynamic forcings input: %s", input)
         return input
 
@@ -326,9 +324,7 @@ class DefaultRunner(Runner):
         input = create_input(
             self, config, variables=variables, purpose="boundary_forcings"
         )
-        print(variables)
-        print(config)
-        print(input)
+        print(f"BOUNDARY FORCINGS\n{variables}\n{config}\n{input}\n")
         LOG.info("Boundary forcings input: %s", input)
         return input
 
