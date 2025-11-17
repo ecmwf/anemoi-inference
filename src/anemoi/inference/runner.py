@@ -370,6 +370,10 @@ class Runner(Context):
         input_state : State
             The input state.
         """
+
+        for k, v in input_state.keys():
+            print(k, v)
+
         # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
