@@ -106,28 +106,6 @@ class DsMetadata(Metadata):
         except AttributeError:
             return self._legacy_number_of_grid_points()
 
-    @property
-    def latitudes(self) -> FloatArray | None:
-        """Return the latitudes."""
-        lats = self._supporting_arrays.get("latitudes")
-
-        # TODO: patch lats if there are no supporting arrays
-        # basically only used for the shape, but seems extremely stupid
-        if lats is None:
-            lats = np.zeros(self.number_of_grid_points)
-
-    @property
-    def longitudes(self) -> FloatArray | None:
-        """Return the longitudes."""
-        lons = self._supporting_arrays.get("longitudes")
-
-        # TODO: patch lons if there are no supporting arrays
-        # basically only used for the shape, but seems extremely stupid
-        if lons is None:
-            lons = np.zeros(self.number_of_grid_points)
-
-        return lons
-
     def print_indices(self, print=LOG.info):
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
@@ -241,15 +219,6 @@ class DownscalingRunner(DefaultRunner):
         # there are no prognostic fields to copy during rollout, so just pass through
         # the full input tensor is retrieved from the input at each step (as dynamic forcings)
         return input_tensor_torch
-
-    def prepare_input_tensor(
-        self, input_state: State, dtype: DTypeLike = np.float32
-    ) -> FloatArray:
-        input_state["latitudes"], input_state["longitudes"] = (
-            self.template.grid_points()
-        )
-
-        return super().prepare_input_tensor(input_state, dtype)
 
     def forecast_stepper(self, start_date, lead_time):
         # for downscaling we do a prediction for each step of the input
