@@ -35,29 +35,23 @@ class DsMetadata(Metadata):
         super().__init__(*args, **kwargs)
 
         # we only need to retrieve from the low res input_0
-        self._metadata.data_indices.data.input = (
-            self._metadata.data_indices.data.input_0
-        )
-        self._metadata.data_indices.model.input = (
-            self._metadata.data_indices.model.input_0
-        )
+        self._indices.data.input = self._indices.data.input_0
+        self._indices.model.input = self._indices.model.input_0
 
         # treat all low res inputs as forcings
         self._config.data.forcing = self.low_res_input_variables
-        self._metadata.data_indices.data.input.prognostic = []
-        self._metadata.data_indices.data.input.diagnostic = []
-        self._metadata.data_indices.model.input.prognostic = []
-        self._metadata.data_indices.model.input.prognostic = []
+        self._indices.data.input.prognostic = []
+        self._indices.data.input.diagnostic = []
+        self._indices.model.input.prognostic = []
+        self._indices.model.input.diagnostic = []
 
         # treat all high res outputs as diagnostics
-        self._metadata.data_indices.model.output.diagnostic = (
-            self._indices.model.output.full
-        )
-        self._metadata.data_indices.model.output.prognostic = []
+        self._indices.model.output.diagnostic = self._indices.model.output.full
+        self._indices.model.output.prognostic = []
 
         print()
         print("DS METADATA.DATA_INDICES")
-        print(self._metadata.data_indices)
+        print(self._indices)
         print()
 
     @property
@@ -130,16 +124,13 @@ class DsMetadata(Metadata):
 
 
 class DsCheckpoint(Checkpoint):
-    # timestep is not read from the metadata, but set by us
-    timestep = None
+    def __init__(self, path: str):
+        # timestep is not read from the metadata, but set by us
+        super().__init__(path, patch_metadata={"timestep": None})
 
     @cached_property
     def _metadata(self):
         return DsMetadata(load_metadata(self.path))
-
-    def variables_from_input(self, *, include_forcings):
-        # include forcings in initial conditions retrieval
-        return super().variables_from_input(include_forcings=True)
 
 
 class ZarrTemplate:
@@ -162,6 +153,7 @@ class DownscalingRunner(DefaultRunner):
         self.write_initial_state = False
         self.time_step = to_timedelta(self.extra_config.time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
+
         # some parts of the runner call the checkpoint directly so also overwrite it here
         self._checkpoint.timestep = self.time_step
 
@@ -250,7 +242,10 @@ class DownscalingRunner(DefaultRunner):
             }
             yield state
 
-    def predict_step(self, model, input_tensor_torch, date, step, **kwargs):
+    def predict_step(self, model, input_tensor_torch, **kwargs):
+        date = kwargs["date"]
+        step = kwargs["step"]
+
         input_date = date - step
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)

@@ -12,7 +12,6 @@ from typing import Any
 
 
 class Variables:
-
     def __init__(self, runner: Any) -> None:
         """Initialise the Variables object.
 
@@ -21,6 +20,12 @@ class Variables:
         runner : Any
             The runner object containing the checkpoint.
         """
+        print()
+        print("Types")
+        print(type(runner))
+        print(type(runner.checkpoint))
+        print()
+
         self.runner = runner
         self.checkpoint = runner.checkpoint
 
@@ -65,7 +70,9 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def retrieved_constant_forcings_variables_include_exclude(cls) -> dict[str, list[str]]:
+    def retrieved_constant_forcings_variables_include_exclude(
+        cls,
+    ) -> dict[str, list[str]]:
         """Get include/exclude lists for retrieved constant forcings variables.
 
         Returns
@@ -143,7 +150,9 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def computed_constant_forcings_variables_include_exclude(cls) -> dict[str, list[str]]:
+    def computed_constant_forcings_variables_include_exclude(
+        cls,
+    ) -> dict[str, list[str]]:
         """Get include/exclude lists for computed constant forcings variables.
 
         Returns
@@ -181,7 +190,9 @@ class Variables:
 
     ###############################################################################
     @classmethod
-    def retrieved_dynamic_forcings_variables_include_exclude(cls) -> dict[str, list[str]]:
+    def retrieved_dynamic_forcings_variables_include_exclude(
+        cls,
+    ) -> dict[str, list[str]]:
         """Get include/exclude lists for retrieved dynamic forcings variables.
 
         Returns
