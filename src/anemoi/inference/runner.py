@@ -1185,20 +1185,19 @@ class Runner(Context):
             The kinds.
         """
 
-        match tensor_numpy.ndim:
-            # (multi_step_input, members, variables, values)
-            case 4:
-                var_idx = 2
-            # (multi_step_input, variables, values)
-            case 3:
-                var_idx = 1
-            case _:
-                raise ValueError(f"Expected ndim in (3, 4), got{tensor_numpy.shape}")
+        # (multi_step_input, variables, values)
+        if tensor_numpy.ndim == 3:
+            tensor_numpy = tensor_numpy[:, None, ...]
 
-        assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), (
+        assert tensor_numpy.ndim == 4, tensor_numpy.shape
+
+        multi_step_input, n_members, n_variables, _ = tensor_numpy.shape
+
+        assert multi_step_input in (1, self.checkpoint.multi_step_input), (
             tensor_numpy.shape
         )
-        assert tensor_numpy.shape[var_idx] == len(tensor_by_name), tensor_numpy.shape
+
+        assert n_variables == len(tensor_by_name), tensor_numpy.shape
 
         from rich.console import Console
         from rich.table import Table
@@ -1213,27 +1212,28 @@ class Runner(Context):
         table.add_column("Kind", justify="left")
 
         for k, v in enumerate(tensor_by_name):
-            data = tensor_numpy[-1, k]
+            for i in range(n_members):
+                data = tensor_numpy[-1, i, k]
 
-            nans = "-"
+                nans = "-"
 
-            if np.isnan(data).any():
-                nan_count = np.isnan(data).sum()
+                if np.isnan(data).any():
+                    nan_count = np.isnan(data).sum()
 
-                ratio = nan_count / data.size
-                nans = f"{ratio:.0%}"
+                    ratio = nan_count / data.size
+                    nans = f"{ratio:.0%}"
 
-            if np.isinf(data).any():
-                nans = "∞"
+                if np.isinf(data).any():
+                    nans = "∞"
 
-            table.add_row(
-                str(k),
-                v,
-                f"{np.nanmin(data):g}",
-                f"{np.nanmax(data):g}",
-                nans,
-                str(kinds.get(v, Kind())),
-            )
+                table.add_row(
+                    str(k),
+                    v,
+                    f"{np.nanmin(data):g}",
+                    f"{np.nanmax(data):g}",
+                    nans,
+                    str(kinds.get(v, Kind())),
+                )
 
         console.print()
         console.print(table)
