@@ -1185,13 +1185,15 @@ class Runner(Context):
             The kinds.
         """
 
-        # (multi_step_input, members, variables, values)
-        if tensor_numpy.ndim == 4:
-            var_idx = 2
-        else:
-            assert tensor_numpy.ndim == 3, tensor_numpy.shape
+        match tensor_numpy.ndim:
+            # (multi_step_input, members, variables, values)
+            case 4:
+                var_idx = 2
             # (multi_step_input, variables, values)
-            var_idx = 1
+            case 3:
+                var_idx = 1
+            case _:
+                raise ValueError(f"Expected ndim in (3, 4), got{tensor_numpy.shape}")
 
         assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), (
             tensor_numpy.shape
@@ -1300,9 +1302,6 @@ class Runner(Context):
         if output_tensor_numpy.ndim in (2, 3):
             # Add multi_step_input
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]
-            output_tensor_numpy = output_tensor_numpy[
-                np.newaxis, ...
-            ]  # Add multi_step_input
 
         # (multi_step_input, ..., variables, values)
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)
