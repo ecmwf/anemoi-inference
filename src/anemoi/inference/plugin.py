@@ -199,6 +199,7 @@ class AIModelPlugin(Model):
         output = CallbackOutput(self.runner, write=self.write, **output_kwargs)
 
         input_state = input.create_input_state(date=self.start_datetime)
+        print("\nINPUT_STATE\n", input_state)
 
         output.write_initial_state(input_state)
 
