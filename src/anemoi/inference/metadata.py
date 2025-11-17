@@ -23,12 +23,12 @@ from typing import TYPE_CHECKING, Any, Literal
 import deprecation
 import earthkit.data as ekd
 import numpy as np
-from anemoi.inference._version import __version__
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 
+from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest, FloatArray, IntArray
 
 from .legacy import LegacyMixin
@@ -604,6 +604,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """
 
         variable_categories = self.variable_categories()
+        print(variable_categories)
         result = []
 
         def parse_category(categories: str) -> set:
@@ -653,6 +654,8 @@ class Metadata(PatchMixin, LegacyMixin):
 
             if include is None or match(include, categories, variable):
                 result.append(variable)
+
+        print("select_variables", result)
 
         return result
 
