@@ -442,7 +442,9 @@ class Checkpoint:
             The selected variables.
 
         """
-        return self._metadata.select_variables(include=include, exclude=exclude, has_mars_requests=has_mars_requests)
+        result = self._metadata.select_variables(include=include, exclude=exclude, has_mars_requests=has_mars_requests)
+        print("checkpoint.select_variables", result)
+        return result
 
     def select_variables_and_masks(
         self, *, include: list[str] | None = None, exclude: list[str] | None = None
@@ -587,7 +589,6 @@ class Checkpoint:
         requests = defaultdict(list)
         for r in self._metadata.mars_requests(variables=variables):
             for date in dates:
-
                 r = r.copy()
 
                 base = date
@@ -611,10 +612,8 @@ class Checkpoint:
 
         result = []
         for reqs in requests.values():
-
             compressed = Availability(reqs)
             for r in compressed.iterate():
-
                 if not r:
                     continue
 

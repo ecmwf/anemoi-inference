@@ -600,12 +600,14 @@ class Metadata(PatchMixin, LegacyMixin):
         """
 
         variable_categories = self.variable_categories()
-        print(variable_categories)
         result = []
 
-        def parse_category(categories: str) -> set:
+        traceback.print_stack(file=sys.stdout)
+        print(variable_categories)
+
+        def parse_category(categories: list[str] | None) -> set:
             if categories is None:
-                return None
+                return set()
 
             parsed = set()
             for category in categories:
@@ -618,15 +620,22 @@ class Metadata(PatchMixin, LegacyMixin):
 
         def match(categories, variable_categories, variable):
             for c in categories:
+                print(c, variable_categories)
                 if c.issubset(variable_categories):
                     return True
             return False
 
-        include = parse_category(include)
-        exclude = parse_category(exclude)
+        print(include)
+        print(exclude)
 
-        if include is not None and exclude is not None:
-            if not include.isdisjoint(exclude):
+        include_set = parse_category(include)
+        exclude_set = parse_category(exclude)
+
+        print(include_set)
+        print(exclude_set)
+
+        if include_set is not None and exclude_set is not None:
+            if not include_set.isdisjoint(exclude_set):
                 raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
 
         for variable, metadata in self.variables_metadata.items():
@@ -641,15 +650,17 @@ class Metadata(PatchMixin, LegacyMixin):
             if has_mars_requests and "mars" not in metadata:
                 continue
 
-            if exclude is not None and match(exclude, categories, variable):
+            if exclude_set is not None and match(exclude_set, categories, variable):
+                print(f"{variable} excluded")
                 continue
 
-            print("include", include, variable, metadata)
-            if include is None or match(include, categories, variable):
+            if include_set is None or match(include_set, categories, variable):
                 result.append(variable)
+                print(f"{variable} included")
+            else:
+                print(f"{variable} skipped")
 
-        print("select_variables", result)
-
+        print("metadata.select_variables", result)
         return result
 
     def variables_mask(self, *, variables: list[str]) -> IntArray:
