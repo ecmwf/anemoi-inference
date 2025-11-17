@@ -965,7 +965,7 @@ class Metadata(PatchMixin, LegacyMixin):
         if self._variables_categories is not None:
             return self._variables_categories
 
-        result = {}
+        result = defaultdict(set)
         typed_variables = self.typed_variables
 
         variables_in_data_space = self.variables
