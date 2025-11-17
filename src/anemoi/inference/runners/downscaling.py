@@ -156,9 +156,6 @@ class DsCheckpoint(Checkpoint):
     def _metadata(self):
         return DsMetadata(load_metadata(self.path))
 
-    def latitudes(self): ...
-    def longitudes(self): ...
-
 
 class ZarrTemplate:
     # TODO: document this better and eventually change name
