@@ -1101,13 +1101,16 @@ class Runner(Context):
         kinds : dict
             The kinds.
         """
-        # (multi_step_input, members, variables, values)
-        if tensor_numpy.ndim == 4:
-            var_idx = 2
-        else:
-            assert tensor_numpy.ndim == 3, tensor_numpy.shape
+
+        match tensor_numpy.ndim:
+            # (multi_step_input, members, variables, values)
+            case 4:
+                var_idx = 2
             # (multi_step_input, variables, values)
-            var_idx = 1
+            case 3:
+                var_idx = 1
+            case _:
+                raise ValueError(f"Expected ndim in (3, 4), got{tensor_numpy.shape}")
 
         assert tensor_numpy.shape[0] in (1, self.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[var_idx] == len(tensor_by_name), tensor_numpy.shape
