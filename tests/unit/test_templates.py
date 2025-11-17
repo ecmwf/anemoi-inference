@@ -18,8 +18,6 @@ def test_manager_builtin(mocker: MockerFixture):
 
     manager = TemplateManager(owner)
 
-    assert len(manager.templates_providers) == 1
-
     template = manager.template("2t", state={}, typed_variables=c.typed_variables)
     assert isinstance(template, GribField)
     assert template.metadata("param") == "lsm"  # lsm is used as the builtin template for surface fields

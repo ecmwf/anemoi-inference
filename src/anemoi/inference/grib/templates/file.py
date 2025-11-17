@@ -35,19 +35,5 @@ class FileTemplates(TemplateProvider):
         self.manager = manager
         self.path = path
 
-    def template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field:
-        """Retrieve the template from the GRIB file.
-
-        Parameters
-        ----------
-        grib : str
-            The GRIB string.
-        lookup : Dict[str, Any]
-            The lookup dictionary.
-
-        Returns
-        -------
-        ekd.Field
-            The field from the GRIB file.
-        """
+    def template(self, grib: str, lookup: dict[str, Any], **kwargs) -> ekd.Field:
         return ekd.from_source("file", self.path)[0]

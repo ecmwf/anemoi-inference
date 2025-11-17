@@ -47,7 +47,7 @@ class TemplateManager:
             templates = [templates]
 
         if len(templates) == 0:
-            templates = ["builtin"]
+            templates = ["input", "builtin"]
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
 
@@ -69,9 +69,6 @@ class TemplateManager:
             The template field if found, otherwise None.
         """
         assert name is not None, name
-
-        # Use input fields as templates
-        self._template_cache.update(state.get("_grib_templates_for_output", {}))
 
         if name not in self._template_cache:
             self.load_template(name, state, typed_variables)
@@ -124,7 +121,7 @@ class TemplateManager:
 
         tried = []
         for provider in self.templates_providers:
-            template = provider.template(name, lookup)
+            template = provider.template(name, lookup, input_templates=state.get("_grib_templates_for_output", {}))
             if template is not None:
                 self._template_cache[name] = template
                 return
