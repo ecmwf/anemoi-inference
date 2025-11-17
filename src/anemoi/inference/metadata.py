@@ -652,6 +652,7 @@ class Metadata(PatchMixin, LegacyMixin):
             if exclude is not None and match(exclude, categories, variable):
                 continue
 
+            print("include", include, variable, metadata)
             if include is None or match(include, categories, variable):
                 result.append(variable)
 
