@@ -123,6 +123,7 @@ class DefaultRunner(Runner):
         # In case the constant forcings are from another input, combine them here
         # So that they are in considered in the `write_initial_state`
 
+        # FIXME: something in here breaks and an empty input state is created
         prognostic_input = self.create_prognostics_input()
         LOG.info(f"📥 Prognostic input: {prognostic_input}")
         prognostic_state = prognostic_input.create_input_state(date=self.config.date)
