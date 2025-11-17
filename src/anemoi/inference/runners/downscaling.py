@@ -21,6 +21,7 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.types import FloatArray, State
+from anemoi.inference.variables import Variables
 
 from ..checkpoint import Checkpoint
 from ..metadata import Metadata
@@ -50,8 +51,8 @@ class DsMetadata(Metadata):
         self._indices.model.output.prognostic = []
 
         print()
-        print("DS METADATA.DATA_INDICES")
-        print(self._indices)
+        print("DS METADATA.DATA_INDICES.DATA")
+        print(self._indices.data)
         print()
 
     @property
@@ -158,6 +159,9 @@ class DownscalingRunner(DefaultRunner):
             # some parts of the runner call the checkpoint directly so also overwrite it here
             patch_metadata={"timestep": self.time_step},
         )
+
+        # Need to overwrite this attribute
+        self.variables = Variables(self)
 
         # self.samples = getattr(self.extra_config, "n_samples")
         self.members: int = getattr(self.extra_config, "n_members", 1)
