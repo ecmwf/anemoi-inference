@@ -75,21 +75,24 @@ class TemplateProvider:
 class IndexTemplateProvider(TemplateProvider):
     """Template provider based on an index file."""
 
-    def __init__(self, manager: Any, index_path: str) -> None:
+    def __init__(self, manager: Any, index_path: str | list) -> None:
         """Initialize the index template provider.
 
         Parameters
         ----------
         manager : Any
             The manager for the template provider.
-        index_path : str
-            The path to the index file.
+        index_path : str | list
+            The path to the index.yaml file, or its contents directly as a list.
         """
         super().__init__(manager)
         self.index_path = index_path
 
-        with open(index_path) as f:
-            self.templates = yaml.safe_load(f)
+        if isinstance(index_path, str):
+            with open(index_path) as f:
+                self.templates = yaml.safe_load(f)
+        else:
+            self.templates = index_path
 
         if not isinstance(self.templates, list):
             raise ValueError("Invalid templates.yaml, must be a list")

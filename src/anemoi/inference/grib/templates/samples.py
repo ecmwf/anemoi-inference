@@ -23,6 +23,15 @@ LOG = logging.getLogger(__name__)
 class SamplesTemplates(IndexTemplateProvider):
     """Class to provide GRIB templates from sample files."""
 
+    def __init__(self, manager: Any, *args, index_path: str | None = None) -> None:
+        if index_path is not None:
+            return super().__init__(manager, index_path)
+
+        if isinstance(args[0], str):
+            return super().__init__(manager, args[0])
+
+        return super().__init__(manager, [*args])
+
     def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
         """Load a GRIB template based on the provided lookup dictionary.
 
