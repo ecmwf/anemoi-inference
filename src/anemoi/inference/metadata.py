@@ -974,7 +974,7 @@ class Metadata(PatchMixin, LegacyMixin):
     # We need factories
     ###########################################################################
 
-    def variable_categories(self) -> dict:
+    def variable_categories(self) -> frozendict:
         """Get the categories of variables.
 
         Returns
@@ -986,7 +986,7 @@ class Metadata(PatchMixin, LegacyMixin):
         if self._variables_categories is not None:
             return self._variables_categories
 
-        result = defaultdict(set)
+        result = {}
         typed_variables = self.typed_variables
 
         variables_in_data_space = self.variables
