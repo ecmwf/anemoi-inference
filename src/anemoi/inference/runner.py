@@ -769,14 +769,13 @@ class Runner(Context):
                     detached_pred = y_pred.cpu().numpy()
                     LOG.info(f"Prediction shape before squeeze: {detached_pred.shape}")
 
-                    # TODO: maybe we don't need to squeeze?
-                    output = np.squeeze(detached_pred)
+                    # Remove only the leading axis returning an array
+                    # with shape (members, values, variables)
+                    # TODO: this will fail if any of them is greater than 1
+                    # TODO: what's the point of squeezing anyway here
+                    output = np.squeeze(detached_pred, axis=(0, 1, 2))
 
-                    # should have shape (members, values, variables)?
-                    LOG.info(f"Prediction shape after squeeze: {output.shape}")
-                    # TODO: squeeze actually removes the 'members' dim if there's only one
-                    if output.ndim == 2:
-                        output = output[..., np.newaxis]
+                    LOG.info(f"Prediction shape after reshape: {output.shape}")
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
