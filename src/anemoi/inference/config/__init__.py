@@ -82,6 +82,7 @@ class Configuration(BaseModel):
         if isinstance(path, dict):
             configs.append(OmegaConf.create(path))
         else:
+            # Fix for OmegaConf due to https://github.com/ecmwf/anemoi-inference/pull/343
             import yaml
 
             with open(path, "r") as f:
