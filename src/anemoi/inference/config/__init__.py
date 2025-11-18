@@ -82,7 +82,12 @@ class Configuration(BaseModel):
         if isinstance(path, dict):
             configs.append(OmegaConf.create(path))
         else:
-            configs.append(OmegaConf.load(path))
+            # Fix for OmegaConf due to https://github.com/ecmwf/anemoi-inference/pull/343
+            import yaml
+
+            with open(path, "r") as f:
+                config = yaml.safe_load(f)
+            configs.append(OmegaConf.create(yaml.safe_dump(config, sort_keys=False)))
 
         if not isinstance(overrides, list):
             overrides = [overrides]
