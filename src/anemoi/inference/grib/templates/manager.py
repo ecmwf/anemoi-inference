@@ -121,7 +121,7 @@ class TemplateManager:
 
         tried = []
         for provider in self.templates_providers:
-            template = provider.template(name, lookup, input_templates=state.get("_grib_templates_for_output", {}))
+            template = provider.template(name, lookup, state=state)
             if template is not None:
                 self._template_cache[name] = template
                 return

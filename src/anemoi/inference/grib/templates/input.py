@@ -12,6 +12,8 @@ from typing import Any
 
 import earthkit.data as ekd
 
+from anemoi.inference.types import State
+
 from . import TemplateProvider
 from . import template_provider_registry
 
@@ -27,7 +29,7 @@ class InputTemplates(TemplateProvider):
         variable: str,
         lookup: dict[str, Any],
         *,
-        input_templates: dict[str, ekd.Field],
+        state: State,
         **kwargs,
     ) -> ekd.Field | None:
-        return input_templates.get(variable)
+        return state.get("_grib_templates_for_output", {}).get(variable)
