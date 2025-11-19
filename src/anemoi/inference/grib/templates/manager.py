@@ -10,6 +10,7 @@
 
 import json
 import logging
+from collections import defaultdict
 from typing import Any
 
 import earthkit.data as ekd
@@ -39,6 +40,7 @@ class TemplateManager:
         self.typed_variables = self.checkpoint.typed_variables
 
         self._template_cache = {}
+        self._history = defaultdict(list)
 
         if templates is None:
             templates = []
@@ -50,6 +52,27 @@ class TemplateManager:
             templates = ["input", "builtin"]
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
+
+    def log_summary(self) -> None:
+        """Log a summary of the loaded templates.
+        Repeated calls will only log newly loaded templates since the last call.
+        """
+
+        to_log = {}
+
+        for provider, typed_list in self._history.items():
+            variables = [
+                variable for variable in typed_list if not getattr(variable, "_template_manager_logged", False)
+            ]
+            if len(variables) > 0:
+                to_log[provider] = set(variable.param for variable in variables)
+                for variable in variables:
+                    variable._template_manager_logged = True
+
+        if to_log:
+            LOG.info("GRIB template providers:")
+            for provider, variables in to_log.items():
+                LOG.info(f"  - {type(provider).__name__}: {', '.join(sorted(variables))}")
 
     def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
@@ -124,6 +147,7 @@ class TemplateManager:
             template = provider.template(name, lookup, state=state)
             if template is not None:
                 self._template_cache[name] = template
+                self._history[provider].append(typed)
                 return
 
             tried.append(provider)
