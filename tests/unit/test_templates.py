@@ -13,10 +13,9 @@ from anemoi.inference.testing import files_for_tests
 
 
 @pytest.fixture
-def manager(mocker: MockerFixture):
-    c = Checkpoint(files_for_tests("unit/checkpoints/simple.yaml"))
+def manager(mocker: MockerFixture) -> type[TemplateManager]:
     owner = mocker.MagicMock()
-    owner.context.checkpoint = c
+    owner.context.checkpoint = Checkpoint(files_for_tests("unit/checkpoints/simple.yaml"))
 
     @fake_checkpoints
     def _manager(config=None):
@@ -25,14 +24,14 @@ def manager(mocker: MockerFixture):
     return _manager
 
 
-def test_manager_builtin(manager):
+def test_builtin(manager):
     manager = manager()
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
     assert isinstance(template, GribField)
     assert template.metadata("param") == "lsm"  # lsm is used as the builtin template for surface fields
 
 
-def test_manager_file(manager, get_test_data: GetTestData):
+def test_file(manager, get_test_data: GetTestData):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     config = {"file": template_file}
 
@@ -43,7 +42,7 @@ def test_manager_file(manager, get_test_data: GetTestData):
     assert template.metadata("param") == "10u"  # first field in the file
 
 
-def test_manager_file_last(manager, get_test_data: GetTestData):
+def test_file_last(manager, get_test_data: GetTestData):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     config = {"file": {"path": template_file, "mode": "last"}}
 
@@ -54,7 +53,7 @@ def test_manager_file_last(manager, get_test_data: GetTestData):
     assert template.metadata("param") == "v"  # last field in the file
 
 
-def test_manager_file_skip_variable(manager, get_test_data: GetTestData):
+def test_file_skip_variable(manager, get_test_data: GetTestData):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     config = {"file": {"path": template_file, "variable": "10u"}}
 
@@ -64,7 +63,7 @@ def test_manager_file_skip_variable(manager, get_test_data: GetTestData):
     assert template is None
 
 
-def test_manager_file_auto(manager, get_test_data: GetTestData):
+def test_file_auto(manager, get_test_data: GetTestData):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     config = {"file": {"path": template_file, "mode": "auto"}}
 
@@ -75,7 +74,7 @@ def test_manager_file_auto(manager, get_test_data: GetTestData):
     assert template.metadata("param") == "2t"
 
 
-def test_manager_file_auto_unknown(manager, get_test_data: GetTestData):
+def test_file_auto_unknown(manager, get_test_data: GetTestData):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     config = {"file": {"path": template_file, "mode": "auto"}}
 
@@ -87,7 +86,7 @@ def test_manager_file_auto_unknown(manager, get_test_data: GetTestData):
     assert template is None
 
 
-def test_manager_samples(manager, get_test_data: GetTestData, tmp_path: Path):
+def test_samples(manager, get_test_data: GetTestData, tmp_path: Path):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     index = [
         [{"grid": "O96", "levtype": "pl"}, template_file],
@@ -108,7 +107,7 @@ def test_manager_samples(manager, get_test_data: GetTestData, tmp_path: Path):
     assert template.metadata("param") == "10u"  # first field in the file
 
 
-def test_manager_samples_index_str(manager, get_test_data: GetTestData, tmp_path: Path):
+def test_samples_index_str(manager, get_test_data: GetTestData, tmp_path: Path):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     index = [
         [{"grid": "O96", "levtype": "pl"}, template_file],
@@ -129,7 +128,7 @@ def test_manager_samples_index_str(manager, get_test_data: GetTestData, tmp_path
     assert template.metadata("param") == "10u"  # first field in the file
 
 
-def test_manager_samples_direct_index(manager, get_test_data: GetTestData):
+def test_samples_direct_index(manager, get_test_data: GetTestData):
     template_file = get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
     index = [
         [{"grid": "O96", "levtype": "pl"}, template_file],
@@ -145,7 +144,7 @@ def test_manager_samples_direct_index(manager, get_test_data: GetTestData):
     assert template.metadata("param") == "10u"  # first field in the file
 
 
-def test_manager_input(manager):
+def test_input(manager):
     manager = manager()
     state = {
         "_grib_templates_for_output": {
