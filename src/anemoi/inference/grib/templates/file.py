@@ -46,10 +46,10 @@ class FileTemplates(TemplateProvider):
         path : str
             The path to the GRIB file.
         mode : Literal["auto", "first", "last"], optional
-            THe method with which to select a message from the grib file to use as template, by default "first":
-            - "auto": select variable from the grib file matching the output variable name
+            The method with which to select a message from the grib file to use as template, by default "first":
             - "first": use the first message in the grib file
             - "last": use the last message in the grib file
+            - "auto": select variable from the grib file matching the output variable name
         variable : str | list, optional
             The output variable name(s) for which to use this template file. If empty, applies to all variables.
         """
