@@ -208,6 +208,7 @@ class NetCDFOutput(Output):
             if self.ncfile is not None:
                 return
 
+            # TODO: add height dimensions and variables?
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
             # TODO: i4 or f8 for time?
@@ -215,13 +216,6 @@ class NetCDFOutput(Output):
             self.time = self.ncfile.createVariable("time", "f8", ("time",))
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
-
-            # TODO: this is too specific? And we probably need to handle different heights
-            var = self.ncfile.createDimension("height", 1)
-            var = self.ncfile.createVariable("height", "f8", ("height",))
-            var[:] = np.array([2.0])
-            var.units = "m"
-            var.standard_name = "height"
 
         output_template: Optional[str] = getattr(
             self.context.development_hacks, "output_template"
@@ -247,7 +241,7 @@ class NetCDFOutput(Output):
                 if self.proj_str is not None:
                     self._create_projections(lats, lons)
 
-                self.dimensions = ("time", "height", "ensemble_member", "y", "x")
+                self.dimensions = ("time", "ensemble_member", "y", "x")
                 coord_dims = ("y", "x")
 
                 log_str = f"y={y_size}, x={x_size}"
@@ -259,7 +253,7 @@ class NetCDFOutput(Output):
             coord_dims = ("values",)
 
             self.field_shape = (values,)
-            self.dimensions = ("time", "height", "values")
+            self.dimensions = ("time", "values")
             self.ncfile.createDimension("values", values)
             log_str = f"{values=}"
 
@@ -276,7 +270,7 @@ class NetCDFOutput(Output):
 
         LOG.info(
             f"Created NetCDF file {self.path} with dimensions: "
-            f"(time=unlimited, height=1, {log_str})"
+            f"(time=unlimited, {log_str})"
         )
 
     def _create_projections(self, lats, lons):
