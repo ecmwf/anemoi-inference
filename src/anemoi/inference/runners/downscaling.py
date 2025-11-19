@@ -18,7 +18,6 @@ import torch
 import xarray as xr
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
-from numpy.typing import DTypeLike
 
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.types import FloatArray, State
