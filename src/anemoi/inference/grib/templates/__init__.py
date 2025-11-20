@@ -122,7 +122,7 @@ class IndexTemplateProvider(TemplateProvider):
         for template in self.templates:
             match, grib = template
             if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug("%s", [(lookup.get(k), _as_list(v)) for k, v in match.items()])
+                LOG.debug(f"Matching {match} -> {[(lookup.get(k), _as_list(v)) for k, v in match.items()]}")
 
             if all(lookup.get(k) in _as_list(v) for k, v in match.items()):
                 return self.load_template(grib, lookup)

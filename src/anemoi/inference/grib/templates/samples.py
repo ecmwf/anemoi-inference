@@ -38,4 +38,5 @@ class SamplesTemplates(IndexTemplateProvider):
             LOG.warning(f"Template not found: {template}")
             return None
 
+        LOG.debug(f"Loading sample file: {template}")
         return ekd.from_source("file", template)[0]
