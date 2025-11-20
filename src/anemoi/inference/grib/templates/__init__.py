@@ -54,6 +54,9 @@ class TemplateProvider:
         """
         self.manager = manager
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+
     def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field:
         """Get the template for the given variable and lookup.
 

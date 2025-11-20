@@ -9,6 +9,7 @@
 
 import logging
 from functools import cached_property
+from pathlib import Path
 from typing import Any
 from typing import Literal
 
@@ -35,7 +36,7 @@ class FileTemplates(TemplateProvider):
         *,
         path: str,
         mode: Literal["auto", "first", "last"] = "first",
-        variable: str | list | None = None,
+        variables: str | list | None = None,
     ) -> None:
         """Initialize the FileTemplates instance.
 
@@ -50,20 +51,24 @@ class FileTemplates(TemplateProvider):
             - "first": use the first message in the grib file
             - "last": use the last message in the grib file
             - "auto": select variable from the grib file matching the output variable name
-        variable : str | list, optional
+        variables : str | list, optional
             The output variable name(s) for which to use this template file. If empty, applies to all variables.
         """
         self.manager = manager
-        self.path = path
+        self.path = Path(path)
         self.mode = mode
-        self.variables = variable if isinstance(variable, list) else [variable] if variable is not None else None
+        self.variables = variables if isinstance(variables, list) else [variables] if variables else None
+
+    def __repr__(self):
+        info = f"{self.__class__.__name__}({self.path.name},mode={self.mode}{{variables}})"
+        return info.format(variables=f",variables={self.variables}" if self.variables else "")
 
     @cached_property
     def _data(self):
         return ekd.from_source("file", self.path)
 
     def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field:
-        if self.variables is not None and variable not in self.variables:
+        if self.variables and variable not in self.variables:
             return None
 
         match self.mode:

@@ -66,7 +66,7 @@ def test_builtin(manager):
         pytest.param({"mode": "last"}, "2t", "v", GribField, id="last"),
         pytest.param({"mode": "auto"}, "2t", "2t", GribField, id="auto"),
         pytest.param({"mode": "auto"}, "unknown", None, type(None), id="auto unknown"),
-        pytest.param({"variable": "10u"}, "2t", None, type(None), id="skip variable"),
+        pytest.param({"variables": "10u"}, "2t", None, type(None), id="skip variable"),
     ],
 )
 def test_file(manager, grib_template, file_config, variable, expected_param, expected_type):

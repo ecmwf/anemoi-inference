@@ -52,6 +52,9 @@ class TemplateManager:
             templates = ["input", "builtin"]
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
+        LOG.info("GRIB template providers:")
+        for provider in self.templates_providers:
+            LOG.info(f"  - {provider}")
 
     def log_summary(self) -> None:
         """Log a summary of the loaded templates.
@@ -70,9 +73,9 @@ class TemplateManager:
                     variable._template_manager_logged = True
 
         if to_log:
-            LOG.info("GRIB template providers:")
+            LOG.info("GRIB template summary:")
             for provider, variables in to_log.items():
-                LOG.info(f"  - {type(provider).__name__}: {', '.join(sorted(variables))}")
+                LOG.info(f"  - {provider}: {', '.join(sorted(variables))}")
 
     def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
