@@ -124,9 +124,10 @@ def test_samples_direct_index(manager, template_index):
         pytest.param(None, id="default"),
         pytest.param("input", id="input only"),
         pytest.param(["input", "builtin"], id="input+builtin"),
+        pytest.param({"input": {"10u": "2t", "2t": "ignored"}}, id="input with fallback"),
     ],
 )
-def test_input(manager, config):
+def test_input(manager, config, request):
     manager = manager(config)
     state = {
         "_grib_templates_for_output": {
@@ -138,7 +139,9 @@ def test_input(manager, config):
     assert template == "2t_input_template"
 
     template = manager.template("10u", state=state, typed_variables=manager.typed_variables)
-    if config == "input":
+    if request.node.callspec.id == "input only":
         assert template is None
+    elif request.node.callspec.id == "input with fallback":
+        assert template == "2t_input_template"
     else:
         assert template.metadata("param") == "lsm"  # builtin

@@ -22,7 +22,31 @@ LOG = logging.getLogger(__name__)
 
 @template_provider_registry.register("input")
 class InputTemplates(TemplateProvider):
-    """Use input field (prognostics and non-computed forcings) as the output GRIB template."""
+    """Use input fields as the output GRIB template."""
+
+    def __init__(self, manager: Any, fallback: dict[str, str] = None, **kwargs: dict[str, str]) -> None:
+        """Initialize the template provider.
+
+        Parameters
+        ----------
+        manager : Any
+            The manager for the template provider.
+        fallback : dict[str, str]
+            A mapping of output to input variable names to use as templates from the input,
+            used as fallback when the output variable is not present in the input state (e.g., for diagnostic variables).
+        """
+        super().__init__(manager)
+
+        if fallback:
+            self.fallback = fallback
+        else:
+            self.fallback = kwargs
+
+    def __repr__(self):
+        info = f"{self.__class__.__name__}{{fallback}}"
+        if fallback := ", ".join(f"{k}:{v}" for k, v in self.fallback.items()):
+            fallback = f"(fallback {fallback})"
+        return info.format(fallback=fallback)
 
     def template(
         self,
@@ -32,4 +56,13 @@ class InputTemplates(TemplateProvider):
         state: State,
         **kwargs,
     ) -> ekd.Field | None:
-        return state.get("_grib_templates_for_output", {}).get(variable)
+        if template := state.get("_grib_templates_for_output", {}).get(variable):
+            return template
+
+        if fallback_variable := self.fallback.get(variable):
+            template = state.get("_grib_templates_for_output", {}).get(fallback_variable)
+            if template:
+                return template
+            LOG.warning(f"Fallback variable '{fallback_variable}' for output '{variable}' not found in input state.")
+
+        return None
