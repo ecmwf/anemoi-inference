@@ -6,6 +6,5 @@ output:
       class: rd
     check_encoding: true
     templates:
-      source: mars
-      date: 2001-01-01
-      reuse: True
+      - input
+      - builtin
