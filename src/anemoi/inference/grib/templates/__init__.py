@@ -54,7 +54,10 @@ class TemplateProvider:
         """
         self.manager = manager
 
-    def template(self, variable: str, lookup: dict[str, Any]) -> ekd.Field:
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+
+    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field:
         """Get the template for the given variable and lookup.
 
         Parameters
@@ -63,6 +66,8 @@ class TemplateProvider:
             The variable to get the template for.
         lookup : Dict[str, Any]
             The lookup dictionary.
+        kwargs
+            Extra arguments for specific template providers.
 
         Returns
         -------
@@ -75,21 +80,24 @@ class TemplateProvider:
 class IndexTemplateProvider(TemplateProvider):
     """Template provider based on an index file."""
 
-    def __init__(self, manager: Any, index_path: str) -> None:
+    def __init__(self, manager: Any, index_path: str | list) -> None:
         """Initialize the index template provider.
 
         Parameters
         ----------
         manager : Any
             The manager for the template provider.
-        index_path : str
-            The path to the index file.
+        index_path : str | list
+            The path to the index.yaml file, or its contents directly as a list.
         """
         super().__init__(manager)
         self.index_path = index_path
 
-        with open(index_path) as f:
-            self.templates = yaml.safe_load(f)
+        if isinstance(index_path, str):
+            with open(index_path) as f:
+                self.templates = yaml.safe_load(f)
+        else:
+            self.templates = index_path
 
         if not isinstance(self.templates, list):
             raise ValueError("Invalid templates.yaml, must be a list")
@@ -108,22 +116,7 @@ class IndexTemplateProvider(TemplateProvider):
             if not isinstance(grib, str):
                 raise ValueError(f"Invalid grib in templates.yaml, must be a string: {grib}")
 
-    def template(self, variable: str, lookup: dict[str, Any]) -> ekd.Field | None:
-        """Get the template for the given variable and lookup.
-
-        Parameters
-        ----------
-        variable : str
-            The variable to get the template for.
-        lookup : Dict[str, Any]
-            The lookup dictionary.
-
-        Returns
-        -------
-        Optional[ekd.Field]
-            The template field if found, otherwise None.
-        """
-
+    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
         def _as_list(value: Any) -> list[Any]:
             if not isinstance(value, list):
                 return [value]
@@ -132,7 +125,7 @@ class IndexTemplateProvider(TemplateProvider):
         for template in self.templates:
             match, grib = template
             if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug("%s", [(lookup.get(k), _as_list(v)) for k, v in match.items()])
+                LOG.debug(f"Matching {match} -> {[(lookup.get(k), _as_list(v)) for k, v in match.items()]}")
 
             if all(lookup.get(k) in _as_list(v) for k, v in match.items()):
                 return self.load_template(grib, lookup)

@@ -10,6 +10,7 @@
 
 import json
 import logging
+from collections import defaultdict
 from typing import Any
 
 import earthkit.data as ekd
@@ -39,6 +40,7 @@ class TemplateManager:
         self.typed_variables = self.checkpoint.typed_variables
 
         self._template_cache = {}
+        self._history = defaultdict(list)
 
         if templates is None:
             templates = []
@@ -47,9 +49,33 @@ class TemplateManager:
             templates = [templates]
 
         if len(templates) == 0:
-            templates = ["builtin"]
+            templates = ["input", "builtin"]
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
+        LOG.info("GRIB template providers:")
+        for provider in self.templates_providers:
+            LOG.info(f"  - {provider}")
+
+    def log_summary(self) -> None:
+        """Log a summary of the loaded templates.
+        Repeated calls will only log newly loaded templates since the last call.
+        """
+
+        to_log = {}
+
+        for provider, typed_list in self._history.items():
+            variables = [
+                variable for variable in typed_list if not getattr(variable, "_template_manager_logged", False)
+            ]
+            if len(variables) > 0:
+                to_log[provider] = set(variable.param for variable in variables)
+                for variable in variables:
+                    variable._template_manager_logged = True
+
+        if to_log:
+            LOG.info("GRIB template summary:")
+            for provider, variables in to_log.items():
+                LOG.info(f"  - {provider}: {', '.join(sorted(variables))}")
 
     def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
@@ -69,9 +95,6 @@ class TemplateManager:
             The template field if found, otherwise None.
         """
         assert name is not None, name
-
-        # Use input fields as templates
-        self._template_cache.update(state.get("_grib_templates_for_output", {}))
 
         if name not in self._template_cache:
             self.load_template(name, state, typed_variables)
@@ -124,9 +147,10 @@ class TemplateManager:
 
         tried = []
         for provider in self.templates_providers:
-            template = provider.template(name, lookup)
+            template = provider.template(name, lookup, state=state)
             if template is not None:
                 self._template_cache[name] = template
+                self._history[provider].append(typed)
                 return
 
             tried.append(provider)
