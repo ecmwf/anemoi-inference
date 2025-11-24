@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 class InputTemplates(TemplateProvider):
     """Use input fields as the output GRIB template."""
 
-    def __init__(self, manager: Any, fallback: dict[str, str] = None, **kwargs: dict[str, str]) -> None:
+    def __init__(self, manager: Any, fallback: dict[str, str] = {}, **kwargs: dict[str, str]) -> None:
         """Initialize the template provider.
 
         Parameters
@@ -60,8 +60,7 @@ class InputTemplates(TemplateProvider):
             return template
 
         if fallback_variable := self.fallback.get(variable):
-            template = state.get("_grib_templates_for_output", {}).get(fallback_variable)
-            if template:
+            if template := state.get("_grib_templates_for_output", {}).get(fallback_variable):
                 return template
             LOG.warning(f"Fallback variable '{fallback_variable}' for output '{variable}' not found in input state.")
 
