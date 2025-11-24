@@ -222,6 +222,7 @@ class NetCDFOutput(Output):
         )
 
         if output_template is not None:
+            LOG.info(output_template)
             with xr.open_zarr(output_template, consolidated=False) as template:
                 self.field_shape = template.field_shape
                 (y_size, x_size) = template.field_shape
