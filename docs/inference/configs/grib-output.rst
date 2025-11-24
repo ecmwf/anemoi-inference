@@ -48,8 +48,9 @@ different grid and/or area than the built-in templates, or you need to
 encode messages with a local definition, you may need to provide custom
 templates.
 
-Templates are configured by specifying template providers in the
-``templates`` option of the grib output, for example:
+Templates are configured by specifying :ref:`template providers
+<providers>` in the ``templates`` option of the grib output, for
+example:
 
 .. code:: yaml
 
@@ -80,6 +81,22 @@ order).
    if you want to use them. For most use-cases with custom templates,
    it's recommended to also enable the ``input`` provider.
 
+.. admonition:: What is a GRIB template?
+
+   A template is a GRIB message that is used as a blueprint for encoding
+   other GRIB messages. The template provides the necessary metadata
+   (like grid definition, area, etc) for the output.
+
+   It's good practice to null the data values of custom templates to
+   keep them lightweight. This can be done with eccodes' `grib_set
+   <https://confluence.ecmwf.int/display/ECC/grib_set>`_:
+
+   .. code:: bash
+
+      grib_set -d 0 template.grib nulled-template.grib
+
+.. _providers:
+
 ********************
  Template providers
 ********************
@@ -99,8 +116,8 @@ GRIB input.
        templates:
          - input
 
-By default, only prognostic variables are taken from the input and
-diagnostic variables will throw an error if no other template provider
+By default, only prognostic variables are taken from the input.
+Diagnostic variables will throw an error if no other template provider
 can provide a template. A fallback mapping can optionally be provided to
 map output variables to input variables:
 
@@ -119,8 +136,8 @@ from the input, the input template for ``2t`` will be used instead.
 .. note::
 
    The fallback mapping only applies to output variables that are
-   missing from the input. If the input contains an output variable, its
-   template will always be used.
+   missing from the input state. If the input contains an output
+   variable, its template will always be used.
 
 ``builtin``
 ===========
@@ -192,9 +209,9 @@ a variable's metadata.
 This provider takes a list of samples, each consisting of a dictionary
 of matching rules and a path to a GRIB file. Whenever an output template
 is requested, the sample's rules are checked against the output
-variable's metadata. If all ``key:value`` pairs in the sample's rule
-match the corresponding pair in the variable's metadata, the sample file
-is selected. Samples are evaluated in the order they are listed.
+variable's metadata. If all ``key:value`` pairs in a sample's rule match
+the corresponding pair in the variable's metadata, the sample file is
+selected.
 
 .. warning::
 
@@ -213,9 +230,9 @@ is selected. Samples are evaluated in the order they are listed.
              - /path/to/template2.grib
            # etc
 
-A practical use-case is to provide different templates for different
-grids and/or levtypes. For example, if you are running models on both
-the N320 and O96 grids, you could provide templates like this:
+A practical use-case is to provide templates for different grids and/or
+levtypes. For example, if you are running models on both the N320 and
+O96 grids, you could provide templates like this:
 
 .. code:: yaml
 
@@ -243,9 +260,10 @@ Common keys that can be used in the rules include: ``grid``,
 
 .. note::
 
-   As soon as all keys in the sample rules match, the sample is
-   selected. This makes the order of samples important: more specific
-   rules should be listed first, and more general last.
+   Samples are evaluated in the order they are listed and when all keys
+   in the sample rules match, the sample is selected. This makes the
+   order of samples important: more specific rules should be listed
+   first, and more general last.
 
 .. tip::
 
