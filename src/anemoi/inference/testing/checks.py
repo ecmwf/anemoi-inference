@@ -212,8 +212,6 @@ def check_boundary_forcings_with_xarray(
     *,
     file: Path,
     checkpoint: "Checkpoint",
-    mask="lam_0",
-    reference_date: str = None,
     reference_dataset={},
     reference_file=None,
     **kwargs,
