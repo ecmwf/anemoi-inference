@@ -281,7 +281,6 @@ class BoundaryForcings(Forcings):
             The loaded forcings as a numpy array.
         """
         data = self._state_to_numpy(
-            # self.input.load_forcings_state(variables=self.variables, dates=dates, current_state=current_state),
             self.input.load_forcings_state(dates=dates, current_state=current_state),
             self.variables,
             dates,
