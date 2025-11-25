@@ -332,7 +332,7 @@ class Runner(Context):
 
     def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
-        if not self.checkpoint.has_supporting_array("boundary"):
+        if not self.checkpoint.has_supporting_array("output_mask"):
             return []
 
         result = []
