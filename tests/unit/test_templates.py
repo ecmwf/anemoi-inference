@@ -25,7 +25,7 @@ from anemoi.inference.testing import files_for_tests
 def manager(mocker: MockerFixture) -> type[TemplateManager]:
     @fake_checkpoints
     def _manager(config=None):
-        checkpoint = Checkpoint(files_for_tests("unit/checkpoints/simple.yaml"))
+        checkpoint = Checkpoint(files_for_tests("unit/checkpoints/atmos.json"))
         checkpoint.typed_variables["unknown"] = checkpoint.typed_variables["2t"]  # used in auto-unknown test
         owner = mocker.MagicMock()
         owner.context.checkpoint = checkpoint
@@ -51,12 +51,19 @@ def template_index(grib_template: Path, tmp_path: Path) -> Path:
     return index_file
 
 
-def test_builtin(manager):
+@pytest.mark.parametrize(
+    "variable, expected_param",
+    [
+        pytest.param("2t", "lsm", id="sfc"),  # lsm is the builtin template for sfc
+        pytest.param("w_100", "q", id="pl"),  # q is the builtin template for pl
+    ],
+)
+def test_builtin(manager, variable, expected_param):
     manager = manager()
-    template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
+    template = manager.template(variable, state={}, typed_variables=manager.typed_variables)
 
     assert isinstance(template, GribField)
-    assert template.metadata("param") == "lsm"  # lsm is used as the builtin template for surface fields
+    assert template.metadata("param") == expected_param
 
 
 @pytest.mark.parametrize(
@@ -64,7 +71,8 @@ def test_builtin(manager):
     [
         pytest.param({}, "2t", "10u", GribField, id="first"),
         pytest.param({"mode": "last"}, "2t", "v", GribField, id="last"),
-        pytest.param({"mode": "auto"}, "2t", "2t", GribField, id="auto"),
+        pytest.param({"mode": "auto"}, "2t", "2t", GribField, id="auto-sfc"),
+        pytest.param({"mode": "auto"}, "w_100", "w", GribField, id="auto-pl"),
         pytest.param({"mode": "auto"}, "unknown", None, type(None), id="auto unknown"),
         pytest.param({"variables": "10u"}, "2t", None, type(None), id="skip variable"),
     ],
