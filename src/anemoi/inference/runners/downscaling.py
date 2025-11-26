@@ -20,6 +20,8 @@ from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.forcings import ComputedForcings
+from anemoi.inference.input import Input
+from anemoi.inference.inputs import create_input
 from anemoi.inference.types import FloatArray, State
 from anemoi.inference.variables import Variables
 
@@ -219,6 +221,25 @@ class DownscalingRunner(DefaultRunner):
         # the full input tensor is retrieved from the input at each step (as dynamic forcings)
         return input_tensor_torch
 
+    def create_dynamic_forcings_input(self) -> Input:
+        """Overridden to only create the low res input forcings"""
+        variables = self.variables.retrieved_dynamic_forcings_variables()
+
+        if variables:
+            config = self._input_forcings("dynamic_forcings", "-forcings", "input")
+
+            # Mantain original input order
+            config.dataset.select = [var for var in config.dataset.select if var in variables]
+        else:
+            config = "empty"
+
+        input = create_input(
+            self, config, variables=variables, purpose="dynamic_forcings"
+        )
+        print(f"{variables}\n{config}\n{input}\n")
+        LOG.info("Dynamic forcings input: %s", input)
+        return input
+
     def forecast_stepper(self, start_date, lead_time):
         # for downscaling we do a prediction for each step of the input
         steps = (lead_time // self.time_step) + 1  # include step 0
@@ -261,7 +282,7 @@ class DownscalingRunner(DefaultRunner):
 
         extra_args = self.extra_config.get("extra_args", {})
 
-        # TODO: is this the correct thing to do to get an ensamble out?
+        # TODO: is this the correct thing to do to get an ensemble out?
         outputs = []
         for _ in range(self.members):
             residual_output_tensor = model.predict_step(
@@ -300,9 +321,11 @@ class DownscalingRunner(DefaultRunner):
         computed_high_res_forcings = (
             self.computed_high_res_forcings.load_forcings_array(input_date, state)
         )
+
         computed_high_res_forcings = np.squeeze(
             computed_high_res_forcings, axis=1
         )  # Drop the dates dimension
+
         computed_high_res_forcings = np.swapaxes(
             computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
         )  # shape: (1, 1, values, variables)
