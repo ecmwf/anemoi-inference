@@ -196,12 +196,8 @@ class NetCDFOutput(Output):
 
         state = self.post_process(state)
 
+        # keep time unlimited
         time = None
-        if (time_step := getattr(self.context, "time_step", None)) and (
-            lead_time := getattr(self.context, "lead_time", None)
-        ):
-            time = lead_time // time_step
-            time += self.extra_time
 
         # Create new NetCDF file at self.path
         with LOCK:
@@ -212,7 +208,7 @@ class NetCDFOutput(Output):
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
             # TODO: i4 or f8 for time?
-            self.ncfile.createDimension("time", time)  # unlimited
+            self.ncfile.createDimension("time", time)
             self.time = self.ncfile.createVariable("time", "f8", ("time",))
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
