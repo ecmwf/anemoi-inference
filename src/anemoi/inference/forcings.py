@@ -149,7 +149,7 @@ class ComputedForcings(Forcings):
 
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
-            
+
         # Handle zero computed forcings
         if len(self.variables) == 0:
             # determine number of grid points from the provided state
@@ -174,7 +174,7 @@ class ComputedForcings(Forcings):
 
         forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
 
-        # Forcing are sorted by `compute_forcings`  in the order (variable, date)
+        # Forcing are sorted by `compute_forcings` in the order (variable, date)
 
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 

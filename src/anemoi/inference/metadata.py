@@ -986,12 +986,6 @@ class Metadata(PatchMixin, LegacyMixin):
         variables_in_data_space = self.variables
         variables_in_model_space = self.output_tensor_index_to_variable
 
-        print()
-        print(traceback.print_stack(file=sys.stdout))
-        print("SELF._INDICES.DATA")
-        print(self._indices.data)
-        print()
-
         for name in self._config.data.forcing:
             result[name].add("forcing")
 
