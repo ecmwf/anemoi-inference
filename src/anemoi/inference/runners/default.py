@@ -287,7 +287,7 @@ class DefaultRunner(Runner):
         Input
             The created boundary forcings input.
         """
-        variables = self.variables.retrieved_boundary_forcings_variables()
+        variables = self.variables.retrieved_prognostic_variables()
         config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
         input = create_input(self, config, variables=variables, purpose="boundary_forcings")
         LOG.info("Boundary forcings input: %s", input)
