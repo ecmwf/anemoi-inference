@@ -1186,6 +1186,7 @@ class Runner(Context):
 
         # (multi_step_input, variables, values)
         if tensor_numpy.ndim == 3:
+            # Add empty "ensemble" dimension
             tensor_numpy = tensor_numpy[:, None, ...]
 
         assert tensor_numpy.ndim == 4, tensor_numpy.shape
@@ -1284,7 +1285,7 @@ class Runner(Context):
         )
 
         if not self._output_tensor_by_name:
-            for i in range(output_tensor_numpy.shape[1]):
+            for i in range(output_tensor_numpy.shape[-1]):
                 self._output_tensor_by_name.append(
                     self.checkpoint.output_tensor_index_to_variable[i]
                 )
