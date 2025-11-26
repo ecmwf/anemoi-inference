@@ -52,11 +52,6 @@ class DsMetadata(Metadata):
         self._indices.model.output.diagnostic = self._indices.model.output.full
         self._indices.model.output.prognostic = []
 
-        print()
-        print("DS METADATA.DATA_INDICES.DATA")
-        print(self._indices.data)
-        print()
-
     @property
     def low_res_input_variables(self):
         spec = self._metadata.dataset.specific
@@ -78,13 +73,6 @@ class DsMetadata(Metadata):
             return spec["datasets"][2]["variables"]
         else:
             raise ValueError(f"Unsupported specific structure: {spec}")
-
-    # @cached_property
-    # def grid(self):
-    #     from anemoi.utils.config import find
-
-    #     result = find(self._metadata.dataset.specific.zip[2], "data_request")
-    #     return result[0]["grid"]
 
     @cached_property
     def output_tensor_index_to_variable(self):
@@ -127,7 +115,7 @@ class DsMetadata(Metadata):
 
 
 class DsCheckpoint(Checkpoint):
-    def __init__(self, path: str, *, patch_metadata: dict):
+    def __init__(self, path: str, *, patch_metadata: dict | None = None):
         # timestep is not read from the metadata, but set by us
         super().__init__(path, patch_metadata=patch_metadata)
 
@@ -221,25 +209,6 @@ class DownscalingRunner(DefaultRunner):
         # the full input tensor is retrieved from the input at each step (as dynamic forcings)
         return input_tensor_torch
 
-    def create_dynamic_forcings_input(self) -> Input:
-        """Overridden to only create the low res input forcings"""
-        variables = self.variables.retrieved_dynamic_forcings_variables()
-
-        if variables:
-            config = self._input_forcings("dynamic_forcings", "-forcings", "input")
-
-            # Mantain original input order
-            config.dataset.select = [var for var in config.dataset.select if var in variables]
-        else:
-            config = "empty"
-
-        input = create_input(
-            self, config, variables=variables, purpose="dynamic_forcings"
-        )
-        print(f"{variables}\n{config}\n{input}\n")
-        LOG.info("Dynamic forcings input: %s", input)
-        return input
-
     def forecast_stepper(self, start_date, lead_time):
         # for downscaling we do a prediction for each step of the input
         steps = (lead_time // self.time_step) + 1  # include step 0
@@ -280,39 +249,60 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
-        extra_args = self.extra_config.get("extra_args", {})
-
         # TODO: is this the correct thing to do to get an ensemble out?
         outputs = []
         for _ in range(self.members):
-            residual_output_tensor = model.predict_step(
-                low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs
-            )
-            residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
-            if residual_output_numpy.ndim == 1:
-                residual_output_numpy = residual_output_numpy[:, np.newaxis]
-
-            self._print_output_tensor("Residual output tensor", residual_output_numpy)
-
-            if not isinstance(self.config.output, str) and (
-                raw_path := self.config.output.get("raw", {}).get("path")
-            ):
-                self._save_residual_tensor(
-                    residual_output_numpy, f"{raw_path}/output-residuals-o320.npz"
+            if self._checkpoint._metadata._config.training.predict_residuals:
+                output_tensor = self._predict_from_residuals(
+                    model, low_res_tensor, high_res_tensor, **kwargs
+                )
+            else:
+                output_tensor = self._predict_direct(
+                    model, low_res_tensor, high_res_tensor, **kwargs
                 )
 
-            output_tensor_interp = _prepare_high_res_output_tensor(
-                model,
-                low_res_tensor[0],  # remove batch dimension
-                residual_output_tensor,
-                self.checkpoint.variable_to_input_tensor_index,
-                self.checkpoint._metadata.high_res_output_variables,
-            )
-
-            outputs.append(output_tensor_interp)
+            outputs.append(output_tensor)
 
         # This produces an [n_members, values, variables]
         return torch.stack(outputs)
+
+    def _predict_direct(self, model, low_res_tensor, high_res_tensor, **kwargs):
+        extra_args = self.extra_config.get("extra_args", {})
+
+        output_tensor = model.predict_step(
+            low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs
+        )
+
+        return output_tensor
+
+    def _predict_from_residuals(self, model, low_res_tensor, high_res_tensor, **kwargs):
+        extra_args = self.extra_config.get("extra_args", {})
+
+        residual_output_tensor = model.predict_step(
+            low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs
+        )
+        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
+        if residual_output_numpy.ndim == 1:
+            residual_output_numpy = residual_output_numpy[:, np.newaxis]
+
+        self._print_output_tensor("Residual output tensor", residual_output_numpy)
+
+        if not isinstance(self.config.output, str) and (
+            raw_path := self.config.output.get("raw", {}).get("path")
+        ):
+            self._save_residual_tensor(
+                residual_output_numpy, f"{raw_path}/output-residuals-o320.npz"
+            )
+
+        output_tensor_interp = _prepare_high_res_output_tensor(
+            model,
+            low_res_tensor[0],  # remove batch dimension
+            residual_output_tensor,
+            self.checkpoint.variable_to_input_tensor_index,
+            self.checkpoint._metadata.high_res_output_variables,
+        )
+
+        return output_tensor_interp
 
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
@@ -396,7 +386,8 @@ def _match_tensor_channels(input_name_to_index, output_names):
 def _prepare_high_res_output_tensor(
     model, low_res_in, high_res_residuals, input_name_to_index, output_names
 ):
-    # interpolate the low res input tensor to high res, and add the residuals to get the final high res output
+    # interpolate the low res input tensor to high res,
+    # and add the residuals to get the final high res output
 
     matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
     print("matching_channel_indices", matching_channel_indices)
