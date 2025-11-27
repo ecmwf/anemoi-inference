@@ -1,14 +1,26 @@
 - name: dataset-in-netcdf-out
   input: null  # anemoi-datasets will download the zarr.zip at runtime
-  output: output.nc
+  output:
+    - lam_output.nc
+    - full_output.nc
   checks:
     - check_cutout_with_xarray:
+        file: ${output:0}
         mask: 'lam_0'
         reference_date: 2020-01-02T00:00:00
         reference_dataset:
           dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o48-2020-6h.zarr.zip
           area: [70, -55, 10, 70]
+    - check_boundary_forcings_with_xarray:
+        file: ${output:1}
+        reference_dataset:
+          dataset:
+            cutout:
+              - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o48-2020-6h.zarr.zip
+                area: [70, -55, 10, 70]
+              - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o32-2020-6h.zarr.zip
     - check_with_xarray:
+        file: ${output:0}
         check_accum: tp
         check_nans: true
   inference_config:
@@ -22,11 +34,13 @@
               area: [70, -55, 10, 70]
             - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o32-2020-6h.zarr.zip
     output:
-      netcdf:
-        post_processors:
-          - extract_mask:
-              mask: lam_0/cutout_mask
-              as_slice: true
-        path: ${output:}
+      tee:
+      - netcdf:
+          post_processors:
+            - extract_mask:
+                mask: lam_0/cutout_mask
+                as_slice: true
+          path: ${output:0}
+      - netcdf: ${output:1}
     post_processors:
       - accumulate_from_start_of_forecast
