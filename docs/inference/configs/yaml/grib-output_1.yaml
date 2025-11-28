@@ -6,13 +6,5 @@ output:
       class: rd
     check_encoding: true
     templates:
-      source: mars
-      date: 2001-01-01
-      reuse: True
-    archive_requests:
-      path: archive.json
-      extra:
-        database: marsrd
-      patch:
-        number: null
-        levtype: sfc
+      - input
+      - builtin
