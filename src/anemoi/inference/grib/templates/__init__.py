@@ -9,6 +9,7 @@
 
 
 import logging
+from typing import TYPE_CHECKING
 from typing import Any
 
 import earthkit.data as ekd
@@ -16,6 +17,10 @@ import yaml
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.output import Output
+
+if TYPE_CHECKING:
+    from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
 
@@ -23,12 +28,12 @@ LOG = logging.getLogger(__name__)
 template_provider_registry = Registry(__name__)
 
 
-def create_template_provider(owner: Any, config: Configuration) -> "TemplateProvider":
+def create_template_provider(owner: Output, config: Configuration) -> "TemplateProvider":
     """Create a template provider from the given configuration.
 
     Parameters
     ----------
-    owner : Any
+    owner : Output
         The owner of the template provider.
     config : Configuration
         The configuration for the template provider.
@@ -44,12 +49,12 @@ def create_template_provider(owner: Any, config: Configuration) -> "TemplateProv
 class TemplateProvider:
     """Base class for template providers."""
 
-    def __init__(self, manager: Any) -> None:
+    def __init__(self, manager: "TemplateManager") -> None:
         """Initialize the template provider.
 
         Parameters
         ----------
-        manager : Any
+        manager : TemplateManager
             The manager for the template provider.
         """
         self.manager = manager
@@ -57,7 +62,7 @@ class TemplateProvider:
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
-    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field:
+    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
         """Get the template for the given variable and lookup.
 
         Parameters
@@ -71,7 +76,7 @@ class TemplateProvider:
 
         Returns
         -------
-        ekd.Field
+        ekd.Field | None
             The template field.
         """
         raise NotImplementedError()
@@ -80,41 +85,43 @@ class TemplateProvider:
 class IndexTemplateProvider(TemplateProvider):
     """Template provider based on an index file."""
 
-    def __init__(self, manager: Any, index_path: str | list) -> None:
+    def __init__(self, manager: "TemplateManager", index: str | list) -> None:
         """Initialize the index template provider.
 
         Parameters
         ----------
-        manager : Any
+        manager : TemplateManager
             The manager for the template provider.
         index_path : str | list
             The path to the index.yaml file, or its contents directly as a list.
         """
         super().__init__(manager)
-        self.index_path = index_path
+        self.index_path = index
 
-        if isinstance(index_path, str):
-            with open(index_path) as f:
+        if isinstance(index, str):
+            with open(index) as f:
                 self.templates = yaml.safe_load(f)
         else:
-            self.templates = index_path
+            self.templates = index
 
         if not isinstance(self.templates, list):
-            raise ValueError("Invalid templates.yaml, must be a list")
+            raise ValueError(f"Invalid index, must be a list. Got {self.templates}")
 
         # TODO: use pydantic
         for template in self.templates:
             if not isinstance(template, list):
-                raise ValueError(f"Invalid template in templates.yaml, must be a list: {template}")
+                raise ValueError(f"Invalid template index element, must be a list. Got {template}")
             if len(template) != 2:
-                raise ValueError(f"Invalid template in templates.yaml, must have exactly 2 elements: {template}")
+                raise ValueError(
+                    f"Expected template index to be a 2-elements list as `[matching filter, grib file]`. Got {template}."
+                )
 
             match, grib = template
             if not isinstance(match, dict):
-                raise ValueError(f"Invalid match in templates.yaml, must be a dict: {match}")
+                raise ValueError(f"Invalid match in index element, must be a dict: {match}")
 
             if not isinstance(grib, str):
-                raise ValueError(f"Invalid grib in templates.yaml, must be a string: {grib}")
+                raise ValueError(f"Invalid grib in index element, must be a string: {grib}")
 
     def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
         def _as_list(value: Any) -> list[Any]:

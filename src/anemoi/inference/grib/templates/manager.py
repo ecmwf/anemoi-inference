@@ -15,6 +15,7 @@ from typing import Any
 
 import earthkit.data as ekd
 
+from anemoi.inference.output import Output
 from anemoi.inference.types import State
 
 from . import create_template_provider
@@ -23,17 +24,17 @@ LOG = logging.getLogger(__name__)
 
 
 class TemplateManager:
-    """A class to manage GRIB templates."""
+    """A class to manage GRIB template providers."""
 
-    def __init__(self, owner: Any, templates: list[str] | str | None = None) -> None:
+    def __init__(self, owner: Output, templates: list[str] | str | None = None) -> None:
         """Initialize the TemplateManager.
 
         Parameters
         ----------
-        owner : Any
+        owner : Output
             The owner of the TemplateManager.
         templates : Optional[Union[List[str], str]], optional
-            A list of template names or a single template name, by default None.
+            A list of template providers or a single provider, by default None.
         """
         self.owner = owner
         self.checkpoint = owner.context.checkpoint

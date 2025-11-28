@@ -21,6 +21,7 @@ from anemoi.inference.types import State
 
 from . import TemplateProvider
 from . import template_provider_registry
+from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class FileTemplates(TemplateProvider):
 
     def __init__(
         self,
-        manager: Any,
+        manager: TemplateManager,
         *,
         path: str,
         mode: Literal["auto", "first", "last"] = "first",
@@ -42,7 +43,7 @@ class FileTemplates(TemplateProvider):
 
         Parameters
         ----------
-        manager : Any
+        manager : TemplateManager
             The manager instance.
         path : str
             The path to the GRIB file.
@@ -67,7 +68,7 @@ class FileTemplates(TemplateProvider):
     def _data(self):
         return ekd.from_source("file", self.path)
 
-    def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field:
+    def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field | None:
         if self.variables and variable not in self.variables:
             return None
 

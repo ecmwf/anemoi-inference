@@ -16,6 +16,7 @@ from anemoi.inference.types import State
 
 from . import TemplateProvider
 from . import template_provider_registry
+from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
 
@@ -24,12 +25,12 @@ LOG = logging.getLogger(__name__)
 class InputTemplates(TemplateProvider):
     """Use input fields as the output GRIB template."""
 
-    def __init__(self, manager: Any, fallback: dict[str, str] = {}, **kwargs: dict[str, str]) -> None:
+    def __init__(self, manager: TemplateManager, fallback: dict[str, str] = {}, **kwargs: dict[str, str]) -> None:
         """Initialize the template provider.
 
         Parameters
         ----------
-        manager : Any
+        manager : TemplateManager
             The manager for the template provider.
         fallback : dict[str, str]
             A mapping of output to input variable names to use as templates from the input,
