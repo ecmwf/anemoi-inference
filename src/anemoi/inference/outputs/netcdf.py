@@ -100,7 +100,7 @@ class NetCDFOutput(Output):
         # timestep number
         self.n = 0
         self.proj_str: Optional[str] = getattr(
-            self.context.development_hacks, "projection_string"
+            self.context.development_hacks, "projection_string", None
         )
         self.members = getattr(self.context.development_hacks, "n_members", 1)
 
