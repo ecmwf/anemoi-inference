@@ -23,6 +23,8 @@ The ``grib`` output can be used to specify many more options:
 
 .. literalinclude:: yaml/grib-output_1.yaml
 
+.. _encoding:
+
 **********
  encoding
 **********
@@ -249,14 +251,35 @@ O96 grids, you could provide templates like this:
            - - { grid: O96 }
              - /path/to/template-o96-sfc.grib
 
-Note that the sfc (surface) template doesn't have a levtype rule. This
-way, the sfc template will be used for all variables that are not pl
-(pressure level). It is also possible to have an empty rule ``{}`` as a
-catch-all, but care needs to be taken as it may lead to incorrect
-encoding if the grids do not match.
+Note that the sfc (surface) template doesn't have a levtype rule. The
+sfc template will be used for all variables that are not pl (pressure
+level). It is also possible to have an empty rule ``{}`` as a catch-all,
+but care needs to be taken as it may lead to incorrect encoding if the
+grids do not match.
 
-Common keys that can be used in the rules include: ``grid``,
-``levtype``, ``param``
+The following keys are available for use in the matching rules:
+
++---------------------------+-------------------------------------------------------------------------+
+| Rule Key                  | Details                                                                 |
++===========================+=========================================================================+
+| ``grid``                  | Grid definition (e.g. N320, 0.25, etc)                                  |
++---------------------------+-------------------------------------------------------------------------+
+| ``area``                  | Area as [north, west, south, east]                                      |
++---------------------------+-------------------------------------------------------------------------+
+| ``time_processing``       | One of ``accumulation``, ``average``, ``maximum``, ``minimum``,         |
+|                           | ``instantaneous``                                                       |
++---------------------------+-------------------------------------------------------------------------+
+| ``number_of_grid_points`` | As integer, from checkpoint `grid_indices` or shape of the last dataset |
++---------------------------+-------------------------------------------------------------------------+
+| The variable's MARS keys  | Keys like ``levtype``, ``param``, etc.                                  |
++---------------------------+-------------------------------------------------------------------------+
+| GRIB encoding             | Any key specified under :ref:`output.grib.encoding <encoding>`          |
++---------------------------+-------------------------------------------------------------------------+
+
+This information is taken from the checkpoint metadata. If unsure what
+the values are for a given checkpoint, running a forecast with
+``verbosity: 2`` will show the lookup rules in the log. It is also shown
+in the error message when a template cannot be found for a variable.
 
 .. note::
 
@@ -267,8 +290,8 @@ Common keys that can be used in the rules include: ``grid``,
 
 .. tip::
 
-   The sample file path can be a format string using metadata keys. The
-   above example can be rewritten as:
+   The sample file path can be a format string with rules. The above
+   example can be rewritten as:
 
    .. code:: yaml
 
