@@ -42,6 +42,7 @@ class TemplateManager:
 
         self._template_cache = {}
         self._history = defaultdict(list)
+        self._logged_variables = defaultdict(set)
 
         if templates is None:
             templates = []
@@ -62,16 +63,14 @@ class TemplateManager:
         Repeated calls will only log newly loaded templates since the last call.
         """
 
-        to_log = {}
+        to_log = defaultdict(set)
 
         for provider, typed_list in self._history.items():
-            variables = [
-                variable for variable in typed_list if not getattr(variable, "_template_manager_logged", False)
-            ]
+            variables = [variable for variable in typed_list if variable.param not in self._logged_variables[provider]]
             if len(variables) > 0:
-                to_log[provider] = set(variable.param for variable in variables)
                 for variable in variables:
-                    variable._template_manager_logged = True
+                    to_log[provider].add(variable.param)
+                    self._logged_variables[provider].add(variable.param)
 
         if to_log:
             LOG.info("GRIB template summary:")

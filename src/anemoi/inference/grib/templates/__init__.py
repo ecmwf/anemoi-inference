@@ -92,7 +92,7 @@ class IndexTemplateProvider(TemplateProvider):
         ----------
         manager : TemplateManager
             The manager for the template provider.
-        index_path : str | list
+        index : str | list
             The path to the index.yaml file, or its contents directly as a list.
         """
         super().__init__(manager)

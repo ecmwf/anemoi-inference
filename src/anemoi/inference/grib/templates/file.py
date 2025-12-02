@@ -57,6 +57,8 @@ class FileTemplates(TemplateProvider):
         """
         self.manager = manager
         self.path = Path(path)
+        if not self.path.exists():
+            raise FileNotFoundError(f"GRIB template file not found: {self.path}")
         self.mode = mode
         self.variables = variables if isinstance(variables, list) else [variables] if variables else None
 

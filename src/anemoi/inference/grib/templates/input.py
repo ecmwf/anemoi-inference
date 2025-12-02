@@ -25,23 +25,20 @@ LOG = logging.getLogger(__name__)
 class InputTemplates(TemplateProvider):
     """Use input fields as the output GRIB template."""
 
-    def __init__(self, manager: TemplateManager, fallback: dict[str, str] = {}, **kwargs: dict[str, str]) -> None:
+    def __init__(self, manager: TemplateManager, **fallback: dict[str, str]) -> None:
         """Initialize the template provider.
 
         Parameters
         ----------
         manager : TemplateManager
             The manager for the template provider.
-        fallback : dict[str, str]
+        **fallback : dict[str, str]
             A mapping of output to input variable names to use as templates from the input,
             used as fallback when the output variable is not present in the input state (e.g., for diagnostic variables).
         """
         super().__init__(manager)
 
-        if fallback:
-            self.fallback = fallback
-        else:
-            self.fallback = kwargs
+        self.fallback = fallback
 
     def __repr__(self):
         info = f"{self.__class__.__name__}{{fallback}}"
