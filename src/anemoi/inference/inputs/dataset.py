@@ -11,15 +11,12 @@
 import json
 import logging
 from functools import cached_property
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, FloatArray, ProcessorConfig, State
 
 from ..input import Input
 from . import input_registry
@@ -66,10 +63,14 @@ class DatasetInput(Input):
                 json.dumps(
                     open_dataset_kwargs,
                     indent=4,
+                    default=str,
                 ),
             )
 
-        if grid_indices is None and "grid_indices" in context.checkpoint._supporting_arrays:
+        if (
+            grid_indices is None
+            and "grid_indices" in context.checkpoint._supporting_arrays
+        ):
             grid_indices = context.checkpoint.load_supporting_array("grid_indices")
             if context.verbosity > 0:
                 LOG.info("Loading supporting array `grid_indices` from checkpoint, \
@@ -83,6 +84,9 @@ class DatasetInput(Input):
         from anemoi.datasets import open_dataset
 
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
+        print(type(dataset))
+
+        # TODO: skip this if the dataset is ZipBase?
         if self.variables is not None:
             dataset = open_dataset(dataset, select=self.variables)
 
@@ -144,7 +148,9 @@ class DatasetInput(Input):
         data = self._load_dates(dates)
 
         if data.shape[2] != 1:
-            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
+            raise ValueError(
+                f"Ensemble data not supported, got {data.shape[2]} members"
+            )
 
         requested_variables = set(self.input_variables())
         for i, variable in enumerate(self.ds.variables):
@@ -178,7 +184,9 @@ class DatasetInput(Input):
         """
         data = self._load_dates(dates)  # (date, variables, ensemble, values)
 
-        requested_variables = np.array([self.ds.name_to_index[v] for v in self.variables])
+        requested_variables = np.array(
+            [self.ds.name_to_index[v] for v in self.variables]
+        )
         data = data[:, requested_variables]
         # Squeeze the data to remove the ensemble dimension
         data = np.squeeze(data, axis=2)
@@ -263,11 +271,15 @@ class DatasetInputArgsKwargs(DatasetInput):
             Whether to use original paths.
         """
         if not args and not kwargs:
-            args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+            args, kwargs = context.checkpoint.open_dataset_args_kwargs(
+                use_original_paths=use_original_paths
+            )
 
             # TODO: remove start/end from the arguments
 
-            LOG.warning("No arguments provided to open_dataset, using the default arguments:")
+            LOG.warning(
+                "No arguments provided to open_dataset, using the default arguments:"
+            )
 
             cmd = "open_dataset("
             for arg in args:
@@ -296,6 +308,7 @@ class DataloaderInput(DatasetInput):
         context: Context,
         *,
         use_original_paths: bool = False,
+        override: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the DataloaderInput.
@@ -309,10 +322,16 @@ class DataloaderInput(DatasetInput):
         use_original_paths : bool
             Whether to use original paths.
         """
-        open_dataset_args, open_dataset_kwargs = context.checkpoint.open_dataset_args_kwargs(
-            use_original_paths=use_original_paths,
-            from_dataloader=self.name,
+        open_dataset_args, open_dataset_kwargs = (
+            context.checkpoint.open_dataset_args_kwargs(
+                use_original_paths=use_original_paths,
+                from_dataloader=self.name,
+            )
         )
+
+        if override is not None:
+            for k, v in override.items():
+                open_dataset_kwargs[k] = v
 
         super().__init__(
             context,
