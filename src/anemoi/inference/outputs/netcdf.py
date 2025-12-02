@@ -123,6 +123,7 @@ class NetCDFOutput(Output):
         self.dimensions: tuple[str, ...]
 
         # Reference date for the time axis
+        # TODO: self.reference_date: datetime.datetime = datetime.datetime(1970, 1, 1)
         self.reference_date: datetime.datetime
 
         # netcdf time variable
@@ -212,6 +213,12 @@ class NetCDFOutput(Output):
             self.time = self.ncfile.createVariable("time", "f8", ("time",))
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
+
+            var = self.ncfile.createVariable("forecast_reference_time", "f8")
+            var.units = f"seconds since {self.reference_date}"
+            var.standard_name = "forecast_reference_time"
+            # TODO: make sure this is right?
+            var[:] = (state["date"] - self.reference_date).total_seconds()
 
         output_template: Optional[str] = getattr(
             self.context.development_hacks, "output_template"
