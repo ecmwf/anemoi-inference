@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.8.2](https://github.com/ecmwf/anemoi-inference/compare/0.8.1...0.8.2) (2025-11-26)
+
+
+### Features
+
+* Add option to preload checkpoints ([#362](https://github.com/ecmwf/anemoi-inference/issues/362)) ([b9d3a19](https://github.com/ecmwf/anemoi-inference/commit/b9d3a1972d15228eb886b22de36a7bf2f211826e))
+* **postprocessor:** Add inverse option in extract mask ([#378](https://github.com/ecmwf/anemoi-inference/issues/378)) ([1e49ba3](https://github.com/ecmwf/anemoi-inference/commit/1e49ba3a810888bf2d8f3c4ec701e4b59b7480b0))
+* Rich tables ([#363](https://github.com/ecmwf/anemoi-inference/issues/363)) ([c32ab4f](https://github.com/ecmwf/anemoi-inference/commit/c32ab4f93b6551919ebf7cb1ad05e205ce02cf10))
+
+
+### Bug Fixes
+
+* Boundary forcings ([#388](https://github.com/ecmwf/anemoi-inference/issues/388)) ([a412434](https://github.com/ecmwf/anemoi-inference/commit/a412434a9bc2d2af94c7130f49de03b0822d9ca6))
+* OmegaConf loading differs from yaml ([#374](https://github.com/ecmwf/anemoi-inference/issues/374)) ([05a0739](https://github.com/ecmwf/anemoi-inference/commit/05a0739a06bd4c3d8e53613297c8eef9aa9c3e3a))
+
 ## [0.8.1](https://github.com/ecmwf/anemoi-inference/compare/0.8.0...0.8.1) (2025-11-05)
 
 
