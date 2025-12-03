@@ -9,19 +9,21 @@
 
 
 import logging
+import os
 from functools import cached_property
 from types import MappingProxyType as frozendict
+from typing import Optional
 
 import earthkit.data as ekd
 import numpy as np
 import torch
-import xarray as xr
+from anemoi.datasets import open_dataset
 from anemoi.utils.checkpoints import load_metadata
+from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.forcings import ComputedForcings
-from anemoi.inference.input import Input
-from anemoi.inference.inputs import create_input
+from anemoi.inference.runner import Kind
 from anemoi.inference.types import FloatArray, State
 from anemoi.inference.variables import Variables
 
@@ -125,11 +127,25 @@ class DsCheckpoint(Checkpoint):
 
 
 class ZarrTemplate:
-    # TODO: document this better and eventually change name
-    def __init__(self, zarr_path: str):
-        with xr.open_zarr(zarr_path, consolidated=False) as ds:
-            self.lats = ds.latitudes.values
-            self.lons = ds.longitudes.values
+    def __init__(self, zarr_path: str, forcings: Optional[list[str]] = None):
+        if forcings is None:
+            forcings = []
+
+        self.constant_forcings: dict[str, FloatArray] = {}
+
+        ds = open_dataset(zarr_path)
+
+        self.lats = ds.latitudes
+        self.lons = ds.longitudes
+
+        var_index_map = {name: ds.name_to_index[name] for name in forcings}
+        for var in forcings:
+            idx = var_index_map[var]
+
+            if var not in ds.constant_fields:
+                continue
+
+            self.constant_forcings[var] = ds[0, idx, 0, :].flatten()
 
     def grid_points(self):
         return (self.lats, self.lons)
@@ -161,35 +177,42 @@ class DownscalingRunner(DefaultRunner):
         self.verbosity = 3
 
     @cached_property
-    def extra_config(self):
+    def extra_config(self) -> DotDict:
         return self.config.development_hacks
 
+    @property
+    def high_res_input(self) -> list[str]:
+        return self._checkpoint._metadata._config.dataloader.select_in_hres
+
     @cached_property
-    def constant_high_res_focings_numpy(self):
-        file = np.load(self.extra_config.constant_high_res_forcings_npz)
+    def constant_high_res_focings_numpy(self) -> FloatArray:
         high_res = np.stack(
-            [file[forcing] for forcing in self.extra_config.constant_high_res_forcings],
+            [forcing for forcing in self.template.constant_forcings.values()],
             axis=1,
         )
 
         return high_res[np.newaxis, np.newaxis, ...]  # shape: (1, 1, values, variables)
 
     @cached_property
-    def computed_high_res_forcings(self):
+    def computed_high_res_forcings(self) -> ComputedForcings:
+        # TODO: this breaks if the computed forcings are non constant fields, for example `sr`.
+        # But we should not use variables that are not available during production
         computed_forcings = [
             var
-            for var in self.extra_config.high_res_input
-            if var not in self.extra_config.constant_high_res_forcings
+            for var in self.high_res_input
+            if var not in self.template.constant_forcings
         ]
         return ComputedForcings(self, computed_forcings, [])
 
     @cached_property
     def template(self):
-        # The the output type, may not be robust
+        # The output type, may not be robust
         if "grib" in self.config.output:
             return ekd.from_source("file", self.extra_config.output_template)[0]
         elif "netcdf" in self.config.output:
-            return ZarrTemplate(self.extra_config.output_template)
+            hw = self._checkpoint._metadata._config.hardware
+            path = os.path.join(hw.paths.data, hw.files.dataset_y)
+            return ZarrTemplate(path, self.high_res_input)
         else:
             raise Exception(
                 "Only grib and netcdf ouputs are available with runner type downscaling."
@@ -233,9 +256,12 @@ class DownscalingRunner(DefaultRunner):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"], state["longitudes"] = self.template.grid_points()
-            state["_grib_templates_for_output"] = {
-                name: self.template for name in state["fields"].keys()
-            }
+
+            if "grib" in self.config.output:
+                state["_grib_templates_for_output"] = {
+                    name: self.template for name in state["fields"].keys()
+                }
+
             yield state
 
     def predict_step(self, model, input_tensor_torch, **kwargs):
@@ -304,6 +330,7 @@ class DownscalingRunner(DefaultRunner):
 
         return output_tensor_interp
 
+    # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
         state["latitudes"], state["longitudes"] = self.template.grid_points()
@@ -312,39 +339,43 @@ class DownscalingRunner(DefaultRunner):
             self.computed_high_res_forcings.load_forcings_array(input_date, state)
         )
 
-        computed_high_res_forcings = np.squeeze(
-            computed_high_res_forcings, axis=1
-        )  # Drop the dates dimension
+        # Drop the dates dimension
+        computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)
 
+        # Swap last two dimensions so we get shape: (1, 1, values, variables)
         computed_high_res_forcings = np.swapaxes(
             computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
-        )  # shape: (1, 1, values, variables)
+        )
 
-        # Merge high res computed and constant forcings so that they are ordered according to high_res_input
-        forcings_dict = {name: None for name in self.extra_config.high_res_input}
+        # Merge high res computed and constant forcings so that
+        # they are ordered according to high_res_input
+        forcings_dict: dict[str, FloatArray] = {}
+        kinds = {}
 
-        # Fill in the constant forcings from disk
-        for i, name in enumerate(self.extra_config.constant_high_res_forcings):
-            forcings_dict[name] = self.constant_high_res_focings_numpy[..., i]
+        # Fill in the constant forcings from cache
+        for var, array in self.template.constant_forcings.items():
+            forcings_dict[var] = array[np.newaxis, np.newaxis, ...]
+            kinds[var] = Kind(forcing=True, constant=True)
 
         # Fill in the computed forcings
         for i, name in enumerate(self.computed_high_res_forcings.variables):
             forcings_dict[name] = computed_high_res_forcings[..., i]
+            kinds[name] = Kind(forcing=True, computed=True)
 
-        assert all(forcing is not None for forcing in forcings_dict.values())
-        assert set(forcings_dict.keys()) == set(self.extra_config.high_res_input)
+        assert len(forcings_dict) == len(self.high_res_input)
+        assert set(forcings_dict.keys()) == set(self.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
         high_res_numpy = np.stack(
-            [forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1
+            [forcings_dict[name] for name in self.high_res_input], axis=-1
         )
 
         # print expects shape (step, variables, values)
         self._print_tensor(
             "High res input tensor",
             np.swapaxes(high_res_numpy[0], -2, -1),
-            forcings_dict.keys(),
-            {},
+            self.high_res_input,
+            kinds,
         )
 
         return torch.from_numpy(high_res_numpy).to(self.device)

@@ -304,7 +304,6 @@ class DataloaderInput(DatasetInput):
         context: Context,
         *,
         use_original_paths: bool = False,
-        override: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the DataloaderInput.
@@ -325,9 +324,9 @@ class DataloaderInput(DatasetInput):
             )
         )
 
-        if override is not None:
-            for k, v in override.items():
-                open_dataset_kwargs[k] = v
+        # TODO: I think what we really want in the end is to fix this to be able to load
+        # a ZipBase dataset, right now this is hardcoded to use the variables from dataloader.select_in
+        kwargs["variables"] = self.checkpoint._metadata._config.dataloader.select_in
 
         super().__init__(
             context,
