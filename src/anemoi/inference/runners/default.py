@@ -156,6 +156,8 @@ class DefaultRunner(Runner):
                 forcings_state,
             )
         )
+        initial_state["date"] = self.config.date
+
         # Top-level post-processors on the other hand are applied on State and are executed here.
         LOG.info("Top-level post-processors: %s", self.post_processors)
 
