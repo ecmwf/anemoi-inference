@@ -217,9 +217,12 @@ class NetCDFOutput(Output):
             var = self.ncfile.createVariable("forecast_reference_time", "f8")
             var.units = f"seconds since {self.reference_date}"
             var.standard_name = "forecast_reference_time"
+
             # TODO: make sure this is right?
+            print(state.keys())
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
+        # TODO: this should already be available in the checkpoint
         output_template: Optional[str] = getattr(
             self.context.development_hacks, "output_template"
         )
