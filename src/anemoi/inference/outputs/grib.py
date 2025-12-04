@@ -223,6 +223,7 @@ class BaseGribOutput(Output):
 
         self.modifiers = modifier_factory(modifiers)
         self.variables = variables
+        assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
         self.negative_step_mode = negative_step_mode
 
         self.ensemble = False
