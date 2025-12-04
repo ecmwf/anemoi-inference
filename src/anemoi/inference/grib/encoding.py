@@ -10,6 +10,7 @@
 
 import logging
 import warnings
+from datetime import datetime
 from io import IOBase
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -151,17 +152,28 @@ def encode_time_processing(
         return
 
     if previous_step is None:
-        if not variable.is_accumulation:
-            LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
     if period := getattr(variable, "period", None):
         start = step - period
         if start < as_timedelta(0):
-            raise ValueError(
-                f"Writing {variable.name} at step {_step_in_hours(step)} with period {_step_in_hours(period)} for would result in a negative start step {_step_in_hours(start)}. "
-                "Try `write_initial_state: False`"
+            LOG.warning(
+                f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
             )
+            date = datetime(
+                year=result["date"] // 10000,
+                month=(result["date"] // 100) % 100,
+                day=result["date"] % 100,
+                hour=result["time"] // 100,
+                minute=result["time"] % 100,
+            )
+
+            date += start
+            step -= start
+            start = as_timedelta(0)
+
+            result["date"] = date.year * 10000 + date.month * 100 + date.day
+            result["time"] = date.hour * 100 + date.minute
     else:
         # backwards compatibility with old transform or if period is missing from the metadata
         start = previous_step

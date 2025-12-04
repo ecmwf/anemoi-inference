@@ -14,6 +14,7 @@ import logging
 import re
 from abc import abstractmethod
 from typing import Any
+from typing import Literal
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -173,6 +174,7 @@ class BaseGribOutput(Output):
         variables: list[str] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
         """Initialise the GribOutput object.
 
@@ -198,6 +200,12 @@ class BaseGribOutput(Output):
             Whether to write the initial state, by default None.
         variables : list, optional
             The list of variables, by default None.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a valid time before the reference time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
 
         super().__init__(
@@ -215,6 +223,7 @@ class BaseGribOutput(Output):
 
         self.modifiers = modifier_factory(modifiers)
         self.variables = variables
+        self.negative_step_mode = negative_step_mode
 
         self.ensemble = False
         for d in (self.grib1_keys, self.grib2_keys, self.encoding):
@@ -276,6 +285,9 @@ class BaseGribOutput(Output):
         reference_date = self.reference_date or self.context.reference_date
         assert reference_date is not None, "No reference date set"
 
+        date = int(reference_date.strftime("%Y%m%d"))
+        time = reference_date.hour * 100
+
         step = state["step"]
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
@@ -301,8 +313,8 @@ class BaseGribOutput(Output):
             keys = grib_keys(
                 values=values,
                 template=template,
-                date=int(reference_date.strftime("%Y%m%d")),
-                time=reference_date.hour * 100,
+                date=date,
+                time=time,
                 step=step,
                 param=param,
                 variable=variable,
@@ -313,6 +325,21 @@ class BaseGribOutput(Output):
                 previous_step=previous_step,
                 start_steps=start_steps,
             )
+
+            if keys["date"] < date or keys["time"] != time:
+                _log = f"{keys['date']} {keys['time']:04d} < {date} {time:04d}"
+                match self.negative_step_mode:
+                    case "error":
+                        raise ValueError(
+                            f"""Variable {name} has valid time before reference time: {_log}.
+                            To write or skip such variables, set `negative_step_mode` to `write` or `skip`.
+                            Alternatively, try `write_initial_state=False` if this is the initial time step."""
+                        )
+                    case "skip":
+                        LOG.warning(f"Skipping variable {name} with valid time before reference time: {_log}")
+                        continue
+                    case "write":
+                        LOG.warning(f"Writing variable {name} with valid time before reference time: {_log}")
 
             for modifier in self.modifiers:
                 values, template, keys = modifier(variable, values, template, keys)
