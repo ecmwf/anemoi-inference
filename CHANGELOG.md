@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.8.3](https://github.com/ecmwf/anemoi-inference/compare/0.8.2...0.8.3) (2025-12-04)
+
+
+### Features
+
+* **grib:** Improve template manager ([#383](https://github.com/ecmwf/anemoi-inference/issues/383)) ([5731f0e](https://github.com/ecmwf/anemoi-inference/commit/5731f0ea416b3352c01ed46b2f01da08b8d55105))
+
 ## [0.8.2](https://github.com/ecmwf/anemoi-inference/compare/0.8.1...0.8.2) (2025-11-26)
 
 
