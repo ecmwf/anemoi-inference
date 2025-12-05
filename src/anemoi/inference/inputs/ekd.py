@@ -421,8 +421,8 @@ class EkdInput(Input):
         return self._create_state(
             fields,
             dates=dates,
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
+            latitudes=current_state.get("latitudes", None),
+            longitudes=current_state.get("longitudes", None),
             dtype=np.float32,
             flatten=True,
         )
