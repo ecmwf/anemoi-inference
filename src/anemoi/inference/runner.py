@@ -758,7 +758,7 @@ class Runner(Context):
                 for i in range(self.checkpoint.multi_step_output):
                     new_state["date"] = dates[i]
                     new_state["previous_step"] = new_state.get("step")
-                    new_state["step"] = step + i * self.checkpoint.timestep
+                    new_state["step"] = step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
 
                     output = outputs[i, ...]
 
