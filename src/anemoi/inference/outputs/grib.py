@@ -201,7 +201,8 @@ class BaseGribOutput(Output):
         variables : list, optional
             The list of variables, by default None.
         negative_step_mode : Literal["error", "write", "skip"], optional
-            What to do when writing a variable that has a valid time before the reference time.
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
             In all cases a warning will be shown.
             - `error`: (default) raise an exception
             - `write`: write the variable as normal
@@ -329,15 +330,15 @@ class BaseGribOutput(Output):
                 match self.negative_step_mode:
                     case "error":
                         raise ValueError(
-                            f"""Variable {name} has valid time before reference time: {_log}.
+                            f"""Variable {name} has base time before forecast base time: {_log}.
                             To write or skip such variables, set `negative_step_mode` to `write` or `skip`.
                             Alternatively, try `write_initial_state=False` if this is the initial time step."""
                         )
                     case "skip":
-                        LOG.warning(f"Skipping variable {name} with valid time before reference time: {_log}")
+                        LOG.warning(f"Skipping variable {name} with base time before forecast base time: {_log}")
                         continue
                     case "write":
-                        LOG.warning(f"Writing variable {name} with valid time before reference time: {_log}")
+                        LOG.warning(f"Writing variable {name} with base time before forecast base time: {_log}")
 
             for modifier in self.modifiers:
                 values, template, keys = modifier(variable, values, template, keys)

@@ -167,7 +167,8 @@ class GribIoOutput(BaseGribOutput):
             Whether to split the output, by default True.
             Cannot be `True` if `out` is a file-like object.
         negative_step_mode : Literal["error", "write", "skip"], optional
-            What to do when writing a variable that has a valid time before the reference time.
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
             In all cases a warning will be shown.
             - `error`: (default) raise an exception
             - `write`: write the variable as normal
@@ -379,7 +380,8 @@ class GribFileOutput(GribIoOutput):
         split_output : bool, optional
             Whether to split the output, by default True.
         negative_step_mode : Literal["error", "write", "skip"], optional
-            What to do when writing a variable that has a valid time before the reference time.
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
             In all cases a warning will be shown.
             - `error`: (default) raise an exception
             - `write`: write the variable as normal
