@@ -38,7 +38,7 @@ def check_grib(
     LOG.info(f"Checking GRIB file: {file}")
     import earthkit.data as ekd
     import numpy as np
-    from anemoi.utils.dates import as_datetime
+    from earthkit.data.utils.dates import to_datetime
 
     ds = ekd.from_source("file", file)
 
@@ -60,7 +60,7 @@ def check_grib(
 
     # check time continuity
     if reference_date:
-        reference_date = as_datetime(reference_date)
+        reference_date = to_datetime(reference_date)
         LOG.info(f"Using reference date: {reference_date}")
 
     fields = ds.sel(param=expected_params[0])

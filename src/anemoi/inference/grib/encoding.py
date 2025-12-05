@@ -19,7 +19,7 @@ from typing import Any
 from typing import Hashable
 
 import earthkit.data as ekd
-from anemoi.utils.dates import as_timedelta
+from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.types import FloatArray
 from anemoi.inference.utils.templating import render_template
@@ -161,14 +161,14 @@ def encode_time_processing(
 
     if period := getattr(variable, "period", None):
         start = step - period
-        if start < as_timedelta(0):
+        if start < to_timedelta(0):
             LOG.warning(
                 f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
             )
 
             date += start
             step -= start
-            start = as_timedelta(0)
+            start = to_timedelta(0)
 
             result["date"] = int(date.strftime("%Y%m%d"))
             result["time"] = date.hour * 100 + date.minute

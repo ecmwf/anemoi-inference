@@ -10,8 +10,8 @@
 import sys
 
 import pytest
-from anemoi.utils.dates import as_datetime
-from anemoi.utils.dates import as_timedelta
+from earthkit.data.utils.dates import to_datetime
+from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.encoding import render_template
@@ -53,8 +53,8 @@ def test_render_template(template, handle, expected):
     [
         (
             tp,
-            as_datetime("20250101T0000"),
-            as_timedelta(0),
+            to_datetime("20250101T0000"),
+            to_timedelta(0),
             {},
             {
                 "date": 20241231,
@@ -68,8 +68,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             tp,
-            as_datetime("20250101T0000"),
-            as_timedelta(6),
+            to_datetime("20250101T0000"),
+            to_timedelta(6),
             {},
             {
                 "date": 20250101,
@@ -83,8 +83,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             tp,
-            as_datetime("20250101T0000"),
-            as_timedelta(12),
+            to_datetime("20250101T0000"),
+            to_timedelta(12),
             {},
             {
                 "date": 20250101,
@@ -98,9 +98,9 @@ def test_render_template(template, handle, expected):
         ),
         (
             tp,
-            as_datetime("20250101T0000"),
-            as_timedelta(12),
-            {"tp": as_timedelta(0)},
+            to_datetime("20250101T0000"),
+            to_timedelta(12),
+            {"tp": to_timedelta(0)},
             {
                 "date": 20250101,
                 "time": 0,
@@ -113,8 +113,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             z,
-            as_datetime("20250101T0000"),
-            as_timedelta(0),
+            to_datetime("20250101T0000"),
+            to_timedelta(0),
             {},
             {
                 "date": 20250101,
@@ -127,8 +127,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             z,
-            as_datetime("20250101T0000"),
-            as_timedelta(6),
+            to_datetime("20250101T0000"),
+            to_timedelta(6),
             {},
             {
                 "date": 20250101,
@@ -141,8 +141,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             w_100,
-            as_datetime("20250101T0000"),
-            as_timedelta(6),
+            to_datetime("20250101T0000"),
+            to_timedelta(6),
             {},
             {
                 "date": 20250101,
