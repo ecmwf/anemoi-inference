@@ -286,9 +286,6 @@ class BaseGribOutput(Output):
         reference_date = self.reference_date or self.context.reference_date
         assert reference_date is not None, "No reference date set"
 
-        date = int(reference_date.strftime("%Y%m%d"))
-        time = reference_date.hour * 100
-
         step = state["step"]
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
@@ -314,8 +311,7 @@ class BaseGribOutput(Output):
             keys = grib_keys(
                 values=values,
                 template=template,
-                date=date,
-                time=time,
+                date=reference_date,
                 step=step,
                 param=param,
                 variable=variable,
@@ -326,9 +322,10 @@ class BaseGribOutput(Output):
                 previous_step=previous_step,
                 start_steps=start_steps,
             )
+            encoded_date = to_datetime(f"{keys['date']}T{keys['time']:04d}")
 
-            if keys["date"] < date or keys["time"] != time:
-                _log = f"{keys['date']} {keys['time']:04d} < {date} {time:04d}"
+            if encoded_date < reference_date:
+                _log = f"{encoded_date} < {reference_date}"
                 match self.negative_step_mode:
                     case "error":
                         raise ValueError(
