@@ -1,11 +1,23 @@
+# (C) Copyright 2025 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
 import sys
 
 import pytest
-from anemoi.transform.variables import Variable
+from anemoi.utils.dates import as_datetime
 from anemoi.utils.dates import as_timedelta
 
-from anemoi.inference.grib.encoding import encode_time_processing
+from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.encoding import render_template
+from anemoi.inference.testing.variables import tp
+from anemoi.inference.testing.variables import w_100
+from anemoi.inference.testing.variables import z
 
 
 @pytest.mark.skipif(
@@ -36,60 +48,127 @@ def test_render_template(template, handle, expected):
     assert result == expected
 
 
-tp = Variable.from_dict(
-    "tp",
-    {
-        "mars": {
-            "param": "tp",
-            "levtype": "sfc",
-        },
-        "process": "accumulation",
-        "period": [0, 6],
-    },
-)
-z = Variable.from_dict(
-    "z",
-    {
-        "mars": {
-            "param": "z",
-            "levtype": "sfc",
-        }
-    },
-)
-
-
 @pytest.mark.parametrize(
-    "variable, date, time, step, expected_keys",
+    "variable, date, step, start_steps, expected_keys",
     [
         (
             tp,
-            20250101,
-            0,
+            as_datetime("20250101T0000"),
             as_timedelta(0),
-            {"date": 20241231, "time": 1800, "startStep": 0, "endStep": 6, "stepType": "accum"},
+            {},
+            {
+                "date": 20241231,
+                "time": 1800,
+                "startStep": 0,
+                "endStep": 6,
+                "stepType": "accum",
+                "shortName": "tp",
+                "dataType": "fc",
+            },
         ),
         (
             tp,
-            20250101,
-            0,
+            as_datetime("20250101T0000"),
             as_timedelta(6),
-            {"date": 20250101, "time": 0, "startStep": 0, "endStep": 6, "stepType": "accum"},
+            {},
+            {
+                "date": 20250101,
+                "time": 0,
+                "startStep": 0,
+                "endStep": 6,
+                "stepType": "accum",
+                "shortName": "tp",
+                "dataType": "fc",
+            },
         ),
-        (z, 20250101, 0, as_timedelta(0), {"date": 20250101, "time": 0, "step": 0, "stepType": "instant"}),
+        (
+            tp,
+            as_datetime("20250101T0000"),
+            as_timedelta(12),
+            {},
+            {
+                "date": 20250101,
+                "time": 0,
+                "startStep": 6,
+                "endStep": 12,
+                "stepType": "accum",
+                "shortName": "tp",
+                "dataType": "fc",
+            },
+        ),
+        (
+            tp,
+            as_datetime("20250101T0000"),
+            as_timedelta(12),
+            {"tp": as_timedelta(0)},
+            {
+                "date": 20250101,
+                "time": 0,
+                "startStep": 0,
+                "endStep": 12,
+                "stepType": "accum",
+                "shortName": "tp",
+                "dataType": "fc",
+            },
+        ),
+        (
+            z,
+            as_datetime("20250101T0000"),
+            as_timedelta(0),
+            {},
+            {
+                "date": 20250101,
+                "time": 0,
+                "step": 0,
+                "stepType": "instant",
+                "shortName": "z",
+                "dataType": "fc",
+            },
+        ),
+        (
+            z,
+            as_datetime("20250101T0000"),
+            as_timedelta(6),
+            {},
+            {
+                "date": 20250101,
+                "time": 0,
+                "step": 6,
+                "stepType": "instant",
+                "shortName": "z",
+                "dataType": "fc",
+            },
+        ),
+        (
+            w_100,
+            as_datetime("20250101T0000"),
+            as_timedelta(6),
+            {},
+            {
+                "date": 20250101,
+                "time": 0,
+                "step": 6,
+                "stepType": "instant",
+                "shortName": "w",
+                "dataType": "fc",
+                "levelist": 100,
+                "typeOfLevel": "isobaricInhPa",
+            },
+        ),
     ],
 )
-def test_encode_time_processing(variable, date, time, step, expected_keys):
-    encoding = {"date": date, "time": time}
-
-    encode_time_processing(
-        result=encoding,
+def test_grib_keys(variable, date, step, start_steps, expected_keys):
+    encoding = grib_keys(
+        values=None,
         template=None,
         variable=variable,
+        ensemble=False,
+        param=variable.param,
+        date=date,
         step=step,
         previous_step=None,
-        start_steps={},
-        edition=1,
-        ensemble=False,
+        start_steps=start_steps,
+        keys={},
     )
 
     for key, expected_value in expected_keys.items():
