@@ -25,7 +25,6 @@ COPY_ATTRIBUTES = (
     "date",
     "lead_time",
     "verbosity",
-    "report_error",
 )
 
 
