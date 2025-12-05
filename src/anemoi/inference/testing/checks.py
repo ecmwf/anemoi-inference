@@ -32,11 +32,13 @@ def check_grib(
     grib_keys: dict = {},
     check_accum: str | None = None,
     check_nans=False,
+    reference_date: str = None,
     **kwargs,
 ) -> None:
     LOG.info(f"Checking GRIB file: {file}")
     import earthkit.data as ekd
     import numpy as np
+    from anemoi.utils.dates import as_datetime
 
     ds = ekd.from_source("file", file)
 
@@ -57,9 +59,17 @@ def check_grib(
             assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
 
     # check time continuity
+    if reference_date:
+        reference_date = as_datetime(reference_date)
+        LOG.info(f"Using reference date: {reference_date}")
+
     fields = ds.sel(param=expected_params[0])
     previous_field = fields[0]
     for field in fields[1:]:
+        if reference_date:
+            assert field["base_time"] == reference_date.isoformat()
+            assert field["date"] == int(reference_date.strftime("%Y%m%d"))
+            assert field["time"] == reference_date.hour * 100
         assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
             f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
             f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
