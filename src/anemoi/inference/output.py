@@ -79,6 +79,12 @@ class Output(ABC):
         bool
             True if the variable should be skipped, False otherwise.
         """
+        # TODO(dieter): Implement support for accumalted variables in multi-out through anemoi-core. Then remove the below.
+        if variable == "tp":
+            LOG.warning(
+                "This is an experimental branch of anemoi-inference. Forecasting 'tp' is not yet supported. Skipping it in the output."
+            )
+            return True
         return self.variables is not None and variable not in self.variables
 
     @cached_property
