@@ -579,7 +579,9 @@ class Runner(Context):
         with Timer(f"Loading {self.checkpoint}") as t:
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
-
+            modifiers = self.create_model_modifiers()
+            for m in modifiers:
+                m.pre_modify()
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except RuntimeError:
@@ -596,6 +598,10 @@ class Runner(Context):
             LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
 
             model.runner = self
+
+            for modifier in modifiers:
+                LOG.info("Applying model modifier: %s", modifier)
+                model = modifier.modify(model)
             return model
 
     def predict_step(
