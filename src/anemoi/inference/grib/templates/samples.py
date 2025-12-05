@@ -15,6 +15,7 @@ import earthkit.data as ekd
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
+from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
 
@@ -23,24 +24,20 @@ LOG = logging.getLogger(__name__)
 class SamplesTemplates(IndexTemplateProvider):
     """Class to provide GRIB templates from sample files."""
 
+    def __init__(self, manager: TemplateManager, *args, index_path: str | None = None) -> None:
+        if index_path is not None:
+            return super().__init__(manager, index_path)
+
+        if isinstance(args[0], str):
+            return super().__init__(manager, args[0])
+
+        return super().__init__(manager, [*args])
+
     def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
-        """Load a GRIB template based on the provided lookup dictionary.
-
-        Parameters
-        ----------
-        grib : str
-            The GRIB template string.
-        lookup : Dict[str, Any]
-            The lookup dictionary to format the GRIB template string.
-
-        Returns
-        -------
-        Optional[ekd.Field]
-            The loaded GRIB template field, or None if the template is not found.
-        """
         template = grib.format(**lookup)
         if not os.path.exists(template):
             LOG.warning(f"Template not found: {template}")
             return None
 
+        LOG.debug(f"Loading sample file: {template}")
         return ekd.from_source("file", template)[0]
