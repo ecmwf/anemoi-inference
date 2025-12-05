@@ -12,6 +12,7 @@
   checks:
     - check_grib:
         check_nans: true
+        reference_date: 20251014T0000
     - check_grib_cutout:
         reference_grib: ${input:0}
   inference_config:
