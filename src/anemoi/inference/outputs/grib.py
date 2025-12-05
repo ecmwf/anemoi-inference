@@ -351,7 +351,10 @@ class BaseGribOutput(Output):
                 LOG.error("Error writing field %s", name)
                 LOG.error("Template: %s", template)
                 LOG.error("Keys:\n%s", json.dumps(keys, indent=4, default=str))
+                self.template_manager.log_summary()
                 raise
+
+        self.template_manager.log_summary()
 
     @abstractmethod
     def write_message(self, message: FloatArray, *args: Any, **kwargs: Any) -> None:

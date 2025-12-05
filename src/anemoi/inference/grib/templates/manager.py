@@ -10,10 +10,12 @@
 
 import json
 import logging
+from collections import defaultdict
 from typing import Any
 
 import earthkit.data as ekd
 
+from anemoi.inference.output import Output
 from anemoi.inference.types import State
 
 from . import create_template_provider
@@ -22,23 +24,25 @@ LOG = logging.getLogger(__name__)
 
 
 class TemplateManager:
-    """A class to manage GRIB templates."""
+    """A class to manage GRIB template providers."""
 
-    def __init__(self, owner: Any, templates: list[str] | str | None = None) -> None:
+    def __init__(self, owner: Output, templates: list[str] | str | None = None) -> None:
         """Initialize the TemplateManager.
 
         Parameters
         ----------
-        owner : Any
+        owner : Output
             The owner of the TemplateManager.
         templates : Optional[Union[List[str], str]], optional
-            A list of template names or a single template name, by default None.
+            A list of template providers or a single provider, by default None.
         """
         self.owner = owner
         self.checkpoint = owner.context.checkpoint
         self.typed_variables = self.checkpoint.typed_variables
 
         self._template_cache = {}
+        self._history = defaultdict(list)
+        self._logged_variables = defaultdict(set)
 
         if templates is None:
             templates = []
@@ -47,9 +51,31 @@ class TemplateManager:
             templates = [templates]
 
         if len(templates) == 0:
-            templates = ["builtin"]
+            templates = ["input", "builtin"]
 
         self.templates_providers = [create_template_provider(self, template) for template in templates]
+        LOG.info("GRIB template providers:")
+        for provider in self.templates_providers:
+            LOG.info(f"  - {provider}")
+
+    def log_summary(self) -> None:
+        """Log a summary of the loaded templates.
+        Repeated calls will only log newly loaded templates since the last call.
+        """
+
+        to_log = defaultdict(set)
+
+        for provider, typed_list in self._history.items():
+            variables = [variable for variable in typed_list if variable.param not in self._logged_variables[provider]]
+            if len(variables) > 0:
+                for variable in variables:
+                    to_log[provider].add(variable.param)
+                    self._logged_variables[provider].add(variable.param)
+
+        if to_log:
+            LOG.info("GRIB template summary:")
+            for provider, variables in to_log.items():
+                LOG.info(f"  - {provider}: {', '.join(sorted(variables))}")
 
     def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
         """Get the template for a given name and state.
@@ -69,9 +95,6 @@ class TemplateManager:
             The template field if found, otherwise None.
         """
         assert name is not None, name
-
-        # Use input fields as templates
-        self._template_cache.update(state.get("_grib_templates_for_output", {}))
 
         if name not in self._template_cache:
             self.load_template(name, state, typed_variables)
@@ -124,9 +147,10 @@ class TemplateManager:
 
         tried = []
         for provider in self.templates_providers:
-            template = provider.template(name, lookup)
+            template = provider.template(name, lookup, state=state)
             if template is not None:
                 self._template_cache[name] = template
+                self._history[provider].append(typed)
                 return
 
             tried.append(provider)
