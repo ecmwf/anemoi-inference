@@ -89,5 +89,5 @@ adventurous use-case this check can be disabled through the config as:
    the statistics of these edge attributes may differ too, potentially
    causing a drift in the input data distribution and leading to
    degraded model performance. Therefore, it is important to be cautious
-   with the normalization of edge attributes when working with external
+   with the normalisation of edge attributes when working with external
    graphs.
