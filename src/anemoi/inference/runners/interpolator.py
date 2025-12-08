@@ -95,12 +95,33 @@ class TimeInterpolatorRunner(DefaultRunner):
             f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
+        # This may be used by Output objects to compute the step
+        self.interpolation_window = get_interpolation_window(
+            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
+        )
+        self.lead_time = to_timedelta(self.config.lead_time)
+        self.time_step = self.interpolation_window
 
     @classmethod
     def create_config(cls, config: str | dict) -> Configuration:
         """Instantiate the Configuration Object from a dictionary or from a path to a config file"""
         config = RunConfiguration.load(config)
         return config
+
+    def patch_data_request(self, request: dict) -> dict:
+        """Set sensible defaults when this runner is used with the `retrieve` command."""
+        req = request.copy()
+        req["class"] = "od"
+        req["type"] = "fc"
+        req["stream"] = "oper"
+        if self.reference_date:
+            req["time"] = f"{self.reference_date.hour*100:04d}"
+        else:
+            req["time"] = sorted(req.get("time", ["0000"]))[0]
+        req["step"] = (
+            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
+        )
+        return super().patch_data_request(req)
 
     def patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
@@ -147,13 +168,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
-        lead_time = to_timedelta(self.config.lead_time)
-        # This may be used by Output objects to compute the step
-        self.lead_time = lead_time
-        self.interpolation_window = get_interpolation_window(
-            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
-        )
-        self.time_step = self.interpolation_window
         output = self.create_output()
 
         post_processors = self.post_processors
@@ -161,11 +175,12 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Get the interpolation window size from training config
         boundary_idx = self.checkpoint.input_explicit_times
         # Calculate how many interpolation windows we need for the lead_time
-        num_windows = int(lead_time / self.interpolation_window)
-        if lead_time % self.interpolation_window != to_timedelta(0):
+        num_windows = int(self.lead_time / self.interpolation_window)
+
+        if self.lead_time % self.interpolation_window != to_timedelta(0):
             LOG.warning(
                 "Lead time %s is not a multiple of interpolation window %s. Will interpolate for %s",
-                lead_time,
+                self.lead_time,
                 self.interpolation_window,
                 num_windows * self.interpolation_window,
             )
