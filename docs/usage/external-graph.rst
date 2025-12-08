@@ -79,7 +79,7 @@ adventurous use-case this check can be disabled through the config as:
    later, results may be inconsistent or incorrect. Previously edge
    directions were wrong by 90 degrees. Ensure that the same version of
    `anemoi-graphs` is used for both training and inference/finetuning to
-   avoid compatibility
+   avoid incompatibility
 
    This issue arises because changing the graph can shift the data
    distribution of edge attributes, which are used as inputs to the
