@@ -14,6 +14,7 @@ from collections import defaultdict
 from io import IOBase
 from pathlib import Path
 from typing import Any
+from typing import Literal
 
 import earthkit.data as ekd
 import numpy as np
@@ -129,6 +130,7 @@ class GribIoOutput(BaseGribOutput):
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         split_output: bool = True,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
         """Initialize the GribIOOutput.
 
@@ -164,6 +166,13 @@ class GribIoOutput(BaseGribOutput):
         split_output : bool, optional
             Whether to split the output, by default True.
             Cannot be `True` if `out` is a file-like object.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
         super().__init__(
             context,
@@ -176,6 +185,7 @@ class GribIoOutput(BaseGribOutput):
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
             variables=variables,
+            negative_step_mode=negative_step_mode,
         )
         self.out = out
         self.output = GribWriter(self.out, split_output)
@@ -334,6 +344,7 @@ class GribFileOutput(GribIoOutput):
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         split_output: bool = True,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
         """Initialise the GribFileOutput.
 
@@ -368,6 +379,13 @@ class GribFileOutput(GribIoOutput):
             The list of variables, by default None.
         split_output : bool, optional
             Whether to split the output, by default True.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
         super().__init__(
             context,
@@ -384,4 +402,5 @@ class GribFileOutput(GribIoOutput):
             write_initial_state=write_initial_state,
             variables=variables,
             split_output=split_output,
+            negative_step_mode=negative_step_mode,
         )

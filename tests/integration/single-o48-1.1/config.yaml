@@ -9,6 +9,7 @@
           type: fc
         check_accum: tp
         check_nans: true
+        reference_date: 20250611T0000
   inference_config:
     post_processors:
       - accumulate_from_start_of_forecast
