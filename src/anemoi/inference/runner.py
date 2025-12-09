@@ -478,7 +478,7 @@ class Runner(Context):
 
         input_tensor_numpy = np.full(
             shape=(
-                self.checkpoint.multi_step_input,
+                2,
                 self.checkpoint.number_of_input_features,
                 input_state["latitudes"].size,
             ),
@@ -986,7 +986,7 @@ class Runner(Context):
         if nlat != number_of_grid_points:
             raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
 
-        multi_step = self.checkpoint.multi_step_input
+        multi_step = 2 #self.checkpoint.multi_step_input
 
         expected_shape = (multi_step, number_of_grid_points)
 
