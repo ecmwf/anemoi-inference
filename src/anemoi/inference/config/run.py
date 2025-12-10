@@ -32,7 +32,7 @@ class RunConfiguration(Configuration):
     """A path to an Anemoi checkpoint file."""
 
     runner: str | dict[str, Any] = "default"
-    """The runner to use. If using `parallel`, can set `cluster` options here"""
+    """The runner to use. For runners that take extra options, they can be passed here in dictionary format with the runner name as the top level dictionary key. For example, if using `parallel`, the `cluster` option can be set here."""
 
     lead_time: str | int | datetime.timedelta = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
