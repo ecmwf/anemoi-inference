@@ -88,6 +88,9 @@ class TimeInterpolatorRunner(DefaultRunner):
             self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
         )
 
+        self.multi_step_input = 2
+        self.constants_input = None
+
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
             f"but got {self.checkpoint.input_explicit_times}"
@@ -148,26 +151,26 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
 
+
     def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
         prognostic_state = prognostic_input.create_input_state(date=date, **kwargs)
         self._check_state(prognostic_state, "prognostics")
 
-        constants_input = self.create_constant_coupled_forcings_input()
-        LOG.info("📥 Constant forcings input: %s", constants_input)
-        constants_state = constants_input.create_input_state(date=date, **kwargs)
-        self._check_state(constants_state, "constant_forcings")
-
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info("📥 Dynamic forcings input: %s", forcings_input)
         forcings_state = forcings_input.create_input_state(date=date, **kwargs)
         self._check_state(forcings_state, "dynamic_forcings")
+
+        self.constants_state['date'] = prognostic_state['date']
+
         input_state = self._combine_states(
             prognostic_state,
-            constants_state,
+            self.constants_state,
             forcings_state,
         )
+
         return input_state
 
     def execute(self) -> None:
@@ -199,6 +202,12 @@ class TimeInterpolatorRunner(DefaultRunner):
             LOG.info(
                 "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
             )
+
+            if self.constants_input is None:
+                self.constants_input = self.create_constant_coupled_forcings_input()
+                LOG.info("📥 Constant forcings input: %s", self.constants_input)
+                self.constants_state = self.constants_input.create_input_state(date=self.config.date, ref_date_index=0)
+                self._check_state(self.constants_state, "constant_forcings")
 
             # Create input state for this window
             if self.from_analysis:
@@ -478,7 +487,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
     def predict_step(
         self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor"
     ) -> "torch.Tensor":
-        return model.predict_step(input_tensor_torch)
+        return model.predict_step(input_tensor_torch, multi_step=self.multi_step_input)
 
 
     def forecast(
@@ -552,7 +561,6 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
         # Now interpolate between the boundaries
         for s, (step, date, interpolation_step, is_last_step) in enumerate(self.interpolator_stepper(start)):
             title = f"Interpolating step {step}({date})"
-            import ipdb; ipdb.set_trace()
 
             # this should be changed
             result["date"] = date
@@ -584,8 +592,8 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                for i in range(output.shape[1]):
-                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                for i in range(output.shape[2]):
+                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[..., i]
 
             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                 self._print_output_tensor("Output tensor", output)

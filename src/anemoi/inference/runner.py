@@ -163,6 +163,8 @@ class Runner(Context):
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
+        self.multi_step_input = self.checkpoint.multi_step_input
+
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
         self.preload_checkpoint = preload_checkpoint
@@ -478,7 +480,7 @@ class Runner(Context):
 
         input_tensor_numpy = np.full(
             shape=(
-                2,
+                self.multi_step_input,
                 self.checkpoint.number_of_input_features,
                 input_state["latitudes"].size,
             ),
@@ -986,7 +988,7 @@ class Runner(Context):
         if nlat != number_of_grid_points:
             raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
 
-        multi_step = 2 #self.checkpoint.multi_step_input
+        multi_step = self.multi_step_input
 
         expected_shape = (multi_step, number_of_grid_points)
 
@@ -1037,7 +1039,7 @@ class Runner(Context):
             The kinds.
         """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
         from rich.console import Console
         from rich.table import Table
