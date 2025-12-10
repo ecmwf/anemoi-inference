@@ -1,4 +1,4 @@
-description: 099e7dcdeca248198373d7397127edd5
+description: 58baec6f18e648d3bbf17e4a48677db8
 
 dates:
   start: 2023-08-01
@@ -31,7 +31,7 @@ runner:
 model:
   name: anemoi
   runner: downscaling
-  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/099e7dcdeca248198373d7397127edd5/inference-anemoi-by_epoch-epoch_016-step_078608.ckpt
+  checkpoint: /home/ecm5702/scratch/aifs/checkpoint/58baec6f18e648d3bbf17e4a48677db8/inference-anemoi-by_epoch-epoch_063-step_295936.ckpt
   development_hacks:
     time_step: 24h
     output_template: /home/ecm5702/hpcperm/data/o320-template.grib
@@ -55,7 +55,10 @@ model:
       - sin_local_time
       - sin_longitude
       - z
-      
+  
+    extra_args:
+      nsteps: 60  
+      sigma_max: 100000
 
 evaluation: False
 

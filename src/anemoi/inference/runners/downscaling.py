@@ -213,10 +213,25 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
         extra_args = self.extra_config.get("extra_args", {})
-
+        for i in range(6):
+            LOG.info(
+                "Low res tensor statistics for index %d: mean=%f, std=%f",
+                i,
+                low_res_tensor[..., i].mean().item(),
+                low_res_tensor[..., i].std().item(),
+            )
+        print("extra_args", extra_args)
         output_tensor = model.predict_step(
             low_res_tensor, high_res_tensor, extra_args=extra_args
         )
+        for i in range(6):
+            LOG.info(
+                "output_tensor statistics for index %d: mean=%f, std=%f",
+                i,
+                output_tensor[..., i].mean().item(),
+                output_tensor[..., i].std().item(),
+            )
+
         """
         residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
 
