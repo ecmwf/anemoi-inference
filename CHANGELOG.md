@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.9.0](https://github.com/ecmwf/anemoi-inference/compare/0.8.3...0.9.0) (2025-12-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **config:** Remove `report_errors`
+* **outputs:** Remove `apply_mask`
+* **outputs:** Remove `assign_mask`
+* **outputs:** Remove `extract_lam`
+* **outputs:** Remove `masked`
+* **runners:** Remove `crps` runner
+* **runners:** Remove `cutout` runner
+* **input:** Remove explicit ICON Input
+* **parallel runner:** Add cluster environments ([#365](https://github.com/ecmwf/anemoi-inference/issues/365))
+
+### Features
+
+* **config:** Remove `report_errors` ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **input:** Remove explicit ICON Input ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **outputs:** Remove `apply_mask` ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **outputs:** Remove `assign_mask` ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **outputs:** Remove `extract_lam` ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **outputs:** Remove `masked` ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **parallel runner:** Add cluster environments ([#365](https://github.com/ecmwf/anemoi-inference/issues/365)) ([3f28150](https://github.com/ecmwf/anemoi-inference/commit/3f281507086e6ca3da614d7df412afe81f39b704))
+* **runners:** Remove `crps` runner ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+* **runners:** Remove `cutout` runner ([f3c0256](https://github.com/ecmwf/anemoi-inference/commit/f3c0256f5cc3103438a9bcc9902cfa1b83881089))
+
 ## [0.8.3](https://github.com/ecmwf/anemoi-inference/compare/0.8.2...0.8.3) (2025-12-10)
 
 
