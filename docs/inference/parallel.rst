@@ -122,13 +122,12 @@ your own environment variable mapping:
       parallel:
          cluster:
             custom:
-               mapping:
-                  local_rank: LOCAL_RANK_ENV_VAR
-                  global_rank: GLOBAL_RANK_ENV_VAR
-                  world_size: WORLD_SIZE_ENV_VAR
-                  master_addr: MASTER_ADDR_ENV_VAR
-                  master_port: MASTER_PORT_ENV_VAR
-                  init_method: env://
+               local_rank: LOCAL_RANK_ENV_VAR
+               global_rank: GLOBAL_RANK_ENV_VAR
+               world_size: WORLD_SIZE_ENV_VAR
+               master_addr: MASTER_ADDR_ENV_VAR
+               master_port: MASTER_PORT_ENV_VAR
+               init_method: env://
 
    input:
      grib: /path/to/input.grib
