@@ -10,12 +10,12 @@ from typing import Any
 
 from anemoi.utils.registry import Registry
 
-from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import RunConfiguration
 
 runner_registry = Registry(__name__)
 
 
-def create_runner(config: Configuration, **kwargs: Any) -> Any:
+def create_runner(config: RunConfiguration, **kwargs: Any) -> Any:
     """Create a runner instance based on the given configuration.
 
     Parameters
