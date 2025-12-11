@@ -48,9 +48,6 @@ class RunConfiguration(Configuration):
     use_profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""
 
-    report_error: bool = False
-    """If True, the runner list the training versions of the packages in case of error. (Deprecated, unused)"""
-
     input: str | dict[str, Any] = "test"
     output: str | dict[str, Any] = "printer"
 
