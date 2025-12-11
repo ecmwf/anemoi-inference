@@ -126,7 +126,7 @@ consistently with what is done in ``anemoi-datasets``, see `here
 
    The ``cutout`` input nests the ``private_attributes`` of the sources
    states so may prevent usage of some keys. To restore these, use the
-   ``extract_source`` postprocessor.
+   ``extract_from_state`` postprocessor.
 
 To extract regions from different sources within the ``cutout`` input,
 your checkpoint must contain the cutout masks as supporting arrays. You
@@ -151,11 +151,13 @@ running ``anemoi-inference patch <your_checkpoint>``.
 
    input:
      cutout:
-       lam_0:
+       - lam_0:
          mars: {}
          mask: null
 
-An example configuration for the ``cutout`` input is shown below:
+An example configuration for the ``cutout`` input is shown below, the
+sources can be provided as a list of positional arguments, with each
+source specified as a mapping from source name to source configuration:
 
 .. literalinclude:: yaml/inputs_11.yaml
    :language: yaml
@@ -164,11 +166,11 @@ The different sources are specified exactly as you would for a single
 source, as shown in the previous sections.
 
 An easy way to then extract regions from the predicated state is to use
-the ``extract_source`` postprocessor, which will subset the state to the
-specified source. For example, to extract the ``lam_0`` source from the
-state, you can use the following configuration:
+the ``extract_from_state`` postprocessor, which will subset the state to
+the specified source. For example, to extract the ``lam_0`` source from
+the state, you can use the following configuration:
 
 .. code:: yaml
 
    post_processors:
-   - extract_source: 'lam_0'
+   - extract_from_state: 'lam_0'

@@ -19,7 +19,7 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from pydantic import BaseModel
 
-from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
@@ -50,7 +50,7 @@ class DefaultRunner(Runner):
     This class provides the default implementation for running inference.
     """
 
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self, config: RunConfiguration) -> None:
         """Initialize the DefaultRunner.
 
         Parameters
@@ -85,6 +85,8 @@ class DefaultRunner(Runner):
             trace_path=config.trace_path,
             use_profiler=config.use_profiler,
             typed_variables=config.typed_variables,
+            preload_checkpoint=config.preload_checkpoint,
+            preload_buffer_size=config.preload_buffer_size,
         )
 
     def predict_step(
@@ -285,7 +287,7 @@ class DefaultRunner(Runner):
         Input
             The created boundary forcings input.
         """
-        variables = self.variables.retrieved_boundary_forcings_variables()
+        variables = self.variables.retrieved_prognostic_variables()
         config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
         input = create_input(self, config, variables=variables, purpose="boundary_forcings")
         LOG.info("Boundary forcings input: %s", input)
@@ -448,7 +450,7 @@ class DefaultRunner(Runner):
                     if not np.array_equal(combined[key], value):
                         raise ValueError(
                             f"Key '{key}' has different array values in the states: "
-                            f"{combined[key]} and {value}."
+                            f"{combined[key]} ({combined[key].shape}) and {value} ({value.shape})."
                             f" Input: {first_input} vs {this_input}."
                         )
                     continue

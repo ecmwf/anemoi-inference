@@ -12,6 +12,7 @@
   checks:
     - check_grib:
         check_nans: true
+        reference_date: 20251014T0000
     - check_grib_cutout:
         reference_grib: ${input:0}
   inference_config:
@@ -23,7 +24,7 @@
     write_initial_state: false
     input:
       cutout:
-        lam_0:
+       - lam_0:
           grib:
             path: ${input:0}
             namer:
@@ -60,7 +61,7 @@
                   - lsm
                 - - shortName: TOT_PREC
                   - tp
-        global:
+       - global:
           grib: ${input:1}
     output:
       grib:

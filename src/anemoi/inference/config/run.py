@@ -32,7 +32,7 @@ class RunConfiguration(Configuration):
     """A path to an Anemoi checkpoint file."""
 
     runner: str | dict[str, Any] = "default"
-    """The runner to use."""
+    """The runner to use. For runners that take extra options, they can be passed here in dictionary format with the runner name as the top level dictionary key. For example, if using `parallel`, the `cluster` option can be set here."""
 
     lead_time: str | int | datetime.timedelta = "10d"
     """The lead time for the forecast. This can be a string, an integer or a timedelta object.
@@ -47,9 +47,6 @@ class RunConfiguration(Configuration):
 
     use_profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""
-
-    world_size: int | None = 1
-    """Number of parallel processes, used for parallel inference without SLURM."""
 
     input: str | dict[str, Any] = "test"
     output: str | dict[str, Any] = "printer"
@@ -118,3 +115,9 @@ class RunConfiguration(Configuration):
 
     debugging_info: dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""
+
+    preload_checkpoint: bool = False
+    """Whether to read the checkpoint file from disk before loading the model."""
+
+    preload_buffer_size: int = 32 * 1024 * 1024
+    """Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB."""

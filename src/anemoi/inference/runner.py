@@ -10,6 +10,8 @@
 
 import datetime
 import logging
+import os
+import sys
 import warnings
 from collections.abc import Generator
 from functools import cached_property
@@ -20,7 +22,6 @@ from typing import Union
 import numpy as np
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
-from anemoi.utils.text import table
 from anemoi.utils.timer import Timer
 from numpy.typing import DTypeLike
 
@@ -39,8 +40,6 @@ from .profiler import ProfilingRunner
 from .variables import Variables
 
 if TYPE_CHECKING:
-    import torch
-
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
@@ -95,6 +94,8 @@ class Runner(Context):
         initial_state_categories: list[str] | None = None,
         use_profiler: bool = False,
         typed_variables: dict[str, dict] = {},
+        preload_checkpoint: bool = False,
+        preload_buffer_size: int = 32 * 1024 * 1024,
     ) -> None:
         """Parameters
         -------------
@@ -123,6 +124,10 @@ class Runner(Context):
             Whether to write the initial state, by default True.
         use_profiler : bool, optional
             Whether to use profiler, by default False.
+        preload_checkpoint : bool
+            Whether to read the checkpoint file from disk before loading the model, by default False.
+        preload_buffer_size : int
+            Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
         self.variables = Variables(self)
@@ -160,6 +165,8 @@ class Runner(Context):
 
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
+        self.preload_checkpoint = preload_checkpoint
+        self.preload_buffer_size = preload_buffer_size
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
@@ -171,7 +178,18 @@ class Runner(Context):
         LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
-            self.checkpoint.print_variable_categories()
+            from rich.console import Console
+            from rich.table import Table
+
+            console = Console(file=sys.stderr)
+            table = Table(title="Variable categories")
+            table.add_column("Variable", no_wrap=True)
+            table.add_column("Categories", no_wrap=True)
+
+            for name, categories in self.checkpoint.variable_categories().items():
+                table.add_row(name, ", ".join(categories))
+
+            console.print(table)
 
     @property
     def checkpoint(self) -> Checkpoint:
@@ -253,6 +271,8 @@ class Runner(Context):
             except (TypeError, ModuleNotFoundError, AttributeError):
                 self.checkpoint.report_error()
                 raise
+            finally:
+                self.complete_forecast_hook()
 
     def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
@@ -314,7 +334,7 @@ class Runner(Context):
 
     def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
-        if not self.checkpoint.has_supporting_array("boundary"):
+        if not self.checkpoint.has_supporting_array("output_mask"):
             return []
 
         result = []
@@ -539,8 +559,26 @@ class Runner(Context):
         Any
             The loaded model.
         """
+        from anemoi.utils.humanize import bytes_to_human
 
-        with Timer(f"Loading {self.checkpoint}"):
+        try:
+            size = os.path.getsize(self.checkpoint.path)
+            LOG.info("Checkpoint size: %s", bytes_to_human(size))
+        except FileNotFoundError:
+            # This happens during testing, with mocked checkpoints
+            # If we are not in a testing environment, torch.load will raise
+            # the proper error
+            size = 0
+            LOG.warning("Checkpoint file not found: %s", self.checkpoint.path)
+
+        if self.preload_checkpoint and size > 0:
+            with Timer(f"Preloading {self.checkpoint}") as t:
+                with open(self.checkpoint.path, "rb") as f:
+                    while f.read(self.preload_buffer_size):
+                        pass
+            LOG.info("Preloading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
+        with Timer(f"Loading {self.checkpoint}") as t:
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
@@ -556,6 +594,9 @@ class Runner(Context):
                 raise e
             # model.set_inference_options(**self.inference_options)
             assert getattr(model, "runner", None) is None, model.runner
+
+            LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
             model.runner = self
             return model
 
@@ -1000,8 +1041,18 @@ class Runner(Context):
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
+        from rich.console import Console
+        from rich.table import Table
 
-        t = []
+        table = Table(title=title)
+        console = Console(file=sys.stderr)
+        table.add_column("Index", justify="right")
+        table.add_column("Variable", justify="left")
+        table.add_column("Min", justify="right")
+        table.add_column("Max", justify="right")
+        table.add_column("NaNs", justify="center")
+        table.add_column("Kind", justify="left")
+
         for k, v in enumerate(tensor_by_name):
             data = tensor_numpy[-1, k]
 
@@ -1016,13 +1067,18 @@ class Runner(Context):
             if np.isinf(data).any():
                 nans = "∞"
 
-            t.append((k, v, np.nanmin(data), np.nanmax(data), nans, kinds.get(v, Kind())))
+            table.add_row(
+                str(k),
+                v,
+                f"{np.nanmin(data):g}",
+                f"{np.nanmax(data):g}",
+                nans,
+                str(kinds.get(v, Kind())),
+            )
 
-        LOG.info("")
-        LOG.info(
-            "%s:\n\n%s\n", title, table(t, header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"], align="><<<|<")
-        )
-        LOG.info("")
+        console.print()
+        console.print(table)
+        console.print()
 
     def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
         """Print the input tensor.
@@ -1111,6 +1167,10 @@ class Runner(Context):
 
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
+        pass
+
+    def complete_forecast_hook(self) -> None:
+        """Hook called at the end of the forecast."""
         pass
 
     def has_split_input(self) -> bool:
