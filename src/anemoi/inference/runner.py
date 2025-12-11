@@ -11,6 +11,7 @@
 import datetime
 import logging
 import warnings
+import contextlib
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
@@ -512,7 +513,7 @@ class Runner(Context):
             The predicted step.
         """
         try:
-            return model.predict_step(input_tensor_torch, **kwargs)
+            return model.predict_step(input_tensor_torch, compute_dtype=torch.bfloat16, **kwargs)
         except TypeError:
             # This is for backward compatibility because old models did not
             # have kwargs in the forward or predict_step
@@ -641,6 +642,10 @@ class Runner(Context):
 
             omask = torch.tensor(self.checkpoint.prognostic_output_mask).to(self.device)
             imask = torch.tensor(self.checkpoint.prognostic_input_mask).to(self.device)
+            use_autocast=True
+            if  self.checkpoint.precision == "bf16-fp32-opt":
+                LOG.info("Model uses 'bf16-fp32-opt' precision, casting input to bfloat16 and disabling autocast")
+                use_autocast=False
             
             for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 title = f"Forecasting step {step} ({date})"
@@ -663,13 +668,19 @@ class Runner(Context):
                     #always feed the initial state to prevent accumulation of errors
                     self.input_state=input_tensor_torch
 
+                if not use_autocast:
+                    self.input_state = self.input_state.to(torch.bfloat16)
+
                 # Predict next state of atmosphere
                 with (
-                    torch.autocast(device_type=self.device, dtype=self.autocast),
+                    (torch.autocast(device_type=self.device, dtype=self.autocast) if use_autocast else contextlib.nullcontext()),
                     ProfilingLabel("Predict step", self.use_profiler),
                     Timer(title),
                 ):
                     y_pred = self.predict_step(self.model, self.input_state, fcstep=s, step=step, date=date)
+
+                if not use_autocast:
+                    y_pred = y_pred.to(torch.float32)
 
                 if self.transpose_output:
                     LOG.info("Transposing prediction on gpu before writing output")
