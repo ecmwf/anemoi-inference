@@ -71,3 +71,23 @@ adventurous use-case this check can be disabled through the config as:
 
 .. literalinclude:: yaml/external-graph5.yaml
    :language: yaml
+
+.. warning::
+
+   If you train a model on a graph using a version before 0.8 and then
+   run inference or finetuning with `anemoi-graphs` version 0.8 or
+   later, results may be inconsistent or incorrect. Previously edge
+   directions were wrong by 90 degrees. Ensure that the same version of
+   `anemoi-graphs` is used for both training and inference/finetuning to
+   avoid incompatibility
+
+   This issue arises because changing the graph can shift the data
+   distribution of edge attributes, which are used as inputs to the
+   model.
+
+   Similarly, if the graph is created in a different domain or dataset,
+   the statistics of these edge attributes may differ too, potentially
+   causing a drift in the input data distribution and leading to
+   degraded model performance. Therefore, it is important to be cautious
+   with the normalisation of edge attributes when working with external
+   graphs.

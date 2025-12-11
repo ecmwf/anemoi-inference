@@ -85,13 +85,16 @@ class ExtractMask(ExtractBase):
     mask : str
         Either a path to a `.npy` file containing the boolean mask or
         the name of a supporting array found in the checkpoint.
-    as_slice: bool, optional
+    as_slice : bool, optional
         Convert the boolean mask to a slice object by selecting all True values.
         Requires that the region extracted by the mask is contiguous and starts at 0.
         Default is False.
+    inverse : bool, optional
+        If True, extract the points where the mask is False instead of True.
+        Default is False.
     """
 
-    def __init__(self, context: Context, *, mask: str, as_slice: bool = False) -> None:
+    def __init__(self, context: Context, *, mask: str, as_slice: bool = False, inverse: bool = False) -> None:
         super().__init__(context)
 
         self._maskname = mask
@@ -107,9 +110,9 @@ class ExtractMask(ExtractBase):
             )
 
         if as_slice:
-            self.indexer = slice(None, np.sum(mask))
+            self.indexer = slice(None, np.sum(mask)) if not inverse else slice(np.sum(mask), None)
         else:
-            self.indexer = mask
+            self.indexer = mask if not inverse else ~mask
         self.npoints = np.sum(mask)
 
     def __repr__(self) -> str:
