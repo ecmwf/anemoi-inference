@@ -163,8 +163,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         forcings_state = forcings_input.create_input_state(date=date, **kwargs)
         self._check_state(forcings_state, "dynamic_forcings")
 
-        self.constants_state['date'] = prognostic_state['date']
-
         input_state = self._combine_states(
             prognostic_state,
             self.constants_state,
@@ -195,6 +193,12 @@ class TimeInterpolatorRunner(DefaultRunner):
                 num_windows * self.interpolation_window,
             )
 
+        if self.constants_input is None:
+            self.constants_input = self.create_constant_coupled_forcings_input()
+            LOG.info("📥 Constant forcings input: %s", self.constants_input)
+            self.constants_state = self.constants_input.create_input_state(date=self.config.date, ref_date_index=0)
+            #self._check_state(self.constants_state, "constant_forcings")
+
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.interpolation_window
@@ -202,12 +206,6 @@ class TimeInterpolatorRunner(DefaultRunner):
             LOG.info(
                 "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
             )
-
-            if self.constants_input is None:
-                self.constants_input = self.create_constant_coupled_forcings_input()
-                LOG.info("📥 Constant forcings input: %s", self.constants_input)
-                self.constants_state = self.constants_input.create_input_state(date=self.config.date, ref_date_index=0)
-                self._check_state(self.constants_state, "constant_forcings")
 
             # Create input state for this window
             if self.from_analysis:
@@ -240,6 +238,62 @@ class TimeInterpolatorRunner(DefaultRunner):
         self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", target_forcing: "torch.Tensor"
     ) -> "torch.Tensor":
         return model.predict_step(input_tensor_torch, target_forcing=target_forcing)
+
+    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
+        """Add initial forcings to the input state.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        """
+        # Should that be alreay a list of dates
+        breakpoint()
+        date = input_state["date"]
+        fields = input_state["fields"]
+
+        dates = [self.config.date, self.config.date]
+        dynamic_dates = [date + h for h in self.checkpoint.lagged]
+
+        # For output object. Should be moved elsewhere
+        self.reference_date = self.reference_date or date
+        self.initial_dates = dates
+
+        # TODO: Check for user provided forcings
+
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        LOG.info("-" * 80)
+        LOG.info("Initial forcings:")
+        LOG.info("  Constant forcings inputs:")
+        for f in initial_constant_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("  Dynamic forcings inputs:")
+        for f in initial_dynamic_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("-" * 80)
+
+        for source in initial_constant_forcings_inputs:
+            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings_array(dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
+
+        for source in initial_dynamic_forcings_inputs:
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dynamic_dates)
+            arrays = source.load_forcings_array(dynamic_dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def target_computed_forcings(self, variables: list[str], mask=None) -> list[Forcings]:
         """Create forcings for the bounding target state.
