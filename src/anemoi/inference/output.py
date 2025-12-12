@@ -271,27 +271,11 @@ class Output(ABC):
 
         LOG.info("Initiating writer shutdown...")
 
-        # Step 1 — Tell them to stop
         for i, queue in enumerate(self.queues):
             try:
                 queue.put_nowait("TERMINATE")
             except Exception as e:
                 LOG.error(f"Failed to send termination to writer {i}: {e}")
-
-        # Step 2 — Give them a moment to shut down cleanly
-        for i, process in enumerate(self.processes):
-            process.join(timeout=2)
-
-        # Step 3 — Hard kill anything still moving 🔪
-        for i, process in enumerate(self.processes):
-            if process.is_alive():
-                process.kill()   # requires Python 3.7+
-                process.join(timeout=1)
-
-        # Step 4 — Clean up queues explicitly
-        for q in self.queues:
-            q.close()
-            q.cancel_join_thread()  # Critical: prevents main-process hang
 
         LOG.info("All writer processes terminated and cleaned up.")
 
