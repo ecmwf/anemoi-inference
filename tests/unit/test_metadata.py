@@ -9,7 +9,9 @@
 
 import pytest
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import MetadataFactory
+from anemoi.inference.metadata import MultiDatasetMetadata
+from anemoi.inference.metadata import SingleDatasetMetadata
 from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
 
 
@@ -34,7 +36,7 @@ from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
     ],
 )
 def test_patch(initial, patch, expected):
-    metadata = Metadata(initial)
+    metadata = MetadataFactory(initial)
     assert metadata._metadata == initial
 
     metadata.patch(patch)
@@ -43,7 +45,7 @@ def test_patch(initial, patch, expected):
 
 def test_constant_fields_patch():
     model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
-    metadata = Metadata(model_metadata)
+    metadata = MetadataFactory(model_metadata)
 
     fields = ["z", "sdor", "slor", "lsm"]
     metadata.patch({"dataset": {"constant_fields": fields}})
@@ -52,3 +54,29 @@ def test_constant_fields_patch():
     # check that the rest of the metadata is still the same after patching
     metadata._metadata["dataset"].pop("constant_fields")
     assert model_metadata == metadata._metadata
+
+
+def test_metadata_factory():
+    single_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
+    multi_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
+
+    assert isinstance(MetadataFactory(single_metadata), SingleDatasetMetadata)
+    assert isinstance(MetadataFactory(multi_metadata), MultiDatasetMetadata)
+
+
+def test_multi_metadata():
+    multi_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
+    metadata = MultiDatasetMetadata(multi_metadata)
+    base_metadata = super(MultiDatasetMetadata, MultiDatasetMetadata(multi_metadata))
+
+    assert metadata.dataset_names == ["data"]
+
+    # check that multi-dataset metadata derived from the new `metadata_inference` matches the legacy metadata
+    for prop in [
+        "timestep",
+        "variable_to_input_tensor_index",
+        "variable_to_output_tensor_index",
+        "input_tensor_index_to_variable",
+        "output_tensor_index_to_variable",
+    ]:
+        assert getattr(metadata, prop) == getattr(base_metadata, prop)
