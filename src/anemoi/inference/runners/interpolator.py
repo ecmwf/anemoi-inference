@@ -196,7 +196,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         if self.constants_input is None:
             self.constants_input = self.create_constant_coupled_forcings_input()
             LOG.info("📥 Constant forcings input: %s", self.constants_input)
-            self.constants_state = self.constants_input.create_input_state(date=self.config.date, ref_date_index=0)
+            self.constants_state = self.constants_input.create_input_state(date=self.config.date)
             #self._check_state(self.constants_state, "constant_forcings")
 
         # Process each interpolation window
@@ -207,11 +207,8 @@ class TimeInterpolatorRunner(DefaultRunner):
                 "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
             )
 
-            # Create input state for this window
-            if self.from_analysis:
-                input_state = self.create_input_state(date=window_start_date)
-            else:
-                input_state = self.create_input_state(date=window_start_date, ref_date_index=0)
+            input_state = self.create_input_state(date=window_start_date)
+
             self.input_state_hook(input_state)
 
             # Run interpolation for this window

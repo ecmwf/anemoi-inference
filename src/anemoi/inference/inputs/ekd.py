@@ -219,7 +219,6 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        ref_date_index: int = -1,
     ) -> State:
         """Create a state from an ekd.FieldList.
 
@@ -244,8 +243,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        ref_date_index : int
-            The index of the reference date in the dates list.
 
         Returns
         -------
@@ -278,7 +275,7 @@ class EkdInput(Input):
                     )
                     raise e
 
-        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = dict(date=dates, latitudes=latitudes, longitudes=longitudes, fields=fields)
 
         # allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
@@ -355,7 +352,6 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        ref_date_index: int = -1,
     ) -> State:
         """Create the input state.
 
@@ -375,8 +371,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        ref_date_index : int
-            The index of the reference date in the dates list.
 
         Returns
         -------
@@ -398,7 +392,6 @@ class EkdInput(Input):
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
-            ref_date_index=ref_date_index,
         )
 
     def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
