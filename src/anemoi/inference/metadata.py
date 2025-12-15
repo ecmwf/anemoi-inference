@@ -1229,13 +1229,11 @@ class MultiDatasetMetadata(Metadata):
 
 
 class MetadataFactory:
-    def __new__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, dataset_key="data") -> Metadata:
+    def __new__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, name="data") -> Metadata:
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
-            assert (
-                dataset_key in datasets
-            ), f"Multi-dataset key `{dataset_key}` not found in metadata. Available keys: {datasets}"
-            LOG.info(f"Loading multi-dataset metadata with dataset key `{dataset_key}`")
-            return MultiDatasetMetadata(metadata, supporting_arrays, name=dataset_key)
+            assert name in datasets, f"Multi-dataset name `{name}` not found in metadata. Available names: {datasets}"
+            LOG.info(f"Loading multi-dataset metadata with dataset name `{name}`")
+            return MultiDatasetMetadata(metadata, supporting_arrays, name=name)
 
         LOG.info("Loading legacy single-dataset metadata.")
         return SingleDatasetMetadata(metadata, supporting_arrays)
