@@ -23,9 +23,9 @@ This of particular importance for the following packages:
 
 .. important::
 
-   As ``anemoi`` is still in active development, it is recommended to at
-   least use the same version of the above ``anemoi`` packages as those
-   used during training.
+   As ``anemoi`` is still in active development, it is recommended to
+   use the same version of the above ``anemoi`` packages as those used
+   during training.
 
 .. tip::
 

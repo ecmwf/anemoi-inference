@@ -11,7 +11,7 @@ This section provides a quickstart guide to using the
    :local:
    :depth: 1
 
-anemoi-inference can be run via the command line interface (CLI) or
+``anemoi-inference`` can be run via the command line interface (CLI) or
 programmatically via Python scripts. This quickstart guide focuses on
 the CLI usage. For more details on programmatic usage, please refer to
 the :ref:`other api usage <api_introduction>` documentation.
@@ -20,40 +20,57 @@ the :ref:`other api usage <api_introduction>` documentation.
  Configuration
 ***************
 
-The command line tool requires a configuration file in YAML format to
-specify the inference settings. Below is an example of a minimal
-configuration file:
+The CLI requires a configuration file in YAML format to specify the
+inference options. Below is an example of a minimal configuration file:
 
 .. literalinclude:: yaml/quickstart1.yaml
    :language: yaml
 
 Primarily, the configuration file should specify:
 
--  The path to the trained model checkpoint.
--  The lead time for the forecast.
--  The initial condition date
--  The input data source, which can be local files or remote data
-   stores.
--  The output data destination.
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   -  -  key
+      -  Description
+
+   -  -  `ckpt`
+      -  Path to the trained model checkpoint.
+
+   -  -  `lead_time`
+      -  Lead time (in hours) for the forecast.
+
+   -  -  `date`
+      -  Initial condition date
+
+   -  -  `input`
+      -  Data source for initial conditions, which can be local files or
+         remote data stores.
+
+   -  -  `output`
+      -  Output data destination.
 
 For more details on the configuration options, please refer to the
 :ref:`configuration reference <config_introduction>` documentation.
 
-It is possible to run with a checkpoint stored in huggingface directly
-by specifying the checkpoint as follows:
+.. admonition:: Remote Checkpoints
 
-.. literalinclude:: yaml/quickstart2.yaml
-   :language: yaml
+   It is possible to run with a checkpoint stored in huggingface
+   directly by specifying the checkpoint as follows:
 
-.. warning::
+   .. literalinclude:: yaml/quickstart2.yaml
+      :language: yaml
 
-   To use huggingface stored models requires `huggingface_hub
-   <https://github.com/huggingface/huggingface_hub>`_ to be installed in
-   your environment.
+   .. warning::
 
-   .. code:: bash
+      To use huggingface stored models requires `huggingface_hub
+      <https://github.com/huggingface/huggingface_hub>`_ to be installed
+      in your environment.
 
-      pip install huggingface_hub
+      .. code:: bash
+
+         pip install huggingface_hub
 
 Complete example
 ================
@@ -62,11 +79,12 @@ Therefore, a complete minimal configuration file for running inference
 with a huggingface checkpoint would look like this:
 
 .. literalinclude:: yaml/quickstart3.yaml
+   :language: yaml
 
 .. warning::
 
-   Additionally, to download data from the Copernicus Data Store, you
-   need to have the ``cdsapi`` package installed and configured in your
+   To download data from the Copernicus Data Store (cds), you need to
+   have the ``cdsapi`` package installed and configured in your
    environment. See `here
    <https://cds.climate.copernicus.eu/how-to-api>`_ for more
    information.
@@ -93,18 +111,19 @@ with a huggingface checkpoint would look like this:
    .. warning::
 
       Initial conditions are only available for the past three days
-      using the opendata service.
+      using the `opendata` service.
 
 *************
  Environment
 *************
 
-It is recommended to create a new Python virtual environment for running
-``anemoi-inference`` to isolate tasks within a ML workflow. However, it
-is also recommended to ensure that the versions of key packages are
-compatible / identical to those used during training.
+It is recommended to :ref:`create <installing>` a new Python virtual
+environment for running ``anemoi-inference`` to isolate tasks within a
+ML workflow. However, it is also recommended to ensure that the versions
+of key packages are compatible / identical to those used during
+training.
 
-This of particular importance for the following packages:
+This is of particular importance for the following packages:
 
 -  `anemoi-models
    <https://anemoi.readthedocs.io/projects/models/en/latest/>`_
@@ -115,9 +134,9 @@ This of particular importance for the following packages:
 
 .. important::
 
-   As ``anemoi`` is still in active development, it is recommended to at
-   least use the same version of the above ``anemoi`` packages as those
-   used during training.
+   As ``anemoi`` is still in active development, it is recommended to
+   use the same version of the above ``anemoi`` packages as those used
+   during training.
 
 .. tip::
 
