@@ -39,15 +39,17 @@ Primarily, the configuration file should specify:
 For more details on the configuration options, please refer to the
 :ref:`configuration reference <config_introduction>` documentation.
 
-It is possible to run with a huggingface checkpoint directly by
-specifying the checkpoint as follows:
+It is possible to run with a checkpoint stored in huggingface directly
+by specifying the checkpoint as follows:
 
 .. literalinclude:: yaml/quickstart2.yaml
    :language: yaml
 
 .. warning::
 
-   This requires `huggingface_hub` to be installed in your environment.
+   To use huggingface stored models requires `huggingface_hub
+   <https://github.com/huggingface/huggingface_hub>`_ to be installed in
+   your environment.
 
    .. code:: bash
 
@@ -64,22 +66,29 @@ with a huggingface checkpoint would look like this:
 .. warning::
 
    Additionally, to download data from the Copernicus Data Store, you
-   need to have the `cdsapi` package installed and configured in your
-   environment. https://cds.climate.copernicus.eu/how-to-api.
+   need to have the ``cdsapi`` package installed and configured in your
+   environment. See `here
+   <https://cds.climate.copernicus.eu/how-to-api>`_ for more
+   information.
 
-.. note::
-
-   OpenData
+.. admonition:: OpenData
 
    As CDS requires an account, some users may find it easier to use the
-   opendata service from ECMWF to initialise the model. This data is
+   `opendata` service from ECMWF to initialise the model. This data is
    openly available for the last three days under a permissive license.
 
-   To install:
+   To install the plugin which provides access to the `opendata`
+   service:
 
    .. code:: bash
 
       pip install anemoi-plugins-ecmwf-inference[opendata]
+
+   To use this input simply reference it by name in the input block:
+
+   .. code:: yaml
+
+      input: opendata
 
    .. warning::
 
@@ -107,14 +116,14 @@ This of particular importance for the following packages:
 .. important::
 
    As ``anemoi`` is still in active development, it is recommended to at
-   least use the same major and minor version of the above ``anemoi``
-   packages as those used during training.
+   least use the same version of the above ``anemoi`` packages as those
+   used during training.
 
 .. tip::
 
    You can check the versions of the packages used during training by
-   inspecting the checkpoint metadata with the command and getting a
-   list of requirements:
+   inspecting the checkpoint metadata with the :ref:`inspect
+   <inspect-command>` command and getting a list of requirements:
 
    .. code:: bash
 
@@ -127,7 +136,9 @@ This of particular importance for the following packages:
 Now, once you have your configuration file ready, and your environment
 is set up, it is time to run the forecast!
 
-You can run the inference using the command line tool as follows:
+You can run the inference using the :ref:`run <run-command>` command
+line tool as follows, which more information can be found at
+:ref:`api_level3`
 
 .. code:: bash
 
@@ -156,6 +167,7 @@ Additionally, you can explore the various APIs provided by
 
    ../usage/apis/level1
    ../usage/apis/level2
+   ../usage/apis/level3
 
 Some details of how to use the programmatic interface can be found on
 the `hugging-face example for AIFS Single 1

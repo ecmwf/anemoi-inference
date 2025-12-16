@@ -110,6 +110,7 @@ Get more information in the :ref:`installing <installing>` section.
    :caption: Getting Started
 
    usage/quickstart
+   usage/environment
    usage/apis/introduction
 
 .. toctree::

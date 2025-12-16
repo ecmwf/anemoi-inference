@@ -3,9 +3,9 @@
 ..
    Duplicated from the quickstart for emphasis ---
 
-#############
- Environment
-#############
+###################
+ Environment Setup
+###################
 
 It is recommended to create a new Python virtual environment for running
 ``anemoi-inference`` to isolate tasks within a ML workflow. However, it
@@ -24,14 +24,14 @@ This of particular importance for the following packages:
 .. important::
 
    As ``anemoi`` is still in active development, it is recommended to at
-   least use the same major and minor version of the above ``anemoi``
-   packages as those used during training.
+   least use the same version of the above ``anemoi`` packages as those
+   used during training.
 
 .. tip::
 
    You can check the versions of the packages used during training by
-   inspecting the checkpoint metadata with the command and getting a
-   list of requirements:
+   inspecting the checkpoint metadata with the :ref:`inspect
+   <inspect-command>` command and getting a list of requirements:
 
    .. code:: bash
 
