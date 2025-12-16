@@ -4,6 +4,9 @@ checkpoint: CKPT
 # Lead time in hours
 lead_time: 72
 
+# Date to initialise from
+date: 2025-01-01T00
+
 # Input source
 input:
   cds # Can be mars, grib, dataset (anemoi), fdb, dummy.

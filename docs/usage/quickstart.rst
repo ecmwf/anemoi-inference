@@ -31,6 +31,7 @@ Primarily, the configuration file should specify:
 
 -  The path to the trained model checkpoint.
 -  The lead time for the forecast.
+-  The initial condition date
 -  The input data source, which can be local files or remote data
    stores.
 -  The output data destination.
@@ -52,19 +53,38 @@ specifying the checkpoint as follows:
 
       pip install huggingface_hub
 
-.. admonition:: Complete Example
+Complete example
+================
 
-   Therefore, a complete minimal configuration file for running
-   inference with a huggingface checkpoint would look like this:
+Therefore, a complete minimal configuration file for running inference
+with a huggingface checkpoint would look like this:
 
-      .. literalinclude:: yaml/quickstart3.yaml
+.. literalinclude:: yaml/quickstart3.yaml
 
-      .. warning::
+.. warning::
 
-         Additionally, to download data from the Copernicus Data Store,
-         you need to have the `cdsapi` package installed and configured
-         in your environment.
-         https://cds.climate.copernicus.eu/how-to-api.
+   Additionally, to download data from the Copernicus Data Store, you
+   need to have the `cdsapi` package installed and configured in your
+   environment. https://cds.climate.copernicus.eu/how-to-api.
+
+.. note::
+
+   OpenData
+
+   As CDS requires an account, some users may find it easier to use the
+   opendata service from ECMWF to initialise the model. This data is
+   openly available for the last three days under a permissive license.
+
+   To install:
+
+   .. code:: bash
+
+      pip install anemoi-plugins-ecmwf-inference[opendata]
+
+   .. warning::
+
+      Initial conditions are only available for the past three days
+      using the opendata service.
 
 *************
  Environment
