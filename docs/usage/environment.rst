@@ -1,8 +1,5 @@
 .. _usage-environment:
 
-..
-   Duplicated from the quickstart for emphasis ---
-
 ###################
  Environment Setup
 ###################
@@ -21,6 +18,12 @@ This is of particular importance for the following packages:
    <https://anemoi.readthedocs.io/projects/graphs/en/latest/>`_
 -  `torch <https://pytorch.org/>`_
 -  `torch_geometric <https://pytorch-geometric.readthedocs.io/>`_
+
+.. note::
+
+   If using the `dataset` input source, you will need `anemoi-datasets
+   <https://anemoi.readthedocs.io/projects/datasets/en/latest/>`_
+   installed.
 
 .. important::
 

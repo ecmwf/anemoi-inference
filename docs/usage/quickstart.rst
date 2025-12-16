@@ -17,8 +17,12 @@ and how it fits within the ``anemoi`` ecosystem, see the
 
 ``anemoi-inference`` can be run via the command line interface (CLI) or
 programmatically via Python scripts. This quickstart guide focuses on
-the CLI usage. For more details on programmatic usage, please refer to
-the :ref:`other api usage <api_introduction>` documentation.
+the CLI usage.
+
+Throughout this guide we assume you have run :ref:`anemoi-training
+<anemoi-training:index-page>` and have a checkpoint on disk you are
+ready to use. Additionally, we assume you have access to the training
+dataset.
 
 ***************
  Configuration
@@ -58,102 +62,15 @@ Primarily, the configuration file should specify:
 For more details on the configuration options, please refer to the
 :ref:`configuration reference <config_introduction>` documentation.
 
-.. admonition:: Remote Checkpoints
-
-   It is possible to run with a checkpoint stored in huggingface
-   directly by specifying the checkpoint as follows:
-
-   .. literalinclude:: yaml/quickstart2.yaml
-      :language: yaml
-
-   .. warning::
-
-      To use huggingface stored models requires `huggingface_hub
-      <https://github.com/huggingface/huggingface_hub>`_ to be installed
-      in your environment.
-
-      .. code:: bash
-
-         pip install huggingface_hub
-
-Complete example
-================
-
-Therefore, a complete minimal configuration file for running inference
-with a huggingface checkpoint would look like this:
-
-.. literalinclude:: yaml/quickstart3.yaml
-   :language: yaml
-
-.. warning::
-
-   To download data from the Copernicus Data Store (cds), you need to
-   have the ``cdsapi`` package installed and configured in your
-   environment. See `here
-   <https://cds.climate.copernicus.eu/how-to-api>`_ for more
-   information.
-
-.. admonition:: OpenData
-
-   As CDS requires an account, some users may find it easier to use the
-   `opendata` service from ECMWF to initialise the model. This data is
-   openly available for the last three days under a permissive license.
-
-   To install the plugin which provides access to the `opendata`
-   service:
-
-   .. code:: bash
-
-      pip install anemoi-plugins-ecmwf-inference[opendata]
-
-   To use this input simply reference it by name in the input block:
-
-   .. code:: yaml
-
-      input: opendata
-
-   .. warning::
-
-      Initial conditions are only available for the past three days
-      using the `opendata` service.
-
 *************
  Environment
 *************
 
-..
-   Duplicated into the environment page for emphasis ---
-
-It is recommended to :ref:`create <installing>` a new Python virtual
-environment for running ``anemoi-inference`` to isolate tasks within a
-ML workflow. When creating this environment it is also recommended to
-ensure that the versions of key packages are compatible / identical to
-those used during training.
-
-This is of particular importance for the following packages:
-
--  `anemoi-models
-   <https://anemoi.readthedocs.io/projects/models/en/latest/>`_
--  `anemoi-graphs
-   <https://anemoi.readthedocs.io/projects/graphs/en/latest/>`_
--  `torch <https://pytorch.org/>`_
--  `torch_geometric <https://pytorch-geometric.readthedocs.io/>`_
-
-.. important::
-
-   As ``anemoi`` is still in active development, it is recommended to
-   use the same version of the above ``anemoi`` packages as those used
-   during training.
-
-.. tip::
-
-   You can check the versions of the packages used during training by
-   inspecting the checkpoint metadata with the :ref:`inspect
-   <inspect-command>` command and getting a list of requirements:
-
-   .. code:: bash
-
-      anemoi-inference inspect --requirements /path/to/inference-last.ckpt
+For this guide feel free to reuse your training environment as it will
+keep things simple. For other use cases, the recommendation is to create
+a new virtual environment. If you decide to do so, please check out the
+:ref:`environment setup <usage-environment>` page, as it is important
+that you install the correct versions of the ``anemoi`` packages.
 
 **********************
  Running the forecast
@@ -164,11 +81,22 @@ is set up, it is time to run the forecast!
 
 You can run the inference using the :ref:`run <run-command>` command
 line tool as follows, which more information can be found at
-:ref:`api_level3`
+:ref:`usage-advanced-cli`
 
 .. code:: bash
 
    anemoi-inference run /path/to/inference_config.yaml
+
+************
+ Next steps
+************
+
+.. toctree::
+   :maxdepth: 1
+
+   advanced/saving
+   advanced/sources
+   advanced/remote-checkpoints
 
 ****************
  Advanced usage
@@ -184,16 +112,6 @@ to the following sections:
    ../inference/parallel
    ../inference/external-graph
    ../inference/configs/introduction
-
-Additionally, you can explore the various APIs provided by
-``anemoi-inference`` for programmatic usage:
-
-.. toctree::
-   :maxdepth: 1
-
-   ../usage/apis/level1
-   ../usage/apis/level2
-   ../usage/apis/level3
 
 Some details of how to use the programmatic interface can be found on
 the `hugging-face example for AIFS Single 1

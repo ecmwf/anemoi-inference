@@ -107,7 +107,6 @@ Get more information in the :ref:`installing <installing>` section.
 
    usage/quickstart
    usage/environment
-   usage/apis/introduction
 
 .. toctree::
    :maxdepth: 1

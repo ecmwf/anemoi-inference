@@ -1,4 +1,4 @@
-.. _api_level3:
+.. _usage-advanced-cli:
 
 ##################
  Command line API
