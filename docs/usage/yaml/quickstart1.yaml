@@ -1,0 +1,14 @@
+# Path to checkpoint
+checkpoint: CKPT
+
+# Lead time in hours
+lead_time: 72
+
+# Input source
+input:
+  cds # Can be mars, grib, dataset (anemoi), fdb, dummy.
+
+# Output
+output:
+  printer
+  # Can be grib, netcdf, zarr, printer, plot, etc.

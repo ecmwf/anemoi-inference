@@ -1,4 +1,4 @@
-.. _usage-external-graph:
+.. _external-graph:
 
 ###################################
  Inference using an external graph

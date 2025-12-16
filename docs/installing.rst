@@ -26,3 +26,6 @@ You may also have to install pandoc on MacOS:
 .. code:: bash
 
    brew install pandoc
+
+For more information on the contributing guidelines, please visit the
+:ref:`contributing <dev-contributing>` section.

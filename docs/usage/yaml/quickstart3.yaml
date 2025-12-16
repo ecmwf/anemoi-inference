@@ -1,0 +1,7 @@
+checkpoint:
+  ecmwf: aifs-single-1.1
+
+lead_time: 72
+
+input: cds
+output: printer

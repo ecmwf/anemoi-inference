@@ -1,3 +1,5 @@
+.. _parallel-inference:
+
 ####################
  Parallel Inference
 ####################

@@ -1,5 +1,7 @@
-Introduction
-============
+.. _cli-commands:
+
+Command Line Tool
+==================
 
 When you install the `anemoi-inference` package, this will also install command line tool
 called ``anemoi-inference`` this can be used to manage the checkpoints.

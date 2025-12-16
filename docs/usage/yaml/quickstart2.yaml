@@ -1,0 +1,3 @@
+# Huggingface model checkpoint
+checkpoint: # organisation:reponame
+  ecmwf: aifs-single-1.1
