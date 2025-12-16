@@ -4,12 +4,16 @@
  Quickstart
 ############
 
-This section provides a quickstart guide to using the
-``anemoi-inference`` package. It covers the following topics:
+This page provides a quickstart guide to using the ``anemoi-inference``
+package. It covers the following topics:
 
 .. contents:: Table of Contents
    :local:
    :depth: 1
+
+If you would like more information on what ``anemoi-inference`` does,
+and how it fits within the ``anemoi`` ecosystem, see the
+:ref:`introduction <index-page>` page.
 
 ``anemoi-inference`` can be run via the command line interface (CLI) or
 programmatically via Python scripts. This quickstart guide focuses on
@@ -117,11 +121,14 @@ with a huggingface checkpoint would look like this:
  Environment
 *************
 
+..
+   Duplicated into the environment page for emphasis ---
+
 It is recommended to :ref:`create <installing>` a new Python virtual
 environment for running ``anemoi-inference`` to isolate tasks within a
-ML workflow. However, it is also recommended to ensure that the versions
-of key packages are compatible / identical to those used during
-training.
+ML workflow. When creating this environment it is also recommended to
+ensure that the versions of key packages are compatible / identical to
+those used during training.
 
 This is of particular importance for the following packages:
 

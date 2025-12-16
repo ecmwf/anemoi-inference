@@ -57,10 +57,6 @@ to configure and execute inference workflows using anemoi-inference.
 A complete example of running a forecast with a trained model can be
 found in the :ref:`usage-quickstart` section.
 
-.. code:: bash
-
-   anemoi-inference run inference_config.yaml
-
 ************
  Installing
 ************

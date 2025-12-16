@@ -4,7 +4,8 @@
  APIs
 ######
 
-anemoi-inference support theree differents APIs to generate a forecast:
+``anemoi-inference`` supports three differents APIs to generate a
+forecast:
 
 -  NumPy to NumPy API (see :ref:`api_level1`)
 -  Object oriented API (see :ref:`api_level2`)
