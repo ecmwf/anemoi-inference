@@ -224,14 +224,23 @@ class NetCDFOutput(Output):
 
         # TODO: this should already be available in the checkpoint
         output_template: Optional[str] = getattr(
-            self.context.development_hacks, "output_template"
+            self.context.development_hacks, "output_template", None
+        )
+
+        input_field_shape: Optional[tuple[int, int]] = getattr(
+            self.context.development_hacks, "field_shape", None
         )
 
         if output_template is not None:
             LOG.info(output_template)
             with xr.open_zarr(output_template, consolidated=False) as template:
-                self.field_shape = template.field_shape
-                (y_size, x_size) = template.field_shape
+                if input_field_shape is not None:
+                    assert len(input_field_shape) == 2, "Expected 2D field shape (y, x)"
+                    self.field_shape = input_field_shape
+                    (y_size, x_size) = self.field_shape
+                else:
+                    self.field_shape = template.field_shape
+                    (y_size, x_size) = self.field_shape
 
                 lats = np.reshape(template.latitudes.values, self.field_shape)
                 lons = np.reshape(template.longitudes.values, self.field_shape)
