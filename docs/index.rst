@@ -113,6 +113,7 @@ Get more information in the :ref:`installing <installing>` section.
    :hidden:
    :caption: User Guide
 
+   usage/optimisation
    inference/parallel
    inference/external-graph
    inference/input-types
@@ -133,10 +134,13 @@ Get more information in the :ref:`installing <installing>` section.
 
    cli/introduction
    cli/run
+   cli/couple
+   cli/retrieve
    cli/metadata
    cli/validate
    cli/inspect
    cli/patch
+   cli/sanitise
    cli/requests
 
 .. toctree::
