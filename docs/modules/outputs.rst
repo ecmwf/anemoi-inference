@@ -1,3 +1,5 @@
+.. _modules-outputs:
+
 #########
  outputs
 #########
