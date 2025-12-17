@@ -63,3 +63,11 @@ Currently, ``anemoi-inference`` supports the Copernicus Data Store
 
    Once the plugin is installed, you can use the `opendata` input
    source.
+
+.. seealso::
+
+   - :ref:`usage-quickstart` - Quickstart guide with basic input examples
+   - :ref:`inputs` - Input configuration reference
+   - :ref:`modules-inputs` - Input modules API documentation
+   - :ref:`retrieve-command` - Generate data retrieval requests
+   - :ref:`usage-advanced-saving` - Output configuration options

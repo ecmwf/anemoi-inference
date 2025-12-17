@@ -19,3 +19,10 @@ by specifying the checkpoint as follows:
    .. code:: bash
 
       pip install huggingface_hub
+
+.. seealso::
+
+    - :ref:`usage-quickstart` - Quickstart guide
+    - :ref:`run-command` - Run command documentation
+    - :ref:`inspect-command` - Inspect checkpoint metadata
+    - :ref:`sanitise-command` - Sanitise checkpoints before sharing

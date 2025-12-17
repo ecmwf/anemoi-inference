@@ -16,7 +16,7 @@ To install the package, you can use the following command:
 
 .. code:: bash
 
-   git clone ...
+   git clone git@github.com:ecmwf/anemoi-inference.git
    cd anemoi-inference
    pip install .[dev]
    pip install -r docs/requirements.txt

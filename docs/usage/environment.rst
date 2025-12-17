@@ -40,3 +40,10 @@ This is of particular importance for the following packages:
    .. code:: bash
 
       anemoi-inference inspect --requirements /path/to/inference-last.ckpt
+
+.. seealso::
+
+   - :ref:`installing` - Installation instructions
+   - :ref:`inspect-command` - Inspect checkpoint metadata and requirements
+   - :ref:`usage-quickstart` - Quickstart guide
+   - :ref:`usage-optimisation` - Performance optimisation tips
