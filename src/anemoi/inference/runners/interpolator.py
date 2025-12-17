@@ -23,7 +23,7 @@ from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import State
 
-from ..forcings import ComputedForcings
+from ..forcings import ComputedInterpForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
@@ -155,12 +155,12 @@ class TimeInterpolatorRunner(DefaultRunner):
     def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
-        prognostic_state = prognostic_input.create_input_state(date=date, **kwargs)
+        prognostic_state = prognostic_input.create_input_state(date=date, start_date=self.config.date, **kwargs)
         self._check_state(prognostic_state, "prognostics")
 
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info("📥 Dynamic forcings input: %s", forcings_input)
-        forcings_state = forcings_input.create_input_state(date=date, **kwargs)
+        forcings_state = forcings_input.create_input_state(date=date, start_date=self.config.date, **kwargs)
         self._check_state(forcings_state, "dynamic_forcings")
 
         input_state = self._combine_states(
@@ -212,6 +212,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
+            input_state['date'] = input_state['date'][0]
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
 
                 # In the first window, we want to write the initial state (t=0)
@@ -245,12 +246,10 @@ class TimeInterpolatorRunner(DefaultRunner):
             The input state.
         """
         # Should that be alreay a list of dates
-        breakpoint()
         date = input_state["date"]
         fields = input_state["fields"]
 
-        dates = [self.config.date, self.config.date]
-        dynamic_dates = [date + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.checkpoint.lagged]
 
         # For output object. Should be moved elsewhere
         self.reference_date = self.reference_date or date
@@ -274,6 +273,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
+            import ipdb; ipdb.set_trace()
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -283,8 +283,8 @@ class TimeInterpolatorRunner(DefaultRunner):
                     self.trace.from_source(name, source, "initial constant forcings")
 
         for source in initial_dynamic_forcings_inputs:
-            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dynamic_dates)
-            arrays = source.load_forcings_array(dynamic_dates, input_state)
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
@@ -307,7 +307,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         List[Forcings]
             The created bounding target forcings.
         """
-        result = ComputedForcings(self, variables, mask)
+        result = ComputedInterpForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 

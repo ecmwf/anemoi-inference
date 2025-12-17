@@ -152,7 +152,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(self, data: Any, *, dates: list[Any], title: str) -> Any:
+    def _filter_and_sort(self, data: Any, *, dates: list[Any], title: str, **kwargs) -> Any:
         """Filter and sort the data (earthkit FieldList/FieldArray).
 
         Parameters
@@ -181,10 +181,23 @@ class EkdInput(Input):
         # for f in data:
         #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
 
-        data = data.sel(name=self.variables, valid_datetime=valid_datetime).order_by(
-            name=self.variables,
-            valid_datetime="ascending",
-        )
+        try:
+            start_date = kwargs.pop('start_date')
+        except:
+            start_date = None
+        # todo: need to put in a statement which basically deselects the analysis if the forecast exists
+        # (maybe only in time interpolator world) 
+        # could maybe be an if statement based on forecast step greater than 0 but if the date
+        if start_date != None:
+            data = data.sel(name=self.variables, valid_datetime=valid_datetime, dataDate=int(start_date.strftime("%Y%m%d")), dataTime=int(start_date.strftime("%H%M%S"))).order_by(
+                name=self.variables,
+                valid_datetime="ascending",
+            )
+        else:
+             data = data.sel(name=self.variables, valid_datetime=valid_datetime).order_by(
+                name=self.variables,
+                valid_datetime="ascending",
+            )           
 
         check_data(title, data, self.variables, dates, self.context.checkpoint)
 
@@ -219,6 +232,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        **kwargs
     ) -> State:
         """Create a state from an ekd.FieldList.
 
@@ -242,7 +256,7 @@ class EkdInput(Input):
         dtype : DTypeLike
             The data type.
         flatten : bool
-            Whether to flatten the data.
+            Whether to flatten the data. 
 
         Returns
         -------
@@ -288,7 +302,7 @@ class EkdInput(Input):
 
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
+        fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
 
         check = defaultdict(set)
 
@@ -352,6 +366,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        **kwargs
     ) -> State:
         """Create the input state.
 
@@ -371,7 +386,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-
         Returns
         -------
         State
@@ -383,6 +397,7 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
+        import ipdb; ipdb.set_trace()
         dates = [date + h for h in self.checkpoint.lagged]
 
         return self._create_state(
@@ -392,6 +407,7 @@ class EkdInput(Input):
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
+            **kwargs
         )
 
     def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:

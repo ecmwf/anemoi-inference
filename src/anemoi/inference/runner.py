@@ -266,6 +266,7 @@ class Runner(Context):
 
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
+                import ipdb; ipdb.set_trace()
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
