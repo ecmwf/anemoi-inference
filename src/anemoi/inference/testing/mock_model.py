@@ -15,7 +15,7 @@ from anemoi.utils.config import DotDict
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.config import LOG
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import MetadataFactory
 from anemoi.inference.testing import float_hash
 
 
@@ -35,7 +35,7 @@ class MockModelBase(torch.nn.Module):
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
         self.output_shape = (1, 1, self.grid_size, self.features_out)
 
-        checkpoint = Checkpoint(Metadata(metadata))
+        checkpoint = Checkpoint(MetadataFactory(metadata))
         self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
 
