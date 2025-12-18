@@ -1,0 +1,2 @@
+input:
+  netcdf: /path/to/netcdf/file.nc
