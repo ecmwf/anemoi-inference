@@ -32,6 +32,8 @@ SLURM_MAPPING = EnvMapping(
 class SlurmCluster(MappingCluster):
     """Slurm cluster that uses SLURM environment variables for distributed setup."""
 
+    priority: int = 10  # Higher priority than other clusters to prevent conflicts with MPI etc.
+
     _master_addr: str | None = None
     _master_port: int | None = None
 

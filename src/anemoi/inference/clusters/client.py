@@ -47,6 +47,9 @@ class ComputeClient:
 class ComputeClientFactory(ABC):
     """Abstract factory class for compute client creation."""
 
+    priority: int = 0
+    """Priority of the cluster client. Higher values indicate higher priority."""
+
     def create_client(self) -> ComputeClient:
         """Create and return a ComputeClient instance."""
         return ComputeClient(

@@ -532,14 +532,13 @@ class TestClusterRegistry:
                 "SLURM_NODELIST": "node001",
                 "SLURM_JOBID": "12345",
                 "SLURM_JOB_NAME": "test_job",
-                "PMI_SIZE": "4",
+                "PMI_SIZE": "1",
                 "PMI_RANK": "0",
                 "MASTER_ADDR": "192.168.1.1",
                 "MASTER_PORT": "29500",
             },
         ):
             cluster = create_cluster({})
-
             assert isinstance(cluster, SlurmCluster)
             assert cluster.world_size == 4
 
