@@ -1,0 +1,36 @@
+# Optional description
+description: "Atmosphere-Ocean Coupled Run"
+
+# Global settings applied to all tasks
+date: 2025-01-01T00
+lead_time: 240
+
+# Transport mechanism
+transport:
+  threads: ~  # or 'processes', 'mpi', etc.
+
+# Individual tasks
+tasks:
+  atmosphere:
+    checkpoint: /path/to/atmos.ckpt
+    input:
+      grib: /path/to/atmos_ic.grib
+    output:
+      grib: /path/to/atmos_output.grib
+
+  ocean:
+    checkpoint: /path/to/ocean.ckpt
+    input:
+      grib: /path/to/ocean_ic.grib
+    output:
+      grib: /path/to/ocean_output.grib
+
+# Coupling specifications
+couplings:
+  - from: atmosphere
+    to: ocean
+    variables: [sst, sss]  # Variables to exchange
+
+  - from: ocean
+    to: atmosphere
+    variables: [u10, v10]

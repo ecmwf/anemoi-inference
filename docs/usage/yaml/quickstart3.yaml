@@ -1,0 +1,8 @@
+checkpoint:
+  ecmwf: aifs-single-1.1
+
+lead_time: 72
+date: 2025-01-01T00
+
+input: cds
+output: printer

@@ -1,4 +1,4 @@
-checkpoint: inference-aifs-0.2.1-anemoi.ckpt
+checkpoint: inference-anemoi.ckpt
 
 date: 2024-01-31T00:00:00
 

@@ -1,8 +1,8 @@
-.. _api_level3:
+.. _usage-advanced-cli:
 
-##################
- Command line API
-##################
+###########################
+ Advanced Command line Use
+###########################
 
 You can run the inference from the command line using the
 :ref:`anemoi-inference run <run-command>` command.
@@ -10,12 +10,12 @@ You can run the inference from the command line using the
 You must first create a configuration file in YAML format. The simplest
 configuration must contain the path to the checkpoint:
 
-.. literalinclude:: code/level3_1.yaml
+.. literalinclude:: yaml/cli1.yaml
    :language: yaml
 
 Then you can run the inference with the following command:
 
-.. literalinclude:: code/level3_1.sh
+.. literalinclude:: code/cli1.sh
    :language: bash
 
 The other entries in the configuration file are optional, and will be
@@ -23,7 +23,7 @@ substituted by the default values if not provided.
 
 You can also override values by providing them on the command line:
 
-.. literalinclude:: code/level3_2.sh
+.. literalinclude:: code/cli2.sh
    :language: bash
 
 Overrides are parsed as an `OmegaConf
@@ -34,26 +34,26 @@ dotlist, so list items can be accessed with ``list.index`` or
 You can also run entirely from the command line without a config file,
 by passing all required options as an override:
 
-.. literalinclude:: code/level3_3.sh
+.. literalinclude:: code/cli3.sh
    :language: bash
 
 The configuration below shows how to run the inference from the data
 that was used to train the model, by setting ``dataset`` entry to
 ``true``:
 
-.. literalinclude:: code/level3_2.yaml
+.. literalinclude:: yaml/cli2.yaml
    :language: yaml
 
 Below is an example of how to override list entries and append to lists
 on the command line by using the dotlist notation. Running inference
 with following command:
 
-.. literalinclude:: code/level3_4.sh
+.. literalinclude:: code/cli4.sh
    :language: bash
 
 together with configuration file:
 
-.. literalinclude:: code/level3_3.yaml
+.. literalinclude:: yaml/cli3.yaml
    :language: yaml
 
 will overide the first entry in the ``input.dataset.cutout`` list with
@@ -63,7 +63,7 @@ append the dictionary ``{"dataset": "./lbc_20240131_00.zarr"}`` to it.
 The configuration below shows how to provide run the inference for a
 checkpoint that was trained with one the ICON grid:
 
-.. literalinclude:: code/level3_4.yaml
+.. literalinclude:: yaml/cli4.yaml
    :language: yaml
 
 See :ref:`run-command` for more details on the configuration file.
@@ -72,3 +72,11 @@ See :ref:`run-command` for more details on the configuration file.
 
    This is still work in progress, and content of the YAML configuration
    files will change and the examples above may not work in the future.
+
+.. seealso::
+
+   - :ref:`run-command` - Run command documentation
+   - :ref:`config_introduction` - Configuration file reference
+   - :ref:`usage-quickstart` - Quickstart guide
+   - :ref:`usage-advanced-sources` - Input data sources
+   - :ref:`usage-advanced-saving` - Output configuration
