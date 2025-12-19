@@ -534,8 +534,6 @@ class TestClusterRegistry:
                 "SLURM_JOB_NAME": "test_job",
                 "PMI_SIZE": "1",
                 "PMI_RANK": "0",
-                "MASTER_ADDR": "192.168.1.1",
-                "MASTER_PORT": "29500",
             },
         ):
             cluster = create_cluster({})
