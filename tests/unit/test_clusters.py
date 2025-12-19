@@ -178,7 +178,7 @@ class TestSlurmCluster:
             assert not SlurmCluster.used()
 
         # In Slurm environment
-        with patch.dict(os.environ, {"SLURM_NTASKS": "4", "SLURM_JOB_NAME": "test_job"}):
+        with patch.dict(os.environ, {"SLURM_NTASKS": "4", "SLURM_JOB_NAME": "test_job", "SLURM_LOCALID": "1"}):
             assert SlurmCluster.used()
 
         # Slurm but interactive shell (should not be used)
@@ -280,13 +280,17 @@ class TestMPICluster:
         with patch.dict(os.environ, {}, clear=True):
             assert not MPICluster.used()
 
-        # In MPI environment (OpenMPI)
-        with patch.dict(os.environ, {"OMPI_COMM_WORLD_SIZE": "4"}):
-            assert MPICluster.used()
+        with patch.dict(os.environ, {"MASTER_ADDR": "localhost", "MASTER_PORT": "29500"}):
+            # In MPI environment (OpenMPI)
+            with patch.dict(
+                os.environ,
+                {"OMPI_COMM_WORLD_SIZE": "4", "OMPI_COMM_WORLD_RANK": "0", "OMPI_COMM_WORLD_LOCAL_RANK": "0"},
+            ):
+                assert MPICluster.used()
 
-        # In MPI environment (PMI)
-        with patch.dict(os.environ, {"PMI_SIZE": "4"}):
-            assert MPICluster.used()
+            # In MPI environment (PMI)
+            with patch.dict(os.environ, {"PMI_SIZE": "4", "PMI_RANK": "0"}):
+                assert MPICluster.used()
 
     def test_mpi_cluster_initialization(self):
         """Test MPICluster initialization."""
@@ -320,7 +324,10 @@ class TestDistributedCluster:
             assert not DistributedCluster.used()
 
         # In distributed environment (torchrun)
-        with patch.dict(os.environ, {"RANK": "3", "WORLD_SIZE": "4"}):
+        with patch.dict(
+            os.environ,
+            {"RANK": "3", "WORLD_SIZE": "4", "LOCAL_RANK": "1", "MASTER_ADDR": "localhost", "MASTER_PORT": "29500"},
+        ):
             assert DistributedCluster.used()
 
     def test_distributed_cluster_initialization(self):
@@ -496,6 +503,23 @@ class TestClusterRegistry:
 
             assert isinstance(cluster, SlurmCluster)
             assert cluster.world_size == 4
+
+    def test_create_cluster_mpi_detection(self):
+        """Test create_cluster with MPI detection."""
+        with patch.dict(
+            os.environ,
+            {
+                "OMPI_COMM_WORLD_SIZE": "8",
+                "OMPI_COMM_WORLD_RANK": "0",
+                "OMPI_COMM_WORLD_LOCAL_RANK": "0",
+                "MASTER_ADDR": "192.168.1.1",
+                "MASTER_PORT": "29500",
+            },
+        ):
+            cluster = create_cluster({})
+
+            assert isinstance(cluster, MPICluster)
+            assert cluster.world_size == 8
 
     def test_create_cluster_no_suitable_cluster(self):
         """Test create_cluster when no suitable cluster found."""

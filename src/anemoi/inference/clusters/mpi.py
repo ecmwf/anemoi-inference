@@ -43,7 +43,7 @@ class MPICluster(MappingCluster):
 
     @classmethod
     def used(cls) -> bool:
-        return bool(MPI_MAPPING.get_env("world_size"))
+        return MPI_MAPPING.is_set()
 
     @property
     def backend(self) -> str:
