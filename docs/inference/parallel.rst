@@ -81,6 +81,22 @@ The following cluster types are automatically detected:
       -  ``RANK``, ``LOCAL_RANK``, ``WORLD_SIZE``, ``MASTER_ADDR``,
          ``MASTER_PORT``
 
+If multiple cluster types are detected, the automatic detection can be
+overridden by specifying the desired cluster type explicitly in the
+config file:
+
+.. code:: yaml
+
+   runner:
+      parallel:
+         cluster: slurm  # Force use of SlurmCluster
+
+Additionally, clusters come with a priority system to avoid conflicts when
+multiple cluster types are detected. For example, the Slurm cluster has
+a higher priority than the MPI cluster to prevent false detections when
+running under Slurm with MPI.
+
+
 Manual Cluster Configuration
 ============================
 
