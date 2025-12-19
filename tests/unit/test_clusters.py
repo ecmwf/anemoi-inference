@@ -521,6 +521,28 @@ class TestClusterRegistry:
             assert isinstance(cluster, MPICluster)
             assert cluster.world_size == 8
 
+    def test_create_cluster_slurm_with_pmi_set(self):
+        """Test create_cluster with Slurm detection when PMI variables are set."""
+        with patch.dict(
+            os.environ,
+            {
+                "SLURM_NTASKS": "4",
+                "SLURM_PROCID": "0",
+                "SLURM_LOCALID": "0",
+                "SLURM_NODELIST": "node001",
+                "SLURM_JOBID": "12345",
+                "SLURM_JOB_NAME": "test_job",
+                "PMI_SIZE": "4",
+                "PMI_RANK": "0",
+                "MASTER_ADDR": "192.168.1.1",
+                "MASTER_PORT": "29500",
+            },
+        ):
+            cluster = create_cluster({})
+
+            assert isinstance(cluster, SlurmCluster)
+            assert cluster.world_size == 4
+
     def test_create_cluster_no_suitable_cluster(self):
         """Test create_cluster when no suitable cluster found."""
         with patch.dict(os.environ, {}, clear=True):
