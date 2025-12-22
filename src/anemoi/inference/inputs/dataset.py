@@ -86,7 +86,6 @@ class DatasetInput(Input):
         from anemoi.datasets import open_dataset
 
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
-        print(type(dataset))
 
         # TODO: skip this if the dataset is ZipBase?
         if self.variables is not None:

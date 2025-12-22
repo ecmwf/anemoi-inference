@@ -11,8 +11,6 @@
 import datetime
 import logging
 import os
-import sys
-import traceback
 import warnings
 from collections import defaultdict
 from collections.abc import Callable, Iterator
@@ -606,9 +604,6 @@ class Metadata(PatchMixin, LegacyMixin):
         variable_categories = self.variable_categories()
         result = []
 
-        traceback.print_stack(file=sys.stdout)
-        print(variable_categories)
-
         def parse_category(categories: list[str] | None) -> set:
             if categories is None:
                 return set()
@@ -626,19 +621,12 @@ class Metadata(PatchMixin, LegacyMixin):
 
         def match(categories, variable_categories, variable):
             for c in categories:
-                print(c, variable_categories)
                 if c.issubset(variable_categories):
                     return True
             return False
 
-        print(include)
-        print(exclude)
-
         include_set = parse_category(include)
         exclude_set = parse_category(exclude)
-
-        print(include_set)
-        print(exclude_set)
 
         if include_set is not None and exclude_set is not None:
             if not include_set.isdisjoint(exclude_set):
@@ -659,16 +647,11 @@ class Metadata(PatchMixin, LegacyMixin):
                 continue
 
             if exclude_set is not None and match(exclude_set, categories, variable):
-                print(f"{variable} excluded")
                 continue
 
             if include_set is None or match(include_set, categories, variable):
                 result.append(variable)
-                print(f"{variable} included")
-            else:
-                print(f"{variable} skipped")
 
-        print("metadata.select_variables", result)
         return result
 
     def variables_mask(self, *, variables: list[str]) -> IntArray:

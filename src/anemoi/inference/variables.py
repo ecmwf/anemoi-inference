@@ -20,12 +20,6 @@ class Variables:
         runner : Any
             The runner object containing the checkpoint.
         """
-        print()
-        print("Variables __init__")
-        print(type(runner))
-        print(type(runner.checkpoint))
-        print(type(runner.checkpoint._metadata))
-        print()
 
         self.runner = runner
         self.checkpoint = runner.checkpoint
@@ -56,7 +50,6 @@ class Variables:
         result = self.checkpoint.select_variables(
             **self.default_runner_input_variables_include_exclude(),
         )
-        print("default_input_variables", result)
         return result
 
     def default_input_variables_and_mask(self) -> Any:
@@ -99,7 +92,6 @@ class Variables:
         result = self.checkpoint.select_variables(
             **self.retrieved_constant_forcings_variables_include_exclude(),
         )
-        print("retrieved_prognostic_variables", result)
         return result
 
     def retrieved_constant_forcings_variables_and_mask(self) -> Any:
@@ -140,7 +132,6 @@ class Variables:
         result = self.checkpoint.select_variables(
             **self.retrieved_prognostic_variables_include_exclude(),
         )
-        print("retrieved_prognostic_variables", result)
         return result
 
     def retrieved_prognostic_variables_and_mask(self) -> Any:
@@ -182,7 +173,6 @@ class Variables:
         result = self.checkpoint.select_variables(
             **self.computed_constant_forcings_variables_include_exclude(),
         )
-        print("computed_constant_forcings_variables", result)
         return result
 
     def computed_constant_forcings_variables_and_mask(self) -> Any:
@@ -225,7 +215,6 @@ class Variables:
         result = self.checkpoint.select_variables(
             **self.retrieved_dynamic_forcings_variables_include_exclude(),
         )
-        print("retrieved_dynamic_forcings_variables", result)
         return result
 
     def retrieved_dynamic_forcings_variables_and_mask(self) -> Any:
