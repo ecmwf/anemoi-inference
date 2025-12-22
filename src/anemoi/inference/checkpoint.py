@@ -314,7 +314,9 @@ class Checkpoint:
             True if environment is valid, False otherwise
         """
         return self._metadata.validate_environment(
-            all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+            all_packages=all_packages,
+            on_difference=on_difference,
+            exempt_packages=exempt_packages,
         )
 
     def open_dataset(
@@ -379,7 +381,11 @@ class Checkpoint:
         return self._metadata.name_fields(fields, namer=namer)
 
     def sort_by_name(
-        self, fields: ekd.FieldList, *args: Any, namer: Callable[..., str] | None = None, **kwargs: Any
+        self,
+        fields: ekd.FieldList,
+        *args: Any,
+        namer: Callable[..., str] | None = None,
+        **kwargs: Any,
     ) -> ekd.FieldList:
         """Sort fields by name.
 
@@ -423,7 +429,7 @@ class Checkpoint:
         return self._metadata.variable_categories()
 
     def select_variables(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None, has_mars_requests: bool = True
+        self, *, include: list[str] | None = None, exclude: list[str] | None = None, has_mars_requests: bool = False
     ) -> list[str]:
         """Get variables from input.
 
@@ -443,7 +449,6 @@ class Checkpoint:
 
         """
         result = self._metadata.select_variables(include=include, exclude=exclude, has_mars_requests=has_mars_requests)
-        print("checkpoint.select_variables", result)
         return result
 
     def select_variables_and_masks(
@@ -584,7 +589,10 @@ class Checkpoint:
 
         # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
         # The split oper/scda is a bit special
-        KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
+        KEYS = {
+            ("oper", "fc"): DEFAULT_KEYS_AND_TIME,
+            ("scda", "fc"): DEFAULT_KEYS_AND_TIME,
+        }
 
         requests = defaultdict(list)
         for r in self._metadata.mars_requests(variables=variables):

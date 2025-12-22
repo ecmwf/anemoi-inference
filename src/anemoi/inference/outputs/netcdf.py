@@ -219,7 +219,6 @@ class NetCDFOutput(Output):
             var.standard_name = "forecast_reference_time"
 
             # TODO: make sure this is right?
-            print(state.keys())
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
         # TODO: this should already be available in the checkpoint
@@ -381,11 +380,13 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                # value has shape (n_members, values), we need to reshape to (n_members, *field_shape)
-                # TODO: what if there's on n_members?
+                # value has shape (n_members, values), we need to reshape to (n_members, y_dim, x_dim)
                 field = np.reshape(value, (-1, *self.field_shape))
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
                 self.vars[name][self.n, 0, ...] = field
+
+        # TODO: should this be synced here to avoid possible loss of data if job is interrupted?
+        # self.ncfile.sync()
 
         self.n += 1
 
