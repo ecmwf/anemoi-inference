@@ -1,4 +1,4 @@
-.. _usage-external-graph:
+.. _external-graph:
 
 ###################################
  Inference using an external graph
@@ -91,3 +91,10 @@ adventurous use-case this check can be disabled through the config as:
    degraded model performance. Therefore, it is important to be cautious
    with the normalisation of edge attributes when working with external
    graphs.
+
+.. seealso::
+
+   - :ref:`run-command` - Run command documentation
+   - :ref:`config_introduction` - Configuration file reference
+   - :ref:`parallel-inference` - Parallel inference for large models
+   - :ref:`usage-environment` - Environment setup and version compatibility

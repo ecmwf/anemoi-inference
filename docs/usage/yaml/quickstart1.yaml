@@ -1,0 +1,18 @@
+# Path to checkpoint
+checkpoint: PATH/TO/CKPT
+
+# Lead time in hours
+lead_time: 72
+
+# Date to initialise from
+date: 2025-01-01T00
+
+# Input source
+input:
+  dataset: test
+# Can be cds, mars, grib, dataset (anemoi), fdb, dummy, etc.
+
+# Output
+output:
+  printer
+# Can be grib, netcdf, zarr, printer, plot, etc.
