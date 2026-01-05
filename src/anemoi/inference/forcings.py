@@ -247,6 +247,35 @@ class CoupledForcings(Forcings):
     def __repr__(self) -> str:
         """Return a string representation of the CoupledForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
+    
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
+        """Load the forcings for the given dates.
+
+        Parameters
+        ----------
+        dates : List[Any]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        FloatArray
+            The loaded forcings as a numpy array.
+        """
+        breakpoint()
+        return self._state_to_numpy(
+            self.input.load_forcings_state(
+                dates=dates,
+                current_state=current_state,
+            ),
+            self.variables,
+            dates,
+        )
+
+
+class CoupledInterpForcings(CoupledForcings):
+    """Retrieve forcings from the input for interpolator."""
 
     def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the forcings for the given dates.
@@ -278,6 +307,9 @@ class ConstantForcings(CoupledForcings):
     # Just to have a different __repr__
     pass
 
+class ConstantInterpForcings(CoupledInterpForcings):
+    # Just to have a different __repr__
+    pass
 
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""

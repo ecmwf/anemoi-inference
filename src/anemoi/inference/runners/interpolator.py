@@ -21,9 +21,10 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.device import get_available_device
 from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
+from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..forcings import ComputedInterpForcings
+from ..forcings import ComputedInterpForcings, ConstantInterpForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
@@ -164,7 +165,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         self._check_state(forcings_state, "dynamic_forcings")
 
         self.constants_state['date'] = prognostic_state['date']
-        
+
         input_state = self._combine_states(
             prognostic_state,
             self.constants_state,
@@ -345,6 +346,27 @@ class TimeInterpolatorRunner(DefaultRunner):
             date = start_date + step
             is_last_step = s == steps - 1
             yield step, date, target_steps[s], is_last_step
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant coupled forcings.
+        """
+        input = self.create_constant_coupled_forcings_input()
+        result = ConstantInterpForcings(self, input, variables, mask)
+        LOG.info("Constant coupled forcing: %s", result)
+
+        return [result]
 
     def create_target_forcings(
         self, dates: datetime.datetime, state: State, input_tensor_torch: "torch.Tensor", interpolation_step: int
