@@ -191,7 +191,6 @@ class ComputedInterpForcings(ComputedForcings):
         FloatArray
             The loaded forcings as a numpy array.
         """
-        breakpoint()
         LOG.debug("Adding dynamic forcings %s", self.variables)
 
         if not isinstance(dates, (list, tuple)):
@@ -202,7 +201,6 @@ class ComputedInterpForcings(ComputedForcings):
             longitudes=current_state["longitudes"],
         )
 
-        breakpoint()
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
 
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
@@ -275,8 +273,6 @@ class CoupledForcings(Forcings):
             [datetime.datetime(2025, 1, 1, 0, 0)],
         )
         tmp_concat = np.concatenate([tmp, tmp], axis = 1)
-        
-        import ipdb; ipdb.set_trace()
         return tmp_concat
 
 

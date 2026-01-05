@@ -1003,7 +1003,6 @@ class Runner(Context):
                 field = fields[name] = field.reshape(1, field.shape[0])
 
             if field.shape != expected_shape:
-                import ipdb; ipdb.set_trace()
                 raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
 
             if np.isinf(field).any():

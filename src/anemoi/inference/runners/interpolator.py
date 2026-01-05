@@ -250,7 +250,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         dates = [date + h for h in self.checkpoint.lagged]
 
         # For output object. Should be moved elsewhere
-        import ipdb; ipdb.set_trace()
         self.reference_date = self.reference_date or date
         self.initial_dates = dates
 
