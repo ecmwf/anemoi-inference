@@ -397,7 +397,6 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        import ipdb; ipdb.set_trace()
         dates = [date + h for h in self.checkpoint.lagged]
 
         return self._create_state(

@@ -266,7 +266,6 @@ class Runner(Context):
 
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
-                import ipdb; ipdb.set_trace()
                 input_tensor = self.prepare_input_tensor(input_state)
 
             try:
@@ -1004,6 +1003,7 @@ class Runner(Context):
                 field = fields[name] = field.reshape(1, field.shape[0])
 
             if field.shape != expected_shape:
+                import ipdb; ipdb.set_trace()
                 raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
 
             if np.isinf(field).any():

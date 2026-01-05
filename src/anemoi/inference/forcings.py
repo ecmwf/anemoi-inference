@@ -13,6 +13,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Any
 
+import datetime
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
@@ -264,15 +265,19 @@ class CoupledForcings(Forcings):
         FloatArray
             The loaded forcings as a numpy array.
         """
-        breakpoint()
-        return self._state_to_numpy(
+        
+        tmp = self._state_to_numpy(
             self.input.load_forcings_state(
-                dates=dates,
+                dates=[datetime.datetime(2025, 1, 1, 0, 0)],
                 current_state=current_state,
             ),
             self.variables,
-            dates,
+            [datetime.datetime(2025, 1, 1, 0, 0)],
         )
+        tmp_concat = np.concatenate([tmp, tmp], axis = 1)
+        
+        import ipdb; ipdb.set_trace()
+        return tmp_concat
 
 
 class ConstantForcings(CoupledForcings):

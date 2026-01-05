@@ -89,7 +89,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         )
 
         self.multi_step_input = 2
-        self.constants_input = None
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
@@ -158,6 +157,11 @@ class TimeInterpolatorRunner(DefaultRunner):
         prognostic_state = prognostic_input.create_input_state(date=date, start_date=self.config.date, **kwargs)
         self._check_state(prognostic_state, "prognostics")
 
+        constants_input = self.create_constant_coupled_forcings_input()
+        LOG.info("📥 Constant forcings input: %s", constants_input)
+        constants_state = constants_input.create_input_state(date=date)
+        #self._check_state(self.constants_state, "constant_forcings")
+
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info("📥 Dynamic forcings input: %s", forcings_input)
         forcings_state = forcings_input.create_input_state(date=date, start_date=self.config.date, **kwargs)
@@ -165,7 +169,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         input_state = self._combine_states(
             prognostic_state,
-            self.constants_state,
+            constants_state,
             forcings_state,
         )
 
@@ -192,12 +196,6 @@ class TimeInterpolatorRunner(DefaultRunner):
                 self.interpolation_window,
                 num_windows * self.interpolation_window,
             )
-
-        if self.constants_input is None:
-            self.constants_input = self.create_constant_coupled_forcings_input()
-            LOG.info("📥 Constant forcings input: %s", self.constants_input)
-            self.constants_state = self.constants_input.create_input_state(date=self.config.date)
-            #self._check_state(self.constants_state, "constant_forcings")
 
         # Process each interpolation window
         for window_idx in range(num_windows):
@@ -252,6 +250,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         dates = [date + h for h in self.checkpoint.lagged]
 
         # For output object. Should be moved elsewhere
+        import ipdb; ipdb.set_trace()
         self.reference_date = self.reference_date or date
         self.initial_dates = dates
 
@@ -273,7 +272,6 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            import ipdb; ipdb.set_trace()
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
