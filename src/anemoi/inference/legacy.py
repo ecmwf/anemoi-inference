@@ -45,7 +45,6 @@ def warn(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 class LegacyMixin(MetadataProtocol):
-
     # `self` is a `Metadata` object
 
     @warn

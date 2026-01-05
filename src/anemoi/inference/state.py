@@ -44,7 +44,7 @@ def check_state(state: State, title: str = "<state>") -> None:
             shape = values.shape
         elif shape != values.shape:
             raise ValueError(
-                f"Field '{field}' in state '{title}' has different shape: " f"{shape} and {values.shape} ({input=})."
+                f"Field '{field}' in state '{title}' has different shape: {shape} and {values.shape} ({input=})."
             )
 
     date = state.get("date")
@@ -77,7 +77,6 @@ def combine_states(*states: State) -> State:
     first_input = combined.get("_input")
 
     for state in states[1:]:
-
         this_input = state.get("_input")
 
         for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
@@ -114,7 +113,7 @@ def combine_states(*states: State) -> State:
 
             if type(combined[key]) is not type(value):
                 raise ValueError(
-                    f"Key '{key}' has different types in the states: " f"{type(combined[key])} and {type(value)}."
+                    f"Key '{key}' has different types in the states: {type(combined[key])} and {type(value)}."
                 )
 
             if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):

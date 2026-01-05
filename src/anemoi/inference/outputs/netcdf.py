@@ -12,17 +12,21 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 import numpy as np
 import pyproj
 import xarray as xr
-from netCDF4 import Dataset, Variable
+from netCDF4 import Dataset
+from netCDF4 import Variable
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import ProcessorConfig, State
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
-from ..decorators import ensure_path, main_argument
+from ..decorators import ensure_path
+from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
 
@@ -99,9 +103,7 @@ class NetCDFOutput(Output):
 
         # timestep number
         self.n = 0
-        self.proj_str: Optional[str] = getattr(
-            self.context.development_hacks, "projection_string", None
-        )
+        self.proj_str: Optional[str] = getattr(self.context.development_hacks, "projection_string", None)
         self.members = getattr(self.context.development_hacks, "n_members", 1)
 
         # TODO: is something like this available somewhere inside state?
@@ -222,13 +224,9 @@ class NetCDFOutput(Output):
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
         # TODO: this should already be available in the checkpoint
-        output_template: Optional[str] = getattr(
-            self.context.development_hacks, "output_template", None
-        )
+        output_template: Optional[str] = getattr(self.context.development_hacks, "output_template", None)
 
-        input_field_shape: Optional[tuple[int, int]] = getattr(
-            self.context.development_hacks, "field_shape", None
-        )
+        input_field_shape: Optional[tuple[int, int]] = getattr(self.context.development_hacks, "field_shape", None)
 
         if output_template is not None:
             LOG.info(output_template)
@@ -248,9 +246,7 @@ class NetCDFOutput(Output):
                     self.ncfile.createDimension("y", y_size)
                     self.ncfile.createDimension("x", x_size)
                     self.ncfile.createDimension("ensemble_member", self.members)
-                    var = self.ncfile.createVariable(
-                        "ensemble_member", "i4", ("ensemble_member",)
-                    )
+                    var = self.ncfile.createVariable("ensemble_member", "i4", ("ensemble_member",))
                     var[:] = np.arange(self.members, dtype=np.int32)
 
                 if self.proj_str is not None:
@@ -283,10 +279,7 @@ class NetCDFOutput(Output):
             var.units = "degrees_east"
             var[:] = lons
 
-        LOG.info(
-            f"Created NetCDF file {self.path} with dimensions: "
-            f"(time=unlimited, {log_str})"
-        )
+        LOG.info(f"Created NetCDF file {self.path} with dimensions: (time=unlimited, {log_str})")
 
     def _create_projections(self, lats, lons):
         assert self.ncfile is not None
@@ -295,9 +288,7 @@ class NetCDFOutput(Output):
         # Convert projection string to dictionary of attributes
         crs = pyproj.CRS.from_proj4(self.proj_str)
 
-        attrs = {
-            k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"
-        }
+        attrs = {k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"}
         attrs["earth_radius"] = 6_371_000.0
 
         x, y = self._get_projections(lats, lons)
@@ -342,9 +333,7 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.vars[name] = self._create_field_var(name)
 
-    def _get_projections(
-        self, lats: np.ndarray, lons: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def _get_projections(self, lats: np.ndarray, lons: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Reverse engineer x and y vectors from lats and lons."""
         assert self.proj_str is not None
 

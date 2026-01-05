@@ -64,7 +64,6 @@ class NoModelMixing:
 
     @cached_property
     def model(self) -> "torch.nn.Module":
-
         checkpoint = self.checkpoint
         number_of_output_variables = len(checkpoint.output_tensor_index_to_variable)
 

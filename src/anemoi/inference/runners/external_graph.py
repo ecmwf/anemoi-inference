@@ -258,11 +258,10 @@ class ExternalGraphRunner(DefaultRunner):
 
     @cached_property
     def graph(self):
-
         graph_path = self.graph_path
-        assert os.path.isfile(
-            graph_path
-        ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        assert os.path.isfile(graph_path), (
+            f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        )
         LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 

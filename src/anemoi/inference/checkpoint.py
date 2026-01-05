@@ -14,17 +14,21 @@ from collections import defaultdict
 from collections.abc import Callable
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
 import deprecation
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
-from earthkit.data.utils.dates import to_datetime, to_timedelta
+from earthkit.data.utils.dates import to_datetime
+from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference._version import __version__
-from anemoi.inference.types import DataRequest, Date
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
 
-from .metadata import Metadata, Variable
+from .metadata import Metadata
+from .metadata import Variable
 
 LOG = logging.getLogger(__name__)
 
@@ -43,11 +47,10 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
         Path to the downloaded model.
     """
     try:
-        from huggingface_hub import hf_hub_download, snapshot_download
+        from huggingface_hub import hf_hub_download
+        from huggingface_hub import snapshot_download
     except ImportError as e:
-        raise ImportError(
-            "Could not import `huggingface_hub`, please run `pip install huggingface_hub`."
-        ) from e
+        raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
 
     if isinstance(huggingface_config, str):
         huggingface_config = {"repo_id": huggingface_config}
@@ -263,9 +266,7 @@ class Checkpoint:
         """Get the sources."""
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
 
-    def default_namer(
-        self, *args: Any, **kwargs: Any
-    ) -> Callable[[ekd.Field, Any], str]:
+    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[[ekd.Field, Any], str]:
         """Return a callable that can be used to name fields.
 
         Parameters
@@ -337,9 +338,7 @@ class Checkpoint:
         Any
             The opened dataset.
         """
-        return self._metadata.open_dataset(
-            use_original_paths=use_original_paths, from_dataloader=from_dataloader
-        )
+        return self._metadata.open_dataset(use_original_paths=use_original_paths, from_dataloader=from_dataloader)
 
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: Any | None = None
@@ -428,9 +427,7 @@ class Checkpoint:
         """
         return self._metadata.variable_categories()
 
-    def select_variables(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None
-    ) -> list[str]:
+    def select_variables(self, *, include: list[str] | None = None, exclude: list[str] | None = None) -> list[str]:
         """Get variables from input.
 
         Parameters
@@ -468,9 +465,7 @@ class Checkpoint:
         List[str]
             The selected variables.
         """
-        return self._metadata.select_variables_and_masks(
-            include=include, exclude=exclude
-        )
+        return self._metadata.select_variables_and_masks(include=include, exclude=exclude)
 
     ###########################################################################
     def load_supporting_array(self, name: str) -> Any:
@@ -607,9 +602,7 @@ class Checkpoint:
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
 
-                r.update(
-                    kwargs
-                )  # We do it here so that the Availability can use that information
+                r.update(kwargs)  # We do it here so that the Availability can use that information
 
                 if always_split_time:
                     keys = DEFAULT_KEYS_AND_TIME
@@ -653,9 +646,7 @@ class Checkpoint:
                         try:
                             return shortname_to_paramid(x)
                         except KeyError:
-                            LOG.warning(
-                                "Could not convert shortname '%s' to paramid", x
-                            )
+                            LOG.warning("Could not convert shortname '%s' to paramid", x)
                             return x
 
                     if dont_fail_for_missing_paramid:
