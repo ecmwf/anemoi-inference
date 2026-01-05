@@ -12,7 +12,8 @@ import datetime
 import itertools
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -24,13 +25,11 @@ from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import IntArray
 
-from ..forcings import (
-    BoundaryForcings,
-    ComputedForcings,
-    ConstantForcings,
-    CoupledForcings,
-    Forcings,
-)
+from ..forcings import BoundaryForcings
+from ..forcings import ComputedForcings
+from ..forcings import ConstantForcings
+from ..forcings import CoupledForcings
+from ..forcings import Forcings
 from ..inputs import create_input
 from ..outputs import create_output
 from ..post_processors import create_post_processor
@@ -196,16 +195,12 @@ class DefaultRunner(Runner):
         LOG.info("Output: %s", output)
         return output
 
-    def create_constant_computed_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
@@ -254,9 +249,7 @@ class DefaultRunner(Runner):
         """
 
         variables = self.variables.retrieved_prognostic_variables()
-        config = (
-            self._input_forcings("prognostic_input", "input") if variables else "empty"
-        )
+        config = self._input_forcings("prognostic_input", "input") if variables else "empty"
         input = create_input(self, config, variables=variables, purpose="prognostics")
         LOG.info("Prognostic input: %s", input)
         return input
@@ -270,14 +263,8 @@ class DefaultRunner(Runner):
             The created constant coupled forcings input.
         """
         variables = self.variables.retrieved_constant_forcings_variables()
-        config = (
-            self._input_forcings("constant_forcings", "forcings", "input")
-            if variables
-            else "empty"
-        )
-        input = create_input(
-            self, config, variables=variables, purpose="constant_forcings"
-        )
+        config = self._input_forcings("constant_forcings", "forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables, purpose="constant_forcings")
         LOG.info("Constant coupled forcings input: %s", input)
         return input
 
@@ -290,14 +277,8 @@ class DefaultRunner(Runner):
             The created dynamic forcings input.
         """
         variables = self.variables.retrieved_dynamic_forcings_variables()
-        config = (
-            self._input_forcings("dynamic_forcings", "-forcings", "input")
-            if variables
-            else "empty"
-        )
-        input = create_input(
-            self, config, variables=variables, purpose="dynamic_forcings"
-        )
+        config = self._input_forcings("dynamic_forcings", "-forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables, purpose="dynamic_forcings")
         LOG.info("Dynamic forcings input: %s", input)
         return input
 
@@ -310,21 +291,13 @@ class DefaultRunner(Runner):
             The created boundary forcings input.
         """
         variables = self.variables.retrieved_prognostic_variables()
-        config = (
-            self._input_forcings("boundary_forcings", "-boundary", "forcings", "input")
-            if variables
-            else "empty"
-        )
-        input = create_input(
-            self, config, variables=variables, purpose="boundary_forcings"
-        )
+        config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
+        input = create_input(self, config, variables=variables, purpose="boundary_forcings")
         LOG.info("Boundary forcings input: %s", input)
         return input
 
     #########################################################################################################
-    def create_constant_coupled_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant coupled forcings.
 
         Parameters
@@ -345,9 +318,7 @@ class DefaultRunner(Runner):
 
         return [result]
 
-    def create_dynamic_coupled_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic coupled forcings.
 
         Parameters
@@ -367,9 +338,7 @@ class DefaultRunner(Runner):
         LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
+    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create boundary forcings.
 
         Parameters
@@ -442,9 +411,7 @@ class DefaultRunner(Runner):
         for state in states[1:]:
             this_input = state.get("_input")
 
-            for name, values in itertools.chain(
-                combined["fields"].items(), state.get("fields", {}).items()
-            ):
+            for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
                 if shape is None:
                     shape = values.shape
                 elif shape != values.shape:
@@ -479,13 +446,10 @@ class DefaultRunner(Runner):
 
                 if type(combined[key]) is not type(value):
                     raise ValueError(
-                        f"Key '{key}' has different types in the states: "
-                        f"{type(combined[key])} and {type(value)}."
+                        f"Key '{key}' has different types in the states: {type(combined[key])} and {type(value)}."
                     )
 
-                if isinstance(value, np.ndarray) and isinstance(
-                    combined[key], np.ndarray
-                ):
+                if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):
                     if not np.array_equal(combined[key], value):
                         raise ValueError(
                             f"Key '{key}' has different array values in the states: "
@@ -560,9 +524,7 @@ class DefaultRunner(Runner):
         input = state.get("_input")
 
         if "fields" not in state:
-            raise ValueError(
-                f"State '{title}' does not contain 'fields': {state} ({input=})"
-            )
+            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=})")
 
         shape = None
 
@@ -571,14 +533,11 @@ class DefaultRunner(Runner):
                 shape = values.shape
             elif shape != values.shape:
                 raise ValueError(
-                    f"Field '{field}' in state '{title}' has different shape: "
-                    f"{shape} and {values.shape} ({input=})."
+                    f"Field '{field}' in state '{title}' has different shape: {shape} and {values.shape} ({input=})."
                 )
 
         date = state.get("date")
         if date is None and len(state["fields"]) > 0:
             # date can be None for an empty input
             if not isinstance(date, datetime.datetime):
-                raise ValueError(
-                    f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})"
-                )
+                raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")

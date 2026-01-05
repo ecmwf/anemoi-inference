@@ -76,9 +76,9 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
         self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
-        assert (
-            self.config.write_initial_state
-        ), "Interpolator output should include temporal start state, end state and boundary conditions"
+        assert self.config.write_initial_state, (
+            "Interpolator output should include temporal start state, end state and boundary conditions"
+        )
 
         if hasattr(self.checkpoint._metadata._config_training, "target_forcing"):
             self.target_forcings = self.target_computed_forcings(
@@ -128,9 +128,9 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
-        req["time"] = f"{self.reference_date.hour*100:04d}"
+        req["time"] = f"{self.reference_date.hour * 100:04d}"
         req["step"] = (
-            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
+            f"0/to/{int(self.lead_time.total_seconds() // 3600)}/by/{int(self.interpolation_window.total_seconds() // 3600)}"
         )
         return super().patch_data_request(req)
 
@@ -221,7 +221,6 @@ class TimeInterpolatorRunner(DefaultRunner):
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
-
                 # In the first window, we want to write the initial state (t=0)
                 # In other windows, we want to skip the initial state (t=0)
                 # because it is written as the last state of the previous window

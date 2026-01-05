@@ -21,7 +21,8 @@ from anemoi.inference.inputs.grib import GribInput
 from anemoi.inference.outputs.grib import BaseGribOutput
 from anemoi.inference.runner import PRECISIONS as AUTOCAST
 from anemoi.inference.runners.plugin import PluginRunner
-from anemoi.inference.types import Date, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
@@ -96,9 +97,7 @@ class FieldListInput(GribInput):
             The input fields to use for setting attributes.
         """
         input_fields = input_fields.order_by("valid_datetime")
-        state["_grib_templates_for_output"] = {
-            field.metadata("name"): field for field in input_fields
-        }
+        state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
 
 
 class CallbackOutput(BaseGribOutput):
@@ -162,9 +161,7 @@ class AIModelPlugin(Model):
         """
         parser = argparse.ArgumentParser()
 
-        parser.add_argument(
-            "--checkpoint", required=not hasattr(self, "download_files")
-        )
+        parser.add_argument("--checkpoint", required=not hasattr(self, "download_files"))
         parser.add_argument(
             "--autocast",
             type=str,
@@ -197,9 +194,7 @@ class AIModelPlugin(Model):
         input_kwargs = self.input.anemoi_plugin_input_kwargs()
         output_kwargs = self.input.anemoi_plugin_input_kwargs()
 
-        input = FieldListInput(
-            self.runner, input_fields=self.all_fields, **input_kwargs
-        )
+        input = FieldListInput(self.runner, input_fields=self.all_fields, **input_kwargs)
         output = CallbackOutput(self.runner, write=self.write, **output_kwargs)
 
         input_state = input.create_input_state(date=self.start_datetime)

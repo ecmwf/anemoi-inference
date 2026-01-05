@@ -80,15 +80,12 @@ class HindcastOutput:
 
 
 class Matching:
-
     def __init__(self, config):
-
         self.conditions = {}
         for k, v in config.items():
             self.conditions[re.compile(k)] = v
 
     def patch(self, variable, request):
-
         for k, v in self.conditions.items():
             m = k.match(variable.name)
             if m:

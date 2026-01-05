@@ -46,7 +46,6 @@ def patch_function(target: Any, attribute: str, replacement: Any) -> Generator[N
 
 
 class PatchMixin(MetadataProtocol):
-
     # `self` is a `Metadata` object
 
     def patch_metadata(

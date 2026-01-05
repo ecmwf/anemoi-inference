@@ -196,7 +196,7 @@ class GribIoOutput(BaseGribOutput):
 
     def __repr__(self) -> str:
         """Return a string representation of the GribIOOutput object."""
-        return f"{type(self).__name__ }({self.out})"
+        return f"{type(self).__name__}({self.out})"
 
     def write_message(self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]) -> None:
         """Write a message to the grib file.

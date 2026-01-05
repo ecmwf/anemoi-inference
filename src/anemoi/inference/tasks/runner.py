@@ -314,7 +314,6 @@ class RunnerTask(Task):
         if self.config.runner == "no-model":
             runner = NoModelCoupledRunner(self.config, coupler)
         elif self.config.runner == "testing":
-
             runner = TestCoupledRunner(self.config, coupler)
         else:
             runner = CoupledRunner(self.config, coupler)

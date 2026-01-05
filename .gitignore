@@ -76,6 +76,7 @@ venv.bak/
 dmypy.json
 .pyre/
 .pytype/
+ruff.toml
 
 # Data files
 *.grib

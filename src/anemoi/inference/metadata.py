@@ -624,7 +624,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         if include_set is not None and exclude_set is not None:
             if not include_set.isdisjoint(exclude_set):
-                raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
+                raise ValueError(f"Include and exclude sets must not overlap {include_set} & {exclude_set}")
 
         for variable, metadata in self.variables_metadata.items():
             categories = set(variable_categories[variable])
