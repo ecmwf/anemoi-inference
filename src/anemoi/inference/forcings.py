@@ -263,17 +263,15 @@ class CoupledForcings(Forcings):
         FloatArray
             The loaded forcings as a numpy array.
         """
-        
-        tmp = self._state_to_numpy(
+        constant_arr = self._state_to_numpy(
             self.input.load_forcings_state(
-                dates=[datetime.datetime(2025, 1, 1, 0, 0)],
+                dates=[dates[0]],
                 current_state=current_state,
             ),
             self.variables,
-            [datetime.datetime(2025, 1, 1, 0, 0)],
+            [dates[0]],
         )
-        tmp_concat = np.concatenate([tmp, tmp], axis = 1)
-        return tmp_concat
+        return np.concatenate([constant_arr, constant_arr], axis = 1)
 
 
 class ConstantForcings(CoupledForcings):

@@ -302,6 +302,7 @@ class EkdInput(Input):
 
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+
         fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
 
         check = defaultdict(set)
@@ -426,6 +427,7 @@ class EkdInput(Input):
         State
             The loaded forcings state.
         """
+        import ipdb; ipdb.set_trace()
         return self._create_state(
             fields,
             dates=dates,
