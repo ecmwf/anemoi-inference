@@ -427,7 +427,6 @@ class EkdInput(Input):
         State
             The loaded forcings state.
         """
-        import ipdb; ipdb.set_trace()
         return self._create_state(
             fields,
             dates=dates,
