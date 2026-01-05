@@ -53,6 +53,7 @@ class BackwardTransformFilter(Processor):
         """
         super().__init__(context)
         self.filter: Any = filter_registry.create(filter, **kwargs)
+        self._kwargs = kwargs
 
     def process(self, state: State) -> State:
         """Process the given state using the backward transform filter.
@@ -71,3 +72,13 @@ class BackwardTransformFilter(Processor):
         fields = self.filter.backward(wrap_state(state))
 
         return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
+
+    def __repr__(self) -> str:
+        """Return a string representation of the BackwardTransformFilter.
+
+        Returns
+        -------
+        str
+            The class name and filter information.
+        """
+        return f"{self.__class__.__name__}(filter={self.filter},kwargs={self._kwargs})"

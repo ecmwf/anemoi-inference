@@ -50,6 +50,7 @@ class ForwardTransformFilter(Processor):
         """
         super().__init__(context)
         self.filter = filter_registry.create(filter, **kwargs)
+        self._kwargs = kwargs
 
     def process(self, state: State) -> State:
         """Process the given fields using the forward filter.
@@ -81,3 +82,13 @@ class ForwardTransformFilter(Processor):
             The patched data request.
         """
         return self.filter.patch_data_request(data_request)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ForwardTransformFilter.
+
+        Returns
+        -------
+        str
+            The class name and filter information.
+        """
+        return f"{self.__class__.__name__}(filter={self.filter},kwargs={self._kwargs})"
