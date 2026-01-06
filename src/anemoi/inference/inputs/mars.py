@@ -19,8 +19,6 @@ from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
-import datetime
-
 from . import input_registry
 from .grib import GribInput
 
