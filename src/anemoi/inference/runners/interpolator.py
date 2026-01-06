@@ -199,8 +199,10 @@ class TimeInterpolatorRunner(DefaultRunner):
         if self.constants_input is None:
             self.constants_input = self.create_constant_coupled_forcings_input()
             LOG.info("📥 Constant forcings input: %s", self.constants_input)
-            self.constants_state = self.constants_input.create_input_state(date=self.config.date)
-            #self._check_state(self.constants_state, "constant_forcings")
+            self.constants_state = self.constants_input.create_input_state(date=self.config.date, constant=True)
+            for key in self.constants_state['fields'].keys():
+                self.constants_state['fields'][key] = np.concatenate([self.constants_state['fields'][key], self.constants_state['fields'][key]], axis = 0)
+            self._check_state(self.constants_state, "constant_forcings")
 
         # Process each interpolation window
         for window_idx in range(num_windows):

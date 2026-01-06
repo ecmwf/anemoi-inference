@@ -367,6 +367,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        constant: bool = False,
         **kwargs
     ) -> State:
         """Create the input state.
@@ -398,7 +399,10 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        dates = [date + h for h in self.checkpoint.lagged]
+        if constant:
+            dates = [date]
+        else:
+            dates = [date + h for h in self.checkpoint.lagged]
 
         return self._create_state(
             input_fields,
