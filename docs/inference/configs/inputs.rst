@@ -51,30 +51,6 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 
 For more options, see :ref:`grib-input`.
 
-****************
- icon_grib_file
-****************
-
-The ``icon_grib_file`` input is a class dedicated to reading ICON GRIB
-files. It is
-
-.. literalinclude:: yaml/inputs_5.yaml
-   :language: yaml
-
-The ``grid`` entry refers to a NetCDF file that contains the definition
-of the ICON grid in radians. The ``refinement_level_c`` parameter is
-used to specify the refinement level of the ICON grid. The
-``icon_grib_file`` input also accepts the ``namer`` parameter of the
-GRIB input.
-
-.. note::
-
-   Once the grids are stored by in the checkpoint `Anemoi`, the
-   ``icon_grib_file`` input will become obsolete.
-
-..
-   For more options, see :ref:`icon-input`.
-
 ******
  mars
 ******

@@ -106,6 +106,12 @@ class TimeInterpolatorRunner(DefaultRunner):
             f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
+        # This may be used by Output objects to compute the step
+        self.interpolation_window = get_interpolation_window(
+            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
+        )
+        self.lead_time = to_timedelta(self.config.lead_time)
+        self.time_step = self.interpolation_window
 
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.interpolation_window
