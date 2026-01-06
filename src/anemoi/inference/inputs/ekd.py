@@ -233,6 +233,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
+        ref_date_index: int = -1,
         **kwargs,
     ) -> State:
         """Create a state from an ekd.FieldList.
@@ -258,6 +259,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        ref_date_index: int = -1
+            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional arguments for selecting the variable.
 
@@ -292,7 +295,7 @@ class EkdInput(Input):
                     )
                     raise e
 
-        state = dict(date=dates, latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
 
         # allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
@@ -371,6 +374,7 @@ class EkdInput(Input):
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         constant: bool = False,
+        ref_date_index: int = -1,
         **kwargs,
     ) -> State:
         """Create the input state.
@@ -393,6 +397,8 @@ class EkdInput(Input):
             Whether to flatten the data.
         constant: bool
             Whether the field is constant or dynamic
+        ref_date_index: int = -1
+            If 0 takes the first date, if -1 takes the last date in sequence.            
         **kwargs : Any
             Additional arguments for selecting the variable.
         Returns
@@ -418,6 +424,7 @@ class EkdInput(Input):
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
+            ref_date_index=ref_date_index,
             **kwargs,
         )
 
