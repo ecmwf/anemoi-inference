@@ -391,8 +391,11 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        constant: bool
+            Whether the field is constant or dynamic
         **kwargs : Any
-            Additional arguments for selecting the variable.            
+            Additional arguments for selecting the variable.
+            
         Returns
         -------
         State
