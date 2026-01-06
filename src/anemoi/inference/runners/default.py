@@ -101,6 +101,17 @@ class DefaultRunner(Runner):
 
         input_state = input.create_input_state(date=self.config.date)
 
+        # @@@
+        print(f"\n@@@ default runner:")
+        print("input")
+        print(input)
+        print(type(input))
+        print(vars(input))
+        print("self.config.date")
+        print(self.config.date)
+        print("input_state")
+        print(input_state)
+
         # This hook is needed for the coupled runner
         self.input_state_hook(input_state)
 
@@ -278,25 +289,27 @@ class DefaultRunner(Runner):
         List[Processor]
             The created pre-processors.
         """
-        if self.config.post_processors is None:
-            self.config.post_processors = ["accumulate_from_start_of_forecast"]
-            warnings.warn(
-                """
-                No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
+        ### REMOVED in anemoi-inference main (0.8.3)
+        ### Allows to not accumulate, which is useful when diag variable are obtained from complement 
+        #if self.config.post_processors is None:
+        #    self.config.post_processors = ["accumulate_from_start_of_forecast"]
+        #    warnings.warn(
+        #        """
+        #        No post_processors defined. Accumulations will be accumulated from the beginning of the forecast.
+        #
+        #        🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
+        #        Update your config if you wish to keep accumulating from the beginning.
+        #        https://github.com/ecmwf/anemoi-inference/issues/131
+        #        """,
+        #    )
 
-                🚧🚧🚧 In a future release, the default will be to NOT accumulate from the beginning of the forecast. 🚧🚧🚧
-                Update your config if you wish to keep accumulating from the beginning.
-                https://github.com/ecmwf/anemoi-inference/issues/131
-                """,
-            )
-
-        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
-            warnings.warn(
-                """
-                post_processors are defined but `accumulate_from_start_of_forecast` is not set."
-                🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
-                """
-            )
+        #if "accumulate_from_start_of_forecast" not in self.config.post_processors:
+        #    warnings.warn(
+        #        """
+        #        post_processors are defined but `accumulate_from_start_of_forecast` is not set."
+        #        🚧 Accumulations will NOT be accumulated from the beginning of the forecast. 🚧
+        #        """
+        #    )
 
         result = []
         for processor in self.config.pre_processors:
