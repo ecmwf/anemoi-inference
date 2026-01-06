@@ -249,7 +249,7 @@ class MarsInput(GribInput):
         date : Optional[Date]
             The date for which to create the input state.
         ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.            
+            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional keyword arguments.
 
