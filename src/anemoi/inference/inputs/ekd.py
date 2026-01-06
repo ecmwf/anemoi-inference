@@ -398,7 +398,7 @@ class EkdInput(Input):
         constant: bool
             Whether the field is constant or dynamic
         ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.            
+            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional arguments for selecting the variable.
         Returns
