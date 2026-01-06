@@ -164,7 +164,7 @@ class EkdInput(Input):
         title : str
             The title for logging.
         **kwargs : Any
-            Additional arguments for selecting the variable.            
+            Additional arguments for selecting the variable.
 
         Returns
         -------
@@ -181,7 +181,7 @@ class EkdInput(Input):
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
         start_date = kwargs.pop("start_date", None)
-        
+
         # Deselects analysis if the forecast exists to avoid duplicate values for same valid time
 
         if start_date is not None:
@@ -260,7 +260,7 @@ class EkdInput(Input):
             Whether to flatten the data.
         **kwargs : Any
             Additional arguments for selecting the variable.
-            
+
         Returns
         -------
         State
@@ -395,7 +395,6 @@ class EkdInput(Input):
             Whether the field is constant or dynamic
         **kwargs : Any
             Additional arguments for selecting the variable.
-            
         Returns
         -------
         State
