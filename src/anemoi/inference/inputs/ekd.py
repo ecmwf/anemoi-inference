@@ -163,6 +163,8 @@ class EkdInput(Input):
             The list of dates to select.
         title : str
             The title for logging.
+        **kwargs : Any
+            Additional arguments for selecting the variable.            
 
         Returns
         -------
@@ -178,17 +180,11 @@ class EkdInput(Input):
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        # for f in data:
-        #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
+        start_date = kwargs.pop("start_date", None)
+        
+        # Deselects analysis if the forecast exists to avoid duplicate values for same valid time
 
-        try:
-            start_date = kwargs.pop("start_date")
-        except:
-            start_date = None
-        # todo: need to put in a statement which basically deselects the analysis if the forecast exists
-        # (maybe only in time interpolator world)
-        # could maybe be an if statement based on forecast step greater than 0 but if the date
-        if start_date != None:
+        if start_date is not None:
             data = data.sel(
                 name=self.variables,
                 valid_datetime=valid_datetime,
@@ -262,7 +258,9 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-
+        **kwargs : Any
+            Additional arguments for selecting the variable.
+            
         Returns
         -------
         State
@@ -393,6 +391,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
+        **kwargs : Any
+            Additional arguments for selecting the variable.            
         Returns
         -------
         State

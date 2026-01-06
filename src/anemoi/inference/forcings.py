@@ -264,7 +264,6 @@ class CoupledForcings(Forcings):
         FloatArray
             The loaded forcings as a numpy array.
         """
-        breakpoint()
         return self._state_to_numpy(
             self.input.load_forcings_state(
                 dates=dates,
