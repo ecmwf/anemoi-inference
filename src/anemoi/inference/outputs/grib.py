@@ -11,12 +11,10 @@
 import datetime
 import json
 import logging
+import re
 from abc import abstractmethod
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Literal
 
 from earthkit.data.utils.dates import to_datetime
 
@@ -45,11 +43,13 @@ class HindcastOutput:
 
         self.reference_year = reference_year
 
-    def __call__(self, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
         """Call the HindcastOutput object.
 
         Parameters
         ----------
+        variable : Any
+            The variable object.
         values : FloatArray
             The values array.
         template : object
@@ -79,7 +79,49 @@ class HindcastOutput:
         return values, template, keys
 
 
-MODIFIERS = dict(hindcast=HindcastOutput)
+class Matching:
+
+    def __init__(self, config):
+
+        self.conditions = {}
+        for k, v in config.items():
+            self.conditions[re.compile(k)] = v
+
+    def patch(self, variable, request):
+
+        for k, v in self.conditions.items():
+            m = k.match(variable.name)
+            if m:
+                patch = {}
+                for kk, vv in v.items():
+                    if isinstance(vv, str) and vv.startswith("\\"):
+                        vv = m.group(int(vv[1:]))
+                    patch[kk] = vv
+                return patch
+
+        return {}
+
+
+class PatchOutput:
+    def __init__(self, *patches):
+        self.patches = []
+        for patch in patches:
+            assert isinstance(patch, dict), patch
+            assert len(patch) == 1, patch
+            key = list(patch.keys())[0]
+            assert key == "variable", patch
+        self.patches.append(Matching(patch[key]))
+
+    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+        original_keys = keys.copy()
+        result = keys.copy()
+        for patch in self.patches:
+            result.update(patch.patch(variable, original_keys))
+
+        return values, template, result
+
+
+MODIFIERS = dict(hindcast=HindcastOutput, patches=PatchOutput)
 
 
 def modifier_factory(modifiers: list) -> list:
@@ -108,7 +150,10 @@ def modifier_factory(modifiers: list) -> list:
         assert len(modifier) == 1, modifier
 
         klass = list(modifier.keys())[0]
-        result.append(MODIFIERS[klass](**modifier[klass]))
+        if isinstance(modifier[klass], list):
+            result.append(MODIFIERS[klass](*modifier[klass]))
+        else:
+            result.append(MODIFIERS[klass](**modifier[klass]))
 
     return result
 
@@ -119,18 +164,19 @@ class BaseGribOutput(Output):
     def __init__(
         self,
         context: dict,
-        post_processors: Optional[List[ProcessorConfig]] = None,
+        post_processors: list[ProcessorConfig] | None = None,
         *,
-        encoding: Optional[Dict[str, Any]] = None,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        encoding: dict[str, Any] | None = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
-        """Initialize the GribOutput object.
+        """Initialise the GribOutput object.
 
         Parameters
         ----------
@@ -154,6 +200,13 @@ class BaseGribOutput(Output):
             Whether to write the initial state, by default None.
         variables : list, optional
             The list of variables, by default None.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
 
         super().__init__(
@@ -171,17 +224,8 @@ class BaseGribOutput(Output):
 
         self.modifiers = modifier_factory(modifiers)
         self.variables = variables
-
-        self.ensemble = False
-        for d in (self.grib1_keys, self.grib2_keys, self.encoding):
-            if "eps" in d:
-                self.ensemble = d["eps"]
-                break
-            if d.get("type") in ("pf", "cf"):
-                self.ensemble = True
-                break
-
-        self.template_manager = TemplateManager(self, templates)
+        assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
+        self.negative_step_mode = negative_step_mode
 
         self.ensemble = False
         for d in (self.grib1_keys, self.grib2_keys, self.encoding):
@@ -241,6 +285,8 @@ class BaseGribOutput(Output):
         """
 
         reference_date = self.reference_date or self.context.reference_date
+        assert reference_date is not None, "No reference date set"
+
         step = state["step"]
         previous_step = state.get("previous_step")
         start_steps = state.get("start_steps", {})
@@ -266,8 +312,7 @@ class BaseGribOutput(Output):
             keys = grib_keys(
                 values=values,
                 template=template,
-                date=int(reference_date.strftime("%Y%m%d")),
-                time=reference_date.hour * 100,
+                date=reference_date,
                 step=step,
                 param=param,
                 variable=variable,
@@ -278,9 +323,25 @@ class BaseGribOutput(Output):
                 previous_step=previous_step,
                 start_steps=start_steps,
             )
+            encoded_date = to_datetime(f"{keys['date']}T{keys['time']:04d}")
+
+            if encoded_date < reference_date:
+                _log = f"{encoded_date} < {reference_date}"
+                match self.negative_step_mode:
+                    case "error":
+                        raise ValueError(
+                            f"""Variable {name} has base time before forecast base time: {_log}.
+                            To write or skip such variables, set `negative_step_mode` to `write` or `skip`.
+                            Alternatively, try `write_initial_state=False` if this is the initial time step."""
+                        )
+                    case "skip":
+                        LOG.warning(f"Skipping variable {name} with base time before forecast base time: {_log}")
+                        continue
+                    case "write":
+                        LOG.warning(f"Writing variable {name} with base time before forecast base time: {_log}")
 
             for modifier in self.modifiers:
-                values, template, keys = modifier(values, template, keys)
+                values, template, keys = modifier(variable, values, template, keys)
 
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
@@ -291,7 +352,10 @@ class BaseGribOutput(Output):
                 LOG.error("Error writing field %s", name)
                 LOG.error("Template: %s", template)
                 LOG.error("Keys:\n%s", json.dumps(keys, indent=4, default=str))
+                self.template_manager.log_summary()
                 raise
+
+        self.template_manager.log_summary()
 
     @abstractmethod
     def write_message(self, message: FloatArray, *args: Any, **kwargs: Any) -> None:
@@ -323,10 +387,6 @@ class BaseGribOutput(Output):
         object
             The template object.
         """
-
-        if self.template_manager is None:
-            self.template_manager = TemplateManager(self, self.templates)
-
         return self.template_manager.template(name, state, self.typed_variables)
 
     def template_lookup(self, name: str) -> dict:

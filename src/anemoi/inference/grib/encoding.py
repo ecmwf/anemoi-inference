@@ -9,19 +9,20 @@
 
 
 import logging
-import re
 import warnings
 from datetime import datetime
+from datetime import timedelta
 from io import IOBase
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Hashable
 
 import earthkit.data as ekd
-from anemoi.utils.dates import as_timedelta
+from earthkit.data.utils.dates import to_timedelta
+
+from anemoi.inference.types import FloatArray
+from anemoi.inference.utils.templating import render_template
 
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
@@ -29,9 +30,9 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
-GRIB1_ONLY: List[str] = []
+GRIB1_ONLY: list[str] = []
 
-GRIB2_ONLY: List[str] = ["typeOfGeneratingProcess"]
+GRIB2_ONLY: list[str] = ["typeOfGeneratingProcess"]
 
 
 ORDERING = (
@@ -86,12 +87,12 @@ def _param(param: Any) -> str:
             return "shortName"
 
 
-def _step_in_hours(step: Any) -> int:
+def _step_in_hours(step: timedelta) -> int:
     """Convert a step to hours.
 
     Parameters
     ----------
-    step : Any
+    step : timedelta
         The step to convert.
 
     Returns
@@ -115,12 +116,13 @@ STEP_TYPE = {
 
 def encode_time_processing(
     *,
-    result: Dict[str, Any],
+    result: dict[str, Any],
     template: ekd.Field,
     variable: "Variable",
-    step: Any,
-    previous_step: Optional[Any],
-    start_steps: Dict[Any, Any],
+    date: datetime,
+    step: timedelta,
+    previous_step: timedelta | None,
+    start_steps: dict[str, timedelta],
     edition: int,
     ensemble: bool,
 ) -> None:
@@ -128,17 +130,19 @@ def encode_time_processing(
 
     Parameters
     ----------
-    result : Dict[str, Any]
+    result : dict[str, Any]
         The result dictionary to update.
     template : ekd.Field
         The template field.
-    variable : Any
+    variable : Variable
         The variable containing time processing information.
-    step : Any
+    date : datetime
+        The date and time.
+    step : timedelta
         The current step.
-    previous_step : Optional[Any]
+    previous_step : timedelta | None
         The previous step.
-    start_steps : Dict[Any, Any]
+    start_steps : dict[str, timedelta]
         The start steps dictionary.
     edition : int
         The GRIB edition.
@@ -149,18 +153,15 @@ def encode_time_processing(
 
     if variable.time_processing is None:
         result["step"] = _step_in_hours(step)
-        # result["startStep"] = _step_in_hours(step)
-        # result["endStep"] = _step_in_hours(step)
         result["stepType"] = "instant"
         return
 
     if previous_step is None:
-        if not variable.is_accumulation:
-            LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
     if period := getattr(variable, "period", None):
         start = step - period
+<<<<<<< HEAD
         if start < as_timedelta(0):
             assert result["time"] in (
                 0,
@@ -174,10 +175,16 @@ def encode_time_processing(
                 day=result["date"] % 100,
                 hour=result["time"] // 100,
                 minute=result["time"] % 100,
+=======
+        if start < to_timedelta(0):
+            LOG.warning(
+                f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
+>>>>>>> 291e21c56f7610ee30689a53b201e1bc339f9c14
             )
 
             date += start
             step -= start
+<<<<<<< HEAD
 
             LOG.warning(
                 f"Start step {start} is negative for variable {variable.name} with period {period}, setting reference date {date.isoformat()}."
@@ -185,6 +192,11 @@ def encode_time_processing(
 
             start = as_timedelta(0)
             result["date"] = date.year * 10000 + date.month * 100 + date.day
+=======
+            start = to_timedelta(0)
+
+            result["date"] = int(date.strftime("%Y%m%d"))
+>>>>>>> 291e21c56f7610ee30689a53b201e1bc339f9c14
             result["time"] = date.hour * 100 + date.minute
     else:
         # backwards compatibility with old transform or if period is missing from the metadata
@@ -220,54 +232,51 @@ LEVTYPES = {
 
 def grib_keys(
     *,
-    values: Any,
-    template: Any,
-    variable: Any,
+    values: FloatArray,
+    template: ekd.Field,
+    variable: "Variable",
     ensemble: bool,
-    param: Optional[Union[int, float, str]],
-    date: int,
-    time: int,
-    step: Any,
-    previous_step: Optional[Any],
-    start_steps: Dict[Any, Any],
-    keys: Dict[str, Any],
-    grib1_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
-    grib2_keys: Dict[Union[int, float, str], Dict[str, Any]] = {},
-) -> Dict[str, Any]:
+    param: int | float | str | None,
+    date: datetime,
+    step: timedelta,
+    previous_step: timedelta | None,
+    start_steps: dict[str, timedelta],
+    keys: dict[str, Any],
+    grib1_keys: dict[int | float | str, dict[str, Any]] = {},
+    grib2_keys: dict[int | float | str, dict[str, Any]] = {},
+) -> dict[str, Any]:
     """Generate GRIB keys for encoding.
 
     Parameters
     ----------
-    values : Any
+    values : FloatArray
         The values to encode.
-    template : Any
+    template : ekd.Field
         The template to use.
-    variable : Any
+    variable : Variable
         The variable containing GRIB keys.
     ensemble : bool
         Whether the data is part of an ensemble.
-    param : Optional[Union[int, float, str]]
+    param : int | float | str | None
         The parameter value.
-    date : int
-        The date value.
-    time : int
-        The time value.
+    date : datetime
+        The date and time.
     step : Any
         The current step.
-    previous_step : Optional[Any]
+    previous_step : timedelta | None
         The previous step.
-    start_steps : Dict[Any, Any]
+    start_steps : dict[str, timedelta]
         The start steps dictionary.
-    keys : Dict[str, Any]
+    keys : dict[str, Any]
         The initial keys dictionary.
-    grib1_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
+    grib1_keys : dict[int | float | str, dict[str, Any]], optional
         Additional GRIB1 keys.
-    grib2_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
+    grib2_keys : dict[int | float | str, dict[str, Any]], optional
         Additional GRIB2 keys.
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The generated GRIB keys.
     """
     result = keys.copy()
@@ -304,19 +313,26 @@ def grib_keys(
         # For organisations that do not use type
         result.setdefault("dataType", result.pop("type"))
 
-    result["date"] = date
-    result["time"] = time
+    result["date"] = int(date.strftime("%Y%m%d"))
+    result["time"] = date.hour * 100
 
     encode_time_processing(
         result=result,
         template=template,
         variable=variable,
+        date=date,
         step=step,
         previous_step=previous_step,
         start_steps=start_steps,
         edition=edition,
         ensemble=ensemble,
     )
+
+    # 1 if local definition is present, like for ECMWF GRIBs
+    if template is not None:
+        local_use_present = template.metadata("localUsePresent", default=0)
+    else:
+        local_use_present = 0
 
     for k, v in variable.grib_keys.items():
         if k not in (
@@ -330,9 +346,12 @@ def grib_keys(
             "date",
             "hdate",
             "time",
+            "timespan",
+            "valid_datetime",
+            "variable",
         ):
             if k == "stream":
-                if v in ("oper", "wave"):
+                if v in ("oper", "wave") and local_use_present:
                     result.setdefault(k, v)
                 continue
 
@@ -348,7 +367,7 @@ def grib_keys(
     return result
 
 
-def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> None:
+def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> None:
     """Check if the GRIB encoding matches the expected keys.
 
     Parameters
@@ -400,7 +419,7 @@ def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> Non
             w = handle.get(k)
 
         if not same(w, v, k):
-            mismatches[k] = 'Expected "{}" but got "{}"'.format(v, w)
+            mismatches[k] = f'Expected "{v}" but got "{w}"'
 
     if mismatches:
 
@@ -416,11 +435,11 @@ def check_encoding(handle: Any, keys: Dict[str, Any], first: bool = True) -> Non
 
 def encode_message(
     *,
-    values: Optional[Any],
+    values: Any | None,
     template: Any,
-    metadata: Dict[str, Any],
+    metadata: dict[str, Any],
     check_nans: bool = False,
-    missing_value: Union[int, float] = 9999,
+    missing_value: int | float = 9999,
 ) -> Any:
     """Encode a GRIB message.
 
@@ -493,12 +512,12 @@ def encode_message(
 class GribWriter:
     """Write GRIB messages to one or more files."""
 
-    def __init__(self, out: Union[str, IOBase], split_output: bool = True) -> None:
+    def __init__(self, out: Path | IOBase, split_output: bool = True) -> None:
         """Initialize the GribWriter.
 
         Parameters
         ----------
-        out : Union[str, IOBase]
+        out : Union[Path, IOBase]
             Path or file-like object to write the grib data to.
             If a string, it should be a file path.
             If a file-like object, it should be opened in binary write mode.
@@ -511,7 +530,7 @@ class GribWriter:
 
         self.out = out
         self.split_output = split_output
-        self._files: Dict[str, IOBase] = {}
+        self._files: dict[Hashable, IOBase] = {}
 
     def close(self) -> None:
         """Close all open files."""
@@ -528,7 +547,7 @@ class GribWriter:
         """
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], trace: Optional[Any]) -> None:
+    def __exit__(self, exc_type: type | None, exc_value: BaseException | None, trace: Any | None) -> None:
         """Exit the runtime context related to this object.
 
         Parameters
@@ -545,11 +564,11 @@ class GribWriter:
     def write(
         self,
         *,
-        values: Optional[Any],
+        values: Any | None,
         template: Any,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         check_nans: bool = False,
-        missing_value: Union[int, float] = 9999,
+        missing_value: int | float = 9999,
     ) -> tuple:
         """Write a GRIB message to the target file.
 
@@ -571,20 +590,30 @@ class GribWriter:
         tuple
             The encoded GRIB handle and the file path.
         """
-        handle = encode_message(
-            values=values,
-            check_nans=check_nans,
-            metadata=metadata,
-            template=template,
-            missing_value=missing_value,
-        )
+
+        while True:
+            try:
+                handle = encode_message(
+                    values=values,
+                    check_nans=check_nans,
+                    metadata=metadata,
+                    template=template,
+                    missing_value=missing_value,
+                )
+                break
+            except Exception as e:
+                if metadata.get("edition") == 2:
+                    raise
+                # Try again with edition 2
+                LOG.warning("Failed to encode GRIB message with edition 1, retrying with edition 2: %s", e)
+                metadata["edition"] = 2
 
         file, path = self.target(handle)
         handle.write(file)
 
         return handle, path
 
-    def target(self, handle: Any) -> tuple[IOBase, str]:
+    def target(self, handle: Any) -> tuple[IOBase, Path | str]:
         """Determine the target file for the GRIB message.
 
         Parameters
@@ -598,7 +627,8 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            out = render_template(self.out, handle)
+            assert not isinstance(self.out, IOBase), "Cannot split output when `out` is a file-like object."
+            out = render_template(str(self.out), handle)
         else:
             out = self.out
 
@@ -610,37 +640,3 @@ class GribWriter:
             self._files[out] = open(out, "wb")
 
         return self._files[out], out
-
-
-_TEMPLATE_EXPRESSION_PATTERN = re.compile(r"\{(.*?)\}")
-
-
-def render_template(template: str, handle: Dict) -> str:
-    """Render a template string with the given keyword arguments.
-
-    Given a template string such as '{dateTime}_{step:03}.grib' and
-    the GRIB handle, this function will replace the expressions in the
-    template with the corresponding values from the handle, formatted
-    according to the optional format specifier.
-
-    For example, the template '{dateTime}_{step:03}.grib' with a handle
-    containing 'dateTime' as '202501011200' and 'step' as 6 will
-    produce '202501011200_006.grib'.
-
-    Parameters
-    ----------
-    template : str
-        The template string to render.
-    handle : Dict
-        The earthkit.data handle manager.
-
-    Returns
-    -------
-    str
-        The rendered template string.
-    """
-    expressions = _TEMPLATE_EXPRESSION_PATTERN.findall(template)
-    expr_format = [el.split(":") if ":" in el else [el, ""] for el in expressions]
-    keys = {k[0]: format(handle.get(k[0]), k[1]) for k in expr_format}
-    path = template.format(**keys)
-    return path

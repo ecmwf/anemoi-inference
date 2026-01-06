@@ -8,36 +8,41 @@
 # nor does it submit to any jurisdiction.
 
 
-from functools import wraps
+import logging
+from pathlib import Path
 from typing import Any
-from typing import Callable
 from typing import TypeVar
 
 from anemoi.inference.context import Context
 
+LOG = logging.getLogger("anemoi.inference")
+
 MARKER = object()
-F = TypeVar("F", bound=Callable)
+F = TypeVar("F", bound=type)
 
 
 class main_argument:
-    """Decorator to set the main argument of a function.
+    """Decorator to set the main argument of a class. Only for classes with a 'context' argument.
 
-    For example...
-
+    For example:
+    ```
     @main_argument("path")
-    def grib_file_output(context, path, encoding=None, archive_requests=None):
-        ...
-
-    So we can have:
-
+    class GribOutput
+        def __init__(context, encoding=None, path=None, archive_requests=None):
+            ...
+    output = GribOutput(context, "out.grib")
+    ```
+    So in the config we can have:
+    ```
     output:
         grib: out.grib
-
-    means the same as
-
+    ```
+    meaning the same as
+    ```
     output:
         grib:
             path: out.grib
+    ```
     """
 
     def __init__(self, name: str):
@@ -50,43 +55,80 @@ class main_argument:
         """
         self.name = name
 
-    def __call__(self, func: F) -> F:
-        """Decorate the function to set the main argument.
+    def __call__(self, cls: F) -> F:
+        """Decorate the class to set the main argument."""
 
-        Parameters
-        ----------
-        func : Callable[..., Any]
-            The function to decorate.
+        if not isinstance(cls, type):
+            raise TypeError("'main_argument' can only be used to decorate classes")
 
-        Returns
-        -------
-        Callable[..., Any]
-            The decorated function.
-        """
+        class WrappedClass(cls):
+            def __init__(wrapped_cls, context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
+                if main is not MARKER:
+                    kwargs[self.name] = main
+                super().__init__(context, *args, **kwargs)
 
-        @wraps(func)
-        def wrapped(context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
-            """Decorator function to set the main argument.
+        return type(cls.__name__, (WrappedClass,), {})
 
-            Parameters
-            ----------
-            context : Any
-                The context in which the function is called.
-            main : Any, optional
-                The main argument value, by default MARKER.
-            *args : tuple
-                Additional positional arguments.
-            **kwargs : dict
-                Additional keyword arguments.
 
-            Returns
-            -------
-            Any
-                The result of the decorated function.
-            """
-            if main is not MARKER:
-                kwargs[self.name] = main
+class ensure_path:
+    """Decorator to ensure a path argument is a Path object and optionally exists.
 
-            return func(context, *args, **kwargs)
+    If `is_dir` is True, the path is treated as a directory, if not for files, the parent directory is treated as a directory.
+    If `must_exist` is True, the directory must exist.
+    If `create` is True, the directory will be created if it doesn't exist.
 
-        return wrapped
+    For example:
+    ```
+    @ensure_path("dir", create=True)
+    class GribOutput
+        def __init__(context, dir=None, archive_requests=None):
+            ...
+    """
+
+    def __init__(self, arg: str, is_dir: bool = False, create: bool = True, must_exist: bool = False):
+        self.arg = arg
+        self.is_dir = is_dir
+        self.create = create
+        self.must_exist = must_exist
+
+    def __call__(self, cls: F) -> F:
+        """Decorate the object to ensure the path argument is a Path object."""
+
+        class WrappedClass(cls):
+            def __init__(wrapped_cls, context: Context, *args: Any, **kwargs: Any) -> None:
+                if self.arg not in kwargs:
+                    LOG.debug(f"Argument '{self.arg}' not found in kwargs, cannot ensure path.")
+                    super().__init__(context, *args, **kwargs)
+                    return
+
+                path = kwargs[self.arg] = Path(kwargs[self.arg])
+                if not self.is_dir:
+                    path = path.parent
+
+                if self.must_exist:
+                    if not path.exists():
+                        raise FileNotFoundError(f"Path '{path}' does not exist.")
+                if self.create:
+                    path.mkdir(parents=True, exist_ok=True)
+
+                super().__init__(context, *args, **kwargs)
+
+        return type(cls.__name__, (WrappedClass,), {})
+
+
+class ensure_dir(ensure_path):
+    """Decorator to ensure a directory path argument is a Path object and optionally exists.
+
+    If `must_exist` is True, the directory must exist.
+    If `create` is True, the directory will be created if it doesn't exist.
+
+    For example:
+    ```
+    @ensure_dir("dir", create=True)
+    class PlotOutput
+        def __init__(context, dir=None, ...):
+            ...
+    """
+
+    def __init__(self, arg: str, create: bool = True, must_exist: bool = False):
+        super().__init__(arg, is_dir=True, create=create, must_exist=must_exist)

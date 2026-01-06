@@ -1,4 +1,4 @@
-.. _run_command:
+.. _run-command:
 
 Run Command
 ===========

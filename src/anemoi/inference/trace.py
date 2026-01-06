@@ -11,8 +11,6 @@ import datetime
 import logging
 import sys
 from typing import Any
-from typing import Dict
-from typing import Union
 
 import numpy as np
 
@@ -20,6 +18,8 @@ from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 
 LOG = logging.getLogger(__name__)
+
+WIDTH = 140
 
 
 class RolloutSource:
@@ -51,24 +51,28 @@ class InputSource:
 class Trace:
     """Implementation of a trace."""
 
-    def __init__(self, path: Union[bool, str]) -> None:
+    def __init__(self, path: bool | str) -> None:
         self.path = path
         self.file = sys.stdout if path is True else open(path, "w")
 
-        self.sources: Dict[str, Any] = {}
-        self.extra: Dict[str, Any] = {}
+        self.sources: dict[str, Any] = {}
+        self.extra: dict[str, Any] = {}
 
-        print("-+" * 80, file=self.file)
-        print("Trace:", datetime.datetime.now(), file=self.file)
-        print("-+" * 80, file=self.file)
-        print(file=self.file, flush=True)
+        from rich.console import Console
+        from rich.panel import Panel
+
+        console = Console(file=self.file, width=WIDTH)
+
+        panel = Panel(f"Trace {datetime.datetime.utcnow()}")
+
+        console.print(panel)
 
     def write_input_tensor(
         self,
         date: datetime.datetime,
         fcstep: int,
         input_tensor: FloatArray,
-        variable_to_input_tensor_index: Dict[str, int],
+        variable_to_input_tensor_index: dict[str, int],
         timestep: datetime.timedelta,
     ) -> None:
         """Write the input tensor details to the trace file.
@@ -86,7 +90,18 @@ class Trace:
         timestep : datetime.timedelta
             The timestep.
         """
-        print(f"Input tensor to forecast date {date-timestep} => {date}", input_tensor.shape, file=self.file)
+
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+
+        panel = Panel(f"Input tensor to forecast date {date - timestep} => {date} ({input_tensor.shape})")
+        table = Table()
+        console = Console(file=self.file, width=WIDTH)
+
+        for c in ["Variable", "Min", "Max", "Mean", "Std", "Min", "Max", "Mean", "Std", "C", "Source"]:
+            table.add_column(c, justify="right" if c != "Variable" and c != "Source" else "left")
+
         names = {v: k for k, v in variable_to_input_tensor_index.items()}
         assert len(input_tensor.shape) == 4
         assert input_tensor.shape[0] == 1
@@ -110,18 +125,18 @@ class Trace:
         for line in lines:
             line.append(self.sources.get(line[0], unknown).trace_name)
 
-        lines.insert(0, ["--------", "---", "---", "----", "---", "---", "---", "----", "---", "-", "---"])
-        lines.insert(0, ["Variable", "Min", "Max", "Mean", "Std", "Min", "Max", "Mean", "Std", "C", "Source"])
-        self.table(lines)
+        for line in lines:
+            table.add_row(*[str(x) if not isinstance(x, float) else f"{x:g}" for x in line])
 
-        print(file=self.file, flush=True)
+        console.print(panel)
+        console.print(table)
 
     def write_output_tensor(
         self,
         date: datetime.datetime,
         fcstep: int,
         output_tensor: FloatArray,
-        output_tensor_index_to_variable: Dict[int, str],
+        output_tensor_index_to_variable: dict[int, str],
         timestep: datetime.timedelta,
     ) -> None:
         """Write the output tensor details to the trace file.
@@ -139,7 +154,18 @@ class Trace:
         timestep : datetime.timedelta
             The timestep.
         """
-        print(f"Output tensor for {date}:", output_tensor.shape, file=self.file)
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+
+        panel = Panel(f"Output tensor for forecast date {date} ({output_tensor.shape})")
+
+        table = Table()
+        console = Console(file=self.file, width=WIDTH)
+
+        for c in ["Variable", "Min", "Max", "Mean", "Std"]:
+            table.add_column(c, justify="right" if c != "Variable" else "left")
+
         assert len(output_tensor.shape) == 2
         names = output_tensor_index_to_variable
         lines = []
@@ -147,31 +173,11 @@ class Trace:
             values = output_tensor[:, i]
             lines.append([names[i], np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values)])
 
-        lines.insert(0, ["--------", "---", "---", "----", "---"])
-        lines.insert(0, ["Variable", "Min", "Max", "Mean", "Std"])
-        self.table(lines)
-        print(file=self.file, flush=True)
-
-    def table(self, lines: list[list[Any]]) -> None:
-        """Print a formatted table to the trace file.
-
-        Parameters
-        ----------
-        lines : list[list[Any]]
-            The table data to print.
-        """
-        print(file=self.file)
-
-        def _(x: Any) -> str:
-            if isinstance(x, float):
-                return f"{x:g}"
-            return str(x)
-
-        lines = [[_(x) for x in line] for line in lines]
-
-        lengths = [max(len(str(x)) for x in col) for col in zip(*lines)]
         for line in lines:
-            print(" ".join(f"{x:{lengths[i]}}" for i, x in enumerate(line)), file=self.file)
+            table.add_row(*[str(x) if not isinstance(x, float) else f"{x:g}" for x in line])
+
+        console.print(panel)
+        console.print(table)
 
     def from_source(self, name: str, source: Any, extra: Any = None) -> None:
         """Add a source to the trace.
@@ -217,7 +223,7 @@ class Trace:
         """
         self.from_source(name, InputSource(input))
 
-    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: Dict[str, int]) -> None:
+    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: dict[str, int]) -> None:
         """Reset the sources in the trace.
 
         Parameters

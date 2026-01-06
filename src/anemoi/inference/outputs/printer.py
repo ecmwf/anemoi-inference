@@ -9,34 +9,33 @@
 
 import datetime
 import logging
+from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 from typing import Any
-from typing import Callable
-from typing import List
 from typing import Literal
-from typing import Optional
 from typing import Union
 
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
-ListOrAll = Union[List[str], Literal["all"]]
+ListOrAll = Union[list[str], Literal["all"]]
 
 
 def print_state(
     state: State,
     print: Callable[..., None] = print,
     max_lines: int = 4,
-    variables: Optional[ListOrAll] = None,
+    variables: ListOrAll | None = None,
 ) -> None:
     """Print the state.
 
@@ -107,36 +106,42 @@ def print_state(
 
 @output_registry.register("printer")
 @main_argument("max_lines")
+@ensure_path("path")
 class PrinterOutput(Output):
     """Printer output class."""
 
     def __init__(
         self,
         context: Context,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        path: Optional[str] = None,
-        variables: Optional[ListOrAll] = None,
+        path: Path | None = None,
+        variables: ListOrAll | None = None,
+        max_lines: int = 4,
         **kwargs: Any,
     ) -> None:
-        """Initialize the PrinterOutput.
+        """Initialise the PrinterOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        post_processors : Optional[List[ProcessorConfig]] = None
-            Post-processors to apply to the input
-        path : str, optional
+        path : Path, optional
             The path to save the printed output, by default None.
+            If the parent directory does not exist, it will be created.
         variables : list, optional
             The list of variables to print, by default None.
+        max_lines : int, optional
+            The maximum number of lines to print, by default 4.
+            If set to 0, all variables will be printed.
         **kwargs : Any
             Additional keyword arguments.
         """
 
-        super().__init__(context, post_processors)
+        super().__init__(context, variables=variables, **kwargs)
         self.print = print
         self.variables = variables
+        self.max_lines = max_lines
+
+        self.f = None
 
         if path is not None:
             self.f = open(path, "w")
@@ -150,4 +155,9 @@ class PrinterOutput(Output):
         state : State
             The state dictionary.
         """
-        print_state(state, print=self.print, variables=self.variables)
+        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
+
+    def close(self) -> None:
+        if self.f is not None:
+            self.f.close()
+        return super().close()

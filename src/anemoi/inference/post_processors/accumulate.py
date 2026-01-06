@@ -10,9 +10,6 @@
 
 import logging
 from datetime import timedelta
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import numpy as np
 
@@ -39,7 +36,7 @@ class Accumulate(Processor):
         If None, the fields are taken from the context's checkpoint.
     """
 
-    def __init__(self, context: Context, accumulations: Optional[List[str]] = None) -> None:
+    def __init__(self, context: Context, accumulations: list[str] | None = None) -> None:
         super().__init__(context)
         if accumulations is None:
             accumulations = context.checkpoint.accumulations
@@ -47,7 +44,7 @@ class Accumulate(Processor):
         self.accumulations = accumulations
         LOG.info("Accumulating fields %s", self.accumulations)
 
-        self.accumulators: Dict[str, FloatArray] = {}
+        self.accumulators: dict[str, FloatArray] = {}
         self.step_zero = timedelta(0)
 
     def process(self, state: State) -> State:

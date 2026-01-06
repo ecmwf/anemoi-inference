@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
 import datetime
 import logging
 import os
@@ -15,13 +14,12 @@ import socket
 import subprocess
 from typing import Any
 from typing import Optional
-from typing import Tuple
 
 import numpy as np
-import torch
-import torch.distributed as dist
+from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.config import Configuration
+from anemoi.inference.lazy import torch
 from anemoi.inference.output import Output
 
 from ..decorators import main_argument
@@ -56,6 +54,8 @@ class ParallelRunnerFactory:
     def __new__(cls, config: Any, base_runner: str = "default", *args, **kwargs):
         assert base_runner != "parallel", "Base runner cannot be `parallel` itself."
 
+        enable_logging_name(f"rank{int(os.environ.get('SLURM_PROCID',0)):02d}")
+
         try:
             base_class = runner_registry.lookup(base_runner)
         except ValueError:
@@ -78,6 +78,7 @@ class ParallelRunnerMixin:
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __new__(cls, config, *args, **kwargs):
+
         if torch.cuda.is_available():
             return super().__new__(cls)
         else:
@@ -94,6 +95,7 @@ class ParallelRunnerMixin:
         pid : int, optional
             The process ID, by default 0.
         """
+
         super().__init__(config, **kwargs)
 
         self.model_comm_group = None
@@ -104,13 +106,21 @@ class ParallelRunnerMixin:
 
         self._bootstrap_processes()
 
-        # disable most logging on non-zero ranks
-        if self.global_rank != 0:
-            logging.getLogger().setLevel(logging.WARNING)
+        LOG.info(
+            f"ParallelRunner local/global ranks: {self.local_rank}/{self.global_rank}, host: {socket.gethostname()}"
+        )
 
-        if self.device == "cuda":
-            self.device = f"{self.device}:{self.local_rank}"
-            torch.cuda.set_device(self.local_rank)
+        if self.device.type == "cuda":
+            self.device = torch.device("cuda", index=self.local_rank)
+            torch.cuda.set_device(self.device)
+            LOG.info(f"ParallelRunner changing to device `{self.device}`")
+        else:
+            LOG.info(f"ParallelRunner device `{self.device}` is unchanged")
+
+        # disable most logging on non-zero ranks
+        if self.global_rank != 0 and self.verbosity == 0:
+            LOG.info("ParallelRunner logging disabled on non-zero rank")
+            logging.getLogger().setLevel(logging.WARNING)
 
         # Create a model comm group for parallel inference
         # A dummy comm group is created if only a single device is in use
@@ -123,7 +133,7 @@ class ParallelRunnerMixin:
         else:
             LOG.warning("ParallelRunner selected but world size of 1 detected")
 
-    def predict_step(self, model: Any, input_tensor_torch: torch.Tensor, **kwargs: Any) -> torch.Tensor:
+    def predict_step(self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any) -> "torch.Tensor":
         """Performs a prediction step.
 
         Parameters
@@ -171,13 +181,14 @@ class ParallelRunnerMixin:
     def __del__(self) -> None:
         """Destructor to clean up resources."""
         if self.model_comm_group is not None:
-            dist.destroy_process_group()
+            torch.distributed.destroy_process_group()
 
     def _seed_procs(self) -> None:
         """Ensures each process uses the same seed.
         Will try read 'ANEMOI_BASE_SEED' from the environment.
         Otherwise, the seed of process 0 will be shared to all processes.
         """
+
         seed = None
         seed_threshold = 1000
         env_var_list = ["ANEMOI_BASE_SEED"]
@@ -221,7 +232,7 @@ class ParallelRunnerMixin:
         LOG.debug(f"spawning {num_procs -1 } procs")
 
         # check num_procs <= num_gpus
-        if self.device.startswith("cuda"):
+        if str(self.device).startswith("cuda"):
             num_gpus = torch.cuda.device_count()
             if num_procs > num_gpus:
                 raise ValueError(
@@ -290,7 +301,7 @@ class ParallelRunnerMixin:
             if self.local_rank == 0:
                 self._spawn_parallel_procs(self.world_size)
 
-    def _init_network_from_slurm(self) -> Tuple[str, str]:
+    def _init_network_from_slurm(self) -> tuple[str, str]:
         """Reads Slurm environment to set master address and port for parallel communication.
 
         Returns
@@ -341,7 +352,7 @@ class ParallelRunnerMixin:
 
         return master_addr, master_port
 
-    def _init_parallel(self) -> Optional[dist.ProcessGroup]:
+    def _init_parallel(self) -> Optional["torch.distributed.ProcessGroup"]:
         """Creates a model communication group to be used for parallel inference.
 
         Returns
@@ -349,10 +360,12 @@ class ParallelRunnerMixin:
         Optional[dist.ProcessGroup]
             The model communication group.
         """
+        import torch.distributed as dist
+
         if self.world_size > 1:
 
             # use 'startswith' instead of '==' in case device is 'cuda:0'
-            if self.device.startswith("cuda"):
+            if str(self.device).startswith("cuda"):
                 backend = "nccl"
             else:
                 if dist.is_mpi_available():
@@ -376,7 +389,7 @@ class ParallelRunnerMixin:
 
         return model_comm_group
 
-    def _get_parallel_info_from_slurm(self) -> Tuple[int, int, int]:
+    def _get_parallel_info_from_slurm(self) -> tuple[int, int, int]:
         """Reads Slurm env vars, if they exist, to determine if inference is running in parallel.
 
         Returns

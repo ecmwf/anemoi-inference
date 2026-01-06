@@ -13,8 +13,6 @@ import os
 import pickle
 import struct
 from typing import Any
-from typing import Dict
-from typing import Tuple
 
 from anemoi.utils.logs import enable_logging_name
 from anemoi.utils.logs import set_logging_name
@@ -32,7 +30,7 @@ LOG = logging.getLogger(__name__)
 class ProcessesTransport(Transport):
     """Transport implementation using processes."""
 
-    def __init__(self, couplings: Any, tasks: Dict[str, Any], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, couplings: Any, tasks: dict[str, Any], *args: Any, **kwargs: Any) -> None:
         """Initialize the ProcessesTransport.
 
         Parameters
@@ -43,8 +41,8 @@ class ProcessesTransport(Transport):
             The tasks to be executed.
         """
         super().__init__(couplings, tasks)
-        self.children: Dict[int, str] = {}
-        self.pipes: Dict[Tuple[str, str], Tuple[int, int]] = {}
+        self.children: dict[int, str] = {}
+        self.pipes: dict[tuple[str, str], tuple[int, int]] = {}
         enable_logging_name("main")
 
     def child_process(self, task: Any) -> int:
@@ -68,12 +66,14 @@ class ProcessesTransport(Transport):
                 os.close(read_fd)
                 os.close(write_fd)
 
+        code = 0
         try:
             task.run(self)
         except Exception as e:
             LOG.exception(e)
-            return 1
-        return 0
+            code = 1
+        LOG.info("Child process %s finished with code %d", task.name, code)
+        return code
 
     def start(self) -> None:
         """Start the transport by forking processes for each task."""
@@ -112,6 +112,10 @@ class ProcessesTransport(Transport):
                 for pid in self.children:
                     os.kill(pid, 15)
 
+            if status != 0:
+                LOG.error("One of the child processes failed. Exiting.")
+                raise RuntimeError(f"Child process {pid} ({self.children[pid]}) failed with status {status}")
+
     def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send a state from the sender to the target.
 
@@ -126,6 +130,9 @@ class ProcessesTransport(Transport):
         tag : int
             The tag associated with the state.
         """
+
+        LOG.info(f"{sender}: sending to {target} [{tag}]")
+
         # TODO: something more efficient than pickle
         _, write_fd = self.pipes[(sender.name, target.name)]
         pickle_data = pickle.dumps(state)
@@ -151,6 +158,9 @@ class ProcessesTransport(Transport):
         Any
             The received state.
         """
+
+        LOG.info(f"{receiver}: receiving from {source} [{tag}]")
+
         read_fd, _ = self.pipes[(source.name, receiver.name)]
 
         recieved_tag = struct.unpack("!Q", os.read(read_fd, 8))[0]

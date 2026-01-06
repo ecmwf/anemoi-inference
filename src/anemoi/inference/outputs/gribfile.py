@@ -12,11 +12,9 @@ import json
 import logging
 from collections import defaultdict
 from io import IOBase
+from pathlib import Path
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Literal
 
 import earthkit.data as ekd
 import numpy as np
@@ -26,6 +24,7 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
@@ -51,7 +50,7 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _fix(mars: Dict[str, Any], keys: Dict[str, Any]) -> None:
+def _fix(mars: dict[str, Any], keys: dict[str, Any]) -> None:
     """Check if the mars dictionary contains valid keys and fix it.
 
     Parameters
@@ -86,7 +85,7 @@ class ArchiveCollector:
         self.expect = 0
         self._request = defaultdict(set)
 
-    def add(self, field: Dict[str, Any]) -> None:
+    def add(self, field: dict[str, Any]) -> None:
         """Add a field to the archive request.
 
         Parameters
@@ -118,19 +117,20 @@ class GribIoOutput(BaseGribOutput):
         self,
         context: Context,
         *,
-        out: Union[str, IOBase],
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        encoding: Optional[Dict[str, Any]] = None,
-        archive_requests: Optional[Dict[str, Any]] = None,
+        out: Path | IOBase,
+        post_processors: list[ProcessorConfig] | None = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
         check_encoding: bool = True,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
         split_output: bool = True,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
         """Initialize the GribIOOutput.
 
@@ -138,9 +138,8 @@ class GribIoOutput(BaseGribOutput):
         ----------
         context : Context
             The context.
-        out : Union[str, IOBase]
+        out : Union[Path, IOBase]
             Path or file-like object to write the grib data to.
-            If a string, it should be a file path.
             If a file-like object, it should be opened in binary write mode.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
@@ -167,6 +166,13 @@ class GribIoOutput(BaseGribOutput):
         split_output : bool, optional
             Whether to split the output, by default True.
             Cannot be `True` if `out` is a file-like object.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
         super().__init__(
             context,
@@ -179,6 +185,7 @@ class GribIoOutput(BaseGribOutput):
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
             variables=variables,
+            negative_step_mode=negative_step_mode,
         )
         self.out = out
         self.output = GribWriter(self.out, split_output)
@@ -191,7 +198,7 @@ class GribIoOutput(BaseGribOutput):
         """Return a string representation of the GribIOOutput object."""
         return f"{type(self).__name__ }({self.out})"
 
-    def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
+    def write_message(self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]) -> None:
         """Write a message to the grib file.
 
         Parameters
@@ -316,6 +323,7 @@ class GribIoOutput(BaseGribOutput):
 
 @output_registry.register("grib")
 @main_argument("path")
+@ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
 
@@ -323,28 +331,30 @@ class GribFileOutput(GribIoOutput):
         self,
         context: Context,
         *,
-        path: str,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        encoding: Optional[Dict[str, Any]] = None,
-        archive_requests: Optional[Dict[str, Any]] = None,
+        path: Path,
+        post_processors: list[ProcessorConfig] | None = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
         check_encoding: bool = True,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
         split_output: bool = True,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
-        """Initialize the GribFileOutput.
+        """Initialise the GribFileOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
+        path : Path
             Path to the grib file to write the data to.
+            If the parent directory does not exist, it will be created.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         encoding : dict, optional
@@ -369,6 +379,13 @@ class GribFileOutput(GribIoOutput):
             The list of variables, by default None.
         split_output : bool, optional
             Whether to split the output, by default True.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
         super().__init__(
             context,
@@ -385,4 +402,5 @@ class GribFileOutput(GribIoOutput):
             write_initial_state=write_initial_state,
             variables=variables,
             split_output=split_output,
+            negative_step_mode=negative_step_mode,
         )

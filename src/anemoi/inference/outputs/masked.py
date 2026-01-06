@@ -8,9 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import warnings
 from typing import Any
-from typing import List
-from typing import Optional
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
@@ -49,11 +48,17 @@ class MaskedOutput(ForwardOutput):
         *,
         mask: Any,
         output: Configuration,
-        variables: Optional[list[str]] = None,
-        post_processors: Optional[List[ProcessorConfig]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ) -> None:
+
+        warnings.warn(
+            f"The {self.__class__.__name__} is deprecated and will be removed in a future release. "
+            "Use extraction post-processors instead.",
+            DeprecationWarning,
+        )
         super().__init__(
             context,
             output,

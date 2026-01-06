@@ -13,12 +13,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Type
 from typing import TypeVar
-from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 from omegaconf import DictConfig
@@ -38,21 +33,21 @@ class Configuration(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    date: Union[datetime, None] = None
+    date: datetime | None = None
     """The starting date for the forecast. If not provided, the date will depend on the selected Input object. If a string, it is parsed by :func:`earthkit.data.utils.dates`."""
 
     @field_validator("date", mode="before")
     @classmethod
-    def to_datetime(cls, date: Union[str, int, datetime, None]) -> Optional[datetime]:
+    def to_datetime(cls, date: str | int | datetime | None) -> datetime | None:
         if date is not None:
             return to_datetime(date)
 
     @classmethod
     def load(
-        cls: Type[T],
-        path: Union[str, Dict[str, Any]],
-        overrides: Union[List[str], List[dict], str, dict] = [],
-        defaults: Optional[Union[str, List[str], dict]] = None,
+        cls: type[T],
+        path: str | dict[str, Any],
+        overrides: list[str] | list[dict] | str | dict = [],
+        defaults: str | list[str] | dict | None = None,
     ) -> T:
         """Load the configuration.
 
@@ -71,7 +66,7 @@ class Configuration(BaseModel):
             The loaded configuration.
         """
 
-        configs: List[Union[DictConfig, ListConfig]] = []
+        configs: list[DictConfig | ListConfig] = []
 
         # Set default values
         if defaults is not None:
@@ -87,7 +82,12 @@ class Configuration(BaseModel):
         if isinstance(path, dict):
             configs.append(OmegaConf.create(path))
         else:
-            configs.append(OmegaConf.load(path))
+            # Fix for OmegaConf due to https://github.com/ecmwf/anemoi-inference/pull/343
+            import yaml
+
+            with open(path, "r") as f:
+                config = yaml.safe_load(f)
+            configs.append(OmegaConf.create(yaml.safe_dump(config, sort_keys=False)))
 
         if not isinstance(overrides, list):
             overrides = [overrides]

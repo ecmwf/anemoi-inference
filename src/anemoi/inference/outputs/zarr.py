@@ -10,16 +10,16 @@
 from __future__ import annotations
 
 import logging
-import os
 import shutil
+from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
 from typing import Literal
-from typing import Optional
 
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -28,15 +28,18 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from zarr.storage import StoreLike
+
 
 def create_zarr_array(
-    store: Any,
+    store: "StoreLike",
     name: str,
     shape: tuple,
     dtype: str,
     dimensions: tuple[str, ...],
-    chunks: tuple[int, ...] | Literal["auto"] | bool,
-    fill_value: Optional[float] = None,
+    chunks: tuple[int, ...] | str | bool,
+    fill_value: float | None = None,
 ) -> Any:
     """Create a Zarr array with the given parameters.
 
@@ -45,8 +48,6 @@ def create_zarr_array(
     import zarr
 
     chunks = chunks if zarr.__version__ >= "3" else chunks if not chunks == "auto" else True
-
-    store: zarr.Group = store
 
     if zarr.__version__ >= "3":
         from zarr import create_array
@@ -79,21 +80,21 @@ class ZarrOutput(Output):
     def __init__(
         self,
         context: Context,
-        store: Any,
-        variables: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
-        missing_value: Optional[float] = np.nan,
+        store: "StoreLike",
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        missing_value: float | None = np.nan,
         float_size: str = "f4",
-        chunks: tuple[int, ...] | Literal["auto"] = "auto",
+        chunks: tuple[int, ...] | Literal["auto"] | bool = "auto",
     ) -> None:
-        """Initialize the ZarrOutput object.
+        """Initialise the ZarrOutput object.
 
         Parameters
         ----------
         context : dict
             The context dictionary.
-        store : Any
+        store : StoreLike
             The Zarr store to save the data.
             Can be a file path or a Zarr store.
             If an existing store is provided, it is assumed to
@@ -108,15 +109,13 @@ class ZarrOutput(Output):
             The size of the float, by default "f4".
         missing_value : float, optional
             The missing value, by default np.nan.
-        chunks : tuple[int, ...] | Literal['auto'], optional
+        chunks : tuple[int, ...] | Literal['auto'] | bool, optional
             The chunk size for the Zarr arrays, by default 'auto'.
         """
 
         super().__init__(
             context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
         )
-
-        from zarr.storage import StoreLike
 
         self.zarr_store: StoreLike = store
         self.missing_value = missing_value
@@ -139,8 +138,11 @@ class ZarrOutput(Output):
         """
         import zarr
 
-        if isinstance(self.zarr_store, str):
-            if os.path.exists(self.zarr_store):
+        if isinstance(self.zarr_store, (str, Path)):
+            zarr_store = Path(self.zarr_store)
+            zarr_store.parent.mkdir(parents=True, exist_ok=True)
+
+            if zarr_store.exists():
                 LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
                 shutil.rmtree(self.zarr_store)
 
@@ -158,6 +160,7 @@ class ZarrOutput(Output):
         else:
             self.zarr_group = zarr.open_group(self.zarr_store, mode="w")
 
+        state = self.post_process(state)  # make sure state is post-processed
         values = len(state["latitudes"])
 
         time = 0
@@ -260,7 +263,7 @@ class ZarrOutput(Output):
 
     def write_initial_state(self, state: State) -> None:
         """Write the initial state to the Zarr file."""
-        state = self.reduce(state)  # Reduce to only the last step
+        state = reduce_state(state)  # Reduce to only the last step
 
         return super().write_initial_state(state)
 
