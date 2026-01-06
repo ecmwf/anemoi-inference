@@ -13,7 +13,6 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Any
 
-import datetime
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
@@ -171,6 +170,7 @@ class ComputedForcings(Forcings):
 
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
+
 class ComputedInterpForcings(ComputedForcings):
     """Compute forcings like `cos_julian_day` or `insolation`."""
 
@@ -216,6 +216,7 @@ class ComputedInterpForcings(ComputedForcings):
 
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
+
 class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
 
@@ -247,7 +248,7 @@ class CoupledForcings(Forcings):
     def __repr__(self) -> str:
         """Return a string representation of the CoupledForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
-    
+
     def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the forcings for the given dates.
 
@@ -300,16 +301,18 @@ class CoupledInterpForcings(CoupledForcings):
             self.variables,
             [dates[0]],
         )
-        return np.concatenate([constant_arr, constant_arr], axis = 1)
+        return np.concatenate([constant_arr, constant_arr], axis=1)
 
 
 class ConstantForcings(CoupledForcings):
     # Just to have a different __repr__
     pass
 
+
 class ConstantInterpForcings(CoupledInterpForcings):
     # Just to have a different __repr__
     pass
+
 
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""

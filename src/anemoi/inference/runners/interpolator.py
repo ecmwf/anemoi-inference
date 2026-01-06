@@ -24,7 +24,8 @@ from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..forcings import ComputedInterpForcings, ConstantInterpForcings
+from ..forcings import ComputedInterpForcings
+from ..forcings import ConstantInterpForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
@@ -96,9 +97,9 @@ class TimeInterpolatorRunner(DefaultRunner):
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
             f"but got {self.checkpoint.input_explicit_times}"
         )
-        assert (
-            len(self.checkpoint.target_explicit_times)
-            in (self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1, self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0])
+        assert len(self.checkpoint.target_explicit_times) in (
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
         ), (
             "Interpolator runner requires the number of target explicit times to be equal to "
             "interpolation_window / frequency - 1, but got "
@@ -152,7 +153,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
 
-
     def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
@@ -164,7 +164,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         forcings_state = forcings_input.create_input_state(date=date, start_date=self.config.date, **kwargs)
         self._check_state(forcings_state, "dynamic_forcings")
 
-        self.constants_state['date'] = prognostic_state['date']
+        self.constants_state["date"] = prognostic_state["date"]
 
         input_state = self._combine_states(
             prognostic_state,
@@ -217,7 +217,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
-            input_state['date'] = input_state['date'][0]
+            input_state["date"] = input_state["date"][0]
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
 
                 # In the first window, we want to write the initial state (t=0)
@@ -258,7 +258,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         # For output object. Should be moved elsewhere
         self.reference_date = self.reference_date or date
-        self.reference_dates= [self.reference_date + h for h in self.checkpoint.lagged]
+        self.reference_dates = [self.reference_date + h for h in self.checkpoint.lagged]
         self.initial_dates = dates
 
         # TODO: Check for user provided forcings
@@ -561,11 +561,9 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
     """A runner to be used for inference of a trained interpolator directly on analysis data
     without being coupled to a forecasting model.
     """
-    def predict_step(
-        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor"
-    ) -> "torch.Tensor":
-        return model.predict_step(input_tensor_torch, multi_step=self.multi_step_input)
 
+    def predict_step(self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor") -> "torch.Tensor":
+        return model.predict_step(input_tensor_torch, multi_step=self.multi_step_input)
 
     def forecast(
         self, lead_time: datetime.timedelta, input_tensor_numpy: NDArray, input_state: State
