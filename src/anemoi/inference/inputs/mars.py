@@ -19,6 +19,8 @@ from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
+import datetime
+
 from . import input_registry
 from .grib import GribInput
 
@@ -260,10 +262,11 @@ class MarsInput(GribInput):
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
 
+        start_date = kwargs.pop("start_date", date)
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [date + h for h in self.checkpoint.lagged],
+                [start_date + h for h in self.checkpoint.lagged],
             ),
             variables=self.variables,
             date=date,

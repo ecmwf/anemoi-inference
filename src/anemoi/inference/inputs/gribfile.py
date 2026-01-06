@@ -69,7 +69,7 @@ class GribFileInput(GribInput):
         date : Optional[Date]
             The date for which to create the input state.
         **kwargs : Any
-            Additional arguments for selecting the variable.
+            Additional keyword arguments.
 
         Returns
         -------
