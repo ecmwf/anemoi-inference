@@ -10,18 +10,18 @@
 
 import logging
 import os
+from datetime import timedelta
 from functools import cached_property
 from types import MappingProxyType as frozendict
 from typing import Optional
 
-import earthkit.data as ekd
 import numpy as np
 import torch
 from anemoi.datasets import open_dataset
 from anemoi.utils.checkpoints import load_metadata
-from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import FloatArray
@@ -125,7 +125,7 @@ class DsCheckpoint(Checkpoint):
         return DsMetadata(load_metadata(self.path))
 
 
-class ZarrTemplate:
+class ZarrDataset:
     def __init__(self, zarr_path: str, forcings: Optional[list[str]] = None):
         if forcings is None:
             forcings = []
@@ -136,6 +136,7 @@ class ZarrTemplate:
 
         self.lats = ds.latitudes
         self.lons = ds.longitudes
+        self.field_shape = ds.field_shape
 
         var_index_map = {name: ds.name_to_index[name] for name in forcings}
         for var in forcings:
@@ -144,6 +145,7 @@ class ZarrTemplate:
             if var not in ds.constant_fields:
                 continue
 
+            # Only extract the first timestamp since the field is constant
             self.constant_forcings[var] = ds[0, idx, 0, :].flatten()
 
     def grid_points(self):
@@ -152,10 +154,17 @@ class ZarrTemplate:
 
 @runner_registry.register("downscaling")
 class DownscalingRunner(DefaultRunner):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        config: RunConfiguration,
+        time_step: int | str | timedelta,
+        ensemble_members: int = 1,
+        field_shape: tuple[int, ...] | None = None,
+        extra_args: dict | None = None,
+    ):
+        super().__init__(config)
 
-        self.time_step = to_timedelta(self.extra_config.time_step)
+        self.time_step = to_timedelta(time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
         self.write_initial_state = False
 
@@ -169,15 +178,16 @@ class DownscalingRunner(DefaultRunner):
         self.variables = Variables(self)
 
         # self.samples = getattr(self.extra_config, "n_samples")
-        self.members: int = getattr(self.extra_config, "n_members", 1)
+        self.ensemble_members = ensemble_members
 
-        self.checkpoint.print_indices()
-        self.checkpoint.print_variable_categories()
+        # Overrides for predictions
+        self.extra_args = extra_args if extra_args is not None else {}
+
+        # TODO: remove eventually
         self.verbosity = 3
 
-    @cached_property
-    def extra_config(self) -> DotDict:
-        return self.config.development_hacks
+        self._checkpoint.print_indices()
+        self._checkpoint.print_variable_categories()
 
     @property
     def high_res_input(self) -> list[str]:
@@ -186,7 +196,7 @@ class DownscalingRunner(DefaultRunner):
     @cached_property
     def constant_high_res_focings_numpy(self) -> FloatArray:
         high_res = np.stack(
-            [forcing for forcing in self.template.constant_forcings.values()],
+            [forcing for forcing in self.hres_dataset.constant_forcings.values()],
             axis=1,
         )
 
@@ -196,18 +206,16 @@ class DownscalingRunner(DefaultRunner):
     def computed_high_res_forcings(self) -> ComputedForcings:
         # TODO: this breaks if the computed forcings are non constant fields, for example `sr`.
         # But we should not use variables that are not available during production
-        computed_forcings = [var for var in self.high_res_input if var not in self.template.constant_forcings]
+        computed_forcings = [var for var in self.high_res_input if var not in self.hres_dataset.constant_forcings]
         return ComputedForcings(self, computed_forcings, [])
 
     @cached_property
-    def template(self):
-        # The output type, may not be robust
-        if "grib" in self.config.output:
-            return ekd.from_source("file", self.extra_config.output_template)[0]
-        elif "netcdf" in self.config.output:
+    def hres_dataset(self):
+        # NOTE: harcoded to read from the checkpoint file
+        if "grib" in self.config.output or "netcdf" in self.config.output:
             hw = self._checkpoint._metadata._config.hardware
             path = os.path.join(hw.paths.data, hw.files.dataset_y)
-            return ZarrTemplate(path, self.high_res_input)
+            return ZarrDataset(path, forcings=self.high_res_input)
         else:
             raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
 
@@ -246,10 +254,10 @@ class DownscalingRunner(DefaultRunner):
     def forecast(self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
-            state["latitudes"], state["longitudes"] = self.template.grid_points()
+            state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
             if "grib" in self.config.output:
-                state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
+                state["_grib_templates_for_output"] = {name: self.hres_dataset for name in state["fields"].keys()}
 
             yield state
 
@@ -266,7 +274,7 @@ class DownscalingRunner(DefaultRunner):
 
         # TODO: is this the correct thing to do to get an ensemble out?
         outputs = []
-        for _ in range(self.members):
+        for _ in range(self.ensemble_members):
             if self._checkpoint._metadata._config.training.predict_residuals:
                 output_tensor = self._predict_from_residuals(model, low_res_tensor, high_res_tensor, **kwargs)
             else:
@@ -278,16 +286,13 @@ class DownscalingRunner(DefaultRunner):
         return torch.stack(outputs)
 
     def _predict_direct(self, model, low_res_tensor, high_res_tensor, **kwargs):
-        extra_args = self.extra_config.get("extra_args", {})
-
-        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-
+        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs)
         return output_tensor
 
     def _predict_from_residuals(self, model, low_res_tensor, high_res_tensor, **kwargs):
-        extra_args = self.extra_config.get("extra_args", {})
-
-        residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
+        residual_output_tensor = model.predict_step(
+            low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs
+        )
         residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
         if residual_output_numpy.ndim == 1:
             residual_output_numpy = residual_output_numpy[:, np.newaxis]
@@ -301,8 +306,8 @@ class DownscalingRunner(DefaultRunner):
             model,
             low_res_tensor[0],  # remove batch dimension
             residual_output_tensor,
-            self.checkpoint.variable_to_input_tensor_index,
-            self.checkpoint._metadata.high_res_output_variables,
+            self._checkpoint.variable_to_input_tensor_index,
+            self._checkpoint._metadata.high_res_output_variables,
         )
 
         return output_tensor_interp
@@ -310,7 +315,7 @@ class DownscalingRunner(DefaultRunner):
     # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
-        state["latitudes"], state["longitudes"] = self.template.grid_points()
+        state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
         computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
 
@@ -326,7 +331,7 @@ class DownscalingRunner(DefaultRunner):
         kinds = {}
 
         # Fill in the constant forcings from cache
-        for var, array in self.template.constant_forcings.items():
+        for var, array in self.hres_dataset.constant_forcings.items():
             forcings_dict[var] = array[np.newaxis, np.newaxis, ...]
             kinds[var] = Kind(forcing=True, constant=True)
 
