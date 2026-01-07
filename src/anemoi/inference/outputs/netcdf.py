@@ -17,11 +17,12 @@ from typing import Optional
 
 import numpy as np
 import pyproj
-import xarray as xr
 from netCDF4 import Dataset
 from netCDF4 import Variable
 
 from anemoi.inference.context import Context
+from anemoi.inference.runners.downscaling import DownscalingRunner
+from anemoi.inference.runners.downscaling import ZarrDataset
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
@@ -51,10 +52,14 @@ class NetCDFOutput(Output):
 
     def __init__(
         self,
+        # NOTE: this seems to be the runner?
         context: Context,
         path: Path,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
+        projection_string: str | None = None,
+        reference_date: datetime.datetime | None = None,
+        field_shape: tuple[int, ...] = (),
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         float_size: str = "f4",
@@ -89,22 +94,31 @@ class NetCDFOutput(Output):
             write_initial_state=write_initial_state,
         )
 
+        # If we are downscaling, we need to pull (lats, lons, field_shape) from a separate dataset
+        self.hres_dataset: ZarrDataset | None = None
+        # TODO: to fix this error we would need to change the Register.register function in anemoi-utils
+        if isinstance(context, DownscalingRunner):
+            self.hres_dataset = context.hres_dataset
+            self.field_shape = field_shape if field_shape is not None else self.hres_dataset.field_shape
+            assert len(self.field_shape) in (1, 2), (
+                f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}"
+            )
+
         self.path = path
         self.float_size = float_size
         self.missing_value = missing_value
         self.compression = {}  # dict(zlib=False, complevel=0)
+        self.extra_time = 1 if self.write_step_zero else 0
+        self.proj_str = projection_string
+        self.ensemble_members = getattr(context, "ensemble_members", 1)
+        self.ncfile: Optional[Dataset] = None
+        self.vars: dict[str, Variable] = {}
 
-        if self.write_step_zero:
-            self.extra_time = 1
-        else:
-            self.extra_time = 0
+        # Reference date for the time axis
+        ref_date = reference_date if reference_date is not None else context.reference_date
+        assert ref_date is not None, "Either `date` or `ouput.netcdf.reference_date` needs to be specified"
 
-        self.template = None  # Add this one line so open() won't crash
-
-        # timestep number
-        self.n = 0
-        self.proj_str: Optional[str] = getattr(self.context.development_hacks, "projection_string", None)
-        self.members = getattr(self.context.development_hacks, "n_members", 1)
+        self.reference_date = ref_date.replace(tzinfo=None)
 
         # TODO: is something like this available somewhere inside state?
         # Otherwise we probably need to have it as input in the config?
@@ -115,33 +129,14 @@ class NetCDFOutput(Output):
             )
         }
 
-        self.ncfile: Optional[Dataset] = None
-        self.vars: dict[str, Variable] = {}
-
-        # shape of the fields
-        self.field_shape: tuple[int, ...]
+        # timestep number
+        self.n = 0
 
         # netcdf dimesions for the field variables
-        self.dimensions: tuple[str, ...]
-
-        # Reference date for the time axis
-        # TODO: self.reference_date: datetime.datetime = datetime.datetime(1970, 1, 1)
-        self.reference_date: datetime.datetime
+        self.dimensions: tuple[str, ...] = ()
 
         # netcdf time variable
-        self.time: Variable
-
-    def _get_reference_date(self, state: State) -> datetime.datetime:
-        # TODO: this should be "reference_date" in the base context but it's not implemented?
-        ref_date = getattr(self.context.development_hacks, "reference_date")
-
-        if ref_date is None:
-            ref_date = state["date"]
-
-        LOG.info(f"Reference date set to {ref_date}")
-
-        # TODO: not ideal, but state["date"] is not timezone aware
-        return ref_date.replace(tzinfo=None)
+        self.time: Optional[Variable] = None
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -195,14 +190,8 @@ class NetCDFOutput(Output):
         if os.path.exists(self.path):
             os.remove(self.path)
 
-        self.reference_date = self._get_reference_date(state)
-
         state = self.post_process(state)
 
-        # keep time unlimited
-        time = None
-
-        # Create new NetCDF file at self.path
         with LOCK:
             if self.ncfile is not None:
                 return
@@ -210,11 +199,18 @@ class NetCDFOutput(Output):
             # TODO: add height dimensions and variables?
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
-            # TODO: i4 or f8 for time?
+            # keep time unlimited
+            time = None
             self.ncfile.createDimension("time", time)
+
+            # TODO: i4 or f8 for time?
             self.time = self.ncfile.createVariable("time", "f8", ("time",))
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
+
+            self.ncfile.createDimension("ensemble_member", self.ensemble_members)
+            var = self.ncfile.createVariable("ensemble_member", "i4", ("ensemble_member",))
+            var[:] = np.arange(self.ensemble_members, dtype=np.int32)
 
             var = self.ncfile.createVariable("forecast_reference_time", "f8")
             var.units = f"seconds since {self.reference_date}"
@@ -223,39 +219,47 @@ class NetCDFOutput(Output):
             # TODO: make sure this is right?
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
-        # TODO: this should already be available in the checkpoint
-        output_template: Optional[str] = getattr(self.context.development_hacks, "output_template", None)
+        # Check if we are producing a downscaling output
+        if self.hres_dataset is not None:
+            lats = np.reshape(self.hres_dataset.lats, self.field_shape)
+            lons = np.reshape(self.hres_dataset.lons, self.field_shape)
 
-        input_field_shape: Optional[tuple[int, int]] = getattr(self.context.development_hacks, "field_shape", None)
-
-        if output_template is not None:
-            LOG.info(output_template)
-            with xr.open_zarr(output_template, consolidated=False) as template:
-                if input_field_shape is not None:
-                    assert len(input_field_shape) == 2, "Expected 2D field shape (y, x)"
-                    self.field_shape = input_field_shape
-                    (y_size, x_size) = self.field_shape
-                else:
-                    self.field_shape = template.field_shape
-                    (y_size, x_size) = self.field_shape
-
-                lats = np.reshape(template.latitudes.values, self.field_shape)
-                lons = np.reshape(template.longitudes.values, self.field_shape)
-
+            if len(self.field_shape) == 1:
+                self.dimensions = ("time", "ensemble_member", "values")
+                coord_dims = ("values",)
+                log_str = f"values={self.field_shape[0]}"
+            elif len(self.field_shape) == 2:
+                (y, x) = self.field_shape
                 with LOCK:
-                    self.ncfile.createDimension("y", y_size)
-                    self.ncfile.createDimension("x", x_size)
-                    self.ncfile.createDimension("ensemble_member", self.members)
-                    var = self.ncfile.createVariable("ensemble_member", "i4", ("ensemble_member",))
-                    var[:] = np.arange(self.members, dtype=np.int32)
+                    self.ncfile.createDimension("y", y)
+                    self.ncfile.createDimension("x", x)
 
-                if self.proj_str is not None:
-                    self._create_projections(lats, lons)
+                self._create_projections(lats, lons)
 
                 self.dimensions = ("time", "ensemble_member", "y", "x")
                 coord_dims = ("y", "x")
+                log_str = f"{y=}, {x=}"
+            else:
+                raise ValueError(f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}")
 
-                log_str = f"y={y_size}, x={x_size}"
+            if len(self.field_shape) == 2:
+                (y, x) = self.field_shape
+                with LOCK:
+                    self.ncfile.createDimension("y", y)
+                    self.ncfile.createDimension("x", x)
+
+                self._create_projections(lats, lons)
+
+                self.dimensions = ("time", "ensemble_member", "y", "x")
+                coord_dims = ("y", "x")
+                log_str = f"{y=}, {x=}"
+
+            # If field shape was not overridden keep it 1D
+            else:
+                self.dimensions = ("time", "ensemble_member", "values")
+                coord_dims = ("values",)
+                log_str = f"values={self.field_shape[0]}"
+
         else:
             lats = state["latitudes"]
             lons = state["longitudes"]
@@ -264,7 +268,7 @@ class NetCDFOutput(Output):
             coord_dims = ("values",)
 
             self.field_shape = (values,)
-            self.dimensions = ("time", "values")
+            self.dimensions = ("time", "ensemble_member", "values")
             self.ncfile.createDimension("values", values)
             log_str = f"{values=}"
 
@@ -283,7 +287,9 @@ class NetCDFOutput(Output):
 
     def _create_projections(self, lats, lons):
         assert self.ncfile is not None
-        assert self.proj_str is not None
+
+        if self.proj_str is None:
+            return
 
         # Convert projection string to dictionary of attributes
         crs = pyproj.CRS.from_proj4(self.proj_str)
@@ -358,6 +364,8 @@ class NetCDFOutput(Output):
             The state dictionary.
         """
 
+        assert self.time is not None
+
         # TODO: why are these not initialized inside open()?
         self.ensure_variables(state)
 
@@ -369,7 +377,7 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                # value has shape (n_members, values), we need to reshape to (n_members, y_dim, x_dim)
+                # value has shape (n_members, values), we need to reshape to (n_members, whatever the field shape is)
                 field = np.reshape(value, (-1, *self.field_shape))
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
                 self.vars[name][self.n, 0, ...] = field
