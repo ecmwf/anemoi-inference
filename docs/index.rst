@@ -52,9 +52,10 @@ Inference configurations are specified using a YAML file, which defines
 model parameters, input datasets, and output formats. The command-line
 tool allows users to run inference tasks, inspect results, and manage
 forecast outputs. In the rest of this documentation, you will learn how
-to configure and execute inference workflows using anemoi-inference. A
-complete example of running a forecast with a trained model can be found
-in the :ref:`usage-getting-started` section.
+to configure and execute inference workflows using anemoi-inference.
+
+A complete example of running a forecast with a trained model can be
+found in the :ref:`usage-quickstart` section.
 
 ************
  Installing
@@ -67,22 +68,6 @@ To install the package, you can use the following command:
    pip install anemoi-inference
 
 Get more information in the :ref:`installing <installing>` section.
-
-**************
- Contributing
-**************
-
-.. code:: bash
-
-   git clone ...
-   cd anemoi-inference
-   pip install .[dev]
-
-You may also have to install pandoc on MacOS:
-
-.. code:: bash
-
-   brew install pandoc
 
 ***********************
  Other Anemoi packages
@@ -118,19 +103,20 @@ You may also have to install pandoc on MacOS:
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Recipe Examples
+   :caption: Getting Started
 
-   usage/getting-started
-   usage/external-graph
+   usage/quickstart
+   usage/environment
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: User Guide
 
-   inference/input-types
+   usage/optimisation
    inference/parallel
-   inference/apis/introduction
+   inference/external-graph
+   inference/input-types
    inference/configs/introduction
 
 .. toctree::
@@ -148,10 +134,13 @@ You may also have to install pandoc on MacOS:
 
    cli/introduction
    cli/run
+   cli/couple
+   cli/retrieve
    cli/metadata
    cli/validate
    cli/inspect
    cli/patch
+   cli/sanitise
    cli/requests
 
 .. toctree::

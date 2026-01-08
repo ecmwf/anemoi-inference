@@ -1,8 +1,10 @@
-Introduction
-============
+.. _cli-commands:
+
+Command Line Tool
+==================
 
 When you install the `anemoi-inference` package, this will also install command line tool
-called ``anemoi-inference`` this can be used to manage the checkpoints.
+called ``anemoi-inference`` this can be used to run inference and manage checkpoints.
 
 The tools can provide help with the ``--help`` options:
 
@@ -11,11 +13,25 @@ The tools can provide help with the ``--help`` options:
     % anemoi-inference --help
 
 
-The commands are:
+The commands are organised into two categories:
 
-- :ref:`Run Command <run-command>`
-- :ref:`Metadata Command <metadata-command>`
-- :ref:`Inspect Command <inspect-command>`
-- :ref:`Validate Command <validate-command>`
-- :ref:`Patch Command <patch-command>`
-- :ref:`Requests Command <requests-command>`
+Inference Commands
+------------------
+
+Commands for running model inference:
+
+- :ref:`Run Command <run-command>` - Run inference with a trained model
+- :ref:`Couple Command <couple-command>` - Run coupled inference tasks
+- :ref:`Retrieve Command <retrieve-command>` - Generate data retrieval requests
+
+Checkpoint Management Commands
+------------------------------
+
+Commands for inspecting and managing checkpoint files:
+
+- :ref:`Metadata Command <metadata-command>` - Extract checkpoint metadata
+- :ref:`Inspect Command <inspect-command>` - Inspect checkpoint contents
+- :ref:`Validate Command <validate-command>` - Validate checkpoint integrity
+- :ref:`Patch Command <patch-command>` - Modify checkpoint metadata
+- :ref:`Sanitise Command <sanitise-command>` - Clean and normalise checkpoint metadata
+- :ref:`Requests Command <requests-command>` - Show MARS requests for a configuration
