@@ -47,7 +47,7 @@ dependencies = [
   "aniso8601",
   "anytree",
   "deprecation",
-  "earthkit-data>=0.12.4",
+  "earthkit-data>0.18.4",
   "eccodes>=2.38.3",
   "numpy",
   "omegaconf>=2.2,<2.4",
