@@ -1227,6 +1227,37 @@ class MultiDatasetMetadata(Metadata):
     def output_tensor_index_to_variable(self) -> frozendict:
         return frozendict({v: k for k, v in self.variable_to_output_tensor_index.items()})
 
+    def variable_categories(self) -> dict[str, set[str]]:
+        if self._variables_categories is not None:
+            return self._variables_categories
+
+        result = defaultdict(set)
+        typed_variables = self.typed_variables
+        variable_types = self._inference.variable_types
+
+        for var_type in ["forcing", "diagnostic", "prognostic"]:
+            for name in variable_types.get(var_type, []):
+                result[name].add(var_type)
+
+        for name, v in typed_variables.items():
+            if v.is_accumulation:
+                result[name].add("accumulation")
+
+            if v.is_constant_in_time:
+                result[name].add("constant")
+
+            if v.is_computed_forcing:
+                result[name].add("computed")
+
+        for name in self.variables:
+            if name not in result:
+                raise ValueError(f"Variable {name} has no category")
+
+            result[name] = sorted(result[name])
+
+        self._variables_categories = frozendict(result)
+        return self._variables_categories
+
 
 class MetadataFactory:
     def __new__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, name="data") -> Metadata:

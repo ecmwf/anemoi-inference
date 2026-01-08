@@ -72,11 +72,14 @@ def test_multi_metadata():
     assert metadata.dataset_names == ["data"]
 
     # check that multi-dataset metadata derived from the new `metadata_inference` matches the legacy metadata
-    for prop in [
+    for property in [
         "timestep",
         "variable_to_input_tensor_index",
         "variable_to_output_tensor_index",
         "input_tensor_index_to_variable",
         "output_tensor_index_to_variable",
     ]:
-        assert getattr(metadata, prop) == getattr(base_metadata, prop)
+        assert getattr(metadata, property) == getattr(base_metadata, property)
+
+    for function in ["variable_categories"]:
+        assert getattr(metadata, function)() == getattr(base_metadata, function)()
