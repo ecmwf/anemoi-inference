@@ -1,3 +1,5 @@
+.. _parallel-inference:
+
 ####################
  Parallel Inference
 ####################
@@ -80,6 +82,22 @@ The following cluster types are automatically detected:
       -  Presence of ``RANK`` and ``LOCAL_RANK``
       -  ``RANK``, ``LOCAL_RANK``, ``WORLD_SIZE``, ``MASTER_ADDR``,
          ``MASTER_PORT``
+
+If multiple cluster types are detected, the automatic detection can be
+overridden by specifying the desired cluster type explicitly in the
+config file:
+
+.. code:: yaml
+
+   runner:
+      parallel:
+         cluster: slurm  # Force use of SlurmCluster
+
+Additionally, clusters come with a priority system to avoid conflicts when
+multiple cluster types are detected. For example, the Slurm cluster has
+a higher priority than the MPI cluster to prevent false detections when
+running under Slurm with MPI.
+
 
 Manual Cluster Configuration
 ============================
@@ -353,3 +371,10 @@ indicating:
 -  Inference progress from rank 0 (master)
 
 Only rank 0 produces output files; other ranks assist with computation.
+
+.. seealso::
+
+   - :ref:`run-command` - Run command documentation
+   - :ref:`usage-optimisation` - Performance optimisation and memory management
+   - :ref:`usage-environment` - Environment setup
+   - :ref:`config_introduction` - Configuration file reference

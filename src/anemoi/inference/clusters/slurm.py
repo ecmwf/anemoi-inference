@@ -32,6 +32,8 @@ SLURM_MAPPING = EnvMapping(
 class SlurmCluster(MappingCluster):
     """Slurm cluster that uses SLURM environment variables for distributed setup."""
 
+    priority: int = 10  # Higher priority than other clusters to prevent conflicts with MPI etc.
+
     _master_addr: str | None = None
     _master_port: int | None = None
 
@@ -42,7 +44,7 @@ class SlurmCluster(MappingCluster):
     def used(cls) -> bool:
         # from pytorch lightning
         # https://github.com/Lightning-AI/pytorch-lightning/blob/a944e7744e57a5a2c13f3c73b9735edf2f71e329/src/lightning/fabric/plugins/environments/slurm.py
-        return bool(SLURM_MAPPING.get_env("world_size")) and os.environ.get("SLURM_JOB_NAME") not in (
+        return SLURM_MAPPING.is_set(["world_size", "local_rank"]) and os.environ.get("SLURM_JOB_NAME") not in (
             "bash",
             "interactive",
         )

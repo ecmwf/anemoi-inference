@@ -31,4 +31,4 @@ class DistributedCluster(MappingCluster):
 
     @classmethod
     def used(cls) -> bool:
-        return bool(DISTRIBUTED_MAPPING.get_env("world_size")) and bool(DISTRIBUTED_MAPPING.get_env("global_rank"))
+        return DISTRIBUTED_MAPPING.is_set()

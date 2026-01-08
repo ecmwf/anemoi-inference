@@ -48,6 +48,27 @@ class EnvMapping:
                 return value
         return default
 
+    def is_set(self, keys: list[str] | None = None) -> bool:
+        """Check if all environment variables for the given keys are set.
+
+        Parameters
+        ----------
+        keys : list[str] | None, optional
+            List of keys to check, by default None (checks all keys)
+
+        Returns
+        -------
+        bool
+            True if all environment variables are set, False otherwise
+        """
+        if keys is None:
+            keys = ["local_rank", "global_rank", "world_size", "master_addr", "master_port"]
+
+        for key in keys:
+            if not self.get_env(key):
+                return False
+        return True
+
 
 class MappingCluster(ComputeClientFactory):
     """Custom cluster that uses user-defined environment variables for distributed setup.
