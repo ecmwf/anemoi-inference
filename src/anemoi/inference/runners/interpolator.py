@@ -600,7 +600,9 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
         boundary_idx = self.checkpoint.input_explicit_times
         steps = len(target_steps)
 
-        LOG.info("Time stepping: [%s, %s], Interpolating %s steps", start_date, start_date+self.interpolation_window, steps)
+        LOG.info(
+            "Time stepping: [%s, %s], Interpolating %s steps", start_date, start_date + self.interpolation_window, steps
+        )
 
         for s in range(steps):
             step = self.interpolation_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
@@ -686,7 +688,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
 
         # Now interpolate between the boundaries
         for s, (step, dates) in enumerate(self.interpolator_stepper(start)):
-            
+
             # this should be changed
             result["date"] = dates
             result["previous_step"] = result.get("step")
