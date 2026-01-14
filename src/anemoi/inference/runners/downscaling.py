@@ -70,6 +70,10 @@ class DsMetadata(Metadata):
         else:
             raise ValueError(f"Unsupported specific structure: {spec}")
 
+    @property
+    def predict_residuals(self):
+        return self._metadata.config.training.predict_residuals
+
     # @cached_property
     # def grid(self):
     #     from anemoi.utils.config import find
@@ -224,28 +228,25 @@ class DownscalingRunner(DefaultRunner):
 
         extra_args = self.extra_config.get("extra_args", {})
 
-        residual_output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        #residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy(), axis=(0, 1)) #, axis in NumPy, dim in PyTorch
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
+        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
+        output_numpy = np.squeeze(output_tensor.cpu().numpy())
 
-        #if residual_output_numpy.ndim == 1:
-        #    residual_output_numpy = residual_output_numpy[:, np.newaxis]
+        self._print_output_tensor("Output tensor", output_numpy)
 
+        #if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
+        #    self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
 
-        self._print_output_tensor("Residual output tensor", residual_output_numpy)
-
-        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
-            self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
-
-        output_tensor_interp = _prepare_high_res_output_tensor(
-            model,
-            low_res_tensor[0],  # remove batch dimension
-            residual_output_tensor,
-            self.checkpoint.variable_to_input_tensor_index,
-            self.checkpoint._metadata.high_res_output_variables,
-        )
-
-        return output_tensor_interp
+        if self._checkpoint._metadata.predict_residuals:
+            output_tensor_interp = _prepare_high_res_output_tensor(
+                model,
+                low_res_tensor[0],  # remove batch dimension
+                output_tensor,
+                self.checkpoint.variable_to_input_tensor_index,
+                self.checkpoint._metadata.high_res_output_variables,
+            )
+            return output_tensor_interp
+        else:
+            return output_tensor
 
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
