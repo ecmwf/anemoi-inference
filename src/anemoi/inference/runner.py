@@ -1176,6 +1176,32 @@ class Runner(Context):
             f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
         )
 
+        print("@@@@ TEST")
+        print("output_tensor_numpy.shape")
+        print(output_tensor_numpy.shape[1])
+        print("self.checkpoint.output_tensor_index_to_variable")
+        print(self.checkpoint.output_tensor_index_to_variable)
+
+        if not self._output_tensor_by_name:
+            for i in range(output_tensor_numpy.shape[-1]):
+                self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
+                if i in self.checkpoint.prognostic_output_mask:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+                else:
+                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
+
+        # (values, variables) or (members, values, variables)
+        if output_tensor_numpy.ndim in (2, 3):
+            # Add multi_step_input
+            output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]
+
+        # (multi_step_input, ..., variables, values)
+        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)
+
+        self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+
+
+        """
         if not self._output_tensor_by_name:
             # Check if output_tensor_numpy is 1D or 2D
             if output_tensor_numpy.ndim == 1:
@@ -1198,7 +1224,7 @@ class Runner(Context):
         elif output_tensor_numpy.ndim in (2, 3):
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]      # Add multi_step_input
             output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
-    
+        """
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
 
     def patch_data_request(self, request: Any) -> Any:
