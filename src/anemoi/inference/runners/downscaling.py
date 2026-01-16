@@ -77,10 +77,6 @@ class DsMetadata(Metadata):
         else:
             raise ValueError(f"Unsupported specific structure: {spec}")
 
-    #@property
-    #def predict_residuals(self):
-    #    return self._metadata.config.training.predict_residuals
-
     @cached_property
     def output_tensor_index_to_variable(self):
         """Return the mapping between output tensor index and variable name"""
@@ -167,10 +163,12 @@ class DownscalingRunner(DefaultRunner):
         time_step: int | str | timedelta,
         ensemble_members: int = 1,
         field_shape: tuple[int, ...] | None = None,
+        hres_zarr: str | None = None, 
         extra_args: dict | None = None,
     ):
         super().__init__(config)
 
+        self.hres_zarr = hres_zarr
         self.time_step = to_timedelta(time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
         self.write_initial_state = False
@@ -218,11 +216,16 @@ class DownscalingRunner(DefaultRunner):
 
     @cached_property
     def hres_dataset(self):
-        # NOTE: harcoded to read from the checkpoint file
-        if "grib" in self.config.output or "netcdf" in self.config.output:
+        """ Load the hres Zarr to define the lon/lat points and the forcings."""
+        if self.hres_zarr:  # If the hres Zarr is provided in the config
+            return ZarrDataset(self.hres_zarr, forcings=self.high_res_input)
+     
+        elif "grib" in self.config.output or "netcdf" in self.config.output:  # read from the checkpoint file
+            print("@@@@ NO")
             hw = self._checkpoint._metadata._config.hardware
             path = os.path.join(hw.paths.data, hw.files.dataset_y)
             return ZarrDataset(path, forcings=self.high_res_input)
+        
         else:
             raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
 
