@@ -5,13 +5,16 @@
 #########
 
 This document provides an overview of the configuration to provide to
-the :ref:`anemoi-inference run <run_command>` command line tool.
+the :ref:`anemoi-inference run <run-command>` command line tool.
 
 The configuration file is a YAML file that specifies various options. It
-is composed of :ref:`top level <top-level>` options which are usually
-simple values such as strings, number or booleans. The configuration
-also provide ways to specify which internal classes to use for the
-:ref:`inputs <inputs>` and :ref:`outputs <outputs>`, and how to
+is extended by `OmegaConf <https://github.com/omry/omegaconf>`_ such
+that `interpolations
+<https://omegaconf.readthedocs.io/en/2.2_branch/usage.html#variable-interpolation>`_
+can be used. It is composed of :ref:`top level <top-level>` options
+which are usually simple values such as strings, number or booleans. The
+configuration also provide ways to specify which internal classes to use
+for the :ref:`inputs <inputs>` and :ref:`outputs <outputs>`, and how to
 configure them.
 
 In that case, the general format is shown below. The first entry
@@ -46,7 +49,7 @@ or if it expects a single argument, it can be simplified as:
    top-level
    inputs
    outputs
+   processors
    forcings
-   icon-input
    grib-input
    grib-output

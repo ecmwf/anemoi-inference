@@ -13,9 +13,9 @@ The tools can provide help with the ``--help`` options:
 
 The commands are:
 
-- :ref:`Run Command <run_command>`
-- :ref:`Metadata Command <metadata_command>`
-- :ref:`Inspect Command <inspect_command>`
-- :ref:`Validate Command <validate_command>`
-- :ref:`Patch Command <patch_command>`
-- :ref:`Requests Command <requests_command>`
+- :ref:`Run Command <run-command>`
+- :ref:`Metadata Command <metadata-command>`
+- :ref:`Inspect Command <inspect-command>`
+- :ref:`Validate Command <validate-command>`
+- :ref:`Patch Command <patch-command>`
+- :ref:`Requests Command <requests-command>`

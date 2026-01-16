@@ -12,7 +12,7 @@ from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
-from typing import Optional
+from typing import Any
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
@@ -31,9 +31,10 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
+        variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ):
         """Initialize the Output object.
 
@@ -50,12 +51,37 @@ class Output(ABC):
         """
         self.context = context
         self.checkpoint = context.checkpoint
-        self.reference_date = None
+        self.reference_date = context.reference_date
+
+        self._post_processor_confs = post_processors or []
 
         self._post_processor_confs = post_processors or []
 
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
+
+        self.variables = variables
+        if self.variables is not None:
+            if not isinstance(self.variables, (list, tuple)):
+                self.variables = [self.variables]
+
+        self.typed_variables = self.checkpoint.typed_variables.copy()
+        self.typed_variables.update(self.context.typed_variables)
+
+    def skip_variable(self, variable: str) -> bool:
+        """Check if a variable should be skipped.
+
+        Parameters
+        ----------
+        variable : str
+            The variable to check.
+
+        Returns
+        -------
+        bool
+            True if the variable should be skipped, False otherwise.
+        """
+        return self.variables is not None and variable not in self.variables
 
     @cached_property
     def post_processors(self) -> list[Processor]:
@@ -140,7 +166,10 @@ class Output(ABC):
         reduced_state = state.copy()
         reduced_state["fields"] = {}
         for field, values in state["fields"].items():
-            reduced_state["fields"][field] = values[-1, :]
+            if len(values.shape) > 1:
+                reduced_state["fields"][field] = values[-1, :]
+            else:
+                reduced_state["fields"][field] = values
         return reduced_state
 
     def open(self, state: State) -> None:
@@ -178,7 +207,7 @@ class Output(ABC):
         return self.context.write_initial_state
 
     @cached_property
-    def output_frequency(self) -> Optional[datetime.timedelta]:
+    def output_frequency(self) -> datetime.timedelta | None:
         """Get the output frequency."""
         from anemoi.utils.dates import as_timedelta
 
@@ -212,24 +241,28 @@ class ForwardOutput(Output):
 
     Subclass from this class to implement the desired behaviour of `output_frequency`
     which should only apply to leaves.
+
     """
 
     def __init__(
         self,
         context: "Context",
-        output: dict,
+        output: Output | Any,
+        variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
     ):
-        """Initialize the ForwardOutput object.
+        """Initialise the ForwardOutput object.
 
         Parameters
         ----------
         context : Context
             The context in which the output operates.
-        output : dict
-            The output configuration dictionary.
+        output : Output | Any
+            The output configuration dictionary or an Output instance.
+        variables : list, optional
+            The list of variables, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : Optional[int], optional
@@ -242,18 +275,20 @@ class ForwardOutput(Output):
 
         super().__init__(
             context,
+            variables=variables,
             post_processors=post_processors,
             output_frequency=None,
-            write_initial_state=write_initial_state
+            write_initial_state=write_initial_state,
         )
-
-        self.output = None if output is None else create_output(context, output)
+        if not isinstance(output, Output):
+            output = create_output(context, output)
+        self.output = output
 
         if self.context.output_frequency is not None:
             LOG.warning("output_frequency is ignored for '%s'", self.__class__.__name__)
 
     @cached_property
-    def output_frequency(self) -> Optional[datetime.timedelta]:
+    def output_frequency(self) -> datetime.timedelta | None:
         """Get the output frequency."""
         return None
 

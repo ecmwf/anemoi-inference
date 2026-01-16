@@ -8,10 +8,11 @@
 # nor does it submit to any jurisdiction.
 
 
+import glob
 import logging
+import os
+from functools import cached_property
 from typing import Any
-from typing import List
-from typing import Optional
 
 import earthkit.data as ekd
 
@@ -33,7 +34,13 @@ class GribFileInput(GribInput):
 
     trace_name = "grib file"
 
-    def __init__(self, context: Context, path: str, *, namer: Optional[Any] = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        *,
+        path: str,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the GribFileInput.
 
         Parameters
@@ -41,37 +48,43 @@ class GribFileInput(GribInput):
         context : Any
             The context in which the input is used.
         path : str
-            The path to the GRIB file.
+            Path, directory or glob pattern to GRIB file(s). Examples:
+              - "/path/to/file.grib"
+              - "/path/to/*.grib"
+              - "/path/to/**/*.grib2"
+              - "/path/to/directory/"
         namer : Optional[Any]
             Optional namer for the input.
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer, **kwargs)
+        super().__init__(context, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        ref_date_index : int, default -1
+            The reference date index to use.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
         State
             The created input state.
         """
-        return self._create_input_state(ekd.from_source("file", self.path), variables=None, date=date)
+        return self._create_input_state(self._fieldlist, date=date, ref_date_index=ref_date_index)
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            List of variables to load.
         dates : List[Date]
             List of dates for which to load the forcings.
         current_state : State
@@ -82,9 +95,46 @@ class GribFileInput(GribInput):
         State
             The loaded forcings state.
         """
+
         return self._load_forcings_state(
-            ekd.from_source("file", self.path),
-            variables=variables,
+            self._fieldlist,
             dates=dates,
             current_state=current_state,
         )
+
+    @cached_property
+    def _fieldlist(self) -> ekd.FieldList:
+        """Get the input fieldlist from the GRIB file or collection."""
+        path = self.path
+
+        # Case 1: explicit glob pattern
+        if glob.has_magic(path):
+            matches = glob.glob(path, recursive=True)
+            files = [p for p in matches if os.path.isfile(p)]
+            if not files:
+                LOG.warning("No GRIB files matched pattern %r", path)
+                return ekd.from_source("empty")
+            return ekd.from_source("file", sorted(files))
+
+        # Case 2: directory path -> search for GRIB files recursively
+        if os.path.isdir(path):
+            patterns = ("*.grib", "*.grib1", "*.grib2", "*.grb", "*.grb2")
+            files = []
+            for pat in patterns:
+                files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
+            files = [f for f in sorted(set(files)) if os.path.isfile(f)]
+            if not files:
+                LOG.warning("GRIB directory %r contains no GRIB files", path)
+                return ekd.from_source("empty")
+            return ekd.from_source("file", files)
+
+        # Case 3: single file path
+        try:
+            if os.path.getsize(path) == 0:
+                LOG.warning("GRIB file %r is empty", path)
+                return ekd.from_source("empty")
+        except FileNotFoundError:
+            LOG.warning("GRIB path %r not found", path)
+            return ekd.from_source("empty")
+
+        return ekd.from_source("file", path)

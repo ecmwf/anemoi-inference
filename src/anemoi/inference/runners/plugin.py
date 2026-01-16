@@ -10,8 +10,6 @@
 
 import datetime
 import logging
-from typing import List
-from typing import Tuple
 
 from anemoi.inference.types import IntArray
 
@@ -42,29 +40,29 @@ class PluginRunner(Runner):
     # Compatibility with the ai_models API
 
     @property
-    def param_sfc(self) -> List[str]:
+    def param_sfc(self) -> list[str]:
         """Get surface parameters."""
         params, _ = self.checkpoint.mars_by_levtype("sfc")
         return sorted(params)
 
     @property
-    def param_level_pl(self) -> Tuple[List[str], List[int]]:
+    def param_level_pl(self) -> tuple[list[str], list[int]]:
         """Get pressure level parameters and levels."""
         params, levels = self.checkpoint.mars_by_levtype("pl")
         return sorted(params), sorted(levels)
 
     @property
-    def param_level_ml(self) -> Tuple[List[str], List[int]]:
+    def param_level_ml(self) -> tuple[list[str], list[int]]:
         """Get model level parameters and levels."""
         params, levels = self.checkpoint.mars_by_levtype("ml")
         return sorted(params), sorted(levels)
 
     @property
-    def lagged(self) -> List[datetime.timedelta]:
+    def lagged(self) -> list[datetime.timedelta]:
         """Get lagged times in hours."""
         return self.checkpoint.lagged
 
-    def create_constant_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create constant computed forcings.
 
         Parameters
@@ -83,7 +81,7 @@ class PluginRunner(Runner):
         LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: List[str], mask: IntArray) -> List[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create dynamic computed forcings.
 
         Parameters

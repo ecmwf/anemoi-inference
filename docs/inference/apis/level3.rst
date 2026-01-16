@@ -5,7 +5,7 @@
 ##################
 
 You can run the inference from the command line using the
-:ref:`anemoi-inference run <run_command>` command.
+:ref:`anemoi-inference run <run-command>` command.
 
 You must first create a configuration file in YAML format. The simplest
 configuration must contain the path to the checkpoint:
@@ -26,6 +26,11 @@ You can also override values by providing them on the command line:
 .. literalinclude:: code/level3_2.sh
    :language: bash
 
+Overrides are parsed as an `OmegaConf
+<https://omegaconf.readthedocs.io/en/2.2_branch/usage.html#from-a-dot-list>`_
+dotlist, so list items can be accessed with ``list.index`` or
+``list[index]``.
+
 You can also run entirely from the command line without a config file,
 by passing all required options as an override:
 
@@ -39,9 +44,9 @@ that was used to train the model, by setting ``dataset`` entry to
 .. literalinclude:: code/level3_2.yaml
    :language: yaml
 
-It is also possible to override list entries and append to lists on the
-command line by using the list indices as key. Running inference with
-following command:
+Below is an example of how to override list entries and append to lists
+on the command line by using the dotlist notation. Running inference
+with following command:
 
 .. literalinclude:: code/level3_4.sh
    :language: bash
@@ -61,7 +66,7 @@ checkpoint that was trained with one the ICON grid:
 .. literalinclude:: code/level3_4.yaml
    :language: yaml
 
-See :ref:`run_command` for more details on the configuration file.
+See :ref:`run-command` for more details on the configuration file.
 
 .. warning::
 

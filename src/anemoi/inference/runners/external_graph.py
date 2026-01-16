@@ -1,12 +1,27 @@
+# (C) Copyright 2024 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+
+from __future__ import annotations
+
 import logging
 import os
 from copy import deepcopy
 from functools import cached_property
 from typing import Any
+from typing import Literal
 
-import torch
-from anemoi.datasets import open_dataset
+import numpy as np
 
+from anemoi.inference.lazy import torch
+
+from ..decorators import main_argument
 from ..runners.default import DefaultRunner
 from . import runner_registry
 
@@ -62,7 +77,63 @@ def update_state_dict(
     return model
 
 
+def _get_supporting_arrays_from_graph(update_supporting_arrays: dict[str, str], graph: Any) -> dict:
+    """Update the supporting arrays from the graph data."""
+    updated_supporting_arrays = {}
+    for key, value in update_supporting_arrays.items():
+        if value in graph["data"]:
+            updated_supporting_arrays[key] = graph["data"][value]
+            LOG.info("Moving attribute '%s' from external graph to supporting arrays as '%s'.", value, key)
+        else:
+            error_msg = f"Key '{value}' not found in external graph 'data'. Cannot update supporting array: '{key}'."
+            raise KeyError(error_msg)
+    return updated_supporting_arrays
+
+
+def _get_supporting_arrays_from_file(update_supporting_arrays: dict[str, str]) -> dict:
+    """Update the supporting arrays from a file."""
+    updated_supporting_arrays = {}
+
+    for key, value in update_supporting_arrays.items():
+        if os.path.isfile(value):
+            try:
+                updated_supporting_arrays[key] = torch.load(value)
+            except Exception as e:
+                LOG.warning("Failed to load '%s' as a torch tensor. Attempting to load as numpy array.\n%s", value, e)
+                updated_supporting_arrays[key] = np.load(value, allow_pickle=True)
+
+            LOG.info("Moving attribute '%s' from file to supporting arrays as '%s'.", value, key)
+        else:
+            error_msg = f"File '{value}' not found. Cannot update supporting array: '{key}'."
+            raise FileNotFoundError(error_msg)
+    return updated_supporting_arrays
+
+
+def get_updated_supporting_arrays(
+    update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]], graph: Any
+) -> dict:
+    """Get an update dict for the supporting arrays.
+
+    Allows to update the supporting arrays in the checkpoint metadata from the graph data,
+    and from files, which will be loaded using torch.load() or np.load().
+    """
+    updated_supporting_arrays = {}
+
+    for location in update_supporting_arrays:
+        if location == "graph":
+            updated_supporting_arrays.update(
+                _get_supporting_arrays_from_graph(update_supporting_arrays[location], graph)
+            )
+        elif location == "file":
+            updated_supporting_arrays.update(_get_supporting_arrays_from_file(update_supporting_arrays[location]))
+        else:
+            raise ValueError(f"Unknown location '{location}' in update_supporting_arrays.")
+
+    return updated_supporting_arrays
+
+
 @runner_registry.register("external_graph")
+@main_argument("graph")
 class ExternalGraphRunner(DefaultRunner):
     """Runner where the graph saved in the checkpoint is replaced by an externally provided one.
     Currently only supported as an extension of the default runner.
@@ -72,11 +143,14 @@ class ExternalGraphRunner(DefaultRunner):
         self,
         config: dict,
         graph: str,
+        *,
         output_mask: dict | None = {},
         graph_dataset: Any | None = None,
+        update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]] | None = None,
+        updated_number_of_grid_points: str | int | None = None,
         check_state_dict: bool | None = True,
     ) -> None:
-        """Initialize the ExternalGraphRunner.
+        """Initialise the ExternalGraphRunner.
 
         Parameters
         ----------
@@ -88,6 +162,19 @@ class ExternalGraphRunner(DefaultRunner):
             Dictionary specifying the output mask.
         graph_dataset : Any | None
             Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes of the graph.
+        update_supporting_arrays: dict[Literal['graph', 'file'], dict[str, str]] | None
+            Dictionary specifying how to update the supporting arrays in the checkpoint metadata.
+            Allows both 'graph' and 'file' as keys.
+            - 'graph': Will pull from the graph['data'] dictionary, key refers to the name in the supporting arrays,
+            and value refers to the name in the graph['data'].
+            - 'file': Will pull from the file system, key refers to the name in the supporting arrays,
+            and value refers to the path to the file containing the numpy array.
+                Can be torch.load() or np.load() compatible.
+        updated_number_of_grid_points: str | int | None
+            If the number of grid points in the graph is different from that in the checkpoint,
+            this can be used to update the number of grid points in the checkpoint metadata.
+            If is a str, will be used as a key to the graph['data'] dictionary.
+            If is an int, will be used as the number of grid points.
         check_state_dict: bool | None
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
@@ -97,6 +184,8 @@ class ExternalGraphRunner(DefaultRunner):
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
+            from anemoi.datasets import open_dataset
+
             graph_ds = open_dataset(graph_dataset)
             LOG.info(
                 "The external graph was built using a different anemoi-dataset than that in the checkpoint. "
@@ -110,7 +199,7 @@ class ExternalGraphRunner(DefaultRunner):
             )
 
             # had to use private attributes because cached properties cause problems
-            self.checkpoint._metadata._supporting_arrays = graph_ds.supporting_arrays()
+            self.checkpoint._metadata._supporting_arrays.update(graph_ds.supporting_arrays())
             if "grid_indices" in self.checkpoint._metadata._supporting_arrays:
                 num_grid_points = len(self.checkpoint._metadata._supporting_arrays["grid_indices"])
             else:
@@ -153,12 +242,26 @@ class ExternalGraphRunner(DefaultRunner):
                 nodes,
             )
 
+        if update_supporting_arrays is not None:
+            self.checkpoint._supporting_arrays.update(
+                get_updated_supporting_arrays(update_supporting_arrays, self.graph)
+            )
+
+        if updated_number_of_grid_points is not None:
+            if isinstance(updated_number_of_grid_points, str):
+                updated_number_of_grid_points = len(self.graph["data"][updated_number_of_grid_points])
+            self.checkpoint._metadata.number_of_grid_points = updated_number_of_grid_points
+            LOG.info(
+                "Updated number of grid points in the checkpoint metadata to %s.",
+                updated_number_of_grid_points,
+            )
+
     @cached_property
     def graph(self):
         graph_path = self.graph_path
-        assert os.path.isfile(
-            graph_path
-        ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        assert os.path.isfile(graph_path), (
+            f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        )
         LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 

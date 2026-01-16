@@ -9,8 +9,6 @@
 
 import datetime
 from typing import Any
-from typing import Dict
-from typing import Tuple
 from typing import Union
 
 from numpy.typing import NDArray
@@ -19,10 +17,10 @@ from numpy.typing import NDArray
 Some of these type could be moved to anemoi.utils.types or anemoi.transform.types.
 """
 
-State = Dict[str, Any]
+State = dict[str, Any]
 """A dictionary that represents the state of a model."""
 
-DataRequest = Dict[str, Any]
+DataRequest = dict[str, Any]
 """A dictionary that represent a data request, like MARS, CDS, OpenData, ..."""
 
 Date = Union[str, datetime.datetime, int]
@@ -37,7 +35,7 @@ FloatArray = NDArray[Any]
 BoolArray = NDArray[Any]
 """A numpy array of booleans."""
 
-Shape = Tuple[int, ...]
+Shape = tuple[int, ...]
 """A tuple of integers representing the shape of an array."""
 
 ProcessorConfig = Union[str, dict[str, Any]]

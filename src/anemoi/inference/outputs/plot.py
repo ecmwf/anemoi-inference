@@ -8,24 +8,24 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
-from typing import List
-from typing import Literal
-from typing import Optional
-from typing import Union
+from pathlib import Path
 
 import numpy as np
+from anemoi.utils.grib import shortname_to_paramid
+from anemoi.utils.grib import units
 
 from anemoi.inference.context import Context
+from anemoi.inference.decorators import ensure_dir
+from anemoi.inference.decorators import main_argument
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
+from anemoi.inference.utils.templating import render_template
 
 from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
-
-ListOrAll = Union[List[str], Literal["all"]]
 
 
 def fix(lons: FloatArray) -> FloatArray:
@@ -45,60 +45,80 @@ def fix(lons: FloatArray) -> FloatArray:
 
 
 @output_registry.register("plot")
+@main_argument("dir")
+@ensure_dir("dir")
 class PlotOutput(Output):
-    """Plot output class."""
+    """Use `earthkit-plots` to plot the outputs."""
 
     def __init__(
         self,
         context: Context,
-        path: str,
-        variables: ListOrAll = "all",
-        strftime: str = "%Y%m%d%H%M%S",
-        template: str = "plot_{variable}_{date}.{format}",
-        dpi: int = 300,
+        dir: Path,
+        *,
+        variables: list[str] | None = None,
+        mode: str = "subplots",
+        domain: str | list[str] | None = None,
+        schema: str | None = None,
+        template: str = "plot_{date}.{format}",
         format: str = "png",
-        missing_value: Optional[float] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
+        post_processors: list[ProcessorConfig] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        **kwargs,
     ) -> None:
-        """Initialize the PlotOutput.
+        """Initialise the PlotOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
-            The path to save the plots.
+        dir : Path
+            The directory to save the plots.
+            If the directory does not exist, it will be created.
         variables : list, optional
             The list of variables to plot, by default all.
-        strftime : str, optional
-            The date format string, by default "%Y%m%d%H%M%S".
+        mode : str, optional
+            The plotting mode, can be "subplots" or "overlay", by default "subplots".
+        domain : str | list[str] | None, optional
+            The domain/s to plot, by default None.
+        schema : str | None, optional
+            The schema to use, by default None.
         template : str, optional
-            The template for plot filenames, by default "plot_{variable}_{date}.{format}".
-        dpi : int, optional
-            The resolution of the plot, by default 300.
+            The template for plot filenames, by default "plot_{date}.{format}".
+            Has access to the following variables:
+            - date: the date of the forecast step
+            - basetime: the base time of the forecast
+            - domain: the domain being plotted
+            - format: the format of the plot
+            - variables: the variables being plotted (joined by underscores)
         format : str, optional
             The format of the plot, by default "png".
-        missing_value : float, optional
-            The value to use for missing data, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
+        **kwargs : Any
+            Additional keyword arguments to pass to `earthkit.plots.quickplot`.
         """
 
-        super().__init__(context, output_frequency=output_frequency, write_initial_state=write_initial_state)
-        self.path = path
+        super().__init__(
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
+
+        self.dir = dir
         self.format = format
         self.variables = variables
-        self.strftime = strftime
         self.template = template
-        self.dpi = dpi
-        self.missing_value = missing_value
-
-        if self.variables != "all":
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
+        self.domain = domain
+        self.mode = mode
+        self.schema = schema
+        self.kwargs = kwargs
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
@@ -108,51 +128,57 @@ class PlotOutput(Output):
         state : State
             The state dictionary.
         """
-        import cartopy.crs as ccrs
-        import cartopy.feature as cfeature
-        import matplotlib.pyplot as plt
-        import matplotlib.tri as tri
+        import earthkit.data as ekd
+        import earthkit.plots as ekp
 
-        os.makedirs(self.path, exist_ok=True)
+        if self.schema:
+            ekp.schema.use(self.schema)
 
-        longitudes = state["longitudes"]
+        longitudes = fix(state["longitudes"])
         latitudes = state["latitudes"]
-        triangulation = tri.Triangulation(fix(longitudes), latitudes)
+        date = state["date"]
+        basetime = date - state["step"]
+
+        plotting_fields = []
 
         for name, values in state["fields"].items():
-
-            if self.variables != "all" and name not in self.variables:
+            if self.skip_variable(name):
                 continue
 
-            _, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
-            ax.coastlines()
-            ax.add_feature(cfeature.BORDERS, linestyle=":")
+            variable = self.typed_variables[name]
+            param = variable.param
 
-            missing_values = np.isnan(values)
-            missing_value = self.missing_value
-            if missing_value is None:
-                min = np.nanmin(values)
-                missing_value = min - np.abs(min) * 0.001
-
-            values = np.where(missing_values, self.missing_value, values)
-
-            _ = ax.tricontourf(triangulation, values, levels=10, transform=ccrs.PlateCarree())
-
-            ax.tricontour(
-                triangulation,
-                values,
-                levels=10,
-                colors="black",
-                linewidths=0.5,
-                transform=ccrs.PlateCarree(),
+            plotting_fields.append(
+                ekd.ArrayField(
+                    values,
+                    {
+                        "param": param,
+                        "paramId": shortname_to_paramid(param),
+                        "shortName": param,
+                        "variable_name": param,
+                        "step": state["step"],
+                        "base_datetime": basetime,
+                        "valid_time": date,
+                        "latitudes": latitudes,
+                        "longitudes": longitudes,
+                        "units": units(param),
+                    },
+                )
             )
+        fig = ekp.quickplot(
+            ekd.FieldList.from_fields(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs
+        )
+        fname = render_template(
+            self.template,
+            {
+                "date": date,
+                "basetime": basetime,
+                "domain": self.domain,
+                "format": self.format,
+                "variables": "_".join(self.variables or []),
+            },
+        )
+        fname = self.dir / fname
 
-            date = state["date"].strftime("%Y-%m-%d %H:%M:%S")
-            ax.set_title(f"{name} at {date}")
-
-            date = state["date"].strftime(self.strftime)
-            fname = self.template.format(date=date, variable=name, format=self.format)
-            fname = os.path.join(self.path, fname)
-
-            plt.savefig(fname, dpi=self.dpi, bbox_inches="tight")
-            plt.close()
+        fig.save(fname)
+        del fig

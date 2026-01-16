@@ -1,0 +1,47 @@
+# This config is continuosly updated based on the changes made to the anemoi-inference feat/c3s2-361b branch
+description: inference-january-2022
+checkpoint: /path/to/ckpt
+
+# starting date of the forecast
+date: 2022-01-01T00:00:00
+
+# Predict a month of data
+lead_time: 31d
+
+input:
+  # NOTE: this is hardcoded to select the same variables provided with `dataloader.select_in` from the training config
+  # High resolution forcings (`dataloader.select_in_hres`) are directly loaded from the `hardware.files.dataset_y` dataset
+  dataset: /path/to/zarr
+
+output:
+  netcdf:
+    path: /path/to/output
+    # Reference date for time variable, defaults to `date` if not set here
+    reference_date: 1970-01-01T00:00:00Z
+
+    # If this is not set only (lats lons) will be in the output
+    # projection_string: +proj=lcc +lat_0=80 +lat_1=80 +lat_2=80 +lon_0=-34 +R=6371229 +units=m +no_defs
+
+    # If the high resolution fields are 1D, you can override their shape by setting this variable here.
+    # Otherwise the fields will remain 1D
+    # field_shape: [y_dim, x_dim]
+
+runner:
+  downscaling:
+    # TODO: use `output_frequency` instead? Needs to be specified in the config root
+    time_step: 3h
+
+    # How many ensemble members to produce
+    ensemble_members: 1
+
+    # Dict of params for model noise scheduler and sampler
+    # extra_args:
+    #    # nsteps=20,
+    #    # sigma_min=0.03,
+    #    # sigma_max=80,
+    #    # rho=7,
+    #
+    #    # S_churn=2.5,
+    #    # S_min=0.75,
+    #    # S_max=80.0,
+    #    # S_noise=1.05,

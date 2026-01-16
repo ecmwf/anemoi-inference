@@ -10,10 +10,6 @@
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
@@ -21,6 +17,7 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -31,10 +28,10 @@ LOG = logging.getLogger(__name__)
 
 
 def retrieve(
-    requests: List[DataRequest],
-    grid: Optional[Union[str, List[float]]],
-    area: Optional[List[float]],
-    dataset: Union[str, Dict[str, Any]],
+    requests: list[DataRequest],
+    grid: str | list[float] | None,
+    area: list[float] | None,
+    dataset: str | dict[str, Any],
     **kwargs: Any,
 ) -> ekd.FieldList:
     """Retrieve data from CDS.
@@ -113,7 +110,15 @@ class CDSInput(GribInput):
     trace_name = "cds"
 
     def __init__(
-        self, context: Context, *, dataset: Union[str, Dict[str, Any]], namer: Optional[Any] = None, **kwargs: Any
+        self,
+        context: Context,
+        *,
+        variables: list[str] | None = None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        dataset: str | dict[str, Any],
+        namer: Any | None = None,
+        purpose: str | None = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize the CDSInput.
 
@@ -121,6 +126,10 @@ class CDSInput(GribInput):
         ----------
         context : Context
             The context in which the input is used.
+        variables : list[str] | None
+            List of variables to be handled by the input, or None for a sensible default variables.
+        pre_processors : Optional[List[ProcessorConfig]], default None
+            Pre-processors to apply to the input
         dataset : Union[str, Dict[str, Any]]
             The dataset to use.
         namer : Optional[Any]
@@ -128,19 +137,20 @@ class CDSInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, namer=namer)
+        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, purpose=purpose)
 
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -151,8 +161,6 @@ class CDSInput(GribInput):
             date = to_datetime(-1)
             LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
 
-        date = to_datetime(date)
-
         return self._create_input_state(
             self.retrieve(
                 self.variables,
@@ -160,9 +168,10 @@ class CDSInput(GribInput):
             ),
             variables=self.variables,
             date=date,
+            **kwargs,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
@@ -182,23 +191,21 @@ class CDSInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.context.patch_data_request,
+            patch_request=self.patch_data_request,
         )
 
         if not requests:
-            raise ValueError("No requests for %s (%s)" % (variables, dates))
+            raise ValueError(f"No requests for {variables} ({dates})")
 
         return retrieve(
             requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables for which to load the forcings state.
         dates : List[Date]
             The list of dates for which to load the forcings state.
         current_state : State
@@ -210,5 +217,7 @@ class CDSInput(GribInput):
             The loaded forcings state.
         """
         return self._load_forcings_state(
-            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+            self.retrieve(self.variables, dates),
+            dates=dates,
+            current_state=current_state,
         )

@@ -10,17 +10,13 @@
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from . import input_registry
@@ -29,7 +25,7 @@ from .grib import GribInput
 LOG = logging.getLogger(__name__)
 
 
-def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
+def rounded_area(area: list[float] | None) -> list[float] | None:
     """Round the area to a global extent if the surface is greater than 0.98.
 
     Parameters
@@ -51,7 +47,7 @@ def rounded_area(area: Optional[List[float]]) -> Optional[List[float]]:
     return area
 
 
-def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
+def grid_is_valid(grid: str | list[float] | None) -> bool:
     """Check if the grid is valid.
 
     Parameters
@@ -77,7 +73,7 @@ def grid_is_valid(grid: Optional[Union[str, List[float]]]) -> bool:
         return False
 
 
-def area_is_valid(area: Optional[List[float]]) -> bool:
+def area_is_valid(area: list[float] | None) -> bool:
     """Check if the area is valid.
 
     Parameters
@@ -103,9 +99,7 @@ def area_is_valid(area: Optional[List[float]]) -> bool:
         return False
 
 
-def postproc(
-    grid: Optional[Union[str, List[float]]], area: Optional[List[float]]
-) -> Dict[str, Union[str, List[float]]]:
+def postproc(grid: str | list[float] | None, area: list[float] | None) -> dict[str, str | list[float]]:
     """Post-process the grid and area.
 
     Parameters
@@ -124,6 +118,9 @@ def postproc(
     if grid_is_valid(grid):
         pproc["grid"] = grid
 
+    if isinstance(area, str):
+        area = [float(x) for x in area.split("/")]
+
     if area_is_valid(area):
         pproc["area"] = rounded_area(area)
 
@@ -131,10 +128,11 @@ def postproc(
 
 
 def retrieve(
-    requests: List[Dict[str, Any]],
-    grid: Optional[Union[str, List[float]]],
-    area: Optional[List[float]],
-    patch: Optional[Any] = None,
+    requests: list[dict[str, Any]],
+    grid: str | list[float] | None,
+    area: list[float] | None,
+    patch: Any | None = None,
+    log: bool = True,
     **kwargs: Any,
 ) -> Any:
     """Retrieve data from MARS.
@@ -149,6 +147,8 @@ def retrieve(
         The area for the retrieval.
     patch : Optional[Any], optional
         Optional patch for the request, by default None.
+    log : bool, optional
+        Whether to log the requests, by default True.
     **kwargs : Any
         Additional keyword arguments.
 
@@ -189,7 +189,7 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("mars", r)
+        result += ekd.from_source("mars", r, log="default" if log else None)
 
     return result
 
@@ -204,8 +204,12 @@ class MarsInput(GribInput):
         self,
         context: Context,
         *,
-        namer: Optional[Any] = None,
-        patches: Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]] = None,
+        variables: list[str] | None = None,
+        patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
+        log: bool = True,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
+        purpose: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -214,26 +218,38 @@ class MarsInput(GribInput):
         ----------
         context : Any
             The context in which the input is used.
+        variables : list[str] | None
+            List of variables to be handled by the input, or None for a sensible default variables.
         namer : Optional[Any]
             Optional namer for the input.
         patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
             Optional list of patches for the input.
+        log : bool
+            Whether to log the requests to MARS, by default True.
         **kwargs : Any
-            Additional keyword arguments.
+            Additional keyword to pass to the request to MARS.
         """
-        super().__init__(context, namer=namer)
-        self.kwargs = kwargs
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
+        super().__init__(
+            context,
+            variables=variables,
+            pre_processors=pre_processors,
+            purpose=purpose,
+            namer=namer,
+        )
+
         self.kwargs = kwargs
         self.patches = patches or []
+        self.log = log
 
-    def create_input_state(self, *, date: Optional[Date]) -> State:
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
 
         Returns
         -------
@@ -244,8 +260,6 @@ class MarsInput(GribInput):
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
 
-        date = to_datetime(date)
-
         return self._create_input_state(
             self.retrieve(
                 self.variables,
@@ -253,9 +267,10 @@ class MarsInput(GribInput):
             ),
             variables=self.variables,
             date=date,
+            **kwargs,
         )
 
-    def retrieve(self, variables: List[str], dates: List[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
@@ -274,30 +289,29 @@ class MarsInput(GribInput):
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.context.patch_data_request,
+            patch_request=self.patch_data_request,
         )
 
         if not requests:
-            raise ValueError("No requests for %s (%s)" % (variables, dates))
+            raise ValueError(f"No requests for {variables} ({dates})")
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
+        kwargs.setdefault("grid", self.checkpoint.grid)
+        kwargs.setdefault("area", self.checkpoint.area)
 
         return retrieve(
             requests,
-            self.checkpoint.grid,
-            self.checkpoint.area,
-            self.patch,
+            patch=self.patch,
+            log=self.log,
             **kwargs,
         )
 
-    def load_forcings_state(self, *, variables: List[str], dates: List[Date], current_state: State) -> State:
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        variables : List[str]
-            The list of variables for which to load the forcings state.
         dates : List[Date]
             The list of dates for which to load the forcings state.
         current_state : State
@@ -309,10 +323,12 @@ class MarsInput(GribInput):
             The loaded forcings state.
         """
         return self._load_forcings_state(
-            self.retrieve(variables, dates), variables=variables, dates=dates, current_state=current_state
+            self.retrieve(self.variables, dates),
+            dates=dates,
+            current_state=current_state,
         )
 
-    def patch(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def patch(self, request: dict[str, Any]) -> dict[str, Any]:
         """Patch the given request with predefined patches.
 
         Parameters

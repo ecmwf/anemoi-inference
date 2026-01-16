@@ -51,30 +51,6 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 
 For more options, see :ref:`grib-input`.
 
-****************
- icon_grib_file
-****************
-
-The ``icon_grib_file`` input is a class dedicated to reading ICON GRIB
-files. It is
-
-.. literalinclude:: yaml/inputs_5.yaml
-   :language: yaml
-
-The ``grid`` entry refers to a NetCDF file that contains the definition
-of the ICON grid in radians. The ``refinement_level_c`` parameter is
-used to specify the refinement level of the ICON grid. The
-``icon_grib_file`` input also accepts the ``namer`` parameter of the
-GRIB input.
-
-.. note::
-
-   Once the grids are stored by in the checkpoint `Anemoi`, the
-   ``icon_grib_file`` input will become obsolete.
-
-..
-   For more options, see :ref:`icon-input`.
-
 ******
  mars
 ******
@@ -146,12 +122,19 @@ domain, and the last source is the outermost, global domain,
 consistently with what is done in ``anemoi-datasets``, see `here
 <https://anemoi.readthedocs.io/projects/datasets/en/latest/using/combining.html#cutout>`_.
 
-An important prerequisite is that your checkpoint must contain the
-cutout masks as supporting arrays. You can check this by running the
-``anemoi-inference metadata --supporting-arrays <your_checkpoint>``
-command. You should be able to see some cutout masks in the output:
+.. warning::
 
-.. code:: output
+   The ``cutout`` input nests the ``private_attributes`` of the sources
+   states so may prevent usage of some keys. To restore these, use the
+   ``extract_from_state`` postprocessor.
+
+To extract regions from different sources within the ``cutout`` input,
+your checkpoint must contain the cutout masks as supporting arrays. You
+can check this by running the ``anemoi-inference metadata
+--supporting-arrays <your_checkpoint>`` command. You should be able to
+see some cutout masks in the output:
+
+.. code:: console
 
    lam_0/cutout_mask: shape=(226980,) dtype=bool
    global/cutout_mask: shape=(542080,) dtype=bool
@@ -159,10 +142,35 @@ command. You should be able to see some cutout masks in the output:
 If these are not present, you can try to add them to your checkpoint by
 running ``anemoi-inference patch <your_checkpoint>``.
 
-An example configuration for the ``cutout`` input is shown below:
+.. note::
+
+   If your LAM does not have a cutout mask, you can still use it and
+   specify the mask as ``null`` in the configuration file.
+
+.. code:: yaml
+
+   input:
+     cutout:
+       - lam_0:
+         mars: {}
+         mask: null
+
+An example configuration for the ``cutout`` input is shown below, the
+sources can be provided as a list of positional arguments, with each
+source specified as a mapping from source name to source configuration:
 
 .. literalinclude:: yaml/inputs_11.yaml
    :language: yaml
 
 The different sources are specified exactly as you would for a single
 source, as shown in the previous sections.
+
+An easy way to then extract regions from the predicated state is to use
+the ``extract_from_state`` postprocessor, which will subset the state to
+the specified source. For example, to extract the ``lam_0`` source from
+the state, you can use the following configuration:
+
+.. code:: yaml
+
+   post_processors:
+   - extract_from_state: 'lam_0'

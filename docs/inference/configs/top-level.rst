@@ -48,7 +48,7 @@ file, while ``mars`` will use yesterday's date.
 
 Setting the date in the configuration file can be useful for debugging.
 A more common use case is to set the date in the command line, as shown
-in the :ref:`anemoi-inference run <run_command>` documentation.
+in the :ref:`anemoi-inference run <run-command>` documentation.
 
 .. code:: bash
 
@@ -83,6 +83,13 @@ and output. It set to ``null`` (default), the value is set internally to
 The entries for the inputs and outputs are specified in the :ref:`inputs
 <inputs>` and :ref:`outputs <outputs>` sections of the documentation.
 
+**************************
+ Pre- and Post-processors
+**************************
+
+The entries for the pre- and post-processors are specified in the
+:ref:`processors <inference-processors>` section of the documentation.
+
 ***********
  Debugging
 ***********
@@ -92,14 +99,6 @@ verbosity:
 
 The ``verbosity`` option specifies the verbosity level of the output. It
 is set to 0 by default.
-
-report_errors:
-==============
-
-The ``report_errors`` option specifies whether to produce a longer error
-report when the code of the model cannot be loaded. The aim od that
-report is to troubleshoot versioning issues (git branches, python
-modules, etc.). It is set to ``false`` by default.
 
 use_profiler:
 =============

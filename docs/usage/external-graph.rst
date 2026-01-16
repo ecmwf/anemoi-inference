@@ -54,6 +54,14 @@ well:
 .. literalinclude:: yaml/external-graph3.yaml
    :language: yaml
 
+If you wish to run the external graph runner, but without the
+anemoi-dataset configuration, some supporting arrays may need to be
+updated. These can be sourced from either the ``graph['data']`` or from
+a file on disk. This is done with the ``update_supporting_arrays`` key
+
+.. literalinclude:: yaml/external-graph4.yaml
+   :language: yaml
+
 It should be emphasized that by using this runner the model will be
 rebuilt and for this reason will differ from the model stored in the
 checkpoint. To avoid unexpected results, there is a default check that
@@ -61,5 +69,25 @@ ensures the model used in inference has the same weights, biases and
 normalizer values as that stored in the checkpoint. In case of a more
 adventurous use-case this check can be disabled through the config as:
 
-.. literalinclude:: yaml/external-graph4.yaml
+.. literalinclude:: yaml/external-graph5.yaml
    :language: yaml
+
+.. warning::
+
+   If you train a model on a graph using a version before 0.8 and then
+   run inference or finetuning with `anemoi-graphs` version 0.8 or
+   later, results may be inconsistent or incorrect. Previously edge
+   directions were wrong by 90 degrees. Ensure that the same version of
+   `anemoi-graphs` is used for both training and inference/finetuning to
+   avoid incompatibility
+
+   This issue arises because changing the graph can shift the data
+   distribution of edge attributes, which are used as inputs to the
+   model.
+
+   Similarly, if the graph is created in a different domain or dataset,
+   the statistics of these edge attributes may differ too, potentially
+   causing a drift in the input data distribution and leading to
+   degraded model performance. Therefore, it is important to be cautious
+   with the normalisation of edge attributes when working with external
+   graphs.

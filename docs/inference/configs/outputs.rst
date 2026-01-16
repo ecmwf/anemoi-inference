@@ -73,22 +73,28 @@ variable is written in its own NetCDF variable.
    :language: yaml
 
 ******
+ zarr
+******
+
+The `zarr` output writes the output to a Zarr file. The encoding is
+basic, and does not attempt to rebuild 3D fields from 2D fields. The
+only coordinates are `latitude`, `longitude` and `time`.
+
+Each state variable is written in its own Zarr array.
+
+.. literalinclude:: yaml/outputs_10.yaml
+
+******
  plot
 ******
 
 The ``plot`` output writes the output to a series of plots. The plots
 are produced in a directory, and the file are name according to a
-template. Dates are formatted using the `strftime` function before being
-used by the template. You can select which variables to plot.
+template. They are produced with `earthkit-plots`. You can specify which
+variables are plotted, and the domain to be shown.
 
 .. literalinclude:: yaml/outputs_4.yaml
    :language: yaml
-
-.. warning::
-
-   This feature is experimental and is not yet fully implemented. The
-   plot generated are very basic and are intended for debugging
-   purposes. This feature will be developed further.
 
 *****
  raw

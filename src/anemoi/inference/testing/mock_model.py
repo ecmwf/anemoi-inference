@@ -9,7 +9,6 @@
 
 import datetime
 from typing import Any
-from typing import Dict
 
 import torch
 from anemoi.utils.config import DotDict
@@ -20,21 +19,13 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 
 
-class MockModel(torch.nn.Module):
-    """Mock model for testing."""
+class MockModelBase(torch.nn.Module):
+    """Mock model base class for testing."""
 
-    def __init__(self, medatada: Dict[str, Any], supporting_arrays: Dict[str, Any]) -> None:
-        """Initialize the mock model.
-
-        Parameters
-        ----------
-        medatada : dict
-            The metadata for the model.
-        supporting_arrays : dict
-            The supporting arrays for the model.
-        """
+    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
         super().__init__()
-        metadata = DotDict(medatada)
+        metadata = DotDict(metadata)
+        self.supporting_arrays = supporting_arrays
 
         self.features_in = len(metadata.data_indices.model.input.full)
         self.features_out = len(metadata.data_indices.model.output.full)
@@ -45,15 +36,76 @@ class MockModel(torch.nn.Module):
         self.output_shape = (1, 1, self.grid_size, self.features_out)
 
         checkpoint = Checkpoint(Metadata(metadata))
-        self.input_variables = {v: k for k, v in checkpoint.variable_to_input_tensor_index.items()}
-        self.output_variables = checkpoint.output_tensor_index_to_variable
-        self.lagged = checkpoint.lagged
+        self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
+        self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
 
+        self.output_index_to_variable = dict(checkpoint.output_tensor_index_to_variable)
+        self.variable_to_output_index = {v: k for k, v in self.output_index_to_variable.items()}
+
+        self.lagged = checkpoint.lagged
         self.typed_variables = checkpoint.typed_variables
+        self.prognostic_variables = checkpoint.prognostic_variables
+        self.diagnostic_variables = checkpoint.diagnostic_variables
         self.timestep = checkpoint.timestep
 
         self.first = True
-        self.constant_in_time: Dict[int, torch.Tensor] = {}
+        self.constant_in_time: dict[int, torch.Tensor] = {}
+
+    def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
+    ) -> torch.Tensor:
+        """Perform a prediction step.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input tensor.
+        date : datetime.datetime
+            The current date.
+        step : datetime.timedelta
+            The time step.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The output tensor.
+        """
+
+        raise NotImplementedError("This method should be implemented by subclasses.")
+
+
+class SimpleMockModel(MockModelBase):
+    """Simple mock model that copies prognostics from input to output. Diagnostics are filled with ones.
+    In the case of multi-step input, the last time step is copied.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.prognostic_input_indices = [self.variable_to_input_index[var] for var in self.prognostic_variables]
+        self.prognostic_output_indices = [self.variable_to_output_index[var] for var in self.prognostic_variables]
+
+    def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
+    ) -> torch.Tensor:
+        output_shape = (
+            1,  # batch
+            1,  # time
+            x.shape[2],  # gridpoints
+            self.features_out,  # variables
+        )
+        y = torch.ones(*output_shape, dtype=x.dtype, device=x.device)
+
+        # copy prognostic input variables of the last time step to output tensor
+        if self.prognostic_input_indices:
+            y[:, :, :, self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
+
+        return y
+
+
+class MockModel(MockModelBase):
+    """Mock model with internal sanity checks. Assumes the input comes from the `dummy` input source."""
 
     def _check(
         self,
@@ -94,7 +146,7 @@ class MockModel(torch.nn.Module):
             LOG.error(
                 "Feature: %s (%s), lag: %s (%s)",
                 feature,
-                self.input_variables[feature],
+                self.input_index_to_variable[feature],
                 lag,
                 tensor_dates[lag],
             )
@@ -103,37 +155,19 @@ class MockModel(torch.nn.Module):
                 "%s: expected %s for %s at lag %s, got %s",
                 title,
                 value,
-                self.input_variables[feature],
+                self.input_index_to_variable[feature],
                 tensor_dates[lag],
                 x[:, lag, :, feature][..., 0],
             )
             LOG.error("x: %s", x[:, :, :, feature])
 
             raise ValueError(
-                f"{title}: expected {expect} for {self.input_variables[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
+                f"{title}: expected {expect} for {self.input_index_to_variable[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
             )
 
     def predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
-        """Perform a prediction step.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            The input tensor.
-        date : datetime.datetime
-            The current date.
-        step : datetime.timedelta
-            The time step.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        torch.Tensor
-            The output tensor.
-        """
         assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
 
         # Date of the data
@@ -141,9 +175,9 @@ class MockModel(torch.nn.Module):
 
         for lag in range(x.shape[1]):
             for feature in range(x.shape[3]):
-                value = float_hash(self.input_variables[feature], tensor_dates[lag])
+                value = float_hash(self.input_index_to_variable[feature], tensor_dates[lag])
                 expect = torch.Tensor([value])
-                variable = self.typed_variables[self.input_variables[feature]]
+                variable = self.typed_variables[self.input_index_to_variable[feature]]
 
                 if not variable.is_computed_forcing and not variable.is_constant_in_time:
                     # Normal prognostice variable
@@ -176,7 +210,7 @@ class MockModel(torch.nn.Module):
         y = torch.zeros(self.output_shape)
 
         for feature in range(y.shape[3]):
-            value = float_hash(self.output_variables[feature], date)
+            value = float_hash(self.output_index_to_variable[feature], date)
             y[:, :, :, feature] = torch.ones(y[:, :, :, feature].shape) * value
 
         return y

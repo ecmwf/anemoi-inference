@@ -11,11 +11,10 @@
 import json
 import logging
 from collections import defaultdict
+from io import IOBase
+from pathlib import Path
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Literal
 
 import earthkit.data as ekd
 import numpy as np
@@ -25,11 +24,12 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 
+from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
-from .grib import GribOutput
+from .grib import BaseGribOutput
 
 LOG = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ MARS_MAYBE_MISSING_KEYS = (
 )
 
 
-def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
-    """Check if the mars dictionary contains valid keys.
+def _fix(mars: dict[str, Any], keys: dict[str, Any]) -> None:
+    """Check if the mars dictionary contains valid keys and fix it.
 
     Parameters
     ----------
@@ -59,21 +59,21 @@ def _is_valid(mars: Dict[str, Any], keys: Dict[str, Any]) -> bool:
         The mars dictionary.
     keys : Dict[str, Any]
         The keys dictionary.
-
-    Returns
-    -------
-    bool
-        True if valid, False otherwise.
     """
     if "number" in keys and "number" not in mars:
-        LOG.warning("`number` is missing from mars namespace")
-        return False
+        LOG.debug(f"`number` is missing from mars namespace, setting it to {keys['number']}")
+        mars["number"] = keys["number"]
 
     if "referenceDate" in keys and "hdate" not in mars:
-        LOG.warning("`hdate` is missing from mars namespace")
-        return False
+        LOG.debug(f"`hdate` is missing from mars namespace, setting it to {keys['referenceDate']}")
+        mars["hdate"] = keys["referenceDate"]
 
-    return True
+    if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
+        if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
+            LOG.debug(
+                f"{keys.get('stepType')} `step={mars.get('step')}` is not a range,  setting it to {keys['startStep']}-{keys['endStep']}."
+            )
+            mars["step"] = f"{keys['startStep']}-{keys['endStep']}"
 
 
 class ArchiveCollector:
@@ -85,7 +85,7 @@ class ArchiveCollector:
         self.expect = 0
         self._request = defaultdict(set)
 
-    def add(self, field: Dict[str, Any]) -> None:
+    def add(self, field: dict[str, Any]) -> None:
         """Add a field to the archive request.
 
         Parameters
@@ -106,37 +106,41 @@ class ArchiveCollector:
         return {k: sorted(v) for k, v in self._request.items()}
 
 
-@output_registry.register("grib")
-@main_argument("path")
-class GribFileOutput(GribOutput):
-    """Handles grib files."""
+class GribIoOutput(BaseGribOutput):
+    """Output class for grib io.
+
+    This class handles writing grib and collecting archive requests.
+    It extends the BaseGribOutput class and implements the write_message method.
+    """
 
     def __init__(
         self,
         context: Context,
         *,
-        path: str,
+        out: Path | IOBase,
         post_processors: list[ProcessorConfig] | None = None,
-        encoding: Optional[Dict[str, Any]] = None,
-        archive_requests: Optional[Dict[str, Any]] = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
         check_encoding: bool = True,
-        templates: Optional[Union[List[str], str]] = None,
-        grib1_keys: Optional[Dict[str, Any]] = None,
-        grib2_keys: Optional[Dict[str, Any]] = None,
-        modifiers: Optional[List[str]] = None,
-        output_frequency: Optional[int] = None,
-        write_initial_state: Optional[bool] = None,
-        variables: Optional[List[str]] = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
         split_output: bool = True,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
     ) -> None:
-        """Initialize the GribFileOutput.
+        """Initialize the GribIOOutput.
 
         Parameters
         ----------
         context : Context
             The context.
-        path : str
-            The path to save the grib files.
+        out : Union[Path, IOBase]
+            Path or file-like object to write the grib data to.
+            If a file-like object, it should be opened in binary write mode.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         encoding : dict, optional
@@ -161,10 +165,18 @@ class GribFileOutput(GribOutput):
             The list of variables, by default None.
         split_output : bool, optional
             Whether to split the output, by default True.
+            Cannot be `True` if `out` is a file-like object.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
         """
         super().__init__(
             context,
-            post_processors=post_processors,
+            post_processors,
             encoding=encoding,
             templates=templates,
             grib1_keys=grib1_keys,
@@ -173,19 +185,20 @@ class GribFileOutput(GribOutput):
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
             variables=variables,
+            negative_step_mode=negative_step_mode,
         )
-        self.path = path
-        self.output = GribWriter(self.path, split_output=split_output)
+        self.out = out
+        self.output = GribWriter(self.out, split_output)
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
-        """Return a string representation of the GribFileOutput object."""
-        return f"GribFileOutput({self.path})"
+        """Return a string representation of the GribIOOutput object."""
+        return f"{type(self).__name__}({self.out})"
 
-    def write_message(self, message: FloatArray, template: ekd.Field, **keys: Dict[str, Any]) -> None:
+    def write_message(self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]) -> None:
         """Write a message to the grib file.
 
         Parameters
@@ -225,7 +238,7 @@ class GribFileOutput(GribOutput):
         except Exception as e:
             import eccodes
 
-            LOG.error("Error writing message to %s", self.path)
+            LOG.error("Error writing message to %s", self.out)
             LOG.error("eccodes: %s", eccodes.__version__)
             LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)
@@ -250,25 +263,8 @@ class GribFileOutput(GribOutput):
 
         handle, path = written
 
-        while True:
-
-            if self._namespace_bug_fix:
-                import eccodes
-                from earthkit.data.readers.grib.codes import GribCodesHandle
-
-                handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
-
-            mars = {k: v for k, v in handle.items("mars")}
-
-            if _is_valid(mars, keys):
-                break
-
-            if self._namespace_bug_fix:
-                raise ValueError("Namespace bug: %s" % mars)
-
-            # Try again with the namespace bug
-            LOG.warning("Namespace bug detected, trying again")
-            self._namespace_bug_fix = True
+        mars = {k: v for k, v in handle.items("mars")}
+        _fix(mars, keys)
 
         if self.check_encoding:
             check_encoding(handle, keys)
@@ -323,3 +319,88 @@ class GribFileOutput(GribOutput):
 
             json.dump(requests, f, indent=indent)
             f.write("\n")
+
+
+@output_registry.register("grib")
+@main_argument("path")
+@ensure_path("path")
+class GribFileOutput(GribIoOutput):
+    """Handles grib files."""
+
+    def __init__(
+        self,
+        context: Context,
+        *,
+        path: Path,
+        post_processors: list[ProcessorConfig] | None = None,
+        encoding: dict[str, Any] | None = None,
+        archive_requests: dict[str, Any] | None = None,
+        check_encoding: bool = True,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        split_output: bool = True,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
+    ) -> None:
+        """Initialise the GribFileOutput.
+
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : Path
+            Path to the grib file to write the data to.
+            If the parent directory does not exist, it will be created.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        archive_requests : dict, optional
+            The archive requests dictionary, by default None.
+        check_encoding : bool, optional
+            Whether to check encoding, by default True.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        split_output : bool, optional
+            Whether to split the output, by default True.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
+        """
+        super().__init__(
+            context,
+            out=path,
+            post_processors=post_processors,
+            encoding=encoding,
+            archive_requests=archive_requests,
+            check_encoding=check_encoding,
+            templates=templates,
+            grib1_keys=grib1_keys,
+            grib2_keys=grib2_keys,
+            modifiers=modifiers,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+            variables=variables,
+            split_output=split_output,
+            negative_step_mode=negative_step_mode,
+        )

@@ -1,4 +1,4 @@
-.. _metadata_command:
+.. _metadata-command:
 
 Metadata Command
 ================

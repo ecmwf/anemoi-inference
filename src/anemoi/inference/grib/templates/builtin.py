@@ -12,13 +12,12 @@ import logging
 import os
 import zlib
 from typing import Any
-from typing import Dict
-from typing import Optional
 
 import earthkit.data as ekd
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
+from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
 
@@ -34,37 +33,12 @@ LOG = logging.getLogger(__name__)
 class BuiltinTemplates(IndexTemplateProvider):
     """Builtin templates provider."""
 
-    def __init__(self, manager: Any, index_path: Optional[str] = None) -> None:
-        """Initialize the BuiltinTemplates instance.
-
-        Parameters
-        ----------
-        manager : Any
-            The manager instance.
-        index_path : Optional[str], optional
-            The path to the index file, by default None.
-        """
+    def __init__(self, manager: TemplateManager, index_path: str | None = None) -> None:
         if index_path is None:
             index_path = os.path.join(os.path.dirname(__file__), "builtin.yaml")
 
         super().__init__(manager, index_path)
 
-    def load_template(self, grib: str, lookup: Dict[str, Any]) -> Optional[ekd.Field]:
-        """Load the template for the given GRIB and lookup.
-
-        Parameters
-        ----------
-        grib : str
-            The GRIB string.
-        lookup : Dict[str, Any]
-            The lookup dictionary.
-
-        Returns
-        -------
-        Optional[ekd.Field]
-            The loaded template field if found, otherwise None.
-        """
-        import earthkit.data as ekd
-
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
         template = zlib.decompress(base64.b64decode(grib))
         return ekd.from_source("memory", template)[0]

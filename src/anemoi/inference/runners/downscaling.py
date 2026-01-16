@@ -9,16 +9,24 @@
 
 
 import logging
+import os
+from datetime import timedelta
 from functools import cached_property
 from types import MappingProxyType as frozendict
+from typing import Optional
 
-import earthkit.data as ekd
 import numpy as np
 import torch
+from anemoi.datasets import open_dataset
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
+from anemoi.inference.runner import Kind
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
+from anemoi.inference.variables import Variables
 
 from ..checkpoint import Checkpoint
 from ..metadata import Metadata
@@ -33,20 +41,20 @@ class DsMetadata(Metadata):
         super().__init__(*args, **kwargs)
 
         # we only need to retrieve from the low res input_0
-        self._metadata.data_indices.data.input = self._metadata.data_indices.data.input_0
-        self._metadata.data_indices.model.input = self._metadata.data_indices.model.input_0
+        self._indices.data.input = self._indices.data.input_0
+        self._indices.model.input = self._indices.model.input_0
 
         # treat all low res inputs as forcings
         self._config.data.forcing = self.low_res_input_variables
-        self._metadata.data_indices.data.input.prognostic = []
-        self._metadata.data_indices.data.input.diagnostic = []
-        self._metadata.data_indices.model.input.prognostic = []
-        self._metadata.data_indices.model.input.prognostic = []
+        self._indices.data.input.prognostic = []
+        self._indices.data.input.diagnostic = []
+        self._indices.model.input.prognostic = []
+        self._indices.model.input.diagnostic = []
 
         # treat all high res outputs as diagnostics
-        self._metadata.data_indices.model.output.diagnostic = self._indices.model.output.full
-        self._metadata.data_indices.model.output.prognostic = []
-    
+        self._indices.model.output.diagnostic = self._indices.model.output.full
+        self._indices.model.output.prognostic = []
+
     @property
     def low_res_input_variables(self):
         spec = self._metadata.dataset.specific
@@ -56,7 +64,6 @@ class DsMetadata(Metadata):
             return spec["variables"]
         else:
             raise ValueError(f"Unsupported specific structure: {spec}")
-
 
     @property
     def high_res_output_variables(self):
@@ -70,16 +77,9 @@ class DsMetadata(Metadata):
         else:
             raise ValueError(f"Unsupported specific structure: {spec}")
 
-    @property
-    def predict_residuals(self):
-        return self._metadata.config.training.predict_residuals
-
-    # @cached_property
-    # def grid(self):
-    #     from anemoi.utils.config import find
-
-    #     result = find(self._metadata.dataset.specific.zip[2], "data_request")
-    #     return result[0]["grid"]
+    #@property
+    #def predict_residuals(self):
+    #    return self._metadata.config.training.predict_residuals
 
     @cached_property
     def output_tensor_index_to_variable(self):
@@ -100,86 +100,131 @@ class DsMetadata(Metadata):
         except AttributeError:
             return self._legacy_number_of_grid_points()
 
-    def print_indices(self):
+    def print_indices(self, print=LOG.info):
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
         self._print_indices(
-            "Data indices", self._indices.data, dict(input=v, output=v), skip=["output", "input_0", "input_1"]
+            "Data indices",
+            self._indices.data,
+            dict(input=v, output=v),
+            skip=["output", "input_0", "input_1"],
         )
         self._print_indices(
-            "Model indices", self._indices.model, dict(input=r, output=s), skip=["output.full", "input_0", "input_1"]
+            "Model indices",
+            self._indices.model,
+            dict(input=r, output=s),
+            skip=["output.full", "input_0", "input_1"],
         )
 
 
 class DsCheckpoint(Checkpoint):
-    # timestep is not read from the metadata, but set by us
-    timestep = None
+    def __init__(self, path: str, *, patch_metadata: dict | None = None):
+        super().__init__(path, patch_metadata=patch_metadata)
 
     @cached_property
     def _metadata(self):
         return DsMetadata(load_metadata(self.path))
 
-    def variables_from_input(self, *, include_forcings):
-        # include forcings in initial conditions retrieval
-        return super().variables_from_input(include_forcings=True)
+    #def variables_from_input(self, *, include_forcings):
+    #    # include forcings in initial conditions retrieval
+    #    return super().variables_from_input(include_forcings=True)
+
+
+class ZarrDataset:
+    def __init__(self, zarr_path: str, forcings: Optional[list[str]] = None):
+        if forcings is None:
+            forcings = []
+
+        self.constant_forcings: dict[str, FloatArray] = {}
+
+        ds = open_dataset(zarr_path)
+
+        self.lats = ds.latitudes
+        self.lons = ds.longitudes
+        self.field_shape = ds.field_shape
+
+        var_index_map = {name: ds.name_to_index[name] for name in forcings}
+        for var in forcings:
+            idx = var_index_map[var]
+
+            if var not in ds.constant_fields:
+                continue
+
+            # Only extract the first timestamp since the field is constant
+            self.constant_forcings[var] = ds[0, idx, 0, :].flatten()
+
+    def grid_points(self):
+        return (self.lats, self.lons)
 
 
 @runner_registry.register("downscaling")
 class DownscalingRunner(DefaultRunner):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._checkpoint = DsCheckpoint(self._checkpoint.path)
+    def __init__(
+        self,
+        config: RunConfiguration,
+        time_step: int | str | timedelta,
+        ensemble_members: int = 1,
+        field_shape: tuple[int, ...] | None = None,
+        extra_args: dict | None = None,
+    ):
+        super().__init__(config)
 
-        self.write_initial_state = False
-        self.time_step = to_timedelta(self.extra_config.time_step)
+        self.time_step = to_timedelta(time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
-        # some parts of the runner call the checkpoint directly so also overwrite it here
-        self._checkpoint.timestep = self.time_step
+        self.write_initial_state = False
 
-        self.checkpoint.print_indices()
-        self.checkpoint.print_variable_categories()
+        self._checkpoint = DsCheckpoint(
+            self._checkpoint.path,
+            # some parts of the runner call the checkpoint directly so also overwrite it here
+            patch_metadata={"timestep": self.time_step},
+        )
+
+        # Need to overwrite this attribute
+        self.variables = Variables(self)
+
+        # self.samples = getattr(self.extra_config, "n_samples")
+        self.ensemble_members = ensemble_members
+
+        # Overrides for predictions
+        self.extra_args = extra_args if extra_args is not None else {}
+
+        # TODO: remove eventually
         self.verbosity = 3
 
-    @cached_property
-    def extra_config(self):
-        return self.config.development_hacks
+        self._checkpoint.print_indices()
+        self._checkpoint.print_variable_categories()
+
+    @property
+    def high_res_input(self) -> list[str]:
+        return self._checkpoint._metadata._config.dataloader.select_in_hres
 
     @cached_property
-    def constant_high_res_focings_numpy(self):
-        file = np.load(self.extra_config.constant_high_res_forcings_npz)
-        high_res = np.stack([file[forcing] for forcing in self.extra_config.constant_high_res_forcings], axis=1)
+    def constant_high_res_focings_numpy(self) -> FloatArray:
+        high_res = np.stack(
+            [forcing for forcing in self.hres_dataset.constant_forcings.values()],
+            axis=1,
+        )
 
         return high_res[np.newaxis, np.newaxis, ...]  # shape: (1, 1, values, variables)
 
     @cached_property
-    def computed_high_res_forcings(self):
-        computed_forcings = [
-            var for var in self.extra_config.high_res_input if var not in self.extra_config.constant_high_res_forcings
-        ]
+    def computed_high_res_forcings(self) -> ComputedForcings:
+        # TODO: this breaks if the computed forcings are non constant fields, for example `sr`.
+        # But we should not use variables that are not available during production
+        computed_forcings = [var for var in self.high_res_input if var not in self.hres_dataset.constant_forcings]
         return ComputedForcings(self, computed_forcings, [])
-    
+
     @cached_property
-    def template(self):
-        # The the output type, may not be robust
-        if "grib" in self.config.output:
-            return ekd.from_source("file", self.extra_config.output_template)[0]
-        elif "netcdf" in self.config.output:
-            import xarray as xr
-            ds = xr.open_dataset(self.extra_config.output_template)
-
-            def grid_points():
-                return ds["latitude"].values, ds["longitude"].values
-
-            # return a bare object with just grid_points
-            return type("TemplateShim", (), {"grid_points": staticmethod(grid_points)})()
+    def hres_dataset(self):
+        # NOTE: harcoded to read from the checkpoint file
+        if "grib" in self.config.output or "netcdf" in self.config.output:
+            hw = self._checkpoint._metadata._config.hardware
+            path = os.path.join(hw.paths.data, hw.files.dataset_y)
+            return ZarrDataset(path, forcings=self.high_res_input)
         else:
-            raise Exception('Only grib and netcdf ouputs are available with runner type downscaling.')
-
-    @cached_property
-    def pred_grid(self):
-        return np.load(self.extra_config.pred_grid)
+            raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
@@ -199,7 +244,12 @@ class DownscalingRunner(DefaultRunner):
         # for downscaling we do a prediction for each step of the input
         steps = (lead_time // self.time_step) + 1  # include step 0
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.time_step, steps)
+        LOG.info(
+            "Lead time: %s, time stepping: %s Forecasting %s steps",
+            lead_time,
+            self.time_step,
+            steps,
+        )
 
         for s in range(steps):
             step = s * self.time_step
@@ -208,17 +258,20 @@ class DownscalingRunner(DefaultRunner):
             is_last_step = s == steps - 1
             yield step, valid_date, next_date, is_last_step
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
+    def forecast(self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
-            # fix: does not work when the predicted grid is not the same as the template 
-            #state["latitudes"], state["longitudes"] = self.template.grid_points()
-            state["latitudes"] = self.pred_grid["latitudes"]
-            state["longitudes"] = self.pred_grid["longitudes"]
-            state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
+            state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
+
+            if "grib" in self.config.output:
+                state["_grib_templates_for_output"] = {name: self.hres_dataset for name in state["fields"].keys()}
+
             yield state
 
-    def predict_step(self, model, input_tensor_torch, date, step, **kwargs):
+    def predict_step(self, model, input_tensor_torch, **kwargs):
+        date = kwargs["date"]
+        step = kwargs["step"]
+
         input_date = date - step
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)
@@ -226,60 +279,87 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
-        extra_args = self.extra_config.get("extra_args", {})
+        # TODO: is this the correct thing to do to get an ensemble out?
+        outputs = []
+        for _ in range(self.ensemble_members):
+            if self._checkpoint._metadata._config.training.predict_residuals:
+                output_tensor = self._predict_from_residuals(model, low_res_tensor, high_res_tensor, **kwargs)
+            else:
+                output_tensor = self._predict_direct(model, low_res_tensor, high_res_tensor, **kwargs)
 
-        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        output_numpy = np.squeeze(output_tensor.cpu().numpy())
+            outputs.append(output_tensor)
 
-        self._print_output_tensor("Output tensor", output_numpy)
+        # This produces an [n_members, values, variables]
+        return torch.stack(outputs)
 
-        #if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
-        #    self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
+    def _predict_direct(self, model, low_res_tensor, high_res_tensor, **kwargs):
+        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs)
+        return output_tensor
 
-        if self._checkpoint._metadata.predict_residuals:
-            output_tensor_interp = _prepare_high_res_output_tensor(
-                model,
-                low_res_tensor[0],  # remove batch dimension
-                output_tensor,
-                self.checkpoint.variable_to_input_tensor_index,
-                self.checkpoint._metadata.high_res_output_variables,
-            )
-            return output_tensor_interp
-        else:
-            return output_tensor
+    def _predict_from_residuals(self, model, low_res_tensor, high_res_tensor, **kwargs):
+        residual_output_tensor = model.predict_step(
+            low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs
+        )
+        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
+        if residual_output_numpy.ndim == 1:
+            residual_output_numpy = residual_output_numpy[:, np.newaxis]
 
+        self._print_output_tensor("Residual output tensor", residual_output_numpy)
+
+        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
+            self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
+
+        output_tensor_interp = _prepare_high_res_output_tensor(
+            model,
+            low_res_tensor[0],  # remove batch dimension
+            residual_output_tensor,
+            self._checkpoint.variable_to_input_tensor_index,
+            self._checkpoint._metadata.high_res_output_variables,
+        )
+
+        return output_tensor_interp
+
+    # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
-        # fix: does not work when the predicted grid is not the same as the template 
-        #state["latitudes"], state["longitudes"] = self.template.grid_points()
-        state["latitudes"] = self.pred_grid["latitudes"]
-        state["longitudes"] = self.pred_grid["longitudes"]
+        state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
         computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
-        computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
-        computed_high_res_forcings = np.swapaxes(
-            computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
-        )  # shape: (1, 1, values, variables)
 
-        # Merge high res computed and constant forcings so that they are ordered according to high_res_input
-        forcings_dict = {name: None for name in self.extra_config.high_res_input}
+        # Drop the dates dimension
+        computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)
 
-        # Fill in the constant forcings from disk
-        for i, name in enumerate(self.extra_config.constant_high_res_forcings):
-            forcings_dict[name] = self.constant_high_res_focings_numpy[..., i]
+        # Swap last two dimensions so we get shape: (1, 1, values, variables)
+        computed_high_res_forcings = np.swapaxes(computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1)
+
+        # Merge high res computed and constant forcings so that
+        # they are ordered according to high_res_input
+        forcings_dict: dict[str, FloatArray] = {}
+        kinds = {}
+
+        # Fill in the constant forcings from cache
+        for var, array in self.hres_dataset.constant_forcings.items():
+            forcings_dict[var] = array[np.newaxis, np.newaxis, ...]
+            kinds[var] = Kind(forcing=True, constant=True)
 
         # Fill in the computed forcings
         for i, name in enumerate(self.computed_high_res_forcings.variables):
             forcings_dict[name] = computed_high_res_forcings[..., i]
+            kinds[name] = Kind(forcing=True, computed=True)
 
-        assert all(forcing is not None for forcing in forcings_dict.values())
-        assert set(forcings_dict.keys()) == set(self.extra_config.high_res_input)
+        assert len(forcings_dict) == len(self.high_res_input)
+        assert set(forcings_dict.keys()) == set(self.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
-        high_res_numpy = np.stack([forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1)
+        high_res_numpy = np.stack([forcings_dict[name] for name in self.high_res_input], axis=-1)
 
         # print expects shape (step, variables, values)
-        self._print_tensor("High res input tensor", np.swapaxes(high_res_numpy[0], -2, -1), forcings_dict.keys(), {})
+        self._print_tensor(
+            "High res input tensor",
+            np.swapaxes(high_res_numpy[0], -2, -1),
+            self.high_res_input,
+            kinds,
+        )
 
         return torch.from_numpy(high_res_numpy).to(self.device)
 
@@ -318,12 +398,14 @@ def _match_tensor_channels(input_name_to_index, output_names):
 
 
 def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input_name_to_index, output_names):
-    # interpolate the low res input tensor to high res, and add the residuals to get the final high res output
+    # interpolate the low res input tensor to high res,
+    # and add the residuals to get the final high res output
 
     matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
     print("matching_channel_indices", matching_channel_indices)
+    # [64, 25, 36, 46,  3,  0,  1, 16]
 
-    print("low_res_in", low_res_in.shape)
+    print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
 
     interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
         ..., matching_channel_indices
