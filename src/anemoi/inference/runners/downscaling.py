@@ -274,53 +274,20 @@ class DownscalingRunner(DefaultRunner):
     def predict_step(self, model, input_tensor_torch, **kwargs):
         date = kwargs["date"]
         step = kwargs["step"]
-
+    
         input_date = date - step
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)
 
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
+        print("self.extra_args", self.extra_args)
 
-        # TODO: is this the correct thing to do to get an ensemble out?
-        outputs = []
-        for _ in range(self.ensemble_members):
-            if self._checkpoint._metadata._config.training.predict_residuals:
-                output_tensor = self._predict_from_residuals(model, low_res_tensor, high_res_tensor, **kwargs)
-            else:
-                output_tensor = self._predict_direct(model, low_res_tensor, high_res_tensor, **kwargs)
-
-            outputs.append(output_tensor)
-
-        # This produces an [n_members, values, variables]
-        return torch.stack(outputs)
-
-    def _predict_direct(self, model, low_res_tensor, high_res_tensor, **kwargs):
-        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs)
-        return output_tensor
-
-    def _predict_from_residuals(self, model, low_res_tensor, high_res_tensor, **kwargs):
-        residual_output_tensor = model.predict_step(
+        output_tensor = model.predict_step(
             low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs
         )
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
-        if residual_output_numpy.ndim == 1:
-            residual_output_numpy = residual_output_numpy[:, np.newaxis]
 
-        self._print_output_tensor("Residual output tensor", residual_output_numpy)
-
-        if not isinstance(self.config.output, str) and (raw_path := self.config.output.get("raw", {}).get("path")):
-            self._save_residual_tensor(residual_output_numpy, f"{raw_path}/output-residuals-o320.npz")
-
-        output_tensor_interp = _prepare_high_res_output_tensor(
-            model,
-            low_res_tensor[0],  # remove batch dimension
-            residual_output_tensor,
-            self._checkpoint.variable_to_input_tensor_index,
-            self._checkpoint._metadata.high_res_output_variables,
-        )
-
-        return output_tensor_interp
+        return output_tensor
 
     # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
