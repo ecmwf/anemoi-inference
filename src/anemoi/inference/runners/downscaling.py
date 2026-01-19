@@ -23,6 +23,7 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
+from anemoi.inference.output import Output
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -221,13 +222,77 @@ class DownscalingRunner(DefaultRunner):
             return ZarrDataset(self.hres_zarr, forcings=self.high_res_input)
      
         elif "grib" in self.config.output or "netcdf" in self.config.output:  # read from the checkpoint file
-            print("@@@@ NO")
             hw = self._checkpoint._metadata._config.hardware
             path = os.path.join(hw.paths.data, hw.files.dataset_y)
             return ZarrDataset(path, forcings=self.high_res_input)
         
         else:
             raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
+
+    def execute(self) -> None:
+        """Execute the runner. Specific to DownscalingRunner as time_step can be different from CKPT."""
+
+        if self.config.description is not None:
+            LOG.info("%s", self.config.description)
+
+        output = self.create_output()
+
+        # In case the constant forcings are from another input, combine them here
+        # So that they are in considered in the `write_initial_state`
+
+        # FIXME: something in here breaks and an empty input state is created
+        prognostic_input = self.create_prognostics_input()
+        LOG.info(f"📥 Prognostic input: {prognostic_input}")
+        prognostic_state = prognostic_input.create_input_state(date=self.config.date)
+        self._check_state(prognostic_state, "prognostics")
+
+        constants_input = self.create_constant_coupled_forcings_input()
+        LOG.info(f"📥 Constant forcings input: {constants_input}")
+        constants_state = constants_input.create_input_state(date=self.config.date)
+        self._check_state(constants_state, "constant_forcings")
+
+        forcings_input = self.create_dynamic_forcings_input()
+        LOG.info(f"📥 Dynamic forcings input: {forcings_input}")
+        forcings_state = forcings_input.create_input_state(date=self.config.date)
+        self._check_state(forcings_state, "dynamic_forcings")
+
+        input_state = self._combine_states(
+            prognostic_state,
+            constants_state,
+            forcings_state,
+        )
+
+        # This hook is needed for the coupled runner
+        self.input_state_hook(constants_state)
+
+        # For step-zero only
+        initial_state = Output.reduce(
+            self._initial_state(
+                prognostic_state,
+                constants_state,
+                forcings_state,
+            )
+        )
+        initial_state["date"] = self.config.date
+
+        # Top-level post-processors on the other hand are applied on State and are executed here.
+        LOG.info("Top-level post-processors: %s", self.post_processors)
+
+        for processor in self.post_processors:
+            initial_state = processor.process(initial_state)
+
+        output.open(initial_state)
+
+        LOG.info("write_initial_state: %s", output)
+        output.write_initial_state(initial_state)
+
+        for state in self.run(input_state=input_state, lead_time=self.lead_time):
+            # Apply top-level post-processors
+            for processor in self.post_processors:
+                state = processor.process(state)
+            output.write_state(state)
+
+        output.close()
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
