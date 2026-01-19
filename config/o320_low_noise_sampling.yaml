@@ -1,0 +1,49 @@
+description: b57fc7b0a4004ebc997750058f539b7e
+
+dates:
+  start: 2023-08-01
+  end: 2023-09-01
+  frequency: 24  # hours
+
+checkpoint: /home/ecm5702/scratch/aifs/checkpoint/b57fc7b0a4004ebc997750058f539b7e/inference-anemoi-by_epoch-epoch_025-step_120224.ckpt
+runner:
+  downscaling:
+    time_step: 24h
+    extra_args:
+      nsteps: 40  
+      sigma_max: 88
+      sigma_min: 0.02
+      S_max: 88
+      S_noise: 1.05
+      S_churn: 2.5
+      S_min: 0.75
+
+ensemble:
+  loop:
+    number: 1/to/10
+
+input:
+  class: od
+  stream: eefo
+  type: pf
+  number: "{number}"
+  # number: 2   # you can hard code this to initialise from 1 member
+  grid: O96 
+
+output:
+  class: rd
+  stream: enfo
+  type: pf
+  number: "{member_number}"
+  # number: 2
+
+runner:
+  name: anemoi-dev
+  venv: /home/ecm5702/dev/.ds-dyn
+
+evaluation: False
+
+#resources:
+#  inference:
+#    custom_directives:
+#      - "#SBATCH --exclude=ac6-320"
