@@ -161,42 +161,16 @@ def encode_time_processing(
 
     if period := getattr(variable, "period", None):
         start = step - period
-<<<<<<< HEAD
-        if start < as_timedelta(0):
-            assert result["time"] in (
-                0,
-                600,
-                1200,
-                1800,
-            ), f"Unexpected time {result['time']} for variable {variable.name} with period {period}"
-            date = datetime(
-                year=result["date"] // 10000,
-                month=(result["date"] // 100) % 100,
-                day=result["date"] % 100,
-                hour=result["time"] // 100,
-                minute=result["time"] % 100,
-=======
         if start < to_timedelta(0):
             LOG.warning(
                 f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
->>>>>>> 291e21c56f7610ee30689a53b201e1bc339f9c14
             )
 
             date += start
             step -= start
-<<<<<<< HEAD
-
-            LOG.warning(
-                f"Start step {start} is negative for variable {variable.name} with period {period}, setting reference date {date.isoformat()}."
-            )
-
-            start = as_timedelta(0)
-            result["date"] = date.year * 10000 + date.month * 100 + date.day
-=======
             start = to_timedelta(0)
 
             result["date"] = int(date.strftime("%Y%m%d"))
->>>>>>> 291e21c56f7610ee30689a53b201e1bc339f9c14
             result["time"] = date.hour * 100 + date.minute
     else:
         # backwards compatibility with old transform or if period is missing from the metadata
