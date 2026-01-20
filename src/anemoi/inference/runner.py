@@ -271,6 +271,8 @@ class Runner(Context):
             except (TypeError, ModuleNotFoundError, AttributeError):
                 self.checkpoint.report_error()
                 raise
+            finally:
+                self.complete_forecast_hook()
 
     def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
@@ -1229,6 +1231,10 @@ class Runner(Context):
 
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
+        pass
+
+    def complete_forecast_hook(self) -> None:
+        """Hook called at the end of the forecast."""
         pass
 
     def has_split_input(self) -> bool:

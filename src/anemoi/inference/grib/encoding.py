@@ -10,6 +10,8 @@
 
 import logging
 import warnings
+from datetime import datetime
+from datetime import timedelta
 from io import IOBase
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,8 +19,9 @@ from typing import Any
 from typing import Hashable
 
 import earthkit.data as ekd
-from anemoi.utils.dates import as_timedelta
+from earthkit.data.utils.dates import to_timedelta
 
+from anemoi.inference.types import FloatArray
 from anemoi.inference.utils.templating import render_template
 
 if TYPE_CHECKING:
@@ -84,12 +87,12 @@ def _param(param: Any) -> str:
             return "shortName"
 
 
-def _step_in_hours(step: Any) -> int:
+def _step_in_hours(step: timedelta) -> int:
     """Convert a step to hours.
 
     Parameters
     ----------
-    step : Any
+    step : timedelta
         The step to convert.
 
     Returns
@@ -116,9 +119,10 @@ def encode_time_processing(
     result: dict[str, Any],
     template: ekd.Field,
     variable: "Variable",
-    step: Any,
-    previous_step: Any | None,
-    start_steps: dict[Any, Any],
+    date: datetime,
+    step: timedelta,
+    previous_step: timedelta | None,
+    start_steps: dict[str, timedelta],
     edition: int,
     ensemble: bool,
 ) -> None:
@@ -126,17 +130,19 @@ def encode_time_processing(
 
     Parameters
     ----------
-    result : Dict[str, Any]
+    result : dict[str, Any]
         The result dictionary to update.
     template : ekd.Field
         The template field.
-    variable : Any
+    variable : Variable
         The variable containing time processing information.
-    step : Any
+    date : datetime
+        The date and time.
+    step : timedelta
         The current step.
-    previous_step : Optional[Any]
+    previous_step : timedelta | None
         The previous step.
-    start_steps : Dict[Any, Any]
+    start_steps : dict[str, timedelta]
         The start steps dictionary.
     edition : int
         The GRIB edition.
@@ -151,17 +157,21 @@ def encode_time_processing(
         return
 
     if previous_step is None:
-        if not variable.is_accumulation:
-            LOG.warning(f"No previous step available for time processing `{variable.time_processing}` for `{variable}`")
         previous_step = step
 
     if period := getattr(variable, "period", None):
         start = step - period
-        if start < as_timedelta(0):
-            raise ValueError(
-                f"Writing {variable.name} at step {_step_in_hours(step)} with period {_step_in_hours(period)} for would result in a negative start step {_step_in_hours(start)}. "
-                "Try `write_initial_state: False`"
+        if start < to_timedelta(0):
+            LOG.warning(
+                f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
             )
+
+            date += start
+            step -= start
+            start = to_timedelta(0)
+
+            result["date"] = int(date.strftime("%Y%m%d"))
+            result["time"] = date.hour * 100 + date.minute
     else:
         # backwards compatibility with old transform or if period is missing from the metadata
         start = previous_step
@@ -196,16 +206,15 @@ LEVTYPES = {
 
 def grib_keys(
     *,
-    values: Any,
-    template: Any,
-    variable: Any,
+    values: FloatArray,
+    template: ekd.Field,
+    variable: "Variable",
     ensemble: bool,
     param: int | float | str | None,
-    date: int,
-    time: int,
-    step: Any,
-    previous_step: Any | None,
-    start_steps: dict[Any, Any],
+    date: datetime,
+    step: timedelta,
+    previous_step: timedelta | None,
+    start_steps: dict[str, timedelta],
     keys: dict[str, Any],
     grib1_keys: dict[int | float | str, dict[str, Any]] = {},
     grib2_keys: dict[int | float | str, dict[str, Any]] = {},
@@ -214,36 +223,34 @@ def grib_keys(
 
     Parameters
     ----------
-    values : Any
+    values : FloatArray
         The values to encode.
-    template : Any
+    template : ekd.Field
         The template to use.
-    variable : Any
+    variable : Variable
         The variable containing GRIB keys.
     ensemble : bool
         Whether the data is part of an ensemble.
-    param : Optional[Union[int, float, str]]
+    param : int | float | str | None
         The parameter value.
-    date : int
-        The date value.
-    time : int
-        The time value.
+    date : datetime
+        The date and time.
     step : Any
         The current step.
-    previous_step : Optional[Any]
+    previous_step : timedelta | None
         The previous step.
-    start_steps : Dict[Any, Any]
+    start_steps : dict[str, timedelta]
         The start steps dictionary.
-    keys : Dict[str, Any]
+    keys : dict[str, Any]
         The initial keys dictionary.
-    grib1_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
+    grib1_keys : dict[int | float | str, dict[str, Any]], optional
         Additional GRIB1 keys.
-    grib2_keys : Dict[Union[int, float, str], Dict[str, Any]], optional
+    grib2_keys : dict[int | float | str, dict[str, Any]], optional
         Additional GRIB2 keys.
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The generated GRIB keys.
     """
     result = keys.copy()
@@ -280,13 +287,14 @@ def grib_keys(
         # For organisations that do not use type
         result.setdefault("dataType", result.pop("type"))
 
-    result["date"] = date
-    result["time"] = time
+    result["date"] = int(date.strftime("%Y%m%d"))
+    result["time"] = date.hour * 100
 
     encode_time_processing(
         result=result,
         template=template,
         variable=variable,
+        date=date,
         step=step,
         previous_step=previous_step,
         start_steps=start_steps,
@@ -295,7 +303,10 @@ def grib_keys(
     )
 
     # 1 if local definition is present, like for ECMWF GRIBs
-    local_use_present = template.metadata("localUsePresent", default=0)
+    if template is not None:
+        local_use_present = template.metadata("localUsePresent", default=0)
+    else:
+        local_use_present = 0
 
     for k, v in variable.grib_keys.items():
         if k not in (

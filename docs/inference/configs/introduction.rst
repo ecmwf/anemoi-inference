@@ -1,8 +1,8 @@
 .. _config_introduction:
 
-#########
- Configs
-#########
+###############
+ Configuration
+###############
 
 This document provides an overview of the configuration to provide to
 the :ref:`anemoi-inference run <run-command>` command line tool.
@@ -51,6 +51,5 @@ or if it expects a single argument, it can be simplified as:
    outputs
    processors
    forcings
-   icon-input
    grib-input
    grib-output
