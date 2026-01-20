@@ -189,7 +189,7 @@ class EkdInput(Input):
                 name=self.variables,
                 valid_datetime=valid_datetime,
                 dataDate=int(start_date.strftime("%Y%m%d")),
-                dataTime=int(start_date.strftime("%H%M%S")),
+                dataTime=int(start_date.strftime("%H%M")),
             ).order_by(
                 name=self.variables,
                 valid_datetime="ascending",
