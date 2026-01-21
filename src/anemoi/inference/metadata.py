@@ -1260,7 +1260,7 @@ class MultiDatasetMetadata(Metadata):
 
 
 class MetadataFactory:
-    def __new__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, name="data") -> Metadata:
+    def __new__(cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, name="data") -> Metadata:
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
             assert name in datasets, f"Multi-dataset name `{name}` not found in metadata. Available names: {datasets}"
             LOG.info(f"Loading multi-dataset metadata with dataset name `{name}`")
