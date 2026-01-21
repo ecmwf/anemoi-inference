@@ -61,7 +61,7 @@ class GribFileInput(GribInput):
         super().__init__(context, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Date | None, ref_date_index: int =-1, **kwargs) -> State:
+    def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
