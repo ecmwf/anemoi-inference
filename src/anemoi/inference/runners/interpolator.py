@@ -127,7 +127,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             req = p.patch_data_request(req)
 
         for p in self.post_processors:
-            req = p.patch_data_request(req)        
+            req = p.patch_data_request(req)
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
