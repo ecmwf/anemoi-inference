@@ -621,7 +621,7 @@ class Runner(Context):
         """
         try:
             # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
-            # this will change when we have a proper multi-dataset runner
+            # TODO: change when we have a proper multi-dataset runner
             if self.checkpoint._metadata.multi_dataset:
                 return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
                     self.checkpoint._metadata.name
