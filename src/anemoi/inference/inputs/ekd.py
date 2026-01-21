@@ -183,13 +183,12 @@ class EkdInput(Input):
         start_date = kwargs.pop("start_date", None)
 
         # Deselects analysis if the forecast exists to avoid duplicate values for same valid time
-
         if start_date is not None:
             data = data.sel(
                 name=self.variables,
                 valid_datetime=valid_datetime,
                 dataDate=int(start_date.strftime("%Y%m%d")),
-                dataTime=int(start_date.strftime("%H%M%S")),
+                dataTime=int(start_date.strftime("%H%M")),
             ).order_by(
                 name=self.variables,
                 valid_datetime="ascending",

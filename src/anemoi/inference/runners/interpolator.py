@@ -122,9 +122,12 @@ class TimeInterpolatorRunner(DefaultRunner):
     def patch_data_request(self, request: dict) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
         req = request.copy()
-        req["class"] = "od"
-        req["type"] = "fc"
-        req["stream"] = "oper"
+
+        for p in self.pre_processors:
+            req = p.patch_data_request(req)
+
+        for p in self.post_processors:
+            req = p.patch_data_request(req)        
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
