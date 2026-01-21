@@ -1171,7 +1171,7 @@ class MultiDatasetMetadata(Metadata):
         self.name = name
 
     def __repr__(self) -> str:
-        return f"<MultiDatasetMetadata name={self.name}>"
+        return f"MultiDatasetMetadata(name='{self.name}')"
 
     @property
     def _indices(self) -> DotDict:
