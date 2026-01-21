@@ -32,11 +32,13 @@ def check_grib(
     grib_keys: dict = {},
     check_accum: str | None = None,
     check_nans=False,
+    reference_date: str = None,
     **kwargs,
 ) -> None:
     LOG.info(f"Checking GRIB file: {file}")
     import earthkit.data as ekd
     import numpy as np
+    from earthkit.data.utils.dates import to_datetime
 
     ds = ekd.from_source("file", file)
 
@@ -57,9 +59,17 @@ def check_grib(
             assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
 
     # check time continuity
+    if reference_date:
+        reference_date = to_datetime(reference_date)
+        LOG.info(f"Using reference date: {reference_date}")
+
     fields = ds.sel(param=expected_params[0])
     previous_field = fields[0]
     for field in fields[1:]:
+        if reference_date:
+            assert field["base_time"] == reference_date.isoformat()
+            assert field["date"] == int(reference_date.strftime("%Y%m%d"))
+            assert field["time"] == reference_date.hour * 100
         assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
             f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
             f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
@@ -197,10 +207,93 @@ def check_cutout_with_xarray(
         for var in checkpoint.prognostic_variables:
             assert var in ds.data_vars, f"Variable {var} not found in output file."
             ref_idx = ref_ds.name_to_index[var]
+            # loop through time dimension
             for data in ds[var]:
                 assert np.allclose(
                     data.values, ref_ds[0, ref_idx, 0, :]
                 ), f"Variable {var} in output does not match reference data at {reference_date}."
+    elif reference_file:
+        # check against a reference file, implement when needed
+        raise NotImplementedError("Reference file check is not implemented yet.")
+
+
+@testing_registry.register("check_boundary_forcings_with_xarray")
+def check_boundary_forcings_with_xarray(
+    *,
+    file: Path,
+    checkpoint: "Checkpoint",
+    reference_dataset={},
+    reference_file=None,
+    **kwargs,
+) -> None:
+    LOG.info(f"Checking boundary forcings: {file}")
+
+    # get boundary mask from checkpoint
+    supporting_arrays = checkpoint.supporting_arrays
+    LOG.info(f"Supporting arrays in checkpoint: {supporting_arrays.keys()}")
+    if "output_mask" not in supporting_arrays:
+        LOG.warning("Boundary forcings check is trivial. Consider removing from test config.")
+        return
+    else:
+        boundary_mask = ~supporting_arrays["output_mask"]
+
+    import numpy as np
+    import xarray as xr
+
+    ds = xr.open_dataset(file)
+
+    # check if boundary mask compatible with output
+    n_grid = len(ds["latitude"].values)
+    n_mask = len(boundary_mask)
+    assert (
+        n_grid == n_mask
+    ), f"Number of grid points ({n_grid}) does not match size of output mask in checkpoint ({n_mask})."
+    dates = ds["time"].astype("datetime64[s]").values
+    freq = dates[1] - dates[0]
+    if reference_dataset:
+        from anemoi.datasets import open_dataset
+
+        ref_ds = open_dataset(**reference_dataset, start=dates[0])
+        ref_freq = np.timedelta64(ref_ds.frequency)
+        ref_dates = ref_ds.dates.astype("datetime64[s]")
+        step = freq // ref_freq
+
+        # make sure all dates needed are present and we will step through them consistently
+        assert set(dates[:-1]).issubset(ref_dates), f"Reference dataset is missing dates {set(dates) - set(ref_dates)}"
+        assert step == freq / ref_freq, f"Frequency mismatch between output ({freq}) and reference ({ref_freq})"
+        LOG.info(f"Inference output has a timestep that is {step} times that of the reference dataset.")
+
+        if ref_ds.shape[2] != 1:
+            raise NotImplementedError("Support for ensembles is not implemented yet.")
+        ref_values = ref_ds[:, :, 0, :]
+
+        # make sure we have the reference dataset on the output grid
+        lats = ref_ds.latitudes
+        lons = ref_ds.longitudes
+        if "grid_indices" in supporting_arrays:
+            LOG.info("Using grid indices for boundary forcings check.")
+            grid_indices = supporting_arrays["grid_indices"]
+            ref_values = ref_values[:, :, grid_indices]
+            lats = lats[grid_indices]
+            lons = lons[grid_indices]
+        assert np.allclose(lats, ds.latitude.values), "Latitudes don't match between output and reference."
+        assert np.allclose(lons, ds.longitude.values), "Longitudes don't match between output and reference."
+
+        # check boundary forcings
+        # each inference step takes us from input i to output i
+        # boundary forcings are applied to output i in the creation of input i+1
+        # the current mock inference model simply passes the input, so output i+1 == input i+1
+        # the boundary forcing applied on output i (ref dataset at i) appear thus directly in output i+1
+        for var in checkpoint.prognostic_variables:
+            assert var in ds.data_vars, f"Variable {var} not found in output file."
+            ref_idx = ref_ds.name_to_index[var]
+            for i in range(len(dates) - 1):
+                out = ds[var].isel(time=i + 1).values
+                forcing = ref_values[i * step, ref_idx]
+                assert np.allclose(
+                    out[boundary_mask], forcing[boundary_mask]
+                ), f"Boundary forcing for variable {var} does not match reference data at {ref_dates[i*step]}."
+
     elif reference_file:
         # check against a reference file, implement when needed
         raise NotImplementedError("Reference file check is not implemented yet.")

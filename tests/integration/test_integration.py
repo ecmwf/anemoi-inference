@@ -69,16 +69,21 @@ MODEL_CONFIGS = (
 
 class Setup(NamedTuple):
     config: OmegaConf
-    output: Path
+    output: list[Path]
 
 
 @pytest.fixture(params=MODEL_CONFIGS)
 def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     model, config = request.param
     input = config.input
-    output = tmp_path / config.output
+    output = config.output
     inference_config = config.inference_config
     s3_path = f"anemoi-integration-tests/inference/{model}"
+
+    # set output path(s)
+    if not isinstance(output, (list, ListConfig)):
+        output = [output]
+    output = [tmp_path / file_name for file_name in output]
 
     # download input file(s)
     if not input:
@@ -116,7 +121,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
 
     # substitute inference config with real paths
     OmegaConf.register_new_resolver("input", lambda i=0: str(input_data[i]), replace=True)
-    OmegaConf.register_new_resolver("output", lambda: str(output), replace=True)
+    OmegaConf.register_new_resolver("output", lambda i=0: str(output[i]), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
     OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
     OmegaConf.register_new_resolver("sys.prefix", lambda: sys.prefix, replace=True)
@@ -144,7 +149,8 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     runner = create_runner(config)
     runner.execute()
 
-    assert (test_setup.output).exists(), "Output file was not created."
+    for file in test_setup.output:
+        assert file.exists(), f"Output file was not created: {file}."
 
     checkpoint_output_variables = _typed_variables_output(runner._checkpoint)
     LOG.info(f"Checkpoint output variables: {checkpoint_output_variables}")
@@ -159,9 +165,10 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
             VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
         ] or checkpoint_output_variables
 
+        file = kwargs.pop("file", test_setup.output[0])
         testing_registry.create(
             check,
-            file=test_setup.output,
+            file=file,
             expected_variables=expected_variables,
             checkpoint=runner._checkpoint,
             **kwargs,

@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.8.3](https://github.com/ecmwf/anemoi-inference/compare/0.8.2...0.8.3) (2025-12-10)
+
+
+### Features
+
+* **grib:** Control behaviour of negative output steps ([#392](https://github.com/ecmwf/anemoi-inference/issues/392)) ([c814abb](https://github.com/ecmwf/anemoi-inference/commit/c814abb24c2097bc17ad425ffd80cda4bde03781))
+* **grib:** Improve template manager ([#383](https://github.com/ecmwf/anemoi-inference/issues/383)) ([5731f0e](https://github.com/ecmwf/anemoi-inference/commit/5731f0ea416b3352c01ed46b2f01da08b8d55105))
+* **interpolator:** Default mars request from forecast ([#397](https://github.com/ecmwf/anemoi-inference/issues/397)) ([4be90bd](https://github.com/ecmwf/anemoi-inference/commit/4be90bdd993bcc83859964edc0d1d780c41dfb69))
+
+
+### Bug Fixes
+
+* **cutout input:** Shape mismatch in Cutout.load_forcings_state ([#395](https://github.com/ecmwf/anemoi-inference/issues/395)) ([e6c3453](https://github.com/ecmwf/anemoi-inference/commit/e6c34536856c3d5e64eef94a072a8e6bcdd00a68))
+
+
+### Documentation
+
+* **external-graph:** Add warning about change in anemoi-graphs=0.8 ([#396](https://github.com/ecmwf/anemoi-inference/issues/396)) ([8cf5c7f](https://github.com/ecmwf/anemoi-inference/commit/8cf5c7fe1dc9532a5ddef259a3bf919f63698fe2))
+
+## [0.8.2](https://github.com/ecmwf/anemoi-inference/compare/0.8.1...0.8.2) (2025-11-26)
+
+
+### Features
+
+* Add option to preload checkpoints ([#362](https://github.com/ecmwf/anemoi-inference/issues/362)) ([b9d3a19](https://github.com/ecmwf/anemoi-inference/commit/b9d3a1972d15228eb886b22de36a7bf2f211826e))
+* **postprocessor:** Add inverse option in extract mask ([#378](https://github.com/ecmwf/anemoi-inference/issues/378)) ([1e49ba3](https://github.com/ecmwf/anemoi-inference/commit/1e49ba3a810888bf2d8f3c4ec701e4b59b7480b0))
+* Rich tables ([#363](https://github.com/ecmwf/anemoi-inference/issues/363)) ([c32ab4f](https://github.com/ecmwf/anemoi-inference/commit/c32ab4f93b6551919ebf7cb1ad05e205ce02cf10))
+
+
+### Bug Fixes
+
+* Boundary forcings ([#388](https://github.com/ecmwf/anemoi-inference/issues/388)) ([a412434](https://github.com/ecmwf/anemoi-inference/commit/a412434a9bc2d2af94c7130f49de03b0822d9ca6))
+* OmegaConf loading differs from yaml ([#374](https://github.com/ecmwf/anemoi-inference/issues/374)) ([05a0739](https://github.com/ecmwf/anemoi-inference/commit/05a0739a06bd4c3d8e53613297c8eef9aa9c3e3a))
+
 ## [0.8.1](https://github.com/ecmwf/anemoi-inference/compare/0.8.0...0.8.1) (2025-11-05)
 
 

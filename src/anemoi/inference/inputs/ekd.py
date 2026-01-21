@@ -31,6 +31,33 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
+def find_variable(data: Any, name: str, namer: callable, **kwargs: Any) -> Any:
+    """Find a variable in an earthkit FieldList/FieldArray.
+
+    Parameters
+    ----------
+    data : Any
+        The data to search (FieldList or FieldArray).
+    name : str
+        The name of the variable to find.
+    namer: callable
+        The namer function to use for naming fields.
+    **kwargs : Any
+        Additional arguments for selecting the variable.
+
+    Returns
+    -------
+    Any
+        The selected variable (FieldArray subset).
+    """
+
+    def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
+        return namer(field, original_metadata)
+
+    data = FieldArray([f.clone(name=_name) for f in data])
+    return data.sel(name=name, **kwargs)
+
+
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
@@ -181,11 +208,7 @@ class EkdInput(Input):
             The selected variable (FieldArray subset).
         """
 
-        def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
-            return self._namer(field, original_metadata)
-
-        data = FieldArray([f.clone(name=_name) for f in data])
-        return data.sel(name=name, **kwargs)
+        return find_variable(data, name, self._namer, **kwargs)
 
     def _create_state(
         self,
@@ -398,8 +421,8 @@ class EkdInput(Input):
         return self._create_state(
             fields,
             dates=dates,
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
+            latitudes=current_state.get("latitudes", None),
+            longitudes=current_state.get("longitudes", None),
             dtype=np.float32,
             flatten=True,
         )

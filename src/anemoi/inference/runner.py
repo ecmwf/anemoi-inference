@@ -271,6 +271,8 @@ class Runner(Context):
             except (TypeError, ModuleNotFoundError, AttributeError):
                 self.checkpoint.report_error()
                 raise
+            finally:
+                self.complete_forecast_hook()
 
     def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
@@ -332,7 +334,7 @@ class Runner(Context):
 
     def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
-        if not self.checkpoint.has_supporting_array("boundary"):
+        if not self.checkpoint.has_supporting_array("output_mask"):
             return []
 
         result = []
@@ -618,6 +620,13 @@ class Runner(Context):
             The predicted step.
         """
         try:
+            # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
+            # TODO: change when we have a proper multi-dataset runner
+            if self.checkpoint._metadata.multi_dataset:
+                return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
+                    self.checkpoint._metadata.name
+                ]
+
             return model.predict_step(input_tensor_torch, **kwargs)
         except TypeError:
             # This is for backward compatibility because old models did not
@@ -1165,6 +1174,10 @@ class Runner(Context):
 
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
+        pass
+
+    def complete_forecast_hook(self) -> None:
+        """Hook called at the end of the forecast."""
         pass
 
     def has_split_input(self) -> bool:

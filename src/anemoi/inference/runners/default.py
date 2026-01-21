@@ -19,7 +19,7 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from pydantic import BaseModel
 
-from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.input import Input
 from anemoi.inference.output import Output
 from anemoi.inference.processor import Processor
@@ -50,7 +50,7 @@ class DefaultRunner(Runner):
     This class provides the default implementation for running inference.
     """
 
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self, config: RunConfiguration) -> None:
         """Initialize the DefaultRunner.
 
         Parameters
@@ -287,7 +287,7 @@ class DefaultRunner(Runner):
         Input
             The created boundary forcings input.
         """
-        variables = self.variables.retrieved_boundary_forcings_variables()
+        variables = self.variables.retrieved_prognostic_variables()
         config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
         input = create_input(self, config, variables=variables, purpose="boundary_forcings")
         LOG.info("Boundary forcings input: %s", input)
