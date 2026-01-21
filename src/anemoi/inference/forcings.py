@@ -191,7 +191,7 @@ class ComputedInterpForcings(ComputedForcings):
         FloatArray
             The loaded forcings as a numpy array.
         """
-        LOG.debug("Adding dynamic forcings %s", self.variables)
+        LOG.debug("Adding computed forcings for interpolation %s", self.variables)
 
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
