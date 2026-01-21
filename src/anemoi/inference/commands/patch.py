@@ -87,7 +87,7 @@ class PatchCmd(Command):
         from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata
 
-        from anemoi.inference.metadata import Metadata
+        from anemoi.inference.metadata import MetadataFactory
 
         root = metadata_root(args.path)
 
@@ -95,7 +95,9 @@ class PatchCmd(Command):
         original_metadata = deepcopy(original_metadata)
         original_supporting_arrays = deepcopy(original_supporting_arrays)
 
-        metadata, supporting_arrays = Metadata(original_metadata).patch_metadata(original_supporting_arrays, root)
+        metadata, supporting_arrays = MetadataFactory(original_metadata).patch_metadata(
+            original_supporting_arrays, root
+        )
 
         if diff(metadata, original_metadata) or diff(original_supporting_arrays, supporting_arrays):
             LOG.info("Patching metadata")
