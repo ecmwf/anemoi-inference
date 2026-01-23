@@ -24,7 +24,7 @@ from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..forcings import ComputedInterpForcings
+from ..forcings import ComputedForcings
 from ..forcings import ConstantInterpForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
@@ -110,9 +110,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.interpolation_window = get_interpolation_window(
             self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
         )
-        self.lead_time = to_timedelta(self.config.lead_time)
-        self.time_step = self.interpolation_window
-
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.interpolation_window
 
@@ -325,7 +322,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         List[Forcings]
             The created bounding target forcings.
         """
-        result = ComputedInterpForcings(self, variables, mask)
+        result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
