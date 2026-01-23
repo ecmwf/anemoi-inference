@@ -20,10 +20,6 @@ from anemoi.inference.testing.variables import w_100
 from anemoi.inference.testing.variables import z
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 10),
-    reason="Format specifier requires python 3.10 or higher.",
-)
 @pytest.mark.parametrize(
     "template, handle, expected",
     [
