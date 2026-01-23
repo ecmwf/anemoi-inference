@@ -9,8 +9,15 @@
 
 
 import logging
+from typing import Any
 
 from earthkit.data.utils.dates import to_datetime
+
+from anemoi.inference.context import Context
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -18,7 +25,19 @@ from .grib import GribInput
 LOG = logging.getLogger(__name__)
 
 
-def rounded_area(area):
+def rounded_area(area: list[float] | None) -> list[float] | None:
+    """Round the area to a global extent if the surface is greater than 0.98.
+
+    Parameters
+    ----------
+    area : Optional[List[float]]
+        The area to be rounded.
+
+    Returns
+    -------
+    Optional[List[float]]
+        The rounded area or the original area if no rounding is needed.
+    """
     try:
         surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
         if surface > 0.98:
@@ -28,7 +47,19 @@ def rounded_area(area):
     return area
 
 
-def grid_is_valid(grid):
+def grid_is_valid(grid: str | list[float] | None) -> bool:
+    """Check if the grid is valid.
+
+    Parameters
+    ----------
+    grid : Optional[Union[str, List[float]]]
+        The grid to be checked.
+
+    Returns
+    -------
+    bool
+        True if the grid is valid, False otherwise.
+    """
     if grid is None:
         return False
 
@@ -42,8 +73,19 @@ def grid_is_valid(grid):
         return False
 
 
-def area_is_valid(area):
+def area_is_valid(area: list[float] | None) -> bool:
+    """Check if the area is valid.
 
+    Parameters
+    ----------
+    area : Optional[List[float]]
+        The area to be checked.
+
+    Returns
+    -------
+    bool
+        True if the area is valid, False otherwise.
+    """
     if area is None:
         return False
 
@@ -57,10 +99,27 @@ def area_is_valid(area):
         return False
 
 
-def postproc(grid, area):
+def postproc(grid: str | list[float] | None, area: list[float] | None) -> dict[str, str | list[float]]:
+    """Post-process the grid and area.
+
+    Parameters
+    ----------
+    grid : Optional[Union[str, List[float]]]
+        The grid to be post-processed.
+    area : Optional[List[float]]
+        The area to be post-processed.
+
+    Returns
+    -------
+    Dict[str, Union[str, List[float]]]
+        The post-processed grid and area.
+    """
     pproc = dict()
     if grid_is_valid(grid):
         pproc["grid"] = grid
+
+    if isinstance(area, str):
+        area = [float(x) for x in area.split("/")]
 
     if area_is_valid(area):
         pproc["area"] = rounded_area(area)
@@ -68,10 +127,39 @@ def postproc(grid, area):
     return pproc
 
 
-def retrieve(requests, grid, area, **kwargs):
+def retrieve(
+    requests: list[dict[str, Any]],
+    grid: str | list[float] | None,
+    area: list[float] | None,
+    patch: Any | None = None,
+    log: bool = True,
+    **kwargs: Any,
+) -> Any:
+    """Retrieve data from MARS.
+
+    Parameters
+    ----------
+    requests : List[Dict[str, Any]]
+        The list of requests to be retrieved.
+    grid : Optional[Union[str, List[float]]]
+        The grid for the retrieval.
+    area : Optional[List[float]]
+        The area for the retrieval.
+    patch : Optional[Any], optional
+        Optional patch for the request, by default None.
+    log : bool, optional
+        Whether to log the requests, by default True.
+    **kwargs : Any
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Any
+        The retrieved data.
+    """
     import earthkit.data as ekd
 
-    def _(r):
+    def _(r: DataRequest) -> str:
         mars = r.copy()
         for k, v in r.items():
             if isinstance(v, (list, tuple)):
@@ -88,35 +176,89 @@ def retrieve(requests, grid, area, **kwargs):
         if r.get("class") in ("rd", "ea"):
             r["class"] = "od"
 
+        # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
+
         if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
             r["stream"] = "scda"
 
         r.update(pproc)
         r.update(kwargs)
 
+        if patch:
+            r = patch(r)
+
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("mars", r)
+        result += ekd.from_source("mars", r, log="default" if log else None)
 
     return result
 
 
 @input_registry.register("mars")
 class MarsInput(GribInput):
-    """Get input fields from MARS"""
+    """Get input fields from MARS."""
 
-    def __init__(self, context, *, namer=None, **kwargs):
-        super().__init__(context, namer=namer)
-        self.kwargs = kwargs
-        self.variables = self.checkpoint.variables_from_input(include_forcings=False)
-        self.kwargs = kwargs
+    trace_name = "mars"
 
-    def create_input_state(self, *, date):
+    def __init__(
+        self,
+        context: Context,
+        *,
+        variables: list[str] | None = None,
+        patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
+        log: bool = True,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
+        purpose: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the MarsInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        variables : list[str] | None
+            List of variables to be handled by the input, or None for a sensible default variables.
+        namer : Optional[Any]
+            Optional namer for the input.
+        patches : Optional[List[Tuple[Dict[str, Any], Dict[str, Any]]]]
+            Optional list of patches for the input.
+        log : bool
+            Whether to log the requests to MARS, by default True.
+        **kwargs : Any
+            Additional keyword to pass to the request to MARS.
+        """
+        super().__init__(
+            context,
+            variables=variables,
+            pre_processors=pre_processors,
+            purpose=purpose,
+            namer=namer,
+        )
+
+        self.kwargs = kwargs
+        self.patches = patches or []
+        self.log = log
+
+    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Date]
+            The date for which to create the input state.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
         if date is None:
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
-
-        date = to_datetime(date)
 
         return self._create_input_state(
             self.retrieve(
@@ -125,23 +267,82 @@ class MarsInput(GribInput):
             ),
             variables=self.variables,
             date=date,
+            **kwargs,
         )
 
-    def retrieve(self, variables, dates):
+    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
+        """Retrieve data for the given variables and dates.
 
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables to retrieve.
+        dates : List[Any]
+            The list of dates for which to retrieve the data.
+
+        Returns
+        -------
+        Any
+            The retrieved data.
+        """
         requests = self.checkpoint.mars_requests(
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
+            patch_request=self.patch_data_request,
         )
 
         if not requests:
-            raise ValueError("No requests for %s (%s)" % (variables, dates))
+            raise ValueError(f"No requests for {variables} ({dates})")
 
-        return retrieve(requests, self.checkpoint.grid, self.checkpoint.area, expver="0001", **self.kwargs)
+        kwargs = self.kwargs.copy()
+        kwargs.setdefault("expver", "0001")
+        kwargs.setdefault("grid", self.checkpoint.grid)
+        kwargs.setdefault("area", self.checkpoint.area)
 
-    def template(self, variable, date, **kwargs):
-        return self.retrieve([variable], [date])[0]
+        return retrieve(
+            requests,
+            patch=self.patch,
+            log=self.log,
+            **kwargs,
+        )
 
-    def load_forcings(self, variables, dates):
-        return self._load_forcings(self.retrieve(variables, dates), variables, dates)
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        dates : List[Date]
+            The list of dates for which to load the forcings state.
+        current_state : State
+            The current state to be updated with the loaded forcings state.
+
+        Returns
+        -------
+        Any
+            The loaded forcings state.
+        """
+        return self._load_forcings_state(
+            self.retrieve(self.variables, dates),
+            dates=dates,
+            current_state=current_state,
+        )
+
+    def patch(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Patch the given request with predefined patches.
+
+        Parameters
+        ----------
+        request : Dict[str, Any]
+            The request to be patched.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The patched request.
+        """
+        for match, keys in self.patches:
+            if all(request.get(k) == v for k, v in match.items()):
+                request.update(keys)
+
+        return request

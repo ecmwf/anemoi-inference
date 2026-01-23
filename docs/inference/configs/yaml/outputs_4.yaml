@@ -1,0 +1,8 @@
+output:
+  plot:
+    path: /path/to/directory
+    format: png
+    domain: Europe
+    variables:
+      - 2t
+      - msl

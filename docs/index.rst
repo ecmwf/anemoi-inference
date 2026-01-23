@@ -10,6 +10,14 @@
 
    This documentation is work in progress.
 
+The `anemoi-inference` package provides a framework for running
+inference with data-driven weather forecasting models. It is one of the
+packages within the :ref:`anemoi framework <anemoi-docs:index>`.
+
+**************
+ About Anemoi
+**************
+
 *Anemoi* is a framework for developing machine learning weather
 forecasting models. It comprises of components or packages for preparing
 training datasets, conducting ML model training and a registry for
@@ -19,66 +27,51 @@ framework it seeks to handle many of the complexities that
 meteorological organisations will share, allowing them to easily train
 models from existing recipes but with their own data.
 
-This package provides a series of utility functions for used by the rest
-of the *Anemoi* packages.
+****************
+ Quick overview
+****************
 
--  :doc:`overview`
--  :doc:`installing`
+The anemoi-inference package provides a framework for running inference
+with data-driven weather forecasting models within the Anemoi ecosystem.
+It is designed to efficiently handle model execution and streamline
+input data processing.
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
+anemoi-inference offers a high-level interface that integrates
+seamlessly with trained machine learning models. The package allows you
+to:
 
-   overview
-   installing
+-  Load and preprocess input data from anemoi-datasets, ensuring
+   compatibility with the trained model.
+-  Run inference using machine learning-based weather forecasting
+   models.
+-  Save and manage forecast outputs in a variety of formats.
+-  Run inference tasks either using programmatic or via a command-line
+   APIs.
 
-*********************
- Tree levels of APIs
-*********************
+Inference configurations are specified using a YAML file, which defines
+model parameters, input datasets, and output formats. The command-line
+tool allows users to run inference tasks, inspect results, and manage
+forecast outputs. In the rest of this documentation, you will learn how
+to configure and execute inference workflows using anemoi-inference.
 
--  :doc:`apis/level1`
--  :doc:`apis/level2`
--  :doc:`apis/level3`
+A complete example of running a forecast with a trained model can be
+found in the :ref:`usage-quickstart` section.
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: APIs
+************
+ Installing
+************
 
-   apis/level1
-   apis/level2
-   apis/level3
+To install the package, you can use the following command:
 
-********************
- Command line tools
-********************
+.. code:: bash
 
--  :doc:`cli/introduction`
--  :doc:`cli/run`
--  :doc:`cli/metadata`
+   pip install anemoi-inference
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Command line tool
+Get more information in the :ref:`installing <installing>` section.
 
-   cli/introduction
-   cli/run
-   cli/metadata
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Configurations
-
-   configs/introduction
-   configs/top-level
-   configs/inputs
-   configs/outputs
-   configs/forcings
-
-*****************
- Anemoi packages
-*****************
+***********************
+ Other Anemoi packages
+***********************
 
 -  :ref:`anemoi-utils <anemoi-utils:index-page>`
 -  :ref:`anemoi-transform <anemoi-transform:index-page>`
@@ -88,6 +81,7 @@ of the *Anemoi* packages.
 -  :ref:`anemoi-training <anemoi-training:index-page>`
 -  :ref:`anemoi-inference <anemoi-inference:index-page>`
 -  :ref:`anemoi-registry <anemoi-registry:index-page>`
+-  :ref:`anemoi-plugins <anemoi-plugins:index-page>`
 
 *********
  License
@@ -96,3 +90,68 @@ of the *Anemoi* packages.
 *Anemoi* is available under the open source `Apache License`__.
 
 .. __: http://www.apache.org/licenses/LICENSE-2.0.html
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Introduction
+
+   overview
+   cli/introduction
+   installing
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Getting Started
+
+   usage/quickstart
+   usage/environment
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: User Guide
+
+   usage/optimisation
+   inference/parallel
+   inference/external-graph
+   inference/input-types
+   inference/configs/introduction
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Contributing
+
+   dev/contributing
+   dev/integration-tests
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Command line tool
+
+   cli/introduction
+   cli/run
+   cli/couple
+   cli/retrieve
+   cli/metadata
+   cli/validate
+   cli/inspect
+   cli/patch
+   cli/sanitise
+   cli/requests
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: API Reference
+
+   modules/runner
+   modules/checkpoint
+   modules/forcings
+   modules/inputs
+   modules/metadata
+   modules/outputs
+   modules/processor

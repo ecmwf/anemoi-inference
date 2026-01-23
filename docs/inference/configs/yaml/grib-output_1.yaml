@@ -1,0 +1,10 @@
+output:
+  grib:
+    path: /path/to/grib/file.grib
+    encoding:
+      expver: xxxx
+      class: rd
+    check_encoding: true
+    templates:
+      - input
+      - builtin

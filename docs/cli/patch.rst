@@ -1,5 +1,7 @@
-patch
-==========
+.. _patch-command:
+
+Patch Command
+=============
 
 .. argparse::
     :module: anemoi.inference.__main__

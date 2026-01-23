@@ -1,5 +1,7 @@
-inspect
-==========
+.. _inspect-command:
+
+Inspect Command
+===============
 
 .. argparse::
     :module: anemoi.inference.__main__

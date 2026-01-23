@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2025 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -10,31 +10,58 @@
 
 import datetime
 import logging
+import os
+import sys
 import warnings
+from collections.abc import Generator
 from functools import cached_property
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Union
 
 import numpy as np
-import torch
+from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
-from anemoi.utils.text import table
-from anemoi.utils.timer import Timer  # , Timers
+from anemoi.utils.timer import Timer
+from numpy.typing import DTypeLike
+
+from anemoi.inference.device import get_available_device
+from anemoi.inference.forcings import Forcings
+from anemoi.inference.lazy import torch
+from anemoi.inference.types import BoolArray
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from .checkpoint import Checkpoint
 from .context import Context
-from .postprocess import Accumulator
-from .postprocess import Noop
 from .precisions import PRECISIONS
+from .profiler import ProfilingLabel
+from .profiler import ProfilingRunner
+from .variables import Variables
+
+if TYPE_CHECKING:
+    from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
 
 
 class Kind:
-    """Used for debugging purposes"""
+    """Used for debugging purposes."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
+        """Parameters
+        -------------
+        **kwargs : Any
+            Keyword arguments representing the kind attributes.
+        """
         self.kwargs = kwargs
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Returns
+        ----------
+        str
+            String representation of the kind.
+        """
         result = []
 
         for k, v in self.kwargs.items():
@@ -52,23 +79,69 @@ class Runner(Context):
 
     def __init__(
         self,
-        checkpoint,
+        checkpoint: str,
         *,
-        accumulations=True,
-        device: str,
-        precision: str = None,
-        report_error=False,
-        allow_nans=None,  # can be True of False
-        use_grib_paramid=False,
-        verbosity=0,
-        inference_options=None,
-        development_hacks={},  # For testing purposes, don't use in production
-    ):
-        self._checkpoint = Checkpoint(checkpoint)
+        device: str | None = None,
+        precision: str | None = None,
+        allow_nans: bool | None = None,
+        use_grib_paramid: bool = False,
+        verbosity: int = 0,
+        patch_metadata: dict[str, Any] = {},
+        development_hacks: dict[str, Any] = {},
+        trace_path: str | None = None,
+        output_frequency: str | None = None,
+        write_initial_state: bool = True,
+        initial_state_categories: list[str] | None = None,
+        use_profiler: bool = False,
+        typed_variables: dict[str, dict] = {},
+        preload_checkpoint: bool = False,
+        preload_buffer_size: int = 32 * 1024 * 1024,
+    ) -> None:
+        """Parameters
+        -------------
+        checkpoint : str
+            Path to the checkpoint file.
+        device : str | None, optional
+            Device to run the model on, by default None.
+            If None the device will be automatically detected using :func:`anemoi.inference.device.get_available_device`.
+        precision : Optional[str], optional
+            Precision to use, by default None.
+        allow_nans : Optional[bool], optional
+            Whether to allow NaNs, by default None.
+        use_grib_paramid : bool, optional
+            Whether to use GRIB paramid, by default False.
+        verbosity : int, optional
+            Verbosity level, by default 0.
+        patch_metadata : dict, optional
+            Metadata for patching, by default {}.
+        development_hacks : dict, optional
+            Development hacks, by default {}.
+        trace_path : Optional[str], optional
+            Path for tracing, by default None.
+        output_frequency : Optional[str], optional
+            Frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default True.
+        use_profiler : bool, optional
+            Whether to use profiler, by default False.
+        preload_checkpoint : bool
+            Whether to read the checkpoint file from disk before loading the model, by default False.
+        preload_buffer_size : int
+            Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB.
+        """
+        self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
+        self.variables = Variables(self)
+        self.trace_path = trace_path
 
-        self.device = device
+        if trace_path:
+            from .trace import Trace
+
+            self.trace = Trace(trace_path)
+        else:
+            self.trace = None
+
+        self._device = device
         self.precision = precision
-        self.report_error = report_error
 
         # Override the default values set in `Context`
         self.verbosity = verbosity
@@ -76,17 +149,13 @@ class Runner(Context):
         self.use_grib_paramid = use_grib_paramid
         self.development_hacks = development_hacks
         self.hacks = bool(development_hacks)
+        self.output_frequency = output_frequency
+        self.write_initial_state = write_initial_state
+        self.initial_state_categories = initial_state_categories
+        self.use_profiler = use_profiler
 
-        # This could also be passed as an argument
-
-        self.postprocess = Noop()
-
-        if accumulations is True:
-            # Get accumulations from the checkpoint
-            accumulations = self.checkpoint.accumulations
-
-        if accumulations:
-            self.postprocess = Accumulator(accumulations)
+        # For the moment, until we have a better solution
+        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
@@ -94,44 +163,201 @@ class Runner(Context):
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
+        self.pre_processors = self.create_pre_processors()
+        self.post_processors = self.create_post_processors()
+        self.preload_checkpoint = preload_checkpoint
+        self.preload_buffer_size = preload_buffer_size
+
         if self.verbosity > 2:
+            logging.basicConfig(level=logging.DEBUG)
+            for logger_name in logging.root.manager.loggerDict:
+                logging.getLogger(logger_name).setLevel(logging.DEBUG)
+
             self.checkpoint.print_indices()
 
-        LOG.info("Using %s runner", self.__class__.__name__)
+        LOG.info("Using %s runner, device=%s", self.__class__.__name__, self.device)
 
         if self.verbosity > 1:
-            self.checkpoint.print_variable_categories()
+            from rich.console import Console
+            from rich.table import Table
+
+            console = Console(file=sys.stderr)
+            table = Table(title="Variable categories")
+            table.add_column("Variable", no_wrap=True)
+            table.add_column("Categories", no_wrap=True)
+
+            for name, categories in self.checkpoint.variable_categories().items():
+                table.add_row(name, ", ".join(categories))
+
+            console.print(table)
 
     @property
-    def checkpoint(self):
+    def checkpoint(self) -> Checkpoint:
+        """Returns
+        ----------
+        Checkpoint
+            The checkpoint object.
+        """
         return self._checkpoint
 
-    def run(self, *, input_state, lead_time):
+    @property
+    def device(self) -> "torch.device":
+        if self._device is None:
+            self._device = get_available_device()
+        elif isinstance(self._device, str):
+            self._device = torch.device(self._device)
+        return self._device
 
-        self.constant_forcings_inputs = self.checkpoint.constant_forcings_inputs(self, input_state)
-        self.dynamic_forcings_inputs = self.checkpoint.dynamic_forcings_inputs(self, input_state)
-        self.boundary_forcings_inputs = self.checkpoint.boundary_forcings_inputs(self, input_state)
+    @device.setter
+    def device(self, value: "torch.device | str") -> None:
+        """Set the device for the runner."""
+        if isinstance(value, str):
+            value = torch.device(value)
+        self._device = value
 
-        # timers = Timers()
+    def run(
+        self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
+    ) -> Generator[State, None, None]:
+        """Run the model.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        lead_time : Union[str, int, datetime.timedelta]
+            The lead time.
+        return_numpy : bool, optional
+            Whether to return the output state fields as numpy arrays, by default True.
+            Otherwise, it will return torch tensors.
+
+        Returns
+        -------
+        Generator[State, None, None]
+            The forecasted state.
+        """
+        # Shallow copy to avoid modifying the user's input state
+        input_state = input_state.copy()
+        input_state["fields"] = input_state["fields"].copy()
+
+        self.constant_forcings_inputs = self.create_constant_forcings_inputs(input_state)
+        self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
+        self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
+
+        LOG.info("-" * 80)
+        LOG.info("Input state:")
+        LOG.info(f"  {list(input_state['fields'].keys())}")
+
+        LOG.info("Constant forcings inputs:")
+        for f in self.constant_forcings_inputs:
+            LOG.info(f"  {f}")
+
+        LOG.info("Dynamic forcings inputs:")
+        for f in self.dynamic_forcings_inputs:
+            LOG.info(f"  {f}")
+
+        LOG.info("Boundary forcings inputs:")
+        for f in self.boundary_forcings_inputs:
+            LOG.info(f"  {f}")
+        LOG.info("-" * 80)
 
         lead_time = to_timedelta(lead_time)
 
-        # This may be used but Ouput objects to compute the step
-        self.lead_time = lead_time
-        self.time_step = self.checkpoint.timestep
+        with ProfilingRunner(self.use_profiler):
+            with ProfilingLabel("Prepare input tensor", self.use_profiler):
+                input_tensor = self.prepare_input_tensor(input_state)
 
-        input_tensor = self.prepare_input_tensor(input_state)
-
-        try:
-            yield from self.postprocess(self.forecast(lead_time, input_tensor, input_state))
-        except (TypeError, ModuleNotFoundError, AttributeError):
-            if self.report_error:
+            try:
+                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
+            except (TypeError, ModuleNotFoundError, AttributeError):
                 self.checkpoint.report_error()
-            raise
+                raise
+            finally:
+                self.complete_forecast_hook()
 
-        # timers.report()
+    def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
 
-    def add_initial_forcings_to_input_state(self, input_state):
+        result = []
+
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["constant+forcing"], exclude=["computed"]
+        )
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_constant_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed+constant"]
+        )
+
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_constant_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+
+        return result
+
+    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
+
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["forcing"], exclude=["computed", "constant"]
+        )
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_coupled_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
+            include=["computed"],
+            exclude=["constant"],
+        )
+        if len(computed_variables_mask) > 0:
+            result.extend(
+                self.create_dynamic_computed_forcings(
+                    computed_variables,
+                    computed_variables_mask,
+                )
+            )
+        return result
+
+    def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
+
+        if not self.checkpoint.has_supporting_array("output_mask"):
+            return []
+
+        result = []
+        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(include=["prognostic"])
+
+        if len(loaded_variables_mask) > 0:
+            result.extend(
+                self.create_boundary_forcings(
+                    loaded_variables,
+                    loaded_variables_mask,
+                )
+            )
+
+        return result
+
+    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
+        """Add initial forcings to the input state.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        """
         # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
@@ -139,28 +365,106 @@ class Runner(Context):
         dates = [date + h for h in self.checkpoint.lagged]
 
         # For output object. Should be moved elsewhere
-        self.reference_date = dates[-1]
+        self.reference_date = self.reference_date or date
         self.initial_dates = dates
 
         # TODO: Check for user provided forcings
 
-        for source in self.constant_forcings_inputs:
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        LOG.info("-" * 80)
+        LOG.info("Initial forcings:")
+        LOG.info("  Constant forcings inputs:")
+        for f in initial_constant_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("  Dynamic forcings inputs:")
+        for f in initial_dynamic_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("-" * 80)
+
+        for source in initial_constant_forcings_inputs:
             LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings(input_state, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
                 self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
 
-        for source in self.dynamic_forcings_inputs:
+        for source in initial_dynamic_forcings_inputs:
             LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings(input_state, dates)
+            arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def prepare_input_tensor(self, input_state, dtype=np.float32):
+    def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
+        """Modify the constant forcings inputs for the first step.
+
+        Parameters
+        ----------
+        constant_forcings_inputs : list of Forcings
+            The constant forcings inputs.
+
+        Returns
+        -------
+        list[Forcings]
+            The modified constant forcings inputs.
+        """
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_inputs
+
+    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings inputs for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
+
+        Parameters
+        ----------
+        dynamic_forcings_inputs : List[Forcings]
+            The dynamic forcings inputs to be potentially modified for the initial step.
+
+        Returns
+        -------
+
+        List[Forcings]
+            The modified list of dynamic forcings inputs for the initial step.
+
+        """
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_inputs
+
+    def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
+        """Prepare the input tensor.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        dtype : type, optional
+            The data type, by default np.float32.
+
+        Returns
+        -------
+        FloatArray
+            The prepared input tensor.
+        """
+        if "latitudes" not in input_state:
+            input_state["latitudes"] = self.checkpoint.latitudes
+
+        if "longitudes" not in input_state:
+            input_state["longitudes"] = self.checkpoint.longitudes
+
+        if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
+            raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
 
         typed_variables = self.checkpoint.typed_variables
 
@@ -168,7 +472,6 @@ class Runner(Context):
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
 
         # Add initial forcings to input state if needed
-
         self.add_initial_forcings_to_input_state(input_state)
 
         input_state = self.validate_input_state(input_state)
@@ -179,7 +482,7 @@ class Runner(Context):
             shape=(
                 self.checkpoint.multi_step_input,
                 self.checkpoint.number_of_input_features,
-                self.checkpoint.number_of_grid_points,
+                input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
@@ -204,12 +507,40 @@ class Runner(Context):
         if len(check) != self.checkpoint.number_of_input_features:
             missing = set(range(self.checkpoint.number_of_input_features)) - check
             mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_,_) for _ in missing]}")
+            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
 
+    def prepare_output_state(
+        self, output: Generator[State, None, None], return_numpy: bool
+    ) -> Generator[State, None, None]:
+        """Prepare the output state.
+
+        Parameters
+        ----------
+        output : Generator[State, None, None]
+            Output state generator,
+            Expects fields to be torch tensors with shape (values, variables).
+        return_numpy : bool
+            Whether to return the output state fields as numpy arrays.
+
+        Yields
+        ------
+        Generator[State, None, None]
+            The prepared output state.
+        """
+
+        for state in output:
+            if return_numpy:
+                # Convert fields to numpy arrays
+                for name, field in state["fields"].items():
+                    if isinstance(field, torch.Tensor):
+                        state["fields"][name] = field.cpu().numpy()
+            yield state
+
     @cached_property
-    def autocast(self):
+    def autocast(self) -> Union["torch.dtype", str]:
+        """The autocast precision."""
         autocast = self.precision
 
         if autocast is None:
@@ -222,122 +553,328 @@ class Runner(Context):
         return PRECISIONS.get(autocast, autocast)
 
     @cached_property
-    def model(self):
-        with Timer(f"Loading {self.checkpoint}"):
-            model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+    def model(self) -> "torch.nn.Module":
+        """Returns
+        ----------
+        Any
+            The loaded model.
+        """
+        from anemoi.utils.humanize import bytes_to_human
+
+        try:
+            size = os.path.getsize(self.checkpoint.path)
+            LOG.info("Checkpoint size: %s", bytes_to_human(size))
+        except FileNotFoundError:
+            # This happens during testing, with mocked checkpoints
+            # If we are not in a testing environment, torch.load will raise
+            # the proper error
+            size = 0
+            LOG.warning("Checkpoint file not found: %s", self.checkpoint.path)
+
+        if self.preload_checkpoint and size > 0:
+            with Timer(f"Preloading {self.checkpoint}") as t:
+                with open(self.checkpoint.path, "rb") as f:
+                    while f.read(self.preload_buffer_size):
+                        pass
+            LOG.info("Preloading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
+        with Timer(f"Loading {self.checkpoint}") as t:
+            LOG.info("Device is '%s'", self.device)
+            LOG.info("Loading model from %s", self.checkpoint.path)
+
+            try:
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
+            except RuntimeError:
+                # This happens when the no GPU is available
+                raise
+            except Exception as e:  # Wildcard exception to catch all errors
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                e.add_note("Model failed to load, check the stack trace above this message to find the real error")
+                e.add_note("Is your environment valid?:\n" + str(validation_result))
+                raise e
             # model.set_inference_options(**self.inference_options)
+            assert getattr(model, "runner", None) is None, model.runner
+
+            LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
+
+            model.runner = self
             return model
 
-    def forecast(self, lead_time, input_tensor_numpy, input_state):
-        self.model.eval()
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+    ) -> "torch.Tensor":
+        """Predict the next step.
 
-        torch.set_grad_enabled(False)
+        Parameters
+        ----------
+        model : torch.nn.Module
+            The model.
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        **kwargs : Any
+            Additional keyword arguments that will be passed to the model's predict_step method.
 
-        # Create pytorch input tensor
-        input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+        Returns
+        -------
+        torch.Tensor
+            The predicted step.
+        """
+        try:
+            # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
+            # TODO: change when we have a proper multi-dataset runner
+            if self.checkpoint._metadata.multi_dataset:
+                return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
+                    self.checkpoint._metadata.name
+                ]
 
-        LOG.info("Using autocast %s", self.autocast)
+            return model.predict_step(input_tensor_torch, **kwargs)
+        except TypeError:
+            # This is for backward compatibility because old models did not
+            # have kwargs in the forward or predict_step
+            return model.predict_step(input_tensor_torch)
 
-        lead_time = to_timedelta(lead_time)
+    def forecast_stepper(
+        self, start_date: datetime.datetime, lead_time: datetime.timedelta
+    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+        """Generate step and date variables for the forecast loop.
+
+        Parameters
+        ----------
+        start_date : datetime.datetime
+            Start date of the forecast
+        lead_time : datetime.timedelta
+            Lead time of the forecast
+
+        Returns
+        -------
+        step : datetime.timedelta
+            Time delta since beginning of forecast
+        valid_date : datetime.datetime
+            Date of the forecast
+        next_date : datetime.datetime
+            Date used to prepare the next input tensor
+        is_last_step : bool
+            True if it's the last step of the forecast
+        """
         steps = lead_time // self.checkpoint.timestep
 
         LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
 
-        result = input_state.copy()  # We should not modify the input state
-        result["fields"] = dict()
-
-        start = input_state["date"]
-
-        # The variable `check` is used to keep track of which variables have been updated
-        # In the input tensor. `reset` is used to reset `check` to False except
-        # when the values are of the constant in time variables
-
-        reset = np.full((input_tensor_torch.shape[-1],), False)
-        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-        typed_variables = self.checkpoint.typed_variables
-        for variable, i in variable_to_input_tensor_index.items():
-            if typed_variables[variable].is_constant_in_time:
-                reset[i] = True
-
-        check = reset.copy()
-
-        if self.verbosity > 0:
-            self._print_input_tensor("First input tensor", input_tensor_torch)
-
         for s in range(steps):
             step = (s + 1) * self.checkpoint.timestep
-            date = start + step
-            LOG.info("Forecasting step %s (%s)", step, date)
+            valid_date = start_date + step
+            next_date = valid_date
+            is_last_step = s == steps - 1
+            yield step, valid_date, next_date, is_last_step
 
-            result["date"] = date
+    def forecast(
+        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+    ) -> Generator[State, None, None]:
+        """Forecast the future states.
 
-            # Predict next state of atmosphere
-            with torch.autocast(device_type=self.device, dtype=self.autocast):
-                y_pred = self.model.predict_step(input_tensor_torch)
+        Parameters
+        ----------
+        lead_time : str
+            The lead time.
+        input_tensor_numpy : FloatArray
+            The input tensor.
+        input_state : State
+            The input state.
 
-            # Detach tensor and squeeze (should we detach here?)
-            output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+        Returns
+        -------
+        Any
+            The forecasted state.
+        """
+        # NOTE we are not using decorator of the top level function as we anticipate lazy torch load
+        with torch.inference_mode():
+            self.model.eval()
 
-            # Update state
-            for i in range(output.shape[1]):
-                result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
-
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_output_tensor("Output tensor", output)
-
-            yield result
-
-            # Update  tensor for next iteration
-
-            check[:] = reset
-
-            input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
-
-            del y_pred  # Recover memory
-
-            input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(input_tensor_torch, input_state, date, check)
-            input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                input_tensor_torch, input_state, date, check
+            # Create pytorch input tensor
+            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(
+                self.device
             )
 
-            if not check.all():
-                # Not all variables have been updated
-                missing = []
-                variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                for i in range(check.shape[-1]):
-                    if not check[i]:
-                        missing.append(mapping[i])
+            lead_time = to_timedelta(lead_time)
 
-                raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+            new_state = input_state.copy()  # We should not modify the input state
+            new_state["fields"] = dict()
+            new_state["step"] = to_timedelta(0)
 
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                self._print_input_tensor("Next input tensor", input_tensor_torch)
+            start = input_state["date"]
 
-    def copy_prognostic_fields_to_input_tensor(self, input_tensor_torch, y_pred, check):
+            # The variable `check` is used to keep track of which variables have been updated
+            # In the input tensor. `reset` is used to reset `check` to False except
+            # when the values are of the constant in time variables
 
+            reset = np.full((input_tensor_torch.shape[-1],), False)
+            variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+            typed_variables = self.checkpoint.typed_variables
+            for variable, i in variable_to_input_tensor_index.items():
+                if typed_variables[variable].is_constant_in_time:
+                    reset[i] = True
+
+            check = reset.copy()
+
+            if self.verbosity > 0:
+                self._print_input_tensor("First input tensor", input_tensor_torch)
+
+            for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
+                title = f"Forecasting step {step} ({date})"
+
+                new_state["date"] = date
+                new_state["previous_step"] = new_state.get("step")
+                new_state["step"] = step
+
+                if self.trace:
+                    self.trace.write_input_tensor(
+                        date,
+                        s,
+                        input_tensor_torch.cpu().numpy(),
+                        variable_to_input_tensor_index,
+                        self.checkpoint.timestep,
+                    )
+                amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
+
+                # Predict next state of atmosphere
+                with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+
+                output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
+
+                # Update state
+                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                    for i in range(output.shape[1]):
+                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+
+                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                    self._print_output_tensor("Output tensor", output.cpu().numpy())
+
+                if self.trace:
+                    self.trace.write_output_tensor(
+                        date,
+                        s,
+                        output.cpu().numpy(),
+                        self.checkpoint.output_tensor_index_to_variable,
+                        self.checkpoint.timestep,
+                    )
+
+                yield new_state
+
+                # No need to prepare next input tensor if we are at the last step
+                if is_last_step:
+                    break
+
+                self.output_state_hook(new_state)
+
+                # Update  tensor for next iteration
+                with ProfilingLabel("Update tensor for next step", self.use_profiler):
+                    check[:] = reset
+                    if self.trace:
+                        self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+
+                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+
+                    del y_pred  # Recover memory
+
+                    input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                        input_tensor_torch, new_state, next_date, check
+                    )
+                    input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                        input_tensor_torch, new_state, next_date, check
+                    )
+
+                if not check.all():
+                    # Not all variables have been updated
+                    missing = []
+                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                    for i in range(check.shape[-1]):
+                        if not check[i]:
+                            missing.append(mapping[i])
+
+                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+
+                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                    self._print_input_tensor("Next input tensor", input_tensor_torch)
+
+    def copy_prognostic_fields_to_input_tensor(
+        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+    ) -> "torch.Tensor":
+        """Copy prognostic fields to the input tensor.
+
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        y_pred : torch.Tensor
+            The predicted tensor.
+        check : BoolArray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-
-        prognostic_output_mask = self.checkpoint.prognostic_output_mask
-        prognostic_input_mask = self.checkpoint.prognostic_input_mask
-
-        # Copy prognostic fields to input tensor
-        prognostic_fields = y_pred[..., prognostic_output_mask]  # Get new predicted values
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)  # Roll the tensor in the multi_step_input dimension
-        input_tensor_torch[:, -1, :, self.checkpoint.prognostic_input_mask] = (
-            prognostic_fields  # Add new values to last 'multi_step_input' row
+        pmask_in = torch.as_tensor(
+            self.checkpoint.prognostic_input_mask,
+            device=input_tensor_torch.device,
+            dtype=torch.long,
         )
 
-        assert not check[prognostic_input_mask].any()  # Make sure we are not overwriting some values
-        check[prognostic_input_mask] = True
+        pmask_out = torch.as_tensor(
+            self.checkpoint.prognostic_output_mask,
+            device=y_pred.device,
+            dtype=torch.long,
+        )  # index_select requires long dtype, can be bool (mask)
+        # or int (index) tensors
 
-        for n in prognostic_input_mask:
+        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
+        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields
+
+        pmask_in_np = pmask_in.detach().cpu().numpy()
+        if check[pmask_in_np].any():
+            # Report which ones are conflicting
+            conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
+            raise AssertionError(
+                f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
+            )
+
+        check[pmask_in_np] = True
+
+        for n in pmask_in_np:
             self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+            if self.trace:
+                self.trace.from_rollout(self._input_tensor_by_name[n])
 
         return input_tensor_torch
 
-    def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+    def add_dynamic_forcings_to_input_tensor(
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
+        """Add dynamic forcings to the input tensor.
+
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        state : State
+            The state.
+        date : datetime.datetime
+            The date.
+        check : BoolArray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
 
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
@@ -350,7 +887,7 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
@@ -366,15 +903,38 @@ class Runner(Context):
             for n in source.mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
 
+            if self.trace:
+                for n in source.mask:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
+
         return input_tensor_torch
 
-    def add_boundary_forcings_to_input_tensor(self, input_tensor_torch, state, date, check):
+    def add_boundary_forcings_to_input_tensor(
+        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+    ) -> "torch.Tensor":
+        """Add boundary forcings to the input tensor.
 
+        Parameters
+        ----------
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        state : State
+            The state.
+        date : datetime.datetime
+            The date.
+        check : BoolArray
+            The check array.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated input tensor.
+        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
-            forcings = source.load_forcings(state, [date])  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
 
             forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
 
@@ -383,11 +943,27 @@ class Runner(Context):
             total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
             input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
 
+            for n in source.variables_mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
-    def validate_input_state(self, input_state):
+    def validate_input_state(self, input_state: State) -> State:
+        """Validate the input state.
 
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+
+        Returns
+        -------
+        State
+            The validated input state.
+        """
         if not isinstance(input_state, dict):
             raise ValueError("Input state must be a dictionnary")
 
@@ -395,7 +971,7 @@ class Runner(Context):
 
         for key, klass in EXPECT.items():
             if key not in input_state:
-                raise ValueError(f"Input state must contain a `{key}` enytry")
+                raise ValueError(f"Input state must contain a `{key}` entry")
 
             if not isinstance(input_state[key], klass):
                 raise ValueError(
@@ -429,7 +1005,6 @@ class Runner(Context):
         with_nans = []
 
         for name, field in list(fields.items()):
-
             # Allow for 1D fields if multi_step is 1
             if len(field.shape) == 1:
                 field = fields[name] = field.reshape(1, field.shape[0])
@@ -454,13 +1029,37 @@ class Runner(Context):
 
         return input_state
 
-    def _print_tensor(self, title, tensor_numpy, tensor_by_name, kinds):
+    def _print_tensor(
+        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
+    ) -> None:
+        """Print the tensor.
 
+        Parameters
+        ----------
+        title : str
+            The title.
+        tensor_numpy : FloatArray
+            The tensor.
+        tensor_by_name : list
+            The tensor by name.
+        kinds : dict
+            The kinds.
+        """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (1, self.checkpoint.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
+        from rich.console import Console
+        from rich.table import Table
 
-        t = []
+        table = Table(title=title)
+        console = Console(file=sys.stderr)
+        table.add_column("Index", justify="right")
+        table.add_column("Variable", justify="left")
+        table.add_column("Min", justify="right")
+        table.add_column("Max", justify="right")
+        table.add_column("NaNs", justify="center")
+        table.add_column("Kind", justify="left")
+
         for k, v in enumerate(tensor_by_name):
             data = tensor_numpy[-1, k]
 
@@ -475,16 +1074,29 @@ class Runner(Context):
             if np.isinf(data).any():
                 nans = "∞"
 
-            t.append((k, v, np.nanmin(data), np.nanmax(data), nans, kinds.get(v, Kind())))
+            table.add_row(
+                str(k),
+                v,
+                f"{np.nanmin(data):g}",
+                f"{np.nanmax(data):g}",
+                nans,
+                str(kinds.get(v, Kind())),
+            )
 
-        LOG.info("")
-        LOG.info(
-            "%s:\n\n%s\n", title, table(t, header=["Index", "Variable", "Min", "Max", "NaNs", "Kind"], align="><<<|<")
-        )
-        LOG.info("")
+        console.print()
+        console.print(table)
+        console.print()
 
-    def _print_input_tensor(self, title, input_tensor_torch):
+    def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
+        """Print the input tensor.
 
+        Parameters
+        ----------
+        title : str
+            The title.
+        input_tensor_torch : torch.Tensor
+            The input tensor.
+        """
         input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
 
         assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
@@ -495,11 +1107,19 @@ class Runner(Context):
 
         self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
 
-    def _print_output_tensor(self, title, output_tensor_numpy):
+    def _print_output_tensor(self, title: str, output_tensor_numpy: FloatArray) -> None:
+        """Print the output tensor.
 
+        Parameters
+        ----------
+        title : str
+            The title.
+        output_tensor_numpy : FloatArray
+            The output tensor.
+        """
         LOG.info(
             "%s",
-            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum()/ output_tensor_numpy.size: .0%}",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
         )
 
         if not self._output_tensor_by_name:
@@ -518,3 +1138,52 @@ class Runner(Context):
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+
+    def patch_data_request(self, request: Any) -> Any:
+        """Patch the data request.
+
+        Parameters
+        ----------
+        request : Any
+            The data request.
+
+        Returns
+        -------
+        Any
+            The patched data request.
+        """
+        for p in self.pre_processors:
+            request = p.patch_data_request(request)
+
+        for p in self.post_processors:
+            request = p.patch_data_request(request)
+
+        return request
+
+    def _configure_parallel_runner(self: "ParallelRunnerMixin") -> None:
+        """Configure the parallel runner (only applies when using the `parallel` runner).
+
+        This method is called by the parallel runner on initialisation.
+        Derived classes can implement this method to modify itself for parallel operation.
+        """
+        pass
+
+    def input_state_hook(self, input_state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass
+
+    def output_state_hook(self, state: State) -> None:
+        """Hook used by coupled runners to send the input state."""
+        pass
+
+    def complete_forecast_hook(self) -> None:
+        """Hook called at the end of the forecast."""
+        pass
+
+    def has_split_input(self) -> bool:
+        # To be overridden by a subclass if the we use different inputs
+        # for initial conditions, constants and dynamic forcings
+        raise NotImplementedError(
+            "This method should be overridden by a subclass if the runner uses different inputs "
+            "for initial conditions, constants and dynamic forcings."
+        )

@@ -1,0 +1,185 @@
+# (C) Copyright 2025 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+
+import json
+import logging
+from collections import defaultdict
+from typing import Any
+
+import earthkit.data as ekd
+
+from anemoi.inference.output import Output
+from anemoi.inference.types import State
+
+from . import create_template_provider
+
+LOG = logging.getLogger(__name__)
+
+
+class TemplateManager:
+    """A class to manage GRIB template providers."""
+
+    def __init__(self, owner: Output, templates: list[str] | str | None = None) -> None:
+        """Initialize the TemplateManager.
+
+        Parameters
+        ----------
+        owner : Output
+            The owner of the TemplateManager.
+        templates : Optional[Union[List[str], str]], optional
+            A list of template providers or a single provider, by default None.
+        """
+        self.owner = owner
+        self.checkpoint = owner.context.checkpoint
+        self.typed_variables = self.checkpoint.typed_variables
+
+        self._template_cache = {}
+        self._history = defaultdict(list)
+        self._logged_variables = defaultdict(set)
+
+        if templates is None:
+            templates = []
+
+        if not isinstance(templates, (list, tuple)):
+            templates = [templates]
+
+        if len(templates) == 0:
+            templates = ["input", "builtin"]
+
+        self.templates_providers = [create_template_provider(self, template) for template in templates]
+        LOG.info("GRIB template providers:")
+        for provider in self.templates_providers:
+            LOG.info(f"  - {provider}")
+
+    def log_summary(self) -> None:
+        """Log a summary of the loaded templates.
+        Repeated calls will only log newly loaded templates since the last call.
+        """
+
+        to_log = defaultdict(set)
+
+        for provider, typed_list in self._history.items():
+            variables = [variable for variable in typed_list if variable.param not in self._logged_variables[provider]]
+            if len(variables) > 0:
+                for variable in variables:
+                    to_log[provider].add(variable.param)
+                    self._logged_variables[provider].add(variable.param)
+
+        if to_log:
+            LOG.info("GRIB template summary:")
+            for provider, variables in to_log.items():
+                LOG.info(f"  - {provider}: {', '.join(sorted(variables))}")
+
+    def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
+        """Get the template for a given name and state.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template.
+        state : State
+            The state object containing template information.
+        typed_variables : dict[str, Any]
+            The dictionary of typed variables.
+
+        Returns
+        -------
+        Optional[ekd.Field]
+            The template field if found, otherwise None.
+        """
+        assert name is not None, name
+
+        if name not in self._template_cache:
+            self.load_template(name, state, typed_variables)
+
+        return self._template_cache.get(name)
+
+    def load_template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
+        """Load the template for a given name and state.
+
+        Parameters
+        ----------
+        name : str
+            The name of the template.
+        state : State
+            The state object containing template information.
+        typed_variables : dict[str, Any]
+            The dictionary of typed variables.
+
+        Returns
+        -------
+        Optional[ekd.Field]
+            The template field if found, otherwise None.
+        """
+
+        checkpoint = self.owner.context.checkpoint
+
+        typed = typed_variables[name]
+
+        grid = state.get("_geography", {}).get("grid", checkpoint.grid)
+        area = state.get("_geography", {}).get("area", checkpoint.area)
+
+        lookup = dict(
+            name=name,
+            grid=self._grid(grid),
+            area=area,
+            time_processing=typed.time_processing,
+            number_of_grid_points=checkpoint.number_of_grid_points,
+        )
+
+        for key, value in typed.grib_keys.items():
+            if key in ("step", "date", "time", "hdate"):
+                continue
+            lookup[key] = value
+
+        lookup.update(self.owner.template_lookup(name))
+
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug(f"Loading template for `{name}` with lookup:")
+            LOG.debug("%s", json.dumps(lookup, indent=2, default=str))
+
+        tried = []
+        for provider in self.templates_providers:
+            template = provider.template(name, lookup, state=state)
+            if template is not None:
+                self._template_cache[name] = template
+                self._history[provider].append(typed)
+                return
+
+            tried.append(provider)
+
+        LOG.warning(f"Could not find template for `{name}` in {tried}")
+        LOG.warning(f"Loading template for `{name}` with lookup:")
+        LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
+        return None
+
+    def _grid(self, grid: str | list[float] | tuple[int, int]) -> str:
+        """Convert the grid information to a standardised format.
+
+        Parameters
+        ----------
+        grid : Union[str, list of float, tuple of int]
+            The grid information.
+
+        Returns
+        -------
+        str
+            The standardised grid format.
+        """
+
+        if isinstance(grid, str):
+            return grid.upper()
+
+        if isinstance(grid, (tuple, list)) and len(grid) == 2:
+            if grid[0] == grid[1]:
+                return grid[0]
+            return f"{grid[0]}x{grid[1]}"
+
+        return grid

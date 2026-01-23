@@ -1,7 +1,7 @@
-.. _run-cli:
+.. _run-command:
 
-run
-==========
+Run Command
+===========
 
 .. argparse::
     :module: anemoi.inference.__main__

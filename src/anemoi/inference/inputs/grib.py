@@ -9,6 +9,9 @@
 
 
 import logging
+from typing import Any
+
+import earthkit.data as ekd
 
 from .ekd import EkdInput
 
@@ -16,17 +19,25 @@ LOG = logging.getLogger(__name__)
 
 
 class GribInput(EkdInput):
-    """
-    Handles GRIB input fields.
-    """
+    """Handles GRIB input fields."""
 
-    def set_private_attributes(self, state, input_fields):
+    def set_private_attributes(self, state: Any, fields: ekd.FieldList) -> None:
+        """Set private attributes for the state.
+
+        Parameters
+        ----------
+        state : Any
+            The state to set private attributes for.
+        fields : ekd.FieldList
+            The input fields.
+        """
         # For now we just pass all the fields
         # Later, we can select a relevant subset (e.g. only one
         # level), to save memory
 
         # By sorting, we will have the most recent field last
         # no we can also use that list to write step 0
-        input_fields = input_fields.order_by("valid_datetime")
+        super().set_private_attributes(state, fields)
+        input_fields = fields.order_by("valid_datetime")
 
         state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}

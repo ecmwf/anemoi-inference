@@ -9,16 +9,147 @@
 
 
 import logging
+from typing import Any
 
+from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
+
+from ..forcings import ComputedForcings
+from ..forcings import Forcings
 from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
+
+# This is because forcings are assumed to already be in the
+# state dictionary, so we don't need to load them from anywhere.
+
+
+class NoForcings(Forcings):
+    """No forcings."""
+
+    def __init__(self, context: Any, variables: list[str], mask: IntArray) -> None:
+        """Initialize the NoForcings.
+
+        Parameters
+        ----------
+        context : object
+            The context for the forcings.
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+        """
+        super().__init__(context)
+        self.variables = variables
+        self.mask = mask
+        self.kinds = dict(unknown=True)
+
+    def load_forcings_state(self, state: State, date: str) -> None:
+        """Load forcings state.
+
+        Parameters
+        ----------
+        state : State
+            The state to load the forcings into.
+        date : str
+            The date for which to load the forcings.
+        """
+        pass
 
 
 @runner_registry.register("simple")
 class SimpleRunner(Runner):
     """Use that runner when using the low level API."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the SimpleRunner.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments.
+        **kwargs : dict
+            Keyword arguments.
+        """
         super().__init__(*args, **kwargs)
+
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create constant computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant computed forcings.
+        """
+        result = ComputedForcings(self, variables, mask)
+        LOG.info("Constant computed forcing: %s", result)
+        return [result]
+
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create dynamic computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created dynamic computed forcings.
+        """
+        result = ComputedForcings(self, variables, mask)
+        LOG.info("Dynamic computed forcing: %s", result)
+        return [result]
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List
+            The created constant coupled forcings.
+        """
+        # This runner does not support coupled forcings
+        # there are supposed to be already in the state dictionary
+        # or managed by the user.
+        LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
+        return []
+
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create dynamic coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List
+            The created dynamic coupled forcings.
+        """
+        # This runner does not support coupled forcings
+        # there are supposed to be already in the state dictionary
+        # or managed by the user.
+        LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
+        return []

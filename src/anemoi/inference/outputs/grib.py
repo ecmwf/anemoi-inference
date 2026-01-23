@@ -8,211 +8,398 @@
 # nor does it submit to any jurisdiction.
 
 
+import datetime
 import json
 import logging
+import re
 from abc import abstractmethod
+from typing import Any
+from typing import Literal
 
 from earthkit.data.utils.dates import to_datetime
 
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
+
 from ..grib.encoding import grib_keys
-from ..inputs import create_input
+from ..grib.templates.manager import TemplateManager
 from ..output import Output
 
 LOG = logging.getLogger(__name__)
 
 
-class GribOutput(Output):
-    """
-    Handles grib
+class HindcastOutput:
+    """Hindcast output class."""
+
+    def __init__(self, reference_year: int) -> None:
+        """Initialize the HindcastOutput object.
+
+        Parameters
+        ----------
+        reference_year : int
+            The reference year.
+        """
+
+        self.reference_year = reference_year
+
+    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+        """Call the HindcastOutput object.
+
+        Parameters
+        ----------
+        variable : Any
+            The variable object.
+        values : FloatArray
+            The values array.
+        template : object
+            The template object.
+        keys : dict
+            The keys dictionary.
+
+        Returns
+        -------
+        tuple
+            The modified values, template, and keys.
+        """
+
+        if "date" not in keys:
+            assert template.metadata("hdate", default=None) is None, template
+            date = template.metadata("date")
+        else:
+            date = keys.pop("date")
+
+        for k in ("date", "hdate", "eps", "productDefinitionTemplateNumber"):
+            keys.pop(k, None)
+
+        keys["localDefinitionNumber"] = 30
+        keys["dataDate"] = int(to_datetime(date).strftime("%Y%m%d"))
+        keys["referenceDate"] = int(to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
+
+        return values, template, keys
+
+
+class Matching:
+
+    def __init__(self, config):
+
+        self.conditions = {}
+        for k, v in config.items():
+            self.conditions[re.compile(k)] = v
+
+    def patch(self, variable, request):
+
+        for k, v in self.conditions.items():
+            m = k.match(variable.name)
+            if m:
+                patch = {}
+                for kk, vv in v.items():
+                    if isinstance(vv, str) and vv.startswith("\\"):
+                        vv = m.group(int(vv[1:]))
+                    patch[kk] = vv
+                return patch
+
+        return {}
+
+
+class PatchOutput:
+    def __init__(self, *patches):
+        self.patches = []
+        for patch in patches:
+            assert isinstance(patch, dict), patch
+            assert len(patch) == 1, patch
+            key = list(patch.keys())[0]
+            assert key == "variable", patch
+        self.patches.append(Matching(patch[key]))
+
+    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+        original_keys = keys.copy()
+        result = keys.copy()
+        for patch in self.patches:
+            result.update(patch.patch(variable, original_keys))
+
+        return values, template, result
+
+
+MODIFIERS = dict(hindcast=HindcastOutput, patches=PatchOutput)
+
+
+def modifier_factory(modifiers: list) -> list:
+    """Create a list of modifier instances.
+
+    Parameters
+    ----------
+    modifiers : list
+        A list of modifier configurations.
+
+    Returns
+    -------
+    list
+        A list of modifier instances.
     """
 
-    def __init__(self, context, *, encoding=None, templates=None, grib1_keys=None, grib2_keys=None):
-        super().__init__(context)
+    if modifiers is None:
+        return []
+
+    if not isinstance(modifiers, list):
+        modifiers = [modifiers]
+
+    result = []
+    for modifier in modifiers:
+        assert isinstance(modifier, dict), modifier
+        assert len(modifier) == 1, modifier
+
+        klass = list(modifier.keys())[0]
+        if isinstance(modifier[klass], list):
+            result.append(MODIFIERS[klass](*modifier[klass]))
+        else:
+            result.append(MODIFIERS[klass](**modifier[klass]))
+
+    return result
+
+
+class BaseGribOutput(Output):
+    """Handles grib."""
+
+    def __init__(
+        self,
+        context: dict,
+        post_processors: list[ProcessorConfig] | None = None,
+        *,
+        encoding: dict[str, Any] | None = None,
+        templates: list[str] | str | None = None,
+        grib1_keys: dict[str, Any] | None = None,
+        grib2_keys: dict[str, Any] | None = None,
+        modifiers: list[str] | None = None,
+        variables: list[str] | None = None,
+        output_frequency: int | None = None,
+        write_initial_state: bool | None = None,
+        negative_step_mode: Literal["error", "write", "skip"] = "error",
+    ) -> None:
+        """Initialise the GribOutput object.
+
+        Parameters
+        ----------
+        context : dict
+            The context dictionary.
+        post_processors : Optional[List[ProcessorConfig]] = None
+            Post-processors to apply to the input
+        encoding : dict, optional
+            The encoding dictionary, by default None.
+        templates : list or str, optional
+            The templates list or string, by default None.
+        grib1_keys : dict, optional
+            The grib1 keys dictionary, by default None.
+        grib2_keys : dict, optional
+            The grib2 keys dictionary, by default None.
+        modifiers : list, optional
+            The list of modifiers, by default None.
+        output_frequency : int, optional
+            The frequency of output, by default None.
+        write_initial_state : bool, optional
+            Whether to write the initial state, by default None.
+        variables : list, optional
+            The list of variables, by default None.
+        negative_step_mode : Literal["error", "write", "skip"], optional
+            What to do when writing a variable that has a base time before the forecast base time.
+            This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
+            In all cases a warning will be shown.
+            - `error`: (default) raise an exception
+            - `write`: write the variable as normal
+            - `skip`: skip writing the variable
+        """
+
+        super().__init__(
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
+        )
         self._first = True
-        self.typed_variables = self.checkpoint.typed_variables
-        self.quiet = set()
+
         self.encoding = encoding if encoding is not None else {}
-        self.templates = templates
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
-        self._template_cache = None
-        self._template_source = None
-        self._template_date = None
-        self._template_reuse = None
-        self.use_closest_template = False  # Off for now
 
-    def write_initial_state(self, state):
+        self.modifiers = modifier_factory(modifiers)
+        self.variables = variables
+        assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
+        self.negative_step_mode = negative_step_mode
+
+        self.ensemble = False
+        for d in (self.grib1_keys, self.grib2_keys, self.encoding):
+            if "eps" in d:
+                self.ensemble = d["eps"]
+                break
+            if d.get("type") in ("pf", "cf"):
+                self.ensemble = True
+                break
+
+        self.template_manager = TemplateManager(self, templates)
+
+    def write_initial_state(self, state: State) -> None:
+        """Write the initial step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state object.
+        """
         # We trust the GribInput class to provide the templates
         # matching the input state
 
-        for name in state["fields"]:
+        if not self.write_step_zero:
+            return
+
+        state = state.copy()
+
+        self.reference_date = state["date"]
+        state.setdefault("step", datetime.timedelta(0))
+
+        for name in state["fields"].keys():
+            if self.skip_variable(name):
+                continue
+
+            variable = self.typed_variables[name]
+
+            if variable.is_computed_forcing:
+                continue
 
             template = self.template(state, name)
             if template is None:
-                # We can currently only write grib output if we have a grib input
+                # grib output only reliably works when we have grib input, everything else relies on external templates
                 raise ValueError(
-                    "GRIB output only works if the input is GRIB (for now). Set `write_initial_state` to `false`."
+                    f"No grib template found for initial state param `{name}`. Try setting `write_initial_state` to `false`."
                 )
 
-            variable = self.typed_variables[name]
-            if variable.is_accumulation:
-                LOG.warning("Found accumulated variable `%s` is initial state.", name)
+        return self.write_step(self.post_process(state))
 
-            # assert False,
-            # values = state["fields"][name]
-            # assert False, values.shape
-            values = None
-            keys = grib_keys(
-                values=values,
-                template=template,
-                accumulation=variable.is_accumulation,
-                param=None,
-                date=None,
-                time=None,
-                step=0,
-                type="fc",
-                keys=self.encoding,
-                grib1_keys=self.grib1_keys,
-                grib2_keys=self.grib2_keys,
-                quiet=self.quiet,
-            )
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
 
-            # LOG.info("Step 0 GRIB %s\n%s", template, json.dumps(keys, indent=4))
+        Parameters
+        ----------
+        state : State
+            The state object.
+        """
 
-            self.write_message(values, template=template, **keys)
+        reference_date = self.reference_date or self.context.reference_date
+        assert reference_date is not None, "No reference date set"
 
-    def write_state(self, state):
+        step = state["step"]
+        previous_step = state.get("previous_step")
+        start_steps = state.get("start_steps", {})
 
-        reference_date = self.context.reference_date
-        date = state["date"]
+        for name in state["fields"].keys():
+            if self.skip_variable(name):
+                continue
 
-        step = date - reference_date
-        step = step.total_seconds() / 3600
-        assert int(step) == step, step
-        step = int(step)
-
-        if "_grib_templates_for_output" not in state:
-            if "_grib_templates_for_output" not in self.quiet:
-                self.quiet.add("_grib_templates_for_output")
-                LOG.warning("Input is not GRIB.")
-
-        for name, value in state["fields"].items():
+            values = state["fields"][name]
             keys = {}
 
             variable = self.typed_variables[name]
-            param = variable.grib_keys.get("param", variable)
+
+            if variable.is_computed_forcing:
+                continue
+
+            param = variable.grib_keys.get("param", name)
 
             template = self.template(state, name)
-
-            if template is None:
-                if name not in self.quiet:
-                    LOG.warning("No GRIB template found for `%s`. This may lead to unexpected results.", name)
-                    self.quiet.add(name)
-
-                variable_keys = variable.grib_keys.copy()
-                for key in ("class", "type", "stream", "expver", "date", "time", "step"):
-                    variable_keys.pop(key, None)
-
-                keys.update(variable_keys)
 
             keys.update(self.encoding)
 
             keys = grib_keys(
-                values=value,
+                values=values,
                 template=template,
-                date=reference_date.strftime("%Y-%m-%d"),
-                time=reference_date.hour,
+                date=reference_date,
                 step=step,
                 param=param,
-                type="fc",
-                accumulation=variable.is_accumulation,
+                variable=variable,
+                ensemble=self.ensemble,
                 keys=keys,
                 grib1_keys=self.grib1_keys,
                 grib2_keys=self.grib2_keys,
-                quiet=self.quiet,
+                previous_step=previous_step,
+                start_steps=start_steps,
             )
+            encoded_date = to_datetime(f"{keys['date']}T{keys['time']:04d}")
+
+            if encoded_date < reference_date:
+                _log = f"{encoded_date} < {reference_date}"
+                match self.negative_step_mode:
+                    case "error":
+                        raise ValueError(
+                            f"""Variable {name} has base time before forecast base time: {_log}.
+                            To write or skip such variables, set `negative_step_mode` to `write` or `skip`.
+                            Alternatively, try `write_initial_state=False` if this is the initial time step."""
+                        )
+                    case "skip":
+                        LOG.warning(f"Skipping variable {name} with base time before forecast base time: {_log}")
+                        continue
+                    case "write":
+                        LOG.warning(f"Writing variable {name} with base time before forecast base time: {_log}")
+
+            for modifier in self.modifiers:
+                values, template, keys = modifier(variable, values, template, keys)
 
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.info("Encoding GRIB %s\n%s", template, json.dumps(keys, indent=4))
 
             try:
-                self.write_message(value, template=template, **keys)
+                self.write_message(values, template=template, **keys)
             except Exception:
                 LOG.error("Error writing field %s", name)
                 LOG.error("Template: %s", template)
-                LOG.error("Keys:\n%s", json.dumps(keys, indent=4))
+                LOG.error("Keys:\n%s", json.dumps(keys, indent=4, default=str))
+                self.template_manager.log_summary()
                 raise
 
+        self.template_manager.log_summary()
+
     @abstractmethod
-    def write_message(self, message, *args, **kwargs):
+    def write_message(self, message: FloatArray, *args: Any, **kwargs: Any) -> None:
+        """Write a message to the grib file.
+
+        Parameters
+        ----------
+        message : FloatArray
+            The message array.
+        *args : Any
+            Additional arguments.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
         pass
 
-    def template(self, state, name):
+    def template(self, state: State, name: str) -> object:
+        """Get the template for a variable.
 
-        if self._template_cache is None:
-            self._template_cache = {}
-            if "_grib_templates_for_output" in state:
-                self._template_cache.update(state.get("_grib_templates_for_output", {}))
+        Parameters
+        ----------
+        state : State
+            The state object.
+        name : str
+            The variable name.
 
-        if name is None:
-            return self._template_cache
+        Returns
+        -------
+        object
+            The template object.
+        """
+        return self.template_manager.template(name, state, self.typed_variables)
 
-        if name in self._template_cache:
-            return self._template_cache[name]
+    def template_lookup(self, name: str) -> dict:
+        """Lookup the template for a variable.
 
-        # Catch all template
-        if None in self._template_cache:
-            return self._template_cache[None]
+        Parameters
+        ----------
+        name : str
+            The variable name.
 
-        if self.use_closest_template:  #
-            template, name2 = self._clostest_template(self._template_cache, name)
-
-            if name not in self.quiet:
-                if name2 is not None:
-                    LOG.warning("Using template for `%s`", name2)
-                self.quiet.add(name)
-
-                self._template_cache[name] = template
-                return template
-
-        if not self.templates:
-            return None
-
-        if self._template_source is None:
-            if "source" not in self.templates:
-                raise ValueError("No `source` given in `templates`")
-
-            self._template_source = create_input(self.context, self.templates["source"])
-            LOG.info("Loading templates from %s", self._template_source)
-
-            if "date" in self.templates:
-                self._template_date = to_datetime(self.templates["date"])
-
-            self._template_reuse = self.templates.get("reuse", False)
-
-        LOG.info("Loading template for %s from %s", name, self._template_source)
-
-        date = self._template_date if self._template_date is not None else state["date"]
-        field = self._template_source.template(variable=name, date=date)
-
-        if field is None:
-            LOG.warning("No template found for `%s`", name)
-
-        if self._template_reuse:
-            self._template_cache[None] = field
-        else:
-            self._template_cache[name] = field
-
-        return field
-
-    def _clostest_template(self, templates, name):
-        best = None, None
-        best_similarity = 0
-        md1 = self.typed_variables[name]
-        for name2, template in templates.items():
-            md2 = self.typed_variables[name2]
-            similarity = md1.similarity(md2)
-            if similarity > best_similarity:
-                best = template, name2
-                best_similarity = similarity
-        return best
+        Returns
+        -------
+        dict
+            The template dictionary.
+        """
+        return self.encoding

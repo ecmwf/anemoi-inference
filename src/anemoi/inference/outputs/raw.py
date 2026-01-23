@@ -8,10 +8,15 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
+from pathlib import Path
 
 import numpy as np
 
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
+from anemoi.inference.utils.templating import render_template
+
+from ..decorators import ensure_dir
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -21,23 +26,73 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("raw")
 @main_argument("path")
+@ensure_dir("dir")
 class RawOutput(Output):
-    """_summary_"""
+    """Raw output class."""
 
-    def __init__(self, context, path):
-        super().__init__(context)
-        self.path = path
+    def __init__(
+        self,
+        context: Context,
+        dir: Path,
+        template: str = "{date}.npz",
+        strftime: str = "%Y%m%d%H%M%S",
+        variables: list[str] | None = None,
+        **kwargs,
+    ) -> None:
+        """Initialise the RawOutput class.
 
-    def __repr__(self):
-        return f"RawOutput({self.path})"
+        Parameters
+        ----------
+        context : dict
+            The context.
+        dir : Path
+            The directory to save the raw output.
+            If the parent directory does not exist, it will be created.
+        template : str, optional
+            The template for filenames, by default "{date}.npz".
+            Variables available are `date`, `basetime` `step`.
+        strftime : str, optional
+            The date format string, by default "%Y%m%d%H%M%S".
+        """
+        super().__init__(context, variables=variables, **kwargs)
+        self.dir = dir
+        self.template = template
+        self.strftime = strftime
 
-    def write_initial_state(self, state):
-        self.write_state(state)
+    def __repr__(self) -> str:
+        """Return a string representation of the RawOutput object.
 
-    def write_state(self, state):
-        os.makedirs(self.path, exist_ok=True)
-        fn_state = f"{self.path}/{state['date'].strftime('%Y%m%d_%H')}"
-        restate = {f"field_{key}": val for key, val in state["fields"].items()}
-        restate["longitudes"] = state["longitudes"]
-        restate["latitudes"] = state["latitudes"]
+        Returns
+        -------
+        str
+            String representation of the RawOutput object.
+        """
+        return f"RawOutput({self.dir})"
+
+    def write_step(self, state: State) -> None:
+        """Write the state to a compressed .npz file.
+
+        Parameters
+        ----------
+        state : State
+            The state to be written.
+        """
+        date = state["date"]
+        basetime = date - state["step"]
+
+        format_info = {
+            "date": date.strftime(self.strftime),
+            "step": state["step"],
+            "basetime": basetime.strftime(self.strftime),
+        }
+
+        fn_state = f"{self.dir}/{render_template(self.template, format_info)}"
+        restate = {f"field_{key}": val for key, val in state["fields"].items() if not self.skip_variable(key)}
+
+        for key in ["date"]:
+            restate[key] = np.array(state[key], dtype=str)
+
+        for key in ["latitudes", "longitudes"]:
+            restate[key] = np.array(state[key])
+
         np.savez_compressed(fn_state, **restate)

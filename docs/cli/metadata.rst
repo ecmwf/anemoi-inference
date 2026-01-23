@@ -1,6 +1,7 @@
-metadata
-========
+.. _metadata-command:
 
+Metadata Command
+================
 
 .. argparse::
     :module: anemoi.inference.__main__

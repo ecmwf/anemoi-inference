@@ -12,6 +12,18 @@ from __future__ import annotations
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import TYPE_CHECKING
+from typing import Any
+
+from anemoi.inference.processor import Processor
+from anemoi.inference.types import IntArray
+
+if TYPE_CHECKING:
+    from anemoi.inference.input import Input
+    from anemoi.inference.output import Output
+
+    from .checkpoint import Checkpoint
+    from .forcings import Forcings
 
 LOG = logging.getLogger(__name__)
 
@@ -19,14 +31,25 @@ LOG = logging.getLogger(__name__)
 class Context(ABC):
     """Represents the context of the inference."""
 
-    allow_nans = (None,)  # can be True of False
+    allow_nans = None  # can be True of False
     use_grib_paramid = False
     verbosity = 0
-    development_hacks = {}  # For testing purposes, don't use in production
+    development_hacks: dict[str, Any] = {}  # For testing purposes, don't use in production
+
+    # Some runners will set these values, which can be queried by Output objects,
+    # but may remain as None
+
+    reference_date = None
+    time_step = None
+    lead_time = None
+    output_frequency: int | None = None
+    write_initial_state: bool = True
+
+    ##################################################################
 
     @property
     @abstractmethod
-    def checkpoint(self):
+    def checkpoint(self) -> Checkpoint:
         """Returns the checkpoint used for the inference."""
         pass
 
@@ -38,20 +61,110 @@ class Context(ABC):
     # expected to provide the forcings directly as input to the runner.
     ##################################################################
 
-    def create_input(self):
+    def create_input(self) -> Input:
+        """Creates an input object for the inference.
+
+        Returns
+        -------
+        Input
+            The input object for the inference.
+        """
         raise NotImplementedError()
 
-    def create_output(self):
+    def create_output(self) -> Output:
+        """Creates an output object for the inference.
+
+        Returns
+        -------
+        Output
+            The output object for the inference.
+        """
         raise NotImplementedError()
 
-    def create_constant_computed_forcings(self, variables, mask):
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates constant computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of constant computed forcings.
+        """
         raise NotImplementedError(f"{self.__class__.__name__}.create_constant_computed_forcings")
 
-    def create_constant_coupled_forcings(self, variables, mask):
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of constant coupled forcings.
+        """
         raise NotImplementedError(f"{self.__class__.__name__}.create_constant_coupled_forcings")
 
-    def create_dynamic_computed_forcings(self, variables, mask):
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates dynamic computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of dynamic computed forcings.
+        """
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_computed_forcings")
 
-    def create_dynamic_coupled_forcings(self, variables, mask):
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates dynamic coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of dynamic coupled forcings.
+        """
         raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")
+
+    def create_pre_processors(self) -> list[Processor]:
+        """Creates a list of pre-processors.
+
+        Returns
+        -------
+        List[Processor]
+            List of pre-processors.
+        """
+        return []
+
+    def create_post_processors(self) -> list[Processor]:
+        """Creates a list of post-processors.
+
+        Returns
+        -------
+        List[Processor]
+            List of post-processors.
+        """
+        return []

@@ -9,127 +9,100 @@
 
 
 import logging
+from argparse import ArgumentParser
+from argparse import Namespace
 from copy import deepcopy
+
+import numpy as np
 
 from . import Command
 
 LOG = logging.getLogger(__name__)
 
 
-def _same_supporting_arrays(a, b):
-    import numpy as np
+def diff(old, new, *path):
 
-    if set(a) != set(b):
-        return False
+    result = False
 
-    for k, v in a.items():
-        if np.any(v != b[k]):
-            return False
+    if isinstance(old, dict) and isinstance(new, dict):
+        keys1 = set(old.keys()) if isinstance(old, dict) else set()
+        keys2 = set(new.keys()) if isinstance(new, dict) else set()
 
-    return True
+        for key in keys1.union(keys2):
+            if key in old and key in new:
+                result = diff(old[key], new[key], *path, key) or result
+            elif key in old:
+                LOG.info(f"{'.'.join(path + (key,))} removed")
+                result = True
+            elif key in new:
+                LOG.info(f"{'.'.join(path + (key,))} added")
+                result = True
+
+        return result
+
+    if isinstance(old, list) and isinstance(new, list):
+        if len(old) != len(new):
+            LOG.info(f"Difference at {path}: List lengths differ ({len(old)} != {len(new)})")
+            result = True
+        for i, (item1, item2) in enumerate(zip(old, new)):
+            result = diff(item1, item2, *path, str(i)) or result
+        return result
+
+    if isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
+        if not np.array_equal(old, new):
+            LOG.info(f"Difference at {path}: Array values differ")
+            result = True
+        return result
+
+    if old != new:
+        LOG.info(f"{'.'.join(path)}: {old} != {new}")
+        result = True
+
+    return result
 
 
 class PatchCmd(Command):
     """Patch a checkpoint file."""
 
-    need_logging = True
-    _cache = {}
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
 
-    def add_arguments(self, command_parser):
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.add_argument("path", help="Path to the checkpoint.")
+        # command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
+        """Run the patch command.
+
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
         from anemoi.utils.checkpoints import load_metadata
         from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata
 
-        from anemoi.inference.metadata import Metadata
+        from anemoi.inference.metadata import MetadataFactory
 
         root = metadata_root(args.path)
 
-        original_metadata, supporting_arrays = load_metadata(args.path, supporting_arrays=True)
-        metadata = deepcopy(original_metadata)
+        original_metadata, original_supporting_arrays = load_metadata(args.path, supporting_arrays=True)
+        original_metadata = deepcopy(original_metadata)
+        original_supporting_arrays = deepcopy(original_supporting_arrays)
 
-        # Patch the metadata
-        while True:
-            previous = deepcopy(metadata)
-            metadata, supporting_arrays = Metadata(metadata).patch_metadata(supporting_arrays, root)
-            if metadata == previous:
-                break
-            LOG.info("Metadata patched")
+        metadata, supporting_arrays = MetadataFactory(original_metadata).patch_metadata(
+            original_supporting_arrays, root
+        )
 
-        if metadata != original_metadata:
+        if diff(metadata, original_metadata) or diff(original_supporting_arrays, supporting_arrays):
             LOG.info("Patching metadata")
             assert "sources" in metadata["dataset"]
             replace_metadata(args.path, metadata, supporting_arrays)
-
-    def _find(self, where, what, matches=None):
-        if matches is None:
-            matches = []
-
-        if isinstance(where, dict):
-            for key, value in where.items():
-                if value == what:
-                    matches.append(value)
-                else:
-                    self._find(value, what, matches)
-
-        elif isinstance(where, list):
-            for item in where:
-                self._find(item, what, matches)
-
-        return matches
-
-    def patch_zarr(self, zarr_attributes, metadata):
-
-        matches = self._find(metadata, zarr_attributes)
-        assert len(matches) > 0
-
-        # If we have multiple matches, we will
-        # handle them in the next iteration
-        zarr_attributes = matches[0]
-
-        uuid = zarr_attributes["uuid"]
-
-        for key in ("constants", "variables_metadata"):
-
-            entry = self._fetch(uuid)
-            if key in entry["metadata"]:
-                zarr_attributes[key] = entry["metadata"][key]
-            else:
-                LOG.warning(f"No '{key}' found for dataset '{uuid}'")
-
-        return metadata
-
-    def _fetch(self, uuid):
-        from anemoi.registry import Dataset
-        from anemoi.registry.entry.dataset import DatasetCatalogueEntryList
-
-        if uuid in self._cache:
-            return self._cache[uuid]
-
-        LOG.info(f"Fetching metadata for dataset uuid {uuid}")
-
-        match = None
-        for e in DatasetCatalogueEntryList().get(params={"uuid": uuid}):
-            if match:
-                raise ValueError(f"Multiple entries found for uuid {uuid}")
-            match = e
-
-        if match is None:
-            raise ValueError(f"No entry found for uuid {uuid}")
-
-        name = match["name"]
-        LOG.info(f"Dataset is '{name}'")
-        LOG.info(f"https://anemoi.ecmwf.int/datasets/{name}")
-        entry = Dataset(name)
-
-        self._cache[uuid] = entry.record
-        return self._cache[uuid]
-
-    def _uuid_to_name(self, uuid):
-        entry = self._fetch(uuid)
-        return entry["name"]
 
 
 command = PatchCmd

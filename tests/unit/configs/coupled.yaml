@@ -1,0 +1,26 @@
+transport: processes
+
+couplings:
+- atmos -> ocean:
+  - lsm
+  - 10u
+  - 10v
+  - 2t
+  - 2d
+  - ssrd
+  - strd
+  - tp
+  - msl
+
+- ocean -> atmos:
+  - avg_tos
+  - avg_siconc
+
+tasks:
+  atmos:
+    runner:
+      config: configs/atmos.yaml
+
+  ocean:
+    runner:
+      config: configs/ocean.yaml

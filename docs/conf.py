@@ -36,9 +36,9 @@ year = datetime.datetime.now().year
 if year == 2024:
     years = "2024"
 else:
-    years = "2024-%s" % (year,)
+    years = f"2024-{year}"
 
-copyright = "%s, Anemoi contributors" % (years,)
+copyright = f"{years}, Anemoi contributors"
 
 
 try:
@@ -76,6 +76,10 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "'**.ipynb_checkpoints'"
 
 intersphinx_mapping = {
     "python": ("https://python.readthedocs.io/en/latest", None),
+    "anemoi-docs": (
+        "https://anemoi.readthedocs.io/en/latest/",
+        ("../../../anemoi-docs/docs/_build/html/objects.inv", None),
+    ),
     "anemoi-utils": (
         "https://anemoi-utils.readthedocs.io/en/latest/",
         ("../../anemoi-utils/docs/_build/html/objects.inv", None),
@@ -107,6 +111,10 @@ intersphinx_mapping = {
     "anemoi-transform": (
         "https://anemoi-transform.readthedocs.io/en/latest/",
         ("../../anemoi-transform/docs/_build/html/objects.inv", None),
+    ),
+    "anemoi-plugins": (
+        "https://anemoi-plugins.readthedocs.io/en/latest/",
+        ("../../anemoi-plugins/docs/_build/html/objects.inv", None),
     ),
 }
 
@@ -144,3 +152,10 @@ autodoc_member_order = "bysource"  # Keep file order
 autodoc_pydantic_model_show_json = True
 autodoc_pydantic_model_show_field_summary = False
 autodoc_pydantic_model_member_order = "bysource"
+
+html_context = {
+    "display_github": True,
+    "github_user": "ecmwf",
+    "github_repo": "anemoi-inference",
+    "github_version": "main/docs/",
+}

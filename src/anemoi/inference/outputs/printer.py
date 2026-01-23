@@ -9,20 +9,50 @@
 
 import datetime
 import logging
+from collections.abc import Callable
+from functools import partial
+from pathlib import Path
+from typing import Any
+from typing import Literal
+from typing import Union
 
 import numpy as np
 
+from anemoi.inference.context import Context
+from anemoi.inference.types import State
+
+from ..decorators import ensure_path
+from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+ListOrAll = Union[list[str], Literal["all"]]
 
-def print_state(state, print=print):
+
+def print_state(
+    state: State,
+    print: Callable[..., None] = print,
+    max_lines: int = 4,
+    variables: ListOrAll | None = None,
+) -> None:
+    """Print the state.
+
+    Parameters
+    ----------
+    state : State
+        The state dictionary.
+    print : function, optional
+        The print function to use, by default print.
+    max_lines : int, optional
+        The maximum number of lines to print, by default 4.
+    variables : list, optional
+        The list of variables to print, by default None.
+    """
     print()
     print("😀", end=" ")
     for key, value in state.items():
-
         if isinstance(value, datetime.datetime):
             print(f"{key}={value.isoformat()}", end=" ")
 
@@ -38,16 +68,34 @@ def print_state(state, print=print):
     print()
 
     names = list(fields.keys())
-    n = 4
 
-    idx = list(range(0, len(names), len(names) // n))
-    idx.append(len(names) - 1)
-    idx = sorted(set(idx))
+    if variables == "all":
+        variables = names
+        max_lines = 0
+
+    if variables is None:
+        variables = names
+
+    if not isinstance(variables, (list, tuple, set)):
+        variables = [variables]
+
+    variables = set(variables)
+
+    n = max_lines
+
+    if max_lines == 0 or max_lines >= len(names):
+        idx = list(range(len(names)))
+    else:
+        idx = list(range(0, len(names), len(names) // n))
+        idx.append(len(names) - 1)
+        idx = sorted(set(idx))
 
     length = max(len(name) for name in names)
 
     for i in idx:
         name = names[i]
+        if name not in variables:
+            continue
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
         max_value = f"max={np.nanmax(field):g}"
@@ -57,11 +105,59 @@ def print_state(state, print=print):
 
 
 @output_registry.register("printer")
+@main_argument("max_lines")
+@ensure_path("path")
 class PrinterOutput(Output):
-    """_summary_"""
+    """Printer output class."""
 
-    def write_initial_state(self, state):
-        self.write_state(state)
+    def __init__(
+        self,
+        context: Context,
+        path: Path | None = None,
+        variables: ListOrAll | None = None,
+        max_lines: int = 4,
+        **kwargs: Any,
+    ) -> None:
+        """Initialise the PrinterOutput.
 
-    def write_state(self, state):
-        print_state(state)
+        Parameters
+        ----------
+        context : Context
+            The context.
+        path : Path, optional
+            The path to save the printed output, by default None.
+            If the parent directory does not exist, it will be created.
+        variables : list, optional
+            The list of variables to print, by default None.
+        max_lines : int, optional
+            The maximum number of lines to print, by default 4.
+            If set to 0, all variables will be printed.
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+
+        super().__init__(context, variables=variables, **kwargs)
+        self.print = print
+        self.variables = variables
+        self.max_lines = max_lines
+
+        self.f = None
+
+        if path is not None:
+            self.f = open(path, "w")
+            self.print = partial(print, file=self.f)
+
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
+        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
+
+    def close(self) -> None:
+        if self.f is not None:
+            self.f.close()
+        return super().close()

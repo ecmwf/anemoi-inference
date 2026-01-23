@@ -7,10 +7,31 @@
 # nor does it submit to any jurisdiction.
 #
 
+from typing import Any
+
 from anemoi.utils.registry import Registry
+
+from anemoi.inference.config import Configuration
+from anemoi.inference.context import Context
 
 input_registry = Registry(__name__)
 
 
-def create_input(context, config):
-    return input_registry.from_config(config, context)
+def create_input(context: Context, config: Configuration, **kwargs) -> Any:
+    """Create an input instance from the given context and configuration.
+
+    Parameters
+    ----------
+    context : Context
+        The context in which the input is created.
+    config : Configuration
+        The configuration for the input.
+    **kwargs : Any
+        Additional keyword arguments to pass to the input constructor.
+
+    Returns
+    -------
+    Any
+        The created input instance.
+    """
+    return input_registry.from_config(config, context, **kwargs)
