@@ -577,7 +577,7 @@ class Checkpoint:
 
         # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
         # The split oper/scda is a bit special
-        KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
+        KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
 
         requests = defaultdict(list)
         for r in self._metadata.mars_requests(variables=variables):
