@@ -620,6 +620,13 @@ class Runner(Context):
             The predicted step.
         """
         try:
+            # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
+            # TODO: change when we have a proper multi-dataset runner
+            if self.checkpoint._metadata.multi_dataset:
+                return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
+                    self.checkpoint._metadata.name
+                ]
+
             return model.predict_step(input_tensor_torch, **kwargs)
         except TypeError:
             # This is for backward compatibility because old models did not
