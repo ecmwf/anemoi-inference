@@ -131,11 +131,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
-        # set time based on the date in the config (reference_date), or already set by the `retrieve` command
-        if self.reference_date:
-            req["time"] = f"{self.reference_date.hour*100:04d}"
-        else:
-            req["time"] = sorted(req.get("time", ["0000"]))[0]
+        req["time"] = f"{self.reference_date.hour*100:04d}"
         req["step"] = (
             f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
         )
