@@ -155,19 +155,15 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
 
-    def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
+    def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
-        prognostic_state = prognostic_input.create_input_state(
-            date=date, start_date=self.config.date, ref_date_index=0, **kwargs
-        )
+        prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
         self._check_state(prognostic_state, "prognostics")
 
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info("📥 Dynamic forcings input: %s", forcings_input)
-        forcings_state = forcings_input.create_input_state(
-            date=date, start_date=self.config.date, ref_date_index=0, **kwargs
-        )
+        forcings_state = forcings_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
         self._check_state(forcings_state, "dynamic_forcings")
 
         self.constants_state["date"] = prognostic_state["date"]
