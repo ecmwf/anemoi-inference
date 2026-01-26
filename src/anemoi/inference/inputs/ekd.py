@@ -152,7 +152,9 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(self, data: Any, *, dates: list[Any], title: str, **kwargs) -> Any:
+    def _filter_and_sort(
+        self, data: Any, *, dates: list[Any], title: str, select_reference_date: bool = False, **kwargs
+    ) -> Any:
         """Filter and sort the data (earthkit FieldList/FieldArray).
 
         Parameters
@@ -163,6 +165,9 @@ class EkdInput(Input):
             The list of dates to select.
         title : str
             The title for logging.
+        select_reference_date: bool, optional
+            Also include the reference date when selecting data from the FieldList.
+            If False (default), only the valid date is considered.
         **kwargs : Any
             Additional arguments for selecting the variable.
 
@@ -180,16 +185,12 @@ class EkdInput(Input):
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        start_date = kwargs.pop("start_date", None)
-
-        # Deselects analysis if the forecast exists to avoid duplicate values for same valid time
-
-        if start_date is not None:
+        if select_reference_date:
             data = data.sel(
                 name=self.variables,
                 valid_datetime=valid_datetime,
-                dataDate=int(start_date.strftime("%Y%m%d")),
-                dataTime=int(start_date.strftime("%H%M")),
+                dataDate=int(self.reference_date.strftime("%Y%m%d")),
+                dataTime=int(self.reference_date.strftime("%H%M")),
             ).order_by(
                 name=self.variables,
                 valid_datetime="ascending",
