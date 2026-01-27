@@ -257,7 +257,7 @@ class CoupledInterpForcings(CoupledForcings):
         import ipdb
 
         ipdb.set_trace()
-        return np.concatenate([constant_arr, constant_arr], axis=1)
+        return np.concatenate([constant_arr for _ in range(len(dates))], axis=1)
 
 
 class ConstantForcings(CoupledForcings):
