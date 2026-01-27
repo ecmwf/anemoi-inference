@@ -230,7 +230,7 @@ class CoupledForcings(Forcings):
 
 
 class CoupledInterpForcings(CoupledForcings):
-    """Retrieve forcings from the input for interpolator."""
+    """Retrieve forcings from the first date in the input. Used, for example, in the interpolator where forcings are only available at the first time step of the input forecast."""
 
     def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the forcings for the given dates.
