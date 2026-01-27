@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import sys
 
 import pytest
 from earthkit.data.utils.dates import to_datetime
@@ -20,10 +19,6 @@ from anemoi.inference.testing.variables import w_100
 from anemoi.inference.testing.variables import z
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 10),
-    reason="Format specifier requires python 3.10 or higher.",
-)
 @pytest.mark.parametrize(
     "template, handle, expected",
     [

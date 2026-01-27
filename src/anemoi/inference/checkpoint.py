@@ -27,6 +27,7 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 
 from .metadata import Metadata
+from .metadata import MetadataFactory
 from .metadata import Variable
 
 LOG = logging.getLogger(__name__)
@@ -125,10 +126,10 @@ class Checkpoint:
             return self._source
 
         try:
-            result = Metadata(*load_metadata(self.path, supporting_arrays=True))
+            result = MetadataFactory(*load_metadata(self.path, supporting_arrays=True))
         except Exception as e:
             LOG.warning("Version does not support `supporting_arrays` (%s)", e)
-            result = Metadata(load_metadata(self.path))
+            result = MetadataFactory(load_metadata(self.path))
 
         if self.patch_metadata:
             LOG.warning("Patching metadata with %r", self.patch_metadata)
