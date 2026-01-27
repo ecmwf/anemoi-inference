@@ -171,51 +171,6 @@ class ComputedForcings(Forcings):
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
 
-class ComputedInterpForcings(ComputedForcings):
-    """Compute forcings like `cos_julian_day` or `insolation`."""
-
-    trace_name = "computed"
-
-    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
-        """Load the computed forcings for the given dates.
-
-        Parameters
-        ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings.
-        current_state : State
-            The current state of the model.
-
-        Returns
-        -------
-        FloatArray
-            The loaded forcings as a numpy array.
-        """
-        LOG.debug("Adding computed forcings for interpolation %s", self.variables)
-
-        if not isinstance(dates, (list, tuple)):
-            dates = [dates]
-
-        source = UnstructuredGridFieldList.from_values(
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
-        )
-
-        ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
-
-        assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
-
-        def rename(field: ekd.Field, _: str, metadata: dict[str, Any]) -> str:
-            return metadata["param"]
-
-        ds = FieldArray([f.clone(name=rename) for f in ds])
-
-        forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
-
-        # Forcing are sorted by `compute_forcings`  in the order (variable, date)
-
-        return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
-
 
 class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
@@ -300,6 +255,7 @@ class CoupledInterpForcings(CoupledForcings):
             self.variables,
             [dates[0]],
         )
+        import ipdb; ipdb.set_trace()
         return np.concatenate([constant_arr, constant_arr], axis=1)
 
 
