@@ -171,7 +171,6 @@ class ComputedForcings(Forcings):
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
 
-
 class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
 
@@ -255,7 +254,9 @@ class CoupledInterpForcings(CoupledForcings):
             self.variables,
             [dates[0]],
         )
-        import ipdb; ipdb.set_trace()
+        import ipdb
+
+        ipdb.set_trace()
         return np.concatenate([constant_arr, constant_arr], axis=1)
 
 
