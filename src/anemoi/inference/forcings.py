@@ -228,7 +228,7 @@ class CoupledForcings(Forcings):
         )
 
 
-class CoupledInterpForcings(CoupledForcings):
+class ConstantDateForcings(CoupledForcings):
     """Retrieve forcings from the first date in the input. Used, for example, in the interpolator where forcings are only available at the first time step of the input forecast."""
 
     def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
@@ -261,11 +261,6 @@ class CoupledInterpForcings(CoupledForcings):
 
 
 class ConstantForcings(CoupledForcings):
-    # Just to have a different __repr__
-    pass
-
-
-class ConstantInterpForcings(CoupledInterpForcings):
     # Just to have a different __repr__
     pass
 
