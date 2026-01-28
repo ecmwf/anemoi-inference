@@ -47,7 +47,7 @@ dependencies = [
   "aniso8601",
   "anytree",
   "deprecation",
-  "earthkit-data>0.18.4",
+  "earthkit-data>=0.12.4",
   "eccodes>=2.38.3",
   "numpy",
   "omegaconf>=2.2,<2.4",
@@ -61,7 +61,7 @@ dependencies = [
 
 optional-dependencies.all = [
   "anemoi-datasets",
-  "anemoi-inference[huggingface,plot,tests,zarr]",
+  "anemoi-inference[huggingface,netcdf,plot,tests,zarr]",
   "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.cosmo = [
@@ -82,6 +82,7 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
+optional-dependencies.netcdf = [ "earthkit-data>=0.18.5" ]
 optional-dependencies.plot = [ "earthkit-plots" ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
