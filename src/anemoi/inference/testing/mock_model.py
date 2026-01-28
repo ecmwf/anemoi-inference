@@ -44,8 +44,8 @@ class MockModelBase(torch.nn.Module):
 
         self.lagged = checkpoint.lagged
         self.typed_variables = checkpoint.typed_variables
-        self.prognostic_variables = checkpoint.prognostic_variables
-        self.diagnostic_variables = checkpoint.diagnostic_variables
+        self.prognostic_variables = checkpoint.select_variables(include=["prognostic"], has_mars_requests=False)
+        self.diagnostic_variables = checkpoint.select_variables(include=["diagnostic"], has_mars_requests=False)
         self.timestep = checkpoint.timestep
 
         self.first = True
