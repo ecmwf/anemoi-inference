@@ -254,9 +254,7 @@ class ConstantDateForcings(CoupledForcings):
             self.variables,
             [dates[0]],
         )
-        import ipdb
 
-        ipdb.set_trace()
         return np.concatenate([constant_arr for _ in range(len(dates))], axis=1)
 
 
