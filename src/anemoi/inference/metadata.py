@@ -137,6 +137,10 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the input explicit times from the training configuration."""
         return self._config_training.explicit_times.input
 
+    def _dataloader(self, partition="training"):
+        """Dataloader configuration for the given partition."""
+        return self._config.dataloader[partition]
+
     ###########################################################################
     # Debugging
     ###########################################################################
@@ -825,7 +829,7 @@ class Metadata(PatchMixin, LegacyMixin):
                 for k, v in x.items():
                     _find(v)
 
-        _find(self._config.dataloader.training.dataset)
+        _find(self._dataloader("training").dataset)
         return result
 
     def open_dataset(
@@ -919,7 +923,7 @@ class Metadata(PatchMixin, LegacyMixin):
             return x
 
         if from_dataloader is not None:
-            args, kwargs = [], self._metadata.config.dataloader[from_dataloader]
+            args, kwargs = [], self._dataloader(from_dataloader)
         else:
             args, kwargs = self._dataset.arguments.args, self._dataset.arguments.kwargs
 
@@ -1192,6 +1196,9 @@ class MultiDatasetMetadata(Metadata):
     @property
     def _inference(self) -> DotDict:
         return self._metadata_inference[self.name]
+
+    def _dataloader(self, partition="training"):
+        return self._config.dataloader[partition].datasets[self.name]
 
     #############################################################################
     # Overrides for properties derived from the new `metadata_inference`

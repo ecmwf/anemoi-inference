@@ -422,16 +422,19 @@ class Checkpoint:
         """
         return self._metadata.variable_categories()
 
-    def select_variables(self, *, include: list[str] | None = None, exclude: list[str] | None = None) -> list[str]:
+    def select_variables(
+        self, *, include: list[str] | None = None, exclude: list[str] | None = None, has_mars_requests: bool = True
+    ) -> list[str]:
         """Get variables from input.
 
         Parameters
         ----------
         include : Optional[List[str]]
             Categories to include.
-
         exclude : Optional[List[str]]
             Categories to exclude.
+        has_mars_requests: bool
+            If True, only include variables that have MARS requests.
 
         Returns
         -------
@@ -439,7 +442,7 @@ class Checkpoint:
             The selected variables.
 
         """
-        return self._metadata.select_variables(include=include, exclude=exclude)
+        return self._metadata.select_variables(include=include, exclude=exclude, has_mars_requests=has_mars_requests)
 
     def select_variables_and_masks(
         self, *, include: list[str] | None = None, exclude: list[str] | None = None
