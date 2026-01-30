@@ -57,6 +57,7 @@ class Input(ABC):
         """
         self.context = context
         self.checkpoint = context.checkpoint
+        self.reference_date = context.reference_date
         self._pre_processor_confs = pre_processors or []
 
         if variables is None:

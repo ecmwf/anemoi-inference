@@ -406,7 +406,6 @@ class DefaultRunner(Runner):
         first_input = combined.get("_input")
 
         for state in states[1:]:
-
             this_input = state.get("_input")
 
             for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
@@ -427,6 +426,7 @@ class DefaultRunner(Runner):
                 )
 
             combined["fields"].update(state.get("fields", {}))
+
             for key, value in state.items():
                 if key == "fields":
                     continue
