@@ -7,13 +7,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
 from earthkit.data.readers.grib.codes import GribField
-from earthkit.data.utils.dates import to_datetime
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
@@ -206,7 +206,7 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
             template=template,
             variable=variable,
             param=variable.param,
-            date=to_datetime("20260101T0000"),
+            date=datetime.now(),
             step=to_timedelta(6),
             keys=keys,
             ensemble=False,
