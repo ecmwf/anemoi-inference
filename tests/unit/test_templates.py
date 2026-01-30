@@ -20,6 +20,7 @@ from rich import print
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.grib.encoding import GribWriter
+from anemoi.inference.grib.encoding import check_encoding
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.testing import fake_checkpoints
@@ -215,5 +216,6 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
         )
         print(lookup, template, metadata)
         output = GribWriter(tmp_path / f"output-{grid}.grib")
-        output.write(values=None, template=template, metadata=metadata)
+        handle, _ = output.write(values=None, template=template, metadata=metadata)
+        check_encoding(handle, metadata)
         output.close()
