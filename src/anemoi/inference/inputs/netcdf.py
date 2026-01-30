@@ -10,12 +10,11 @@
 
 from . import input_registry
 from .ekd import FieldlistInput
-from .grib import GribInput
 
 
-@input_registry.register("grib")
-class GribFileInput(FieldlistInput, GribInput):
-    """Handles grib files."""
+@input_registry.register("netcdf")
+class NetcdfFileInput(FieldlistInput):
+    """Handles netcdf files."""
 
-    trace_name = "grib file"
-    patterns = ("*.grib", "*.grb", "*.grb2", "*.grib2")
+    trace_name = "netcdf file"
+    patterns = ("*.nc", "*.netcdf")
