@@ -21,9 +21,11 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.device import get_available_device
 from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
+from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
 from ..forcings import ComputedForcings
+from ..forcings import ConstantDateForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
@@ -78,17 +80,26 @@ class TimeInterpolatorRunner(DefaultRunner):
             self.config.write_initial_state
         ), "Interpolator output should include temporal start state, end state and boundary conditions"
 
-        self.target_forcings = self.target_computed_forcings(
-            self.checkpoint._metadata._config_training.target_forcing.data
+        if hasattr(self.checkpoint._metadata._config_training, "target_forcing"):
+            self.target_forcings = self.target_computed_forcings(
+                self.checkpoint._metadata._config_training.target_forcing.data
+            )
+
+        # This may be used by Output objects to compute the step
+        self.interpolation_window = get_interpolation_window(
+            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
         )
+
+        self.multi_step_input = 2
+        self.constants_input = None
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
             f"but got {self.checkpoint.input_explicit_times}"
         )
-        assert (
-            len(self.checkpoint.target_explicit_times)
-            == self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1
+        assert len(self.checkpoint.target_explicit_times) in (
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
         ), (
             "Interpolator runner requires the number of target explicit times to be equal to "
             "interpolation_window / frequency - 1, but got "
@@ -117,11 +128,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
-        # set time based on the date in the config (reference_date), or already set by the `retrieve` command
-        if self.reference_date:
-            req["time"] = f"{self.reference_date.hour*100:04d}"
-        else:
-            req["time"] = sorted(req.get("time", ["0000"]))[0]
+        req["time"] = f"{self.reference_date.hour*100:04d}"
         req["step"] = (
             f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
         )
@@ -145,26 +152,25 @@ class TimeInterpolatorRunner(DefaultRunner):
         # Replace the lagged property on this specific instance
         self.checkpoint.__class__.lagged = property(get_lagged)
 
-    def create_input_state(self, *, date: datetime.datetime, **kwargs) -> State:
+    def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
-        prognostic_state = prognostic_input.create_input_state(date=date, **kwargs)
+        prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
         self._check_state(prognostic_state, "prognostics")
-
-        constants_input = self.create_constant_coupled_forcings_input()
-        LOG.info("📥 Constant forcings input: %s", constants_input)
-        constants_state = constants_input.create_input_state(date=date, **kwargs)
-        self._check_state(constants_state, "constant_forcings")
 
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info("📥 Dynamic forcings input: %s", forcings_input)
-        forcings_state = forcings_input.create_input_state(date=date, **kwargs)
+        forcings_state = forcings_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
         self._check_state(forcings_state, "dynamic_forcings")
+
+        self.constants_state["date"] = prognostic_state["date"]
+
         input_state = self._combine_states(
             prognostic_state,
-            constants_state,
+            self.constants_state,
             forcings_state,
         )
+
         return input_state
 
     def execute(self) -> None:
@@ -189,6 +195,18 @@ class TimeInterpolatorRunner(DefaultRunner):
                 num_windows * self.interpolation_window,
             )
 
+        if self.constants_input is None:
+            self.constants_input = self.create_constant_coupled_forcings_input()
+            LOG.info("📥 Constant forcings input: %s", self.constants_input)
+            self.constants_state = self.constants_input.create_input_state(
+                date=self.config.date, constant=True, ref_date_index=0
+            )
+            for key in self.constants_state["fields"].keys():
+                self.constants_state["fields"][key] = np.concatenate(
+                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
+                )
+            self._check_state(self.constants_state, "constant_forcings")
+
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.interpolation_window
@@ -197,11 +215,8 @@ class TimeInterpolatorRunner(DefaultRunner):
                 "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
             )
 
-            # Create input state for this window
-            if self.from_analysis:
-                input_state = self.create_input_state(date=window_start_date)
-            else:
-                input_state = self.create_input_state(date=window_start_date, ref_date_index=0)
+            input_state = self.create_input_state(date=window_start_date)
+
             self.input_state_hook(input_state)
 
             # Run interpolation for this window
@@ -228,6 +243,61 @@ class TimeInterpolatorRunner(DefaultRunner):
         self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", target_forcing: "torch.Tensor"
     ) -> "torch.Tensor":
         return model.predict_step(input_tensor_torch, target_forcing=target_forcing)
+
+    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
+        """Add initial forcings to the input state.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        """
+        # Should that be alreay a list of dates
+        date = input_state["date"]
+        fields = input_state["fields"]
+
+        dates = [date + h for h in self.checkpoint.lagged]
+
+        # For output object. Should be moved elsewhere
+        self.reference_date = self.reference_date or date
+        self.reference_dates = [self.reference_date + h for h in self.checkpoint.lagged]
+        self.initial_dates = dates
+
+        # TODO: Check for user provided forcings
+
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        LOG.info("-" * 80)
+        LOG.info("Initial forcings:")
+        LOG.info("  Constant forcings inputs:")
+        for f in initial_constant_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("  Dynamic forcings inputs:")
+        for f in initial_dynamic_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("-" * 80)
+
+        for source in initial_constant_forcings_inputs:
+            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings_array(self.reference_dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
+
+        for source in initial_dynamic_forcings_inputs:
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings_array(dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def target_computed_forcings(self, variables: list[str], mask=None) -> list[Forcings]:
         """Create forcings for the bounding target state.
@@ -280,6 +350,27 @@ class TimeInterpolatorRunner(DefaultRunner):
             date = start_date + step
             is_last_step = s == steps - 1
             yield step, date, target_steps[s], is_last_step
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant coupled forcings.
+        """
+        input = self.create_constant_coupled_forcings_input()
+        result = ConstantDateForcings(self, input, variables, mask)
+        LOG.info("Constant coupled forcing: %s", result)
+
+        return [result]
 
     def create_target_forcings(
         self, dates: datetime.datetime, state: State, input_tensor_torch: "torch.Tensor", interpolation_step: int

@@ -228,6 +228,36 @@ class CoupledForcings(Forcings):
         )
 
 
+class ConstantDateForcings(CoupledForcings):
+    """Retrieve forcings from the first date in the input. Used, for example, in the interpolator where forcings are only available at the first time step of the input forecast."""
+
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
+        """Load the forcings for the given dates.
+
+        Parameters
+        ----------
+        dates : List[Any]
+            The list of dates for which to load the forcings.
+        current_state : State
+            The current state of the model.
+
+        Returns
+        -------
+        FloatArray
+            The loaded forcings as a numpy array.
+        """
+        constant_arr = self._state_to_numpy(
+            self.input.load_forcings_state(
+                dates=[dates[0]],
+                current_state=current_state,
+            ),
+            self.variables,
+            [dates[0]],
+        )
+
+        return np.concatenate([constant_arr for _ in range(len(dates))], axis=1)
+
+
 class ConstantForcings(CoupledForcings):
     # Just to have a different __repr__
     pass
