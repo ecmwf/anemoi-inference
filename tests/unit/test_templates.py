@@ -13,22 +13,35 @@ import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
 from earthkit.data.readers.grib.codes import GribField
+from earthkit.data.utils.dates import to_datetime
+from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
+from rich import print
 
 from anemoi.inference.checkpoint import Checkpoint
+from anemoi.inference.grib.encoding import GribWriter
+from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
+
+
+@fake_checkpoints
+def _checkpoint():
+    checkpoint = Checkpoint(files_for_tests("unit/checkpoints/atmos.json"))
+    checkpoint.typed_variables["unknown"] = checkpoint.typed_variables["2t"]  # used in auto-unknown test
+
+    # 100u failed at one point in test_builtin_gribwriter, make sure 100u is still present if checkpoint is ever updated
+    assert "100u" in checkpoint.typed_variables.keys()
+    return checkpoint
 
 
 @pytest.fixture
 def manager(mocker: MockerFixture) -> type[TemplateManager]:
     @fake_checkpoints
     def _manager(config=None):
-        checkpoint = Checkpoint(files_for_tests("unit/checkpoints/atmos.json"))
-        checkpoint.typed_variables["unknown"] = checkpoint.typed_variables["2t"]  # used in auto-unknown test
         owner = mocker.MagicMock()
-        owner.context.checkpoint = checkpoint
+        owner.context.checkpoint = _checkpoint()
         return TemplateManager(owner, templates=config)
 
     return _manager
@@ -153,3 +166,54 @@ def test_input(manager, config, request):
         assert template == "2t_input_template"
     else:
         assert template.metadata("param") == "lsm"  # builtin
+
+
+@pytest.mark.parametrize(
+    "variable",
+    [
+        pytest.param(variable, id=variable.param)
+        for variable in {
+            var.param: var for var in _checkpoint().typed_variables.values() if not var.is_computed_forcing
+        }.values()  # dict to get only one level per pl param
+    ],
+)
+def test_builtin_gribwriter(manager, variable, tmp_path):
+    """Test that the builtin grib templates can be encoded and written with new metadata."""
+
+    manager = manager("builtin")
+    builtin_provider = manager.templates_providers[0]
+
+    keys = {
+        "stream": "oper",
+        "type": "fc",
+        "class": "od",
+        "expver": "9999",
+    }
+
+    grids = set()
+    for match, _ in builtin_provider.templates:
+        if grid := match.get("grid"):
+            grids.add(grid)
+
+    for grid in grids:
+        lookup = {
+            "grid": grid,
+            "levtype": "sfc" if variable.is_surface_level else "pl",
+        }
+        template = builtin_provider.template(None, lookup, state={})
+        metadata = grib_keys(
+            values=None,
+            template=template,
+            variable=variable,
+            param=variable.param,
+            date=to_datetime("20260101T0000"),
+            step=to_timedelta(6),
+            keys=keys,
+            ensemble=False,
+            start_steps={},
+            previous_step=None,
+        )
+        print(lookup, template, metadata)
+        output = GribWriter(tmp_path / f"output-{grid}.grib")
+        output.write(values=None, template=template, metadata=metadata)
+        output.close()
