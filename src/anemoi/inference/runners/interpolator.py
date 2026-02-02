@@ -24,8 +24,8 @@ from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..forcings import ComputedInterpForcings
-from ..forcings import ConstantInterpForcings
+from ..forcings import ComputedForcings
+from ..forcings import ConstantDateForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
 from ..runners.default import DefaultRunner
@@ -317,7 +317,7 @@ class TimeInterpolatorRunner(DefaultRunner):
         List[Forcings]
             The created bounding target forcings.
         """
-        result = ComputedInterpForcings(self, variables, mask)
+        result = ComputedForcings(self, variables, mask)
         LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
@@ -370,7 +370,7 @@ class TimeInterpolatorRunner(DefaultRunner):
             The created constant coupled forcings.
         """
         input = self.create_constant_coupled_forcings_input()
-        result = ConstantInterpForcings(self, input, variables, mask)
+        result = ConstantDateForcings(self, input, variables, mask)
         LOG.info("Constant coupled forcing: %s", result)
 
         return [result]
