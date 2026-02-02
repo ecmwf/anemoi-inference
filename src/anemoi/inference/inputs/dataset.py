@@ -104,13 +104,15 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
-    def create_input_state(self, *, date: Date | None = None, **kwargs) -> State:
+    def create_input_state(self, *, date: Date | None = None, constant: bool = False, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Any]
             The date for which to create the input state.
+        constant: bool
+            Whether the field is constant or dynamic
         **kwargs : Any
             Additional keyword arguments.
 
@@ -135,7 +137,11 @@ class DatasetInput(Input):
         fields = input_state["fields"]
 
         date = np.datetime64(date)
-        dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
+
+        if constant:
+            dates = [date]
+        else:
+            dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
 
         data = self._load_dates(dates)
 

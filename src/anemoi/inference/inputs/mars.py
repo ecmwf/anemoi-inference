@@ -241,13 +241,15 @@ class MarsInput(GribInput):
         self.patches = patches or []
         self.log = log
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, date: Date | None, ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         date : Optional[Date]
             The date for which to create the input state.
+        ref_date_index: int = -1
+            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -260,13 +262,18 @@ class MarsInput(GribInput):
             date = to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
 
+        retrieve_date = date
+        if kwargs.get("select_reference_date"):
+            retrieve_date = self.reference_date
+
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [date + h for h in self.checkpoint.lagged],
+                [retrieve_date + h for h in self.checkpoint.lagged],
             ),
             variables=self.variables,
             date=date,
+            ref_date_index=ref_date_index,
             **kwargs,
         )
 
