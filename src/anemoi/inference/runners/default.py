@@ -171,13 +171,11 @@ class DefaultRunner(Runner):
         output.close()
 
         if "accumulate_from_start_of_forecast" not in self.config.post_processors:
-            LOG.warning(
-                """
+            LOG.warning("""
                 🚧 The default accumulation behaviour has changed. 🚧
                 🚧 Accumulation fields have NOT been accumulated from the beginning of the forecast. 🚧
                 🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
-                """  # ecmwf/anemoi-inference#131
-            )
+                """)  # ecmwf/anemoi-inference#131
 
     def create_output(self) -> Output:
         """Create the output.
