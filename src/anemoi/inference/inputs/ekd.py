@@ -152,9 +152,7 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.checkpoint.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(
-        self, data: Any, *, dates: list[Any], title: str, select_reference_date: bool = False, **kwargs
-    ) -> Any:
+    def _filter_and_sort(self, data: Any, *, dates: list[Any], title: str) -> Any:
         """Filter and sort the data (earthkit FieldList/FieldArray).
 
         Parameters
@@ -165,11 +163,6 @@ class EkdInput(Input):
             The list of dates to select.
         title : str
             The title for logging.
-        select_reference_date: bool, optional
-            Also include the reference date when selecting data from the FieldList.
-            If False (default), only the valid date is considered.
-        **kwargs : Any
-            Additional arguments for selecting the variable.
 
         Returns
         -------
@@ -185,21 +178,13 @@ class EkdInput(Input):
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        if select_reference_date:
-            data = data.sel(
-                name=self.variables,
-                valid_datetime=valid_datetime,
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
-            ).order_by(
-                name=self.variables,
-                valid_datetime="ascending",
-            )
-        else:
-            data = data.sel(name=self.variables, valid_datetime=valid_datetime).order_by(
-                name=self.variables,
-                valid_datetime="ascending",
-            )
+        # for f in data:
+        #     LOG.info("Field %s %s", f.metadata("name"), f.metadata("valid_datetime"))
+
+        data = data.sel(name=self.variables, valid_datetime=valid_datetime).order_by(
+            name=self.variables,
+            valid_datetime="ascending",
+        )
 
         check_data(title, data, self.variables, dates, self.context.checkpoint)
 
@@ -235,7 +220,6 @@ class EkdInput(Input):
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         ref_date_index: int = -1,
-        **kwargs,
     ) -> State:
         """Create a state from an ekd.FieldList.
 
@@ -260,10 +244,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
-        **kwargs : Any
-            Additional arguments for selecting the variable.
+        ref_date_index : int
+            The index of the reference date in the dates list.
 
         Returns
         -------
@@ -309,8 +291,7 @@ class EkdInput(Input):
 
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
-
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
+        fields = self._filter_and_sort(fields, dates=dates, title="Create input state")
 
         check = defaultdict(set)
 
@@ -374,9 +355,7 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        constant: bool = False,
         ref_date_index: int = -1,
-        **kwargs,
     ) -> State:
         """Create the input state.
 
@@ -396,12 +375,9 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        constant: bool
-            Whether the field is constant or dynamic
-        ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
-        **kwargs : Any
-            Additional arguments for selecting the variable.
+        ref_date_index : int
+            The index of the reference date in the dates list.
+
         Returns
         -------
         State
@@ -413,10 +389,7 @@ class EkdInput(Input):
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
 
-        if constant:
-            dates = [date]
-        else:
-            dates = [date + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.checkpoint.lagged]
 
         return self._create_state(
             input_fields,
@@ -426,7 +399,6 @@ class EkdInput(Input):
             dtype=dtype,
             flatten=flatten,
             ref_date_index=ref_date_index,
-            **kwargs,
         )
 
     def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
