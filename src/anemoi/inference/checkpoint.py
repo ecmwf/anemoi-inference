@@ -590,7 +590,7 @@ class Checkpoint:
 
                 base = date
                 step = str(r.get("step", 0)).split("-")[-1]
-                base = base #- to_timedelta(step)
+                base = base  # - to_timedelta(step)
 
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
