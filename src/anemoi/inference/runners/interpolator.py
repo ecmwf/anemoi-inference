@@ -110,7 +110,6 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.interpolation_window
 
-
     @classmethod
     def create_config(cls, config: str | dict) -> Configuration:
         """Instantiate the Configuration Object from a dictionary or from a path to a config file"""
