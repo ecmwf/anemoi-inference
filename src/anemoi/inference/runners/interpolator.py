@@ -47,7 +47,7 @@ def checkpoint_lagged_interpolator_patch(self) -> list[datetime.timedelta]:
 
 @runner_registry.register("time_interpolator")
 class TimeInterpolatorRunner(DefaultRunner):
-    """A runner to be used for inference of a trained interpolator directly on analysis data
+    """A runner to be used for inference of a trained interpolator directly on analysis/forecast data
     without being coupled to a forecasting model.
     """
 
@@ -121,19 +121,16 @@ class TimeInterpolatorRunner(DefaultRunner):
         """Set sensible defaults when this runner is used with the `retrieve` command."""
         req = request.copy()
 
-        for p in self.pre_processors:
-            req = p.patch_data_request(req)
-
-        for p in self.post_processors:
-            req = p.patch_data_request(req)
+        req = super().patch_data_request(req)
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
-        req["time"] = f"{self.reference_date.hour*100:04d}"
+        if self.reference_date is not None:
+            req["time"] = f"{self.reference_date.hour*100:04d}"
         req["step"] = (
             f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
         )
-        return super().patch_data_request(req)
+        return req
 
     def patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
@@ -444,7 +441,7 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         Returns
         -------
-        Any
+        State
             The forecasted state.
         """
         # This does interpolation but called forecast so we can reuse run()
@@ -561,8 +558,9 @@ class TimeInterpolatorRunner(DefaultRunner):
 
 @runner_registry.register("time_multi_interpolator")
 class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
-    """A runner to be used for inference of a trained interpolator directly on analysis data
-    without being coupled to a forecasting model.
+    """A runner to be used for inference of a trained interpolator with multiple output steps.
+    Unlike the single output, the interpolation is all done as one step.
+    Can be applied directly on analysis/forecast data without being coupled to a forecasting model.
     """
 
     def predict_step(self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor") -> "torch.Tensor":
@@ -570,7 +568,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
 
     def interpolator_stepper(
         self, start_date: datetime.datetime
-    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, int, bool], None, None]:
+    ) -> Generator[tuple[datetime.timedelta, datetime.datetime], None, None]:
         """Generate step and date variables for the forecast loop.
 
         Parameters
@@ -584,10 +582,6 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
             Time delta between the target index date and the start date
         date : datetime.datetime
             Date of the zeroth index of the input tensor
-        target_index : int
-            Date used to prepare the next input tensor
-        is_last_step : bool
-            True if it's the last step of interpolation
         """
         target_steps = self.checkpoint.target_explicit_times
         boundary_idx = self.checkpoint.input_explicit_times
@@ -618,7 +612,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
 
         Returns
         -------
-        Any
+        State
             The forecasted state.
         """
         # This does interpolation but called forecast so we can reuse run()
