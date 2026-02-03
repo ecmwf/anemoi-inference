@@ -329,11 +329,9 @@ class BaseGribOutput(Output):
                 _log = f"{encoded_date} < {reference_date}"
                 match self.negative_step_mode:
                     case "error":
-                        raise ValueError(
-                            f"""Variable {name} has base time before forecast base time: {_log}.
+                        raise ValueError(f"""Variable {name} has base time before forecast base time: {_log}.
                             To write or skip such variables, set `negative_step_mode` to `write` or `skip`.
-                            Alternatively, try `write_initial_state=False` if this is the initial time step."""
-                        )
+                            Alternatively, try `write_initial_state=False` if this is the initial time step.""")
                     case "skip":
                         LOG.warning(f"Skipping variable {name} with base time before forecast base time: {_log}")
                         continue
