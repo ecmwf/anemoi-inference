@@ -104,7 +104,7 @@ class ProcessesTransport(Transport):
     def wait(self) -> None:
         """Wait for all child processes to complete and handle any errors."""
         while self.children:
-            (pid, status) = os.wait()
+            pid, status = os.wait()
             LOG.info(f"Child process {pid} ({self.children[pid]}) exited with status {status}")
             del self.children[pid]
 
