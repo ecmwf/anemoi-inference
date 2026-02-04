@@ -499,6 +499,11 @@ class Checkpoint:
         """Get the multi-step input."""
         return self._metadata.multi_step_input
 
+    @property
+    def multi_step_output(self) -> Any:
+        """Get the multi-step output."""
+        return self._metadata.multi_step_output
+
     ###########################################################################
     # Data retrieval
     ###########################################################################
