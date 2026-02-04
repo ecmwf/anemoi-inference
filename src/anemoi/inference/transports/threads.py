@@ -144,7 +144,7 @@ class ThreadsTransport(Transport):
                 return self.backlogs[receiver.name].pop((source.name, tag))
 
         while True:
-            (sender, tag, state) = self.wrapped_tasks[receiver.name].queue.get()
+            sender, tag, state = self.wrapped_tasks[receiver.name].queue.get()
             if sender != source.name or tag != tag:
                 with self.lock:
                     self.backlogs[receiver.name][(sender, tag)] = state

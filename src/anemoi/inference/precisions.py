@@ -10,7 +10,6 @@
 
 """List of precisions supported by the inference runner."""
 
-
 from functools import cached_property
 
 
