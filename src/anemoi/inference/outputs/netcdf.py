@@ -253,9 +253,7 @@ class NetCDFOutput(Output):
 
         # Convert projection string to dictionary of attributes
         crs = pyproj.CRS.from_proj4(self.proj_str)
-
         attrs = {k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"}
-        attrs["earth_radius"] = 6_371_000.0
 
         x, y = self._get_projections(lats, lons)
         with LOCK:
