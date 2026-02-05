@@ -765,8 +765,8 @@ class Runner(Context):
                     detached_pred = y_pred.cpu().numpy()
                     LOG.info(f"Prediction shape before squeeze: {detached_pred.shape}")
 
-                    # Remove only the leading axis returning an array
-                    # with shape (members, values, variables)
+                    # Remove only the leading axes returning an array
+                    # with shape (values, variables)
                     # TODO: this will fail if any of them is greater than 1
                     # TODO: what's the point of squeezing anyway here
                     output = np.squeeze(detached_pred, axis=(0, 1, 2))
@@ -1097,14 +1097,9 @@ class Runner(Context):
             The kinds.
         """
 
-        # (multi_step_input, variables, values)
-        if tensor_numpy.ndim == 3:
-            # Add empty "ensemble" dimension
-            tensor_numpy = tensor_numpy[:, None, ...]
-
-        # (multi_step_input, members, variables, values)
-        assert tensor_numpy.ndim == 4, tensor_numpy.shape
-        multi_step_input, n_members, n_variables, _ = tensor_numpy.shape
+        # Should be (multi_step_input, variables, values)
+        assert tensor_numpy.ndim == 3, tensor_numpy.shape
+        multi_step_input, n_variables, _ = tensor_numpy.shape
 
         assert multi_step_input in (1, self.multi_step_input), tensor_numpy.shape
         assert n_variables == len(tensor_by_name), tensor_numpy.shape
@@ -1122,28 +1117,26 @@ class Runner(Context):
         table.add_column("Kind", justify="left")
 
         for k, v in enumerate(tensor_by_name):
-            for i in range(n_members):
-                data = tensor_numpy[-1, i, k]
+            data = tensor_numpy[-1, k]
+            nans = "-"
 
-                nans = "-"
+            if np.isnan(data).any():
+                nan_count = np.isnan(data).sum()
 
-                if np.isnan(data).any():
-                    nan_count = np.isnan(data).sum()
+                ratio = nan_count / data.size
+                nans = f"{ratio:.0%}"
 
-                    ratio = nan_count / data.size
-                    nans = f"{ratio:.0%}"
+            if np.isinf(data).any():
+                nans = "∞"
 
-                if np.isinf(data).any():
-                    nans = "∞"
-
-                table.add_row(
-                    str(k),
-                    v,
-                    f"{np.nanmin(data):g}",
-                    f"{np.nanmax(data):g}",
-                    nans,
-                    str(kinds.get(v, Kind())),
-                )
+            table.add_row(
+                str(k),
+                v,
+                f"{np.nanmin(data):g}",
+                f"{np.nanmax(data):g}",
+                nans,
+                str(kinds.get(v, Kind())),
+            )
 
         console.print()
         console.print(table)
@@ -1192,12 +1185,12 @@ class Runner(Context):
                 else:
                     self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
 
-        # (values, variables) or (members, values, variables)
-        if output_tensor_numpy.ndim in (2, 3):
+        # (values, variables)
+        if output_tensor_numpy.ndim == 3:
             # Add multi_step_input
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]
 
-        # (multi_step_input, ..., variables, values)
+        # (multi_step_input, variables, values)
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)
 
         self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)

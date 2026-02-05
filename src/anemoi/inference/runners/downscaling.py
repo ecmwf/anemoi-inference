@@ -158,7 +158,6 @@ class DownscalingRunner(DefaultRunner):
         self,
         config: RunConfiguration,
         time_step: int | str | timedelta,
-        ensemble_members: int = 1,
         field_shape: tuple[int, ...] | None = None,
         extra_args: dict | None = None,
         hres_dataset_path: str | None = None,
@@ -182,9 +181,6 @@ class DownscalingRunner(DefaultRunner):
 
         # Need to overwrite this attribute
         self.variables = Variables(self)
-
-        # self.samples = getattr(self.extra_config, "n_samples")
-        self.ensemble_members = ensemble_members
 
         # Overrides for predictions
         self.extra_args = extra_args if extra_args is not None else {}
@@ -265,7 +261,7 @@ class DownscalingRunner(DefaultRunner):
 
             yield state
 
-    def predict_step(self, model, input_tensor_torch, **kwargs):
+    def predict_step(self, model, input_tensor_torch, **kwargs) -> torch.Tensor:
         date = kwargs["date"]
         step = kwargs["step"]
 
@@ -276,19 +272,14 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
-        # TODO: is this the correct thing to do to get an ensemble out?
-        outputs = []
-        for _ in range(self.ensemble_members):
-            if self._checkpoint._metadata._config.training.predict_residuals:
-                output_tensor = self._predict_from_residuals(model, low_res_tensor, high_res_tensor, **kwargs)
-            else:
-                output_tensor = self._predict_direct(model, low_res_tensor, high_res_tensor, **kwargs)
+        if self._checkpoint._metadata._config.training.predict_residuals:
+            output_tensor = self._predict_from_residuals(model, low_res_tensor, high_res_tensor, **kwargs)
+        else:
+            output_tensor = self._predict_direct(model, low_res_tensor, high_res_tensor, **kwargs)
 
-            outputs.append(output_tensor)
-
-        # Each output has shape (_, _, _, values, variables)
-        # This produces an [_, _, _, n_members, values, variables]
-        return torch.stack(outputs, dim=-3)
+        # This produces a tensor with dimesions [_, _, _, values, variables]
+        # TODO: not sure what the first three are
+        return output_tensor
 
     def _predict_direct(self, model, low_res_tensor, high_res_tensor, **kwargs):
         output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs)

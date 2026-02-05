@@ -30,9 +30,6 @@ runner:
     # TODO: use `output_frequency` instead? Needs to be specified in the config root
     time_step: 3h
 
-    # How many ensemble members to produce
-    ensemble_members: 1
-
     # Optionally override hres dataset path
     # By default, high resolution forcings (`dataloader.select_in_hres`) are
     # directly loaded from the `hardware.files.dataset_y` dataset present in the checkpoint

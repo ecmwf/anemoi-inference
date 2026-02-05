@@ -111,7 +111,6 @@ class NetCDFOutput(Output):
         self.compression = {}  # dict(zlib=False, complevel=0)
         self.extra_time = 1 if self.write_step_zero else 0
         self.proj_str = projection_string
-        self.ensemble_members = getattr(context, "ensemble_members", 1)
         self.ncfile: Optional[Dataset] = None
         self.vars: dict[str, Variable] = {}
 
@@ -198,10 +197,6 @@ class NetCDFOutput(Output):
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
 
-            self.ncfile.createDimension("ensemble_member", self.ensemble_members)
-            var = self.ncfile.createVariable("ensemble_member", "i4", ("ensemble_member",))
-            var[:] = np.arange(self.ensemble_members, dtype=np.int32)
-
             var = self.ncfile.createVariable("forecast_reference_time", "f8")
             var.units = f"seconds since {self.reference_date}"
             var.standard_name = "forecast_reference_time"
@@ -209,39 +204,33 @@ class NetCDFOutput(Output):
             # TODO: make sure this is right?
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
-        # Check if we are producing a downscaling output
         if self.hres_dataset is not None:
             lats = np.reshape(self.hres_dataset.lats, self.field_shape)
             lons = np.reshape(self.hres_dataset.lons, self.field_shape)
-
-            if len(self.field_shape) == 2:
-                (y, x) = self.field_shape
-                with LOCK:
-                    self.ncfile.createDimension("y", y)
-                    self.ncfile.createDimension("x", x)
-
-                self._create_projections(lats, lons)
-
-                self.dimensions = ("time", "ensemble_member", "y", "x")
-                coord_dims = ("y", "x")
-                log_str = f"{y=}, {x=}"
-            else:
-                # If field shape was not overridden keep it 1D
-                self.dimensions = ("time", "ensemble_member", "values")
-                coord_dims = ("values",)
-                log_str = f"values={self.field_shape[0]}"
-
         else:
             lats = state["latitudes"]
             lons = state["longitudes"]
-            values = len(lats)
+            self.field_shape = (len(lats),)
 
+        # Check if we are producing a downscaling output
+        # if self.hres_dataset is not None:
+        if len(self.field_shape) == 2:
+            (y, x) = self.field_shape
+            with LOCK:
+                self.ncfile.createDimension("y", y)
+                self.ncfile.createDimension("x", x)
+
+            self._create_projections(lats, lons)
+
+            self.dimensions = ("time", "y", "x")
+            coord_dims = ("y", "x")
+            log_str = f"{y=}, {x=}"
+        else:
+            # If the field shape was not overridden keep it 1D
+            self.ncfile.createDimension("values", self.field_shape[0])
+            self.dimensions = ("time", "values")
             coord_dims = ("values",)
-
-            self.field_shape = (values,)
-            self.dimensions = ("time", "ensemble_member", "values")
-            self.ncfile.createDimension("values", values)
-            log_str = f"{values=}"
+            log_str = f"values={self.field_shape[0]}"
 
         with LOCK:
             var = self.ncfile.createVariable("latitude", "f8", coord_dims)
@@ -348,9 +337,8 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                # value has shape (n_members, values), we need to reshape to (n_members, whatever the field shape is)
-                field = np.reshape(value, (-1, *self.field_shape))
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
+                field = np.reshape(value, self.field_shape)
                 self.vars[name][self.n] = field
 
         # TODO: should this be synced here to avoid possible loss of data if job is interrupted?
