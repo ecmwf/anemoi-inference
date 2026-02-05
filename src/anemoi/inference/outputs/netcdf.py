@@ -12,22 +12,17 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pyproj
-from netCDF4 import Dataset
-from netCDF4 import Variable
+from netCDF4 import Dataset, Variable
 
 from anemoi.inference.context import Context
-from anemoi.inference.runners.downscaling import DownscalingRunner
-from anemoi.inference.runners.downscaling import ZarrDataset
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.runners.downscaling import DownscalingRunner, ZarrDataset
+from anemoi.inference.types import ProcessorConfig, State
 
-from ..decorators import ensure_path
-from ..decorators import main_argument
+from ..decorators import ensure_path, main_argument
 from ..output import Output
 from . import output_registry
 
@@ -66,24 +61,24 @@ class NetCDFOutput(Output):
         missing_value: float | None = np.nan,
     ) -> None:
         """Initialise the NetCDF output object.
-      Parameters
-        ----------
+        Parameters
+          ----------
 
-          context : dict
-            The context dictionary.
-        path : Path
-            The path to save the NetCDF file to.
-            If the parent directory does not exist, it will be created.
-        post_processors : Optional[List[ProcessorConfig]], default None
-            Post-processors to apply to the input
-        output_frequency : int, optional
-            The frequency of output, by default None.
-        write_initial_state : bool, optional
-            Whether to write the initial state, by default None.
-        float_size : str, optional
-            The size of the float, by default "f4".
-        missing_value : float, optional
-            The missing value, by default np.nan.
+            context : dict
+              The context dictionary.
+          path : Path
+              The path to save the NetCDF file to.
+              If the parent directory does not exist, it will be created.
+          post_processors : Optional[List[ProcessorConfig]], default None
+              Post-processors to apply to the input
+          output_frequency : int, optional
+              The frequency of output, by default None.
+          write_initial_state : bool, optional
+              Whether to write the initial state, by default None.
+          float_size : str, optional
+              The size of the float, by default "f4".
+          missing_value : float, optional
+              The missing value, by default np.nan.
         """
 
         super().__init__(
@@ -99,7 +94,11 @@ class NetCDFOutput(Output):
         # TODO: to fix this error we would need to change the Register.register function in anemoi-utils
         if isinstance(context, DownscalingRunner):
             self.hres_dataset = context.hres_dataset
-            self.field_shape = field_shape if field_shape is not None else self.hres_dataset.field_shape
+            self.field_shape = (
+                field_shape
+                if field_shape is not None
+                else self.hres_dataset.field_shape
+            )
             assert len(self.field_shape) in (1, 2), (
                 f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}"
             )
@@ -110,15 +109,19 @@ class NetCDFOutput(Output):
         self.compression = {}  # dict(zlib=False, complevel=0)
         self.extra_time = 1 if self.write_step_zero else 0
         self.proj_str = projection_string
-        self.ensemble_members = getattr(context, "ensemble_members", 1)
         self.ncfile: Optional[Dataset] = None
         self.vars: dict[str, Variable] = {}
 
         # Reference date for the time axis
-        ref_date = reference_date if reference_date is not None else context.reference_date
-        assert ref_date is not None, "Either `date` or `ouput.netcdf.reference_date` needs to be specified"
+        ref_date = (
+            reference_date if reference_date is not None else context.reference_date
+        )
+        assert ref_date is not None, (
+            "Either `date` or `ouput.netcdf.reference_date` needs to be specified"
+        )
         if isinstance(ref_date, str):
             from earthkit.data.utils.dates import to_datetime
+
             ref_date = to_datetime(ref_date)
         self.reference_date = ref_date.replace(tzinfo=None)
 
@@ -176,7 +179,7 @@ class NetCDFOutput(Output):
         LOG.info(f"Created variable {var_name}")
         return var
 
-    def open(self, state: State, template_path: str|None = None) -> None:
+    def open(self, state: State, template_path: str | None = None) -> None:
         """Open the NetCDF file and initialize dimensions and variables.
 
         Parameters
@@ -188,6 +191,7 @@ class NetCDFOutput(Output):
             if self.ncfile is not None:
                 return
 
+        # TODO: why is this back? Also the variables are not used
         if template_path is not None and os.path.exists(template_path):
             LOG.info(f"📄 Using output template: {template_path}")
             with Dataset(template_path) as tmpl:
@@ -218,10 +222,6 @@ class NetCDFOutput(Output):
             self.time.units = f"seconds since {self.reference_date}"
             self.time.standard_name = "time"
 
-            self.ncfile.createDimension("ensemble_member", self.ensemble_members)
-            var = self.ncfile.createVariable("ensemble_member", "i4", ("ensemble_member",))
-            var[:] = np.arange(self.ensemble_members, dtype=np.int32)
-
             var = self.ncfile.createVariable("forecast_reference_time", "f8")
             var.units = f"seconds since {self.reference_date}"
             var.standard_name = "forecast_reference_time"
@@ -229,40 +229,33 @@ class NetCDFOutput(Output):
             # TODO: make sure this is right?
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
-        # Check if we are producing a downscaling output
         if self.hres_dataset is not None:
             lats = np.reshape(self.hres_dataset.lats, self.field_shape)
             lons = np.reshape(self.hres_dataset.lons, self.field_shape)
-
-            if len(self.field_shape) == 1:
-                self.dimensions = ("time", "ensemble_member", "values")
-                coord_dims = ("values",)
-                log_str = f"values={self.field_shape[0]}"
-            elif len(self.field_shape) == 2:
-                (y, x) = self.field_shape
-                with LOCK:
-                    self.ncfile.createDimension("y", y)
-                    self.ncfile.createDimension("x", x)
-
-                self._create_projections(lats, lons)
-
-                self.dimensions = ("time", "ensemble_member", "y", "x")
-                coord_dims = ("y", "x")
-                log_str = f"{y=}, {x=}"
-            else:
-                raise ValueError(f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}")
-
         else:
             lats = state["latitudes"]
             lons = state["longitudes"]
-            values = len(lats)
+            self.field_shape = (len(lats),)
 
+        # Check if we are producing a downscaling output
+        # if self.hres_dataset is not None:
+        if len(self.field_shape) == 2:
+            (y, x) = self.field_shape
+            with LOCK:
+                self.ncfile.createDimension("y", y)
+                self.ncfile.createDimension("x", x)
+
+            self._create_projections(lats, lons)
+
+            self.dimensions = ("time", "y", "x")
+            coord_dims = ("y", "x")
+            log_str = f"{y=}, {x=}"
+        else:
+            # If the field shape was not overridden keep it 1D
+            self.ncfile.createDimension("values", self.field_shape[0])
+            self.dimensions = ("time", "values")
             coord_dims = ("values",)
-
-            self.field_shape = (values,)
-            self.dimensions = ("time", "ensemble_member", "values")
-            self.ncfile.createDimension("values", values)
-            log_str = f"{values=}"
+            log_str = f"values={self.field_shape[0]}"
 
         with LOCK:
             var = self.ncfile.createVariable("latitude", "f8", coord_dims)
@@ -275,7 +268,9 @@ class NetCDFOutput(Output):
             var.units = "degrees_east"
             var[:] = lons
 
-        LOG.info(f"Created NetCDF file {self.path} with dimensions: (time=unlimited, {log_str})")
+        LOG.info(
+            f"Created NetCDF file {self.path} with dimensions: (time=unlimited, {log_str})"
+        )
 
     def _create_projections(self, lats, lons):
         assert self.ncfile is not None
@@ -286,7 +281,9 @@ class NetCDFOutput(Output):
         # Convert projection string to dictionary of attributes
         crs = pyproj.CRS.from_proj4(self.proj_str)
 
-        attrs = {k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"}
+        attrs = {
+            k: v for k, v in crs.to_cf().items() if v != "unknown" and k != "crs_wkt"
+        }
         attrs["earth_radius"] = 6_371_000.0
 
         x, y = self._get_projections(lats, lons)
@@ -331,7 +328,9 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.vars[name] = self._create_field_var(name)
 
-    def _get_projections(self, lats: np.ndarray, lons: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _get_projections(
+        self, lats: np.ndarray, lons: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Reverse engineer x and y vectors from lats and lons."""
         assert self.proj_str is not None
 
@@ -369,10 +368,9 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                # value has shape (n_members, values), we need to reshape to (n_members, whatever the field shape is)
-                field = np.reshape(value, (-1, *self.field_shape))
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
-                self.vars[name][self.n, 0, ...] = field
+                field = np.reshape(value, self.field_shape)
+                self.vars[name][self.n] = field
 
         # TODO: should this be synced here to avoid possible loss of data if job is interrupted?
         # self.ncfile.sync()

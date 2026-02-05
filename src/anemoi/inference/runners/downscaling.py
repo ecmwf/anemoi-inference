@@ -25,8 +25,7 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.output import Output
 from anemoi.inference.runner import Kind
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, State
 from anemoi.inference.variables import Variables
 
 from ..checkpoint import Checkpoint
@@ -85,7 +84,9 @@ class DsMetadata(Metadata):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        return frozendict({k: self.high_res_output_variables[v] for k, v in mapping.items()})
+        return frozendict(
+            {k: self.high_res_output_variables[v] for k, v in mapping.items()}
+        )
 
     @cached_property
     def number_of_grid_points(self):
@@ -124,7 +125,7 @@ class DsCheckpoint(Checkpoint):
     def _metadata(self):
         return DsMetadata(load_metadata(self.path))
 
-    #def variables_from_input(self, *, include_forcings):
+    # def variables_from_input(self, *, include_forcings):
     #    # include forcings in initial conditions retrieval
     #    return super().variables_from_input(include_forcings=True)
 
@@ -162,9 +163,8 @@ class DownscalingRunner(DefaultRunner):
         self,
         config: RunConfiguration,
         time_step: int | str | timedelta,
-        ensemble_members: int = 1,
         field_shape: tuple[int, ...] | None = None,
-        hres_zarr: str | None = None, 
+        hres_zarr: str | None = None,
         noise_scheduler_params: dict | None = None,
         sampler_params: dict | None = None,
     ):
@@ -184,11 +184,10 @@ class DownscalingRunner(DefaultRunner):
         # Need to overwrite this attribute
         self.variables = Variables(self)
 
-        # self.samples = getattr(self.extra_config, "n_samples")
-        self.ensemble_members = ensemble_members
-
         # Overrides for predictions
-        self.noise_scheduler_params = noise_scheduler_params if noise_scheduler_params is not None else {}
+        self.noise_scheduler_params = (
+            noise_scheduler_params if noise_scheduler_params is not None else {}
+        )
         self.sampler_params = sampler_params if sampler_params is not None else {}
 
         # TODO: remove eventually
@@ -214,22 +213,30 @@ class DownscalingRunner(DefaultRunner):
     def computed_high_res_forcings(self) -> ComputedForcings:
         # TODO: this breaks if the computed forcings are non constant fields, for example `sr`.
         # But we should not use variables that are not available during production
-        computed_forcings = [var for var in self.high_res_input if var not in self.hres_dataset.constant_forcings]
+        computed_forcings = [
+            var
+            for var in self.high_res_input
+            if var not in self.hres_dataset.constant_forcings
+        ]
         return ComputedForcings(self, computed_forcings, [])
 
     @cached_property
     def hres_dataset(self):
-        """ Load the hres Zarr to define the lon/lat points and the forcings."""
+        """Load the hres Zarr to define the lon/lat points and the forcings."""
         if self.hres_zarr:  # If the hres Zarr is provided in the config
             return ZarrDataset(self.hres_zarr, forcings=self.high_res_input)
-     
-        elif "grib" in self.config.output or "netcdf" in self.config.output:  # read from the checkpoint file
+
+        elif (
+            "grib" in self.config.output or "netcdf" in self.config.output
+        ):  # read from the checkpoint file
             hw = self._checkpoint._metadata._config.hardware
             path = os.path.join(hw.paths.data, hw.files.dataset_y)
             return ZarrDataset(path, forcings=self.high_res_input)
-        
+
         else:
-            raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
+            raise Exception(
+                "Only grib and netcdf ouputs are available with runner type downscaling."
+            )
 
     def execute(self) -> None:
         """Execute the runner. Specific to DownscalingRunner as time_step can be different from CKPT."""
@@ -333,27 +340,32 @@ class DownscalingRunner(DefaultRunner):
             is_last_step = s == steps - 1
             yield step, valid_date, next_date, is_last_step
 
-    def forecast(self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State):
+    def forecast(
+        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+    ):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
             if "grib" in self.config.output:
-                state["_grib_templates_for_output"] = {name: self.hres_dataset for name in state["fields"].keys()}
+                state["_grib_templates_for_output"] = {
+                    name: self.hres_dataset for name in state["fields"].keys()
+                }
 
             yield state
 
-    def predict_step(self, model, input_tensor_torch, **kwargs):
+    def predict_step(self, model, input_tensor_torch, **kwargs) -> torch.Tensor:
         date = kwargs["date"]
         step = kwargs["step"]
-    
+
         input_date = date - step
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)
 
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
-        #TODO: remove?
+
+        # TODO: remove?
         print("self.noise_scheduler_params", self.noise_scheduler_params)
         print("self.sampler_params", self.sampler_params)
 
@@ -362,7 +374,7 @@ class DownscalingRunner(DefaultRunner):
             high_res_tensor,
             noise_scheduler_params=self.noise_scheduler_params,
             sampler_params=self.sampler_params,
-            **kwargs
+            **kwargs,
         )
 
         return output_tensor
@@ -372,13 +384,17 @@ class DownscalingRunner(DefaultRunner):
         state = {}
         state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
-        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
+        computed_high_res_forcings = (
+            self.computed_high_res_forcings.load_forcings_array(input_date, state)
+        )
 
         # Drop the dates dimension
         computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)
 
         # Swap last two dimensions so we get shape: (1, 1, values, variables)
-        computed_high_res_forcings = np.swapaxes(computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1)
+        computed_high_res_forcings = np.swapaxes(
+            computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
+        )
 
         # Merge high res computed and constant forcings so that
         # they are ordered according to high_res_input
@@ -399,7 +415,9 @@ class DownscalingRunner(DefaultRunner):
         assert set(forcings_dict.keys()) == set(self.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
-        high_res_numpy = np.stack([forcings_dict[name] for name in self.high_res_input], axis=-1)
+        high_res_numpy = np.stack(
+            [forcings_dict[name] for name in self.high_res_input], axis=-1
+        )
 
         # print expects shape (step, variables, values)
         self._print_tensor(
@@ -445,7 +463,9 @@ def _match_tensor_channels(input_name_to_index, output_names):
     return channel_indices
 
 
-def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input_name_to_index, output_names):
+def _prepare_high_res_output_tensor(
+    model, low_res_in, high_res_residuals, input_name_to_index, output_names
+):
     # interpolate the low res input tensor to high res,
     # and add the residuals to get the final high res output
 
@@ -455,25 +475,29 @@ def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input
 
     print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
 
-    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
-        ..., matching_channel_indices
-    ]
+    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[
+        :, None, None, ...
+    ][..., matching_channel_indices]
     print("interp_high_res_in", interp_high_res_in.shape)
 
     high_res_out = interp_high_res_in + high_res_residuals
     print(
         "interp_high_res_in is denormalised",
-        interp_high_res_in[..., 0].mean(),  
+        interp_high_res_in[..., 0].mean(),
         interp_high_res_in[..., 0].std(),
     )
 
     print(
         "high_res_residuals is denormalised",
-        high_res_residuals[..., 0].mean(),  
-        high_res_residuals[..., 0].std(), 
+        high_res_residuals[..., 0].mean(),
+        high_res_residuals[..., 0].std(),
     )
 
-    print("high_res_out", high_res_out.shape) 
-    print("high_res_out is denormalised", high_res_out[..., 0].mean(), high_res_out[..., 0].std())
+    print("high_res_out", high_res_out.shape)
+    print(
+        "high_res_out is denormalised",
+        high_res_out[..., 0].mean(),
+        high_res_out[..., 0].std(),
+    )
 
     return high_res_out
