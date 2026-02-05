@@ -161,6 +161,7 @@ class DownscalingRunner(DefaultRunner):
         ensemble_members: int = 1,
         field_shape: tuple[int, ...] | None = None,
         extra_args: dict | None = None,
+        hres_dataset_path: str | None = None,
     ):
         super().__init__(config)
 
@@ -172,6 +173,11 @@ class DownscalingRunner(DefaultRunner):
             self._checkpoint.path,
             # some parts of the runner call the checkpoint directly so also overwrite it here
             patch_metadata={"timestep": self.time_step},
+        )
+
+        hw = self._checkpoint._metadata._config.hardware
+        self.hres_dataset_path = (
+            hres_dataset_path if hres_dataset_path is not None else os.path.join(hw.paths.data, hw.files.dataset_y)
         )
 
         # Need to overwrite this attribute
@@ -213,9 +219,7 @@ class DownscalingRunner(DefaultRunner):
     def hres_dataset(self):
         # NOTE: harcoded to read from the checkpoint file
         if "grib" in self.config.output or "netcdf" in self.config.output:
-            hw = self._checkpoint._metadata._config.hardware
-            path = os.path.join(hw.paths.data, hw.files.dataset_y)
-            return ZarrDataset(path, forcings=self.high_res_input)
+            return ZarrDataset(self.hres_dataset_path, forcings=self.high_res_input)
         else:
             raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
 

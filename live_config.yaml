@@ -10,7 +10,6 @@ lead_time: 31d
 
 input:
   # NOTE: this is hardcoded to select the same variables provided with `dataloader.select_in` from the training config
-  # High resolution forcings (`dataloader.select_in_hres`) are directly loaded from the `hardware.files.dataset_y` dataset
   dataset: /path/to/zarr
 
 output:
@@ -33,6 +32,11 @@ runner:
 
     # How many ensemble members to produce
     ensemble_members: 1
+
+    # Optionally override hres dataset path
+    # By default, high resolution forcings (`dataloader.select_in_hres`) are
+    # directly loaded from the `hardware.files.dataset_y` dataset present in the checkpoint
+    # hres_dataset_path: /path/to/zarr
 
     # Dict of params for model noise scheduler and sampler
     # extra_args:

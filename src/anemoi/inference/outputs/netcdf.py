@@ -214,24 +214,6 @@ class NetCDFOutput(Output):
             lats = np.reshape(self.hres_dataset.lats, self.field_shape)
             lons = np.reshape(self.hres_dataset.lons, self.field_shape)
 
-            if len(self.field_shape) == 1:
-                self.dimensions = ("time", "ensemble_member", "values")
-                coord_dims = ("values",)
-                log_str = f"values={self.field_shape[0]}"
-            elif len(self.field_shape) == 2:
-                (y, x) = self.field_shape
-                with LOCK:
-                    self.ncfile.createDimension("y", y)
-                    self.ncfile.createDimension("x", x)
-
-                self._create_projections(lats, lons)
-
-                self.dimensions = ("time", "ensemble_member", "y", "x")
-                coord_dims = ("y", "x")
-                log_str = f"{y=}, {x=}"
-            else:
-                raise ValueError(f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}")
-
             if len(self.field_shape) == 2:
                 (y, x) = self.field_shape
                 with LOCK:
@@ -243,9 +225,8 @@ class NetCDFOutput(Output):
                 self.dimensions = ("time", "ensemble_member", "y", "x")
                 coord_dims = ("y", "x")
                 log_str = f"{y=}, {x=}"
-
-            # If field shape was not overridden keep it 1D
             else:
+                # If field shape was not overridden keep it 1D
                 self.dimensions = ("time", "ensemble_member", "values")
                 coord_dims = ("values",)
                 log_str = f"values={self.field_shape[0]}"
