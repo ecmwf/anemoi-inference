@@ -61,6 +61,7 @@ class NetCDFOutput(Output):
         reference_date: datetime.datetime | None = None,
         field_shape: tuple[int, ...] = (),
         output_frequency: int | None = None,
+        variable_metadata: dict[str, VarMetadata] = {},
         write_initial_state: bool | None = None,
         float_size: str = "f4",
         missing_value: float | None = np.nan,
@@ -119,15 +120,7 @@ class NetCDFOutput(Output):
         assert ref_date is not None, "Either `date` or `ouput.netcdf.reference_date` needs to be specified"
 
         self.reference_date = ref_date.replace(tzinfo=None)
-
-        # TODO: is something like this available somewhere inside state?
-        # Otherwise we probably need to have it as input in the config?
-        self.variable_metadata = {
-            "2t": VarMetadata(
-                name="air_temperature_2m",
-                attrs={"units": "K", "standard_name": "air_temperature"},
-            )
-        }
+        self.variable_metadata = variable_metadata
 
         # timestep number
         self.n = 0
@@ -146,15 +139,12 @@ class NetCDFOutput(Output):
         """Create a variable with missing values"""
         assert self.ncfile is not None
 
-        if metadata := self.variable_metadata.get(name):
-            var_name = metadata.name
-            attrs = metadata.attrs
-        else:
-            var_name = name
-            attrs = {}
+        metadata = self.variable_metadata.get(name)
+        name = metadata.name if metadata is not None else name
+        attrs = metadata.attrs if metadata is not None else {}
 
         var = self.ncfile.createVariable(
-            var_name,
+            name,
             self.float_size,
             self.dimensions,
             fill_value=self.missing_value,
@@ -171,7 +161,7 @@ class NetCDFOutput(Output):
             var.grid_mapping = "projection"
             var.coordinates = "latitude longitude"
 
-        LOG.info(f"Created variable {var_name}")
+        LOG.info(f"Created variable {name}")
         return var
 
     def open(self, state: State) -> None:
