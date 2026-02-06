@@ -351,7 +351,7 @@ class NetCDFOutput(Output):
                 # value has shape (n_members, values), we need to reshape to (n_members, whatever the field shape is)
                 field = np.reshape(value, (-1, *self.field_shape))
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 Writing {name}, {self.n}, {self.field_shape}")
-                self.vars[name][self.n, 0, ...] = field
+                self.vars[name][self.n] = field
 
         # TODO: should this be synced here to avoid possible loss of data if job is interrupted?
         # self.ncfile.sync()
