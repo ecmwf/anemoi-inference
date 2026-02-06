@@ -286,8 +286,9 @@ class DownscalingRunner(DefaultRunner):
 
             outputs.append(output_tensor)
 
-        # This produces an [n_members, values, variables]
-        return torch.stack(outputs)
+        # Each output has shape (_, _, _, values, variables)
+        # This produces an [_, _, _, n_members, values, variables]
+        return torch.stack(outputs, dim=-3)
 
     def _predict_direct(self, model, low_res_tensor, high_res_tensor, **kwargs):
         output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs)
