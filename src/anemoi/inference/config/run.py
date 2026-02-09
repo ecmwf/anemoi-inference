@@ -16,8 +16,9 @@ from typing import Literal
 
 from pydantic import Field
 
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.debug import DebugOptions
+from anemoi.inference.types import ProcessorConfig
+
 from . import Configuration
 
 LOG = logging.getLogger(__name__)

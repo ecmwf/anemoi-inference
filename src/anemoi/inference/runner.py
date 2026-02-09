@@ -34,11 +34,12 @@ from anemoi.inference.types import State
 
 from .checkpoint import Checkpoint
 from .context import Context
+from .debug import DebugOptions
+from .debug import debug_torch
 from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
 from .variables import Variables
-from .debug import DebugOptions, debug_torch
 
 if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin

@@ -8,10 +8,17 @@
 # nor does it submit to any jurisdiction.
 
 
-from contextlib import contextmanager, nullcontext, AbstractContextManager, ExitStack
-from pydantic import BaseModel, ConfigDict
-from typing import Any, Callable, Literal
 import logging
+from contextlib import AbstractContextManager
+from contextlib import contextmanager
+from contextlib import nullcontext
+from typing import Any
+from typing import Callable
+from typing import Generator
+from typing import Literal
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from anemoi.inference.lazy import torch
 
@@ -20,6 +27,7 @@ LOG = logging.getLogger(__name__)
 
 class RecordOptions(BaseModel):
     """Torch debug mode options to record."""
+
     torchfunction: bool = False
     """Record the torch function calls and their arguments."""
     faketensor: bool = False
@@ -51,18 +59,16 @@ class RecordOptions(BaseModel):
     """Record whether any tensor in the inputs or outputs of each event contains NaN or Inf values."""
 
     def to_kwargs(self) -> dict[str, Any]:
-        NOT_TORCH_OPTIONS = {'max_value', 'memory', 'nan_inf', 'max_value_pre'}
+        NOT_TORCH_OPTIONS = {"max_value", "memory", "nan_inf", "max_value_pre"}
         if not torch.__version__ >= "2.10.1":
             NOT_TORCH_OPTIONS.add("localtensor")
         dump = self.model_dump()
         return {f"record_{k}": v for k, v in dump.items() if k not in NOT_TORCH_OPTIONS}
 
 
-
 class DebugOptions(BaseModel):
-    """
-    Options for debugging the model.
-    """
+    """Options for debugging the model."""
+
     model_config = ConfigDict(extra="forbid")
 
     record: RecordOptions = RecordOptions()
@@ -72,19 +78,18 @@ class DebugOptions(BaseModel):
     hash_function: str = "norm"
     """The hash function to use when hashing tensors. Can be 'norm' or 'hash_tensor'."""
 
-    output: Literal['print', 'log'] | str = 'print'
+    output: Literal["print", "log"] | str = "print"
     """Where to output the debug information. Can be 'print', 'log', or a file path."""
 
 
 def _output_debug_info(info: str, options: DebugOptions) -> None:
-    if options.output == 'print':
+    if options.output == "print":
         print(info)
-    elif options.output == 'log':
+    elif options.output == "log":
         LOG.debug(info)
     else:
-        with open(options.output, 'w') as f:
-            f.write(info + '\n')
-
+        with open(options.output, "w") as f:
+            f.write(info + "\n")
 
 
 class _DispatchHooks(AbstractContextManager):
@@ -92,7 +97,6 @@ class _DispatchHooks(AbstractContextManager):
 
     def __init__(self, options: DebugOptions):
         self.options = options
-
 
     @staticmethod
     def _cast_tensor(t: torch.Tensor) -> torch.Tensor:
@@ -114,7 +118,7 @@ class _DispatchHooks(AbstractContextManager):
         """Check if a tensor contains any NaN or Inf values."""
         t = _DispatchHooks._cast_tensor(t)
         return bool(t.isnan().any().item() or t.isinf().any().item())
-    
+
     @staticmethod
     def max_value(t: torch.Tensor) -> float | None:
         """Get the maximum absolute value of a tensor."""
@@ -122,86 +126,90 @@ class _DispatchHooks(AbstractContextManager):
         if t.numel() == 0:
             return None
         return t.abs().max().item()
-    
+
     @staticmethod
     def memory_usage(t: torch.Tensor) -> dict:
         """Get the current and peak memory usage for the device of the tensor."""
         MB = 1024 * 1024.0
         mem = 0.0
         peak = 0.0
-        
+
         if torch.cuda.is_available():
             mem = torch.cuda.memory_allocated() / MB
             peak = torch.cuda.max_memory_allocated() / MB
             torch.cuda.reset_peak_memory_stats()
-        elif hasattr(torch.mps, 'is_available') and torch.mps.is_available():
+        elif hasattr(torch.mps, "is_available") and torch.mps.is_available():
             mem = torch.mps.current_allocated_memory() / MB
             peak = torch.mps.driver_allocated_memory() / MB
-        
+
         return {"mem": f"{mem:.3f} MB", "peak": f"{peak:.3f} MB"}
 
-
     @staticmethod
-    def _dispatch_handler(fn: Callable[[torch.Tensor], Any], *, step: Literal['pre', 'post'], name: str | None = None) -> Callable[[Callable, Any, Any, Any, Any], dict | None]:
+    def _dispatch_handler(
+        fn: Callable[[torch.Tensor], Any], *, step: Literal["pre", "post"], name: str | None = None
+    ) -> Callable[[Callable, Any, Any, Any, Any], dict | None]:
         """Map a function that takes a tensor and returns a dictionary to a dispatch hook that applies the function to all tensors in the inputs or outputs of a recorded event."""
         from torch.utils._pytree import tree_map
+
         name = name or fn.__name__
-                
+
         def pre_hook(func: Callable, types, args, kwargs, call) -> dict | None:
             if "empty" in str(func) or "profiler" in str(func):
                 return None
-            
-            return {name: tree_map(
-                lambda x: fn(x) if isinstance(x, torch.Tensor) else None, (args, kwargs)
-            )}
+
+            return {name: tree_map(lambda x: fn(x) if isinstance(x, torch.Tensor) else None, (args, kwargs))}
+
         def post_hook(func: Callable, types, args, kwargs, result) -> dict | None:
             if "empty" in str(func) or "profiler" in str(func):
                 return None
-            return {name: tree_map(
-                lambda x: fn(x) if isinstance(x, torch.Tensor) else None, result
-            )}
-        if step == 'pre':
+            return {name: tree_map(lambda x: fn(x) if isinstance(x, torch.Tensor) else None, result)}
+
+        if step == "pre":
             return pre_hook
         return post_hook
-    
-    FUNC_MAP = {
-        "max_value_pre": _dispatch_handler(max_value, step='pre', name='max_value_pre'),
-        "max_value": _dispatch_handler(max_value, step='post'),
-        "memory": _dispatch_handler(memory_usage, step='post'),
-        "memory": _dispatch_handler(memory_usage, step='post'),
-        "nan_inf": _dispatch_handler(any_nan_or_inf, step='post'),
-    }
 
+    FUNC_MAP = {
+        "max_value_pre": _dispatch_handler(max_value, step="pre", name="max_value_pre"),
+        "max_value": _dispatch_handler(max_value, step="post"),
+        "memory": _dispatch_handler(memory_usage, step="post"),
+        "nan_inf": _dispatch_handler(any_nan_or_inf, step="post"),
+    }
 
     def get_hooks(self) -> list[AbstractContextManager]:
         """Get the list of dispatch hooks to use based on the options."""
 
         from torch.utils._debug_mode import DebugMode
+
         dispatch_hooks = []
 
         for option_name, log_hook in self.FUNC_MAP.items():
             if getattr(self.options.record, option_name, False):
                 dispatch_hooks.append(DebugMode.dispatch_hooks(log_hook=log_hook))
         return dispatch_hooks
-    
+
     def __enter__(self) -> Any:
         self.hooks = self.get_hooks()
         for hook in self.hooks:
             hook.__enter__()
         return self
-    
+
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         for hook in self.hooks:
             hook.__exit__(exc_type, exc_value, traceback)
 
+
 @contextmanager
-def debug_torch(options: bool | dict[str, Any] | DebugOptions):
+def debug_torch(options: bool | dict[str, Any] | DebugOptions) -> Generator[None, None, None]:
     """Context manager to run PyTorch in debug mode with the specified options.
-    
+
     Parameters
     ----------
-    option: bool | dict[str, Any] | DebugOptions
-        If False, the context manager does nothing. If True, the context manager runs PyTorch in debug mode with default options. If a DebugOptions object is provided, the context manager runs PyTorch in debug mode with the specified options. If a dictionary is provided, it is used to create a DebugOptions object.    
+    options: bool | dict[str, Any] | DebugOptions
+        If False, the context manager does nothing. If True, the context manager runs PyTorch in debug mode with default options. If a DebugOptions object is provided, the context manager runs PyTorch in debug mode with the specified options. If a dictionary is provided, it is used to create a DebugOptions object.
+
+    Yields
+    ------
+    None
     """
     if isinstance(options, bool):
         if not options:
@@ -209,18 +217,24 @@ def debug_torch(options: bool | dict[str, Any] | DebugOptions):
             return
         else:
             options = DebugOptions()
-    
+
+    if torch.__version__ < "2.10":
+        raise RuntimeError("Debug mode requires PyTorch 2.10 or higher.")
+
     if isinstance(options, dict):
         options = DebugOptions(**options)
 
     from torch.utils._debug_mode import DebugMode
 
-    log_hashes = DebugMode.log_tensor_hashes(hash_fn=options.hash_function, hash_inputs = True) if options.tensor_hashes else nullcontext()
+    log_hashes = (
+        DebugMode.log_tensor_hashes(hash_fn=options.hash_function, hash_inputs=True)
+        if options.tensor_hashes
+        else nullcontext()
+    )
     dispatch_hooks = _DispatchHooks(options)
 
-    with (DebugMode(**options.record.to_kwargs()) as dm, log_hashes, dispatch_hooks):
+    with DebugMode(**options.record.to_kwargs()) as dm, log_hashes, dispatch_hooks:
         try:
             yield
         finally:
             _output_debug_info(dm.debug_string(), options)
-    
