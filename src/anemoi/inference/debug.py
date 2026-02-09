@@ -52,6 +52,8 @@ class RecordOptions(BaseModel):
 
     def to_kwargs(self) -> dict[str, Any]:
         NOT_TORCH_OPTIONS = {'max_value', 'memory', 'nan_inf', 'max_value_pre'}
+        if not torch.__version__ >= "2.10.1":
+            NOT_TORCH_OPTIONS.add("localtensor")
         dump = self.model_dump()
         return {f"record_{k}": v for k, v in dump.items() if k not in NOT_TORCH_OPTIONS}
 
@@ -117,6 +119,8 @@ class _DispatchHooks(AbstractContextManager):
     def max_value(t: torch.Tensor) -> float | None:
         """Get the maximum absolute value of a tensor."""
         t = _DispatchHooks._cast_tensor(t)
+        if t.numel() == 0:
+            return None
         return t.abs().max().item()
     
     @staticmethod
