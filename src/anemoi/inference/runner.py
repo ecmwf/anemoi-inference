@@ -38,6 +38,7 @@ from .precisions import PRECISIONS
 from .profiler import ProfilingLabel
 from .profiler import ProfilingRunner
 from .variables import Variables
+from .debug import DebugOptions, debug_torch
 
 if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
@@ -96,6 +97,7 @@ class Runner(Context):
         typed_variables: dict[str, dict] = {},
         preload_checkpoint: bool = False,
         preload_buffer_size: int = 32 * 1024 * 1024,
+        debug_torch: bool | dict[str, Any] | DebugOptions = False,
     ) -> None:
         """Parameters
         -------------
@@ -128,6 +130,8 @@ class Runner(Context):
             Whether to read the checkpoint file from disk before loading the model, by default False.
         preload_buffer_size : int
             Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB.
+        debug_torch : bool | dict[str, Any] | DebugOptions
+            Whether to run the model in debug mode. If True, the model will be run in debug mode with default options. If a DebugOptions object is provided, the model will be run in debug mode with the specified options. If a dictionary is provided, it is used to create a DebugOptions object. Default is False.
         """
         self._checkpoint = Checkpoint(checkpoint, patch_metadata=patch_metadata)
         self.variables = Variables(self)
@@ -153,6 +157,7 @@ class Runner(Context):
         self.write_initial_state = write_initial_state
         self.initial_state_categories = initial_state_categories
         self.use_profiler = use_profiler
+        self.debug_torch = debug_torch
 
         # For the moment, until we have a better solution
         self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in typed_variables.items()}
@@ -600,6 +605,9 @@ class Runner(Context):
             LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
 
             model.runner = self
+
+            for param in model.parameters():
+                param.data = param.data.contiguous()
             return model
 
     def predict_step(
@@ -621,19 +629,20 @@ class Runner(Context):
         torch.Tensor
             The predicted step.
         """
-        try:
-            # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
-            # TODO: change when we have a proper multi-dataset runner
-            if self.checkpoint._metadata.multi_dataset:
-                return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
-                    self.checkpoint._metadata.name
-                ]
+        with debug_torch(self.debug_torch):
+            try:
+                # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
+                # TODO: change when we have a proper multi-dataset runner
+                if self.checkpoint._metadata.multi_dataset:
+                    return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
+                        self.checkpoint._metadata.name
+                    ]
 
-            return model.predict_step(input_tensor_torch, **kwargs)
-        except TypeError:
-            # This is for backward compatibility because old models did not
-            # have kwargs in the forward or predict_step
-            return model.predict_step(input_tensor_torch)
+                return model.predict_step(input_tensor_torch, **kwargs)
+            except TypeError:
+                # This is for backward compatibility because old models did not
+                # have kwargs in the forward or predict_step
+                return model.predict_step(input_tensor_torch)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta

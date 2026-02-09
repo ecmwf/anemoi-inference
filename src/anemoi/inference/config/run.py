@@ -17,7 +17,7 @@ from typing import Literal
 from pydantic import Field
 
 from anemoi.inference.types import ProcessorConfig
-
+from anemoi.inference.debug import DebugOptions
 from . import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -44,6 +44,8 @@ class RunConfiguration(Configuration):
 
     verbosity: int = 0
     """The verbosity level of the runner. This can be 0 (default), 1, 2 or 3."""
+    debug: DebugOptions | bool = False
+    """Whether to run the model in debug mode. If True, the model will be run in debug mode with default options. If a DebugOptions object is provided, the model will be run in debug mode with the specified options."""
 
     use_profiler: bool = False
     """If True, the inference will be profiled, producing time and memory report."""

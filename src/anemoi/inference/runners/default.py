@@ -87,6 +87,7 @@ class DefaultRunner(Runner):
             typed_variables=config.typed_variables,
             preload_checkpoint=config.preload_checkpoint,
             preload_buffer_size=config.preload_buffer_size,
+            debug_torch=config.debug,
         )
 
     def predict_step(
