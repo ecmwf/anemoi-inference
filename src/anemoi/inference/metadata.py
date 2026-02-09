@@ -641,7 +641,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(indices)
 
     def select_variables_and_masks(
-        self, *, include: list[str] | None = None, exclude: list[str] | None
+        self, *, include: list[str] | None = None, exclude: list[str] | None = None
     ) -> tuple[list[str], IntArray]:
         variables = self.select_variables(include=include, exclude=exclude, has_mars_requests=False)
         return variables, self.variables_mask(variables=variables)

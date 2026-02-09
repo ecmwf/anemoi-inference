@@ -12,7 +12,6 @@ import datetime
 import logging
 import os
 import sys
-import warnings
 from collections.abc import Generator
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -21,14 +20,15 @@ from typing import Union
 
 import numpy as np
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
+from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
-from numpy.typing import DTypeLike
 
 from anemoi.inference.device import get_available_device
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
-from anemoi.inference.types import BoolArray
+from anemoi.inference.metadata import MetadataFactory
+from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
@@ -143,6 +143,12 @@ class Runner(Context):
         self._device = device
         self.precision = precision
 
+        metadata = load_metadata(checkpoint, supporting_arrays=True)
+        dataset_names = ["data"]
+        self.tensor_handlers = [
+            TensorHandler(self, MetadataFactory(*metadata, name=name), device=self.device) for name in dataset_names
+        ]
+
         # Override the default values set in `Context`
         self.verbosity = verbosity
         self.allow_nans = allow_nans
@@ -241,32 +247,19 @@ class Runner(Context):
         input_state = input_state.copy()
         input_state["fields"] = input_state["fields"].copy()
 
-        self.constant_forcings_inputs = self.create_constant_forcings_inputs(input_state)
-        self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs(input_state)
-        self.boundary_forcings_inputs = self.create_boundary_forcings_inputs(input_state)
+        if self.reference_date is None:
+            self.reference_date = input_state["date"]
 
         LOG.info("-" * 80)
         LOG.info("Input state:")
         LOG.info(f"  {list(input_state['fields'].keys())}")
 
-        LOG.info("Constant forcings inputs:")
-        for f in self.constant_forcings_inputs:
-            LOG.info(f"  {f}")
-
-        LOG.info("Dynamic forcings inputs:")
-        for f in self.dynamic_forcings_inputs:
-            LOG.info(f"  {f}")
-
-        LOG.info("Boundary forcings inputs:")
-        for f in self.boundary_forcings_inputs:
-            LOG.info(f"  {f}")
-        LOG.info("-" * 80)
-
         lead_time = to_timedelta(lead_time)
 
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
-                input_tensor = self.prepare_input_tensor(input_state)
+                # input_tensors = {handler.name: handler.prepare_input_tensor(input_state) for handler in self.tensor_handlers}
+                input_tensor = self.tensor_handlers[0].prepare_input_tensor(input_state)
 
             try:
                 yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
@@ -275,136 +268,6 @@ class Runner(Context):
                 raise
             finally:
                 self.complete_forecast_hook()
-
-    def create_constant_forcings_inputs(self, input_state: State) -> list[Forcings]:
-
-        result = []
-
-        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
-            include=["constant+forcing"], exclude=["computed"]
-        )
-
-        if len(loaded_variables_mask) > 0:
-            result.extend(
-                self.create_constant_coupled_forcings(
-                    loaded_variables,
-                    loaded_variables_mask,
-                )
-            )
-
-        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
-            include=["computed+constant"]
-        )
-
-        if len(computed_variables_mask) > 0:
-            result.extend(
-                self.create_constant_computed_forcings(
-                    computed_variables,
-                    computed_variables_mask,
-                )
-            )
-
-        return result
-
-    def create_dynamic_forcings_inputs(self, input_state: State) -> list[Forcings]:
-
-        result = []
-        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(
-            include=["forcing"], exclude=["computed", "constant"]
-        )
-
-        if len(loaded_variables_mask) > 0:
-            result.extend(
-                self.create_dynamic_coupled_forcings(
-                    loaded_variables,
-                    loaded_variables_mask,
-                )
-            )
-
-        computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
-            include=["computed"],
-            exclude=["constant"],
-        )
-        if len(computed_variables_mask) > 0:
-            result.extend(
-                self.create_dynamic_computed_forcings(
-                    computed_variables,
-                    computed_variables_mask,
-                )
-            )
-        return result
-
-    def create_boundary_forcings_inputs(self, input_state: State) -> list[Forcings]:
-
-        if not self.checkpoint.has_supporting_array("output_mask"):
-            return []
-
-        result = []
-        loaded_variables, loaded_variables_mask = self.checkpoint.select_variables_and_masks(include=["prognostic"])
-
-        if len(loaded_variables_mask) > 0:
-            result.extend(
-                self.create_boundary_forcings(
-                    loaded_variables,
-                    loaded_variables_mask,
-                )
-            )
-
-        return result
-
-    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
-        """Add initial forcings to the input state.
-
-        Parameters
-        ----------
-        input_state : State
-            The input state.
-        """
-        # Should that be alreay a list of dates
-        date = input_state["date"]
-        fields = input_state["fields"]
-
-        dates = [date + h for h in self.checkpoint.lagged]
-
-        # For output object. Should be moved elsewhere
-        self.reference_date = self.reference_date or date
-        self.initial_dates = dates
-
-        # TODO: Check for user provided forcings
-
-        # We may need different forcings initial conditions
-        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
-        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
-
-        LOG.info("-" * 80)
-        LOG.info("Initial forcings:")
-        LOG.info("  Constant forcings inputs:")
-        for f in initial_constant_forcings_inputs:
-            LOG.info(f"    {f}")
-        LOG.info("  Dynamic forcings inputs:")
-        for f in initial_dynamic_forcings_inputs:
-            LOG.info(f"    {f}")
-        LOG.info("-" * 80)
-
-        for source in initial_constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial constant forcings")
-
-        for source in initial_dynamic_forcings_inputs:
-            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
         """Modify the constant forcings inputs for the first step.
@@ -443,75 +306,6 @@ class Runner(Context):
         """
         # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
-
-    def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
-        """Prepare the input tensor.
-
-        Parameters
-        ----------
-        input_state : State
-            The input state.
-        dtype : type, optional
-            The data type, by default np.float32.
-
-        Returns
-        -------
-        FloatArray
-            The prepared input tensor.
-        """
-        if "latitudes" not in input_state:
-            input_state["latitudes"] = self.checkpoint.latitudes
-
-        if "longitudes" not in input_state:
-            input_state["longitudes"] = self.checkpoint.longitudes
-
-        if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
-            raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
-
-        typed_variables = self.checkpoint.typed_variables
-
-        for name in input_state["fields"]:
-            self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
-
-        # Add initial forcings to input state if needed
-        self.add_initial_forcings_to_input_state(input_state)
-
-        input_state = self.validate_input_state(input_state)
-
-        input_fields = input_state["fields"]
-
-        input_tensor_numpy = np.full(
-            shape=(
-                self.multi_step_input,
-                self.checkpoint.number_of_input_features,
-                input_state["latitudes"].size,
-            ),
-            fill_value=np.nan,
-            dtype=dtype,
-        )
-
-        self._input_tensor_by_name = [None] * self.checkpoint.number_of_input_features
-
-        LOG.info("Preparing input tensor with shape %s", input_tensor_numpy.shape)
-
-        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-
-        check = set()
-        for var, field in input_fields.items():
-            i = variable_to_input_tensor_index[var]
-            if i in check:
-                raise ValueError(f"Duplicate variable {var}/{i} in input fields")
-            input_tensor_numpy[:, i] = field
-            check.add(i)
-
-            self._input_tensor_by_name[i] = var
-
-        if len(check) != self.checkpoint.number_of_input_features:
-            missing = set(range(self.checkpoint.number_of_input_features)) - check
-            mapping = {v: k for k, v in self.checkpoint.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
-
-        return input_tensor_numpy
 
     def prepare_output_state(
         self, output: Generator[State, None, None], return_numpy: bool
@@ -777,14 +571,16 @@ class Runner(Context):
                     if self.trace:
                         self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
 
-                    input_tensor_torch = self.copy_prognostic_fields_to_input_tensor(input_tensor_torch, y_pred, check)
+                    input_tensor_torch = self.tensor_handlers[0].copy_prognostic_fields_to_input_tensor(
+                        input_tensor_torch, y_pred, check
+                    )
 
                     del y_pred  # Recover memory
 
-                    input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
+                    input_tensor_torch = self.tensor_handlers[0].add_dynamic_forcings_to_input_tensor(
                         input_tensor_torch, new_state, next_date, check
                     )
-                    input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
+                    input_tensor_torch = self.tensor_handlers[0].add_boundary_forcings_to_input_tensor(
                         input_tensor_torch, new_state, next_date, check
                     )
 
@@ -801,159 +597,6 @@ class Runner(Context):
 
                 if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                     self._print_input_tensor("Next input tensor", input_tensor_torch)
-
-    def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
-    ) -> "torch.Tensor":
-        """Copy prognostic fields to the input tensor.
-
-        Parameters
-        ----------
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        y_pred : torch.Tensor
-            The predicted tensor.
-        check : BoolArray
-            The check array.
-
-        Returns
-        -------
-        torch.Tensor
-            The updated input tensor.
-        """
-        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
-        # batch is always 1
-        pmask_in = torch.as_tensor(
-            self.checkpoint.prognostic_input_mask,
-            device=input_tensor_torch.device,
-            dtype=torch.long,
-        )
-
-        pmask_out = torch.as_tensor(
-            self.checkpoint.prognostic_output_mask,
-            device=y_pred.device,
-            dtype=torch.long,
-        )  # index_select requires long dtype, can be bool (mask)
-        # or int (index) tensors
-
-        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
-
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields
-
-        pmask_in_np = pmask_in.detach().cpu().numpy()
-        if check[pmask_in_np].any():
-            # Report which ones are conflicting
-            conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
-            raise AssertionError(
-                f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
-            )
-
-        check[pmask_in_np] = True
-
-        for n in pmask_in_np:
-            self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
-            if self.trace:
-                self.trace.from_rollout(self._input_tensor_by_name[n])
-
-        return input_tensor_torch
-
-    def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
-    ) -> "torch.Tensor":
-        """Add dynamic forcings to the input tensor.
-
-        Parameters
-        ----------
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        state : State
-            The state.
-        date : datetime.datetime
-            The date.
-        check : BoolArray
-            The check array.
-
-        Returns
-        -------
-        torch.Tensor
-            The updated input tensor.
-        """
-
-        if self.hacks:
-            if "dynamic_forcings_date" in self.development_hacks:
-                date = self.development_hacks["dynamic_forcings_date"]
-                warnings.warn(f"🧑‍💻 Using `dynamic_forcings_date` hack: {date} 🧑‍💻")
-
-        # TODO: check if there were not already loaded as part of the input state
-
-        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
-        # batch is always 1
-
-        for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
-
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
-
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
-
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-
-            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
-
-            assert not check[source.mask].any()  # Make sure we are not overwriting some values
-            check[source.mask] = True
-
-            for n in source.mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
-
-            if self.trace:
-                for n in source.mask:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
-
-        return input_tensor_torch
-
-    def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
-    ) -> "torch.Tensor":
-        """Add boundary forcings to the input tensor.
-
-        Parameters
-        ----------
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        state : State
-            The state.
-        date : datetime.datetime
-            The date.
-        check : BoolArray
-            The check array.
-
-        Returns
-        -------
-        torch.Tensor
-            The updated input tensor.
-        """
-        # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
-        # batch is always 1
-        sources = self.boundary_forcings_inputs
-        for source in sources:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
-
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
-
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
-            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
-
-            for n in source.variables_mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
-
-        # TO DO: add some consistency checks as above
-        return input_tensor_torch
 
     def validate_input_state(self, input_state: State) -> State:
         """Validate the input state.
