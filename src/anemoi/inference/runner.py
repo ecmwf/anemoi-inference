@@ -606,9 +606,6 @@ class Runner(Context):
             LOG.info("Loading checkpoint: %s/s", bytes_to_human(size / t.elapsed))
 
             model.runner = self
-
-            for param in model.parameters():
-                param.data = param.data.contiguous()
             return model
 
     def predict_step(
