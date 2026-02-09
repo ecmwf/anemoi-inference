@@ -57,9 +57,13 @@ class RecordOptions(BaseModel):
     """Record the memory usage after each event."""
     nan_inf: bool = False
     """Record whether any tensor in the inputs or outputs of each event contains NaN or Inf values."""
+    is_contiguous: bool = False
+    """Record whether each tensor in the outputs of each event is contiguous."""
+    is_contiguous_pre: bool = False
+    """Record whether each tensor in the inputs of each event is contiguous."""
 
     def to_kwargs(self) -> dict[str, Any]:
-        NOT_TORCH_OPTIONS = {"max_value", "memory", "nan_inf", "max_value_pre"}
+        NOT_TORCH_OPTIONS = {"max_value", "memory", "nan_inf", "max_value_pre", "is_contiguous", "is_contiguous_pre"}
         if not torch.__version__ >= "2.10.1":
             NOT_TORCH_OPTIONS.add("localtensor")
         dump = self.model_dump()
@@ -173,6 +177,8 @@ class _DispatchHooks(AbstractContextManager):
         "max_value": _dispatch_handler(max_value, step="post"),
         "memory": _dispatch_handler(memory_usage, step="post"),
         "nan_inf": _dispatch_handler(any_nan_or_inf, step="post"),
+        "contiguous_pre": _dispatch_handler(lambda t: t.is_contiguous(), step="pre", name="is_contiguous_pre"),
+        "contiguous": _dispatch_handler(lambda t: t.is_contiguous(), step="post", name="is_contiguous"),
     }
 
     def get_hooks(self) -> list[AbstractContextManager]:
