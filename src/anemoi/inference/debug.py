@@ -44,6 +44,8 @@ class RecordOptions(BaseModel):
       will record the maximum value of the inputs before each event, but not the outputs after each event.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     torchfunction: bool = False
     """Record the torch function calls and their arguments."""
     faketensor: bool = False
@@ -123,10 +125,7 @@ class _DispatchHooks(AbstractContextManager):
         if t.is_complex():
             t_float = t.to(dtype=torch.complex128)
         else:
-            cast_dtype = torch.float64
-            if t.device.type == "mps":
-                cast_dtype = torch.float32  # mps doesn't support float64
-            t_float = t.to(dtype=cast_dtype)
+            t_float = t.to(dtype=torch.float32)
         return t_float
 
     @staticmethod
@@ -188,7 +187,7 @@ class _DispatchHooks(AbstractContextManager):
         "max_value": max_value,
         "memory": memory_usage,
         "nan_inf": any_nan_or_inf,
-        "contiguous": lambda t: t.is_contiguous(),
+        "is_contiguous": lambda t: t.is_contiguous(),
     }
 
     def get_hooks(self) -> list[AbstractContextManager]:
