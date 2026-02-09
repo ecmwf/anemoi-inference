@@ -24,9 +24,25 @@ from anemoi.inference.lazy import torch
 
 LOG = logging.getLogger(__name__)
 
+PRE_POST = dict[Literal["pre", "post"], bool]
+
 
 class RecordOptions(BaseModel):
-    """Torch debug mode options to record."""
+    """Torch debug mode options to record.
+
+    Includes options straight from `torch.utils._debug_mode.DebugMode`,
+    as well as custom options that are implemented using custom
+    dispatch hooks in the _DispatchHooks class.
+
+    For those implemented using custom dispatch hooks, the option can be
+    set to a boolean to enable/disable the hook, or a dictionary
+    with "pre" and "post" keys to specify whether to record the information
+    before or after the event.
+
+    .i.e setting
+    ```"max_value": {"pre": True, "post": False}```
+      will record the maximum value of the inputs before each event, but not the outputs after each event.
+    """
 
     torchfunction: bool = False
     """Record the torch function calls and their arguments."""
@@ -49,21 +65,17 @@ class RecordOptions(BaseModel):
     profiler_context: bool = False
     """Record the profiler context for each recorded event."""
 
-    max_value_pre: bool = False
-    """Record the maximum value of each tensor before the event."""
-    max_value: bool = False
-    """Record the maximum value of each tensor after the event."""
-    memory: bool = False
+    max_value: bool | PRE_POST = False
+    """Record the maximum value of each tensor in the inputs/outputs of each event."""
+    memory: bool | PRE_POST = False
     """Record the memory usage after each event."""
-    nan_inf: bool = False
+    nan_inf: bool | PRE_POST = False
     """Record whether any tensor in the inputs or outputs of each event contains NaN or Inf values."""
-    is_contiguous: bool = False
-    """Record whether each tensor in the outputs of each event is contiguous."""
-    is_contiguous_pre: bool = False
-    """Record whether each tensor in the inputs of each event is contiguous."""
+    is_contiguous: bool | PRE_POST = False
+    """Record whether each tensor in the inputs/outputs of each event is contiguous."""
 
     def to_kwargs(self) -> dict[str, Any]:
-        NOT_TORCH_OPTIONS = {"max_value", "memory", "nan_inf", "max_value_pre", "is_contiguous", "is_contiguous_pre"}
+        NOT_TORCH_OPTIONS = {"max_value", "memory", "nan_inf", "is_contiguous"}
         if not torch.__version__ >= "2.10.1":
             NOT_TORCH_OPTIONS.add("localtensor")
         dump = self.model_dump()
@@ -150,7 +162,7 @@ class _DispatchHooks(AbstractContextManager):
 
     @staticmethod
     def _dispatch_handler(
-        fn: Callable[[torch.Tensor], Any], *, step: Literal["pre", "post"], name: str | None = None
+        fn: Callable[[torch.Tensor], Any], *, step: Literal["pre", "post"] = "post", name: str | None = None
     ) -> Callable[[Callable, Any, Any, Any, Any], dict | None]:
         """Map a function that takes a tensor and returns a dictionary to a dispatch hook that applies the function to all tensors in the inputs or outputs of a recorded event."""
         from torch.utils._pytree import tree_map
@@ -173,12 +185,10 @@ class _DispatchHooks(AbstractContextManager):
         return post_hook
 
     FUNC_MAP = {
-        "max_value_pre": _dispatch_handler(max_value, step="pre", name="max_value_pre"),
-        "max_value": _dispatch_handler(max_value, step="post"),
-        "memory": _dispatch_handler(memory_usage, step="post"),
-        "nan_inf": _dispatch_handler(any_nan_or_inf, step="post"),
-        "contiguous_pre": _dispatch_handler(lambda t: t.is_contiguous(), step="pre", name="is_contiguous_pre"),
-        "contiguous": _dispatch_handler(lambda t: t.is_contiguous(), step="post", name="is_contiguous"),
+        "max_value": max_value,
+        "memory": memory_usage,
+        "nan_inf": any_nan_or_inf,
+        "contiguous": lambda t: t.is_contiguous(),
     }
 
     def get_hooks(self) -> list[AbstractContextManager]:
@@ -189,8 +199,21 @@ class _DispatchHooks(AbstractContextManager):
         dispatch_hooks = []
 
         for option_name, log_hook in self.FUNC_MAP.items():
-            if getattr(self.options.record, option_name, False):
-                dispatch_hooks.append(DebugMode.dispatch_hooks(log_hook=log_hook))
+            if option := getattr(self.options.record, option_name, False):
+                if isinstance(option, bool):
+                    dispatch_hooks.append(DebugMode.dispatch_hooks(log_hook=log_hook))
+                elif isinstance(option, dict):
+                    for step, enabled in option.items():
+                        if enabled:
+                            dispatch_hooks.append(
+                                DebugMode.dispatch_hooks(
+                                    log_hook=self._dispatch_handler(log_hook, step=step, name=f"{option_name}_{step}")
+                                )
+                            )
+                else:
+                    raise TypeError(
+                        f"Invalid type for option {option_name}: {type(option)}, expected bool or dict[str, bool]"
+                    )
         return dispatch_hooks
 
     def __enter__(self) -> Any:
@@ -211,11 +234,21 @@ def debug_torch(options: bool | dict[str, Any] | DebugOptions) -> Generator[None
     Parameters
     ----------
     options: bool | dict[str, Any] | DebugOptions
-        If False, the context manager does nothing. If True, the context manager runs PyTorch in debug mode with default options. If a DebugOptions object is provided, the context manager runs PyTorch in debug mode with the specified options. If a dictionary is provided, it is used to create a DebugOptions object.
+        If False, the context manager does nothing.
+        If True, the context manager runs PyTorch in debug mode with default options.
+        If a DebugOptions object is provided, the context manager runs PyTorch in debug mode with the specified options.
+        If a dictionary is provided, it is used to create a DebugOptions object.
 
     Yields
     ------
     None
+
+    Example
+    -------
+    >>> with debug_torch(True):
+    ...     # PyTorch code here will run in debug mode with default options.
+    >>> with debug_torch({"record": {"torchfunction": True, "max_value": {"pre": True, "post": False}}}):
+    ...     # PyTorch code here will run in debug mode with torch function calls recorded and the maximum value of inputs recorded before each event.
     """
     if isinstance(options, bool):
         if not options:
