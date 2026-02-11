@@ -151,13 +151,16 @@ class ComputedForcings(Forcings):
             dates = [dates]
 
         source = UnstructuredGridFieldList.from_values(
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
+            latitudes=current_state["latitudes"], 
+            longitudes=current_state["longitudes"]
         )
 
+        if hasattr(self.variables, 'data'):
+            self.variables = self.variables['data']
+           
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
-
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
+
 
         def rename(field: ekd.Field, _: str, metadata: dict[str, Any]) -> str:
             return metadata["param"]
@@ -169,7 +172,6 @@ class ComputedForcings(Forcings):
         # Forcing are sorted by `compute_forcings`  in the order (variable, date)
 
         return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
-
 
 class CoupledForcings(Forcings):
     """Retrieve forcings from the input."""
