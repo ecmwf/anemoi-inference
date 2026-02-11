@@ -77,11 +77,13 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
 
-        if hasattr(self.checkpoint._metadata._config_training, "target_forcing") and self.checkpoint._metadata._config_training['target_forcing'] is not None:
+        if (
+            hasattr(self.checkpoint._metadata._config_training, "target_forcing")
+            and self.checkpoint._metadata._config_training["target_forcing"] is not None
+        ):
             self.target_forcings = self.target_computed_forcings(
-                self.checkpoint._metadata._config_training.target_forcing['datasets'].data
+                self.checkpoint._metadata._config_training.target_forcing["datasets"].data
             )
-
 
         self.multi_step_input = 2
         self.constants_input = None
@@ -510,13 +512,13 @@ class TimeInterpolatorRunner(DefaultRunner):
                 Timer(title),
             ):
                 target_forcing = self.create_target_forcings(date, input_state, input_tensor_torch, interpolation_step)
-                input_tensor_dict = {'data': input_tensor_torch}
-                target_forcings_dict = {'data': target_forcing}
+                input_tensor_dict = {"data": input_tensor_torch}
+                target_forcings_dict = {"data": target_forcing}
                 y_pred = self.predict_step(self.model, input_tensor_dict, target_forcing=target_forcings_dict)
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred['data'].cpu().numpy())  # shape: (values, variables)
+                output = np.squeeze(y_pred["data"].cpu().numpy())  # shape: (values, variables)
 
             if self.trace:
                 self.trace.write_output_tensor(
@@ -561,7 +563,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
     """
 
     def predict_step(self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor") -> "torch.Tensor":
-        input_tensor_dict = {'data': input_tensor_torch}
+        input_tensor_dict = {"data": input_tensor_torch}
         return model.predict_step(input_tensor_dict, multi_step=self.multi_step_input)
 
     def interpolator_stepper(
@@ -687,7 +689,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred['data'].cpu().numpy())  # shape: (values, variables)
+                output = np.squeeze(y_pred["data"].cpu().numpy())  # shape: (values, variables)
 
             if self.trace:
                 self.trace.write_output_tensor(
