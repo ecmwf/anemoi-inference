@@ -220,7 +220,8 @@ class DownscalingRunner(DefaultRunner):
                 low_res_tensor[..., i].mean().item(),
                 low_res_tensor[..., i].std().item(),
             )
-        print("extra_args", extra_args)
+        LOG.info("extra_args: %s", extra_args)
+        LOG.info("Calling model.predict_step")
         output_tensor = model.predict_step(
             low_res_tensor, high_res_tensor, extra_args=extra_args
         )
@@ -253,7 +254,7 @@ class DownscalingRunner(DefaultRunner):
         )
         """
 
-        print("output_tensor shape", output_tensor.shape)
+        LOG.info("output_tensor shape: %s", output_tensor.shape)
 
         return output_tensor
 
