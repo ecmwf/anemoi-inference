@@ -193,7 +193,7 @@ the given directory.
 
 .. note::
 
-   The raw output is useful for debugging and testing purposes. If is
+   The raw output is useful for debugging and testing purposes. If it is
    proven useful, it can be developed further.
 
 The raw output supports all common parameters including ``variables``,
