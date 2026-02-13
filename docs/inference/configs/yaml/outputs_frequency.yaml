@@ -1,0 +1,4 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    output_frequency: 6h  # Write output every 6 hours

@@ -1,0 +1,4 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    write_initial_state: true  # Include step 0 in output
