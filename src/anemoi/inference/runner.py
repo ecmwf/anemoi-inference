@@ -776,10 +776,10 @@ class Runner(Context):
 
                     output = outputs[i, ...]  # shape: (values, variables)
 
-                # Update state
-                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(output.shape[1]):
-                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                    # Update state
+                    with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                        for i in range(output.shape[1]):
+                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
 
                     if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                         self._print_output_tensor("Output tensor", output.cpu().numpy())
