@@ -2,6 +2,7 @@ output:
   tee:
     - grib:
         path: /path/to/full_output.grib
+        # No variables specified - outputs all fields
     - netcdf:
         path: /path/to/subset.nc
         variables:

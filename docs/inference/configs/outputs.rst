@@ -179,7 +179,7 @@ variables are plotted, and the domain to be shown.
 The plot output supports all common parameters including ``variables``,
 ``post_processors``, ``output_frequency``, and ``write_initial_state``.
 The ``variables`` parameter is particularly useful for the plot output to
-limit which fields are visualized.
+limit which fields are visualised.
 
 *****
  raw
