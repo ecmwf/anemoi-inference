@@ -754,7 +754,6 @@ class Runner(Context):
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    # TODO(dieter) what are these kwargs about? maybe related to interpolator?? check out
                     y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=dates[-1])
                 # (batch, [time], ensemble, grid/values, variables) -> (time, values, variables)
                 ndim = y_pred.ndim
@@ -764,7 +763,7 @@ class Runner(Context):
                 else:
                     outputs = torch.squeeze(y_pred, dim=(0, 2))
 
-                new_states = []  # TODO(dieter) not clear if needed, but some forcings might need the new states
+                new_states = []
 
                 for i in range(self.checkpoint.multi_step_output):
                     new_state["date"] = dates[i]
