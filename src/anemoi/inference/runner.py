@@ -755,13 +755,17 @@ class Runner(Context):
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
                     y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=dates[-1])
-                # (batch, [time], ensemble, grid/values, variables) -> (time, values, variables)
+
+                # (batch, [time], ensemble, values, variables) -> (time, values, variables)
                 ndim = y_pred.ndim
-                if ndim != 5:
+                assert ndim in (
+                    4,
+                    5,
+                ), f"Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {y_pred.shape}"
+                if ndim == 4:
                     # for backwards compatibility
-                    outputs = torch.squeeze(y_pred, dim=(0, 1)).unsqueeze(0)
-                else:
-                    outputs = torch.squeeze(y_pred, dim=(0, 2))
+                    y_pred = y_pred.unsqueeze(1)
+                outputs = torch.squeeze(y_pred, dim=(0, 2))
 
                 new_states = []
 
