@@ -1186,7 +1186,7 @@ class Runner(Context):
                     self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
 
         # (values, variables)
-        if output_tensor_numpy.ndim == 3:
+        if output_tensor_numpy.ndim == 2:
             # Add multi_step_input
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]
 
