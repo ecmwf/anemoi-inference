@@ -47,7 +47,7 @@ def checkpoint_lagged_interpolator_patch(self) -> list[datetime.timedelta]:
 
 @runner_registry.register("time_interpolator")
 class TimeInterpolatorRunner(DefaultRunner):
-    """A runner to be used for inference of a trained interpolator directly on analysis data
+    """A runner to be used for inference of a trained interpolator directly on analysis/forecast data
     without being coupled to a forecasting model.
     """
 
@@ -76,19 +76,14 @@ class TimeInterpolatorRunner(DefaultRunner):
         self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
         self.device = get_available_device()
         self.patch_checkpoint_lagged_property()
-        assert (
-            self.config.write_initial_state
-        ), "Interpolator output should include temporal start state, end state and boundary conditions"
 
-        if hasattr(self.checkpoint._metadata._config_training, "target_forcing"):
+        if (
+            hasattr(self.checkpoint._metadata._config_training, "target_forcing")
+            and self.checkpoint._metadata._config_training["target_forcing"] is not None
+        ):
             self.target_forcings = self.target_computed_forcings(
-                self.checkpoint._metadata._config_training.target_forcing.data
+                self.checkpoint._metadata._config_training.target_forcing["datasets"].data
             )
-
-        # This may be used by Output objects to compute the step
-        self.interpolation_window = get_interpolation_window(
-            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
-        )
 
         self.multi_step_input = 2
         self.constants_input = None
@@ -122,17 +117,17 @@ class TimeInterpolatorRunner(DefaultRunner):
     def patch_data_request(self, request: dict) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
         req = request.copy()
-        req["class"] = "od"
-        req["type"] = "fc"
-        req["stream"] = "oper"
+
+        req = super().patch_data_request(req)
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
-        req["time"] = f"{self.reference_date.hour*100:04d}"
+        if self.reference_date is not None:
+            req["time"] = f"{self.reference_date.hour*100:04d}"
         req["step"] = (
             f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
         )
-        return super().patch_data_request(req)
+        return req
 
     def patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
@@ -443,7 +438,181 @@ class TimeInterpolatorRunner(DefaultRunner):
 
         Returns
         -------
-        Any
+        State
+            The forecasted state.
+        """
+        # This does interpolation but called forecast so we can reuse run()
+        self.model.eval()
+        torch.set_grad_enabled(False)
+
+        # Create pytorch input tensor
+        input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+
+        LOG.info("Using autocast %s", self.autocast)
+
+        result = input_state.copy()  # We should not modify the input state
+        result["fields"] = dict()
+        result["step"] = to_timedelta(0)
+
+        start = input_state["date"]
+
+        reset = np.full((input_tensor_torch.shape[-1],), False)
+        variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
+        typed_variables = self.checkpoint.typed_variables
+        for variable, i in variable_to_input_tensor_index.items():
+            if typed_variables[variable].is_constant_in_time:
+                reset[i] = True
+
+        if self.verbosity > 0:
+            self._print_input_tensor("First input tensor", input_tensor_torch)
+
+        # First yield the boundary states (t and t+window_size)
+        boundary_times = self.checkpoint.input_explicit_times
+
+        if self.write_initial_state:
+            # Yield initial boundary state (t)
+            initial_result = result.copy()
+            initial_result["date"] = start
+            initial_result["step"] = to_timedelta(0)
+            initial_result["interpolated"] = False
+            # Extract fields from the first time step of input tensor
+            input_numpy = (
+                input_tensor_torch[0, boundary_times[0]].cpu().numpy()
+            )  # # Select the initial boundary state (t) - First time step
+            for i in range(input_numpy.shape[-1]):
+                var_name = None
+                for var, idx in variable_to_input_tensor_index.items():
+                    if idx == i:
+                        var_name = var
+                        break
+                if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
+                    initial_result["fields"][var_name] = input_numpy[:, i]
+
+            yield initial_result
+
+        # Now interpolate between the boundaries
+        for s, (step, date, interpolation_step, is_last_step) in enumerate(self.interpolator_stepper(start)):
+            title = f"Interpolating step {step}({date})"
+
+            # this should be changed
+            result["date"] = date
+            result["previous_step"] = result.get("step")
+            result["step"] = step
+            result["interpolated"] = True
+
+            if self.trace:
+                self.trace.write_input_tensor(
+                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                )
+
+            # Predict next state of atmosphere
+            with (
+                torch.autocast(device_type=self.device.type, dtype=self.autocast),
+                ProfilingLabel("Predict step", self.use_profiler),
+                Timer(title),
+            ):
+                target_forcing = self.create_target_forcings(date, input_state, input_tensor_torch, interpolation_step)
+                input_tensor_dict = {"data": input_tensor_torch}
+                target_forcings_dict = {"data": target_forcing}
+                y_pred = self.predict_step(self.model, input_tensor_dict, target_forcing=target_forcings_dict)
+
+            # Detach tensor and squeeze (should we detach here?)
+            with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                output = np.squeeze(y_pred["data"].cpu().numpy())  # shape: (values, variables)
+
+            if self.trace:
+                self.trace.write_output_tensor(
+                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                )
+
+            # Update state
+            with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                for i in range(output.shape[1]):
+                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+
+            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                self._print_output_tensor("Output tensor", output)
+
+            yield result
+
+        # Yield final boundary state (t+window_size) if configured to do so
+        if len(boundary_times) > 1:
+            final_result = result.copy()
+            final_result["date"] = start + self.interpolation_window
+            final_result["step"] = self.interpolation_window
+            final_result["interpolated"] = False
+            # Extract fields from the last time step of input tensor
+            if input_tensor_torch.shape[1] > 1:
+                input_numpy = input_tensor_torch[0, -1].cpu().numpy()  # Last time step
+                for i in range(input_numpy.shape[-1]):
+                    var_name = None
+                    for var, idx in variable_to_input_tensor_index.items():
+                        if idx == i:
+                            var_name = var
+                            break
+                    if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
+                        final_result["fields"][var_name] = input_numpy[:, i]
+                yield final_result
+
+
+@runner_registry.register("time_multi_interpolator")
+class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
+    """A runner to be used for inference of a trained interpolator with multiple output steps.
+    Unlike the single output, the interpolation is all done as one step.
+    Can be applied directly on analysis/forecast data without being coupled to a forecasting model.
+    """
+
+    def predict_step(self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor") -> "torch.Tensor":
+        input_tensor_dict = {"data": input_tensor_torch}
+        return model.predict_step(input_tensor_dict, multi_step=self.multi_step_input)
+
+    def interpolator_stepper(
+        self, start_date: datetime.datetime
+    ) -> Generator[tuple[datetime.timedelta, datetime.datetime], None, None]:
+        """Generate step and date variables for the forecast loop.
+
+        Parameters
+        ----------
+        start_date : datetime.datetime
+            Input start date
+
+        Returns
+        -------
+        step : datetime.timedelta
+            Time delta between the target index date and the start date
+        date : datetime.datetime
+            Date of the zeroth index of the input tensor
+        """
+        target_steps = self.checkpoint.target_explicit_times
+        boundary_idx = self.checkpoint.input_explicit_times
+        steps = len(target_steps)
+
+        LOG.info(
+            "Time stepping: [%s, %s], Interpolating %s steps", start_date, start_date + self.interpolation_window, steps
+        )
+
+        for s in range(steps):
+            step = self.interpolation_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
+            date = start_date + step
+            yield step, date
+
+    def forecast(
+        self, lead_time: datetime.timedelta, input_tensor_numpy: NDArray, input_state: State
+    ) -> Generator[State, None, None]:
+        """Interpolate between the current and future state in the input tensor.
+
+        Parameters
+        ----------
+        lead_time : datetime.timedelta
+            Lead time for this interpolation window (should match the window size).
+        input_tensor_numpy : NDArray
+            The input tensor.
+        input_state : State
+            The input state. It contains both input dates defined by the config explicit_times.input
+
+        Returns
+        -------
+        State
             The forecasted state.
         """
         # This does interpolation but called forecast so we can reuse run()
@@ -495,64 +664,44 @@ class TimeInterpolatorRunner(DefaultRunner):
 
             yield initial_result
 
+        title = f"Interpolating step ({start})"
+        # Predict next state of atmosphere
+        with (
+            torch.autocast(device_type=self.device.type, dtype=self.autocast),
+            ProfilingLabel("Predict step", self.use_profiler),
+            Timer(title),
+        ):
+            y_pred = self.predict_step(self.model, input_tensor_torch)
+
         # Now interpolate between the boundaries
-        for s, (step, date, interpolation_step, is_last_step) in enumerate(self.interpolator_stepper(start)):
-            title = f"Interpolating step {step}({date})"
+        for s, (step, dates) in enumerate(self.interpolator_stepper(start)):
 
             # this should be changed
-            result["date"] = date
+            result["date"] = dates
             result["previous_step"] = result.get("step")
             result["step"] = step
             result["interpolated"] = True
 
             if self.trace:
                 self.trace.write_input_tensor(
-                    date, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                    dates, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
                 )
-
-            # Predict next state of atmosphere
-            with (
-                torch.autocast(device_type=self.device.type, dtype=self.autocast),
-                ProfilingLabel("Predict step", self.use_profiler),
-                Timer(title),
-            ):
-                target_forcing = self.create_target_forcings(date, input_state, input_tensor_torch, interpolation_step)
-                y_pred = self.predict_step(self.model, input_tensor_torch, target_forcing=target_forcing)
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                output = np.squeeze(y_pred["data"].cpu().numpy())  # shape: (values, variables)
 
             if self.trace:
                 self.trace.write_output_tensor(
-                    date, s, output, self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
+                    dates, s, output[s], self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
                 )
 
             # Update state
             with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                for i in range(output.shape[1]):
-                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                for i in range(output.shape[2]):
+                    result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[s, :, i]
 
-            if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+            if self.verbosity > 0:
                 self._print_output_tensor("Output tensor", output)
 
             yield result
-
-        # Yield final boundary state (t+window_size) if configured to do so
-        if len(boundary_times) > 1:
-            final_result = result.copy()
-            final_result["date"] = start + self.interpolation_window
-            final_result["step"] = self.interpolation_window
-            final_result["interpolated"] = False
-            # Extract fields from the last time step of input tensor
-            if input_tensor_torch.shape[1] > 1:
-                input_numpy = input_tensor_torch[0, -1].cpu().numpy()  # Last time step
-                for i in range(input_numpy.shape[-1]):
-                    var_name = None
-                    for var, idx in variable_to_input_tensor_index.items():
-                        if idx == i:
-                            var_name = var
-                            break
-                    if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
-                        final_result["fields"][var_name] = input_numpy[:, i]
-                yield final_result

@@ -151,12 +151,13 @@ class ComputedForcings(Forcings):
             dates = [dates]
 
         source = UnstructuredGridFieldList.from_values(
-            latitudes=current_state["latitudes"],
-            longitudes=current_state["longitudes"],
+            latitudes=current_state["latitudes"], longitudes=current_state["longitudes"]
         )
 
-        ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
+        if hasattr(self.variables, "data"):
+            self.variables = self.variables["data"]
 
+        ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
 
         def rename(field: ekd.Field, _: str, metadata: dict[str, Any]) -> str:
