@@ -1288,7 +1288,7 @@ class Runner(Context):
                     ] = Kind(diagnostic=True)
 
         # (values, variables)
-        if output_tensor_numpy.ndim == 3:
+        if output_tensor_numpy.ndim == 2:
             # Add multi_step_input
             output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]
 
