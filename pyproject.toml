@@ -82,7 +82,7 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-optional-dependencies.netcdf = [ "earthkit-data>=0.18.5" ]
+optional-dependencies.netcdf = [ "earthkit-data>=0.19" ]
 optional-dependencies.plot = [ "earthkit-plots" ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
