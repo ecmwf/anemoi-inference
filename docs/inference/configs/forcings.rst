@@ -58,16 +58,10 @@ You can specify different sources for both types of forcing:
 In this example, initial conditions come from ``test``, constant forcings
 from ``mars``, and dynamic forcings from a GRIB file.
 
-**********************
-Complex input sources
-**********************
-
-Each forcing configuration can use any of the available input methods with
-their full configuration options. For example, to read constant forcings
-from a specific GRIB file:
-
-.. literalinclude:: yaml/forcings_4.yaml
-   :language: yaml
+Each forcing configuration can use any of the available :ref:`inputs` methods
+with their full configuration options. For example, the ``grib`` input accepts
+options like file path and other parameters as shown for ``dynamic_forcings``
+above.
 
 If ``constant_forcings`` or ``dynamic_forcings`` are not specified, they
 will default to the value of ``input``.

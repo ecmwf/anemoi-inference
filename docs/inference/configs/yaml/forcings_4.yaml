@@ -1,4 +1,0 @@
-input: test
-
-constant_forcings:
-  grib: constant.grib
