@@ -11,7 +11,7 @@ forcings:
 
 - **constant_forcings**: Variables that remain constant throughout the
   simulation (e.g., land-sea mask, orography). These are fetched once
-  at initialization.
+  at initialisation.
 
 - **dynamic_forcings**: Variables that change during the forecast and
   are provided to the model at each time step (e.g., atmospheric fields
@@ -19,29 +19,52 @@ forcings:
 
 See :ref:`input-types` for more information on variable categories.
 
-By default, both ``constant_forcings`` and ``dynamic_forcings`` are
-fetched from the same source as ``input``. However, you can specify
-different sources for each.
+**********************
+Default behaviour
+**********************
 
-The example below shows how to fetch both constant and dynamic forcings
-from ``mars`` while the initial conditions are fetched from ``test``:
+By default, both ``constant_forcings`` and ``dynamic_forcings`` are
+fetched from the same source as ``input``. If you only specify ``input``,
+all variables (prognostics and forcings) will be fetched from that source:
 
 .. literalinclude:: yaml/forcings_1.yaml
    :language: yaml
 
-This example above is equivalent to:
+In this example, initial conditions, constant forcings, and dynamic forcings
+are all fetched from ``test``.
+
+**********************
+Override a forcing
+**********************
+
+You can override the source for one type of forcing while keeping the other
+using the default ``input`` source.
+
+To fetch dynamic forcings from ``mars`` while initial conditions and constant
+forcings come from ``test``:
 
 .. literalinclude:: yaml/forcings_2.yaml
    :language: yaml
 
-You can also specify different sources for each type of forcing.
+**********************
+Override both forcings
+**********************
 
-To get the constant forcings from a file:
+You can specify different sources for both types of forcing:
 
 .. literalinclude:: yaml/forcings_3.yaml
    :language: yaml
 
-To get the dynamic forcings from MARS:
+In this example, initial conditions come from ``test``, constant forcings
+from ``mars``, and dynamic forcings from a GRIB file.
+
+**********************
+Complex input sources
+**********************
+
+Each forcing configuration can use any of the available input methods with
+their full configuration options. For example, to read constant forcings
+from a specific GRIB file:
 
 .. literalinclude:: yaml/forcings_4.yaml
    :language: yaml
