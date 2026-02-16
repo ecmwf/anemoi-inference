@@ -134,10 +134,12 @@ class DefaultRunner(Runner):
         forcings_state = forcings_input.create_input_state(date=self.config.date)
         self._check_state(forcings_state, "dynamic_forcings")
 
-        input_state = self._combine_states(
-            prognostic_state,
-            constants_state,
-            forcings_state,
+        input_state = dict(
+            data=self._combine_states(
+                prognostic_state,
+                constants_state,
+                forcings_state,
+            )
         )
 
         # This hook is needed for the coupled runner
@@ -165,8 +167,8 @@ class DefaultRunner(Runner):
         for state in self.run(input_state=input_state, lead_time=lead_time):
             # Apply top-level post-processors
             for processor in self.post_processors:
-                state = processor.process(state)
-            output.write_state(state)
+                state["data"] = processor.process(state["data"])
+            output.write_state(state["data"])
 
         output.close()
 

@@ -20,14 +20,12 @@ from typing import Union
 
 import numpy as np
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
-from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 
 from anemoi.inference.device import get_available_device
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
-from anemoi.inference.metadata import MetadataFactory
 from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -96,6 +94,7 @@ class Runner(Context):
         typed_variables: dict[str, dict] = {},
         preload_checkpoint: bool = False,
         preload_buffer_size: int = 32 * 1024 * 1024,
+        tensor_handler_class: type[TensorHandler] = TensorHandler,
     ) -> None:
         """Parameters
         -------------
@@ -134,6 +133,7 @@ class Runner(Context):
         self.trace_path = trace_path
 
         if trace_path:
+            # TODO: multi-dataset support for trace
             from .trace import Trace
 
             self.trace = Trace(trace_path)
@@ -143,10 +143,10 @@ class Runner(Context):
         self._device = device
         self.precision = precision
 
-        metadata = load_metadata(checkpoint, supporting_arrays=True)
-        dataset_names = ["data"]
+        multi_metadata = self._checkpoint.get_multi_dataset_metadata()
+        self.dataset_names = multi_metadata.keys()
         self.tensor_handlers = [
-            TensorHandler(self, MetadataFactory(*metadata, name=name), device=self.device) for name in dataset_names
+            tensor_handler_class(self, metadata=metadata, device=self.device) for metadata in multi_metadata.values()
         ]
 
         # Override the default values set in `Context`
@@ -245,24 +245,26 @@ class Runner(Context):
         """
         # Shallow copy to avoid modifying the user's input state
         input_state = input_state.copy()
-        input_state["fields"] = input_state["fields"].copy()
+        for name in self.dataset_names:
+            input_state[name]["fields"] = input_state[name]["fields"].copy()
+            LOG.info("-" * 80)
+            LOG.info(f"Input state `{name}`:")
+            LOG.info(f"  {list(input_state[name]['fields'].keys())}")
 
         if self.reference_date is None:
-            self.reference_date = input_state["date"]
-
-        LOG.info("-" * 80)
-        LOG.info("Input state:")
-        LOG.info(f"  {list(input_state['fields'].keys())}")
+            self.reference_date = input_state[self.dataset_names[0]]["date"]
 
         lead_time = to_timedelta(lead_time)
 
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
-                # input_tensors = {handler.name: handler.prepare_input_tensor(input_state) for handler in self.tensor_handlers}
-                input_tensor = self.tensor_handlers[0].prepare_input_tensor(input_state)
+                input_tensors = {
+                    handler.name: handler.prepare_input_tensor(input_state[handler.name])
+                    for handler in self.tensor_handlers
+                }
 
             try:
-                yield from self.prepare_output_state(self.forecast(lead_time, input_tensor, input_state), return_numpy)
+                yield from self.prepare_output_state(self.forecast(lead_time, input_tensors, input_state), return_numpy)
             except (TypeError, ModuleNotFoundError, AttributeError):
                 self.checkpoint.report_error()
                 raise
@@ -329,9 +331,10 @@ class Runner(Context):
         for state in output:
             if return_numpy:
                 # Convert fields to numpy arrays
-                for name, field in state["fields"].items():
-                    if isinstance(field, torch.Tensor):
-                        state["fields"][name] = field.cpu().numpy()
+                for handler in self.tensor_handlers:
+                    for name, field in state[handler.name]["fields"].items():
+                        if isinstance(field, torch.Tensor):
+                            state[handler.name]["fields"][name] = field.cpu().numpy()
             yield state
 
     @cached_property
@@ -464,7 +467,7 @@ class Runner(Context):
             yield step, valid_date, next_date, is_last_step
 
     def forecast(
-        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+        self, lead_time: str, input_tensors_numpy: dict[str, FloatArray], input_state: State
     ) -> Generator[State, None, None]:
         """Forecast the future states.
 
@@ -472,8 +475,8 @@ class Runner(Context):
         ----------
         lead_time : str
             The lead time.
-        input_tensor_numpy : FloatArray
-            The input tensor.
+        input_tensors_numpy : dict[str, FloatArray]
+            The input tensors.
         input_state : State
             The input state.
 
@@ -486,76 +489,85 @@ class Runner(Context):
         with torch.inference_mode():
             self.model.eval()
 
-            # Create pytorch input tensor
-            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(
-                self.device
-            )
+            # Create pytorch input tensor dict
+            input_tensors_torch = {
+                name: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+                for name, input_tensor_numpy in input_tensors_numpy.items()
+            }
 
             lead_time = to_timedelta(lead_time)
 
             new_state = input_state.copy()  # We should not modify the input state
-            new_state["fields"] = dict()
-            new_state["step"] = to_timedelta(0)
-
-            start = input_state["date"]
 
             # The variable `check` is used to keep track of which variables have been updated
             # In the input tensor. `reset` is used to reset `check` to False except
             # when the values are of the constant in time variables
+            check = {}
+            reset = {}
+            for handler in self.tensor_handlers:
+                new_state[handler.name]["fields"] = dict()
+                new_state[handler.name]["step"] = to_timedelta(0)
+                start = input_state[handler.name]["date"]
 
-            reset = np.full((input_tensor_torch.shape[-1],), False)
-            variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-            typed_variables = self.checkpoint.typed_variables
-            for variable, i in variable_to_input_tensor_index.items():
-                if typed_variables[variable].is_constant_in_time:
-                    reset[i] = True
+                reset[handler.name] = np.full((input_tensors_torch[handler.name].shape[-1],), False)
+                variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
+                typed_variables = handler.metadata.typed_variables
+                for variable, i in variable_to_input_tensor_index.items():
+                    if typed_variables[variable].is_constant_in_time:
+                        reset[handler.name][i] = True
 
-            check = reset.copy()
+                check[handler.name] = reset[handler.name].copy()
 
             if self.verbosity > 0:
-                self._print_input_tensor("First input tensor", input_tensor_torch)
+                handler._print_input_tensor("First input tensor", input_tensors_torch)
 
             for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 title = f"Forecasting step {step} ({date})"
 
-                new_state["date"] = date
-                new_state["previous_step"] = new_state.get("step")
-                new_state["step"] = step
+                for name in self.dataset_names:
+                    new_state[name]["date"] = date
+                    new_state[name]["previous_step"] = new_state[name].get("step")
+                    new_state[name]["step"] = step
 
-                if self.trace:
-                    self.trace.write_input_tensor(
-                        date,
-                        s,
-                        input_tensor_torch.cpu().numpy(),
-                        variable_to_input_tensor_index,
-                        self.checkpoint.timestep,
-                    )
+                # if self.trace:
+                #     self.trace.write_input_tensor(
+                #         date,
+                #         s,
+                #         input_tensor_torch.cpu().numpy(),
+                #         variable_to_input_tensor_index,
+                #         self.checkpoint.timestep,
+                #     )
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                    y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=s, step=step, date=date)
 
-                output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
+                output = {
+                    name: torch.squeeze(tensor, dim=(0, 1)) for name, tensor in y_pred.items()
+                }  # shape: (values, variables)
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(output.shape[-1]):
-                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[
-                            ..., i
-                        ].squeeze()
+                    for handler in self.tensor_handlers:
+                        for i in range(output[handler.name].shape[-1]):
+                            new_state[handler.name]["fields"][handler.metadata.output_tensor_index_to_variable[i]] = (
+                                output[handler.name][..., i].squeeze()
+                            )
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_output_tensor("Output tensor", output.cpu().numpy())
+                        if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                            handler._print_output_tensor(
+                                f"Output tensor - dataset: `{name}`", output[handler.name].cpu().numpy()
+                            )
 
-                if self.trace:
-                    self.trace.write_output_tensor(
-                        date,
-                        s,
-                        output.cpu().numpy(),
-                        self.checkpoint.output_tensor_index_to_variable,
-                        self.checkpoint.timestep,
-                    )
+                # if self.trace:
+                #     self.trace.write_output_tensor(
+                #         date,
+                #         s,
+                #         output.cpu().numpy(),
+                #         self.checkpoint.output_tensor_index_to_variable,
+                #         self.checkpoint.timestep,
+                #     )
 
                 yield new_state
 
@@ -567,36 +579,38 @@ class Runner(Context):
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                    check[:] = reset
-                    if self.trace:
-                        self.trace.reset_sources(reset, self.checkpoint.variable_to_input_tensor_index)
+                    for handler in self.tensor_handlers:
+                        name = handler.name
+                        check[name][:] = reset[name]
+                        # if self.trace:
+                        #     self.trace.reset_sources(reset[name], self.checkpoint.variable_to_input_tensor_index)
 
-                    input_tensor_torch = self.tensor_handlers[0].copy_prognostic_fields_to_input_tensor(
-                        input_tensor_torch, y_pred, check
-                    )
+                        input_tensors_torch[name] = handler.copy_prognostic_fields_to_input_tensor(
+                            input_tensors_torch[name], y_pred[name], check[name]
+                        )
 
-                    del y_pred  # Recover memory
+                        del y_pred  # Recover memory
 
-                    input_tensor_torch = self.tensor_handlers[0].add_dynamic_forcings_to_input_tensor(
-                        input_tensor_torch, new_state, next_date, check
-                    )
-                    input_tensor_torch = self.tensor_handlers[0].add_boundary_forcings_to_input_tensor(
-                        input_tensor_torch, new_state, next_date, check
-                    )
+                        input_tensors_torch[name] = handler.add_dynamic_forcings_to_input_tensor(
+                            input_tensors_torch[name], new_state[name], next_date, check[name]
+                        )
+                        input_tensors_torch[name] = handler.add_boundary_forcings_to_input_tensor(
+                            input_tensors_torch[name], new_state[name], next_date, check[name]
+                        )
 
-                if not check.all():
-                    # Not all variables have been updated
-                    missing = []
-                    variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-                    mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                    for i in range(check.shape[-1]):
-                        if not check[i]:
-                            missing.append(mapping[i])
+                        if not check[name].all():
+                            # Not all variables have been updated
+                            missing = []
+                            variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
+                            mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
+                            for i in range(check[name].shape[-1]):
+                                if not check[name][i]:
+                                    missing.append(mapping[i])
 
-                    raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
+                            raise ValueError(f"Missing variables in input tensor: {sorted(missing)}")
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_input_tensor("Next input tensor", input_tensor_torch)
+                        if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                            handler._print_input_tensor("Next input tensor", input_tensors_torch)
 
     def validate_input_state(self, input_state: State) -> State:
         """Validate the input state.
@@ -675,116 +689,6 @@ class Runner(Context):
                 raise ValueError(msg)
 
         return input_state
-
-    def _print_tensor(
-        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
-    ) -> None:
-        """Print the tensor.
-
-        Parameters
-        ----------
-        title : str
-            The title.
-        tensor_numpy : FloatArray
-            The tensor.
-        tensor_by_name : list
-            The tensor by name.
-        kinds : dict
-            The kinds.
-        """
-        assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] in (1, self.multi_step_input), tensor_numpy.shape
-        assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
-        from rich.console import Console
-        from rich.table import Table
-
-        table = Table(title=title)
-        console = Console(file=sys.stderr)
-        table.add_column("Index", justify="right")
-        table.add_column("Variable", justify="left")
-        table.add_column("Min", justify="right")
-        table.add_column("Max", justify="right")
-        table.add_column("NaNs", justify="center")
-        table.add_column("Kind", justify="left")
-
-        for k, v in enumerate(tensor_by_name):
-            data = tensor_numpy[-1, k]
-
-            nans = "-"
-
-            if np.isnan(data).any():
-                nan_count = np.isnan(data).sum()
-
-                ratio = nan_count / data.size
-                nans = f"{ratio:.0%}"
-
-            if np.isinf(data).any():
-                nans = "∞"
-
-            table.add_row(
-                str(k),
-                v,
-                f"{np.nanmin(data):g}",
-                f"{np.nanmax(data):g}",
-                nans,
-                str(kinds.get(v, Kind())),
-            )
-
-        console.print()
-        console.print(table)
-        console.print()
-
-    def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
-        """Print the input tensor.
-
-        Parameters
-        ----------
-        title : str
-            The title.
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        """
-        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
-
-        assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
-        assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
-
-        input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
-        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
-
-        self._print_tensor(title, input_tensor_numpy, self._input_tensor_by_name, self._input_kinds)
-
-    def _print_output_tensor(self, title: str, output_tensor_numpy: FloatArray) -> None:
-        """Print the output tensor.
-
-        Parameters
-        ----------
-        title : str
-            The title.
-        output_tensor_numpy : FloatArray
-            The output tensor.
-        """
-        LOG.info(
-            "%s",
-            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
-        )
-
-        if not self._output_tensor_by_name:
-            for i in range(output_tensor_numpy.shape[1]):
-                self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
-                if i in self.checkpoint.prognostic_output_mask:
-                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
-                else:
-                    self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
-
-        # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
-
-        if len(output_tensor_numpy.shape) == 2:
-            output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
-
-        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
-
-        self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
 
     def patch_data_request(self, request: Any) -> Any:
         """Patch the data request.

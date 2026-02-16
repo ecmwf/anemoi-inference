@@ -138,6 +138,23 @@ class Checkpoint:
 
         return result
 
+    @cached_property
+    def _raw_metadata(self) -> tuple[dict, dict]:
+        return load_metadata(self.path, supporting_arrays=True)
+
+    @cached_property
+    def multi_dataset(self) -> bool:
+        """Check if the checkpoint is a multi-dataset checkpoint."""
+        metadata, _ = self._raw_metadata
+        return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
+
+    def get_multi_dataset_metadata(self) -> dict[str, Metadata]:
+        """Get metadata for all datasets in a multi-dataset checkpoint."""
+        metadata, supporting_arrays = self._raw_metadata
+        dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
+
+        return {name: MetadataFactory(metadata, supporting_arrays, name=name) for name in dataset_names}
+
     ###########################################################################
     # Forwards used by the runner
     # We do not want to expose the metadata object directly

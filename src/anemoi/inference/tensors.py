@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+import sys
 from datetime import datetime
 from datetime import timedelta
 from functools import cached_property
@@ -61,8 +62,12 @@ class TensorHandler:
         self.metadata = metadata
         self.device = device
 
-        self._input_kinds = {}
         self.trace = None
+        self._input_kinds = {}
+        self._input_tensor_by_name = []
+
+        self._output_kinds = {}
+        self._output_tensor_by_name = []
 
         self.constant_forcings_inputs = self.create_constant_forcings_inputs()
         self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs()
@@ -81,8 +86,11 @@ class TensorHandler:
             LOG.info(f"  {f}")
         LOG.info("-" * 80)
 
+    def __repr__(self):
+        return f"TensorHandler(name={self.name})"
+
     @property
-    def name(self):
+    def name(self) -> str:
         if self.metadata.multi_dataset:
             return self.metadata.name
         return "data"
@@ -441,3 +449,116 @@ class TensorHandler:
 
         # TO DO: add some consistency checks as above
         return input_tensor_torch
+
+    def _print_input_tensor(self, title: str, input_tensors_torch: dict[str, "torch.Tensor"]) -> None:
+        """Print the input tensor.
+
+        Parameters
+        ----------
+        title : str
+            The title.
+        input_tensors_torch : dict[str, torch.Tensor]
+            The input tensors.
+        """
+        for name, input_tensor_torch in input_tensors_torch.items():
+            input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
+
+            assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
+            assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
+
+            input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
+            input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+
+            self._print_tensor(
+                f"{title} - dataset: `{name}`", input_tensor_numpy, self._input_tensor_by_name, self._input_kinds
+            )
+
+    def _print_output_tensor(self, title: str, output_tensor_numpy: FloatArray) -> None:
+        """Print the output tensor.
+
+        Parameters
+        ----------
+        title : str
+            The title.
+        output_tensor_numpy : FloatArray
+            The output tensor.
+        """
+        LOG.info(
+            "%s",
+            f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
+        )
+
+        if not self._output_tensor_by_name:
+            for i in range(output_tensor_numpy.shape[1]):
+                self._output_tensor_by_name.append(self.metadata.output_tensor_index_to_variable[i])
+                if i in self.metadata.prognostic_output_mask:
+                    self._output_kinds[self.metadata.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+                else:
+                    self._output_kinds[self.metadata.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
+
+        # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
+
+        if len(output_tensor_numpy.shape) == 2:
+            output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
+
+        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+
+        self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+
+    def _print_tensor(
+        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
+    ) -> None:
+        """Print the tensor.
+
+        Parameters
+        ----------
+        title : str
+            The title.
+        tensor_numpy : FloatArray
+            The tensor.
+        tensor_by_name : list
+            The tensor by name.
+        kinds : dict
+            The kinds.
+        """
+        assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self.metadata.multi_step_input), tensor_numpy.shape
+        assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
+        from rich.console import Console
+        from rich.table import Table
+
+        table = Table(title=title)
+        console = Console(file=sys.stderr)
+        table.add_column("Index", justify="right")
+        table.add_column("Variable", justify="left")
+        table.add_column("Min", justify="right")
+        table.add_column("Max", justify="right")
+        table.add_column("NaNs", justify="center")
+        table.add_column("Kind", justify="left")
+
+        for k, v in enumerate(tensor_by_name):
+            data = tensor_numpy[-1, k]
+
+            nans = "-"
+
+            if np.isnan(data).any():
+                nan_count = np.isnan(data).sum()
+
+                ratio = nan_count / data.size
+                nans = f"{ratio:.0%}"
+
+            if np.isinf(data).any():
+                nans = "∞"
+
+            table.add_row(
+                str(k),
+                v,
+                f"{np.nanmin(data):g}",
+                f"{np.nanmax(data):g}",
+                nans,
+                str(kinds.get(v, Kind())),
+            )
+
+        console.print()
+        console.print(table)
+        console.print()
