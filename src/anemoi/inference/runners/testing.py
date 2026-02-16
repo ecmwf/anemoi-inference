@@ -11,7 +11,9 @@ import logging
 from functools import cached_property
 from typing import Any
 
+from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
+from anemoi.inference.types import FloatArray
 
 from . import runner_registry
 from .default import DefaultRunner
@@ -65,8 +67,8 @@ class NoModelMixing:
     @cached_property
     def model(self) -> "torch.nn.Module":
 
-        checkpoint = self.checkpoint
-        number_of_output_variables = len(checkpoint.output_tensor_index_to_variable)
+        checkpoint: Checkpoint = self.checkpoint
+        multi_metadata = checkpoint.get_multi_dataset_metadata()
 
         class NoModel(torch.nn.Module):
             """Dummy model class for testing purposes."""
@@ -74,16 +76,21 @@ class NoModelMixing:
             def __init__(self):
                 super().__init__()
 
-            def predict_step(self, input_tensor: Any, **kwargs: Any) -> Any:
-                input_shape = input_tensor.shape
-                output_shape = (
-                    input_shape[0],  # batch
-                    1,  # time
-                    input_shape[2],  # gridpoints
-                    number_of_output_variables,  # variables
-                )
+            def predict_step(self, input_tensors: dict[str, FloatArray], **kwargs: Any) -> Any:
+                output = {}
+                for name, metadata in multi_metadata.items():
+                    input_shape = input_tensors[name].shape
+                    input_tensor = input_tensors[name]
+                    output_shape = (
+                        input_shape[0],  # batch
+                        1,  # time
+                        input_shape[2],  # gridpoints
+                        len(metadata.output_tensor_index_to_variable),  # variables
+                    )
 
-                return torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+                    output[name] = torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+
+                return output
 
         return NoModel()
 
