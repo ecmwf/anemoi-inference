@@ -103,7 +103,6 @@ class Trace:
             table.add_column(c, justify="right" if c != "Variable" and c != "Source" else "left")
 
         names = {v: k for k, v in variable_to_input_tensor_index.items()}
-        assert len(input_tensor.shape) == 4
         assert input_tensor.shape[0] == 1
         lines = []
 

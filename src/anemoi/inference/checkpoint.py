@@ -496,12 +496,12 @@ class Checkpoint:
         return sorted(result)
 
     @property
-    def multi_step_input(self) -> Any:
+    def multi_step_input(self) -> int:
         """Get the multi-step input."""
         return self._metadata.multi_step_input
 
     @property
-    def multi_step_output(self) -> Any:
+    def multi_step_output(self) -> int:
         """Get the multi-step output."""
         return self._metadata.multi_step_output
 

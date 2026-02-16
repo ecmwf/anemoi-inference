@@ -637,7 +637,7 @@ class Runner(Context):
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    ) -> Generator[tuple[datetime.timedelta, list[datetime.datetime], list[datetime.datetime], bool], None, None]:
         """Generate step and date variables for the forecast autoregressive loop.
 
         Parameters
@@ -651,9 +651,9 @@ class Runner(Context):
         -------
         step : datetime.timedelta
             Time delta since beginning of forecast
-        valid_date : datetime.datetime
+        valid_date : list[datetime.datetime]
             Date of the forecast
-        next_date : datetime.datetime
+        next_date : list[datetime.datetime]
             Date used to prepare the next input tensor
         is_last_step : bool
             True if it's the last step of the forecast
@@ -742,7 +742,6 @@ class Runner(Context):
                 )
 
                 if self.trace:
-                    # TODO(dieter): check what below is about and how to handle date(s)
                     self.trace.write_input_tensor(
                         dates[-1],
                         s,
@@ -785,9 +784,8 @@ class Runner(Context):
                         self._print_output_tensor("Output tensor", output.cpu().numpy())
 
                     if self.trace:
-                        # TODO(dieter): check what below is about and how to handle date(s)
                         self.trace.write_output_tensor(
-                            dates[-1],
+                            dates[i],
                             s,
                             output.cpu().numpy(),
                             self.checkpoint.output_tensor_index_to_variable,
