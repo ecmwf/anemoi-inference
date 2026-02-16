@@ -1,3 +1,5 @@
-forcing:
-  constant:
-    grib: constant.grib
+input: test
+
+constant_forcings: mars
+dynamic_forcings:
+  grib: dynamic.grib
