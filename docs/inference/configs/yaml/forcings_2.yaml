@@ -1,2 +1,2 @@
-forcing:
-  input: mars
+constant_forcings: mars
+dynamic_forcings: mars

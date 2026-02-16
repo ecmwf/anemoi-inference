@@ -1,3 +1,4 @@
 input: test
 
-forcings: mars
+constant_forcings: mars
+dynamic_forcings: mars

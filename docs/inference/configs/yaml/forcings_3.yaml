@@ -1,3 +1,2 @@
-forcing:
-  constant:
-    grib: constant.grib
+constant_forcings:
+  grib: constant.grib

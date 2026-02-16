@@ -5,37 +5,46 @@
 ##########
 
 :ref:`inputs` refers to the input methods used to fetch the initial
-conditions. If the model need data during the run (dynamic forcings),
-the forcings will be fetched by default from the same source as the
-input. However, you can specify a different source.
+conditions (prognostic variables). Anemoi-inference also supports
+fetching forcings from different sources. There are two types of
+forcings:
 
-The example below shows an example where the forcings are fetched from
-``mars`` while the initial conditions are fetched from ``test``.
+- **constant_forcings**: Variables that remain constant throughout the
+  simulation (e.g., land-sea mask, orography). These are fetched once
+  at initialization.
+
+- **dynamic_forcings**: Variables that change during the forecast and
+  are provided to the model at each time step (e.g., atmospheric fields
+  used as forcing to an ocean model).
+
+See :ref:`input-types` for more information on variable categories.
+
+By default, both ``constant_forcings`` and ``dynamic_forcings`` are
+fetched from the same source as ``input``. However, you can specify
+different sources for each.
+
+The example below shows how to fetch both constant and dynamic forcings
+from ``mars`` while the initial conditions are fetched from ``test``:
 
 .. literalinclude:: yaml/forcings_1.yaml
    :language: yaml
 
-This example above is a shortcut for:
+This example above is equivalent to:
 
 .. literalinclude:: yaml/forcings_2.yaml
+   :language: yaml
 
-You can also specify different sources for each forcing.
+You can also specify different sources for each type of forcing.
 
-This is to get the initial constant forcings from a file:
+To get the constant forcings from a file:
 
 .. literalinclude:: yaml/forcings_3.yaml
    :language: yaml
 
-Get the dynamic forcings from mars:
+To get the dynamic forcings from MARS:
 
 .. literalinclude:: yaml/forcings_4.yaml
    :language: yaml
 
-And the LAM boundary conditions from a mars as well:
-
-.. literalinclude:: yaml/forcings_5.yaml
-   :language: yaml
-
-In the case of the last three type of forcings, it they are not
-specified, the value of `forcings.input` will be used. It this value is
-not specified, the value of `input` will then be used.
+If ``constant_forcings`` or ``dynamic_forcings`` are not specified, they
+will default to the value of ``input``.

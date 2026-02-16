@@ -1,2 +1,1 @@
-forcing:
-  dynamic: mars
+dynamic_forcings: mars
