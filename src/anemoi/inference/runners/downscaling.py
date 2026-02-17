@@ -33,12 +33,8 @@ class DsMetadata(Metadata):
         super().__init__(*args, **kwargs)
 
         # we only need to retrieve from the low res input_0
-        self._metadata.data_indices.data.input = (
-            self._metadata.data_indices.data.input_0
-        )
-        self._metadata.data_indices.model.input = (
-            self._metadata.data_indices.model.input_0
-        )
+        self._metadata.data_indices.data.input = self._metadata.data_indices.data.input_0
+        self._metadata.data_indices.model.input = self._metadata.data_indices.model.input_0
 
         # treat all low res inputs as forcings
         self._config.data.forcing = self.low_res_input_variables
@@ -48,9 +44,7 @@ class DsMetadata(Metadata):
         self._metadata.data_indices.model.input.prognostic = []
 
         # treat all high res outputs as diagnostics
-        self._metadata.data_indices.model.output.diagnostic = (
-            self._indices.model.output.full
-        )
+        self._metadata.data_indices.model.output.diagnostic = self._indices.model.output.full
         self._metadata.data_indices.model.output.prognostic = []
 
     @property
@@ -75,9 +69,7 @@ class DsMetadata(Metadata):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        return frozendict(
-            {k: self.high_res_output_variables[v] for k, v in mapping.items()}
-        )
+        return frozendict({k: self.high_res_output_variables[v] for k, v in mapping.items()})
 
     @cached_property
     def number_of_grid_points(self):
@@ -154,9 +146,7 @@ class DownscalingRunner(DefaultRunner):
     @cached_property
     def computed_high_res_forcings(self):
         computed_forcings = [
-            var
-            for var in self.extra_config.high_res_input
-            if var not in self.extra_config.constant_high_res_forcings
+            var for var in self.extra_config.high_res_input if var not in self.extra_config.constant_high_res_forcings
         ]
         return ComputedForcings(self, computed_forcings, [])
 
@@ -200,9 +190,7 @@ class DownscalingRunner(DefaultRunner):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"], state["longitudes"] = self.template.grid_points()
-            state["_grib_templates_for_output"] = {
-                name: self.template for name in state["fields"].keys()
-            }
+            state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
             yield state
 
     def predict_step(self, model, input_tensor_torch, input_date, **kwargs):
@@ -213,41 +201,34 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
         extra_args = self.extra_config.get("extra_args", {})
-
-        residual_output_tensor = model.predict_step(
-            low_res_tensor, high_res_tensor, extra_args=extra_args
-        )
-        residual_output_numpy = np.squeeze(residual_output_tensor.cpu().numpy())
-
-        self._print_output_tensor("Residual output tensor", residual_output_numpy)
-
-        if not isinstance(self.config.output, str) and (
-            raw_path := self.config.output.get("raw", {}).get("path")
-        ):
-            self._save_residual_tensor(
-                residual_output_numpy, f"{raw_path}/output-residuals-o320.npz"
+        for i in range(6):
+            LOG.info(
+                "Low res tensor statistics for index %d: mean=%f, std=%f",
+                i,
+                low_res_tensor[..., i].mean().item(),
+                low_res_tensor[..., i].std().item(),
+            )
+        LOG.info("extra_args: %s", extra_args)
+        LOG.info("Calling model.predict_step")
+        output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
+        for i in range(6):
+            LOG.info(
+                "output_tensor statistics for index %d: mean=%f, std=%f",
+                i,
+                output_tensor[..., i].mean().item(),
+                output_tensor[..., i].std().item(),
             )
 
-        output_tensor_interp = _prepare_high_res_output_tensor(
-            model,
-            low_res_tensor[0],  # remove batch dimension
-            residual_output_tensor,
-            self.checkpoint.variable_to_input_tensor_index,
-            self.checkpoint._metadata.high_res_output_variables,
-        )
+        LOG.info("output_tensor shape: %s", output_tensor.shape)
 
-        return output_tensor_interp
+        return output_tensor
 
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
         state["latitudes"], state["longitudes"] = self.template.grid_points()
 
-        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings(
-            state, input_date
-        )
-        computed_high_res_forcings = np.squeeze(
-            computed_high_res_forcings, axis=1
-        )  # Drop the dates dimension
+        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings(state, input_date)
+        computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
         computed_high_res_forcings = np.swapaxes(
             computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
         )  # shape: (1, 1, values, variables)
@@ -267,9 +248,7 @@ class DownscalingRunner(DefaultRunner):
         assert set(forcings_dict.keys()) == set(self.extra_config.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
-        high_res_numpy = np.stack(
-            [forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1
-        )
+        high_res_numpy = np.stack([forcings_dict[name] for name in self.extra_config.high_res_input], axis=-1)
 
         # print expects shape (step, variables, values)
         self._print_tensor(
@@ -315,9 +294,7 @@ def _match_tensor_channels(input_name_to_index, output_names):
     return channel_indices
 
 
-def _prepare_high_res_output_tensor(
-    model, low_res_in, high_res_residuals, input_name_to_index, output_names
-):
+def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input_name_to_index, output_names):
     # interpolate the low res input tensor to high res, and add the residuals to get the final high res output
 
     matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
@@ -326,9 +303,9 @@ def _prepare_high_res_output_tensor(
 
     print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
 
-    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[
-        :, None, None, ...
-    ][..., matching_channel_indices]
+    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
+        ..., matching_channel_indices
+    ]
     print("interp_high_res_in", interp_high_res_in.shape)  # [1, 1, 1, 421120, 8]
 
     high_res_out = interp_high_res_in + high_res_residuals
