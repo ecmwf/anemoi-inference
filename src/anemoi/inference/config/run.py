@@ -13,9 +13,10 @@ import datetime
 import logging
 from typing import Any
 from typing import Literal
-import yaml
 
-from pydantic import Field, field_validator
+import yaml
+from pydantic import Field
+from pydantic import field_validator
 
 from anemoi.inference.types import ProcessorConfig
 
@@ -104,7 +105,7 @@ class RunConfiguration(Configuration):
     """
 
     patch_metadata: dict[str, Any] | str = {}
-    """A dictionary of metadata to patch the checkpoint metadata with, or a path to a YAML file containing the metadata. 
+    """A dictionary of metadata to patch the checkpoint metadata with, or a path to a YAML file containing the metadata.
     This is used to test new features or to work around issues with the checkpoint metadata.
     """
 
@@ -122,7 +123,6 @@ class RunConfiguration(Configuration):
 
     preload_buffer_size: int = 32 * 1024 * 1024
     """Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB."""
-
 
     @field_validator("patch_metadata", mode="before")
     @classmethod
