@@ -9,6 +9,8 @@
 
 
 import logging
+from typing import Any
+from typing import Optional
 
 from ..context import Context
 from ..input import Input
@@ -21,35 +23,42 @@ LOG = logging.getLogger(__name__)
 class CutoutInput(Input):
     """An Input object that combines two inputs."""
 
-    def __init__(self, context, lam, globe):
+    def __init__(self, context: Context, lam: Input, globe: Input) -> None:
+        """Initialize CutoutInput.
+
+        Parameters
+        ----------
+        context : Context
+            The context for the input.
+        lam : Input
+            The LAM input.
+        globe : Input
+            The globe input.
+        """
         super().__init__(context)
         self.lam = lam
         self.globe = globe
 
-    def create_input_state(self, *, date=None):
+    def create_input_state(self, *, date: Optional[str] = None) -> None:
+        """Create the input state.
 
+        Parameters
+        ----------
+        date : Optional[str], optional
+            The date for the input state, by default None
+        """
         state1 = self.lam.create_input_state(date=date)
         state2 = self.globe.create_input_state(date=date)
 
         assert False, (state1, state2)
 
 
-class CutoutContext(Context):
-    """A Context object for CutoutRunner."""
-
-    def __init__(self, checkpoint):
-        self._checkpoint = checkpoint
-
-    @property
-    def checkpoint(self):
-        return self._checkpoint
-
-
 @runner_registry.register("cutout")
 class CutoutRunner(Runner):
     """A Runner that for LAMs."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize CutoutRunner."""
         super().__init__(*args, **kwargs)
 
         sources = self.checkpoint.sources

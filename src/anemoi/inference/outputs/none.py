@@ -9,6 +9,8 @@
 
 import logging
 
+from anemoi.inference.types import State
+
 from ..output import Output
 from . import output_registry
 
@@ -17,7 +19,14 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("none")
 class NoneOutput(Output):
-    """_summary_"""
+    """None output class."""
 
-    def write_step(self, state):
+    def write_step(self, state: State) -> None:
+        """Write a step of the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
         pass

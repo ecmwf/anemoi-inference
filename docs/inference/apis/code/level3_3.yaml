@@ -1,0 +1,8 @@
+checkpoint: inference-aifs-0.2.1-anemoi.ckpt
+
+date: 2024-01-31T00:00:00
+
+input:
+  dataset:
+    cutout:
+      - dataset: ./analysis_20240101_00.zarr

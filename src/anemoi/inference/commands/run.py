@@ -10,53 +10,54 @@
 from __future__ import annotations
 
 import logging
+from argparse import ArgumentParser
+from argparse import Namespace
 
-from ..config import load_config
+from ..config.run import RunConfiguration
 from ..runners import create_runner
 from . import Command
 
 LOG = logging.getLogger(__name__)
 
 
-def _run(runner, config):
-    input = runner.create_input()
-    output = runner.create_output()
-
-    # pre_processors = runner.pre_processors
-    post_processors = runner.post_processors
-
-    input_state = input.create_input_state(date=config.date)
-
-    output.write_initial_state(input_state)
-
-    for state in runner.run(input_state=input_state, lead_time=config.lead_time):
-        for processor in post_processors:
-            state = processor.process(state)
-        output.write_state(state)
-
-    output.close()
-
-
 class RunCmd(Command):
     """Run inference from a config yaml file."""
 
-    need_logging = False
+    def add_arguments(self, command_parser: ArgumentParser) -> None:
+        """Add arguments to the command parser.
 
-    def add_arguments(self, command_parser):
+        Parameters
+        ----------
+        command_parser : ArgumentParser
+            The argument parser to which the arguments will be added.
+        """
         command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
-        command_parser.add_argument("config", help="Path to config file.")
-        command_parser.add_argument("overrides", nargs="*", help="Overrides.")
+        command_parser.add_argument(
+            "config",
+            help="Path to config file. Can be omitted to pass config with overrides and defaults.",
+        )
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
-    def run(self, args):
+    def run(self, args: Namespace) -> None:
+        """Run the inference command.
 
-        config = load_config(args.config, args.overrides, defaults=args.defaults)
+        Parameters
+        ----------
+        args : Namespace
+            The arguments passed to the command.
+        """
+        if "=" in args.config:
+            args.overrides.append(args.config)
+            args.config = {}
 
-        if config.description is not None:
-            LOG.info("%s", config.description)
+        config = RunConfiguration.load(
+            args.config,
+            args.overrides,
+            defaults=args.defaults,
+        )
 
         runner = create_runner(config)
-
-        _run(runner, config)
+        runner.execute()
 
 
 command = RunCmd

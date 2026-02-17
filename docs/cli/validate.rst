@@ -1,5 +1,7 @@
-validate
-==========
+.. _validate_command:
+
+Validate Command
+================
 
 It is possible to investigate a checkpoint file and determine if the environment matches,
 or if anemoi packages differ in version between the inference and the training environment.
