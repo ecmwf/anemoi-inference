@@ -64,8 +64,24 @@ file.
 .. note::
 
    The netcdf input expects the data to be stored identically to the
-   GRIB input, i.e. with a values coordinate, and variable names that
-   match what the checkpoint was trained on.
+   GRIB input, i.e. with a flattened values dimension (..., values), and
+   variable names that match what the checkpoint was trained on.
+
+   ```text
+   <xarray.Dataset> Size: 165MB
+   Dimensions:    (date: X, values: 542080)
+   Coordinates:
+     * date       (date) ....
+       latitude   (values) float64 4MB ...
+       longitude  (values) float64 4MB ...
+   Dimensions without coordinates: values
+   Data variables:
+       10u        (date, values) float64 39MB ...
+       10v        (date, values) float64 39MB ...
+       2t         (date, values) float64 39MB ...
+       ...
+   ```
+
 
    For context, using ``earthkit-data`` a grib file can be exported as
    netcdf with the following and then read back in using the netcdf
