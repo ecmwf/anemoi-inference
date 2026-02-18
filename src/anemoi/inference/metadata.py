@@ -749,6 +749,8 @@ class Metadata(PatchMixin, LegacyMixin):
                     LOG.info(f"   {package:20}: {sha1}")
 
             for package, version in sorted(provenance.get("module_versions", {}).items()):
+                if isinstance(version, dict) and "version" in version:
+                    version = version["version"]
                 if package.startswith("anemoi."):
                     LOG.info(f"   {package:20}: {version}")
 
