@@ -16,6 +16,7 @@ from typing import Literal
 
 import yaml
 from pydantic import Field
+from pydantic import FilePath
 from pydantic import field_validator
 
 from anemoi.inference.types import ProcessorConfig
@@ -104,7 +105,7 @@ class RunConfiguration(Configuration):
     is already loaded when the runner is configured.
     """
 
-    patch_metadata: dict[str, Any] | str = {}
+    patch_metadata: dict[str, Any] | FilePath = {}
     """A dictionary of metadata to patch the checkpoint metadata with, or a path to a YAML file containing the metadata.
     This is used to test new features or to work around issues with the checkpoint metadata.
     """
