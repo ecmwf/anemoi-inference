@@ -508,8 +508,6 @@ class FieldlistInput(EkdInput):
               - "/path/to/*.grib"
               - "/path/to/**/*.grib2"
               - "/path/to/directory/"
-        namer : Optional[Any]
-            Optional namer for the input.
         **kwargs : Any
             Additional keyword arguments.
         """
