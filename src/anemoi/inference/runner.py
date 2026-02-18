@@ -881,7 +881,7 @@ class Runner(Context):
 
         input_tensor_torch = input_tensor_torch.roll(-self.checkpoint.multi_step_output, dims=1)
 
-        for i in range(1, self.checkpoint.multi_step_output + 1):
+        for i in range(1, min(self.checkpoint.multi_step_output + 1, self.checkpoint.multi_step_input)):
             input_tensor_torch[:, -i, :, pmask_in] = prognostic_fields[:, -i, ...]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
@@ -949,7 +949,7 @@ class Runner(Context):
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            for i in range(1, self.checkpoint.multi_step_output + 1):
+            for i in range(1, min(self.checkpoint.multi_step_output + 1, self.checkpoint.multi_step_input)):
                 input_tensor_torch[:, -i, :, source.mask] = forcings[
                     :, -i, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
@@ -1004,7 +1004,7 @@ class Runner(Context):
             )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            for i in range(1, self.checkpoint.multi_step_output + 1):
+            for i in range(1, min(self.checkpoint.multi_step_output + 1, self.checkpoint.multi_step_input)):
                 total_mask = np.ix_([0], [-i], source.spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
                     :, -i, ...
