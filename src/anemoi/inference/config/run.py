@@ -105,7 +105,7 @@ class RunConfiguration(Configuration):
     is already loaded when the runner is configured.
     """
 
-    patch_metadata: dict[str, Any] | FilePath = {}
+    patch_metadata: dict[str, Any] = {}
     """A dictionary of metadata to patch the checkpoint metadata with, or a path to a YAML file containing the metadata.
     This is used to test new features or to work around issues with the checkpoint metadata.
     """
@@ -127,7 +127,7 @@ class RunConfiguration(Configuration):
 
     @field_validator("patch_metadata", mode="before")
     @classmethod
-    def as_dict(cls, patch_metadata: dict | str) -> dict:
+    def as_dict(cls, patch_metadata: dict | FilePath) -> dict:
         if isinstance(patch_metadata, str):
             with open(patch_metadata, "r") as f:
                 patch_metadata = yaml.safe_load(f)
