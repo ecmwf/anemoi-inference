@@ -28,10 +28,10 @@ LOG = logging.getLogger(__name__)
 
 
 class PluginInput(GribInput):
-    """Handles earthkit-data fieldlists input fields."""
+    """Handles earthkit-data fieldlists input fields specifically for the AIModelPlugin."""
 
     def __init__(self, context: Any, *, input_fields: Any, **kwargs) -> None:
-        """Initialize FieldListInput.
+        """Initialise PluginInput.
 
         Parameters
         ----------

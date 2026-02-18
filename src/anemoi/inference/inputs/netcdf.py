@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2026- Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -13,7 +13,7 @@ from .ekd import FieldlistInput
 
 
 @input_registry.register("netcdf")
-class NetcdfFileInput(FieldlistInput):
+class NetCDFFileInput(FieldlistInput):
     """Handles netcdf files."""
 
     trace_name = "netcdf file"
