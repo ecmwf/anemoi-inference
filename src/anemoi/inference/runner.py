@@ -662,7 +662,7 @@ class Runner(Context):
         steps = lead_time // rollout_step_size
 
         LOG.info(
-            "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s predictions each.",
+            "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
             lead_time,
             self.checkpoint.timestep,
             self.checkpoint.multi_step_output * steps,
