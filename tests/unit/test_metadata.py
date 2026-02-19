@@ -86,11 +86,11 @@ def test_multi_metadata():
 
 
 def test_open_dataset_args_kwargs_removes_unsupported_keys():
-    """Test that trajectory, frequency, and drop keys are removed from kwargs."""
-    # Load a real checkpoint and patch it with unsupported keys
+    """Test that trajectory key is removed from kwargs but frequency and drop are kept."""
+    # Load a real checkpoint and patch it with the trajectory key
     model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
 
-    # Add dataloader config with unsupported keys
+    # Add dataloader config with trajectory key that should be removed
     model_metadata["config"]["dataloader"] = {
         "training": {
             "dataset": "test_dataset",
@@ -107,10 +107,12 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys():
     # Get the args and kwargs
     args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
 
-    # Verify that unsupported keys are removed
+    # Verify that trajectory is removed
     assert "trajectory" not in kwargs
-    assert "frequency" not in kwargs
-    assert "drop" not in kwargs
+
+    # Verify that frequency and drop are kept (they are valid parameters)
+    assert kwargs.get("frequency") == "6h"
+    assert kwargs.get("drop") == []
 
     # Verify that other keys are still present
     assert kwargs.get("dataset") == "test_dataset"
@@ -119,11 +121,11 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys():
 
 
 def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
-    """Test that trajectory, frequency, and drop keys are removed from kwargs for multi-dataset."""
-    # Load a multi-dataset checkpoint and patch it with unsupported keys
+    """Test that trajectory key is removed from kwargs but frequency and drop are kept for multi-dataset."""
+    # Load a multi-dataset checkpoint and patch it with the trajectory key
     model_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
 
-    # Add dataloader config with unsupported keys for multi-dataset structure
+    # Add dataloader config with trajectory key that should be removed for multi-dataset structure
     model_metadata["config"]["dataloader"] = {
         "training": {
             "datasets": {
@@ -144,10 +146,12 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
     # Get the args and kwargs
     args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
 
-    # Verify that unsupported keys are removed
+    # Verify that trajectory is removed
     assert "trajectory" not in kwargs
-    assert "frequency" not in kwargs
-    assert "drop" not in kwargs
+
+    # Verify that frequency and drop are kept (they are valid parameters)
+    assert kwargs.get("frequency") == "12h"
+    assert kwargs.get("drop") == ["var1"]
 
     # Verify that other keys are still present
     assert kwargs.get("dataset") == "test_dataset_multi"

@@ -24,15 +24,15 @@ from typing import Literal
 import deprecation
 import earthkit.data as ekd
 import numpy as np
-from anemoi.transform.variables import Variable
-from anemoi.utils.config import DotDict
-from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
-from anemoi.utils.provenance import gather_provenance_info
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
+from anemoi.transform.variables import Variable
+from anemoi.utils.config import DotDict
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.provenance import gather_provenance_info
 
 from .legacy import LegacyMixin
 from .patch import PatchMixin
@@ -933,8 +933,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         # Remove keys that should not be passed to open_dataset()
         # See: https://github.com/ecmwf/anemoi-core/pull/756
-        for key in ["trajectory", "frequency", "drop"]:
-            kwargs.pop(key, None)
+        kwargs.pop("trajectory", None)
 
         if use_original_paths:
             return args, kwargs
