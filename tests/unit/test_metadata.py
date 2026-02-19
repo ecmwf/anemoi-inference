@@ -116,3 +116,40 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys():
     assert kwargs.get("dataset") == "test_dataset"
     assert kwargs.get("start") == 2021
     assert kwargs.get("end") == 2021
+
+
+def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
+    """Test that trajectory, frequency, and drop keys are removed from kwargs for multi-dataset."""
+    # Load a multi-dataset checkpoint and patch it with unsupported keys
+    model_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
+
+    # Add dataloader config with unsupported keys for multi-dataset structure
+    model_metadata["config"]["dataloader"] = {
+        "training": {
+            "datasets": {
+                "data": {
+                    "dataset": "test_dataset_multi",
+                    "start": 2022,
+                    "end": 2022,
+                    "frequency": "12h",
+                    "drop": ["var1"],
+                    "trajectory": None,
+                }
+            }
+        }
+    }
+
+    metadata = MetadataFactory(model_metadata)
+
+    # Get the args and kwargs
+    args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
+
+    # Verify that unsupported keys are removed
+    assert "trajectory" not in kwargs
+    assert "frequency" not in kwargs
+    assert "drop" not in kwargs
+
+    # Verify that other keys are still present
+    assert kwargs.get("dataset") == "test_dataset_multi"
+    assert kwargs.get("start") == 2022
+    assert kwargs.get("end") == 2022
