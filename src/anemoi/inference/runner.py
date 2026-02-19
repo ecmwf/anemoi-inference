@@ -10,6 +10,7 @@
 
 import datetime
 import logging
+import math
 import os
 import sys
 import warnings
@@ -659,7 +660,7 @@ class Runner(Context):
             True if it's the last step of the forecast
         """
         rollout_step_size = self.checkpoint.timestep * self.checkpoint.multi_step_output
-        steps = lead_time // rollout_step_size
+        steps = math.ceil(lead_time // rollout_step_size)
 
         LOG.info(
             "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
@@ -791,16 +792,15 @@ class Runner(Context):
                             self.checkpoint.output_tensor_index_to_variable,
                             self.checkpoint.timestep,
                         )
-
-                    yield new_state
+                    if new_state["step"] <= lead_time:
+                        yield new_state
                     new_states.append(new_state)
 
                 # No need to prepare next input tensor if we are at the last autoregressive step
                 if is_last_step:
                     break
 
-                # TODO(dieter) support this hook with multi-step output
-                # self.output_state_hook(new_state)
+                self.output_state_hook(new_states[-1])
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
@@ -812,13 +812,12 @@ class Runner(Context):
 
                     del y_pred  # Recover memory
 
-                    # TODO(dieter):
-                    # how do forcings use the new_state(s)?
+                    # some forcings use the new_state(s)
                     # ComputedForcings only uses it to get latlons
-                    # For CoupledForcings unclear how it is used: don't worry just yet about supporting it
+                    # For CoupledForcings multi-out not yet supported, last state is only state
                     # ConstantForcings irrelevant
                     # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
-                    # so for now we can get away with:
+                    # so for now ok to simply pas the last of the new states:
                     new_state = new_states[-1]
                     #################################
 
