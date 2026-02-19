@@ -118,6 +118,14 @@ def validate_environment(
         "uncommitted": [],
     }
 
+    def version_parser(version_info: str | dict[str, str]) -> Version:
+        if isinstance(version_info, str):
+            return Version(version_info)
+        elif isinstance(version_info, dict) and "version" in version_info:
+            return Version(version_info["version"])
+        else:
+            raise ValueError(f"Invalid version information for module {module}: {version_info!s}")
+
     if train_environment["python"] != inference_environment["python"]:
         invalid_messages["python"].append(
             f"Python version mismatch: {train_environment['python']} != {inference_environment['python']}"
@@ -126,7 +134,7 @@ def validate_environment(
     for module in train_environment["module_versions"].keys():
         inference_module_name = module  # Due to package name differences between retrieval methods this may change
 
-        train_module_version_str = train_environment["module_versions"][module]
+        train_module_version_str = version_parser(train_environment["module_versions"][module])
         if not all_packages and "anemoi" not in module:
             continue
         elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
@@ -149,8 +157,8 @@ def validate_environment(
                 )
                 continue
 
-        train_environment_version = Version(train_environment["module_versions"][module])
-        inference_environment_version = Version(inference_environment["module_versions"][inference_module_name])
+        train_environment_version = version_parser(train_environment["module_versions"][module])
+        inference_environment_version = version_parser(inference_environment["module_versions"][inference_module_name])
 
         if train_environment_version < inference_environment_version:
             invalid_messages["mismatch"].append(

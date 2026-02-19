@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.9.1](https://github.com/ecmwf/anemoi-inference/compare/0.9.0...0.9.1) (2026-02-18)
+
+
+### Features
+
+* Provide YAML file to `patch_metadata` ([#433](https://github.com/ecmwf/anemoi-inference/issues/433)) ([88c8b6a](https://github.com/ecmwf/anemoi-inference/commit/88c8b6a7faf1aae31aeb32163811dc3de3aa7ee2))
+
+
+### Bug Fixes
+
+* Multi-out-backward-compatibility ([#429](https://github.com/ecmwf/anemoi-inference/issues/429)) ([0a1e518](https://github.com/ecmwf/anemoi-inference/commit/0a1e518a129e7960e60e84885da6bca5a13dec58))
+* Time interpolator for grib and forecast data ([#412](https://github.com/ecmwf/anemoi-inference/issues/412)) ([826468e](https://github.com/ecmwf/anemoi-inference/commit/826468ea4e6eb0cb59c995c75d1f2e86c66da328))
+* Version provenance information broken  ([#434](https://github.com/ecmwf/anemoi-inference/issues/434)) ([dd830b4](https://github.com/ecmwf/anemoi-inference/commit/dd830b48eafcee4acea3b7568ddf021984ec4cdb))
+
+
+### Documentation
+
+* Add documentation for output configuration parameters ([#430](https://github.com/ecmwf/anemoi-inference/issues/430)) ([7f47ed5](https://github.com/ecmwf/anemoi-inference/commit/7f47ed56929da70093a084f95253ebe926468410))
+* Update forcings configuration documentation ([#431](https://github.com/ecmwf/anemoi-inference/issues/431)) ([55ab74e](https://github.com/ecmwf/anemoi-inference/commit/55ab74e974f9c9fe2c2246cd992415312d7acd9c))
+
 ## [0.9.0](https://github.com/ecmwf/anemoi-inference/compare/0.8.3...0.9.0) (2026-01-28)
 
 

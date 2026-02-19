@@ -1,0 +1,6 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    post_processors:
+      - backward_transform_filter: cos_sin_mean_wave_direction
+      - accumulate_from_start_of_forecast

@@ -4,6 +4,77 @@
  Outputs
 #########
 
+*********************
+ Common Parameters
+*********************
+
+Most output types support a common set of parameters that control which
+variables are written, how they are processed, and when they are written.
+
+variables
+=========
+
+The ``variables`` parameter allows you to subset the output to only include
+specific variables. This is useful when you only need a subset of the model
+output, reducing output file size and processing time.
+
+.. literalinclude:: yaml/outputs_variables.yaml
+   :language: yaml
+
+The variable names should match the names as they appear in the checkpoint.
+For variables with pressure levels, use the format ``{param}_{level}``, for
+example ``t_850`` for temperature at 850 hPa.
+
+post_processors
+===============
+
+Output-level post-processors can be applied to modify the data before it is
+written. These are applied after top-level post-processors. See
+:ref:`inference-processors` for details on available post-processors.
+
+.. literalinclude:: yaml/outputs_post_processors.yaml
+   :language: yaml
+
+Common use cases include:
+
+- Extracting subsets with ``extract_mask`` or ``extract_slice``
+- Applying backward transforms with ``backward_transform_filter``
+- Accumulating fields with ``accumulate_from_start_of_forecast``
+
+output_frequency
+================
+
+The ``output_frequency`` parameter controls how often output is written. By
+default, output is written at every forecast step. You can specify a different
+frequency using a time interval.
+
+.. literalinclude:: yaml/outputs_frequency.yaml
+   :language: yaml
+
+The frequency can be specified in hours (e.g., ``6h``, ``12h``) or as an
+integer representing hours.
+
+write_initial_state
+===================
+
+The ``write_initial_state`` parameter controls whether the initial state
+(step 0) is written to the output. By default, this is inherited from the
+top-level configuration.
+
+.. literalinclude:: yaml/outputs_write_initial.yaml
+   :language: yaml
+
+Set to ``true`` to include the initial state, or ``false`` to start from the
+first forecast step.
+
+Combining Parameters
+====================
+
+These parameters can be combined to create sophisticated output configurations:
+
+.. literalinclude:: yaml/outputs_combined.yaml
+   :language: yaml
+
 *********
  Printer
 *********
@@ -60,6 +131,9 @@ It relies heavily on having a GRIB input, but will nevertheless attempt
 to encode the data as GRIB messages when this is not the case. For more
 information, see :ref:`grib-output`.
 
+The grib output supports all common parameters including ``variables``,
+``post_processors``, ``output_frequency``, and ``write_initial_state``.
+
 ********
  netcdf
 ********
@@ -71,6 +145,9 @@ variable is written in its own NetCDF variable.
 
 .. literalinclude:: yaml/outputs_3.yaml
    :language: yaml
+
+The netcdf output supports all common parameters including ``variables``,
+``post_processors``, ``output_frequency``, and ``write_initial_state``.
 
 ******
  zarr
@@ -84,6 +161,9 @@ Each state variable is written in its own Zarr array.
 
 .. literalinclude:: yaml/outputs_10.yaml
 
+The zarr output supports all common parameters including ``variables``,
+``post_processors``, ``output_frequency``, and ``write_initial_state``.
+
 ******
  plot
 ******
@@ -95,6 +175,11 @@ variables are plotted, and the domain to be shown.
 
 .. literalinclude:: yaml/outputs_4.yaml
    :language: yaml
+
+The plot output supports all common parameters including ``variables``,
+``post_processors``, ``output_frequency``, and ``write_initial_state``.
+The ``variables`` parameter is particularly useful for the plot output to
+limit which fields are visualised.
 
 *****
  raw
@@ -108,8 +193,11 @@ the given directory.
 
 .. note::
 
-   The raw output is useful for debugging and testing purposes. If is
+   The raw output is useful for debugging and testing purposes. If it is
    proven useful, it can be developed further.
+
+The raw output supports all common parameters including ``variables``,
+``post_processors``, ``output_frequency``, and ``write_initial_state``.
 
 *****
  tee
@@ -118,6 +206,16 @@ the given directory.
 The ``tee`` output writes the state to several outputs at once.
 
 .. literalinclude:: yaml/outputs_6.yaml
+   :language: yaml
+
+Each output in the ``tee`` can have its own ``variables``,
+``post_processors``, ``output_frequency``, and ``write_initial_state``
+parameters. This allows you to write different subsets of variables to
+different outputs or apply different post-processing to each output.
+
+Here's an advanced example showing different options for each output:
+
+.. literalinclude:: yaml/outputs_tee_advanced.yaml
    :language: yaml
 
 ************
@@ -178,3 +276,7 @@ It is best used with the ``tee`` output, as it will write out the
 outputs that are available to the ``output`` class.
 
 .. literalinclude:: yaml/outputs_9.yaml
+
+The nested output within ``truth`` supports all common parameters including
+``variables``, ``post_processors``, ``output_frequency``, and
+``write_initial_state``.

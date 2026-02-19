@@ -1,4 +1,5 @@
 import pytest
+import yaml
 from pytest import MonkeyPatch
 
 from anemoi.inference.config.run import RunConfiguration
@@ -95,3 +96,18 @@ def test_config_dotlist_override_index_error() -> None:
                 "post_processors.2.backward_transform_filter=test",
             ],
         )
+
+
+def test_config_patch_metadata_file(tmp_path) -> None:
+    """Test loading the configuration with patch metadata from a file"""
+
+    patch_metadata = {"dataset": {"variables_metadata": {"2t": "some_patch"}}}
+
+    patch = tmp_path / "patch.yaml"
+    patch.write_text(yaml.dump(patch_metadata))
+    config = RunConfiguration.load(
+        files_for_tests("unit/configs/simple.yaml"),
+        overrides=[f"patch_metadata={patch}"],
+    )
+    assert isinstance(config.patch_metadata, dict)
+    assert config.patch_metadata["dataset"]["variables_metadata"]["2t"] == "some_patch"

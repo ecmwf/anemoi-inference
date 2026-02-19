@@ -5,9 +5,10 @@
 ########
 
 The input methods listed below are used to fetch the initial conditions
-of a model run. They will also be the source of forcings during the
-model run, unless a ``forcing`` entry is specified in the configuration
-(see :ref:`forcings`).
+(prognostic variables) of a model run. They will also be the source of
+constant and dynamic forcings unless ``constant_forcings`` or
+``dynamic_forcings`` entries are specified in the configuration (see
+:ref:`forcings`).
 
 **********
  Datasets
