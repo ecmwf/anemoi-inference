@@ -83,3 +83,62 @@ def test_multi_metadata():
 
     for function in ["variable_categories"]:
         assert getattr(metadata, function)() == getattr(base_metadata, function)()
+
+
+def test_open_dataset_args_kwargs_removes_unsupported_keys():
+    """Test that trajectory, frequency, and drop keys are removed from kwargs."""
+    # Create a mock metadata with dataloader config containing unsupported keys
+    metadata_dict = {
+        "config": {
+            "dataloader": {
+                "training": {
+                    "datasets": {
+                        "data": {
+                            "dataset": "test_dataset",
+                            "start": 2021,
+                            "end": 2021,
+                            "frequency": "6h",
+                            "drop": [],
+                            "trajectory": None,
+                        }
+                    }
+                }
+            },
+            "data": {
+                "timestep": "6h",
+            },
+            "training": {
+                "multistep_input": 1,
+                "precision": "16-mixed",
+            },
+        },
+        "dataset": {
+            "shape": [100, 10, 1, 1000],
+            "variables": ["var1", "var2"],
+        },
+        "data_indices": {
+            "data": {
+                "input": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
+                "output": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
+            },
+            "model": {
+                "input": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
+                "output": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
+            },
+        },
+    }
+
+    metadata = MetadataFactory(metadata_dict)
+
+    # Get the args and kwargs
+    args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
+
+    # Verify that unsupported keys are removed
+    assert "trajectory" not in kwargs
+    assert "frequency" not in kwargs
+    assert "drop" not in kwargs
+
+    # Verify that other keys are still present
+    assert kwargs.get("dataset") == "test_dataset"
+    assert kwargs.get("start") == 2021
+    assert kwargs.get("end") == 2021
