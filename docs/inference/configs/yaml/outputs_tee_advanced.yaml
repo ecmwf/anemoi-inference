@@ -1,0 +1,17 @@
+output:
+  tee:
+    - grib:
+        path: /path/to/full_output.grib
+        # No variables specified - outputs all fields
+    - netcdf:
+        path: /path/to/subset.nc
+        variables:
+          - 2t
+          - msl
+        output_frequency: 6h
+    - netcdf:
+        path: /path/to/lam.nc
+        post_processors:
+          - extract_mask:
+              mask: lam_0/cutout_mask
+              as_slice: true

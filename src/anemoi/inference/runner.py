@@ -637,7 +637,7 @@ class Runner(Context):
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
+    ) -> Generator[tuple[datetime.timedelta, list[datetime.datetime], list[datetime.datetime], bool], None, None]:
         """Generate step and date variables for the forecast autoregressive loop.
 
         Parameters
@@ -651,9 +651,9 @@ class Runner(Context):
         -------
         step : datetime.timedelta
             Time delta since beginning of forecast
-        valid_date : datetime.datetime
+        valid_date : list[datetime.datetime]
             Date of the forecast
-        next_date : datetime.datetime
+        next_date : list[datetime.datetime]
             Date used to prepare the next input tensor
         is_last_step : bool
             True if it's the last step of the forecast
@@ -662,7 +662,7 @@ class Runner(Context):
         steps = lead_time // rollout_step_size
 
         LOG.info(
-            "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s predictions each.",
+            "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
             lead_time,
             self.checkpoint.timestep,
             self.checkpoint.multi_step_output * steps,
@@ -742,7 +742,6 @@ class Runner(Context):
                 )
 
                 if self.trace:
-                    # TODO(dieter): check what below is about and how to handle date(s)
                     self.trace.write_input_tensor(
                         dates[-1],
                         s,
@@ -754,37 +753,39 @@ class Runner(Context):
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    # TODO(dieter) what are these kwargs about? maybe related to interpolator?? check out
                     y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=dates[-1])
-                # (batch, [time], ensemble, grid/values, variables) -> (time, values, variables)
-                ndim = y_pred.ndim
-                if ndim != 5:
-                    # for backwards compatibility
-                    outputs = torch.squeeze(y_pred, dim=(0, 1)).unsqueeze(0)
-                else:
-                    outputs = torch.squeeze(y_pred, dim=(0, 2))
 
-                new_states = []  # TODO(dieter) not clear if needed, but some forcings might need the new states
+                # (batch, [time], ensemble, values, variables) -> (time, values, variables)
+                ndim = y_pred.ndim
+                assert ndim in (
+                    4,
+                    5,
+                ), f"Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {y_pred.shape}"
+                if ndim == 4:
+                    # for backwards compatibility
+                    y_pred = y_pred.unsqueeze(1)
+                outputs = torch.squeeze(y_pred, dim=(0, 2))
+
+                new_states = []
 
                 for i in range(self.checkpoint.multi_step_output):
                     new_state["date"] = dates[i]
                     new_state["previous_step"] = new_state.get("step")
                     new_state["step"] = step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
 
-                    output = outputs[i, ...]
+                    output = outputs[i, ...]  # shape: (values, variables)
 
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                        for i in range(output.shape[1]):
-                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[:, i]
+                        for j in range(output.shape[1]):
+                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[j]] = output[:, j]
 
                     if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                         self._print_output_tensor("Output tensor", output.cpu().numpy())
 
                     if self.trace:
-                        # TODO(dieter): check what below is about and how to handle date(s)
                         self.trace.write_output_tensor(
-                            dates[-1],
+                            dates[i],
                             s,
                             output.cpu().numpy(),
                             self.checkpoint.output_tensor_index_to_variable,
@@ -880,7 +881,7 @@ class Runner(Context):
 
         input_tensor_torch = input_tensor_torch.roll(-self.checkpoint.multi_step_output, dims=1)
 
-        for i in range(1, self.checkpoint.multi_step_output + 1):
+        for i in range(1, min(self.checkpoint.multi_step_output + 1, self.checkpoint.multi_step_input)):
             input_tensor_torch[:, -i, :, pmask_in] = prognostic_fields[:, -i, ...]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
@@ -948,7 +949,7 @@ class Runner(Context):
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            for i in range(1, self.checkpoint.multi_step_output + 1):
+            for i in range(1, min(self.checkpoint.multi_step_output + 1, self.checkpoint.multi_step_input)):
                 input_tensor_torch[:, -i, :, source.mask] = forcings[
                     :, -i, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
@@ -1003,7 +1004,7 @@ class Runner(Context):
             )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            for i in range(1, self.checkpoint.multi_step_output + 1):
+            for i in range(1, min(self.checkpoint.multi_step_output + 1, self.checkpoint.multi_step_input)):
                 total_mask = np.ix_([0], [-i], source.spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
                     :, -i, ...

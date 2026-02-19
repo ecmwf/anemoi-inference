@@ -1,0 +1,13 @@
+output:
+  netcdf:
+    path: /path/to/output.nc
+    variables:
+      - 2t
+      - tp
+      - msl
+    post_processors:
+      - accumulate_from_start_of_forecast:
+          accumulations:
+            - tp
+    output_frequency: 6h
+    write_initial_state: false

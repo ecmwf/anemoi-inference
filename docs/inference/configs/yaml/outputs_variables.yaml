@@ -1,0 +1,10 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    variables:
+      - 2t
+      - 10u
+      - 10v
+      - msl
+      - t_850
+      - z_500

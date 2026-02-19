@@ -11,6 +11,7 @@ import logging
 from functools import cached_property
 from typing import Any
 
+from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
 
 from . import runner_registry
@@ -65,7 +66,7 @@ class NoModelMixing:
     @cached_property
     def model(self) -> "torch.nn.Module":
 
-        checkpoint = self.checkpoint
+        checkpoint: Checkpoint = self.checkpoint
         number_of_output_variables = len(checkpoint.output_tensor_index_to_variable)
 
         class NoModel(torch.nn.Module):
@@ -78,7 +79,7 @@ class NoModelMixing:
                 input_shape = input_tensor.shape
                 output_shape = (
                     input_shape[0],  # batch
-                    1,  # time
+                    checkpoint.multi_step_output,  # time
                     input_shape[2],  # gridpoints
                     number_of_output_variables,  # variables
                 )
