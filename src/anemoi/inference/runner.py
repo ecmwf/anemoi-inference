@@ -799,8 +799,7 @@ class Runner(Context):
                 if is_last_step:
                     break
 
-                # TODO(dieter) support this hook with multi-step output
-                # self.output_state_hook(new_state)
+                self.output_state_hook(new_states[-1])
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
