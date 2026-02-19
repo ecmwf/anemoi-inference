@@ -52,7 +52,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
     """
 
     def __init__(self, config: Configuration) -> None:
-        """Initialize the TimeInterpolatorMultiOutRunner
+        """Initialise the TimeInterpolatorMultiOutRunner
         The runner makes the following assumptions:
             - The model was trained with two input states: (t and t+interpolation_window)
             - The output states are between these two states and are set by "frequency" in the config
