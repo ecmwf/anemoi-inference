@@ -659,7 +659,7 @@ class Runner(Context):
             True if it's the last step of the forecast
         """
         rollout_step_size = self.checkpoint.timestep * self.checkpoint.multi_step_output
-        steps = lead_time // rollout_step_size
+        steps = -(-lead_time // rollout_step_size)  # poor man's ceil
 
         LOG.info(
             "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
@@ -791,8 +791,8 @@ class Runner(Context):
                             self.checkpoint.output_tensor_index_to_variable,
                             self.checkpoint.timestep,
                         )
-
-                    yield new_state
+                    if new_state["step"] <= lead_time:
+                        yield new_state
                     new_states.append(new_state)
 
                 # No need to prepare next input tensor if we are at the last autoregressive step
