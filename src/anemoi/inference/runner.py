@@ -811,13 +811,12 @@ class Runner(Context):
 
                     del y_pred  # Recover memory
 
-                    # TODO(dieter):
-                    # how do forcings use the new_state(s)?
+                    # some forcings use the new_state(s)
                     # ComputedForcings only uses it to get latlons
-                    # For CoupledForcings unclear how it is used: don't worry just yet about supporting it
+                    # For CoupledForcings multi-out not yet supported, last state is only state
                     # ConstantForcings irrelevant
                     # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
-                    # so for now we can get away with:
+                    # so for now ok to simply pas the last of the new states:
                     new_state = new_states[-1]
                     #################################
 
