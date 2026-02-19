@@ -10,6 +10,7 @@
 
 import datetime
 import logging
+import math
 import os
 import sys
 import warnings
@@ -659,7 +660,7 @@ class Runner(Context):
             True if it's the last step of the forecast
         """
         rollout_step_size = self.checkpoint.timestep * self.checkpoint.multi_step_output
-        steps = -(-lead_time // rollout_step_size)  # poor man's ceil
+        steps = math.ceil(lead_time // rollout_step_size)
 
         LOG.info(
             "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
