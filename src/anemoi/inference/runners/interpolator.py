@@ -556,15 +556,262 @@ class TimeInterpolatorRunner(DefaultRunner):
 
 
 @runner_registry.register("time_multi_interpolator")
-class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
+class TimeInterpolatorMultiOutRunner(DefaultRunner):
     """A runner to be used for inference of a trained interpolator with multiple output steps.
     Unlike the single output, the interpolation is all done as one step.
     Can be applied directly on analysis/forecast data without being coupled to a forecasting model.
     """
 
-    def predict_step(self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor") -> "torch.Tensor":
-        input_tensor_dict = {"data": input_tensor_torch}
-        return model.predict_step(input_tensor_dict, multi_step=self.multi_step_input)
+    def __init__(self, config: Configuration) -> None:
+        """Initialize the TimeInterpolatorMultiOutRunner
+        The runner makes the following assumptions:
+            - The model was trained with two input states: (t and t+interpolation_window)
+            - The output states are between these two states and are set by "frequency" in the config
+            - interpolation_window / frequency - 1 is equal to the number of output states
+
+        Parameters
+        ----------
+        config : Configuration | dict | str | BaseModel | None
+            The configuration for the runner.
+        **kwargs : dict
+            Keyword arguments to initialize a config for the runner.
+        """
+        # assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
+        # config = config or kwargs
+
+        # # Remove that when the Pydantic model is ready
+        # if not isinstance(config, BaseModel):
+        #     config = RunConfiguration.load(config)
+
+        super().__init__(config)
+        self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
+        self.device = get_available_device()
+        self.patch_checkpoint_lagged_property()
+
+        self.multi_step_input = 2
+        self.constants_input = None
+
+        assert len(self.checkpoint.input_explicit_times) == 2, (
+            "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
+            f"but got {self.checkpoint.input_explicit_times}"
+        )
+        assert len(self.checkpoint.target_explicit_times) in (
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
+        ), (
+            "Interpolator runner requires the number of target explicit times to be equal to "
+            "interpolation_window / frequency - 1, but got "
+            f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
+            f"input explicit times {self.checkpoint.input_explicit_times}"
+        )
+        # This may be used by Output objects to compute the step
+        self.interpolation_window = get_interpolation_window(
+            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
+        )
+        self.lead_time = to_timedelta(self.config.lead_time)
+        self.time_step = self.interpolation_window
+
+    @classmethod
+    def create_config(cls, config: str | dict) -> Configuration:
+        """Instantiate the Configuration Object from a dictionary or from a path to a config file"""
+        config = RunConfiguration.load(config)
+        return config
+
+    def patch_data_request(self, request: dict) -> dict:
+        """Set sensible defaults when this runner is used with the `retrieve` command."""
+        req = request.copy()
+
+        req = super().patch_data_request(req)
+
+        # by default the `time` will be two initialisation times, e.g. 0000 and 0600
+        # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
+        if self.reference_date is not None:
+            req["time"] = f"{self.reference_date.hour*100:04d}"
+        req["step"] = (
+            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
+        )
+        return req
+
+    def patch_checkpoint_lagged_property(self):
+        # Patching the self._checkpoint lagged property
+        # By default, it assumes forecastor behaviour of retreving n previous steps of data,
+        # but we require it to be a list of positive timedeltas from the current date
+        # Clear any existing cached value
+        if "lagged" in self.checkpoint.__dict__:
+            del self.checkpoint.__dict__["lagged"]
+
+        # Monkey patch: replace the property with a simple property that uses our function
+
+        def get_lagged(instance):
+            if "lagged" not in instance.__dict__:
+                instance.__dict__["lagged"] = checkpoint_lagged_interpolator_patch(instance)
+            return instance.__dict__["lagged"]
+
+        # Replace the lagged property on this specific instance
+        self.checkpoint.__class__.lagged = property(get_lagged)
+
+    def create_input_state(self, *, date: datetime.datetime) -> State:
+        prognostic_input = self.create_prognostics_input()
+        LOG.info("📥 Prognostic input: %s", prognostic_input)
+        prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
+        self._check_state(prognostic_state, "prognostics")
+
+        forcings_input = self.create_dynamic_forcings_input()
+        LOG.info("📥 Dynamic forcings input: %s", forcings_input)
+        forcings_state = forcings_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
+        self._check_state(forcings_state, "dynamic_forcings")
+
+        self.constants_state["date"] = prognostic_state["date"]
+
+        input_state = self._combine_states(
+            prognostic_state,
+            self.constants_state,
+            forcings_state,
+        )
+
+        return input_state
+
+    def execute(self) -> None:
+        """Execute the interpolator runner with support for multiple interpolation periods."""
+        if self.config.description is not None:
+            LOG.info("%s", self.config.description)
+
+        output = self.create_output()
+
+        post_processors = self.post_processors
+
+        # Get the interpolation window size from training config
+        boundary_idx = self.checkpoint.input_explicit_times
+        # Calculate how many interpolation windows we need for the lead_time
+        num_windows = int(self.lead_time / self.interpolation_window)
+
+        if self.lead_time % self.interpolation_window != to_timedelta(0):
+            LOG.warning(
+                "Lead time %s is not a multiple of interpolation window %s. Will interpolate for %s",
+                self.lead_time,
+                self.interpolation_window,
+                num_windows * self.interpolation_window,
+            )
+
+        if self.constants_input is None:
+            self.constants_input = self.create_constant_coupled_forcings_input()
+            LOG.info("📥 Constant forcings input: %s", self.constants_input)
+            self.constants_state = self.constants_input.create_input_state(
+                date=self.config.date, constant=True, ref_date_index=0
+            )
+            for key in self.constants_state["fields"].keys():
+                self.constants_state["fields"][key] = np.concatenate(
+                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
+                )
+            self._check_state(self.constants_state, "constant_forcings")
+
+        # Process each interpolation window
+        for window_idx in range(num_windows):
+            window_start_date = self.config.date + window_idx * self.interpolation_window
+
+            LOG.info(
+                "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
+            )
+
+            input_state = self.create_input_state(date=window_start_date)
+
+            self.input_state_hook(input_state)
+
+            # Run interpolation for this window
+            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
+
+                # In the first window, we want to write the initial state (t=0)
+                # In other windows, we want to skip the initial state (t=0)
+                # because it is written as the last state of the previous window
+                if window_idx != 0 and state_idx == boundary_idx[0]:
+                    continue
+
+                # Updating state step to be a global step not relative to window
+                state["step"] = state["step"] + window_idx * self.interpolation_window
+
+                # Apply post-processing
+                for processor in post_processors:
+                    state = processor.process(state)
+
+                output.write_state(state)
+
+        output.close()
+
+    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
+        """Add initial forcings to the input state.
+
+        Parameters
+        ----------
+        input_state : State
+            The input state.
+        """
+        # Should that be alreay a list of dates
+        date = input_state["date"]
+        fields = input_state["fields"]
+
+        dates = [date + h for h in self.checkpoint.lagged]
+
+        # For output object. Should be moved elsewhere
+        self.reference_date = self.reference_date or date
+        self.reference_dates = [self.reference_date + h for h in self.checkpoint.lagged]
+        self.initial_dates = dates
+
+        # TODO: Check for user provided forcings
+
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        LOG.info("-" * 80)
+        LOG.info("Initial forcings:")
+        LOG.info("  Constant forcings inputs:")
+        for f in initial_constant_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("  Dynamic forcings inputs:")
+        for f in initial_dynamic_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("-" * 80)
+
+        for source in initial_constant_forcings_inputs:
+            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings_array(self.reference_dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
+
+        for source in initial_dynamic_forcings_inputs:
+            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
+            arrays = source.load_forcings_array(dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Create constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : list
+            The variables for the forcings.
+        mask : IntArray
+            The mask for the forcings.
+
+        Returns
+        -------
+        List[Forcings]
+            The created constant coupled forcings.
+        """
+        input = self.create_constant_coupled_forcings_input()
+        result = ConstantDateForcings(self, input, variables, mask)
+        LOG.info("Constant coupled forcing: %s", result)
+
+        return [result]
 
     def interpolator_stepper(
         self, start_date: datetime.datetime
@@ -689,7 +936,7 @@ class TimeInterpolatorMultiOutRunner(TimeInterpolatorRunner):
 
             # Detach tensor and squeeze (should we detach here?)
             with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                output = np.squeeze(y_pred["data"].cpu().numpy())  # shape: (values, variables)
+                output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
 
             if self.trace:
                 self.trace.write_output_tensor(
