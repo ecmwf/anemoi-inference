@@ -87,48 +87,22 @@ def test_multi_metadata():
 
 def test_open_dataset_args_kwargs_removes_unsupported_keys():
     """Test that trajectory, frequency, and drop keys are removed from kwargs."""
-    # Create a mock metadata with dataloader config containing unsupported keys
-    metadata_dict = {
-        "config": {
-            "dataloader": {
-                "training": {
-                    "datasets": {
-                        "data": {
-                            "dataset": "test_dataset",
-                            "start": 2021,
-                            "end": 2021,
-                            "frequency": "6h",
-                            "drop": [],
-                            "trajectory": None,
-                        }
-                    }
-                }
-            },
-            "data": {
-                "timestep": "6h",
-            },
-            "training": {
-                "multistep_input": 1,
-                "precision": "16-mixed",
-            },
-        },
-        "dataset": {
-            "shape": [100, 10, 1, 1000],
-            "variables": ["var1", "var2"],
-        },
-        "data_indices": {
-            "data": {
-                "input": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
-                "output": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
-            },
-            "model": {
-                "input": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
-                "output": {"full": [0, 1], "prognostic": [0, 1], "diagnostic": [], "forcing": []},
-            },
-        },
+    # Load a real checkpoint and patch it with unsupported keys
+    model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
+
+    # Add dataloader config with unsupported keys
+    model_metadata["config"]["dataloader"] = {
+        "training": {
+            "dataset": "test_dataset",
+            "start": 2021,
+            "end": 2021,
+            "frequency": "6h",
+            "drop": [],
+            "trajectory": None,
+        }
     }
 
-    metadata = MetadataFactory(metadata_dict)
+    metadata = MetadataFactory(model_metadata)
 
     # Get the args and kwargs
     args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
