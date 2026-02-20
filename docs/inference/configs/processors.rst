@@ -135,7 +135,7 @@ extract_from_state
 
 Extracts a subset of points based on masks included in the state. Must be
 used with the ``Cutout`` input. This is particularly useful for extracting
-Limited Area Model (LAM) domains from global forecasts.
+Limited Area Model (LAM) domains from nested grid forecasts.
 
 .. code:: yaml
 

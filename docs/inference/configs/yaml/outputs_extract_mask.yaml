@@ -1,5 +1,4 @@
 output:
-  netcdf:
-    path: /path/to/output.nc
+  printer:
     post_processors:
       - extract_mask: /path/to/mask.npy
