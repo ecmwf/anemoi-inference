@@ -11,7 +11,6 @@ import logging
 from typing import Any
 
 from anemoi.inference.runners.default import DefaultRunner
-from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -48,19 +47,11 @@ class TruthOutput(ForwardOutput):
         super().__init__(context, output, None, **kwargs)
         self._input = context.create_prognostics_input()
 
-    def write_step(self, state: State) -> None:
-        """Write a step of the state.
-
-        Parameters
-        ----------
-        state : State
-            The state to write.
-        """
-        truth_state = self._input.create_input_state(date=state["date"])
-        truth_state["step"] = state["step"]
-
-        reduced_state = reduce_state(truth_state)
-        self.output.write_state(reduced_state)
+    def modify_state(self, state: State) -> State:
+        """Modify state by overriding it with the truth state."""
+        truth_state = self.reduce(self._input.create_input_state(date=state["date"]))
+        truth_state["step"] = state.get("step", 0)
+        return truth_state
 
     def __repr__(self) -> str:
         """Return a string representation of the TruthOutput.
