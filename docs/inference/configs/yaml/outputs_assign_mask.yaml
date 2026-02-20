@@ -1,6 +1,6 @@
 output:
-  netcdf:
-    path: /path/to/output.nc
+  grib:
+    path: /path/to/output.grib
     post_processors:
       - assign_mask:
           mask: source0/trimedge_mask

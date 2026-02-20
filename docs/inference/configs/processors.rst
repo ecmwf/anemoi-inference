@@ -117,7 +117,7 @@ file containing the boolean mask.
 .. code:: yaml
 
    post_processors:
-     - extract_mask: thinning
+     - extract_mask: /path/to/mask.npy
 
 extract_slice
 -------------

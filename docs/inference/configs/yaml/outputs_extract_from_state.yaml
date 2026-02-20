@@ -1,5 +1,5 @@
 output:
-  netcdf:
-    path: /path/to/lam.nc
+  plot:
+    path: /path/to/lam-plots
     post_processors:
       - extract_from_state: lam_0

@@ -65,7 +65,7 @@ Several post-processors are available for extracting subsets of the data:
 **extract_from_state**
   Extracts a subset of points based on masks included in the state. Must be
   used with the ``Cutout`` input. This is particularly useful for extracting
-  Limited Area Model (LAM) domains from global forecasts.
+  Limited Area Model (LAM) domains from nested grid forecasts.
 
   .. literalinclude:: yaml/outputs_extract_from_state.yaml
      :language: yaml

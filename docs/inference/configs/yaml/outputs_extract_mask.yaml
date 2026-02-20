@@ -2,4 +2,4 @@ output:
   netcdf:
     path: /path/to/output.nc
     post_processors:
-      - extract_mask: thinning
+      - extract_mask: /path/to/mask.npy
