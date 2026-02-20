@@ -1,0 +1,5 @@
+output:
+  netcdf:
+    path: /path/to/output.nc
+    post_processors:
+      - extract_mask: thinning

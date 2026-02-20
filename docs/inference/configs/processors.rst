@@ -110,8 +110,9 @@ applying masks:
 extract_mask
 ------------
 
-Extracts a subset of points using a boolean mask. The mask can be provided
-as a supporting array in the checkpoint or loaded from a file.
+Extracts a subset of points using a boolean mask. The mask can be either
+the name of a supporting array in the checkpoint or a path to an ``.npy``
+file containing the boolean mask.
 
 .. code:: yaml
 
@@ -121,12 +122,13 @@ as a supporting array in the checkpoint or loaded from a file.
 extract_slice
 -------------
 
-Extracts a subset of points using a slice notation.
+Extracts a subset of points using a slice. Provide slice arguments as a list
+``[start, stop, step]``. Use ``null`` for default values.
 
 .. code:: yaml
 
    post_processors:
-     - extract_slice: "::2"  # Every other point
+     - extract_slice: [0, null, 2]  # Every other point from start
 
 extract_from_state
 ------------------

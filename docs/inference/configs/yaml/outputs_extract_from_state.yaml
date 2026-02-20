@@ -1,0 +1,5 @@
+output:
+  netcdf:
+    path: /path/to/lam.nc
+    post_processors:
+      - extract_from_state: lam_0

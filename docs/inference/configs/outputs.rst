@@ -48,40 +48,27 @@ Extracting Subsets
 Several post-processors are available for extracting subsets of the data:
 
 **extract_mask**
-  Extracts a subset of points using a boolean mask. The mask can be provided
-  as a supporting array in the checkpoint or loaded from a file.
+  Extracts a subset of points using a boolean mask. The mask can be either
+  the name of a supporting array in the checkpoint or a path to an ``.npy``
+  file containing the boolean mask.
 
-  .. code:: yaml
-
-     output:
-       netcdf:
-         path: /path/to/output.nc
-         post_processors:
-           - extract_mask: thinning
+  .. literalinclude:: yaml/outputs_extract_mask.yaml
+     :language: yaml
 
 **extract_slice**
-  Extracts a subset of points using a slice notation.
+  Extracts a subset of points using a slice. Provide slice arguments as a list
+  ``[start, stop, step]``. Use ``null`` for default values.
 
-  .. code:: yaml
-
-     output:
-       netcdf:
-         path: /path/to/output.nc
-         post_processors:
-           - extract_slice: "::2"  # Every other point
+  .. literalinclude:: yaml/outputs_extract_slice.yaml
+     :language: yaml
 
 **extract_from_state**
   Extracts a subset of points based on masks included in the state. Must be
   used with the ``Cutout`` input. This is particularly useful for extracting
   Limited Area Model (LAM) domains from global forecasts.
 
-  .. code:: yaml
-
-     output:
-       netcdf:
-         path: /path/to/lam.nc
-         post_processors:
-           - extract_from_state: lam_0
+  .. literalinclude:: yaml/outputs_extract_from_state.yaml
+     :language: yaml
 
   For more information on using ``extract_from_state`` with the ``Cutout``
   input, see :ref:`inference-inputs`.
@@ -92,15 +79,8 @@ Several post-processors are available for extracting subsets of the data:
   to a portion of a larger area. Areas not covered by the mask are filled
   with a specified value (NaN by default).
 
-  .. code:: yaml
-
-     output:
-       netcdf:
-         path: /path/to/output.nc
-         post_processors:
-           - assign_mask:
-               mask: source0/trimedge_mask
-               fill_value: .nan
+  .. literalinclude:: yaml/outputs_assign_mask.yaml
+     :language: yaml
 
 output_frequency
 ================
