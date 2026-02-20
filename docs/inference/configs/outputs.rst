@@ -37,9 +37,70 @@ written. These are applied after top-level post-processors. See
 
 Common use cases include:
 
-- Extracting subsets with ``extract_mask`` or ``extract_slice``
+- Extracting subsets with ``extract_mask``, ``extract_slice``, or ``extract_from_state``
 - Applying backward transforms with ``backward_transform_filter``
 - Accumulating fields with ``accumulate_from_start_of_forecast``
+- Assigning data to masked regions with ``assign_mask``
+
+Extracting Subsets
+-------------------
+
+Several post-processors are available for extracting subsets of the data:
+
+**extract_mask**
+  Extracts a subset of points using a boolean mask. The mask can be provided
+  as a supporting array in the checkpoint or loaded from a file.
+
+  .. code:: yaml
+
+     output:
+       netcdf:
+         path: /path/to/output.nc
+         post_processors:
+           - extract_mask: thinning
+
+**extract_slice**
+  Extracts a subset of points using a slice notation.
+
+  .. code:: yaml
+
+     output:
+       netcdf:
+         path: /path/to/output.nc
+         post_processors:
+           - extract_slice: "::2"  # Every other point
+
+**extract_from_state**
+  Extracts a subset of points based on masks included in the state. Must be
+  used with the ``Cutout`` input. This is particularly useful for extracting
+  Limited Area Model (LAM) domains from global forecasts.
+
+  .. code:: yaml
+
+     output:
+       netcdf:
+         path: /path/to/lam.nc
+         post_processors:
+           - extract_from_state: lam_0
+
+  For more information on using ``extract_from_state`` with the ``Cutout``
+  input, see :ref:`inference-inputs`.
+
+**assign_mask**
+  Assigns the state to a larger array using a mask. This is the opposite of
+  ``extract_mask`` - instead of extracting a smaller area, it assigns data
+  to a portion of a larger area. Areas not covered by the mask are filled
+  with a specified value (NaN by default).
+
+  .. code:: yaml
+
+     output:
+       netcdf:
+         path: /path/to/output.nc
+         post_processors:
+           - assign_mask:
+               mask: source0/trimedge_mask
+               fill_value: .nan
 
 output_frequency
 ================
@@ -217,51 +278,6 @@ Here's an advanced example showing different options for each output:
 
 .. literalinclude:: yaml/outputs_tee_advanced.yaml
    :language: yaml
-
-************
- apply_mask
-************
-
-The ``apply_mask`` output applies a mask to the output fields. The mask
-is found in the checkpoint file. This is experimental and is intended to
-be used to undo some merging of fields that was done in the input. The
-result is passed to the next output.
-
-.. literalinclude:: yaml/outputs_7.yaml
-
-*************
- assign_mask
-*************
-
-This operation can be seen as the opposite of `apply_mask`. Instead of
-extracting a smaller area from a larger one, it assigns the current
-output to a portion of a larger area using a mask. This is useful when
-you want to restore the original state of the model after applying a
-mask to it. The portion of the state that is not covered by the mask
-will be set to a fill value (NaN by default).
-
-.. literalinclude:: yaml/outputs_assign.yaml
-
-*************
- extract_lam
-*************
-
-Similar to the previous one, ``extract_lam`` will extract the LAM domain
-from the output fields. The LAM domain is found in the checkpoint file
-as supporting array, and is based on the `cutout_mask` associated to
-`anemoi-datasets's` :ref:`cutout feature
-<anemoi-datasets:combining-datasets>`. The default mask that is used is
-`lam_0` and does not need to be specified. In that case the config takes
-the simple form
-
-.. literalinclude:: yaml/outputs_8a.yaml
-
-In the case of more complicated datasets, e.g. those formed using the
-`join` operation, there can be multiple cutout masks present and the
-relevant one needs to be specified. A more elaborate config could for
-example be
-
-.. literalinclude:: yaml/outputs_8b.yaml
 
 *******
  truth
