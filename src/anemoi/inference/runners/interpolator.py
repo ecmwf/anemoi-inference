@@ -137,7 +137,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             return instance.__dict__["lagged"]
 
         # Replace the lagged property on this specific instance
-        self.checkpoint.__class__.lagged = property(get_lagged)
+        self.checkpoint.lagged = get_lagged(self.checkpoint)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
