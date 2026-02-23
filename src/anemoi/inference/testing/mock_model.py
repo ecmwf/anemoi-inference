@@ -27,15 +27,16 @@ class MockModelBase(torch.nn.Module):
         metadata = DotDict(metadata)
         self.supporting_arrays = supporting_arrays
 
-        self.features_in = len(metadata.data_indices.model.input.full)
-        self.features_out = len(metadata.data_indices.model.output.full)
-        self.roll_window = metadata.config.training.multistep_input
-        self.grid_size = metadata.dataset.shape[-1]
+        checkpoint = Checkpoint(MetadataFactory(metadata))
+
+        self.features_in = len(checkpoint.variable_to_input_tensor_index)
+        self.features_out = len(checkpoint.output_tensor_index_to_variable)
+        self.roll_window = checkpoint.multi_step_input
+        self.grid_size = checkpoint.number_of_grid_points
 
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
         self.output_shape = (1, 1, self.grid_size, self.features_out)
 
-        checkpoint = Checkpoint(MetadataFactory(metadata))
         self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
 
@@ -47,6 +48,9 @@ class MockModelBase(torch.nn.Module):
         self.prognostic_variables = checkpoint.select_variables(include=["prognostic"], has_mars_requests=False)
         self.diagnostic_variables = checkpoint.select_variables(include=["diagnostic"], has_mars_requests=False)
         self.timestep = checkpoint.timestep
+
+        # # TODO(Vera): update to support multi-step output for both interpolator and forecaster
+        self.target_steps = len(checkpoint.target_explicit_times) if hasattr(checkpoint, "target_explicit_times") else 1
 
         self.first = True
         self.constant_in_time: dict[int, torch.Tensor] = {}
@@ -86,12 +90,23 @@ class SimpleMockModel(MockModelBase):
         self.prognostic_input_indices = [self.variable_to_input_index[var] for var in self.prognostic_variables]
         self.prognostic_output_indices = [self.variable_to_output_index[var] for var in self.prognostic_variables]
 
+    # NOTE: This is a temporary hack to support the single dataset case for multi-dataset mock models
+    # TODO: change when we have a proper multi-dataset (mock) model
     def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime = None, step: datetime.timedelta = None, **kwargs: Any
+    ) -> torch.Tensor:
+        if isinstance(x, dict):
+            assert "data" in x, "Expected input to be a dict with a 'data' key"
+            assert len(x.keys()) == 1, "Expected input dict to only contain a 'data' key"
+            return {"data": self._predict_step(x["data"], date, step, **kwargs)}
+        return self._predict_step(x, date, step, **kwargs)
+
+    def _predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
         output_shape = (
             1,  # batch
-            1,  # time
+            self.target_steps,  # time
             x.shape[2],  # gridpoints
             self.features_out,  # variables
         )
