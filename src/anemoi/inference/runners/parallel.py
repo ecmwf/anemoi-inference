@@ -28,8 +28,6 @@ from ..outputs import create_output
 from ..runner import Runner
 from ..runners import create_runner
 from . import runner_registry
-from .default import DefaultRunner
-
 LOG = logging.getLogger(__name__)
 
 
@@ -63,6 +61,10 @@ class ParallelRunnerFactory:
 
         LOG.info(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
+        if not torch.cuda.is_available():
+            LOG.warning(f"CUDA is not available. Falling back to base runner: {base_runner} ({base_class.__name__})")
+            return base_class(config, *args, **kwargs)
+
         ParallelRunner = cls.get_class(base_class)
         return ParallelRunner(config, *args, **kwargs)
 
@@ -76,11 +78,7 @@ class ParallelRunnerMixin:
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
     def __new__(cls, config, *args, **kwargs):
-        if torch.cuda.is_available():
-            return super().__new__(cls)
-        else:
-            LOG.warning("CUDA is not available. Falling back to DefaultRunner")
-            return DefaultRunner(config)
+        return super().__new__(cls)
 
     def __init__(self, config: Any, pid: int = 0, **kwargs) -> None:
         """Initializes the ParallelRunner.

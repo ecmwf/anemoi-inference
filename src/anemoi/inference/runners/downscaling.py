@@ -193,7 +193,9 @@ class DownscalingRunner(DefaultRunner):
             state["_grib_templates_for_output"] = {name: self.template for name in state["fields"].keys()}
             yield state
 
-    def predict_step(self, model, input_tensor_torch, input_date, **kwargs):
+    def predict_step(self, model, input_tensor_torch, date, step, **kwargs):
+        input_date = date - step
+
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)
 
@@ -226,8 +228,8 @@ class DownscalingRunner(DefaultRunner):
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
         state["latitudes"], state["longitudes"] = self.template.grid_points()
+        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
 
-        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings(state, input_date)
         computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)  # Drop the dates dimension
         computed_high_res_forcings = np.swapaxes(
             computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
