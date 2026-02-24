@@ -64,6 +64,8 @@ class RunConfiguration(Configuration):
     constant_forcings: str | dict[str, Any] | None = None
     """Where to find the constant forcings (default to input)."""
 
+    propagated_forcing_variables: list[str] = []
+
     device: str | None = None
     """
     The device on which the model should run. This can be "cpu", "cuda" or any other value supported by PyTorch.

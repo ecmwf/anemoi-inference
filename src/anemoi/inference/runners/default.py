@@ -30,6 +30,7 @@ from ..forcings import ComputedForcings
 from ..forcings import ConstantForcings
 from ..forcings import CoupledForcings
 from ..forcings import Forcings
+from ..forcings import PropagedForcings
 from ..inputs import create_input
 from ..outputs import create_output
 from ..post_processors import create_post_processor
@@ -328,10 +329,35 @@ class DefaultRunner(Runner):
         List[Forcings]
             The created dynamic coupled forcings.
         """
+        import numpy as np
+        from rich import print
+
         input = self.create_dynamic_forcings_input()
-        result = CoupledForcings(self, input, variables, mask)
+        propagated_variables = []
+        propagated_mask = []
+        print("Original mask:", mask)
+        for var in variables.copy():
+            if var not in self.config.propagated_forcing_variables:
+                continue
+            propagated_variables.append(var)
+            variables.remove(var)
+            index = self.checkpoint.variable_to_input_tensor_index[var]
+            mask = mask[mask != index]
+            propagated_mask.append(index)
+
+        # sanity check the masks
+        for i, var in enumerate(variables):
+            assert mask[i] == self.checkpoint.variable_to_input_tensor_index[var]
+        for i, var in enumerate(propagated_variables):
+            assert propagated_mask[i] == self.checkpoint.variable_to_input_tensor_index[var]
+
+        result = [CoupledForcings(self, input, variables, mask)]
+        print("Mask after removing propagated fields:", mask)
+        print("Propagated mask:", propagated_mask)
+        if propagated_variables:
+            result.append(PropagedForcings(self, input, propagated_variables, np.array(propagated_mask)))
         LOG.info("Dynamic coupled forcing: %s", result)
-        return [result]
+        return result
 
     def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         """Create boundary forcings.

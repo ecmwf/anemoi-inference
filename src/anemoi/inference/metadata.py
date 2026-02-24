@@ -564,7 +564,7 @@ class Metadata(PatchMixin, LegacyMixin):
         *,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
-        has_mars_requests: bool = True,
+        has_mars_requests: bool = False,
     ) -> list[str]:
         """Get variables from input.
 

@@ -11,12 +11,14 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from datetime import timedelta
 from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
+from rich import print
 
 from anemoi.inference.context import Context
 from anemoi.inference.inputs.dataset import DatasetInput
@@ -226,6 +228,64 @@ class CoupledForcings(Forcings):
             self.variables,
             dates,
         )
+
+
+class PropagedForcings(CoupledForcings):
+    initial_fields = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.kinds["propagated"] = True  # Used for debugging
+        self.current_variables = [var for var in self.variables if not var.endswith("_next")]
+
+    def __repr__(self) -> str:
+        return f"\033[36m{self.__class__.__name__}\033[0m({self.variables})"
+
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
+        LOG.info(f"\033[32m ******* FORCINGS: Loading {self} for \033[33m dates {dates} \033[0m")
+        new_dates = []
+        ref_date = self.context.reference_date
+        for date in dates:
+            if date > ref_date:
+                LOG.info(f"{date} > {ref_date}")
+                if date.hour == ref_date.hour and date.minute == ref_date.minute and date.second == ref_date.second:
+                    new_date = ref_date
+                else:
+                    new_date = ref_date - timedelta(days=1)
+                new_date = new_date.replace(hour=date.hour, minute=date.minute, second=date.second)
+                new_dates.append(new_date)
+                LOG.info(f"\033[32m ******* FORCINGS: Rewriting from \033[31m{dates} to \033[33m{new_dates} \033[0m")
+                continue
+
+            new_dates.append(date)
+
+        forcings_state = self.input.load_forcings_state(
+            dates=new_dates,
+            current_state=current_state,
+        )
+
+        if self.initial_fields is None:
+            # take a copy just in case
+            self.initial_fields = {var: np.copy(forcings_state["fields"][var]) for var in self.variables}
+
+        if len(new_dates) == 1:
+            _date = new_dates[0]
+            timestep = self.context.checkpoint.timestep
+            check = ref_date + timestep
+            if _date.hour == check.hour and _date.minute == check.minute and _date.second == check.second:
+                for var in self.current_variables:
+                    next_var = var + "_next"
+                    print(f"Copying {next_var} at ref date {ref_date} to {var} at {_date}")
+                    forcings_state["fields"][var] = self.initial_fields[next_var][-1, :][np.newaxis, ...]
+
+        array = self._state_to_numpy(
+            forcings_state,
+            self.variables,
+            new_dates,
+        )
+
+        return array
 
 
 class ConstantDateForcings(CoupledForcings):

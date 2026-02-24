@@ -737,7 +737,8 @@ class Runner(Context):
                         self.checkpoint.timestep,
                     )
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
-
+                # input_dict = {var: np.squeeze(input_tensor_torch[..., i].cpu().numpy()) for var, i in variable_to_input_tensor_index.items()}
+                # np.savez(f"input/{date.strftime('%Y%m%d%H%M%S')}.npz", **input_dict)
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
                     y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
