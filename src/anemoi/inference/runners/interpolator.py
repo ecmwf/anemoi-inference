@@ -33,14 +33,13 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-def get_interpolation_window(data_frequency, input_explicit_times) -> datetime.timedelta:
+def _get_interpolation_window(data_frequency, input_explicit_times) -> datetime.timedelta:
     """Get the interpolation window."""
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
 
-def checkpoint_lagged_interpolator_patch(self) -> list[datetime.timedelta]:
-    # For interpolator, we always want positive timedeltas
-    result = [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
+def _get_lagged(checkpoint) -> list[datetime.timedelta]:
+    result = [s * to_timedelta(checkpoint.data_frequency) for s in checkpoint.input_explicit_times]
     return sorted(result)
 
 
@@ -75,7 +74,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         super().__init__(config)
         self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
         self.device = get_available_device()
-        self.patch_checkpoint_lagged_property()
+        self._patch_checkpoint_lagged_property()
 
         self.multi_step_input = 2
         self.constants_input = None
@@ -94,7 +93,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
         # This may be used by Output objects to compute the step
-        self.interpolation_window = get_interpolation_window(
+        self.interpolation_window = _get_interpolation_window(
             self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
         )
         self.lead_time = to_timedelta(self.config.lead_time)
@@ -121,7 +120,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         )
         return req
 
-    def patch_checkpoint_lagged_property(self):
+    def _patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
         # By default, it assumes forecastor behaviour of retreving n previous steps of data,
         # but we require it to be a list of positive timedeltas from the current date
@@ -129,15 +128,8 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         if "lagged" in self.checkpoint.__dict__:
             del self.checkpoint.__dict__["lagged"]
 
-        # Monkey patch: replace the property with a simple property that uses our function
-
-        def get_lagged(instance):
-            if "lagged" not in instance.__dict__:
-                instance.__dict__["lagged"] = checkpoint_lagged_interpolator_patch(instance)
-            return instance.__dict__["lagged"]
-
         # Replace the lagged property on this specific instance
-        self.checkpoint.lagged = get_lagged(self.checkpoint)
+        self.checkpoint.lagged = _get_lagged(self.checkpoint)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
