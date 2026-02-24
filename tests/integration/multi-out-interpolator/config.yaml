@@ -17,7 +17,3 @@
     date: 2026-02-01T00
 
     runner: time_multi_interpolator
-
-    patch_metadata:
-      dataset:
-        constant_fields: [z, sdor, slor, lsm]
