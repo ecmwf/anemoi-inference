@@ -881,7 +881,7 @@ class Runner(Context):
         input_tensor_torch = input_tensor_torch.roll(-keep_steps, dims=1)
 
         for i in range(keep_steps):
-            input_tensor_torch[:, -(i+1), :, pmask_in] = prognostic_fields[:, -(i+1), ...]
+            input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
@@ -949,8 +949,8 @@ class Runner(Context):
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
             for i in range(min(self.checkpoint.multi_step_output, self.checkpoint.multi_step_input)):
-                input_tensor_torch[:, -(i+1), :, source.mask] = forcings[
-                    :, -(i+1), ...
+                input_tensor_torch[:, -(i + 1), :, source.mask] = forcings[
+                    :, -(i + 1), ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
@@ -1004,9 +1004,9 @@ class Runner(Context):
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
             for i in range(min(self.checkpoint.multi_step_output, self.checkpoint.multi_step_input)):
-                total_mask = np.ix_([0], [-(i+1)], source.spatial_mask, source.variables_mask)
+                total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
-                    :, -(i+1), ...
+                    :, -(i + 1), ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
