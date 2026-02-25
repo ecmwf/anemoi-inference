@@ -10,6 +10,7 @@
 
 import json
 import logging
+import warnings
 from collections import defaultdict
 from io import IOBase
 from pathlib import Path
@@ -61,16 +62,16 @@ def _fix(mars: dict[str, Any], keys: dict[str, Any]) -> None:
         The keys dictionary.
     """
     if "number" in keys and "number" not in mars:
-        LOG.debug(f"`number` is missing from mars namespace, setting it to {keys['number']}")
+        warnings.warn(f"`number` is missing from mars namespace, setting it to {keys['number']}")
         mars["number"] = keys["number"]
 
-    if "referenceDate" in keys and "hdate" not in mars:
-        LOG.debug(f"`hdate` is missing from mars namespace, setting it to {keys['referenceDate']}")
-        mars["hdate"] = keys["referenceDate"]
+    if "dataDate" in keys and "hdate" not in mars:
+        warnings.warn(f"`hdate` is missing from mars namespace, setting it to {keys['dataDate']}")
+        mars["hdate"] = keys["dataDate"]
 
     if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
         if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
-            LOG.debug(
+            warnings.warn(
                 f"{keys.get('stepType')} `step={mars.get('step')}` is not a range,  setting it to {keys['startStep']}-{keys['endStep']}."
             )
             mars["step"] = f"{keys['startStep']}-{keys['endStep']}"
