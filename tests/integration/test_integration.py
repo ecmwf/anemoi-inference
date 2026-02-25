@@ -106,16 +106,44 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
         metadata = json.load(f)
 
     supporting_arrays = {}
-    if array_names := list(metadata.get("supporting_arrays_paths", {})):
+    supporting_arrays_dict = metadata.get("supporting_arrays_paths", {})
 
-        def load_array(name):
-            return name, np.load(get_test_data(f"{s3_path}/supporting-arrays/{name}.npy"))
+    if supporting_arrays_dict:
+        # Pre multi-datasets: values directly contain "path"
+        is_legacy = all(isinstance(v, dict) and "path" in v for v in supporting_arrays_dict.values())
 
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            results = list(executor.map(load_array, array_names))
+        if is_legacy:
+            array_names = list(supporting_arrays_dict.keys())
 
-        supporting_arrays = dict(results)
-        LOG.info(f"Supporting arrays: {supporting_arrays.keys()}")
+            def load_array(name):
+                path = f"{s3_path}/supporting-arrays/{name}.npy"
+                return name, np.load(get_test_data(path))
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(executor.map(load_array, array_names))
+
+            supporting_arrays = dict(results)
+
+        else:
+            # Multi-dataset format: dataset_name -> array_name -> info
+            tasks = [
+                (dataset_name, name)
+                for dataset_name, arrays in supporting_arrays_dict.items()
+                for name in arrays.keys()
+            ]
+
+            def load_array(task):
+                dataset_name, name = task
+                path = f"{s3_path}/supporting-arrays/{dataset_name}/{name}.npy"
+                return dataset_name, name, np.load(get_test_data(path))
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(executor.map(load_array, tasks))
+
+            for dataset_name, name, array in results:
+                supporting_arrays.setdefault(dataset_name, {})[name] = array
+
+    LOG.info(f"Supporting arrays: {supporting_arrays.keys()}")
 
     save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays)
 

@@ -135,17 +135,37 @@ for file in args.files:
 
 with tempfile.TemporaryDirectory() as temp_dir:
     temp_dir_path = Path(temp_dir)
-    for name, array in supporting_arrays.items():
-        array_path = temp_dir_path / f"{name}.npy"
-        array_path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(array_path, array)
-        s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/{name}.npy"
-        transfer(
-            str(array_path),
-            s3_path,
-            overwrite=args.overwrite,
-            resume=not args.overwrite,
-        )
+
+    # Normalize structure:
+    # Old format: {array_name: array}
+    # New format: {dataset_name: {array_name: array}}
+    if supporting_arrays and all(isinstance(v, dict) for v in supporting_arrays.values()):
+        normalized_supporting_arrays = supporting_arrays
+        is_legacy = False
+    else:
+        normalized_supporting_arrays = {"default": supporting_arrays}
+        is_legacy = True
+
+    for dataset_name, arrays in normalized_supporting_arrays.items():
+        for name, array in arrays.items():
+
+            if is_legacy:
+                array_path = temp_dir_path / f"{name}.npy"
+                s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/{name}.npy"
+            else:
+                array_path = temp_dir_path / dataset_name / f"{name}.npy"
+                s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/" f"{dataset_name}/{name}.npy"
+
+            array_path.parent.mkdir(parents=True, exist_ok=True)
+            np.save(array_path, array)
+
+            transfer(
+                str(array_path),
+                s3_path,
+                overwrite=args.overwrite,
+                resume=not args.overwrite,
+            )
+
 
 print("Done. Summary:")
 print(f"💾 Files to be comitted, created in {model_path}:")
