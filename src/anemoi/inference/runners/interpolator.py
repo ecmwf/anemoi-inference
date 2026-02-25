@@ -17,13 +17,12 @@ from anemoi.utils.timer import Timer
 from numpy.typing import NDArray
 
 from anemoi.inference.config import Configuration
-from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.device import get_available_device
 from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
+from ..checkpoint import Checkpoint
 from ..forcings import ConstantDateForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
@@ -33,12 +32,12 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-def _get_interpolation_window(data_frequency, input_explicit_times) -> datetime.timedelta:
+def _get_interpolation_window(data_frequency: str, input_explicit_times: list[int]) -> datetime.timedelta:
     """Get the interpolation window."""
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
 
-def _get_lagged(checkpoint) -> list[datetime.timedelta]:
+def _get_lagged(checkpoint: Checkpoint) -> list[datetime.timedelta]:
     result = [s * to_timedelta(checkpoint.data_frequency) for s in checkpoint.input_explicit_times]
     return sorted(result)
 
@@ -64,16 +63,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         **kwargs : dict
             Keyword arguments to initialize a config for the runner.
         """
-        # assert config is not None or kwargs is not None, "Either config or kwargs must be provided"
-        # config = config or kwargs
-
-        # # Remove that when the Pydantic model is ready
-        # if not isinstance(config, BaseModel):
-        #     config = RunConfiguration.load(config)
-
         super().__init__(config)
-        self.from_analysis = any("use_original_paths" in keys for keys in config.input.values())
-        self.device = get_available_device()
         self._patch_checkpoint_lagged_property()
 
         self.multi_step_input = 2
@@ -98,12 +88,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         )
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.interpolation_window
-
-    @classmethod
-    def create_config(cls, config: str | dict) -> Configuration:
-        """Instantiate the Configuration Object from a dictionary or from a path to a config file"""
-        config = RunConfiguration.load(config)
-        return config
 
     def patch_data_request(self, request: dict) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
