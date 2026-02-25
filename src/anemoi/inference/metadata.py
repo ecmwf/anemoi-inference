@@ -931,6 +931,10 @@ class Metadata(PatchMixin, LegacyMixin):
 
         args, kwargs = _fix([args, kwargs])
 
+        # Remove keys that should not be passed to open_dataset()
+        # See: https://github.com/ecmwf/anemoi-core/pull/756
+        kwargs.pop("trajectory", None)
+
         if use_original_paths:
             return args, kwargs
 
