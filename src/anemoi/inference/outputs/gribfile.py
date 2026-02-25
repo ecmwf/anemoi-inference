@@ -64,9 +64,9 @@ def _fix(mars: dict[str, Any], keys: dict[str, Any]) -> None:
         LOG.debug(f"`number` is missing from mars namespace, setting it to {keys['number']}")
         mars["number"] = keys["number"]
 
-    if "referenceDate" in keys and "hdate" not in mars:
-        LOG.debug(f"`hdate` is missing from mars namespace, setting it to {keys['referenceDate']}")
-        mars["hdate"] = keys["referenceDate"]
+    if "dataDate" in keys and "hdate" not in mars:
+        LOG.debug(f"`hdate` is missing from mars namespace, setting it to {keys['dataDate']}")
+        mars["hdate"] = keys["dataDate"]
 
     if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
         if mars.get("step") != f"{keys['startStep']}-{keys['endStep']}":
