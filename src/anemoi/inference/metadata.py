@@ -749,6 +749,8 @@ class Metadata(PatchMixin, LegacyMixin):
                     LOG.info(f"   {package:20}: {sha1}")
 
             for package, version in sorted(provenance.get("module_versions", {}).items()):
+                if isinstance(version, dict) and "version" in version:
+                    version = version["version"]
                 if package.startswith("anemoi."):
                     LOG.info(f"   {package:20}: {version}")
 
@@ -928,6 +930,10 @@ class Metadata(PatchMixin, LegacyMixin):
             args, kwargs = self._dataset.arguments.args, self._dataset.arguments.kwargs
 
         args, kwargs = _fix([args, kwargs])
+
+        # Remove keys that should not be passed to open_dataset()
+        # See: https://github.com/ecmwf/anemoi-core/pull/756
+        kwargs.pop("trajectory", None)
 
         if use_original_paths:
             return args, kwargs

@@ -83,3 +83,77 @@ def test_multi_metadata():
 
     for function in ["variable_categories"]:
         assert getattr(metadata, function)() == getattr(base_metadata, function)()
+
+
+def test_open_dataset_args_kwargs_removes_unsupported_keys():
+    """Test that trajectory key is removed from kwargs but frequency and drop are kept."""
+    # Load a real checkpoint and patch it with the trajectory key
+    model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
+
+    # Add dataloader config with trajectory key that should be removed
+    model_metadata["config"]["dataloader"] = {
+        "training": {
+            "dataset": "test_dataset",
+            "start": 2021,
+            "end": 2021,
+            "frequency": "6h",
+            "drop": [],
+            "trajectory": None,
+        }
+    }
+
+    metadata = MetadataFactory(model_metadata)
+
+    # Get the args and kwargs
+    args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
+
+    # Verify that trajectory is removed
+    assert "trajectory" not in kwargs
+
+    # Verify that frequency and drop are kept (they are valid parameters)
+    assert kwargs.get("frequency") == "6h"
+    assert kwargs.get("drop") == []
+
+    # Verify that other keys are still present
+    assert kwargs.get("dataset") == "test_dataset"
+    assert kwargs.get("start") == 2021
+    assert kwargs.get("end") == 2021
+
+
+def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
+    """Test that trajectory key is removed from kwargs but frequency and drop are kept for multi-dataset."""
+    # Load a multi-dataset checkpoint and patch it with the trajectory key
+    model_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
+
+    # Add dataloader config with trajectory key that should be removed for multi-dataset structure
+    model_metadata["config"]["dataloader"] = {
+        "training": {
+            "datasets": {
+                "data": {
+                    "dataset": "test_dataset_multi",
+                    "start": 2022,
+                    "end": 2022,
+                    "frequency": "12h",
+                    "drop": ["var1"],
+                    "trajectory": None,
+                }
+            }
+        }
+    }
+
+    metadata = MetadataFactory(model_metadata)
+
+    # Get the args and kwargs
+    args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
+
+    # Verify that trajectory is removed
+    assert "trajectory" not in kwargs
+
+    # Verify that frequency and drop are kept (they are valid parameters)
+    assert kwargs.get("frequency") == "12h"
+    assert kwargs.get("drop") == ["var1"]
+
+    # Verify that other keys are still present
+    assert kwargs.get("dataset") == "test_dataset_multi"
+    assert kwargs.get("start") == 2022
+    assert kwargs.get("end") == 2022
