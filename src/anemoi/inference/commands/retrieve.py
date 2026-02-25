@@ -247,7 +247,8 @@ class RetrieveCmd(Command):
         config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
-        runner.reference_date = to_datetime(args.date)  # may be used by the runner in patch_data_request
+        if args.date is not None:
+            runner.reference_date = to_datetime(args.date)  # may be used by the runner in patch_data_request
         lead_time = frequency_to_timedelta(config.lead_time)
         time_step = frequency_to_timedelta(runner.checkpoint.timestep)
 
