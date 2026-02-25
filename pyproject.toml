@@ -47,7 +47,7 @@ dependencies = [
   "aniso8601",
   "anytree",
   "deprecation",
-  "earthkit-data>=0.12.4",
+  "earthkit-data>=0.12.4,<1",
   "eccodes>=2.38.3",
   "numpy",
   "omegaconf>=2.2,<2.4",
@@ -82,7 +82,7 @@ optional-dependencies.docs = [
 ]
 
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-optional-dependencies.plot = [ "earthkit-plots" ]
+optional-dependencies.plot = [ "earthkit-plots<1" ]
 
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 optional-dependencies.tests = [
