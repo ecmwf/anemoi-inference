@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.10.0](https://github.com/ecmwf/anemoi-inference/compare/0.9.1...0.10.0) (2026-02-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runners:** Remove single-out interpolator runner in favour of multi-out ([#435](https://github.com/ecmwf/anemoi-inference/issues/435))
+
+### Features
+
+* **runners:** Remove single-out interpolator runner in favour of multi-out ([#435](https://github.com/ecmwf/anemoi-inference/issues/435)) ([451c921](https://github.com/ecmwf/anemoi-inference/commit/451c921a9e1ca27f1df5c81f895fb0455c452898))
+
+
+### Bug Fixes
+
+* **grib:** Archive collector hindcasts wrong `date` ([#445](https://github.com/ecmwf/anemoi-inference/issues/445)) ([d963820](https://github.com/ecmwf/anemoi-inference/commit/d963820b97c69e5cc658daf2d532e5a033feacad))
+* **grib:** Archive collector wrong `hdate` in mars namespace ([#442](https://github.com/ecmwf/anemoi-inference/issues/442)) ([d181fae](https://github.com/ecmwf/anemoi-inference/commit/d181faec72aa6dacc8f3fb4d7fa552795cba0bd2))
+* Remove unsupported trajectory key from dataset configuration ([#438](https://github.com/ecmwf/anemoi-inference/issues/438)) ([14b1137](https://github.com/ecmwf/anemoi-inference/commit/14b1137289213122686ceeafb2b5d57ff141a4d5))
+* **retrieve:** Crash when staging dates due to missing date ([#444](https://github.com/ecmwf/anemoi-inference/issues/444)) ([4c32bc0](https://github.com/ecmwf/anemoi-inference/commit/4c32bc0a4e6688c1a189621b63e383fbc4fb6ec0))
+
 ## [0.9.1](https://github.com/ecmwf/anemoi-inference/compare/0.9.0...0.9.1) (2026-02-18)
 
 
