@@ -63,7 +63,7 @@ LOG = logging.getLogger(__name__)
 
 class RunnerClasses(BaseModel):
     """Configurable class types used by the Runner.
-    Child runners can override this class with different implementations.
+    Child runners can override these with different classes.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -78,7 +78,8 @@ class Runner(Context):
     """
 
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
-        LOG.info(f"Using {self.__class__.__name__} runner, device={config.device}")
+        self._device = config.device
+        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}")
 
         classes = classes or RunnerClasses()
         self.classes = classes
@@ -107,13 +108,12 @@ class Runner(Context):
         self.preload_buffer_size = config.preload_buffer_size
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
-        self._device = config.device
 
         # metadata and tensor handlers for each dataset in the checkpoint
         multi_metadata = self._checkpoint.get_multi_dataset_metadata()
         self.dataset_names = multi_metadata.keys()
         self.tensor_handlers = [
-            classes.tensor_handler(self, metadata=metadata, device=config.device)
+            classes.tensor_handler(self, metadata=metadata, device=self.device, allow_nans=self.allow_nans)
             for metadata in multi_metadata.values()
         ]
 
@@ -569,84 +569,6 @@ class Runner(Context):
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                             handler._print_input_tensor("Next input tensor", input_tensors_torch)
-
-    def validate_input_state(self, input_state: State) -> State:
-        """Validate the input state.
-
-        Parameters
-        ----------
-        input_state : State
-            The input state.
-
-        Returns
-        -------
-        State
-            The validated input state.
-        """
-        if not isinstance(input_state, dict):
-            raise ValueError("Input state must be a dictionnary")
-
-        EXPECT = dict(date=datetime.datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
-
-        for key, klass in EXPECT.items():
-            if key not in input_state:
-                raise ValueError(f"Input state must contain a `{key}` entry")
-
-            if not isinstance(input_state[key], klass):
-                raise ValueError(
-                    f"Input state entry `{key}` is type {type(input_state[key])}, expected {klass} instead"
-                )
-
-        # Detach from the user's input so we can modify it
-        input_state = input_state.copy()
-        fields = input_state["fields"] = input_state["fields"].copy()
-        number_of_grid_points = self.checkpoint.number_of_grid_points
-
-        for latlon in ("latitudes", "longitudes"):
-            if len(input_state[latlon].shape) != 1:
-                raise ValueError(f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}")
-
-        nlat = len(input_state["latitudes"])
-        nlon = len(input_state["longitudes"])
-        if nlat != nlon:
-            raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
-
-        if nlat != number_of_grid_points:
-            raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
-
-        multi_step = self.multi_step_input
-
-        expected_shape = (multi_step, number_of_grid_points)
-
-        LOG.info("Expected shape for each input fields: %s", expected_shape)
-
-        # Check field
-        with_nans = []
-
-        for name, field in list(fields.items()):
-            # Allow for 1D fields if multi_step is 1
-            if len(field.shape) == 1:
-                field = fields[name] = field.reshape(1, field.shape[0])
-
-            if field.shape != expected_shape:
-                raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
-
-            if np.isinf(field).any():
-                raise ValueError(f"Field `{name}` contains infinities")
-
-            if np.isnan(field).any():
-                with_nans.append(name)
-
-        if with_nans:
-            msg = f"NaNs found in the following variables: {sorted(with_nans)}"
-            if self.allow_nans is None:
-                LOG.warning(msg)
-                self.allow_nans = True
-
-            if not self.allow_nans:
-                raise ValueError(msg)
-
-        return input_state
 
     def patch_data_request(self, request: Any) -> Any:
         """Patch the data request.

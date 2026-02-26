@@ -57,10 +57,11 @@ class Kind:
 
 
 class TensorHandler:
-    def __init__(self, runner, metadata: Metadata, device):
+    def __init__(self, runner, metadata: Metadata, device, allow_nans: bool | None):
         self.runner = runner
         self.metadata = metadata
         self.device = device
+        self.allow_nans = allow_nans
 
         self.trace = None
         self._input_kinds = {}
@@ -135,8 +136,7 @@ class TensorHandler:
         # Add initial forcings to input state if needed
         self.add_initial_forcings_to_input_state(input_state)
 
-        # TODO
-        # input_state = self.validate_input_state(input_state)
+        input_state = self.validate_input_state(input_state)
 
         input_fields: dict = input_state["fields"]
 
@@ -172,6 +172,74 @@ class TensorHandler:
             raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
+
+    def validate_input_state(self, input_state: State) -> State:
+        """Check that the input state has all expected entries, shapes, and check nans."""
+
+        if not isinstance(input_state, dict):
+            raise ValueError("Input state must be a dictionnary")
+
+        EXPECT = dict(date=datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
+
+        for key, klass in EXPECT.items():
+            if key not in input_state:
+                raise ValueError(f"Input state must contain a `{key}` entry")
+
+            if not isinstance(input_state[key], klass):
+                raise ValueError(
+                    f"Input state entry `{key}` is type {type(input_state[key])}, expected {klass} instead"
+                )
+
+        # Detach from the user's input so we can modify it
+        input_state = input_state.copy()
+        fields = input_state["fields"] = input_state["fields"].copy()
+        number_of_grid_points = self.metadata.number_of_grid_points
+
+        for latlon in ("latitudes", "longitudes"):
+            if len(input_state[latlon].shape) != 1:
+                raise ValueError(f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}")
+
+        nlat = len(input_state["latitudes"])
+        nlon = len(input_state["longitudes"])
+        if nlat != nlon:
+            raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
+
+        if nlat != number_of_grid_points:
+            raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
+
+        multi_step = self.metadata.multi_step_input
+
+        expected_shape = (multi_step, number_of_grid_points)
+
+        LOG.info("Expected shape for each input fields: %s", expected_shape)
+
+        # Check field
+        with_nans = []
+
+        for name, field in list(fields.items()):
+            # Allow for 1D fields if multi_step is 1
+            if len(field.shape) == 1:
+                field = fields[name] = field.reshape(1, field.shape[0])
+
+            if field.shape != expected_shape:
+                raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
+
+            if np.isinf(field).any():
+                raise ValueError(f"Field `{name}` contains infinities")
+
+            if np.isnan(field).any():
+                with_nans.append(name)
+
+        if with_nans:
+            msg = f"NaNs found in the following variables: {sorted(with_nans)}"
+            if self.allow_nans is None:
+                LOG.warning(msg)
+                self.allow_nans = True
+
+            if not self.allow_nans:
+                raise ValueError(msg)
+
+        return input_state
 
     def add_initial_forcings_to_input_state(self, input_state: State) -> None:
         """Add initial forcings to the input state.
