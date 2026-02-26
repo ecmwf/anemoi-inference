@@ -40,7 +40,6 @@ class Forcings(ABC):
             The context for the forcings.
         """
         self.context = context
-        self.checkpoint = context.checkpoint
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod

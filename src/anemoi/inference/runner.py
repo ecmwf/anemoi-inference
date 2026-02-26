@@ -30,10 +30,6 @@ from pydantic import ConfigDict
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.device import get_available_device
-from anemoi.inference.forcings import BoundaryForcings
-from anemoi.inference.forcings import ComputedForcings
-from anemoi.inference.forcings import ConstantForcings
-from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
@@ -45,7 +41,6 @@ from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
 from .checkpoint import Checkpoint
@@ -109,17 +104,30 @@ class Runner(Context):
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
+        # I/O objects and processors
+        self.prognostics_input = self.create_prognostics_input()
+        self.constant_forcings_input = self.create_constant_coupled_forcings_input()
+        self.dynamic_forcings_input = self.create_dynamic_forcings_input()
+        self.boundary_forcings_input = self.create_boundary_forcings_input()
+
+        self.pre_processors = self.create_pre_processors()
+        self.post_processors = self.create_post_processors()
+
         # metadata and tensor handlers for each dataset in the checkpoint
         multi_metadata = self._checkpoint.get_multi_dataset_metadata()
         self.dataset_names = multi_metadata.keys()
         self.tensor_handlers = [
-            classes.tensor_handler(self, metadata=metadata, device=self.device, allow_nans=self.allow_nans)
+            classes.tensor_handler(
+                self,
+                metadata=metadata,
+                device=self.device,
+                allow_nans=self.allow_nans,
+                constant_forcings_input=self.constant_forcings_input,
+                dynamic_forcings_input=self.dynamic_forcings_input,
+                boundary_forcings_input=self.boundary_forcings_input,
+            )
             for metadata in multi_metadata.values()
         ]
-
-        # I/O objects and processors
-        self.pre_processors = self.create_pre_processors()
-        self.post_processors = self.create_post_processors()
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
@@ -637,19 +645,13 @@ class Runner(Context):
         # In case the constant forcings are from another input, combine them here
         # So that they are in considered in the `write_initial_state`
 
-        prognostic_input = self.create_prognostics_input()
-        LOG.info(f"📥 Prognostic input: {prognostic_input}")
-        prognostic_state = prognostic_input.create_input_state(date=self.config.date)
+        prognostic_state = self.prognostics_input.create_input_state(date=self.config.date)
         self._check_state(prognostic_state, "prognostics")
 
-        constants_input = self.create_constant_coupled_forcings_input()
-        LOG.info(f"📥 Constant forcings input: {constants_input}")
-        constants_state = constants_input.create_input_state(date=self.config.date)
+        constants_state = self.constant_forcings_input.create_input_state(date=self.config.date)
         self._check_state(constants_state, "constant_forcings")
 
-        forcings_input = self.create_dynamic_forcings_input()
-        LOG.info(f"📥 Dynamic forcings input: {forcings_input}")
-        forcings_state = forcings_input.create_input_state(date=self.config.date)
+        forcings_state = self.dynamic_forcings_input.create_input_state(date=self.config.date)
         self._check_state(forcings_state, "dynamic_forcings")
 
         input_state = dict(
@@ -708,18 +710,6 @@ class Runner(Context):
         output = create_output(self, self.config.output)
         LOG.info("Output: %s", output)
         return output
-
-    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-
-        result = ComputedForcings(self, variables, mask)
-        LOG.info("Constant computed forcing: %s", result)
-        return [result]
-
-    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-
-        result = ComputedForcings(self, variables, mask)
-        LOG.info("Dynamic computed forcing: %s", result)
-        return [result]
 
     def _input_forcings(self, *names: str) -> dict[str, Any]:
         """Get the input forcings configuration.
@@ -810,68 +800,6 @@ class Runner(Context):
         input = create_input(self, config, variables=variables, purpose="boundary_forcings")
         LOG.info("Boundary forcings input: %s", input)
         return input
-
-    #########################################################################################################
-    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create constant coupled forcings.
-
-        Parameters
-        ----------
-        variables : list
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created constant coupled forcings.
-        """
-        input = self.create_constant_coupled_forcings_input()
-        result = ConstantForcings(self, input, variables, mask)
-        LOG.info("Constant coupled forcing: %s", result)
-
-        return [result]
-
-    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create dynamic coupled forcings.
-
-        Parameters
-        ----------
-        variables : list
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created dynamic coupled forcings.
-        """
-        input = self.create_dynamic_forcings_input()
-        result = CoupledForcings(self, input, variables, mask)
-        LOG.info("Dynamic coupled forcing: %s", result)
-        return [result]
-
-    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create boundary forcings.
-
-        Parameters
-        ----------
-        variables : list
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created boundary forcings.
-        """
-        input = self.create_boundary_forcings_input()
-        result = BoundaryForcings(self, input, variables, mask)
-        LOG.info("Boundary forcing: %s", result)
-        return [result]
 
     def create_pre_processors(self) -> list[Processor]:
         """Create pre-processors.

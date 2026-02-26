@@ -17,11 +17,16 @@ from typing import Any
 import numpy as np
 from numpy.typing import DTypeLike
 
+from anemoi.inference.forcings import BoundaryForcings
+from anemoi.inference.forcings import ComputedForcings
+from anemoi.inference.forcings import ConstantForcings
+from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
@@ -57,11 +62,24 @@ class Kind:
 
 
 class TensorHandler:
-    def __init__(self, runner, metadata: Metadata, device, allow_nans: bool | None):
+    def __init__(
+        self,
+        runner,
+        metadata: Metadata,
+        device,
+        allow_nans: bool | None,
+        constant_forcings_input,
+        dynamic_forcings_input,
+        boundary_forcings_input,
+    ) -> None:
         self.runner = runner
         self.metadata = metadata
         self.device = device
         self.allow_nans = allow_nans
+
+        self.constant_forcings_input = constant_forcings_input
+        self.dynamic_forcings_input = dynamic_forcings_input
+        self.boundary_forcings_input = boundary_forcings_input
 
         self.trace = None
         self._input_kinds = {}
@@ -299,7 +317,7 @@ class TensorHandler:
 
         if len(loaded_variables_mask) > 0:
             result.extend(
-                self.runner.create_constant_coupled_forcings(
+                self.create_constant_coupled_forcings(
                     loaded_variables,
                     loaded_variables_mask,
                 )
@@ -311,7 +329,7 @@ class TensorHandler:
 
         if len(computed_variables_mask) > 0:
             result.extend(
-                self.runner.create_constant_computed_forcings(
+                self.create_constant_computed_forcings(
                     computed_variables,
                     computed_variables_mask,
                 )
@@ -328,7 +346,7 @@ class TensorHandler:
 
         if len(loaded_variables_mask) > 0:
             result.extend(
-                self.runner.create_dynamic_coupled_forcings(
+                self.create_dynamic_coupled_forcings(
                     loaded_variables,
                     loaded_variables_mask,
                 )
@@ -340,7 +358,7 @@ class TensorHandler:
         )
         if len(computed_variables_mask) > 0:
             result.extend(
-                self.runner.create_dynamic_computed_forcings(
+                self.create_dynamic_computed_forcings(
                     computed_variables,
                     computed_variables_mask,
                 )
@@ -357,7 +375,7 @@ class TensorHandler:
 
         if len(loaded_variables_mask) > 0:
             result.extend(
-                self.runner.create_boundary_forcings(
+                self.create_boundary_forcings(
                     loaded_variables,
                     loaded_variables_mask,
                 )
@@ -630,3 +648,29 @@ class TensorHandler:
         console.print()
         console.print(table)
         console.print()
+
+    #########################################################################################################
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        result = ComputedForcings(self, variables, mask)
+        LOG.info("Constant computed forcing: %s", result)
+        return [result]
+
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        result = ComputedForcings(self, variables, mask)
+        LOG.info("Dynamic computed forcing: %s", result)
+        return [result]
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        result = ConstantForcings(self, self.constant_forcings_input, variables, mask)
+        LOG.info("Constant coupled forcing: %s", result)
+        return [result]
+
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        result = CoupledForcings(self, self.dynamic_forcings_input, variables, mask)
+        LOG.info("Dynamic coupled forcing: %s", result)
+        return [result]
+
+    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        result = BoundaryForcings(self, self.boundary_forcings_input, variables, mask)
+        LOG.info("Boundary forcing: %s", result)
+        return [result]
