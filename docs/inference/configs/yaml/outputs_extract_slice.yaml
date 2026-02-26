@@ -1,0 +1,4 @@
+output:
+  zarr: /path/to/zarr/store.zarr
+  post_processors:
+    - extract_slice: [0, null, 2]  # Every other point from start
