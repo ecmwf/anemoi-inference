@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2026- Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -10,12 +10,11 @@
 
 from . import input_registry
 from .ekd import FieldlistInput
-from .grib import GribInput
 
 
-@input_registry.register("grib")
-class GribFileInput(FieldlistInput, GribInput):
-    """Handles grib files."""
+@input_registry.register("netcdf")
+class NetCDFFileInput(FieldlistInput):
+    """Handles netcdf files."""
 
-    trace_name = "grib file"
-    patterns = ("*.grib", "*.grb", "*.grb2", "*.grib2")
+    trace_name = "netcdf file"
+    patterns = ("*.nc", "*.netcdf")
