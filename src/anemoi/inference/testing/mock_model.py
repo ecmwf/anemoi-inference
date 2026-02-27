@@ -35,6 +35,8 @@ class MockModelBase(torch.nn.Module):
         self.grid_size = checkpoint.number_of_grid_points
         self.multi_step_output = checkpoint.multi_step_output
 
+        self._is_multi_out = hasattr(metadata.config.training, "multistep_output")
+
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
         self.output_shape = (1, self.multi_step_output, self.grid_size, self.features_out)
 
@@ -104,15 +106,19 @@ class SimpleMockModel(MockModelBase):
     ) -> torch.Tensor:
         output_shape = (
             1,  # batch
-            self.multi_step_output,  # time
+            self.multi_step_output,  # output_times
+            1,  # time
             x.shape[2],  # gridpoints
             self.features_out,  # variables
         )
+        # TODO remove this when all tests are updated to use multi-step output
+        if not self._is_multi_out:
+            output_shape = (1, 1, x.shape[2], self.features_out)  # for backwards compatibility
         y = torch.ones(*output_shape, dtype=x.dtype, device=x.device)
 
         # copy prognostic input variables of the last time step to output tensor
         if self.prognostic_input_indices:
-            y[:, :, :, self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
+            y[..., self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
 
         return y
 

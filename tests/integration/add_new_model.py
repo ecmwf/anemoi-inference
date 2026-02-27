@@ -116,6 +116,7 @@ with open(config_path, "w") as f:
                     "checkpoint": "${checkpoint:}",
                     "input": {"grib": "${input:}"},
                     "output": {"grib": "${output:}"},
+                    "write_initial_state": False,
                 },
             }
         ],
