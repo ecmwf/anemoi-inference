@@ -140,6 +140,12 @@ class DefaultRunner(Runner):
             forcings_state,
         )
 
+        LOG.info("INPUT STATE keys: %s", input_state["fields"].keys())
+        for key in input_state["fields"].keys():
+            LOG.info(f"Replacing t-6 state of {key} with t-0 state of {key} for the initial state.")
+            input_state["fields"][key][0] = input_state["fields"][key][1]
+        LOG.info("Replaced t-6 state with t-0 state for all fields in the input state.")
+
         # This hook is needed for the coupled runner
         self.input_state_hook(constants_state)
 
