@@ -285,7 +285,7 @@ class Metadata(PatchMixin, LegacyMixin):
     def multi_step_output(self) -> int:
         """Number of future steps predicted by single model forward."""
         # For backward compatibility we set a default of 1
-        return self._config_training.get("multistep_output", 1)
+        return 1
 
     @cached_property
     def prognostic_output_mask(self) -> IntArray:
@@ -937,6 +937,10 @@ class Metadata(PatchMixin, LegacyMixin):
 
         args, kwargs = _fix([args, kwargs])
 
+        # Remove keys that should not be passed to open_dataset()
+        # See: https://github.com/ecmwf/anemoi-core/pull/756
+        kwargs.pop("trajectory", None)
+
         if use_original_paths:
             return args, kwargs
 
@@ -1225,6 +1229,16 @@ class MultiDatasetMetadata(Metadata):
     @cached_property
     def timestep(self) -> datetime.timedelta:
         return to_timedelta(self._inference.timesteps.timestep)
+
+    @cached_property
+    def multi_step_input(self) -> int:
+        """Number of past steps needed for the initial conditions tensor."""
+        return len(self._inference.timesteps.input_relative_date_indices)
+
+    @cached_property
+    def multi_step_output(self) -> int:
+        """Number of future steps predicted by single model forward."""
+        return len(self._inference.timesteps.output_relative_date_indices)
 
     @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:

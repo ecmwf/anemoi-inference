@@ -1,0 +1,16 @@
+- name: 2in-2out
+  input: input.grib
+  output: output.grib
+  checks:
+    - check_grib:
+        grib_keys:
+          stream: oper
+          type: fc
+        check_nans: true
+  inference_config:
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      grib: ${output:}
+    write_initial_state: false

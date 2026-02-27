@@ -33,9 +33,12 @@ class MockModelBase(torch.nn.Module):
         self.features_out = len(checkpoint.output_tensor_index_to_variable)
         self.roll_window = checkpoint.multi_step_input
         self.grid_size = checkpoint.number_of_grid_points
+        self.multi_step_output = checkpoint.multi_step_output
+
+        self._is_multi_out = hasattr(metadata.config.training, "multistep_output")
 
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
-        self.output_shape = (1, 1, self.grid_size, self.features_out)
+        self.output_shape = (1, self.multi_step_output, self.grid_size, self.features_out)
 
         self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
@@ -48,9 +51,6 @@ class MockModelBase(torch.nn.Module):
         self.prognostic_variables = checkpoint.select_variables(include=["prognostic"], has_mars_requests=False)
         self.diagnostic_variables = checkpoint.select_variables(include=["diagnostic"], has_mars_requests=False)
         self.timestep = checkpoint.timestep
-
-        # # TODO(Vera): update to support multi-step output for both interpolator and forecaster
-        self.target_steps = len(checkpoint.target_explicit_times) if hasattr(checkpoint, "target_explicit_times") else 1
 
         self.first = True
         self.constant_in_time: dict[int, torch.Tensor] = {}
@@ -106,15 +106,19 @@ class SimpleMockModel(MockModelBase):
     ) -> torch.Tensor:
         output_shape = (
             1,  # batch
-            self.target_steps,  # time
+            self.multi_step_output,  # output_times
+            1,  # time
             x.shape[2],  # gridpoints
             self.features_out,  # variables
         )
+        # TODO remove this when all tests are updated to use multi-step output
+        if not self._is_multi_out:
+            output_shape = (1, 1, x.shape[2], self.features_out)  # for backwards compatibility
         y = torch.ones(*output_shape, dtype=x.dtype, device=x.device)
 
         # copy prognostic input variables of the last time step to output tensor
         if self.prognostic_input_indices:
-            y[:, :, :, self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
+            y[..., self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
 
         return y
 
