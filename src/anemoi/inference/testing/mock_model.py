@@ -27,15 +27,19 @@ class MockModelBase(torch.nn.Module):
         metadata = DotDict(metadata)
         self.supporting_arrays = supporting_arrays
 
-        self.features_in = len(metadata.data_indices.model.input.full)
-        self.features_out = len(metadata.data_indices.model.output.full)
-        self.roll_window = metadata.config.training.multistep_input
-        self.grid_size = metadata.dataset.shape[-1]
+        checkpoint = Checkpoint(MetadataFactory(metadata))
+
+        self.features_in = len(checkpoint.variable_to_input_tensor_index)
+        self.features_out = len(checkpoint.output_tensor_index_to_variable)
+        self.roll_window = checkpoint.multi_step_input
+        self.grid_size = checkpoint.number_of_grid_points
+        self.multi_step_output = checkpoint.multi_step_output
+
+        self._is_multi_out = hasattr(metadata.config.training, "multistep_output")
 
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
-        self.output_shape = (1, 1, self.grid_size, self.features_out)
+        self.output_shape = (1, self.multi_step_output, self.grid_size, self.features_out)
 
-        checkpoint = Checkpoint(MetadataFactory(metadata))
         self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
 
@@ -86,20 +90,35 @@ class SimpleMockModel(MockModelBase):
         self.prognostic_input_indices = [self.variable_to_input_index[var] for var in self.prognostic_variables]
         self.prognostic_output_indices = [self.variable_to_output_index[var] for var in self.prognostic_variables]
 
+    # NOTE: This is a temporary hack to support the single dataset case for multi-dataset mock models
+    # TODO: change when we have a proper multi-dataset (mock) model
     def predict_step(
+        self, x: torch.Tensor, date: datetime.datetime = None, step: datetime.timedelta = None, **kwargs: Any
+    ) -> torch.Tensor:
+        if isinstance(x, dict):
+            assert "data" in x, "Expected input to be a dict with a 'data' key"
+            assert len(x.keys()) == 1, "Expected input dict to only contain a 'data' key"
+            return {"data": self._predict_step(x["data"], date, step, **kwargs)}
+        return self._predict_step(x, date, step, **kwargs)
+
+    def _predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
         output_shape = (
             1,  # batch
+            self.multi_step_output,  # output_times
             1,  # time
             x.shape[2],  # gridpoints
             self.features_out,  # variables
         )
+        # TODO remove this when all tests are updated to use multi-step output
+        if not self._is_multi_out:
+            output_shape = (1, 1, x.shape[2], self.features_out)  # for backwards compatibility
         y = torch.ones(*output_shape, dtype=x.dtype, device=x.device)
 
         # copy prognostic input variables of the last time step to output tensor
         if self.prognostic_input_indices:
-            y[:, :, :, self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
+            y[..., self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
 
         return y
 

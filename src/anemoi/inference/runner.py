@@ -10,6 +10,7 @@
 
 import datetime
 import logging
+import math
 import os
 import sys
 import warnings
@@ -637,8 +638,8 @@ class Runner(Context):
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[tuple[datetime.timedelta, datetime.datetime, datetime.datetime, bool], None, None]:
-        """Generate step and date variables for the forecast loop.
+    ) -> Generator[tuple[datetime.timedelta, list[datetime.datetime], list[datetime.datetime], bool], None, None]:
+        """Generate step and date variables for the forecast autoregressive loop.
 
         Parameters
         ----------
@@ -651,23 +652,34 @@ class Runner(Context):
         -------
         step : datetime.timedelta
             Time delta since beginning of forecast
-        valid_date : datetime.datetime
+        valid_date : list[datetime.datetime]
             Date of the forecast
-        next_date : datetime.datetime
+        next_date : list[datetime.datetime]
             Date used to prepare the next input tensor
         is_last_step : bool
             True if it's the last step of the forecast
         """
-        steps = lead_time // self.checkpoint.timestep
+        output_horizon = self.checkpoint.timestep * self.checkpoint.multi_step_output
+        steps = math.ceil(lead_time / output_horizon)
 
-        LOG.info("Lead time: %s, time stepping: %s Forecasting %s steps", lead_time, self.checkpoint.timestep, steps)
+        LOG.info(
+            "Lead time: %s, time stepping: %s Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
+            lead_time,
+            self.checkpoint.timestep,
+            self.checkpoint.multi_step_output * steps,
+            steps,
+            self.checkpoint.multi_step_output,
+        )
 
         for s in range(steps):
-            step = (s + 1) * self.checkpoint.timestep
-            valid_date = start_date + step
-            next_date = valid_date
+            step = (s + 1) * output_horizon
+            valid_dates = [
+                start_date + s * output_horizon + self.checkpoint.timestep * (i + 1)
+                for i in range(self.checkpoint.multi_step_output)
+            ]
+            next_dates = valid_dates
             is_last_step = s == steps - 1
-            yield step, valid_date, next_date, is_last_step
+            yield step, valid_dates, next_dates, is_last_step
 
     def forecast(
         self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
@@ -721,16 +733,18 @@ class Runner(Context):
             if self.verbosity > 0:
                 self._print_input_tensor("First input tensor", input_tensor_torch)
 
-            for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
-                title = f"Forecasting step {step} ({date})"
-
-                new_state["date"] = date
-                new_state["previous_step"] = new_state.get("step")
-                new_state["step"] = step
+            for s, (step, dates, next_dates, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
+                dates_str = "("
+                for d in dates:
+                    dates_str += f"{d}, "
+                dates_str = f"{dates_str[:-2]})"
+                title = (
+                    f"Forecasting autoregressive step {s}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
+                )
 
                 if self.trace:
                     self.trace.write_input_tensor(
-                        date,
+                        dates[-1],
                         s,
                         input_tensor_torch.cpu().numpy(),
                         variable_to_input_tensor_index,
@@ -740,36 +754,53 @@ class Runner(Context):
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=date)
+                    y_pred = self.predict_step(self.model, input_tensor_torch, fcstep=s, step=step, date=dates[-1])
 
-                output = torch.squeeze(y_pred, dim=(0, 1))  # shape: (values, variables)
+                # (batch, [time], ensemble, values, variables) -> (time, values, variables)
+                ndim = y_pred.ndim
+                assert ndim in (
+                    4,
+                    5,
+                ), f"Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {y_pred.shape}"
+                if ndim == 4:
+                    # for backwards compatibility
+                    y_pred = y_pred.unsqueeze(1)
+                outputs = torch.squeeze(y_pred, dim=(0, 2))
 
-                # Update state
-                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(output.shape[-1]):
-                        new_state["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[
-                            ..., i
-                        ].squeeze()
+                new_states = []
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_output_tensor("Output tensor", output.cpu().numpy())
+                for i in range(self.checkpoint.multi_step_output):
+                    new_state["date"] = dates[i]
+                    new_state["previous_step"] = new_state.get("step")
+                    new_state["step"] = step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
 
-                if self.trace:
-                    self.trace.write_output_tensor(
-                        date,
-                        s,
-                        output.cpu().numpy(),
-                        self.checkpoint.output_tensor_index_to_variable,
-                        self.checkpoint.timestep,
-                    )
+                    output = outputs[i, ...]  # shape: (values, variables)
 
-                yield new_state
+                    # Update state
+                    with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                        for j in range(output.shape[1]):
+                            new_state["fields"][self.checkpoint.output_tensor_index_to_variable[j]] = output[:, j]
 
-                # No need to prepare next input tensor if we are at the last step
+                    if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
+                        self._print_output_tensor("Output tensor", output.cpu().numpy())
+
+                    if self.trace:
+                        self.trace.write_output_tensor(
+                            dates[i],
+                            s,
+                            output.cpu().numpy(),
+                            self.checkpoint.output_tensor_index_to_variable,
+                            self.checkpoint.timestep,
+                        )
+                    if new_state["step"] <= lead_time:
+                        yield new_state
+                    new_states.append(new_state)
+
+                # No need to prepare next input tensor if we are at the last autoregressive step
                 if is_last_step:
                     break
 
-                self.output_state_hook(new_state)
+                self.output_state_hook(new_states[-1])
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
@@ -781,11 +812,20 @@ class Runner(Context):
 
                     del y_pred  # Recover memory
 
+                    # some forcings use the new_state(s)
+                    # ComputedForcings only uses it to get latlons
+                    # For CoupledForcings multi-out not yet supported, last state is only state
+                    # ConstantForcings irrelevant
+                    # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
+                    # so for now ok to simply pas the last of the new states:
+                    new_state = new_states[-1]
+                    #################################
+
                     input_tensor_torch = self.add_dynamic_forcings_to_input_tensor(
-                        input_tensor_torch, new_state, next_date, check
+                        input_tensor_torch, new_state, next_dates, check
                     )
                     input_tensor_torch = self.add_boundary_forcings_to_input_tensor(
-                        input_tensor_torch, new_state, next_date, check
+                        input_tensor_torch, new_state, next_dates, check
                     )
 
                 if not check.all():
@@ -837,9 +877,11 @@ class Runner(Context):
         # or int (index) tensors
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+        keep_steps = min(self.checkpoint.multi_step_output, self.checkpoint.multi_step_input)
+        input_tensor_torch = input_tensor_torch.roll(-keep_steps, dims=1)
 
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields
+        for i in range(keep_steps):
+            input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
@@ -859,7 +901,11 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        dates: list[datetime.datetime],
+        check: BoolArray,
     ) -> "torch.Tensor":
         """Add dynamic forcings to the input tensor.
 
@@ -869,7 +915,7 @@ class Runner(Context):
             The input tensor.
         state : State
             The state.
-        date : datetime.datetime
+        dates : list[datetime.datetime]
             The date.
         check : BoolArray
             The check array.
@@ -883,6 +929,7 @@ class Runner(Context):
         if self.hacks:
             if "dynamic_forcings_date" in self.development_hacks:
                 date = self.development_hacks["dynamic_forcings_date"]
+                dates = [date]
                 warnings.warn(f"🧑‍💻 Using `dynamic_forcings_date` hack: {date} 🧑‍💻")
 
         # TODO: check if there were not already loaded as part of the input state
@@ -891,15 +938,20 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+            forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = np.swapaxes(
+                forcings[np.newaxis, :, np.newaxis, ...], -2, -1
+            )  # shape: (1, dates, 1, values, variables)
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
+            for i in range(min(self.checkpoint.multi_step_output, self.checkpoint.multi_step_input)):
+                input_tensor_torch[:, -(i + 1), :, source.mask] = forcings[
+                    :, -(i + 1), ...
+                ]  # Copy forcings to corresponding 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
@@ -914,7 +966,11 @@ class Runner(Context):
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime.datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        dates: list[datetime.datetime],
+        check: BoolArray,
     ) -> "torch.Tensor":
         """Add boundary forcings to the input tensor.
 
@@ -924,7 +980,7 @@ class Runner(Context):
             The input tensor.
         state : State
             The state.
-        date : datetime.datetime
+        dates : list[datetime.datetime]
             The date.
         check : BoolArray
             The check array.
@@ -938,14 +994,20 @@ class Runner(Context):
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+            forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = np.swapaxes(
+                forcings[np.newaxis, :, np.newaxis, ...], -2, -1
+            )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
-            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+
+            for i in range(min(self.checkpoint.multi_step_output, self.checkpoint.multi_step_input)):
+                total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)
+                input_tensor_torch[total_mask] = forcings[
+                    :, -(i + 1), ...
+                ]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
