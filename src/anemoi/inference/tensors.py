@@ -110,6 +110,7 @@ class TensorHandler:
 
     @property
     def name(self) -> str:
+        """Name of the dataset associated with the tensor handler."""
         if self.metadata.multi_dataset:
             return self.metadata.name
         return "data"
@@ -365,7 +366,7 @@ class TensorHandler:
             )
         return result
 
-    def create_boundary_forcings_inputs(self) -> list[Forcings]:
+    def create_boundary_forcings_inputs(self) -> list[BoundaryForcings]:
 
         if not self.metadata.has_supporting_array("output_mask"):
             return []

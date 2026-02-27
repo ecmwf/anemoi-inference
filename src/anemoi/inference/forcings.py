@@ -31,6 +31,8 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
+    mask = None
+
     def __init__(self, context: Context):
         """Initialize the Forcings object.
 

@@ -18,6 +18,7 @@ from collections.abc import Generator
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from typing import Union
 
 import numpy as np
@@ -83,7 +84,6 @@ class Runner(Context):
         self.config = config
 
         self._checkpoint = classes.checkpoint(config.checkpoint, patch_metadata=config.patch_metadata)
-        self.variables = Variables(self)
 
         # override the default values set in `Context`
         self.verbosity = config.verbosity
@@ -98,36 +98,40 @@ class Runner(Context):
 
         # other attributes derived from config or metadata
         self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in config.typed_variables.items()}
-        self.multi_step_input = self.checkpoint.multi_step_input
         self.preload_checkpoint = config.preload_checkpoint
         self.preload_buffer_size = config.preload_buffer_size
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
-        # I/O objects and processors
-        self.prognostics_input = self.create_prognostics_input()
-        self.constant_forcings_input = self.create_constant_coupled_forcings_input()
-        self.dynamic_forcings_input = self.create_dynamic_forcings_input()
-        self.boundary_forcings_input = self.create_boundary_forcings_input()
-
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
 
-        # metadata and tensor handlers for each dataset in the checkpoint
+        # metadata, IO and tensor handlers for each dataset in the checkpoint
         multi_metadata = self._checkpoint.get_multi_dataset_metadata()
-        self.dataset_names = multi_metadata.keys()
-        self.tensor_handlers = [
-            classes.tensor_handler(
+
+        self.tensor_handler: dict[str, TensorHandler] = {}
+        self.prognostics_input: dict[str, Input] = {}
+        self.constant_forcings_input: dict[str, Input] = {}
+        self.dynamic_forcings_input: dict[str, Input] = {}
+        self.boundary_forcings_input: dict[str, Input] = {}
+
+        for name, metadata in multi_metadata.items():
+            self.multi_step_input = metadata.multi_step_input
+            variables = Variables(metadata)
+            self.prognostics_input[name] = self.create_input("prognostics", variables, name)
+            self.constant_forcings_input[name] = self.create_input("constant_forcings", variables, name)
+            self.dynamic_forcings_input[name] = self.create_input("dynamic_forcings", variables, name)
+            self.boundary_forcings_input[name] = self.create_input("boundary_forcings", variables, name)
+
+            self.tensor_handler[name] = classes.tensor_handler(
                 self,
                 metadata=metadata,
                 device=self.device,
                 allow_nans=self.allow_nans,
-                constant_forcings_input=self.constant_forcings_input,
-                dynamic_forcings_input=self.dynamic_forcings_input,
-                boundary_forcings_input=self.boundary_forcings_input,
+                constant_forcings_input=self.constant_forcings_input[name],
+                dynamic_forcings_input=self.dynamic_forcings_input[name],
+                boundary_forcings_input=self.boundary_forcings_input[name],
             )
-            for metadata in multi_metadata.values()
-        ]
 
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
@@ -204,22 +208,22 @@ class Runner(Context):
         """
         # Shallow copy to avoid modifying the user's input state
         input_state = input_state.copy()
-        for name in self.dataset_names:
+        for name in self.tensor_handler:
             input_state[name]["fields"] = input_state[name]["fields"].copy()
             LOG.info("-" * 80)
             LOG.info(f"Input state `{name}`:")
             LOG.info(f"  {list(input_state[name]['fields'].keys())}")
 
         if self.reference_date is None:
-            self.reference_date = input_state[self.dataset_names[0]]["date"]
+            self.reference_date = next(iter(input_state.values()))["date"]
 
         lead_time = to_timedelta(lead_time)
 
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensors = {
-                    handler.name: handler.prepare_input_tensor(input_state[handler.name])
-                    for handler in self.tensor_handlers
+                    name: handler.prepare_input_tensor(input_state[name])
+                    for name, handler in self.tensor_handler.items()
                 }
 
             try:
@@ -290,10 +294,10 @@ class Runner(Context):
         for state in output:
             if return_numpy:
                 # Convert fields to numpy arrays
-                for handler in self.tensor_handlers:
-                    for name, field in state[handler.name]["fields"].items():
+                for name in self.tensor_handler:
+                    for field_name, field in state[name]["fields"].items():
                         if isinstance(field, torch.Tensor):
-                            state[handler.name]["fields"][name] = field.cpu().numpy()
+                            state[name]["fields"][field_name] = field.cpu().numpy()
             yield state
 
     @cached_property
@@ -470,19 +474,19 @@ class Runner(Context):
             # when the values are of the constant in time variables
             check = {}
             reset = {}
-            for handler in self.tensor_handlers:
-                new_state[handler.name]["fields"] = dict()
-                new_state[handler.name]["step"] = to_timedelta(0)
-                start = input_state[handler.name]["date"]
+            for name, handler in self.tensor_handler.items():
+                new_state[name]["fields"] = dict()
+                new_state[name]["step"] = to_timedelta(0)
+                start = input_state[name]["date"]
 
-                reset[handler.name] = np.full((input_tensors_torch[handler.name].shape[-1],), False)
+                reset[name] = np.full((input_tensors_torch[name].shape[-1],), False)
                 variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
                 typed_variables = handler.metadata.typed_variables
                 for variable, i in variable_to_input_tensor_index.items():
                     if typed_variables[variable].is_constant_in_time:
-                        reset[handler.name][i] = True
+                        reset[name][i] = True
 
-                check[handler.name] = reset[handler.name].copy()
+                check[name] = reset[name].copy()
 
             if self.verbosity > 0:
                 handler._print_input_tensor("First input tensor", input_tensors_torch)
@@ -490,7 +494,7 @@ class Runner(Context):
             for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 title = f"Forecasting step {step} ({date})"
 
-                for name in self.dataset_names:
+                for name in self.tensor_handler:
                     new_state[name]["date"] = date
                     new_state[name]["previous_step"] = new_state[name].get("step")
                     new_state[name]["step"] = step
@@ -515,15 +519,15 @@ class Runner(Context):
 
                 # Update state
                 with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for handler in self.tensor_handlers:
-                        for i in range(output[handler.name].shape[-1]):
-                            new_state[handler.name]["fields"][handler.metadata.output_tensor_index_to_variable[i]] = (
-                                output[handler.name][..., i].squeeze()
-                            )
+                    for name, handler in self.tensor_handler.items():
+                        for i in range(output[name].shape[-1]):
+                            new_state[name]["fields"][handler.metadata.output_tensor_index_to_variable[i]] = output[
+                                name
+                            ][..., i].squeeze()
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                             handler._print_output_tensor(
-                                f"Output tensor - dataset: `{name}`", output[handler.name].cpu().numpy()
+                                f"Output tensor - dataset: `{name}`", output[name].cpu().numpy()
                             )
 
                 # if self.trace:
@@ -545,8 +549,7 @@ class Runner(Context):
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                    for handler in self.tensor_handlers:
-                        name = handler.name
+                    for name, handler in self.tensor_handler.items():
                         check[name][:] = reset[name]
                         # if self.trace:
                         #     self.trace.reset_sources(reset[name], self.checkpoint.variable_to_input_tensor_index)
@@ -645,22 +648,22 @@ class Runner(Context):
         # In case the constant forcings are from another input, combine them here
         # So that they are in considered in the `write_initial_state`
 
-        prognostic_state = self.prognostics_input.create_input_state(date=self.config.date)
-        self._check_state(prognostic_state, "prognostics")
+        input_state = {}
+        for name in self.tensor_handler:
+            prognostic_state = self.prognostics_input[name].create_input_state(date=self.config.date)
+            self._check_state(prognostic_state, "prognostics")
 
-        constants_state = self.constant_forcings_input.create_input_state(date=self.config.date)
-        self._check_state(constants_state, "constant_forcings")
+            constants_state = self.constant_forcings_input[name].create_input_state(date=self.config.date)
+            self._check_state(constants_state, "constant_forcings")
 
-        forcings_state = self.dynamic_forcings_input.create_input_state(date=self.config.date)
-        self._check_state(forcings_state, "dynamic_forcings")
+            forcings_state = self.dynamic_forcings_input[name].create_input_state(date=self.config.date)
+            self._check_state(forcings_state, "dynamic_forcings")
 
-        input_state = dict(
-            data=self._combine_states(
+            input_state[name] = self._combine_states(
                 prognostic_state,
                 constants_state,
                 forcings_state,
             )
-        )
 
         # This hook is needed for the coupled runner
         self.input_state_hook(constants_state)
@@ -745,60 +748,41 @@ class Runner(Context):
         return self.config.input
 
     #########################################################################################################
-    def create_prognostics_input(self) -> Input:
-        """Create the prognostics input.
+    def create_input(
+        self,
+        input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"],
+        variables: Variables,
+        dataset_name="data",
+    ) -> Input:
+        match input_type:
+            case "prognostics":
+                variables = variables.retrieved_prognostic_variables()
+                config = self._input_forcings("prognostic_input", "input") if variables else "empty"
+            case "constant_forcings":
+                variables = variables.retrieved_constant_forcings_variables()
+                config = self._input_forcings(input_type, "forcings", "input") if variables else "empty"
+            case "dynamic_forcings":
+                variables = variables.retrieved_dynamic_forcings_variables()
+                config = self._input_forcings(input_type, "-forcings", "input") if variables else "empty"
+            case "boundary_forcings":
+                variables = variables.retrieved_prognostic_variables()
+                config = self._input_forcings(input_type, "-boundary", "forcings", "input") if variables else "empty"
+            case _:
+                raise ValueError(f"Unknown input type: {input_type}")
 
-        Returns
-        -------
-        Input
-            The created prognostics input.
-        """
-        variables = self.variables.retrieved_prognostic_variables()
-        config = self._input_forcings("prognostic_input", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables, purpose="prognostics")
-        LOG.info("Prognostic input: %s", input)
-        return input
+        # handle multi-dataset config format
+        if isinstance(config, dict):
+            if len(config.keys()) > 1:
+                assert (
+                    dataset_name in config
+                ), f"Dataset name '{dataset_name}' not found in config for input type '{input_type}'. Available keys: {list(config.keys())}"
 
-    def create_constant_coupled_forcings_input(self) -> Input:
-        """Create the constant coupled forcings input.
+            if dataset_name in config:
+                config = config[dataset_name]
 
-        Returns
-        -------
-        Input
-            The created constant coupled forcings input.
-        """
-        variables = self.variables.retrieved_constant_forcings_variables()
-        config = self._input_forcings("constant_forcings", "forcings", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables, purpose="constant_forcings")
-        LOG.info("Constant coupled forcings input: %s", input)
-        return input
+        input = create_input(self, config, variables=variables, purpose=input_type)
 
-    def create_dynamic_forcings_input(self) -> Input:
-        """Create the dynamic forcings input.
-
-        Returns
-        -------
-        Input
-            The created dynamic forcings input.
-        """
-        variables = self.variables.retrieved_dynamic_forcings_variables()
-        config = self._input_forcings("dynamic_forcings", "-forcings", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables, purpose="dynamic_forcings")
-        LOG.info("Dynamic forcings input: %s", input)
-        return input
-
-    def create_boundary_forcings_input(self) -> Input:
-        """Create the boundary forcings input.
-
-        Returns
-        -------
-        Input
-            The created boundary forcings input.
-        """
-        variables = self.variables.retrieved_prognostic_variables()
-        config = self._input_forcings("boundary_forcings", "-boundary", "forcings", "input") if variables else "empty"
-        input = create_input(self, config, variables=variables, purpose="boundary_forcings")
-        LOG.info("Boundary forcings input: %s", input)
+        LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
         return input
 
     def create_pre_processors(self) -> list[Processor]:
