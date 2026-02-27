@@ -21,7 +21,6 @@ import deprecation
 import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
 from earthkit.data.utils.dates import to_datetime
-from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -163,7 +162,7 @@ class Checkpoint:
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._metadata._config_data.frequency
+        return self._metadata._config.data.frequency
 
     @property
     def precision(self) -> Any:
@@ -587,17 +586,17 @@ class Checkpoint:
 
         # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
         # The split oper/scda is a bit special
-        KEYS = {("oper", "fc"): DEFAULT_KEYS_AND_TIME, ("scda", "fc"): DEFAULT_KEYS_AND_TIME}
+
+        # CHANGE: Avoid duplicate GRIB values when training on forecasts by removing the time dependency in KEYS.
+        # Set always_split_time=True to restore it.
+        KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
 
         requests = defaultdict(list)
         for r in self._metadata.mars_requests(variables=variables):
             for date in dates:
-
                 r = r.copy()
 
                 base = date
-                step = str(r.get("step", 0)).split("-")[-1]
-                base = base - to_timedelta(step)
 
                 r["date"] = base.strftime("%Y-%m-%d")
                 r["time"] = base.strftime("%H%M")
@@ -632,7 +631,6 @@ class Checkpoint:
                     r[k] = sorted(set(v))
 
                 # Patch BEFORE the shortname to paramid
-
                 if patch_request:
                     r = patch_request(r)
 
