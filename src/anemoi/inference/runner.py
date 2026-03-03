@@ -1112,7 +1112,6 @@ class Runner(Context):
             The kinds.
         """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] in (1, self.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
         from rich.console import Console
         from rich.table import Table
@@ -1189,7 +1188,7 @@ class Runner(Context):
         )
 
         if not self._output_tensor_by_name:
-            for i in range(output_tensor_numpy.shape[1]):
+            for i in range(output_tensor_numpy.shape[-1]):
                 self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
                 if i in self.checkpoint.prognostic_output_mask:
                     self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)

@@ -181,6 +181,10 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             input_state = self.create_input_state(date=window_start_date)
 
             self.input_state_hook(input_state)
+            output.open(input_state)
+            if self.write_initial_state:
+                LOG.info("write_initial_state: %s", output)
+                output.write_initial_state(input_state)
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
@@ -197,8 +201,8 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 # Apply post-processing
                 for processor in post_processors:
                     state = processor.process(state)
-
                 output.write_state(state)
+
 
         output.close()
 
@@ -302,7 +306,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         LOG.info(
             "Time stepping: [%s, %s], Interpolating %s steps", start_date, start_date + self.interpolation_window, steps
         )
-
         for s in range(steps):
             step = self.interpolation_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
             date = start_date + step
