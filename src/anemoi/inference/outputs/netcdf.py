@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import datetime
 import logging
 import os
 import threading
@@ -18,7 +17,6 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
-from anemoi.utils.dates import as_timedelta
 
 from ..decorators import ensure_path
 from ..decorators import main_argument
@@ -84,11 +82,7 @@ class NetCDFOutput(Output):
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
-        if self.write_step_zero:
-            self.extra_time = 1
-        else:
-            self.extra_time = 0
-        self.variables = variables
+        self.nc_variables = {}
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -111,7 +105,6 @@ class NetCDFOutput(Output):
         # If the file exists, we may get a 'Permission denied' error
         if os.path.exists(self.path):
             os.remove(self.path)
-            
 
         with LOCK:
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
@@ -121,25 +114,15 @@ class NetCDFOutput(Output):
         compression = {}  # dict(zlib=False, complevel=0)
 
         values = len(state["latitudes"])
-
-        time = 0
         self.reference_date = state["date"]
-        if (time_step := getattr(self.context, "output_frequency", None)) and (
-            lead_time := getattr(self.context, "lead_time", None)
-        ):  
-            if isinstance(lead_time, str):
-                lead_time = as_timedelta(lead_time)
-            if isinstance(time_step, str):
-                time_step = as_timedelta(time_step)
-            time = lead_time.total_seconds() // time_step.total_seconds()
-            time += self.extra_time
 
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
         with LOCK:
             self.values_dim = self.ncfile.createDimension("values", values)
-            self.time_dim = self.ncfile.createDimension("time", int(time))
+            # Unlimited time dimension avoids pre-allocation mismatches.
+            self.time_dim = self.ncfile.createDimension("time", None)
             self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
             self.time_var.units = f"seconds since {self.reference_date}"
@@ -163,7 +146,7 @@ class NetCDFOutput(Output):
             self.longitude_var[:] = longitudes
 
         self.n = 0
-        self.variables = {v: {} for v in self.variables} if self.variables is not None else {}
+        self.nc_variables = {}
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
@@ -182,7 +165,7 @@ class NetCDFOutput(Output):
             if self.skip_variable(name):
                 continue
 
-            if name in self.variables:
+            if name in self.nc_variables:
                 continue
 
             chunksizes = (1, values)
@@ -193,7 +176,7 @@ class NetCDFOutput(Output):
             with LOCK:
                 missing_value = self.missing_value
 
-                self.variables[name] = self.ncfile.createVariable(
+                self.nc_variables[name] = self.ncfile.createVariable(
                     name,
                     self.float_size,
                     ("time", "values"),
@@ -202,8 +185,8 @@ class NetCDFOutput(Output):
                     **compression,
                 )
 
-                self.variables[name].fill_value = missing_value
-                self.variables[name].missing_value = missing_value
+                self.nc_variables[name].fill_value = missing_value
+                self.nc_variables[name].missing_value = missing_value
 
     def write_step(self, state: State) -> None:
         """Write the state.
@@ -224,8 +207,7 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                print(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}", flush=True)
-                self.variables[name][self.n] = value
+                self.nc_variables[name][self.n] = value
 
         self.n += 1
 
