@@ -201,7 +201,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 # Apply post-processing
                 for processor in post_processors:
                     state = processor.process(state)
-                    
+
                 output.write_state(state)
 
         output.close()
