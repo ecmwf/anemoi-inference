@@ -83,6 +83,7 @@ class NetCDFOutput(Output):
         self.float_size = float_size
         self.missing_value = missing_value
         self.nc_variables = {}
+        self.variables = variables
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -121,7 +122,7 @@ class NetCDFOutput(Output):
 
         with LOCK:
             self.values_dim = self.ncfile.createDimension("values", values)
-            # Unlimited time dimension avoids pre-allocation mismatches.
+            # unlimited time dimension avoids pre-allocation mismatches
             self.time_dim = self.ncfile.createDimension("time", None)
             self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
@@ -207,6 +208,7 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
+                print(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}", flush=True)
                 self.nc_variables[name][self.n] = value
 
         self.n += 1
