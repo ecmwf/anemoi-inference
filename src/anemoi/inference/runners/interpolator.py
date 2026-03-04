@@ -119,22 +119,22 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
     def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
-        self.prognostic_state = prognostic_input.create_input_state(
+        prognostic_state = prognostic_input.create_input_state(
             date=date, select_reference_date=True, ref_date_index=0
         )
-        self._check_state(self.prognostic_state, "prognostics")
+        self._check_state(prognostic_state, "prognostics")
 
         forcings_input = self.create_dynamic_forcings_input()
         LOG.info("📥 Dynamic forcings input: %s", forcings_input)
-        self.forcings_state = forcings_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
-        self._check_state(self.forcings_state, "dynamic_forcings")
+        forcings_state = forcings_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
+        self._check_state(forcings_state, "dynamic_forcings")
 
-        self.constants_state["date"] = self.prognostic_state["date"]
+        self.constants_state["date"] = prognostic_state["date"]
 
         input_state = self._combine_states(
-            self.prognostic_state,
+            prognostic_state,
             self.constants_state,
-            self.forcings_state,
+            forcings_state,
         )
 
         return input_state
@@ -183,21 +183,8 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
             input_state = self.create_input_state(date=window_start_date)
             self.input_state_hook(input_state)
-            # For step-zero only
-            initial_state = Output.reduce(
-                self._initial_state(
-                    self.prognostic_state,
-                    self.constants_state,
-                    self.forcings_state,
-                )
-            )
-            # Top-level post-processors on the other hand are applied on State and are executed here.
-            LOG.info("Top-level post-processors: %s", self.post_processors)
 
-            for processor in self.post_processors:
-                initial_state = processor.process(initial_state)
-
-            output.open(initial_state)
+            output.open(input_state)
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
