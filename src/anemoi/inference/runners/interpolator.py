@@ -199,10 +199,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
             output.open(initial_state)
 
-            if self.write_initial_state:
-                LOG.info("write_initial_state: %s", output)
-                output.write_initial_state(initial_state)
-
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
 

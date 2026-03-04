@@ -15,5 +15,4 @@
         negative_step_mode: skip
 
     date: 2026-02-01T00
-    write_initial_state: false
     runner: time_multi_interpolator
