@@ -18,7 +18,6 @@ from numpy.typing import NDArray
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch
-from anemoi.inference.output import Output
 from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
@@ -119,9 +118,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
     def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
-        prognostic_state = prognostic_input.create_input_state(
-            date=date, select_reference_date=True, ref_date_index=0
-        )
+        prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
         self._check_state(prognostic_state, "prognostics")
 
         forcings_input = self.create_dynamic_forcings_input()
