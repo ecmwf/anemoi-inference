@@ -208,7 +208,7 @@ class NetCDFOutput(Output):
                 continue
 
             with LOCK:
-                print(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}", flush=True)
+                LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
                 self.nc_variables[name][self.n] = value
 
         self.n += 1
