@@ -1112,6 +1112,7 @@ class Runner(Context):
             The kinds.
         """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self.multi_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
         from rich.console import Console
         from rich.table import Table
