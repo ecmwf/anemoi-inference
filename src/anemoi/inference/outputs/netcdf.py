@@ -76,6 +76,7 @@ class NetCDFOutput(Output):
             write_initial_state=write_initial_state,
         )
 
+
         from netCDF4 import Dataset
 
         self.path = path
@@ -83,7 +84,6 @@ class NetCDFOutput(Output):
         self.float_size = float_size
         self.missing_value = missing_value
         self.nc_variables = {}
-        self.variables = variables
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
