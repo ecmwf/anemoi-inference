@@ -76,7 +76,6 @@ class NetCDFOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-
         from netCDF4 import Dataset
 
         self.path = path
