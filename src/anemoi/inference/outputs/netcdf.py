@@ -82,7 +82,6 @@ class NetCDFOutput(Output):
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
-        self.nc_variables = {}
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -146,7 +145,7 @@ class NetCDFOutput(Output):
             self.longitude_var[:] = longitudes
 
         self.n = 0
-        self.nc_variables = {}
+        self.vars = {}
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.
@@ -165,7 +164,7 @@ class NetCDFOutput(Output):
             if self.skip_variable(name):
                 continue
 
-            if name in self.nc_variables:
+            if name in self.vars:
                 continue
 
             chunksizes = (1, values)
@@ -176,7 +175,7 @@ class NetCDFOutput(Output):
             with LOCK:
                 missing_value = self.missing_value
 
-                self.nc_variables[name] = self.ncfile.createVariable(
+                self.vars[name] = self.ncfile.createVariable(
                     name,
                     self.float_size,
                     ("time", "values"),
@@ -185,8 +184,8 @@ class NetCDFOutput(Output):
                     **compression,
                 )
 
-                self.nc_variables[name].fill_value = missing_value
-                self.nc_variables[name].missing_value = missing_value
+                self.vars[name].fill_value = missing_value
+                self.vars[name].missing_value = missing_value
 
     def write_step(self, state: State) -> None:
         """Write the state.
@@ -208,7 +207,7 @@ class NetCDFOutput(Output):
 
             with LOCK:
                 LOG.debug(f"🚧🚧🚧🚧🚧🚧 XXXXXX {name}, {self.n}, {value.shape}")
-                self.nc_variables[name][self.n] = value
+                self.vars[name][self.n] = value
 
         self.n += 1
 
