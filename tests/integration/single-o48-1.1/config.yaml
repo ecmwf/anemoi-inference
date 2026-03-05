@@ -1,3 +1,5 @@
+## Grib Input with various outputs
+
 - name: grib-in-grib-out
   input: input.grib
   output: output.grib
@@ -49,7 +51,6 @@
             - 2t
             - q_600
 
-
 - name: grib-in-netcdf-out
   input: input.grib
   output: output.nc
@@ -66,7 +67,6 @@
       grib: ${input:}
     output:
       netcdf: ${output:}
-
 
 - name: grib-in-zarr-out
   input: input.grib
@@ -101,7 +101,7 @@
         dir: ${output:}
         variables: [2t, 10u, 10v]
 
-- name: grib-in-plots-out
+- name: grib-in-plots-out-overlay
   input: input.grib
   output: plots
   checks:
@@ -117,37 +117,6 @@
         dir: ${output:}
         mode: overlay
         variables: [2t]
-
-- name: grib-in-truth-out
-  input:
-  output: output.grib
-  checks:
-    - check_grib:
-        expected_variables:
-          - 2t
-          - q
-        grib_keys:
-          stream: oper
-          class: ai
-          type: fc
-        check_nans: true
-  inference_config:
-    write_initial_state: false
-    checkpoint: ${checkpoint:}
-    input: dummy
-    date: '20250101'
-    output:
-      truth:
-        output:
-          grib:
-            path: ${output:}
-            encoding:
-              stream: oper
-              class: ai
-              type: fc
-            variables:
-              - 2t
-              - q_600
 
 - name: grib-in-print-output
   input: input.grib
@@ -194,7 +163,6 @@
         dir: ${output:}
         template: "{date}_step{step}.npz"
 
-
 - name: grib-in-tee-output
   input: input.grib
   output: output
@@ -213,3 +181,49 @@
         - tee:
             outputs:
               - netcdf: ${output:}/output.nc2
+
+- name: grib-in-trace
+  input: input.grib
+  output: trace.json
+  checks:
+    - check_file_exist: {}
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    trace_path: ${output:}
+    output: printer
+
+## Dummy Input
+
+- name: dummy-in-truth-out
+  input:
+  output: output.grib
+  checks:
+    - check_grib:
+        expected_variables:
+          - 2t
+          - q
+        grib_keys:
+          stream: oper
+          class: ai
+          type: fc
+        check_nans: true
+  inference_config:
+    write_initial_state: false
+    checkpoint: ${checkpoint:}
+    input: dummy
+    date: '20250101'
+    output:
+      truth:
+        output:
+          grib:
+            path: ${output:}
+            encoding:
+              stream: oper
+              class: ai
+              type: fc
+            variables:
+              - 2t
+              - q_600
