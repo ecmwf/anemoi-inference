@@ -52,6 +52,55 @@ You can specify the input as ``grib`` to read the data from a GRIB file.
 
 For more options, see :ref:`grib-input`.
 
+********
+ netcdf
+********
+
+You can specify the input as ``netcdf`` to read the data from a NetCDF
+file.
+
+.. literalinclude:: yaml/inputs_5.yaml
+   :language: yaml
+
+.. note::
+
+   The netcdf input expects the data to be stored identically to the
+   GRIB input, i.e. with a flattened values dimension (..., values), and
+   variable names that match what the checkpoint was trained on.
+
+   ```text
+   <xarray.Dataset> Size: 165MB
+   Dimensions:    (date: X, values: 542080)
+   Coordinates:
+     * date       (date) ....
+       latitude   (values) float64 4MB ...
+       longitude  (values) float64 4MB ...
+   Dimensions without coordinates: values
+   Data variables:
+       10u        (date, values) float64 39MB ...
+       10v        (date, values) float64 39MB ...
+       2t         (date, values) float64 39MB ...
+       ...
+   ```
+
+
+   For context, using ``earthkit-data`` a grib file can be exported as
+   netcdf with the following and then read back in using the netcdf
+   input, note how the names are created:
+
+   .. code:: python
+
+      import earthkit.data as ekd
+
+      ds = ekd.from_source("file", "input.grib")
+
+      ds_xr = ds.to_xarray(
+          variable_key="p_l",
+          remapping={"p_l": "{param}_{levelist}"},
+          add_earthkit_attrs=False,
+      )
+      ds_xr.to_netcdf("input.nc")
+
 ******
  mars
 ******
