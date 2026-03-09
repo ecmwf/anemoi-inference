@@ -9,24 +9,18 @@
 
 [build-system]
 build-backend = "setuptools.build_meta"
-
 requires = [ "setuptools>=60", "setuptools-scm>=8" ]
 
 [project]
 name = "anemoi-inference"
-
 description = "A package to run inference from data-driven forecasts weather models."
 readme = "README.md"
-
 keywords = [ "ai", "inference", "tools" ]
-
 license = { file = "LICENSE" }
 authors = [
   { name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int" },
 ]
-
 requires-python = ">=3.11,<3.14"
-
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -39,7 +33,6 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
@@ -58,7 +51,6 @@ dependencies = [
   "semantic-version",
   "torch",
 ]
-
 optional-dependencies.all = [
   "anemoi-datasets",
   "anemoi-inference[huggingface,netcdf,plot,tests,zarr]",
@@ -68,9 +60,7 @@ optional-dependencies.cosmo = [
   "eccodes<=2.39.1",
   "eccodes-cosmo-resources-python",
 ]
-
 optional-dependencies.dev = [ "anemoi-inference[all,docs,plugin,tests]" ]
-
 optional-dependencies.docs = [
   "autodoc-pydantic",
   "nbsphinx",
@@ -80,11 +70,9 @@ optional-dependencies.docs = [
   "sphinx-argparse<0.5",
   "sphinx-rtd-theme",
 ]
-
 optional-dependencies.huggingface = [ "huggingface-hub" ]
 optional-dependencies.netcdf = [ "earthkit-data>=0.19,<1" ]
 optional-dependencies.plot = [ "earthkit-plots<1" ]
-
 optional-dependencies.plugin = [ "ai-models>=0.7", "tqdm" ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
@@ -94,29 +82,25 @@ optional-dependencies.tests = [
   "pytest-mock",
 ]
 optional-dependencies.zarr = [ "zarr" ]
-
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
 urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"
 urls.Repository = "https://github.com/ecmwf/anemoi-inference/"
 scripts.anemoi-inference = "anemoi.inference.__main__:main"
-
 entry-points."ai_models.model".anemoi = "anemoi.inference.plugin:AIModelPlugin"
 
-[tool.setuptools.package-data]
-"anemoi.inference.grib.templates" = [ "*.yaml" ]
-
-[tool.setuptools.packages.find]
-where = [ "src" ]
+[tool.setuptools]
+package-data."anemoi.inference.grib.templates" = [ "*.yaml" ]
+packages.find.where = [ "src" ]
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
 
-[tool.pytest.ini_options]
-markers = [
+[tool.pytest]
+ini_options.markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]
-testpaths = "tests"
+ini_options.testpaths = "tests"
 
 [tool.mypy]
 exclude = [ "docs/" ]
