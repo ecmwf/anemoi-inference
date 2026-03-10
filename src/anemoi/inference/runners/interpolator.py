@@ -37,8 +37,9 @@ def _get_interpolation_window(data_frequency: str, input_explicit_times: list[in
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
 
-def _get_lagged(checkpoint: Checkpoint) -> list[datetime.timedelta]:
-    result = [s * to_timedelta(checkpoint.data_frequency) for s in checkpoint.input_explicit_times]
+def _get_lagged(self) -> list[datetime.timedelta]:
+    # For interpolator, we always want positive timedeltas
+    result = [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
     return sorted(result)
 
 
