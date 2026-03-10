@@ -38,8 +38,11 @@ def _get_interpolation_window(data_frequency: str, input_explicit_times: list[in
 
 def get_lagged(instance):
     if "lagged" not in instance.__dict__:
-        instance.__dict__["lagged"] = sorted([s * to_timedelta(instance.data_frequency) for s in instance.input_explicit_times])
+        instance.__dict__["lagged"] = sorted(
+            [s * to_timedelta(instance.data_frequency) for s in instance.input_explicit_times]
+        )
     return instance.__dict__["lagged"]
+
 
 @runner_registry.register("time_multi_interpolator")
 class TimeInterpolatorMultiOutRunner(DefaultRunner):
