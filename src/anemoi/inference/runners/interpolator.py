@@ -110,7 +110,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         # but we require it to be a list of positive timedeltas from the current date
 
         # Replace the lagged property on this specific instance
-        self.checkpoint.__class__.lagged = property(self._get_lagged)
+        self.checkpoint.__class__.lagged = property(_get_lagged)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
         
