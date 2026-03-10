@@ -106,14 +106,11 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
     def _patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
-        # By default, it assumes forecastor behaviour of retrieving n previous steps of data,
+        # By default, it assumes forecaster behaviour of retrieving n previous steps of data,
         # but we require it to be a list of positive timedeltas from the current date
-        # Clear any existing cached value
-        if "lagged" in self.checkpoint.__dict__:
-            del self.checkpoint.__dict__["lagged"]
 
         # Replace the lagged property on this specific instance
-        self.checkpoint.lagged = _get_lagged(self.checkpoint)
+        self.checkpoint.__class__.lagged = property(self._get_lagged)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
         prognostic_input = self.create_prognostics_input()
