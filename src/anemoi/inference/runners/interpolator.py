@@ -36,8 +36,6 @@ def _get_interpolation_window(data_frequency: str, input_explicit_times: list[in
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
 
-
-
 @runner_registry.register("time_multi_interpolator")
 class TimeInterpolatorMultiOutRunner(DefaultRunner):
     """A runner to be used for inference of a trained interpolator with multiple output steps.
