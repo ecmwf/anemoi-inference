@@ -113,7 +113,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         self.checkpoint.__class__.lagged = property(self._get_lagged)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
-        
+
         if self.constants_input is None:
             self.constants_input = self.create_constant_coupled_forcings_input()
             LOG.info("📥 Constant forcings input: %s", self.constants_input)
