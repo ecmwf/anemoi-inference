@@ -330,10 +330,11 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         # This does interpolation but called forecast so we can reuse run()
         with torch.inference_mode():
             self.model.eval()
-        
 
             # Create pytorch input tensor
-            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(
+                self.device
+            )
 
             LOG.info("Using autocast %s", self.autocast)
 
@@ -397,7 +398,11 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
                 if self.trace:
                     self.trace.write_input_tensor(
-                        dates, s, input_tensor_torch.cpu().numpy(), variable_to_input_tensor_index, self.checkpoint.timestep
+                        dates,
+                        s,
+                        input_tensor_torch.cpu().numpy(),
+                        variable_to_input_tensor_index,
+                        self.checkpoint.timestep,
                     )
 
                 # Detach tensor and squeeze (should we detach here?)
