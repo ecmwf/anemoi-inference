@@ -7,11 +7,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-
+import glob
 import logging
+import os
 import re
 from collections import defaultdict
 from collections.abc import Callable
+from functools import cached_property
 from typing import Any
 
 import earthkit.data as ekd
@@ -21,6 +23,7 @@ from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
+from anemoi.inference.decorators import main_argument
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -478,3 +481,112 @@ class EkdInput(Input):
 
         if geography_information:
             state["_geography"] = geography_information
+
+
+@main_argument("path")
+class FieldlistInput(EkdInput):
+    """Handles earthkit-data FieldList as input."""
+
+    patterns: tuple[str, ...]
+
+    def __init__(
+        self,
+        context: Context,
+        *,
+        path: str,
+        **kwargs: Any,
+    ) -> None:
+        """Initialise the FieldlistInput.
+
+        Parameters
+        ----------
+        context : Any
+            The context in which the input is used.
+        path : str
+            Path, directory or glob pattern to file(s). Examples:
+              - "/path/to/file.grib"
+              - "/path/to/*.grib"
+              - "/path/to/**/*.grib2"
+              - "/path/to/directory/"
+        **kwargs : Any
+            Additional keyword arguments.
+        """
+        super().__init__(context, **kwargs)
+        self.path = path
+
+    def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
+        """Create the input state for the given date.
+
+        Parameters
+        ----------
+        date : Optional[Date]
+            The date for which to create the input state.
+        ref_date_index : int = -1
+            If 0 takes the first date, if -1 takes the last date in sequence.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
+        return self._create_input_state(self._fieldlist, date=date, ref_date_index=ref_date_index, **kwargs)
+
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
+        """Load the forcings state for the given variables and dates.
+
+        Parameters
+        ----------
+        dates : List[Date]
+            List of dates for which to load the forcings.
+        current_state : State
+            The current state of the input.
+
+        Returns
+        -------
+        State
+            The loaded forcings state.
+        """
+
+        return self._load_forcings_state(
+            self._fieldlist,
+            dates=dates,
+            current_state=current_state,
+        )
+
+    @cached_property
+    def _fieldlist(self) -> ekd.FieldList:
+        """Get the input fieldlist from the file or collection."""
+        path = self.path
+
+        # Case 1: explicit glob pattern
+        if glob.has_magic(path):
+            matches = glob.glob(path, recursive=True)
+            files = [p for p in matches if os.path.isfile(p)]
+            if not files:
+                LOG.warning("No files matched pattern %r", path)
+                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+            return ekd.from_source("file", sorted(files))  # type: ignore[reportReturnType]
+
+        # Case 2: directory path -> search for files recursively
+        if os.path.isdir(path):
+            files = []
+            for pat in self.patterns:
+                files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
+            files = [f for f in sorted(set(files)) if os.path.isfile(f)]
+            if not files:
+                LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
+                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+            return ekd.from_source("file", files)  # type: ignore[reportReturnType]
+
+        # Case 3: single file path
+        try:
+            if os.path.getsize(path) == 0:
+                LOG.warning("File %r is empty", path)
+                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+        except FileNotFoundError:
+            LOG.warning("Path %r not found", path)
+            return ekd.from_source("empty")  # type: ignore[reportReturnType]
+
+        return ekd.from_source("file", path)  # type: ignore[reportReturnType]
