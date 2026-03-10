@@ -106,7 +106,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
     def _patch_checkpoint_lagged_property(self):
         # Patching the self._checkpoint lagged property
-        # By default, it assumes forecastor behaviour of retreving n previous steps of data,
+        # By default, it assumes forecastor behaviour of retrieving n previous steps of data,
         # but we require it to be a list of positive timedeltas from the current date
         # Clear any existing cached value
         if "lagged" in self.checkpoint.__dict__:
