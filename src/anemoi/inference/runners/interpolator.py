@@ -61,7 +61,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         config : Configuration | dict | str | BaseModel | None
             The configuration for the runner.
         **kwargs : dict
-            Keyword arguments to initialize a config for the runner.
+            Keyword arguments to initialise a config for the runner.
         """
         super().__init__(config)
         self._patch_checkpoint_lagged_property()
