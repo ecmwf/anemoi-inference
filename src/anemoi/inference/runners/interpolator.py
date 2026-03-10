@@ -22,7 +22,6 @@ from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..checkpoint import Checkpoint
 from ..forcings import ConstantDateForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
