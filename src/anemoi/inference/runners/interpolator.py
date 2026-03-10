@@ -113,6 +113,19 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         self.checkpoint.__class__.lagged = property(self._get_lagged)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
+        
+        if self.constants_input is None:
+            self.constants_input = self.create_constant_coupled_forcings_input()
+            LOG.info("📥 Constant forcings input: %s", self.constants_input)
+            self.constants_state = self.constants_input.create_input_state(
+                date=self.config.date, constant=True, ref_date_index=0
+            )
+            for key in self.constants_state["fields"].keys():
+                self.constants_state["fields"][key] = np.concatenate(
+                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
+                )
+            self._check_state(self.constants_state, "constant_forcings")
+
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
         prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
@@ -154,18 +167,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 self.interpolation_window,
                 num_windows * self.interpolation_window,
             )
-
-        if self.constants_input is None:
-            self.constants_input = self.create_constant_coupled_forcings_input()
-            LOG.info("📥 Constant forcings input: %s", self.constants_input)
-            self.constants_state = self.constants_input.create_input_state(
-                date=self.config.date, constant=True, ref_date_index=0
-            )
-            for key in self.constants_state["fields"].keys():
-                self.constants_state["fields"][key] = np.concatenate(
-                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
-                )
-            self._check_state(self.constants_state, "constant_forcings")
 
         # Process each interpolation window
         for window_idx in range(num_windows):
