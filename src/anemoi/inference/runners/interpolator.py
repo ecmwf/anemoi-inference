@@ -37,11 +37,10 @@ def _get_interpolation_window(data_frequency: str, input_explicit_times: list[in
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
 
 
-def _get_lagged(self) -> list[datetime.timedelta]:
-    # For interpolator, we always want positive timedeltas
-    result = [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
-    return sorted(result)
-
+def get_lagged(instance):
+    if "lagged" not in instance.__dict__:
+        instance.__dict__["lagged"] = sorted([s * to_timedelta(instance.data_frequency) for s in instance.input_explicit_times])
+    return instance.__dict__["lagged"]
 
 @runner_registry.register("time_multi_interpolator")
 class TimeInterpolatorMultiOutRunner(DefaultRunner):
@@ -111,7 +110,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         # but we require it to be a list of positive timedeltas from the current date
 
         # Replace the lagged property on this specific instance
-        self.checkpoint.__class__.lagged = property(_get_lagged)
+        self.checkpoint.__class__.lagged = property(get_lagged)
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
 
