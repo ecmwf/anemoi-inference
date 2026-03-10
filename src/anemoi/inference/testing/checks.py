@@ -145,6 +145,8 @@ def check_with_xarray(
     ds = xr.open_dataset(file)
 
     assert len(ds.data_vars) > 0, "No data found in the xarray compatible file."
+    assert len(ds.time) > 0, "No time steps found in the xarray compatible file."
+    assert len(ds.time.where(ds.time.notnull(), drop=True)) > 0, "All time steps are NaN in the xarray compatible file."
 
     # lat and lon are variables in the file, but they are not variables of the model so skip them
     skip = {"latitude", "longitude"}
