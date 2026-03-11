@@ -1,4 +1,0 @@
-output:
-  apply_mask:
-    mask: thinning
-    output: /path/to/output.nc
