@@ -1,0 +1,7 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    post_processors:
+      - assign_mask:
+          mask: source0/trimedge_mask
+          fill_value: .nan

@@ -22,7 +22,6 @@ from anemoi.inference.runner import Kind
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..checkpoint import Checkpoint
 from ..forcings import ConstantDateForcings
 from ..forcings import Forcings
 from ..profiler import ProfilingLabel
@@ -35,11 +34,6 @@ LOG = logging.getLogger(__name__)
 def _get_interpolation_window(data_frequency: str, input_explicit_times: list[int]) -> datetime.timedelta:
     """Get the interpolation window."""
     return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
-
-
-def _get_lagged(checkpoint: Checkpoint) -> list[datetime.timedelta]:
-    result = [s * to_timedelta(checkpoint.data_frequency) for s in checkpoint.input_explicit_times]
-    return sorted(result)
 
 
 @runner_registry.register("time_multi_interpolator")
@@ -105,17 +99,26 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         return req
 
     def _patch_checkpoint_lagged_property(self):
-        # Patching the self._checkpoint lagged property
-        # By default, it assumes forecastor behaviour of retrieving n previous steps of data,
-        # but we require it to be a list of positive timedeltas from the current date
-        # Clear any existing cached value
-        if "lagged" in self.checkpoint.__dict__:
-            del self.checkpoint.__dict__["lagged"]
-
-        # Replace the lagged property on this specific instance
-        self.checkpoint.lagged = _get_lagged(self.checkpoint)
+        # Override the cached_property on this specific checkpoint instance by writing
+        # directly into __dict__
+        self.checkpoint.__dict__["lagged"] = sorted(
+            [s * to_timedelta(self.checkpoint.data_frequency) for s in self.checkpoint.input_explicit_times]
+        )
 
     def create_input_state(self, *, date: datetime.datetime) -> State:
+
+        if self.constants_input is None:
+            self.constants_input = self.create_constant_coupled_forcings_input()
+            LOG.info("📥 Constant forcings input: %s", self.constants_input)
+            self.constants_state = self.constants_input.create_input_state(
+                date=self.config.date, constant=True, ref_date_index=0
+            )
+            for key in self.constants_state["fields"].keys():
+                self.constants_state["fields"][key] = np.concatenate(
+                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
+                )
+            self._check_state(self.constants_state, "constant_forcings")
+
         prognostic_input = self.create_prognostics_input()
         LOG.info("📥 Prognostic input: %s", prognostic_input)
         prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
@@ -157,18 +160,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 self.interpolation_window,
                 num_windows * self.interpolation_window,
             )
-
-        if self.constants_input is None:
-            self.constants_input = self.create_constant_coupled_forcings_input()
-            LOG.info("📥 Constant forcings input: %s", self.constants_input)
-            self.constants_state = self.constants_input.create_input_state(
-                date=self.config.date, constant=True, ref_date_index=0
-            )
-            for key in self.constants_state["fields"].keys():
-                self.constants_state["fields"][key] = np.concatenate(
-                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
-                )
-            self._check_state(self.constants_state, "constant_forcings")
 
         # Process each interpolation window
         for window_idx in range(num_windows):

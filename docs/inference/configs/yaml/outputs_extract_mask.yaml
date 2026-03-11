@@ -1,0 +1,4 @@
+output:
+  printer:
+    post_processors:
+      - extract_mask: /path/to/mask.npy

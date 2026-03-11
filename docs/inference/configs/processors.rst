@@ -101,15 +101,64 @@ backward_transform_filter
 Applies a backward transform filter from `anemoi-transform
 <https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_.
 
-Extractors
-==========
+Extractors and Masking
+======================
 
-Three extractors are available for use as post-processors:
-   -  ``extract_mask``: extracts with the use of a mask, either on disk
-      or in the supporting arrays.
-   -  ``extract_slice``: extracts with the use of a slice.
-   -  ``extract_from_state``: extracts from the state using masks filled
-      from the ``Cutout`` input.
+Several post-processors are available for extracting subsets of data or
+applying masks:
+
+extract_mask
+------------
+
+Extracts a subset of points using a boolean mask. The mask can be either
+the name of a supporting array in the checkpoint or a path to an ``.npy``
+file containing the boolean mask.
+
+.. code:: yaml
+
+   post_processors:
+     - extract_mask: /path/to/mask.npy
+
+extract_slice
+-------------
+
+Extracts a subset of points using a slice. Provide slice arguments as a list
+``[start, stop, step]``. Use ``null`` for default values.
+
+.. code:: yaml
+
+   post_processors:
+     - extract_slice: [0, null, 2]  # Every other point from start
+
+extract_from_state
+------------------
+
+Extracts a subset of points based on masks included in the state. Must be
+used with the ``Cutout`` input. This is particularly useful for extracting
+Limited Area Model (LAM) domains from nested grid forecasts.
+
+.. code:: yaml
+
+   post_processors:
+     - extract_from_state: lam_0
+
+See :ref:`inference-inputs` for more information on using ``extract_from_state``
+with the ``Cutout`` input.
+
+assign_mask
+-----------
+
+Assigns the state to a larger array using a mask. This is the opposite of
+``extract_mask`` - instead of extracting a smaller area, it assigns data
+to a portion of a larger area. Areas not covered by the mask are filled
+with a specified value (NaN by default).
+
+.. code:: yaml
+
+   post_processors:
+     - assign_mask:
+         mask: source0/trimedge_mask
+         fill_value: .nan
 
 ***************************
  Top-level post-processors
