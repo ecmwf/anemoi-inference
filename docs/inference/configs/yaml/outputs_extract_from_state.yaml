@@ -1,0 +1,9 @@
+output:
+  plot:
+    path: /path/to/lam-plots
+    format: png
+    variables:
+      - 2t
+      - msl
+    post_processors:
+      - extract_from_state: lam_0
