@@ -82,10 +82,65 @@ class NetCDFOutput(Output):
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
+        self.values_size: int | None = None
+        self.grid_shape: tuple[int, int] | None = None
+        self.latitude_var = None
+        self.longitude_var = None
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
         return f"NetCDFOutput({self.path})"
+
+    def validate_state(self, state: State) -> None:
+        """Validate that coordinates and field shapes match the output grid."""
+        latitudes = state["latitudes"]
+        longitudes = state["longitudes"]
+
+        grid_shape = (len(latitudes), len(longitudes))
+        if grid_shape[0] != grid_shape[1]:
+            raise ValueError(f"Size mismatch latitudes={grid_shape[0]}, longitudes={grid_shape[1]}")
+
+        if self.grid_shape is None:
+            self.grid_shape = grid_shape
+            self.values_size = grid_shape[0]
+        elif grid_shape != self.grid_shape:
+            raise ValueError(
+                "Output post-processors changed the spatial grid between steps: "
+                f"expected latitudes/longitudes={self.grid_shape}, got {grid_shape}"
+            )
+
+        for name, value in state["fields"].items():
+            if self.skip_variable(name):
+                continue
+
+            if value.shape[-1] != self.values_size:
+                raise ValueError(
+                    f"Field {name!r} has last dimension {value.shape[-1]}, expected {self.values_size} "
+                    "to match the output latitudes/longitudes"
+                )
+
+    def initialize_grid(self, state: State) -> None:
+        """Initialize coordinate variables from the first state that is actually written."""
+        if self.latitude_var is not None and self.longitude_var is not None:
+            return
+
+        self.validate_state(state)
+
+        compression = {}  # dict(zlib=False, complevel=0)
+        latitudes = state["latitudes"]
+        longitudes = state["longitudes"]
+
+        with LOCK:
+            self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
+            self.latitude_var.units = "degrees_north"
+            self.latitude_var.long_name = "latitude"
+
+            self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
+            self.longitude_var.units = "degrees_east"
+            self.longitude_var.long_name = "longitude"
+
+            self.latitude_var[:] = latitudes
+            self.longitude_var[:] = longitudes
 
     def open(self, state: State) -> None:
         """Open the NetCDF file and initialize dimensions and variables.
@@ -108,18 +163,15 @@ class NetCDFOutput(Output):
         with LOCK:
             self.ncfile = Dataset(self.path, "w", format="NETCDF4")
 
-        state = self.post_process(state)
-
         compression = {}  # dict(zlib=False, complevel=0)
 
-        values = len(state["latitudes"])
         self.reference_date = state["date"]
 
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
         with LOCK:
-            self.values_dim = self.ncfile.createDimension("values", values)
+            self.values_dim = self.ncfile.createDimension("values", None)
             # unlimited time dimension avoids pre-allocation mismatches
             self.time_dim = self.ncfile.createDimension("time", None)
             self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
@@ -127,22 +179,6 @@ class NetCDFOutput(Output):
             self.time_var.units = f"seconds since {self.reference_date}"
             self.time_var.long_name = "time"
             self.time_var.calendar = "gregorian"
-
-        with LOCK:
-            latitudes = state["latitudes"]
-
-            self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
-            self.latitude_var.units = "degrees_north"
-            self.latitude_var.long_name = "latitude"
-
-            longitudes = state["longitudes"]
-
-            self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
-            self.longitude_var.units = "degrees_east"
-            self.longitude_var.long_name = "longitude"
-
-            self.latitude_var[:] = latitudes
-            self.longitude_var[:] = longitudes
 
         self.n = 0
         self.vars = {}
@@ -156,6 +192,8 @@ class NetCDFOutput(Output):
             The state dictionary.
         """
 
+        self.initialize_grid(state)
+        self.validate_state(state)
         values = len(state["latitudes"])
 
         compression = {}  # dict(zlib=False, complevel=0)

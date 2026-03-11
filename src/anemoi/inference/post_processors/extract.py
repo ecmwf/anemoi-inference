@@ -68,7 +68,7 @@ class ExtractBase(Processor):
         state["latitudes"] = state["latitudes"][idx]
         state["longitudes"] = state["longitudes"][idx]
         for field in state["fields"]:
-            state["fields"][field] = state["fields"][field][idx]
+            state["fields"][field] = state["fields"][field][..., idx]
 
         return state
 
