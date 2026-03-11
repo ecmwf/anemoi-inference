@@ -281,7 +281,8 @@ class DownscalingRunner(DefaultRunner):
         for processor in self.post_processors:
             initial_state = processor.process(initial_state)
 
-        output.open(initial_state)
+        template_path = getattr(self.config.output.netcdf, "template_path", None)
+        output.open(initial_state, template_path)
 
         LOG.info("write_initial_state: %s", output)
         output.write_initial_state(initial_state)

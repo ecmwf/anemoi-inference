@@ -58,7 +58,7 @@ class NetCDFOutput(Output):
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         projection_string: str | None = None,
-        reference_date: datetime.datetime | None = None,
+        reference_date: datetime.datetime | str = None,
         field_shape: tuple[int, ...] = (),
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -66,10 +66,10 @@ class NetCDFOutput(Output):
         missing_value: float | None = np.nan,
     ) -> None:
         """Initialise the NetCDF output object.
-
-        Parameters
+      Parameters
         ----------
-        context : dict
+
+          context : dict
             The context dictionary.
         path : Path
             The path to save the NetCDF file to.
@@ -117,7 +117,9 @@ class NetCDFOutput(Output):
         # Reference date for the time axis
         ref_date = reference_date if reference_date is not None else context.reference_date
         assert ref_date is not None, "Either `date` or `ouput.netcdf.reference_date` needs to be specified"
-
+        if isinstance(ref_date, str):
+            from earthkit.data.utils.dates import to_datetime
+            ref_date = to_datetime(ref_date)
         self.reference_date = ref_date.replace(tzinfo=None)
 
         # TODO: is something like this available somewhere inside state?
@@ -174,7 +176,7 @@ class NetCDFOutput(Output):
         LOG.info(f"Created variable {var_name}")
         return var
 
-    def open(self, state: State) -> None:
+    def open(self, state: State, template_path: str|None = None) -> None:
         """Open the NetCDF file and initialize dimensions and variables.
 
         Parameters
@@ -249,24 +251,6 @@ class NetCDFOutput(Output):
                 log_str = f"{y=}, {x=}"
             else:
                 raise ValueError(f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}")
-
-            if len(self.field_shape) == 2:
-                (y, x) = self.field_shape
-                with LOCK:
-                    self.ncfile.createDimension("y", y)
-                    self.ncfile.createDimension("x", x)
-
-                self._create_projections(lats, lons)
-
-                self.dimensions = ("time", "ensemble_member", "y", "x")
-                coord_dims = ("y", "x")
-                log_str = f"{y=}, {x=}"
-
-            # If field shape was not overridden keep it 1D
-            else:
-                self.dimensions = ("time", "ensemble_member", "values")
-                coord_dims = ("values",)
-                log_str = f"values={self.field_shape[0]}"
 
         else:
             lats = state["latitudes"]
