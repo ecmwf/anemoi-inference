@@ -1214,7 +1214,7 @@ class MultiDatasetMetadata(Metadata):
             for k in ("start", "end"):
                 if k in dataloader:
                     config.setdefault(k, dataloader[k])
-            return {key: value for key, value in config.items() if value is not None}
+            return DotDict({key: value for key, value in config.items() if value is not None})
 
         # for older checkpoints, the dataloader itself is the dataset config
         return dataloader
