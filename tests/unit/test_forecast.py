@@ -50,7 +50,10 @@ def basic_predict_step(model, input_tensor, **kwargs):
 
     for j in range(1, multi_step_input):
         assert input_prog[0, j] - input_prog[0, j - 1] == pytest.approx(torch.tensor([1.0, 1.0])), "prog step mismatch"
-        assert input_force[0, j - 1, 0] / input_force[0, j, 0] == pytest.approx(2.0), "force step mismatch"
+        assert input_force[0, j - 1] / input_force[0, j] == pytest.approx(
+            torch.tensor([2.0, 2.0])
+        ), "force step mismatch"
+        assert input_force[0, j] == pytest.approx(0.5 ** (input_prog[0, j])), "force out of sync with prog "
 
     output_prog = torch.full((input_tensor.shape[0], multi_step_output, input_tensor.shape[2]), np.nan)
 
