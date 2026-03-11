@@ -23,6 +23,7 @@
   checks:
     - check_with_xarray:
         reference_date: 2026-02-01T00
+        check_nans: true
   inference_config:
     checkpoint: ${checkpoint:}
     input:
@@ -32,3 +33,4 @@
         path: ${output:}
     date: 2026-02-01T00
     runner: time_multi_interpolator
+    write_initial_state: false
