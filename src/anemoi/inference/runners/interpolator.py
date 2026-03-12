@@ -172,6 +172,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             input_state = self.create_input_state(date=window_start_date)
 
             self.input_state_hook(input_state)
+            output.open(input_state)
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):

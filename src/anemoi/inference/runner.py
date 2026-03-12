@@ -1187,7 +1187,7 @@ class Runner(Context):
         )
 
         if not self._output_tensor_by_name:
-            for i in range(output_tensor_numpy.shape[1]):
+            for i in range(output_tensor_numpy.shape[-1]):
                 self._output_tensor_by_name.append(self.checkpoint.output_tensor_index_to_variable[i])
                 if i in self.checkpoint.prognostic_output_mask:
                     self._output_kinds[self.checkpoint.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
