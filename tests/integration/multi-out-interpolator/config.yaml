@@ -1,0 +1,19 @@
+- name: grib-in-grib-out
+  input: input.grib
+  output: output.grib
+  checks:
+    - check_grib:
+        check_nans: true
+        reference_date: 2026-02-01T00
+  inference_config:
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      grib:
+        path: ${output:}
+        negative_step_mode: skip
+
+    date: 2026-02-01T00
+
+    runner: time_multi_interpolator
