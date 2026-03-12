@@ -126,13 +126,15 @@ class Checkpoint:
         if isinstance(self._source, Metadata):
             return self._source
 
-        try:
-            result = MetadataFactory(*load_metadata(self.path, supporting_arrays=True))
-        except Exception as e:
-            LOG.warning("Version does not support `supporting_arrays` (%s)", e)
-            result = MetadataFactory(load_metadata(self.path))
+        # for multi-dataset checkpoints, we assume that attributes accessed via here
+        # are shared across datasets and we can use the metadata of the first dataset.
+        # things that need dataset-specific metadata should get their own MultiDatasetMetadata directly
+        # TODO: may need to find a better way ¯\_(ツ)_/¯
+        multi_metadata = self.get_multi_dataset_metadata()
+        result = multi_metadata[next(iter(multi_metadata))]
 
         if self.patch_metadata:
+            # TODO: figure out multi-datasets patching
             LOG.warning("Patching metadata with %r", self.patch_metadata)
             result.patch(self.patch_metadata)
 
@@ -187,46 +189,48 @@ class Checkpoint:
         """Get the precision."""
         return self._metadata.precision
 
-    @property
-    def number_of_grid_points(self) -> Any:
-        """Get the number of grid points."""
-        return self._metadata.number_of_grid_points
+    # @property
+    # def number_of_grid_points(self) -> Any:
+    #     """Get the number of grid points."""
+    #     return self._metadata.number_of_grid_points
 
-    @property
-    def number_of_input_features(self) -> Any:
-        """Get the number of input features."""
-        return self._metadata.number_of_input_features
+    # @property
+    # def number_of_input_features(self) -> Any:
+    #     """Get the number of input features."""
+    #     return self._metadata.number_of_input_features
 
     @property
     def variable_to_input_tensor_index(self) -> Any:
         """Get the variable to input tensor index."""
+        # TODO: used by mock model, trace
         return self._metadata.variable_to_input_tensor_index
 
-    @property
-    def variable_to_output_tensor_index(self) -> Any:
-        """Get the variable to output tensor index."""
-        return self._metadata.variable_to_output_tensor_index
+    # @property
+    # def variable_to_output_tensor_index(self) -> Any:
+    #     """Get the variable to output tensor index."""
+    #     return self._metadata.variable_to_output_tensor_index
 
-    @property
-    def model_computed_variables(self) -> Any:
-        """Get the model computed variables."""
-        return self._metadata.model_computed_variables
+    # @property
+    # def model_computed_variables(self) -> Any:
+    #     """Get the model computed variables."""
+    #     return self._metadata.model_computed_variables
 
     @property
     def typed_variables(self) -> dict[str, Variable]:
         """Get the typed variables."""
+        # TODO: used by checks and mock model
         return self._metadata.typed_variables
 
-    @property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.8.0",
-        current_version=__version__,
-        details="Use `select_variables` instead.",
-    )
-    def diagnostic_variables(self) -> Any:
-        """Get the diagnostic variables."""
-        return self._metadata.diagnostic_variables
+    # @property
+    # @deprecation.deprecated(
+    #     deprecated_in="0.6.4",
+    #     removed_in="0.8.0",
+    #     current_version=__version__,
+    #     details="Use `select_variables` instead.",
+    # )
+    # def diagnostic_variables(self) -> Any:
+    #     """Get the diagnostic variables."""
+    #     return self._metadata.diagnostic_variables
 
     @property
     @deprecation.deprecated(
@@ -237,47 +241,50 @@ class Checkpoint:
     )
     def prognostic_variables(self) -> Any:
         """Get the prognostic variables."""
+        # TODO: used by checks
         return self._metadata.prognostic_variables
 
-    @property
-    def prognostic_output_mask(self) -> Any:
-        """Get the prognostic output mask."""
-        return self._metadata.prognostic_output_mask
+    # @property
+    # def prognostic_output_mask(self) -> Any:
+    #     """Get the prognostic output mask."""
+    #     return self._metadata.prognostic_output_mask
 
-    @property
-    def prognostic_input_mask(self) -> Any:
-        """Get the prognostic input mask."""
-        return self._metadata.prognostic_input_mask
+    # @property
+    # def prognostic_input_mask(self) -> Any:
+    #     """Get the prognostic input mask."""
+    #     return self._metadata.prognostic_input_mask
 
-    @property
-    def input_tensor_index_to_variable(self) -> Any:
-        """Get the output tensor index to variable."""
-        return self._metadata.input_tensor_index_to_variable
+    # @property
+    # def input_tensor_index_to_variable(self) -> Any:
+    #     """Get the output tensor index to variable."""
+    #     return self._metadata.input_tensor_index_to_variable
 
     @property
     def output_tensor_index_to_variable(self) -> Any:
         """Get the output tensor index to variable."""
+        # TODO: used by trace, mock model
         return self._metadata.output_tensor_index_to_variable
 
     @property
     def accumulations(self) -> Any:
         """Get the accumulations."""
+        # TODO: used by accumulate post-processor
         return self._metadata.accumulations
 
-    @property
-    def latitudes(self) -> Any:
-        """Get the latitudes."""
-        return self._metadata.latitudes
+    # @property
+    # def latitudes(self) -> Any:
+    #     """Get the latitudes."""
+    #     return self._metadata.latitudes
 
-    @property
-    def longitudes(self) -> Any:
-        """Get the longitudes."""
-        return self._metadata.longitudes
+    # @property
+    # def longitudes(self) -> Any:
+    #     """Get the longitudes."""
+    #     return self._metadata.longitudes
 
-    @property
-    def grid_points_mask(self) -> Any:
-        """Get the grid points mask."""
-        return self._metadata.grid_points_mask
+    # @property
+    # def grid_points_mask(self) -> Any:
+    #     """Get the grid points mask."""
+    #     return self._metadata.grid_points_mask
 
     @cached_property
     def sources(self) -> list["SourceCheckpoint"]:
@@ -300,6 +307,7 @@ class Checkpoint:
         Callable
             The namer that was used to create the training dataset.
         """
+        # TODO: used by post-processors and multio output plugin
         return self._metadata.default_namer(*args, **kwargs)
 
     def report_error(self) -> None:
@@ -334,97 +342,99 @@ class Checkpoint:
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
 
-    def open_dataset(
-        self,
-        *,
-        use_original_paths: bool | None = None,
-        from_dataloader: Any | None = None,
-    ) -> Any:
-        """Open the dataset.
+    # def open_dataset(
+    #     self,
+    #     *,
+    #     use_original_paths: bool | None = None,
+    #     from_dataloader: Any | None = None,
+    # ) -> Any:
+    #     """Open the dataset.
 
-        Parameters
-        ----------
-        use_original_paths : bool, optional
-            Whether to use the original paths, by default None.
-        from_dataloader : Any, optional
-            The dataloader to use, by default None.
+    #     Parameters
+    #     ----------
+    #     use_original_paths : bool, optional
+    #         Whether to use the original paths, by default None.
+    #     from_dataloader : Any, optional
+    #         The dataloader to use, by default None.
 
-        Returns
-        -------
-        Any
-            The opened dataset.
-        """
-        return self._metadata.open_dataset(use_original_paths=use_original_paths, from_dataloader=from_dataloader)
+    #     Returns
+    #     -------
+    #     Any
+    #         The opened dataset.
+    #     """
+    #     return self._metadata.open_dataset(use_original_paths=use_original_paths, from_dataloader=from_dataloader)
 
-    def open_dataset_args_kwargs(
-        self, *, use_original_paths: bool, from_dataloader: Any | None = None
-    ) -> tuple[Any, Any]:
-        """Get arguments and keyword arguments for opening the dataset.
+    # def open_dataset_args_kwargs(
+    #     self, *, use_original_paths: bool, from_dataloader: Any | None = None
+    # ) -> tuple[Any, Any]:
+    #     """Get arguments and keyword arguments for opening the dataset.
 
-        Parameters
-        ----------
-        use_original_paths : bool
-            Whether to use original paths.
-        from_dataloader : Optional[Any], optional
-            Data loader, by default None.
+    #     Parameters
+    #     ----------
+    #     use_original_paths : bool
+    #         Whether to use original paths.
+    #     from_dataloader : Optional[Any], optional
+    #         Data loader, by default None.
 
-        Returns
-        -------
-        Tuple[Any, Any]
-            Arguments and keyword arguments for opening the dataset.
-        """
-        return self._metadata.open_dataset_args_kwargs(
-            use_original_paths=use_original_paths,
-            from_dataloader=from_dataloader,
-        )
+    #     Returns
+    #     -------
+    #     Tuple[Any, Any]
+    #         Arguments and keyword arguments for opening the dataset.
+    #     """
+    #     return self._metadata.open_dataset_args_kwargs(
+    #         use_original_paths=use_original_paths,
+    #         from_dataloader=from_dataloader,
+    #     )
 
-    def name_fields(self, fields: Any, namer: Callable[..., str] | None = None) -> Any:
-        """Name fields.
+    # def name_fields(self, fields: Any, namer: Callable[..., str] | None = None) -> Any:
+    #     """Name fields.
 
-        Parameters
-        ----------
-        fields : Any
-            The fields to name.
-        namer : Optional[Callable[...,str]], optional
-            The namer, by default None.
+    #     Parameters
+    #     ----------
+    #     fields : Any
+    #         The fields to name.
+    #     namer : Optional[Callable[...,str]], optional
+    #         The namer, by default None.
 
-        Returns
-        -------
-        Any
-            The named fields.
-        """
-        return self._metadata.name_fields(fields, namer=namer)
+    #     Returns
+    #     -------
+    #     Any
+    #         The named fields.
+    #     """
+    #     return self._metadata.name_fields(fields, namer=namer)
 
-    def sort_by_name(
-        self, fields: ekd.FieldList, *args: Any, namer: Callable[..., str] | None = None, **kwargs: Any
-    ) -> ekd.FieldList:
-        """Sort fields by name.
+    # def sort_by_name(
+    #     self, fields: ekd.FieldList, *args: Any, namer: Callable[..., str] | None = None, **kwargs: Any
+    # ) -> ekd.FieldList:
+    #     """Sort fields by name.
 
-        Parameters
-        ----------
-        fields : ekd.FieldList
-            The fields to sort.
-        *args : Any
-            Additional arguments.
-        namer : Optional[Callable[...,str]], optional
-            The namer, by default None.
-        **kwargs : Any
-            Additional keyword arguments.
+    #     Parameters
+    #     ----------
+    #     fields : ekd.FieldList
+    #         The fields to sort.
+    #     *args : Any
+    #         Additional arguments.
+    #     namer : Optional[Callable[...,str]], optional
+    #         The namer, by default None.
+    #     **kwargs : Any
+    #         Additional keyword arguments.
 
-        Returns
-        -------
-        ekd.FieldList
-            The sorted fields.
-        """
-        return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
+    #     Returns
+    #     -------
+    #     ekd.FieldList
+    #         The sorted fields.
+    #     """
+    #     return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
 
     def print_indices(self, print=LOG.info) -> None:
         """Print the indices."""
+        # TODO: used by runner init
         return self._metadata.print_indices(print=print)
 
     ###########################################################################
     # Variable categories
     ###########################################################################
+    # TODO: used by inspect, retrieve, mock model
     def print_variable_categories(self, print=LOG.info) -> None:
         """Print the variable categories."""
         return self._metadata.print_variable_categories(print=print)
@@ -461,25 +471,25 @@ class Checkpoint:
         """
         return self._metadata.select_variables(include=include, exclude=exclude, has_mars_requests=has_mars_requests)
 
-    def select_variables_and_masks(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None
-    ) -> list[str]:
-        """Get variables from input.
+    # def select_variables_and_masks(
+    #     self, *, include: list[str] | None = None, exclude: list[str] | None = None
+    # ) -> list[str]:
+    #     """Get variables from input.
 
-        Parameters
-        ----------
-        include : Optional[List[str]]
-            Categories to include.
+    #     Parameters
+    #     ----------
+    #     include : Optional[List[str]]
+    #         Categories to include.
 
-        exclude : Optional[List[str]]
-            Categories to exclude.
+    #     exclude : Optional[List[str]]
+    #         Categories to exclude.
 
-        Returns
-        -------
-        List[str]
-            The selected variables.
-        """
-        return self._metadata.select_variables_and_masks(include=include, exclude=exclude)
+    #     Returns
+    #     -------
+    #     List[str]
+    #         The selected variables.
+    #     """
+    #     return self._metadata.select_variables_and_masks(include=include, exclude=exclude)
 
     ###########################################################################
     def load_supporting_array(self, name: str) -> Any:
@@ -495,6 +505,7 @@ class Checkpoint:
         Any
             The supporting array.
         """
+        # TODO
         return self._metadata.load_supporting_array(name)
 
     @property
@@ -507,10 +518,7 @@ class Checkpoint:
     @cached_property
     def lagged(self) -> list[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
-        result = list(range(0, self._metadata.multi_step_input))
-
-        result = [-s * self._metadata.timestep for s in result]
-        return sorted(result)
+        return self._metadata.lagged
 
     @property
     def multi_step_input(self) -> Any:
@@ -700,20 +708,20 @@ class Checkpoint:
         """Get the name."""
         return self._metadata.name
 
-    def has_supporting_array(self, name: str) -> bool:
-        """Check if the checkpoint has a supporting array with the given name.
+    # def has_supporting_array(self, name: str) -> bool:
+    #     """Check if the checkpoint has a supporting array with the given name.
 
-        Parameters
-        ----------
-        name : str
-            The name of the supporting array.
+    #     Parameters
+    #     ----------
+    #     name : str
+    #         The name of the supporting array.
 
-        Returns
-        -------
-        bool
-            True if the supporting array exists, False otherwise.
-        """
-        return self._metadata.has_supporting_array(name)
+    #     Returns
+    #     -------
+    #     bool
+    #         True if the supporting array exists, False otherwise.
+    #     """
+    #     return self._metadata.has_supporting_array(name)
 
     ###########################################################################
     # Misc

@@ -81,6 +81,7 @@ class Metadata(PatchMixin, LegacyMixin):
     """Base Metadata class."""
 
     multi_dataset = False
+    name = None
 
     def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
         """Initialize the Metadata object.
@@ -194,6 +195,13 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
     # Inference
     ###########################################################################
+    @cached_property
+    def lagged(self) -> list[datetime.timedelta]:
+        """Return the list of steps for the `multi_step_input` fields."""
+        result = list(range(0, self.multi_step_input))
+
+        result = [-s * self.timestep for s in result]
+        return sorted(result)
 
     @cached_property
     def timestep(self) -> datetime.timedelta:
