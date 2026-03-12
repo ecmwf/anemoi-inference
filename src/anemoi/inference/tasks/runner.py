@@ -64,6 +64,10 @@ class CoupledRunner(DefaultRunner):
 
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
+        if self.checkpoint.multi_step_output > 1:
+            raise NotImplementedError(
+                "output_state_hook is not yet supported when multi-step output and coupled runners are combined"
+            )
         self.coupled_input.output_state(reduce_state(state))
 
     def create_dynamic_coupled_forcings(self, variables: list[str], mask: Any) -> list[CoupledForcings]:
