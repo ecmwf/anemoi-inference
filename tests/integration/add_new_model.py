@@ -93,6 +93,7 @@ del metadata["model"]
 metadata["config"] = {
     "data": metadata["config"]["data"],
     "training": metadata["config"]["training"],
+    "dataloader": metadata["config"]["dataloader"],
 }
 
 if args.save_fake_checkpoint:

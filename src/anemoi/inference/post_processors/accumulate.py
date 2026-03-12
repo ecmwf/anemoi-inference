@@ -34,15 +34,23 @@ class Accumulate(Processor):
     accumulations : Optional[List[str]], optional
         List of fields to accumulate, by default None.
         If None, the fields are taken from the context's checkpoint.
+    allow_negative : bool, optional
+        Whether to allow negative values in the accumulation, by default False.
     """
 
-    def __init__(self, context: Context, accumulations: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        context: Context,
+        accumulations: list[str] | None = None,
+        allow_negative: bool = False,
+    ) -> None:
         super().__init__(context)
         if accumulations is None:
             accumulations = context.checkpoint.accumulations
 
         self.accumulations = accumulations
-        LOG.info("Accumulating fields %s", self.accumulations)
+        self.allow_negative = allow_negative
+        LOG.info("Accumulating fields %s (allow_negative=%s)", self.accumulations, self.allow_negative)
 
         self.accumulators: dict[str, FloatArray] = {}
         self.step_zero = timedelta(0)
@@ -66,7 +74,10 @@ class Accumulate(Processor):
             if accumulation in state["fields"]:
                 if accumulation not in self.accumulators:
                     self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
-                self.accumulators[accumulation] += np.maximum(0, state["fields"][accumulation])
+                value = state["fields"][accumulation]
+                if not self.allow_negative:
+                    value = np.maximum(0, value)
+                self.accumulators[accumulation] += value
                 state["fields"][accumulation] = self.accumulators[accumulation]
                 state["start_steps"][accumulation] = self.step_zero
 

@@ -1,4 +1,4 @@
-- name: example-integration-test
+- name: grib-in-grib-out
   input: input.grib
   output: output.grib
   checks:
@@ -13,4 +13,19 @@
       grib: ${input:}
     output:
       grib: ${output:}
+    write_initial_state: false
+
+- name: grib-in-netcdf-out
+  input: input.grib
+  output: output.nc
+  checks:
+    - check_with_xarray:
+        check_nans: true
+        expected_time: 8
+  inference_config:
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      netcdf: ${output:}
     write_initial_state: false
