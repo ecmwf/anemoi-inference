@@ -16,6 +16,7 @@ from anemoi.utils.grib import units
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import ensure_dir
+from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import FloatArray
@@ -47,6 +48,7 @@ def fix(lons: FloatArray) -> FloatArray:
 
 @output_registry.register("plot")
 @main_argument("dir")
+@format_dataset_name("path")
 @ensure_dir("dir")
 class PlotOutput(Output):
     """Use `earthkit-plots` to plot the outputs."""

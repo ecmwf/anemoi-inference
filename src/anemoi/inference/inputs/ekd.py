@@ -23,6 +23,7 @@ from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
+from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
@@ -488,6 +489,7 @@ class EkdInput(Input):
 
 
 @main_argument("path")
+@format_dataset_name("path")
 class FieldlistInput(EkdInput):
     """Handles earthkit-data FieldList as input."""
 

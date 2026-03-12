@@ -20,6 +20,7 @@ from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import ensure_path
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -33,6 +34,7 @@ LOCK = threading.RLock()
 
 @output_registry.register("netcdf")
 @main_argument("path")
+@format_dataset_name("path")
 @ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""

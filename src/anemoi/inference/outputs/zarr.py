@@ -23,6 +23,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -75,6 +76,7 @@ def create_zarr_array(
 
 @output_registry.register("zarr")  # type: ignore
 @main_argument("store")
+@format_dataset_name("store")
 class ZarrOutput(Output):
     """Zarr output class."""
 

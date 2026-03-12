@@ -23,6 +23,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..decorators import ensure_path
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -106,6 +107,7 @@ def print_state(
 
 @output_registry.register("printer")
 @main_argument("max_lines")
+@format_dataset_name("path")
 @ensure_path("path")
 class PrinterOutput(Output):
     """Printer output class."""

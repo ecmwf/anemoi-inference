@@ -132,3 +132,37 @@ class ensure_dir(ensure_path):
 
     def __init__(self, arg: str, create: bool = True, must_exist: bool = False):
         super().__init__(arg, is_dir=True, create=create, must_exist=must_exist)
+
+
+class format_dataset_name:
+    """Decorator to format a string argument with the dataset name.
+    Substitutes `{dataset}` or `{dataset_name}` in the argument with the dataset name.
+    Can only be used for classes that take `metadata`. For example:
+    ```
+    output:
+        grib: output-{dataset}.grib
+    ```
+    """
+
+    def __init__(self, arg: str):
+        self.arg = arg
+
+    def __call__(self, cls: F) -> F:
+        if not isinstance(cls, type):
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
+
+        class WrappedClass(cls):
+            def __init__(wrapped_cls, context: Context, *args: Any, **kwargs: Any) -> Any:
+                assert (
+                    "metadata" in kwargs
+                ), f"`{self.__class__.__name__}` requires the decorated class to receive 'metadata'"
+                assert self.arg in kwargs, f"{self.arg} not found in decorated class arguments: {kwargs}"
+                assert isinstance(
+                    kwargs[self.arg], str
+                ), f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
+
+                name = kwargs["metadata"].name
+                kwargs[self.arg] = kwargs[self.arg].format(dataset=name, dataset_name=name)
+                super().__init__(context, *args, **kwargs)
+
+        return type(cls.__name__, (WrappedClass,), {})

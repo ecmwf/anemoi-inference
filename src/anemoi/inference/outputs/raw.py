@@ -18,6 +18,7 @@ from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
 
 from ..decorators import ensure_dir
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -27,6 +28,7 @@ LOG = logging.getLogger(__name__)
 
 @output_registry.register("raw")
 @main_argument("dir")
+@format_dataset_name("dir")
 @ensure_dir("dir")
 class RawOutput(Output):
     """Raw output class."""
