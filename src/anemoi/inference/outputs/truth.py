@@ -10,6 +10,7 @@
 import logging
 from typing import Any
 
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.types import State
 
@@ -29,13 +30,15 @@ class TruthOutput(ForwardOutput):
     the forecasts, effectively only for times in the past.
     """
 
-    def __init__(self, context: DefaultRunner, output, **kwargs: Any) -> None:
+    def __init__(self, context: DefaultRunner, metadata: Metadata, *, output, **kwargs: Any) -> None:
         """Initialise the TruthOutput.
 
         Parameters
         ----------
         context : Context
             The context for the output.
+        metadata : Metadata
+            Metadata corresponding to the dataset this output is handling.
         output :
             The output configuration.
         kwargs : dict
@@ -44,8 +47,9 @@ class TruthOutput(ForwardOutput):
         if not isinstance(context, DefaultRunner):
             raise ValueError("TruthOutput can only be used with `DefaultRunner`")
 
-        super().__init__(context, output, None, **kwargs)
-        self._input = context.create_prognostics_input()
+        super().__init__(context, metadata, output, None, **kwargs)
+
+        self._input = context.prognostics_input[metadata.name]
 
     def modify_state(self, state: State) -> State:
         """Modify state by overriding it with the truth state."""

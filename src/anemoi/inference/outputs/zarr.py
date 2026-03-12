@@ -19,6 +19,7 @@ from typing import Literal
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
@@ -80,6 +81,8 @@ class ZarrOutput(Output):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
+        *,
         store: "StoreLike",
         variables: list[str] | None = None,
         output_frequency: int | None = None,
@@ -114,7 +117,11 @@ class ZarrOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            metadata,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         self.zarr_store: StoreLike = store

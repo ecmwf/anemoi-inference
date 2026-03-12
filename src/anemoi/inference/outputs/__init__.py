@@ -16,7 +16,7 @@ from anemoi.inference.output import Output
 output_registry = Registry(__name__)
 
 
-def create_output(context: Context, config: Configuration) -> Output:
+def create_output(context: Context, config: Configuration, **kwargs) -> Output:
     """Create an output.
 
     Parameters
@@ -25,10 +25,12 @@ def create_output(context: Context, config: Configuration) -> Output:
         The context for the output.
     config : Configuration
         The configuration for the output.
+    **kwargs : Any
+        Additional keyword arguments to pass to the output constructor.
 
     Returns
     -------
     object
         The created output.
     """
-    return output_registry.from_config(config, context)
+    return output_registry.from_config(config, context, **kwargs)

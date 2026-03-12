@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
@@ -39,6 +40,8 @@ class NetCDFOutput(Output):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
+        *,
         path: Path,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
@@ -70,6 +73,7 @@ class NetCDFOutput(Output):
 
         super().__init__(
             context,
+            metadata,
             variables=variables,
             post_processors=post_processors,
             output_frequency=output_frequency,

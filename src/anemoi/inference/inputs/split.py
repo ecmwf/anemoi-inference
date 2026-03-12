@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import combine_states
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -29,7 +30,7 @@ class SplitInput(Input):
 
     trace_name = "split input"
 
-    def __init__(self, context: Context, *splits, **kwargs: Any) -> None:
+    def __init__(self, context: Context, metadata: Metadata, *splits, **kwargs: Any) -> None:
 
         all_variables = set(kwargs.get("variables"))
         assert all_variables is not None, "variables must be provided for split input"
@@ -90,6 +91,7 @@ class SplitInput(Input):
             self.splits[tuple(sorted(all_variables))] = create_input(
                 context,
                 default,
+                metadata=self.metadata,
                 variables=sorted(all_variables),
                 purpose=kwargs.get("purpose"),
             )
@@ -98,7 +100,7 @@ class SplitInput(Input):
 
         self.splits = list(self.splits.values())
 
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the repeated-dates input.

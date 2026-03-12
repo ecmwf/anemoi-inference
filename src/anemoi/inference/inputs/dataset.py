@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
@@ -33,6 +34,7 @@ class DatasetInput(Input):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         open_dataset_args: tuple[Any, ...],
         open_dataset_kwargs: dict[str, Any],
@@ -45,6 +47,8 @@ class DatasetInput(Input):
         ----------
         context : Any
             The context in which the input is used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         open_dataset_args : Tuple[Any, ...]
             Arguments for the dataset.
         open_dataset_kwargs : Dict[str, Any]
@@ -54,7 +58,7 @@ class DatasetInput(Input):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
 
         self.open_dataset_args = open_dataset_args
         self.open_dataset_kwargs = open_dataset_kwargs
@@ -139,7 +143,7 @@ class DatasetInput(Input):
         if constant:
             dates = [date]
         else:
-            dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
+            dates = [date + np.timedelta64(h) for h in self.metadata.lagged]
 
         data = self._load_dates(dates)
 
@@ -263,7 +267,7 @@ class DatasetInputArgsKwargs(DatasetInput):
             Whether to use original paths.
         """
         if not args and not kwargs:
-            args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+            args, kwargs = self.metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
             # TODO: remove start/end from the arguments
 
@@ -309,9 +313,9 @@ class DataloaderInput(DatasetInput):
         use_original_paths : bool
             Whether to use original paths.
         """
-        open_dataset_args, open_dataset_kwargs = context.checkpoint.open_dataset_args_kwargs(
+        open_dataset_args, open_dataset_kwargs = self.metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
-            from_dataloader=self.name,
+            from_dataloader=self.dataset_name,
         )
 
         super().__init__(
