@@ -106,11 +106,9 @@ class Runner(Context):
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
-        # TODO: multi-datasets processors
-        self.pre_processors = self.create_pre_processors()
-        self.post_processors = self.create_post_processors()
-
-        # IO and tensor handlers for each dataset in the checkpoint
+        # processors, I/O and tensor handlers for each dataset in the checkpoint
+        self.pre_processors: dict[str, list[Processor]] = {}
+        self.post_processors: dict[str, list[Processor]] = {}
         self.tensor_handler: dict[str, TensorHandler] = {}
         self.prognostics_input: dict[str, Input] = {}
         self.constant_forcings_input: dict[str, Input] = {}
@@ -122,6 +120,8 @@ class Runner(Context):
 
         for name, metadata in multi_metadata.items():
             self.multi_step_input = metadata.multi_step_input
+            self.pre_processors[name] = self.create_pre_processors(name, metadata)
+            self.post_processors[name] = self.create_post_processors(name, metadata)
             self.prognostics_input[name] = self.create_input("prognostics", name, metadata)
             self.constant_forcings_input[name] = self.create_input("constant_forcings", name, metadata)
             self.dynamic_forcings_input[name] = self.create_input("dynamic_forcings", name, metadata)
@@ -138,6 +138,7 @@ class Runner(Context):
                 boundary_forcings_input=self.boundary_forcings_input[name],
             )
 
+        # TODO: these verbosity prints only do the first dataset
         if self.verbosity > 2:
             logging.basicConfig(level=logging.DEBUG)
             for logger_name in logging.root.manager.loggerDict:
@@ -676,9 +677,9 @@ class Runner(Context):
             )
 
             # Top-level post-processors on the other hand are applied on State and are executed here.
-            LOG.info("Top-level post-processors: %s", self.post_processors)
+            LOG.info(f"[{name}] Top-level post-processors: {self.post_processors[name]}")
 
-            for processor in self.post_processors:
+            for processor in self.post_processors[name]:
                 initial_state[name] = processor.process(initial_state[name])
 
         for name, state in initial_state.items():
@@ -690,13 +691,14 @@ class Runner(Context):
         for states in self.run(input_state=input_state, lead_time=lead_time):
             for name, state in states.items():
                 # Apply top-level post-processors
-                for processor in self.post_processors:
+                for processor in self.post_processors[name]:
                     state = processor.process(state)
                 self.outputs[name].write_state(state)
 
         for output in self.outputs.values():
             output.close()
 
+        # TODO: broken with multi-datasets config, maybe time to remove this
         if "accumulate_from_start_of_forecast" not in self.config.post_processors:
             LOG.warning("""
                 🚧 The default accumulation behaviour has changed. 🚧
@@ -744,49 +746,26 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
         return input
 
-    def create_pre_processors(self) -> list[Processor]:
-        """Create pre-processors.
-
-        Returns
-        -------
-        List[Processor]
-            The created pre-processors.
-        """
+    def create_pre_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        for processor in self.config.pre_processors:
-            result.append(create_pre_processor(self, processor))
+        config = multi_datasets_config(self.config.pre_processors, dataset_name)
+        for processor in config:
+            result.append(create_pre_processor(self, processor, metadata=metadata))
 
-        LOG.info("Pre processors: %s", result)
+        LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
 
-    def create_post_processors(self) -> list[Processor]:
-        """Create post-processors.
-
-        Returns
-        -------
-        List[Processor]
-            The created post-processors.
-        """
+    def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        for processor in self.config.post_processors:
-            result.append(create_post_processor(self, processor))
+        config = multi_datasets_config(self.config.post_processors, dataset_name)
+        for processor in config:
+            result.append(create_post_processor(self, processor, metadata=metadata))
 
-        LOG.info("Post processors: %s", result)
+        LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
-        """Combine multiple states into one.
-
-        Parameters
-        ----------
-        states : list
-            The states to combine.
-
-        Returns
-        -------
-        dict
-            The combined state.
-        """
+        """Combine multiple states into one."""
         import numpy as np
 
         combined = states[0].copy()

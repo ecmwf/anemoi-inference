@@ -80,11 +80,11 @@ class Input(ABC):
         processors = []
         # inner-level pre-processors
         for processor in self._pre_processor_confs:
-            processors.append(create_pre_processor(self.context, processor))
+            processors.append(create_pre_processor(self.context, processor, metadata=self.metadata))
 
         # top-level pre-processors
         if hasattr(self.context, "pre_processors"):
-            processors.extend(self.context.pre_processors)
+            processors.extend(self.context.pre_processors[self.dataset_name])
 
         LOG.info("Pre-processors: %s", processors)
         return processors

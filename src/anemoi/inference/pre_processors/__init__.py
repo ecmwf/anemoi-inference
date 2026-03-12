@@ -16,7 +16,7 @@ from anemoi.inference.types import ProcessorConfig
 pre_processor_registry = Registry(__name__)
 
 
-def create_pre_processor(context: Context, config: ProcessorConfig) -> Processor:
+def create_pre_processor(context: Context, config: ProcessorConfig, **kwargs) -> Processor:
     """Create a pre-processor.
 
     Parameters
@@ -25,10 +25,12 @@ def create_pre_processor(context: Context, config: ProcessorConfig) -> Processor
         The context for the pre-processor.
     config : Configuration
         The configuration for the pre-processor.
+    **kwargs : Any
+        Additional keyword arguments to pass to the pre-processor constructor.
 
     Returns
     -------
     Processor
         The created pre-processor.
     """
-    return pre_processor_registry.from_config(config, context)
+    return pre_processor_registry.from_config(config, context, **kwargs)

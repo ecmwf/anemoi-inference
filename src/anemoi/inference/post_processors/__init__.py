@@ -17,7 +17,7 @@ from anemoi.inference.types import ProcessorConfig
 post_processor_registry = Registry(__name__)
 
 
-def create_post_processor(context: Context, config: ProcessorConfig) -> Processor:
+def create_post_processor(context: Context, config: ProcessorConfig, **kwargs) -> Processor:
     """Create a post-processor.
 
     Parameters
@@ -26,10 +26,12 @@ def create_post_processor(context: Context, config: ProcessorConfig) -> Processo
         The context for the post-processor.
     config : Configuration
         The configuration for the post-processor.
+    **kwargs : Any
+        Additional keyword arguments to pass to the post-processor constructor.
 
     Returns
     -------
     Processor
         The created post-processor.
     """
-    return post_processor_registry.from_config(config, context)
+    return post_processor_registry.from_config(config, context, **kwargs)
