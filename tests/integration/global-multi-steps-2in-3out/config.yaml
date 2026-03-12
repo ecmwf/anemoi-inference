@@ -1,4 +1,4 @@
-- name: 2in-3out-grib
+- name: grib-in-grib-out
   input: input.grib
   output: output.grib
   checks:
