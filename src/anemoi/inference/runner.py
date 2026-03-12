@@ -30,11 +30,14 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.config.utils import input_types_config
+from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.device import get_available_device
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.lazy import torch
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.output import Output
 from anemoi.inference.outputs import create_output
 from anemoi.inference.post_processors import create_post_processor
@@ -103,25 +106,27 @@ class Runner(Context):
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
+        # TODO: multi-datasets processors
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
 
-        # metadata, IO and tensor handlers for each dataset in the checkpoint
-        multi_metadata = self._checkpoint.get_multi_dataset_metadata()
-
+        # IO and tensor handlers for each dataset in the checkpoint
         self.tensor_handler: dict[str, TensorHandler] = {}
         self.prognostics_input: dict[str, Input] = {}
         self.constant_forcings_input: dict[str, Input] = {}
         self.dynamic_forcings_input: dict[str, Input] = {}
         self.boundary_forcings_input: dict[str, Input] = {}
+        self.outputs: dict[str, Output] = {}
+
+        multi_metadata = self._checkpoint.get_multi_dataset_metadata()
 
         for name, metadata in multi_metadata.items():
             self.multi_step_input = metadata.multi_step_input
-            variables = Variables(metadata)
-            self.prognostics_input[name] = self.create_input("prognostics", variables, name)
-            self.constant_forcings_input[name] = self.create_input("constant_forcings", variables, name)
-            self.dynamic_forcings_input[name] = self.create_input("dynamic_forcings", variables, name)
-            self.boundary_forcings_input[name] = self.create_input("boundary_forcings", variables, name)
+            self.prognostics_input[name] = self.create_input("prognostics", name, metadata)
+            self.constant_forcings_input[name] = self.create_input("constant_forcings", name, metadata)
+            self.dynamic_forcings_input[name] = self.create_input("dynamic_forcings", name, metadata)
+            self.boundary_forcings_input[name] = self.create_input("boundary_forcings", name, metadata)
+            self.outputs[name] = self.create_output(name, metadata)
 
             self.tensor_handler[name] = classes.tensor_handler(
                 self,
@@ -188,7 +193,7 @@ class Runner(Context):
 
     def run(
         self, *, input_state: State, lead_time: str | int | datetime.timedelta, return_numpy: bool = True
-    ) -> Generator[State, None, None]:
+    ) -> Generator[dict[str, State], None, None]:
         """Run the model.
 
         Parameters
@@ -207,8 +212,8 @@ class Runner(Context):
             The forecasted state.
         """
         # Shallow copy to avoid modifying the user's input state
-        input_state = input_state.copy()
-        for name in self.tensor_handler:
+        input_state = {name: state.copy() for name, state in input_state.items()}
+        for name in input_state:
             input_state[name]["fields"] = input_state[name]["fields"].copy()
             LOG.info("-" * 80)
             LOG.info(f"Input state `{name}`:")
@@ -294,7 +299,7 @@ class Runner(Context):
         for state in output:
             if return_numpy:
                 # Convert fields to numpy arrays
-                for name in self.tensor_handler:
+                for name in state:
                     for field_name, field in state[name]["fields"].items():
                         if isinstance(field, torch.Tensor):
                             state[name]["fields"][field_name] = field.cpu().numpy()
@@ -363,7 +368,7 @@ class Runner(Context):
             return model
 
     def predict_step(
-        self, model: "torch.nn.Module", input_tensor_torch: "torch.Tensor", **kwargs: Any
+        self, model: "torch.nn.Module", input_tensors_torch: dict[str, "torch.Tensor"], **kwargs: Any
     ) -> "torch.Tensor":
         """Predict the next step.
 
@@ -371,8 +376,8 @@ class Runner(Context):
         ----------
         model : torch.nn.Module
             The model.
-        input_tensor_torch : torch.Tensor
-            The input tensor.
+        input_tensors_torch : dict[str, torch.Tensor]
+            The input tensors for each dataset.
         **kwargs : Any
             Additional keyword arguments that will be passed to the model's predict_step method.
 
@@ -388,19 +393,13 @@ class Runner(Context):
                 )
                 continue
             kwargs[key] = value
-        try:
-            # NOTE: This is a temporary hack to support the single dataset case for multi-dataset checkpoints
-            # TODO: change when we have a proper multi-dataset runner
-            if self.checkpoint._metadata.multi_dataset:
-                return model.predict_step({self.checkpoint._metadata.name: input_tensor_torch}, **kwargs)[
-                    self.checkpoint._metadata.name
-                ]
 
-            return model.predict_step(input_tensor_torch, **kwargs)
-        except TypeError:
-            # This is for backward compatibility because old models did not
-            # have kwargs in the forward or predict_step
-            return model.predict_step(input_tensor_torch)
+        if not self.checkpoint.multi_dataset:
+            assert len(input_tensors_torch) == 1, "Expected only one dataset in input tensors"
+            name, tensor = next(iter(input_tensors_torch.items()))
+            return {name: model.predict_step(tensor, **kwargs)}
+
+        return model.predict_step(input_tensors_torch, **kwargs)
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
@@ -438,7 +437,7 @@ class Runner(Context):
 
     def forecast(
         self, lead_time: str, input_tensors_numpy: dict[str, FloatArray], input_state: State
-    ) -> Generator[State, None, None]:
+    ) -> Generator[dict[str, State], None, None]:
         """Forecast the future states.
 
         Parameters
@@ -446,7 +445,7 @@ class Runner(Context):
         lead_time : str
             The lead time.
         input_tensors_numpy : dict[str, FloatArray]
-            The input tensors.
+            The input tensors for each dataset, as numpy arrays with shape (multi_step_input, variables, values).
         input_state : State
             The input state.
 
@@ -494,7 +493,7 @@ class Runner(Context):
             for s, (step, date, next_date, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 title = f"Forecasting step {step} ({date})"
 
-                for name in self.tensor_handler:
+                for name in new_state:
                     new_state[name]["date"] = date
                     new_state[name]["previous_step"] = new_state[name].get("step")
                     new_state[name]["step"] = step
@@ -558,7 +557,7 @@ class Runner(Context):
                             input_tensors_torch[name], y_pred[name], check[name]
                         )
 
-                        del y_pred  # Recover memory
+                        del y_pred[name]  # Recover memory
 
                         input_tensors_torch[name] = handler.add_dynamic_forcings_to_input_tensor(
                             input_tensors_torch[name], new_state[name], next_date, check[name]
@@ -643,12 +642,11 @@ class Runner(Context):
         self.lead_time = lead_time
         self.time_step = self.checkpoint.timestep
 
-        output = self.create_output()
-
         # In case the constant forcings are from another input, combine them here
         # So that they are in considered in the `write_initial_state`
 
         input_state = {}
+        initial_state = {}
         for name in self.tensor_handler:
             prognostic_state = self.prognostics_input[name].create_input_state(date=self.config.date)
             self._check_state(prognostic_state, "prognostics")
@@ -665,35 +663,39 @@ class Runner(Context):
                 forcings_state,
             )
 
-        # This hook is needed for the coupled runner
-        self.input_state_hook(constants_state)
+            # This hook is needed for the coupled runner
+            self.input_state_hook(constants_state)
 
-        # For step-zero only
-        initial_state = Output.reduce(
-            self._initial_state(
-                prognostic_state,
-                constants_state,
-                forcings_state,
+            # For step-zero only
+            initial_state[name] = Output.reduce(
+                self._initial_state(
+                    prognostic_state,
+                    constants_state,
+                    forcings_state,
+                )
             )
-        )
-        # Top-level post-processors on the other hand are applied on State and are executed here.
-        LOG.info("Top-level post-processors: %s", self.post_processors)
 
-        for processor in self.post_processors:
-            initial_state = processor.process(initial_state)
+            # Top-level post-processors on the other hand are applied on State and are executed here.
+            LOG.info("Top-level post-processors: %s", self.post_processors)
 
-        output.open(initial_state)
-
-        LOG.info("write_initial_state: %s", output)
-        output.write_initial_state(initial_state)
-
-        for state in self.run(input_state=input_state, lead_time=lead_time):
-            # Apply top-level post-processors
             for processor in self.post_processors:
-                state["data"] = processor.process(state["data"])
-            output.write_state(state["data"])
+                initial_state[name] = processor.process(initial_state[name])
 
-        output.close()
+        for name, state in initial_state.items():
+            self.outputs[name].open(initial_state[name])
+
+            LOG.info(f"[{name}] write_initial_state: {self.outputs[name]}")
+            self.outputs[name].write_initial_state(state)
+
+        for states in self.run(input_state=input_state, lead_time=lead_time):
+            for name, state in states.items():
+                # Apply top-level post-processors
+                for processor in self.post_processors:
+                    state = processor.process(state)
+                self.outputs[name].write_state(state)
+
+        for output in self.outputs.values():
+            output.close()
 
         if "accumulate_from_start_of_forecast" not in self.config.post_processors:
             LOG.warning("""
@@ -702,85 +704,42 @@ class Runner(Context):
                 🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
                 """)  # ecmwf/anemoi-inference#131
 
-    def create_output(self) -> Output:
-        """Create the output.
-
-        Returns
-        -------
-        Output
-            The created output.
-        """
-        output = create_output(self, self.config.output)
-        LOG.info("Output: %s", output)
+    def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
+        config = multi_datasets_config(self.config.output, dataset_name)
+        output = create_output(self, config, metadata=metadata)
+        LOG.info(f"[{dataset_name}] Output: {output}")
         return output
-
-    def _input_forcings(self, *names: str) -> dict[str, Any]:
-        """Get the input forcings configuration.
-
-        Parameters
-        ----------
-        names : list
-            The name of the forcings configuration.
-
-        Returns
-        -------
-        dict
-            The input forcings configuration.
-        """
-
-        for name in names:
-            if name.startswith("-"):
-                deprecated = True
-                name = name[1:]  # Remove the leading dash
-            else:
-                deprecated = False
-            if self.config.get(name):
-                if deprecated:
-                    LOG.warning(
-                        f"🚫 The `{name}` input forcings configuration is deprecated. "
-                        f"Please use the `{names[0]}` configuration instead."
-                    )
-                if name != names[0]:
-                    LOG.info(f"Loading `config.{names[0]}` from `config.{name}`")
-
-                return self.config[name]
-
-        return self.config.input
 
     #########################################################################################################
     def create_input(
         self,
         input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"],
-        variables: Variables,
-        dataset_name="data",
+        dataset_name: str,
+        metadata: Metadata,
     ) -> Input:
+        variables = Variables(metadata)
         match input_type:
             case "prognostics":
                 variables = variables.retrieved_prognostic_variables()
-                config = self._input_forcings("prognostic_input", "input") if variables else "empty"
+                config = input_types_config(self.config, "prognostic_input", "input") if variables else "empty"
             case "constant_forcings":
                 variables = variables.retrieved_constant_forcings_variables()
-                config = self._input_forcings(input_type, "forcings", "input") if variables else "empty"
+                config = input_types_config(self.config, input_type, "forcings", "input") if variables else "empty"
             case "dynamic_forcings":
                 variables = variables.retrieved_dynamic_forcings_variables()
-                config = self._input_forcings(input_type, "-forcings", "input") if variables else "empty"
+                config = input_types_config(self.config, input_type, "-forcings", "input") if variables else "empty"
             case "boundary_forcings":
                 variables = variables.retrieved_prognostic_variables()
-                config = self._input_forcings(input_type, "-boundary", "forcings", "input") if variables else "empty"
+                config = (
+                    input_types_config(self.config, input_type, "-boundary", "forcings", "input")
+                    if variables
+                    else "empty"
+                )
             case _:
                 raise ValueError(f"Unknown input type: {input_type}")
 
-        # handle multi-dataset config format
-        if isinstance(config, dict):
-            if len(config.keys()) > 1:
-                assert (
-                    dataset_name in config
-                ), f"Dataset name '{dataset_name}' not found in config for input type '{input_type}'. Available keys: {list(config.keys())}"
-
-            if dataset_name in config:
-                config = config[dataset_name]
-
-        input = create_input(self, config, variables=variables, purpose=input_type)
+        config = multi_datasets_config(config, dataset_name)
+        input = create_input(self, config, metadata=metadata, variables=variables, purpose=input_type)
 
         LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
         return input

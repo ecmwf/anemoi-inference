@@ -44,26 +44,6 @@ class TestingMixing:
 
 
 class NoModelMixing:
-    # Use with a real checkpoint (see prepml/regression)
-    def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
-        """Perform a prediction step using the model.
-
-        Parameters
-        ----------
-        model : Any
-            The model to use for prediction.
-        input_tensor_torch : torch.Tensor
-            The input tensor for the model.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        Any
-            The prediction result.
-        """
-        return model.predict_step(input_tensor_torch, **kwargs)
-
     @cached_property
     def model(self) -> "torch.nn.Module":
 

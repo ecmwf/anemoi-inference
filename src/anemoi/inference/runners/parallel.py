@@ -218,16 +218,12 @@ class ParallelRunnerMixin(Runner):
         super().complete_forecast_hook()
         torch.distributed.destroy_process_group()
 
-    def create_output(self) -> Output:
-        """Creates the real output on rank 0 and a `none` on the others.
-
-        Returns
-        -------
-        Output
-            The created output.
-        """
+    def create_output(self, *args, **kwargs) -> Output:
+        """Creates the real output on rank 0 and a `none` on the others."""
         if self.is_master:
-            return super().create_output()
+            return super().create_output(*args, **kwargs)
         else:
-            output = create_output(self, "none")
+            # passing the metadata here is a bit of a hack, the `none` output doesn't really need it
+            # but in multi-datasets world every output needs metadata, so do this workaround
+            output = create_output(self, "none", metadata=self.checkpoint._metadata)
             return output
