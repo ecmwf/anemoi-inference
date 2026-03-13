@@ -138,7 +138,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         )
 
         return input_state
-    
+
     def post_process(self, state: State) -> State:
         for processor in self.post_processors:
             LOG.info("Post processor: %s", processor)
@@ -177,7 +177,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
             input_state = self.create_input_state(date=window_start_date)
 
-            self.input_state_hook(input_state)            
+            self.input_state_hook(input_state)
             output.open(self.post_process(input_state))
 
             # Run interpolation for this window
