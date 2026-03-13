@@ -39,20 +39,29 @@ class BackwardTransformFilter(Processor):
         The filter instance used for processing the state.
     """
 
-    def __init__(self, context: Context, filter: str, **kwargs: Any) -> None:
+    def __init__(self, context: Context, filter: str | dict[str, Any] | None = None, **kwargs: Any) -> None:
         """Initialize the BackwardTransformFilter.
 
         Parameters
         ----------
-        context : Context
-            The context for the filter.
-        filter : str
-            The name of the filter to be used.
-        **kwargs : Any
-            Additional keyword arguments for the filter.
+        context : object
+            The context in which the filter is being used.
+        filter : str | dict[str, Any] | None, optional
+            The name of the filter or a configuration dictionary for the filter (default is None).
+
+        Examples
+        --------
+        To initialize a BackwardTransformFilter with a filter name:
+        >>> filter_processor = BackwardTransformFilter(context, filter="my_filter")
+        To initialize a BackwardTransformFilter with a filter configuration:
+        >>> filter_config = {"my_filter": {"param1": value1, "param2": value2}}
+        >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
         super().__init__(context)
-        self.filter: Any = filter_registry.create(filter, **kwargs)
+        if filter is None:
+            filter = kwargs
+            kwargs = {}
+        self.filter = filter_registry.from_config(filter, **kwargs)
 
     def process(self, state: State) -> State:
         """Process the given state using the backward transform filter.
