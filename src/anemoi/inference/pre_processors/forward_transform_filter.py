@@ -36,20 +36,29 @@ class ForwardTransformFilter(Processor):
         The filter instance used for processing fields and patching data requests.
     """
 
-    def __init__(self, context: Any, filter: str, **kwargs: Any) -> None:
+    def __init__(self, context: Any, filter: str | dict[str, Any] | None = None, **kwargs: Any) -> None:
         """Initialize the ForwardTransformFilter.
 
         Parameters
         ----------
         context : object
             The context in which the filter is being used.
-        filter : str
-            The name of the filter to be used.
-        **kwargs : dict
-            Additional keyword arguments to pass to the filter.
+        filter : str | dict[str, Any] | None, optional
+            The name of the filter or a configuration dictionary for the filter, by default None
+
+        Examples
+        --------
+        To initialize a BackwardTransformFilter with a filter name:
+        >>> filter_processor = BackwardTransformFilter(context, filter="my_filter")
+        To initialize a BackwardTransformFilter with a filter configuration:
+        >>> filter_config = {"my_filter": {"param1": value1, "param2": value2}}
+        >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
         super().__init__(context)
-        self.filter = filter_registry.create(filter, **kwargs)
+        if filter is None:
+            filter = kwargs
+            kwargs = {}
+        self.filter = filter_registry.from_config(filter, **kwargs)
 
     def process(self, state: State) -> State:
         """Process the given fields using the forward filter.
@@ -81,3 +90,13 @@ class ForwardTransformFilter(Processor):
             The patched data request.
         """
         return self.filter.patch_data_request(data_request)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ForwardTransformFilter object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"ForwardTransformFilter(filter={self.filter})"
