@@ -80,3 +80,12 @@ class BackwardTransformFilter(Processor):
         fields = self.filter.backward(wrap_state(state))
 
         return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
+
+
+@post_processor_registry.register("forward_transform_filter")
+class ForwardTransformFilter(BackwardTransformFilter):
+    """Apply a transform forward as a post-processor."""
+
+    def __init__(self, context: Context, filter: str | dict[str, Any] | None = None, **kwargs: Any) -> None:
+        super().__init__(context, filter, **kwargs)
+        self.filter = self.filter.reverse()
