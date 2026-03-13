@@ -90,3 +90,13 @@ class ForwardTransformFilter(Processor):
             The patched data request.
         """
         return self.filter.patch_data_request(data_request)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ForwardTransformFilter object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"ForwardTransformFilter(filter={self.filter})"

@@ -81,6 +81,16 @@ class BackwardTransformFilter(Processor):
 
         return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
 
+    def __repr__(self) -> str:
+        """Return a string representation of the BackwardTransformFilter object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"BackwardTransformFilter(filter={self.filter})"
+
 
 @post_processor_registry.register("forward_transform_filter")
 class ForwardTransformFilter(BackwardTransformFilter):
@@ -89,3 +99,13 @@ class ForwardTransformFilter(BackwardTransformFilter):
     def __init__(self, context: Context, filter: str | dict[str, Any] | None = None, **kwargs: Any) -> None:
         super().__init__(context, filter, **kwargs)
         self.filter = self.filter.reverse()
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ForwardTransformFilter object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"ForwardTransformFilter(filter={self.filter})"
