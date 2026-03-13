@@ -541,8 +541,6 @@ class Runner(Context):
 
                     outputs[name] = torch.squeeze(tensor, dim=(0, 2))  # shape: (time, values, variables)
 
-                multi_out_new_states: list[dict[str, State]] = []
-
                 for i in range(self.checkpoint.multi_step_output):
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
@@ -575,13 +573,12 @@ class Runner(Context):
                     # we only need to check the first dataset's step as they should all be the same
                     if next(iter(new_states.values()))["step"] <= lead_time:
                         yield new_states
-                    multi_out_new_states.append(new_states)
 
                 # No need to prepare next input tensor if we are at the last autoregressive step
                 if is_last_step:
                     break
 
-                self.output_state_hook(multi_out_new_states[-1])
+                self.output_state_hook(new_states)
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
@@ -602,13 +599,12 @@ class Runner(Context):
                         # ConstantForcings irrelevant
                         # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
                         # so for now ok to simply pass the last of the multi-out new states:
-                        # TODO: is `multi_out_new_states` really needed? We could just use new_states as it's updated in place
 
                         input_tensors_torch[name] = handler.add_dynamic_forcings_to_input_tensor(
-                            input_tensors_torch[name], multi_out_new_states[-1][name], next_dates, check[name]
+                            input_tensors_torch[name], new_states[name], next_dates, check[name]
                         )
                         input_tensors_torch[name] = handler.add_boundary_forcings_to_input_tensor(
-                            input_tensors_torch[name], multi_out_new_states[-1][name], next_dates, check[name]
+                            input_tensors_torch[name], new_states[name], next_dates, check[name]
                         )
 
                         if not check[name].all():
@@ -638,6 +634,7 @@ class Runner(Context):
         Any
             The patched data request.
         """
+        # TODO: broken
         for p in self.pre_processors:
             request = p.patch_data_request(request)
 
