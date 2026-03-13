@@ -738,9 +738,7 @@ class Runner(Context):
                 for d in dates:
                     dates_str += f"{d}, "
                 dates_str = f"{dates_str[:-2]})"
-                title = (
-                    f"Forecasting autoregressive step {s}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
-                )
+                title = f"Forecast. Model call {s+1}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
 
                 if self.trace:
                     self.trace.write_input_tensor(

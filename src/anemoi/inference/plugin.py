@@ -27,11 +27,11 @@ from anemoi.inference.types import State
 LOG = logging.getLogger(__name__)
 
 
-class FieldListInput(GribInput):
-    """Handles earthkit-data fieldlists input fields."""
+class PluginInput(GribInput):
+    """Handles earthkit-data fieldlists input fields specifically for the AIModelPlugin."""
 
     def __init__(self, context: Any, *, input_fields: Any, **kwargs) -> None:
-        """Initialize FieldListInput.
+        """Initialise PluginInput.
 
         Parameters
         ----------
@@ -195,7 +195,7 @@ class AIModelPlugin(Model):
         input_kwargs = self.input.anemoi_plugin_input_kwargs()
         output_kwargs = self.input.anemoi_plugin_input_kwargs()
 
-        input = FieldListInput(self.runner, input_fields=self.all_fields, **input_kwargs)
+        input = PluginInput(self.runner, input_fields=self.all_fields, **input_kwargs)
         output = CallbackOutput(self.runner, write=self.write, **output_kwargs)
 
         input_state = input.create_input_state(date=self.start_datetime)
