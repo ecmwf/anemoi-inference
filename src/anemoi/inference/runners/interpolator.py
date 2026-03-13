@@ -139,12 +139,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
 
         return input_state
 
-    def post_process(self, state: State) -> State:
-        for processor in self.post_processors:
-            LOG.info("Post processor: %s", processor)
-            state = processor.process(state)
-        return state
-
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
         if self.config.description is not None:
