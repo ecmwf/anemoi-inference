@@ -138,7 +138,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         )
 
         return input_state
-    
+
     def post_process(self, state: State) -> State:
         for processor in self.post_processors:
             LOG.info("Post processor: %s", processor)
