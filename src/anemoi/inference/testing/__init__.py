@@ -46,7 +46,6 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
         from .mock_checkpoint import mock_torch_load
 
         with (
-            patch("anemoi.inference.runner.load_metadata", mock_load_metadata),
             patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata),
             patch("anemoi.inference.provenance.validate_environment", MagicMock()),
             patch("torch.load", mock_torch_load),

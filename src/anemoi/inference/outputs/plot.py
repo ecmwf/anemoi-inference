@@ -48,7 +48,7 @@ def fix(lons: FloatArray) -> FloatArray:
 
 @output_registry.register("plot")
 @main_argument("dir")
-@format_dataset_name("path")
+@format_dataset_name("dir")
 @ensure_dir("dir")
 class PlotOutput(Output):
     """Use `earthkit-plots` to plot the outputs."""

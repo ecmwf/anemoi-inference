@@ -30,8 +30,8 @@ class TeeOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
         *args,
+        metadata: Metadata,  # not a kwarg from user pov, but workaround for how registry unrolls list args
         outputs: Sequence | None = None,
         **kwargs: Any,
     ):

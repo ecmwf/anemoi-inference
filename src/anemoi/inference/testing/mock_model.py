@@ -32,7 +32,7 @@ class MockModelBase(torch.nn.Module):
         self.features_in = len(checkpoint.variable_to_input_tensor_index)
         self.features_out = len(checkpoint.output_tensor_index_to_variable)
         self.roll_window = checkpoint.multi_step_input
-        self.grid_size = checkpoint.number_of_grid_points
+        self.grid_size = checkpoint._metadata.number_of_grid_points
         self.multi_step_output = checkpoint.multi_step_output
 
         self._is_multi_out = hasattr(metadata.config.training, "multistep_output")
@@ -106,9 +106,9 @@ class SimpleMockModel(MockModelBase):
     ) -> torch.Tensor:
         output_shape = (
             1,  # batch
-            self.multi_step_output,  # output_times
-            1,  # time
-            x.shape[2],  # gridpoints
+            self.multi_step_output,  # time
+            1,  # ensemble
+            x.shape[2],  # values
             self.features_out,  # variables
         )
         # TODO remove this when all tests are updated to use multi-step output
@@ -187,6 +187,7 @@ class MockModel(MockModelBase):
     def predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
+        x = x["data"]
         assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
 
         # Date of the data
@@ -232,4 +233,4 @@ class MockModel(MockModelBase):
             value = float_hash(self.output_index_to_variable[feature], date)
             y[:, :, :, feature] = torch.ones(y[:, :, :, feature].shape) * value
 
-        return y
+        return dict(data=y)

@@ -71,9 +71,9 @@ def test_cutout_no_mask(runner: Runner):
         {"lam": {"mask": None, "dummy": {}}},
         {"global": {"mask": None, "dummy": {}}},
     ]
-    cutout_input = Cutout(runner, variables=["2t"], sources=cutout_config)
+    cutout_input = Cutout(runner, metadata=runner.checkpoint._metadata, variables=["2t"], sources=cutout_config)
     input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
-    number_of_grid_points = runner.checkpoint.number_of_grid_points
+    number_of_grid_points = runner.checkpoint._metadata.number_of_grid_points
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == number_of_grid_points * 2
@@ -93,7 +93,7 @@ def test_cutout_with_slice(runner: Runner):
         {"lam": {"mask": slice(0, 10), "dummy": {}}},
         {"global": {"mask": slice(10, 25), "dummy": {}}},
     ]
-    cutout_input = Cutout(runner, variables=["2t"], sources=cutout_config)
+    cutout_input = Cutout(runner, metadata=runner.checkpoint._metadata, variables=["2t"], sources=cutout_config)
     assert list(cutout_input.sources.keys()) == ["lam", "global"]
 
     input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
@@ -112,7 +112,7 @@ def test_cutout_with_slice(runner: Runner):
 def test_cutout_with_array(runner: Runner):
     from anemoi.inference.inputs.cutout import Cutout
 
-    number_of_grid_points = runner.checkpoint.number_of_grid_points
+    number_of_grid_points = runner.checkpoint._metadata.number_of_grid_points
 
     lam_mask = np.zeros(number_of_grid_points, dtype=bool)
     lam_mask[:10] = True
@@ -121,7 +121,7 @@ def test_cutout_with_array(runner: Runner):
     global_mask[10:25] = True
 
     cutout_config = [{"lam": {"mask": lam_mask, "dummy": {}}}, {"global": {"mask": global_mask, "dummy": {}}}]
-    cutout_input = Cutout(runner, variables=["2t"], sources=cutout_config)
+    cutout_input = Cutout(runner, metadata=runner.checkpoint._metadata, variables=["2t"], sources=cutout_config)
     input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
 
     assert "_mask" in input_state
