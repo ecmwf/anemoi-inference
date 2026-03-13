@@ -94,7 +94,7 @@ class Output(ABC):
         processors = []
 
         for processor in self._post_processor_confs:
-            processors.append(create_post_processor(self.context, processor))
+            processors.append(create_post_processor(self.context, processor, metadata=self.metadata))
 
         return processors
 

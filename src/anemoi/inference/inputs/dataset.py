@@ -249,6 +249,7 @@ class DatasetInputArgsKwargs(DatasetInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *args: Any,
         use_original_paths: bool = False,
         variables: list[str] | None,
@@ -263,6 +264,8 @@ class DatasetInputArgsKwargs(DatasetInput):
         ----------
         context : Context
             The context in which the input is used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         use_original_paths : bool
             Whether to use original paths.
         """
@@ -283,6 +286,7 @@ class DatasetInputArgsKwargs(DatasetInput):
 
         super().__init__(
             context,
+            metadata,
             variables=variables,
             pre_processors=pre_processors,
             grid_indices=grid_indices,
@@ -298,6 +302,7 @@ class DataloaderInput(DatasetInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         use_original_paths: bool = False,
         **kwargs: Any,
@@ -308,6 +313,9 @@ class DataloaderInput(DatasetInput):
         ----------
         context : Any
             The context in which the input is used.
+        metadata : Metadata
+            The metadata corresponding to the dataset this input is handling.
+
         name : str
             The name of the dataloader.
         use_original_paths : bool
@@ -320,6 +328,7 @@ class DataloaderInput(DatasetInput):
 
         super().__init__(
             context,
+            metadata,
             open_dataset_args=open_dataset_args,
             open_dataset_kwargs=open_dataset_kwargs,
             **kwargs,
