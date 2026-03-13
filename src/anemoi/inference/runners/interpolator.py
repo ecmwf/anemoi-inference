@@ -151,9 +151,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             LOG.info("%s", self.config.description)
 
         output = self.create_output()
-
-        post_processors = self.post_processors
-
         # Get the interpolation window size from training config
         boundary_idx = self.checkpoint.input_explicit_times
         # Calculate how many interpolation windows we need for the lead_time
