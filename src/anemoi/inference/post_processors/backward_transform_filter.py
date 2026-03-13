@@ -39,7 +39,13 @@ class BackwardTransformFilter(Processor):
         The filter instance used for processing the state.
     """
 
-    def __init__(self, context: Context, filter: str | dict[str, Any] | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        filter: str | dict[str, Any] | None = None,
+        skip_initial_state: bool = False,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the BackwardTransformFilter.
 
         Parameters
@@ -48,6 +54,8 @@ class BackwardTransformFilter(Processor):
             The context in which the filter is being used.
         filter : str | dict[str, Any] | None, optional
             The name of the filter or a configuration dictionary for the filter, by default None
+        skip_initial_state : bool, optional
+            Whether to skip processing the initial state, by default False
 
         Examples
         --------
@@ -58,6 +66,8 @@ class BackwardTransformFilter(Processor):
         >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
         super().__init__(context)
+        self.skip_initial_state = skip_initial_state
+
         if filter is None:
             filter = kwargs
             kwargs = {}
@@ -76,6 +86,8 @@ class BackwardTransformFilter(Processor):
         State
             The processed state.
         """
+        if self.skip_initial_state and ("step" not in state or state["step"] == 0):
+            return state
 
         fields = self.filter.backward(wrap_state(state))
 
@@ -96,8 +108,8 @@ class BackwardTransformFilter(Processor):
 class ForwardTransformFilter(BackwardTransformFilter):
     """Apply a transform forward as a post-processor."""
 
-    def __init__(self, context: Context, filter: str | dict[str, Any] | None = None, **kwargs: Any) -> None:
-        super().__init__(context, filter, **kwargs)
+    def __init__(self, *args, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self.filter = self.filter.reverse()
 
     def __repr__(self) -> str:
