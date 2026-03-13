@@ -202,7 +202,7 @@ class AIModelPlugin(Model):
 
         output.write_initial_state(input_state)
 
-        for state in self.runner.run(input_state=input_state, lead_time=self.lead_time):
+        for state in self.runner.run(input_states=input_state, lead_time=self.lead_time):
             output.write_state(state)
 
         output.close()

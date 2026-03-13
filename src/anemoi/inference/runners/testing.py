@@ -63,7 +63,8 @@ class NoModelMixing:
                     input_tensor = input_tensors[name]
                     output_shape = (
                         input_shape[0],  # batch
-                        1,  # time
+                        metadata.multi_step_output,  # time
+                        1,  # ensemble
                         input_shape[2],  # gridpoints
                         len(metadata.output_tensor_index_to_variable),  # variables
                     )

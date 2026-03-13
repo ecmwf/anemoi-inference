@@ -88,10 +88,6 @@ class NetCDFOutput(Output):
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
-        if self.write_step_zero:
-            self.extra_time = 1
-        else:
-            self.extra_time = 0
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -123,21 +119,15 @@ class NetCDFOutput(Output):
         compression = {}  # dict(zlib=False, complevel=0)
 
         values = len(state["latitudes"])
-
-        time = 0
         self.reference_date = state["date"]
-        if (time_step := getattr(self.context, "time_step", None)) and (
-            lead_time := getattr(self.context, "lead_time", None)
-        ):
-            time = lead_time // time_step
-            time += self.extra_time
 
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
         with LOCK:
             self.values_dim = self.ncfile.createDimension("values", values)
-            self.time_dim = self.ncfile.createDimension("time", time)
+            # unlimited time dimension avoids pre-allocation mismatches
+            self.time_dim = self.ncfile.createDimension("time", None)
             self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
 
             self.time_var.units = f"seconds since {self.reference_date}"
@@ -160,9 +150,8 @@ class NetCDFOutput(Output):
             self.latitude_var[:] = latitudes
             self.longitude_var[:] = longitudes
 
-        self.vars = {}
-
         self.n = 0
+        self.vars = {}
 
     def ensure_variables(self, state: State) -> None:
         """Ensure that all variables are created in the NetCDF file.

@@ -81,7 +81,7 @@ class TensorHandler:
         self.dynamic_forcings_input = dynamic_forcings_input
         self.boundary_forcings_input = boundary_forcings_input
 
-        self.trace = None
+        self.trace = None  # TODO: fix trace
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -387,22 +387,6 @@ class TensorHandler:
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
     ) -> "torch.Tensor":
-        """Copy prognostic fields to the input tensor.
-
-        Parameters
-        ----------
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        y_pred : torch.Tensor
-            The predicted tensor.
-        check : BoolArray
-            The check array.
-
-        Returns
-        -------
-        torch.Tensor
-            The updated input tensor.
-        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
         pmask_in = torch.as_tensor(
@@ -419,16 +403,18 @@ class TensorHandler:
         # or int (index) tensors
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+        keep_steps = min(self.metadata.multi_step_output, self.metadata.multi_step_input)
+        input_tensor_torch = input_tensor_torch.roll(-keep_steps, dims=1)
 
-        input_tensor_torch = input_tensor_torch.roll(-1, dims=1)
-        input_tensor_torch[:, -1, :, pmask_in] = prognostic_fields
+        for i in range(keep_steps):
+            input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
             # Report which ones are conflicting
             conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
             raise AssertionError(
-                f"Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
+                f"[{self.name}] Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
             )
 
         check[pmask_in_np] = True
@@ -441,30 +427,17 @@ class TensorHandler:
         return input_tensor_torch
 
     def add_dynamic_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        dates: list[datetime],
+        check: BoolArray,
     ) -> "torch.Tensor":
-        """Add dynamic forcings to the input tensor.
-
-        Parameters
-        ----------
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        state : State
-            The state.
-        date : datetime.datetime
-            The date.
-        check : BoolArray
-            The check array.
-
-        Returns
-        -------
-        torch.Tensor
-            The updated input tensor.
-        """
-
+        # TODO: re-enable
         # if self.hacks:
         #     if "dynamic_forcings_date" in self.development_hacks:
         #         date = self.development_hacks["dynamic_forcings_date"]
+        #         dates = [date]
         #         warnings.warn(f"🧑‍💻 Using `dynamic_forcings_date` hack: {date} 🧑‍💻")
 
         # TODO: check if there were not already loaded as part of the input state
@@ -473,15 +446,20 @@ class TensorHandler:
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+            forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = np.swapaxes(
+                forcings[np.newaxis, :, np.newaxis, ...], -2, -1
+            )  # shape: (1, dates, 1, values, variables)
 
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
 
-            input_tensor_torch[:, -1, :, source.mask] = forcings  # Copy forcings to last 'multi_step_input' row
+            for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
+                input_tensor_torch[:, -(i + 1), :, source.mask] = forcings[
+                    :, -(i + 1), ...
+                ]  # Copy forcings to corresponding 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
@@ -496,38 +474,30 @@ class TensorHandler:
         return input_tensor_torch
 
     def add_boundary_forcings_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", state: State, date: datetime, check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        state: State,
+        dates: list[datetime],
+        check: BoolArray,
     ) -> "torch.Tensor":
-        """Add boundary forcings to the input tensor.
-
-        Parameters
-        ----------
-        input_tensor_torch : torch.Tensor
-            The input tensor.
-        state : State
-            The state.
-        date : datetime.datetime
-            The date.
-        check : BoolArray
-            The check array.
-
-        Returns
-        -------
-        torch.Tensor
-            The updated input tensor.
-        """
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
         sources = self.boundary_forcings_inputs
         for source in sources:
-            forcings = source.load_forcings_array([date], state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
-            forcings = np.squeeze(forcings, axis=1)  # Drop the dates dimension
+            forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
-            forcings = np.swapaxes(forcings[np.newaxis, np.newaxis, ...], -2, -1)  # shape: (1, 1, values, variables)
+            forcings = np.swapaxes(
+                forcings[np.newaxis, :, np.newaxis, ...], -2, -1
+            )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
-            total_mask = np.ix_([0], [-1], source.spatial_mask, source.variables_mask)
-            input_tensor_torch[total_mask] = forcings  # Copy forcings to last 'multi_step_input' row
+
+            for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
+                total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)
+                input_tensor_torch[total_mask] = forcings[
+                    :, -(i + 1), ...
+                ]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
                 self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
@@ -576,7 +546,7 @@ class TensorHandler:
         )
 
         if not self._output_tensor_by_name:
-            for i in range(output_tensor_numpy.shape[1]):
+            for i in range(output_tensor_numpy.shape[-1]):
                 self._output_tensor_by_name.append(self.metadata.output_tensor_index_to_variable[i])
                 if i in self.metadata.prognostic_output_mask:
                     self._output_kinds[self.metadata.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
