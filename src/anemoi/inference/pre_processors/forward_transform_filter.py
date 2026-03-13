@@ -44,7 +44,7 @@ class ForwardTransformFilter(Processor):
         context : object
             The context in which the filter is being used.
         filter : str | dict[str, Any] | None, optional
-            The name of the filter or a configuration dictionary for the filter (default is None).
+            The name of the filter or a configuration dictionary for the filter, by default None
 
         Examples
         --------
