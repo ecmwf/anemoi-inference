@@ -129,7 +129,7 @@ class Checkpoint:
         # are shared across datasets and we can use the metadata of the first dataset.
         # things that need dataset-specific metadata should get their own MultiDatasetMetadata directly
         # TODO: may need to find a better way ¯\_(ツ)_/¯
-        multi_metadata = self.get_multi_dataset_metadata()
+        multi_metadata = self.multi_dataset_metadata
         result = multi_metadata[next(iter(multi_metadata))]
 
         if self.patch_metadata:
@@ -149,8 +149,11 @@ class Checkpoint:
         metadata, _ = self._raw_metadata
         return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
 
-    def get_multi_dataset_metadata(self) -> dict[str, Metadata]:
-        """Get metadata for all datasets in a multi-dataset checkpoint."""
+    @cached_property
+    def multi_dataset_metadata(self) -> dict[str, Metadata]:
+        """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
+        For legacy checkpoints, the dataset name defaults to `data`.
+        """
         metadata, supporting_arrays = self._raw_metadata
         dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
 

@@ -24,7 +24,7 @@ def test_inference_simple() -> None:
     """
     config = RunConfiguration.load(
         files_for_tests("unit/configs/simple.yaml"),
-        overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
+        overrides=dict(runner="default", device="cpu", input="dummy", trace_path="trace.log"),
     )
     runner = create_runner(config)
     runner.execute()
@@ -39,7 +39,7 @@ def test_inference_mwd() -> None:
     """
     config = RunConfiguration.load(
         files_for_tests("unit/configs/mwd.yaml"),
-        overrides=dict(runner="testing", device="cpu", input="dummy"),
+        overrides=dict(runner="default", device="cpu", input="dummy"),
     )
     runner = create_runner(config)
     runner.execute()

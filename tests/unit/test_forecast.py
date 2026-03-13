@@ -97,9 +97,9 @@ def forecast_runner_factory():
         runner._checkpoint = metadata  # this only works for single-dataset case, but sufficient for this test
         runner.model = TrivialModel(checkpoint=runner._checkpoint)
         runner.device = torch.device("cpu")
+        runner.autocast = torch.bfloat16
         runner.verbosity = 0
         runner.use_profiler = False
-        runner.autocast = torch.float32
         runner.hacks = None
 
         tensor_handler = TensorHandler.__new__(TensorHandler)

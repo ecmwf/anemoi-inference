@@ -21,34 +21,12 @@ from .default import DefaultRunner
 LOG = logging.getLogger(__name__)
 
 
-class TestingMixing:
-    # Used with dummy checkpoint (see pytests)
-    def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
-        """Perform a prediction step using the model.
-
-        Parameters
-        ----------
-        model : Any
-            The model to use for prediction.
-        input_tensor_torch : torch.Tensor
-            The input tensor for the model.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        Any
-            The prediction result.
-        """
-        return model.predict_step(input_tensor_torch, **kwargs)
-
-
 class NoModelMixing:
     @cached_property
     def model(self) -> "torch.nn.Module":
 
         checkpoint: Checkpoint = self.checkpoint
-        multi_metadata = checkpoint.get_multi_dataset_metadata()
+        multi_metadata = checkpoint.multi_dataset_metadata
 
         class NoModel(torch.nn.Module):
             """Dummy model class for testing purposes."""
@@ -74,14 +52,6 @@ class NoModelMixing:
                 return output
 
         return NoModel()
-
-
-@runner_registry.register("testing")
-class TestingRunner(TestingMixing, DefaultRunner):
-    """Runner for running tests.
-
-    Inherits from DefaultRunner.
-    """
 
 
 @runner_registry.register("no-model")

@@ -187,7 +187,6 @@ class MockModel(MockModelBase):
     def predict_step(
         self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
     ) -> torch.Tensor:
-        x = x["data"]
         assert x.shape == self.input_shape, f"Expected {self.input_shape}, got {x.shape}"
 
         # Date of the data
@@ -233,4 +232,4 @@ class MockModel(MockModelBase):
             value = float_hash(self.output_index_to_variable[feature], date)
             y[:, :, :, feature] = torch.ones(y[:, :, :, feature].shape) * value
 
-        return dict(data=y)
+        return y

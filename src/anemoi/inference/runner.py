@@ -117,7 +117,7 @@ class Runner(Context):
         self.boundary_forcings_input: dict[str, Input] = {}
         self.outputs: dict[str, Output] = {}
 
-        multi_metadata = self._checkpoint.get_multi_dataset_metadata()
+        multi_metadata = self._checkpoint.multi_dataset_metadata
 
         for name, metadata in multi_metadata.items():
             self.multi_step_input = metadata.multi_step_input
