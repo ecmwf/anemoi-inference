@@ -179,6 +179,7 @@ def comma_separated_list(value):
 class RetrieveCmd(Command):
     """Used by prepml."""
 
+    # TODO: multi-dataset support
     def add_arguments(self, command_parser: ArgumentParser) -> None:
         """Add arguments to the command parser.
 

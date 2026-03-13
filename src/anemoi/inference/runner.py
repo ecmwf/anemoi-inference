@@ -621,24 +621,11 @@ class Runner(Context):
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                             handler._print_input_tensor(f"[{name}] Next input tensor", input_tensors_torch)
 
-    def patch_data_request(self, request: Any) -> Any:
-        """Patch the data request.
-
-        Parameters
-        ----------
-        request : Any
-            The data request.
-
-        Returns
-        -------
-        Any
-            The patched data request.
-        """
-        # TODO: broken
-        for p in self.pre_processors:
+    def patch_data_request(self, request: dict, dataset_name: str) -> dict:
+        for p in self.pre_processors[dataset_name]:
             request = p.patch_data_request(request)
 
-        for p in self.post_processors:
+        for p in self.post_processors[dataset_name]:
             request = p.patch_data_request(request)
 
         return request

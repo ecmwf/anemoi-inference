@@ -181,7 +181,7 @@ class Input(ABC):
         Any
             The patched data request.
         """
-        request = self.context.patch_data_request(request)
+        request = self.context.patch_data_request(request, self.dataset_name)
         for p in self.pre_processors:
             request = p.patch_data_request(request)
 
