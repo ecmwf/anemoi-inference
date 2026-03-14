@@ -12,10 +12,10 @@ import logging
 from typing import Any
 
 import earthkit.data as ekd
-from anemoi.utils.commands.metadata import Metadata
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
