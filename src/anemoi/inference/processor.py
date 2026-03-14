@@ -32,7 +32,7 @@ class Processor(ABC):
     def __init__(self, context: "Context", metadata: "Metadata") -> None:
         self.context = context
         self.metadata = metadata
-        self.dataset_name = metadata.name
+        self.dataset_name = metadata.dataset_name
 
     def __repr__(self) -> str:
         """Return a string representation of the processor.

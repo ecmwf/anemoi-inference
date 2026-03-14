@@ -81,7 +81,7 @@ class Metadata(PatchMixin, LegacyMixin):
     """Base Metadata class."""
 
     multi_dataset = False
-    name = "data"  # required for backwards compatibility with single-datasets checkpoints
+    dataset_name = "data"  # required for backwards compatibility with single-datasets checkpoints
 
     def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
         """Initialize the Metadata object.
@@ -137,6 +137,11 @@ class Metadata(PatchMixin, LegacyMixin):
     def input_explicit_times(self) -> Any:
         """Return the input explicit times from the training configuration."""
         return self._config_training.explicit_times.input
+
+    @property
+    def data_frequency(self) -> Any:
+        """Get the data frequency."""
+        return self._config.data.frequency
 
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
@@ -1193,24 +1198,26 @@ class MultiDatasetMetadata(Metadata):
 
     multi_dataset = True
 
-    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, dict[str, FloatArray]] = {}, name="data"):
-        super().__init__(metadata, supporting_arrays.get(name, {}))
-        self.name = name
+    def __init__(
+        self, metadata: dict[str, Any], supporting_arrays: dict[str, dict[str, FloatArray]] = {}, dataset_name="data"
+    ):
+        super().__init__(metadata, supporting_arrays.get(dataset_name, {}))
+        self.dataset_name = dataset_name
 
     def __repr__(self) -> str:
-        return f"MultiDatasetMetadata(name='{self.name}')"
+        return f"MultiDatasetMetadata(name='{self.dataset_name}')"
 
     @property
     def _indices(self) -> DotDict:
-        return self._metadata.data_indices[self.name]
+        return self._metadata.data_indices[self.dataset_name]
 
     @property
     def _config_data(self) -> DotDict:
-        return self._config.data.datasets[self.name]
+        return self._config.data.datasets[self.dataset_name]
 
     @property
     def _dataset(self) -> DotDict:
-        return self._metadata.dataset[self.name]
+        return self._metadata.dataset[self.dataset_name]
 
     @property
     def _metadata_inference(self) -> DotDict:
@@ -1218,10 +1225,10 @@ class MultiDatasetMetadata(Metadata):
 
     @property
     def _inference(self) -> DotDict:
-        return self._metadata_inference[self.name]
+        return self._metadata_inference[self.dataset_name]
 
     def _dataloader_dataset(self, partition="training"):
-        dataloader = self._config.dataloader[partition].datasets[self.name]
+        dataloader = self._config.dataloader[partition].datasets[self.dataset_name]
 
         # for new checkpoints the dataset config is under "dataset_config"
         if config := dataloader.get("dataset_config"):

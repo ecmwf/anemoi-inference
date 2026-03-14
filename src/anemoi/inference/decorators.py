@@ -161,7 +161,7 @@ class format_dataset_name:
                     kwargs[self.arg], str
                 ), f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
 
-                name = kwargs["metadata"].name
+                name = kwargs["metadata"].dataset_name
                 kwargs[self.arg] = kwargs[self.arg].format(dataset=name, dataset_name=name)
                 super().__init__(context, *args, **kwargs)
 

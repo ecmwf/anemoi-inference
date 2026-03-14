@@ -115,28 +115,28 @@ class Runner(Context):
         self.constant_forcings_input: dict[str, Input] = {}
         self.dynamic_forcings_input: dict[str, Input] = {}
         self.boundary_forcings_input: dict[str, Input] = {}
-        self.outputs: dict[str, Output] = {}
+        self.output: dict[str, Output] = {}
 
         multi_metadata = self._checkpoint.multi_dataset_metadata
 
-        for name, metadata in multi_metadata.items():
+        for dataset, metadata in multi_metadata.items():
             self.multi_step_input = metadata.multi_step_input
-            self.pre_processors[name] = self.create_pre_processors(name, metadata)
-            self.post_processors[name] = self.create_post_processors(name, metadata)
-            self.prognostics_input[name] = self.create_input("prognostics", name, metadata)
-            self.constant_forcings_input[name] = self.create_input("constant_forcings", name, metadata)
-            self.dynamic_forcings_input[name] = self.create_input("dynamic_forcings", name, metadata)
-            self.boundary_forcings_input[name] = self.create_input("boundary_forcings", name, metadata)
-            self.outputs[name] = self.create_output(name, metadata)
+            self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
+            self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
+            self.prognostics_input[dataset] = self.create_input("prognostics", dataset, metadata)
+            self.constant_forcings_input[dataset] = self.create_input("constant_forcings", dataset, metadata)
+            self.dynamic_forcings_input[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
+            self.boundary_forcings_input[dataset] = self.create_input("boundary_forcings", dataset, metadata)
+            self.output[dataset] = self.create_output(dataset, metadata)
 
-            self.tensor_handler[name] = classes.tensor_handler(
+            self.tensor_handler[dataset] = classes.tensor_handler(
                 self,
                 metadata=metadata,
                 device=self.device,
                 allow_nans=self.allow_nans,
-                constant_forcings_input=self.constant_forcings_input[name],
-                dynamic_forcings_input=self.dynamic_forcings_input[name],
-                boundary_forcings_input=self.boundary_forcings_input[name],
+                constant_forcings_input=self.constant_forcings_input[dataset],
+                dynamic_forcings_input=self.dynamic_forcings_input[dataset],
+                boundary_forcings_input=self.boundary_forcings_input[dataset],
             )
 
         # TODO: these verbosity prints only do the first dataset
@@ -156,8 +156,8 @@ class Runner(Context):
             table.add_column("Variable", no_wrap=True)
             table.add_column("Categories", no_wrap=True)
 
-            for name, categories in self.checkpoint.variable_categories().items():
-                table.add_row(name, ", ".join(categories))
+            for dataset, categories in self.checkpoint.variable_categories().items():
+                table.add_row(dataset, ", ".join(categories))
 
             console.print(table)
 
@@ -214,12 +214,12 @@ class Runner(Context):
             The forecasted states.
         """
         # Shallow copy to avoid modifying the user's input state
-        input_states = {name: state.copy() for name, state in input_states.items()}
-        for name in input_states:
-            input_states[name]["fields"] = input_states[name]["fields"].copy()
+        input_states = {dataset: state.copy() for dataset, state in input_states.items()}
+        for dataset in input_states:
+            input_states[dataset]["fields"] = input_states[dataset]["fields"].copy()
             LOG.info("-" * 80)
-            LOG.info(f"Input state `{name}`:")
-            LOG.info(f"  {list(input_states[name]['fields'].keys())}")
+            LOG.info(f"Input state `{dataset}`:")
+            LOG.info(f"  {list(input_states[dataset]['fields'].keys())}")
 
         if self.reference_date is None:
             self.reference_date = next(iter(input_states.values()))["date"]
@@ -229,8 +229,8 @@ class Runner(Context):
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensors = {
-                    name: handler.prepare_input_tensor(input_states[name])
-                    for name, handler in self.tensor_handler.items()
+                    dataset: handler.prepare_input_tensor(input_states[dataset])
+                    for dataset, handler in self.tensor_handler.items()
                 }
 
             try:
@@ -466,8 +466,8 @@ class Runner(Context):
 
         Returns
         -------
-        Any
-            The forecasted state.
+        dict[str, State]
+            The forecasted states for each dataset.
         """
         # NOTE we are not using decorator of the top level function as we anticipate lazy torch load
         with torch.inference_mode():
@@ -475,8 +475,8 @@ class Runner(Context):
 
             # Create pytorch input tensor dict
             input_tensors_torch = {
-                name: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
-                for name, input_tensor_numpy in input_tensors_numpy.items()
+                dataset: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+                for dataset, input_tensor_numpy in input_tensors_numpy.items()
             }
 
             lead_time = to_timedelta(lead_time)
@@ -488,22 +488,22 @@ class Runner(Context):
             # when the values are of the constant in time variables
             check = {}
             reset = {}
-            for name, handler in self.tensor_handler.items():
-                new_states[name]["fields"] = dict()
-                new_states[name]["step"] = to_timedelta(0)
-                start = input_states[name]["date"]
+            for dataset, handler in self.tensor_handler.items():
+                new_states[dataset]["fields"] = dict()
+                new_states[dataset]["step"] = to_timedelta(0)
+                start = input_states[dataset]["date"]
 
-                reset[name] = np.full((input_tensors_torch[name].shape[-1],), False)
+                reset[dataset] = np.full((input_tensors_torch[dataset].shape[-1],), False)
                 variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
                 typed_variables = handler.metadata.typed_variables
                 for variable, i in variable_to_input_tensor_index.items():
                     if typed_variables[variable].is_constant_in_time:
-                        reset[name][i] = True
+                        reset[dataset][i] = True
 
-                check[name] = reset[name].copy()
+                check[dataset] = reset[dataset].copy()
 
-            if self.verbosity > 0:
-                handler._print_input_tensor("First input tensor", input_tensors_torch)
+                if self.verbosity > 0:
+                    handler._print_input_tensor("First input tensor", input_tensors_torch[dataset])
 
             for s, (step, dates, next_dates, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 dates_str = "("
@@ -528,38 +528,38 @@ class Runner(Context):
 
                 # y_pred (batch, [time], ensemble, values, variables) -> outputs (time, values, variables)
                 outputs: dict[str, torch.Tensor] = {}
-                for name, tensor in y_pred.items():
+                for dataset, tensor in y_pred.items():
                     ndim = tensor.ndim
                     assert ndim in (
                         4,
                         5,
-                    ), f"[{name}] Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {tensor.shape}"
+                    ), f"[{dataset}] Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {tensor.shape}"
                     if ndim == 4:
                         # pre-multistep models output (batch, ensemble, values, variables)
                         # add a time dimension of 1 for backwards compatibility
-                        y_pred[name] = tensor.unsqueeze(1)
+                        y_pred[dataset] = tensor.unsqueeze(1)
 
-                    outputs[name] = torch.squeeze(tensor, dim=(0, 2))  # shape: (time, values, variables)
+                    outputs[dataset] = torch.squeeze(tensor, dim=(0, 2))  # shape: (time, values, variables)
 
                 for i in range(self.checkpoint.multi_step_output):
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                        for name, handler in self.tensor_handler.items():
-                            new_states[name]["date"] = dates[i]
-                            new_states[name]["previous_step"] = new_states[name].get("step")
-                            new_states[name]["step"] = (
+                        for dataset, handler in self.tensor_handler.items():
+                            new_states[dataset]["date"] = dates[i]
+                            new_states[dataset]["previous_step"] = new_states[dataset].get("step")
+                            new_states[dataset]["step"] = (
                                 step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
                             )
 
-                            output = outputs[name][i, ...]  # shape: (values, variables)
+                            output = outputs[dataset][i, ...]  # shape: (values, variables)
 
                             for j in range(output.shape[1]):
-                                new_states[name]["fields"][handler.metadata.output_tensor_index_to_variable[j]] = (
+                                new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[j]] = (
                                     output[:, j]
                                 )
 
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                                handler._print_output_tensor(f"[{name}] Output tensor:", output.cpu().numpy())
+                                handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
 
                     # if self.trace:
                     #     self.trace.write_output_tensor(
@@ -582,16 +582,16 @@ class Runner(Context):
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                    for name, handler in self.tensor_handler.items():
-                        check[name][:] = reset[name]
+                    for dataset, handler in self.tensor_handler.items():
+                        check[dataset][:] = reset[dataset]
                         # if self.trace:
                         #     self.trace.reset_sources(reset[name], self.checkpoint.variable_to_input_tensor_index)
 
-                        input_tensors_torch[name] = handler.copy_prognostic_fields_to_input_tensor(
-                            input_tensors_torch[name], y_pred[name], check[name]
+                        input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
+                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
                         )
 
-                        del y_pred[name]  # Recover memory
+                        del y_pred[dataset]  # Recover memory
 
                         # some forcings use the new_state(s)
                         # ComputedForcings only uses it to get latlons
@@ -600,26 +600,26 @@ class Runner(Context):
                         # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
                         # so for now ok to simply pass the last of the multi-out new states:
 
-                        input_tensors_torch[name] = handler.add_dynamic_forcings_to_input_tensor(
-                            input_tensors_torch[name], new_states[name], next_dates, check[name]
+                        input_tensors_torch[dataset] = handler.add_dynamic_forcings_to_input_tensor(
+                            input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
                         )
-                        input_tensors_torch[name] = handler.add_boundary_forcings_to_input_tensor(
-                            input_tensors_torch[name], new_states[name], next_dates, check[name]
+                        input_tensors_torch[dataset] = handler.add_boundary_forcings_to_input_tensor(
+                            input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
                         )
 
-                        if not check[name].all():
+                        if not check[dataset].all():
                             # Not all variables have been updated
                             missing = []
                             variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
                             mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
-                            for i in range(check[name].shape[-1]):
-                                if not check[name][i]:
+                            for i in range(check[dataset].shape[-1]):
+                                if not check[dataset][i]:
                                     missing.append(mapping[i])
 
-                            raise ValueError(f"[{name}] Missing variables in input tensor: {sorted(missing)}")
+                            raise ValueError(f"[{dataset}] Missing variables in input tensor: {sorted(missing)}")
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                            handler._print_input_tensor(f"[{name}] Next input tensor", input_tensors_torch)
+                            handler._print_input_tensor(f"[{dataset}] Next input tensor", input_tensors_torch)
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         for p in self.pre_processors[dataset_name]:
@@ -677,17 +677,17 @@ class Runner(Context):
         # input states for each dataset
         input_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
-        for name in self.tensor_handler:
-            prognostic_state = self.prognostics_input[name].create_input_state(date=self.config.date)
+        for dataset in self.tensor_handler:
+            prognostic_state = self.prognostics_input[dataset].create_input_state(date=self.config.date)
             self._check_state(prognostic_state, "prognostics")
 
-            constants_state = self.constant_forcings_input[name].create_input_state(date=self.config.date)
+            constants_state = self.constant_forcings_input[dataset].create_input_state(date=self.config.date)
             self._check_state(constants_state, "constant_forcings")
 
-            forcings_state = self.dynamic_forcings_input[name].create_input_state(date=self.config.date)
+            forcings_state = self.dynamic_forcings_input[dataset].create_input_state(date=self.config.date)
             self._check_state(forcings_state, "dynamic_forcings")
 
-            input_states[name] = self._combine_states(
+            input_states[dataset] = self._combine_states(
                 prognostic_state,
                 constants_state,
                 forcings_state,
@@ -697,7 +697,7 @@ class Runner(Context):
             self.input_state_hook(constants_state)
 
             # For step-zero only
-            initial_states[name] = Output.reduce(
+            initial_states[dataset] = Output.reduce(
                 self._initial_state(
                     prognostic_state,
                     constants_state,
@@ -706,25 +706,25 @@ class Runner(Context):
             )
 
             # Top-level post-processors on the other hand are applied on State and are executed here.
-            LOG.info(f"[{name}] Top-level post-processors: {self.post_processors[name]}")
+            LOG.info(f"[{dataset}] Top-level post-processors: {self.post_processors[dataset]}")
 
-            for processor in self.post_processors[name]:
-                initial_states[name] = processor.process(initial_states[name])
+            for processor in self.post_processors[dataset]:
+                initial_states[dataset] = processor.process(initial_states[dataset])
 
-        for name, state in initial_states.items():
-            self.outputs[name].open(initial_states[name])
+        for dataset, state in initial_states.items():
+            self.output[dataset].open(initial_states[dataset])
 
-            LOG.info(f"[{name}] write_initial_state: {self.outputs[name]}")
-            self.outputs[name].write_initial_state(state)
+            LOG.info(f"[{dataset}] write_initial_state: {self.output[dataset]}")
+            self.output[dataset].write_initial_state(state)
 
         for states in self.run(input_states=input_states, lead_time=lead_time):
-            for name, state in states.items():
+            for dataset, state in states.items():
                 # Apply top-level post-processors
-                for processor in self.post_processors[name]:
+                for processor in self.post_processors[dataset]:
                     state = processor.process(state)
-                self.outputs[name].write_state(state)
+                self.output[dataset].write_state(state)
 
-        for output in self.outputs.values():
+        for output in self.output.values():
             output.close()
 
         # TODO: broken with multi-datasets config, maybe time to remove this

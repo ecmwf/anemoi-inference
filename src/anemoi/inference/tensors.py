@@ -106,13 +106,13 @@ class TensorHandler:
         LOG.info("-" * 80)
 
     def __repr__(self):
-        return f"TensorHandler(name={self.name})"
+        return f"TensorHandler(dataset={self.dataset_name})"
 
     @property
-    def name(self) -> str:
+    def dataset_name(self) -> str:
         """Name of the dataset associated with the tensor handler."""
         if self.metadata.multi_dataset:
-            return self.metadata.name
+            return self.metadata.dataset_name
         return "data"
 
     @cached_property
@@ -414,7 +414,7 @@ class TensorHandler:
             # Report which ones are conflicting
             conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
             raise AssertionError(
-                f"[{self.name}] Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
+                f"[{self.dataset_name}] Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
             )
 
         check[pmask_in_np] = True

@@ -161,7 +161,7 @@ class PrinterOutput(Output):
         """
         self.print()
         if self.metadata.multi_dataset:
-            self.print(f"[{self.metadata.name}]", end=" ")
+            self.print(f"[{self.dataset_name}]", end=" ")
         print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
 
     def close(self) -> None:

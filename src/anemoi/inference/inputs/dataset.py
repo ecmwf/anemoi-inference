@@ -323,7 +323,7 @@ class DataloaderInput(DatasetInput):
         """
         open_dataset_args, open_dataset_kwargs = self.metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
-            from_dataloader=self.dataset_name,
+            from_dataloader=self.name,
         )
 
         super().__init__(

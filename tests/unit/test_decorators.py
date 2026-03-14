@@ -33,7 +33,7 @@ def test_format_dataset_name():
             self.metadata = metadata
 
     class _Metadata:
-        name = "era5"
+        dataset_name = "era5"
 
     metadata = _Metadata()
 

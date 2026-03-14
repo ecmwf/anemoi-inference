@@ -26,16 +26,16 @@ class SimpleTensorHandler(TensorHandler):
     """This tensor handler only supports computed forcings."""
 
     def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        LOG.warning(f"[{self.name}] Constant forcings are not supported by this runner.")
+        LOG.warning(f"[{self.dataset_name}] Constant forcings are not supported by this runner.")
         if variables:
-            LOG.warning(f"[{self.name}] {variables} must be provided in the input state by the user.")
+            LOG.warning(f"[{self.dataset_name}] {variables} must be provided in the input state by the user.")
         return []
 
     def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        LOG.warning(f"[{self.name}] Dynamic forcings are not supported by this runner.")
+        LOG.warning(f"[{self.dataset_name}] Dynamic forcings are not supported by this runner.")
         if variables:
             LOG.warning(
-                f"[{self.name}] {variables} must be provided in the input state and updated during rollout by the user."
+                f"[{self.dataset_name}] {variables} must be provided in the input state and updated during rollout by the user."
             )
         return []
 

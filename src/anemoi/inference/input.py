@@ -62,7 +62,7 @@ class Input(ABC):
         """
         self.context = context
         self.metadata = metadata
-        self.dataset_name = metadata.name
+        self.dataset_name = metadata.dataset_name
         self.reference_date = context.reference_date
         self._pre_processor_confs = pre_processors or []
 
