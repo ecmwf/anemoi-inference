@@ -145,9 +145,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             LOG.info("%s", self.config.description)
 
         output = self.create_output()
-
-        post_processors = self.post_processors
-
         # Get the interpolation window size from training config
         boundary_idx = self.checkpoint.input_explicit_times
         # Calculate how many interpolation windows we need for the lead_time
@@ -172,7 +169,11 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             input_state = self.create_input_state(date=window_start_date)
 
             self.input_state_hook(input_state)
-            output.open(input_state)
+            initial_state = input_state.copy()
+            for processor in self.post_processors:
+                initial_state = processor.process(initial_state)
+
+            output.open(initial_state)
 
             # Run interpolation for this window
             for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
@@ -187,7 +188,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 state["step"] = state["step"] + window_idx * self.interpolation_window
 
                 # Apply post-processing
-                for processor in post_processors:
+                for processor in self.post_processors:
                     state = processor.process(state)
 
                 output.write_state(state)
