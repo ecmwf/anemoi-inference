@@ -49,7 +49,7 @@ class TruthOutput(ForwardOutput):
 
         super().__init__(context, metadata, output, None, **kwargs)
 
-        self._input = context.prognostics_input[metadata.dataset_name]
+        self._input = context.prognostics_inputs[metadata.dataset_name]
 
     def modify_state(self, state: State) -> State:
         """Modify state by overriding it with the truth state."""

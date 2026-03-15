@@ -41,27 +41,28 @@ class TimeInterpolatorTensorHandler(TensorHandler):
         fields = input_state["fields"]
 
         dates = [date + h for h in self.metadata.lagged]
-        reference_date = self.runner.reference_date or date
+        reference_date = self.context.reference_date or date
         reference_dates = [reference_date + h for h in self.metadata.lagged]
 
         # TODO: Check for user provided forcings
 
         # We may need different forcings initial conditions
-        initial_constant_forcings_inputs = self.runner.initial_constant_forcings_inputs(self.constant_forcings_inputs)
-        initial_dynamic_forcings_inputs = self.runner.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+        initial_constant_forcings_inputs = self.context.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.context.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
 
         LOG.info("-" * 80)
-        LOG.info("Initial forcings:")
-        LOG.info("  Constant forcings inputs:")
+        LOG.info("Initial forcings inputs:")
+        LOG.info("  Constant forcings:")
         for f in initial_constant_forcings_inputs:
             LOG.info(f"    {f}")
-        LOG.info("  Dynamic forcings inputs:")
+        LOG.info("  Dynamic forcings:")
         for f in initial_dynamic_forcings_inputs:
             LOG.info(f"    {f}")
+        LOG.info("Initial forcings dates:")
+        LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
         LOG.info("-" * 80)
 
         for source in initial_constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(reference_dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -71,7 +72,6 @@ class TimeInterpolatorTensorHandler(TensorHandler):
                     self.trace.from_source(name, source, "initial constant forcings")
 
         for source in initial_dynamic_forcings_inputs:
-            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -82,7 +82,6 @@ class TimeInterpolatorTensorHandler(TensorHandler):
 
     def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
         result = ConstantDateForcings(self, self.constant_forcings_input, variables, mask)
-        LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
 
@@ -170,8 +169,8 @@ class TimeInterpolatorMultiOutRunner(Runner):
 
         # create constant forcings states only once, they will be reused in each window
         self.constants_states: dict[str, State] = {}
-        for dataset in self.tensor_handler:
-            self.constants_states[dataset] = self.constant_forcings_input[dataset].create_input_state(
+        for dataset in self.tensor_handlers:
+            self.constants_states[dataset] = self.constant_forcings_inputs[dataset].create_input_state(
                 date=self.config.date, constant=True, ref_date_index=0
             )
             for key in self.constants_states[dataset]["fields"].keys():
@@ -188,13 +187,13 @@ class TimeInterpolatorMultiOutRunner(Runner):
             LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
             input_states: dict[str, State] = {}
-            for dataset in self.tensor_handler:
-                prognostic_state = self.prognostics_input[dataset].create_input_state(
+            for dataset in self.tensor_handlers:
+                prognostic_state = self.prognostics_inputs[dataset].create_input_state(
                     date=window_start_date, select_reference_date=True, ref_date_index=0
                 )
                 self._check_state(prognostic_state, "prognostics")
 
-                forcings_state = self.dynamic_forcings_input[dataset].create_input_state(
+                forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
                     date=window_start_date, select_reference_date=True, ref_date_index=0
                 )
                 self._check_state(forcings_state, "dynamic_forcings")
@@ -213,7 +212,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
                 for processor in self.post_processors[dataset]:
                     initial_state = processor.process(initial_state)
 
-                self.output[dataset].open(initial_state)
+                self.outputs[dataset].open(initial_state)
 
             # Run interpolation for this window
             for state_idx, states in enumerate(
@@ -233,9 +232,9 @@ class TimeInterpolatorMultiOutRunner(Runner):
                     for processor in self.post_processors[dataset]:
                         state = processor.process(state)
 
-                    self.output[dataset].write_state(state)
+                    self.outputs[dataset].write_state(state)
 
-        for output in self.output.values():
+        for output in self.outputs.values():
             output.close()
 
     def interpolator_stepper(
@@ -300,7 +299,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
             LOG.info("Using autocast %s", self.autocast)
 
             new_states = input_states.copy()  # We should not modify the input state
-            for dataset, handler in self.tensor_handler.items():
+            for dataset, handler in self.tensor_handlers.items():
                 new_states[dataset]["fields"] = dict()
                 new_states[dataset]["step"] = to_timedelta(0)
                 start = input_states[dataset]["date"]
@@ -313,7 +312,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
 
             if self.write_initial_state:  # Always True
                 initial_states: dict[str, State] = {}
-                for dataset, handler in self.tensor_handler.items():
+                for dataset, handler in self.tensor_handlers.items():
                     # Yield initial boundary state (t)
                     initial_states[dataset] = new_states[dataset].copy()
                     initial_states[dataset]["date"] = start
@@ -344,7 +343,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
 
             # Now interpolate between the boundaries
             for s, (step, date) in enumerate(self.interpolator_stepper(start)):
-                for dataset, handler in self.tensor_handler.items():
+                for dataset, handler in self.tensor_handlers.items():
                     new_states[dataset]["date"] = date
                     new_states[dataset]["previous_step"] = new_states[dataset].get("step")
                     new_states[dataset]["step"] = step

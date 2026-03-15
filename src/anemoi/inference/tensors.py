@@ -10,6 +10,7 @@
 import logging
 import sys
 from datetime import datetime
+from typing import TYPE_CHECKING
 from typing import Any
 
 import numpy as np
@@ -19,13 +20,17 @@ from anemoi.inference.forcings import BoundaryForcings
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.forcings import ConstantForcings
 from anemoi.inference.forcings import CoupledForcings
-from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
+
+if TYPE_CHECKING:
+    from anemoi.inference.forcings import Forcings
+    from anemoi.inference.input import Input
+    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.runner import Runner
 
 LOG = logging.getLogger(__name__)
 
@@ -33,47 +38,35 @@ LOG = logging.getLogger(__name__)
 class Kind:
     """Used for debugging purposes."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Parameters
-        -------------
-        **kwargs : Any
-            Keyword arguments representing the kind attributes.
-        """
-        self.kwargs = kwargs
+    def __init__(self, **attributes: dict[str, Any]):
+        self.attributes = attributes
 
     def __repr__(self) -> str:
-        """Returns
-        ----------
-        str
-            String representation of the kind.
-        """
         result = []
-
-        for k, v in self.kwargs.items():
+        for k, v in self.attributes.items():
             if v:
                 result.append(k)
-
         if not result:
             return "?"
-
         return ", ".join(result)
 
 
 class TensorHandler:
+    """The TensorHandler is responsible for creating the input tensor for one dataset.
+    It also handles loading the forcings and copying prognostic variables from the output tensor to the input tensor during rollout.
+    A handler should be created per dataset. The metadata and inputs provided to the handler are specific to that dataset.
+    """
+
     def __init__(
         self,
-        runner,
-        metadata: Metadata,
-        device,
-        allow_nans: bool | None,
-        constant_forcings_input,
-        dynamic_forcings_input,
-        boundary_forcings_input,
+        context: "Runner",
+        metadata: "Metadata",
+        constant_forcings_input: "Input",
+        dynamic_forcings_input: "Input",
+        boundary_forcings_input: "Input",
     ) -> None:
-        self.runner = runner
+        self.context = context
         self.metadata = metadata
-        self.device = device
-        self.allow_nans = allow_nans
 
         self.constant_forcings_input = constant_forcings_input
         self.dynamic_forcings_input = dynamic_forcings_input
@@ -90,6 +83,7 @@ class TensorHandler:
         self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs()
         self.boundary_forcings_inputs = self.create_boundary_forcings_inputs()
 
+        LOG.info("-" * 80)
         LOG.info("Constant forcings inputs:")
         for f in self.constant_forcings_inputs:
             LOG.info(f"  {f}")
@@ -109,25 +103,10 @@ class TensorHandler:
     @property
     def dataset_name(self) -> str:
         """Name of the dataset associated with the tensor handler."""
-        if self.metadata.multi_dataset:
-            return self.metadata.dataset_name
-        return "data"
+        return self.metadata.dataset_name
 
     def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
-        """Prepare the input tensor.
-
-        Parameters
-        ----------
-        input_state : State
-            The input state.
-        dtype : type, optional
-            The data type, by default np.float32.
-
-        Returns
-        -------
-        FloatArray
-            The prepared input tensor.
-        """
+        """Prepare the input tensor from the input state."""
         if "latitudes" not in input_state:
             input_state["latitudes"] = self.metadata.latitudes
 
@@ -161,7 +140,7 @@ class TensorHandler:
 
         self._input_tensor_by_name = [None] * self.metadata.number_of_input_features
 
-        LOG.info("Preparing input tensor with shape %s", input_tensor_numpy.shape)
+        LOG.info(f"Preparing input tensor with shape {input_tensor_numpy.shape}")
 
         variable_to_input_tensor_index = self.metadata.variable_to_input_tensor_index
 
@@ -220,7 +199,7 @@ class TensorHandler:
 
         expected_shape = (multi_step, number_of_grid_points)
 
-        LOG.info("Expected shape for each input fields: %s", expected_shape)
+        LOG.info(f"Expected shape for each input fields: {expected_shape}")
 
         # Check field
         with_nans = []
@@ -241,11 +220,11 @@ class TensorHandler:
 
         if with_nans:
             msg = f"NaNs found in the following variables: {sorted(with_nans)}"
-            if self.allow_nans is None:
+            if self.context.allow_nans is None:
                 LOG.warning(msg)
-                self.allow_nans = True
+                self.context.allow_nans = True
 
-            if not self.allow_nans:
+            if not self.context.allow_nans:
                 raise ValueError(msg)
 
         return input_state
@@ -264,21 +243,22 @@ class TensorHandler:
         dates = [date + h for h in self.metadata.lagged]
 
         # TODO: Check for user provided forcings
-        initial_constant_forcings_inputs = self.runner.initial_constant_forcings_inputs(self.constant_forcings_inputs)
-        initial_dynamic_forcings_inputs = self.runner.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+        initial_constant_forcings_inputs = self.context.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.context.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
 
         LOG.info("-" * 80)
-        LOG.info("Initial forcings:")
-        LOG.info("  Constant forcings inputs:")
+        LOG.info("Initial forcings inputs:")
+        LOG.info("  Constant forcings:")
         for f in initial_constant_forcings_inputs:
             LOG.info(f"    {f}")
-        LOG.info("  Dynamic forcings inputs:")
+        LOG.info("  Dynamic forcings:")
         for f in initial_dynamic_forcings_inputs:
             LOG.info(f"    {f}")
+        LOG.info("Initial forcings dates:")
+        LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
         LOG.info("-" * 80)
 
         for source in initial_constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -288,7 +268,6 @@ class TensorHandler:
                     self.trace.from_source(name, source, "initial constant forcings")
 
         for source in initial_dynamic_forcings_inputs:
-            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -297,8 +276,7 @@ class TensorHandler:
                 if self.trace:
                     self.trace.from_source(name, source, "initial dynamic forcings")
 
-    def create_constant_forcings_inputs(self) -> list[Forcings]:
-
+    def create_constant_forcings_inputs(self) -> list["Forcings"]:
         result = []
 
         loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(
@@ -327,9 +305,9 @@ class TensorHandler:
 
         return result
 
-    def create_dynamic_forcings_inputs(self) -> list[Forcings]:
-
+    def create_dynamic_forcings_inputs(self) -> list["Forcings"]:
         result = []
+
         loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(
             include=["forcing"], exclude=["computed", "constant"]
         )
@@ -355,8 +333,7 @@ class TensorHandler:
             )
         return result
 
-    def create_boundary_forcings_inputs(self) -> list[BoundaryForcings]:
-
+    def create_boundary_forcings_inputs(self) -> list["BoundaryForcings"]:
         if not self.metadata.has_supporting_array("output_mask"):
             return []
 
@@ -443,7 +420,7 @@ class TensorHandler:
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
             )  # shape: (1, dates, 1, values, variables)
 
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+            forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
             for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
                 input_tensor_torch[:, -(i + 1), :, source.mask] = forcings[
@@ -480,7 +457,7 @@ class TensorHandler:
             forcings = np.swapaxes(
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
             )  # shape: (1, dates, 1, values, variables)
-            forcings = torch.from_numpy(forcings).to(self.device)  # Copy to device
+            forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
             for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
                 total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)
@@ -523,7 +500,6 @@ class TensorHandler:
             The output tensor.
         """
         LOG.info(
-            "%s",
             f"Output tensor shape={output_tensor_numpy.shape}, NaNs={np.isnan(output_tensor_numpy).sum() / output_tensor_numpy.size: .0%}",
         )
 
@@ -603,27 +579,22 @@ class TensorHandler:
         console.print()
 
     #########################################################################################################
-    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
         result = ComputedForcings(self, variables, mask)
-        LOG.info("Constant computed forcing: %s", result)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
         result = ComputedForcings(self, variables, mask)
-        LOG.info("Dynamic computed forcing: %s", result)
         return [result]
 
-    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
         result = ConstantForcings(self, self.constant_forcings_input, variables, mask)
-        LOG.info("Constant coupled forcing: %s", result)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
         result = CoupledForcings(self, self.dynamic_forcings_input, variables, mask)
-        LOG.info("Dynamic coupled forcing: %s", result)
         return [result]
 
-    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
         result = BoundaryForcings(self, self.boundary_forcings_input, variables, mask)
-        LOG.info("Boundary forcing: %s", result)
         return [result]

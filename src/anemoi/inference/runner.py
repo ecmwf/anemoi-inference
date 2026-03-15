@@ -115,12 +115,12 @@ class Runner(Context):
         # processors, I/O and tensor handlers for each dataset in the checkpoint
         self.pre_processors: dict[str, list[Processor]] = {}
         self.post_processors: dict[str, list[Processor]] = {}
-        self.tensor_handler: dict[str, TensorHandler] = {}
-        self.prognostics_input: dict[str, Input] = {}
-        self.constant_forcings_input: dict[str, Input] = {}
-        self.dynamic_forcings_input: dict[str, Input] = {}
-        self.boundary_forcings_input: dict[str, Input] = {}
-        self.output: dict[str, Output] = {}
+        self.tensor_handlers: dict[str, TensorHandler] = {}
+        self.prognostics_inputs: dict[str, Input] = {}
+        self.constant_forcings_inputs: dict[str, Input] = {}
+        self.dynamic_forcings_inputs: dict[str, Input] = {}
+        self.boundary_forcings_inputs: dict[str, Input] = {}
+        self.outputs: dict[str, Output] = {}
 
         multi_metadata = self._checkpoint.multi_dataset_metadata
 
@@ -128,20 +128,18 @@ class Runner(Context):
             self.multi_step_input = metadata.multi_step_input
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
-            self.prognostics_input[dataset] = self.create_input("prognostics", dataset, metadata)
-            self.constant_forcings_input[dataset] = self.create_input("constant_forcings", dataset, metadata)
-            self.dynamic_forcings_input[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
-            self.boundary_forcings_input[dataset] = self.create_input("boundary_forcings", dataset, metadata)
-            self.output[dataset] = self.create_output(dataset, metadata)
+            self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)
+            self.constant_forcings_inputs[dataset] = self.create_input("constant_forcings", dataset, metadata)
+            self.dynamic_forcings_inputs[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
+            self.boundary_forcings_inputs[dataset] = self.create_input("boundary_forcings", dataset, metadata)
+            self.outputs[dataset] = self.create_output(dataset, metadata)
 
-            self.tensor_handler[dataset] = classes.tensor_handler(
+            self.tensor_handlers[dataset] = classes.tensor_handler(
                 self,
                 metadata=metadata,
-                device=self.device,
-                allow_nans=self.allow_nans,
-                constant_forcings_input=self.constant_forcings_input[dataset],
-                dynamic_forcings_input=self.dynamic_forcings_input[dataset],
-                boundary_forcings_input=self.boundary_forcings_input[dataset],
+                constant_forcings_input=self.constant_forcings_inputs[dataset],
+                dynamic_forcings_input=self.dynamic_forcings_inputs[dataset],
+                boundary_forcings_input=self.boundary_forcings_inputs[dataset],
             )
 
         # TODO: these verbosity prints only do the first dataset
@@ -223,7 +221,7 @@ class Runner(Context):
         for dataset in input_states:
             input_states[dataset]["fields"] = input_states[dataset]["fields"].copy()
             LOG.info("-" * 80)
-            LOG.info(f"Input state `{dataset}`:")
+            LOG.info(f"[{dataset}] Input state:")
             LOG.info(f"  {list(input_states[dataset]['fields'].keys())}")
 
         if self.reference_date is None:
@@ -235,7 +233,7 @@ class Runner(Context):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensors = {
                     dataset: handler.prepare_input_tensor(input_states[dataset])
-                    for dataset, handler in self.tensor_handler.items()
+                    for dataset, handler in self.tensor_handlers.items()
                 }
 
             try:
@@ -249,18 +247,7 @@ class Runner(Context):
                 self.complete_forecast_hook()
 
     def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
-        """Modify the constant forcings inputs for the first step.
-
-        Parameters
-        ----------
-        constant_forcings_inputs : list of Forcings
-            The constant forcings inputs.
-
-        Returns
-        -------
-        list[Forcings]
-            The modified constant forcings inputs.
-        """
+        """Modify the constant forcings inputs for the first step."""
         # Give an opportunity to modify the forcings for the first step
         return constant_forcings_inputs
 
@@ -270,18 +257,6 @@ class Runner(Context):
         This method provides a hook to adjust the list of dynamic forcings before the first
         inference step is executed. By default, it returns the inputs unchanged, but subclasses
         can override this method to implement custom preprocessing or initialization logic.
-
-        Parameters
-        ----------
-        dynamic_forcings_inputs : List[Forcings]
-            The dynamic forcings inputs to be potentially modified for the initial step.
-
-        Returns
-        -------
-
-        List[Forcings]
-            The modified list of dynamic forcings inputs for the initial step.
-
         """
         # Give an opportunity to modify the forcings for the first step
         return dynamic_forcings_inputs
@@ -493,7 +468,7 @@ class Runner(Context):
             # when the values are of the constant in time variables
             check = {}
             reset = {}
-            for dataset, handler in self.tensor_handler.items():
+            for dataset, handler in self.tensor_handlers.items():
                 new_states[dataset]["fields"] = dict()
                 new_states[dataset]["step"] = to_timedelta(0)
                 start = input_states[dataset]["date"]
@@ -549,7 +524,7 @@ class Runner(Context):
                 for i in range(self.checkpoint.multi_step_output):
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                        for dataset, handler in self.tensor_handler.items():
+                        for dataset, handler in self.tensor_handlers.items():
                             new_states[dataset]["date"] = dates[i]
                             new_states[dataset]["previous_step"] = new_states[dataset].get("step")
                             new_states[dataset]["step"] = (
@@ -587,7 +562,7 @@ class Runner(Context):
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
-                    for dataset, handler in self.tensor_handler.items():
+                    for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
                         # if self.trace:
                         #     self.trace.reset_sources(reset[name], self.checkpoint.variable_to_input_tensor_index)
@@ -682,14 +657,14 @@ class Runner(Context):
         # input states for each dataset
         input_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
-        for dataset in self.tensor_handler:
-            prognostic_state = self.prognostics_input[dataset].create_input_state(date=self.config.date)
+        for dataset in self.tensor_handlers:
+            prognostic_state = self.prognostics_inputs[dataset].create_input_state(date=self.config.date)
             self._check_state(prognostic_state, "prognostics")
 
-            constants_state = self.constant_forcings_input[dataset].create_input_state(date=self.config.date)
+            constants_state = self.constant_forcings_inputs[dataset].create_input_state(date=self.config.date)
             self._check_state(constants_state, "constant_forcings")
 
-            forcings_state = self.dynamic_forcings_input[dataset].create_input_state(date=self.config.date)
+            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(date=self.config.date)
             self._check_state(forcings_state, "dynamic_forcings")
 
             input_states[dataset] = self._combine_states(
@@ -717,19 +692,19 @@ class Runner(Context):
                 initial_states[dataset] = processor.process(initial_states[dataset])
 
         for dataset, state in initial_states.items():
-            self.output[dataset].open(initial_states[dataset])
+            self.outputs[dataset].open(initial_states[dataset])
 
-            LOG.info(f"[{dataset}] write_initial_state: {self.output[dataset]}")
-            self.output[dataset].write_initial_state(state)
+            LOG.info(f"[{dataset}] write_initial_state: {self.outputs[dataset]}")
+            self.outputs[dataset].write_initial_state(state)
 
         for states in self.run(input_states=input_states, lead_time=lead_time):
             for dataset, state in states.items():
                 # Apply top-level post-processors
                 for processor in self.post_processors[dataset]:
                     state = processor.process(state)
-                self.output[dataset].write_state(state)
+                self.outputs[dataset].write_state(state)
 
-        for output in self.output.values():
+        for output in self.outputs.values():
             output.close()
 
         # TODO: broken with multi-datasets config, maybe time to remove this

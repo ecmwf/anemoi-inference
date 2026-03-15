@@ -104,9 +104,9 @@ def forecast_runner_factory():
 
         tensor_handler = TensorHandler.__new__(TensorHandler)
 
+        tensor_handler.context = runner
         tensor_handler.metadata = metadata
         tensor_handler.trace = False
-        tensor_handler.device = runner.device
         tensor_handler._input_kinds = {}
         tensor_handler._input_tensor_by_name = ["force", "prog"]
 
@@ -141,7 +141,7 @@ def forecast_runner_factory():
 
         tensor_handler.boundary_forcings_inputs = [SequentialBoundaryForcer()]
 
-        runner.tensor_handler = dict(data=tensor_handler)
+        runner.tensor_handlers = dict(data=tensor_handler)
         return runner
 
     return make_forecast_runner
