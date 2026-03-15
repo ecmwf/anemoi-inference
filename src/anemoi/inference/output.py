@@ -94,7 +94,7 @@ class Output(ABC):
         processors = []
 
         for processor in self._post_processor_confs:
-            processors.append(create_post_processor(self.context, processor, metadata=self.metadata))
+            processors.append(create_post_processor(self.context, processor, self.metadata))
 
         return processors
 
@@ -287,7 +287,7 @@ class ForwardOutput(Output):
             write_initial_state=write_initial_state,
         )
         if not isinstance(output, Output):
-            output = create_output(context, output, metadata=self.metadata)
+            output = create_output(context, output, self.metadata)
         self.output = output
 
         if self.context.output_frequency is not None:

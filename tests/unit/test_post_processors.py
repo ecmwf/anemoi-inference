@@ -27,7 +27,7 @@ def test_assign_mask_supporting_array(
     mask = np.load(assign_mask_npy)
     metadata = cast(Metadata, mocker.MagicMock())
     metadata.load_supporting_array.return_value = mask
-    processor = AssignMask(context=mocker.MagicMock(), metadata=metadata, mask="some_supporting_array")
+    processor = AssignMask(mocker.MagicMock(), metadata, mask="some_supporting_array")
 
     # check that load_supporting_array was called with the correct name
     metadata.load_supporting_array.assert_called_once_with("some_supporting_array")
@@ -53,7 +53,7 @@ def test_assign_mask_npy(
 
     # mock the context just because AssignMask requires it
     metadata = cast(Metadata, mocker.MagicMock())
-    processor = AssignMask(context=mocker.MagicMock(), metadata=metadata, mask=assign_mask_npy)
+    processor = AssignMask(mocker.MagicMock(), metadata, mask=assign_mask_npy)
 
     # check that nothing was done with the context
     metadata.load_supporting_array.assert_not_called()
@@ -80,7 +80,7 @@ def test_extract_mask_supporting_array(
     mask = np.load(extract_mask_npy)
     metadata = cast(Metadata, mocker.MagicMock())
     metadata.load_supporting_array.return_value = mask
-    processor = ExtractMask(context=mocker.MagicMock(), metadata=metadata, mask="some_supporting_array")
+    processor = ExtractMask(mocker.MagicMock(), metadata, mask="some_supporting_array")
 
     # check that load_supporting_array was called with the correct name
     metadata.load_supporting_array.assert_called_once_with("some_supporting_array")
@@ -105,7 +105,7 @@ def test_extract_mask_npy(
 
     # mock the context just because ExtractMask requires it
     metadata = cast(Metadata, mocker.MagicMock())
-    processor = ExtractMask(context=mocker.MagicMock(), metadata=metadata, mask=extract_mask_npy)
+    processor = ExtractMask(mocker.MagicMock(), metadata, mask=extract_mask_npy)
 
     # check that nothing was done with the context
     metadata.load_supporting_array.assert_not_called()

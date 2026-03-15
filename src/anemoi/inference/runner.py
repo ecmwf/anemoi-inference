@@ -717,7 +717,7 @@ class Runner(Context):
 
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
         config = multi_datasets_config(self.config.output, dataset_name)
-        output = create_output(self, config, metadata=metadata)
+        output = create_output(self, config, metadata)
         LOG.info(f"[{dataset_name}] Output: {output}")
         return output
 
@@ -750,7 +750,7 @@ class Runner(Context):
                 raise ValueError(f"Unknown input type: {input_type}")
 
         config = multi_datasets_config(config, dataset_name)
-        input = create_input(self, config, metadata=metadata, variables=variables, purpose=input_type)
+        input = create_input(self, config, metadata, variables=variables, purpose=input_type)
 
         LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
         return input
@@ -759,7 +759,7 @@ class Runner(Context):
         result = []
         config = multi_datasets_config(self.config.pre_processors, dataset_name)
         for processor in config:
-            result.append(create_pre_processor(self, processor, metadata=metadata))
+            result.append(create_pre_processor(self, processor, metadata))
 
         LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
@@ -768,7 +768,7 @@ class Runner(Context):
         result = []
         config = multi_datasets_config(self.config.post_processors, dataset_name)
         for processor in config:
-            result.append(create_post_processor(self, processor, metadata=metadata))
+            result.append(create_post_processor(self, processor, metadata))
 
         LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result

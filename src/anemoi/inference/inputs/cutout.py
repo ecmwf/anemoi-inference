@@ -146,7 +146,7 @@ class Cutout(Input):
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
             self.sources[src] = create_input(
-                context, cfg, metadata=self.metadata, variables=self.variables, purpose=self.purpose
+                context, cfg, self.metadata, variables=self.variables, purpose=self.purpose
             )
 
             if isinstance(mask, str):

@@ -49,9 +49,7 @@ class RepeatedDatesInput(Input):
         assert self.mode in ["constant"], f"Unknown mode {self.mode}"
 
         super().__init__(context, metadata, **kwargs)
-        self.source = create_input(
-            context, source, metadata=self.metadata, variables=self.variables, purpose=self.purpose
-        )
+        self.source = create_input(context, source, self.metadata, variables=self.variables, purpose=self.purpose)
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the repeated-dates input.

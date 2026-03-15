@@ -30,8 +30,8 @@ class TeeOutput(Output):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *args,
-        metadata: Metadata,  # not a kwarg from user pov, but workaround for how registry unrolls list args
         outputs: Sequence | None = None,
         **kwargs: Any,
     ):
@@ -61,7 +61,7 @@ class TeeOutput(Output):
         else:
             outputs = [*args, *outputs]
 
-        self.outputs = [create_output(context, output, metadata=self.metadata) for output in outputs]
+        self.outputs = [create_output(context, output, self.metadata) for output in outputs]
 
     # We override write_initial_state and write_state
     # so users can configures each levels independently

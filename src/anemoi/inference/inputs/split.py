@@ -91,7 +91,7 @@ class SplitInput(Input):
             self.splits[tuple(sorted(all_variables))] = create_input(
                 context,
                 default,
-                metadata=self.metadata,
+                self.metadata,
                 variables=sorted(all_variables),
                 purpose=kwargs.get("purpose"),
             )

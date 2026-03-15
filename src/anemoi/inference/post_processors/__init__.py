@@ -11,13 +11,14 @@
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import ProcessorConfig
 
 post_processor_registry = Registry(__name__)
 
 
-def create_post_processor(context: Context, config: ProcessorConfig, **kwargs) -> Processor:
+def create_post_processor(context: Context, config: ProcessorConfig, metadata: Metadata, **kwargs) -> Processor:
     """Create a post-processor.
 
     Parameters
@@ -26,6 +27,8 @@ def create_post_processor(context: Context, config: ProcessorConfig, **kwargs) -
         The context for the post-processor.
     config : Configuration
         The configuration for the post-processor.
+    metadata : Metadata
+        Metadata corresponding to the dataset this post-processor is handling.
     **kwargs : Any
         Additional keyword arguments to pass to the post-processor constructor.
 
@@ -34,4 +37,4 @@ def create_post_processor(context: Context, config: ProcessorConfig, **kwargs) -
     Processor
         The created post-processor.
     """
-    return post_processor_registry.from_config(config, context, **kwargs)
+    return post_processor_registry.from_config(config, context, metadata, **kwargs)

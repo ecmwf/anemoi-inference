@@ -225,5 +225,5 @@ class ParallelRunnerMixin(Runner):
         else:
             # passing the metadata here is a bit of a hack, the `none` output doesn't really need it
             # but in multi-datasets world every output needs metadata, so do this workaround
-            output = create_output(self, "none", metadata=self.checkpoint._metadata)
+            output = create_output(self, "none", self.checkpoint._metadata)
             return output

@@ -498,6 +498,7 @@ class FieldlistInput(EkdInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         path: str,
         **kwargs: Any,
@@ -517,7 +518,7 @@ class FieldlistInput(EkdInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
