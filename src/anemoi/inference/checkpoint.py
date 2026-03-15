@@ -74,20 +74,24 @@ class Checkpoint:
 
     def __init__(
         self,
-        source: str | Metadata | dict[str, Any],
+        source: str | Metadata | dict[Literal["huggingface"], str | dict],
         *,
+        metadata_base: type[Metadata] | None = Metadata,
         patch_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Checkpoint.
 
         Parameters
         ----------
-        path : str
-            The path to the checkpoint.
-        patch_metadata : Optional[Dict[str, Any]], optional
+        source : str | Metadata | dict[Literal["huggingface"], str | dict]
+            The source of the checkpoint as a path, a metadata object, or huggingface mapping.
+        metadata_base : type[Metadata], optional
+            The base class for the checkpoint's metadata object, useful for overriding task/runner-specific metadata.
+        patch_metadata : dict[str, Any], optional
             Metadata to patch the checkpoint with, by default None.
         """
         self._source = source
+        self.metadata_base = metadata_base
         self.patch_metadata = patch_metadata
 
     def __repr__(self) -> str:
@@ -157,7 +161,10 @@ class Checkpoint:
         metadata, supporting_arrays = self._raw_metadata
         dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
 
-        return {name: MetadataFactory(metadata, supporting_arrays, name=name) for name in dataset_names}
+        return {
+            dataset: MetadataFactory(metadata, supporting_arrays, dataset_name=dataset, base_class=self.metadata_base)
+            for dataset in dataset_names
+        }
 
     ###########################################################################
     # Forwards used by the runner
@@ -184,7 +191,7 @@ class Checkpoint:
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._metadata._config.data.frequency
+        return self._metadata.data_frequency
 
     @property
     def precision(self) -> Any:
@@ -712,7 +719,7 @@ class Checkpoint:
     @property
     def name(self) -> Any:
         """Get the name."""
-        return self._metadata.name
+        return self._metadata.dataset_name
 
     # def has_supporting_array(self, name: str) -> bool:
     #     """Check if the checkpoint has a supporting array with the given name.

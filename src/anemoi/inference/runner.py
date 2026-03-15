@@ -70,6 +70,7 @@ class RunnerClasses(BaseModel):
 
     tensor_handler: type[TensorHandler] = TensorHandler
     checkpoint: type[Checkpoint] = Checkpoint
+    metadata: type[Metadata] = Metadata
 
 
 class Runner(Context):
@@ -87,7 +88,11 @@ class Runner(Context):
         config = DotDict(config.model_dump())
         self.config = config
 
-        self._checkpoint = classes.checkpoint(config.checkpoint, patch_metadata=config.patch_metadata)
+        self._checkpoint = classes.checkpoint(
+            config.checkpoint,
+            metadata_base=classes.metadata,
+            patch_metadata=config.patch_metadata,
+        )
 
         # override the default values set in `Context`
         self.verbosity = config.verbosity

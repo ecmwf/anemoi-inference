@@ -10,8 +10,6 @@
 import logging
 import sys
 from datetime import datetime
-from datetime import timedelta
-from functools import cached_property
 from typing import Any
 
 import numpy as np
@@ -114,14 +112,6 @@ class TensorHandler:
         if self.metadata.multi_dataset:
             return self.metadata.dataset_name
         return "data"
-
-    @cached_property
-    def lagged(self) -> list[timedelta]:
-        """Return the list of steps for the `multi_step_input` fields."""
-        result = list(range(0, self.metadata.multi_step_input))
-
-        result = [-s * self.metadata.timestep for s in result]
-        return sorted(result)
 
     def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
         """Prepare the input tensor.
@@ -268,11 +258,10 @@ class TensorHandler:
         input_state : State
             The input state.
         """
-        # Should that be alreay a list of dates
         date = input_state["date"]
         fields = input_state["fields"]
 
-        dates = [date + h for h in self.lagged]
+        dates = [date + h for h in self.metadata.lagged]
 
         # TODO: Check for user provided forcings
         initial_constant_forcings_inputs = self.runner.initial_constant_forcings_inputs(self.constant_forcings_inputs)
@@ -507,28 +496,21 @@ class TensorHandler:
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
-    def _print_input_tensor(self, title: str, input_tensors_torch: dict[str, "torch.Tensor"]) -> None:
-        """Print the input tensor.
+    def _print_input_tensor(self, title: str, input_tensor_torch: dict[str, "torch.Tensor"]) -> None:
+        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
 
-        Parameters
-        ----------
-        title : str
-            The title.
-        input_tensors_torch : dict[str, torch.Tensor]
-            The input tensors.
-        """
-        for name, input_tensor_torch in input_tensors_torch.items():
-            input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
+        assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
+        assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
 
-            assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
-            assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
+        input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
+        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
-            input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
-            input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
-
-            self._print_tensor(
-                f"{title} - dataset: `{name}`", input_tensor_numpy, self._input_tensor_by_name, self._input_kinds
-            )
+        self._print_tensor(
+            f"{title} - dataset: `{self.dataset_name}`",
+            input_tensor_numpy,
+            self._input_tensor_by_name,
+            self._input_kinds,
+        )
 
     def _print_output_tensor(self, title: str, output_tensor_numpy: FloatArray) -> None:
         """Print the output tensor.

@@ -1318,14 +1318,22 @@ class MultiDatasetMetadata(Metadata):
 
 
 class MetadataFactory:
-    def __new__(cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, name="data") -> Metadata:
-        if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
-            assert name in datasets, f"Multi-dataset name `{name}` not found in metadata. Available names: {datasets}"
-            LOG.info(f"Loading multi-dataset metadata with dataset name `{name}`")
-            return MultiDatasetMetadata(metadata, supporting_arrays, name=name)
+    def __new__(
+        cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, dataset_name="data", base_class=Metadata
+    ) -> Metadata:
+        suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
 
-        LOG.info("Loading legacy single-dataset metadata.")
-        return SingleDatasetMetadata(metadata, supporting_arrays)
+        if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
+            assert (
+                dataset_name in datasets
+            ), f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
+            LOG.info(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
+            return type("MultiDatasetMetadata", (MultiDatasetMetadata, base_class), {})(
+                metadata, supporting_arrays, dataset_name=dataset_name
+            )
+
+        LOG.info(f"Loading legacy single-dataset metadata{suffix}")
+        return type("SingleDatasetMetadata", (SingleDatasetMetadata, base_class), {})(metadata, supporting_arrays)
 
 
 class SourceMetadata(Metadata):
