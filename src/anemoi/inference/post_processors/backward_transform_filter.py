@@ -9,6 +9,7 @@
 
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from anemoi.transform.filters import filter_registry
@@ -86,7 +87,7 @@ class BackwardTransformFilter(Processor):
         State
             The processed state.
         """
-        if self.skip_initial_state and ("step" not in state or state["step"] == 0):
+        if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
         fields = self.filter.backward(wrap_state(state))
