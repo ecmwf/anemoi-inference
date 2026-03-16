@@ -168,6 +168,8 @@ class Runner(Context):
 
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
+        self.mid_processors = self.create_mid_processors()
+
         self.preload_checkpoint = preload_checkpoint
         self.preload_buffer_size = preload_buffer_size
 
@@ -763,6 +765,7 @@ class Runner(Context):
                 if ndim == 4:
                     # for backwards compatibility
                     y_pred = y_pred.unsqueeze(1)
+
                 outputs = torch.squeeze(y_pred, dim=(0, 2))
 
                 new_states = []
@@ -790,6 +793,19 @@ class Runner(Context):
                             self.checkpoint.output_tensor_index_to_variable,
                             self.checkpoint.timestep,
                         )
+
+                    if self.mid_processors:
+                        # Apply mid processors before preparing the next input tensor,
+                        # so that they can operate on the state
+                        for p in self.mid_processors:
+                            new_state = p.process(new_state)
+
+                        for name, field in new_state["fields"].items():
+                            if name not in self.checkpoint.variable_to_output_tensor_index:
+                                continue
+                            output[:, self.checkpoint.variable_to_output_tensor_index[name]] = field
+                        outputs[i] = output
+
                     if new_state["step"] <= lead_time:
                         yield new_state
                     new_states.append(new_state)
@@ -800,7 +816,11 @@ class Runner(Context):
 
                 self.output_state_hook(new_states[-1])
 
-                # Update  tensor for next iteration
+                # If using mid processors, set y_pred
+                if self.mid_processors:
+                    y_pred = outputs.unsqueeze(0).unsqueeze(2)
+
+                # Update tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     check[:] = reset
                     if self.trace:
