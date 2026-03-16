@@ -33,6 +33,18 @@ from .metadata import Variable
 LOG = logging.getLogger(__name__)
 
 
+def get_multi_dataset_metadata(metadata: dict, supporting_arrays: dict, base_class=Metadata) -> dict[str, Metadata]:
+    """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
+    For legacy checkpoints, the dataset name defaults to `data`.
+    """
+    dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
+
+    return {
+        dataset: MetadataFactory(metadata, supporting_arrays, dataset_name=dataset, base_class=base_class)
+        for dataset in dataset_names
+    }
+
+
 def _download_huggingfacehub(huggingface_config: Any) -> str:
     """Download model from huggingface.
 
@@ -76,7 +88,7 @@ class Checkpoint:
         self,
         source: str | Metadata | dict[Literal["huggingface"], str | dict],
         *,
-        metadata_base: type[Metadata] | None = Metadata,
+        metadata_base: type[Metadata] = Metadata,
         patch_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Checkpoint.
@@ -159,12 +171,7 @@ class Checkpoint:
         For legacy checkpoints, the dataset name defaults to `data`.
         """
         metadata, supporting_arrays = self._raw_metadata
-        dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
-
-        return {
-            dataset: MetadataFactory(metadata, supporting_arrays, dataset_name=dataset, base_class=self.metadata_base)
-            for dataset in dataset_names
-        }
+        return get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
 
     ###########################################################################
     # Forwards used by the runner

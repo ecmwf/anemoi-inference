@@ -179,6 +179,10 @@ class ExternalGraphRunner(DefaultRunner):
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
         super().__init__(config)
+        # TODO: multi-dataset checkpoint support
+        assert (
+            not self.checkpoint.multi_dataset
+        ), "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
         self.check_state_dict = check_state_dict
         self.graph_path = graph
 
