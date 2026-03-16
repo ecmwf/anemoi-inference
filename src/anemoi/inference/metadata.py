@@ -192,9 +192,19 @@ class Metadata(PatchMixin, LegacyMixin):
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
-        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"], print=print)
         self._print_indices(
-            "Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]), print=print
+            f"[{self.dataset_name}] Data indices",
+            self._indices.data,
+            dict(input=v, output=v),
+            skip=["output", "input.name_to_index"],
+            print=print,
+        )
+        self._print_indices(
+            f"[{self.dataset_name}] Model indices",
+            self._indices.model,
+            dict(input=r, output=s),
+            skip=["output.full", "input.name_to_index", "output.name_to_index"],
+            print=print,
         )
 
     ###########################################################################

@@ -125,33 +125,36 @@ class SimpleMockModel(torch.nn.Module):
 class LegacyMockModel(torch.nn.Module):
     """Mock model with internal sanity checks. Assumes the input comes from the `dummy` input source."""
 
-    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
+    def __init__(self, raw_metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
         super().__init__()
-        metadata = DotDict(metadata)
+        raw_metadata = DotDict(raw_metadata)
         self.supporting_arrays = supporting_arrays
 
-        checkpoint = Checkpoint(MetadataFactory(metadata))
+        # this model is only used in unit tests with legacy checkpoints
+        # we don't have to account for multi-datasets
+        # TODO: re-assess if the unit tests get updated to multi-dataset checkpoints
+        metadata = Checkpoint(MetadataFactory(raw_metadata))._metadata
 
-        self.features_in = len(checkpoint.variable_to_input_tensor_index)
-        self.features_out = len(checkpoint.output_tensor_index_to_variable)
-        self.roll_window = checkpoint.multi_step_input
-        self.grid_size = checkpoint._metadata.number_of_grid_points
-        self.multi_step_output = checkpoint.multi_step_output
+        self.features_in = len(metadata.variable_to_input_tensor_index)
+        self.features_out = len(metadata.output_tensor_index_to_variable)
+        self.roll_window = metadata.multi_step_input
+        self.grid_size = metadata.number_of_grid_points
+        self.multi_step_output = metadata.multi_step_output
 
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
         self.output_shape = (1, self.multi_step_output, self.grid_size, self.features_out)
 
-        self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
+        self.variable_to_input_index = dict(metadata.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
 
-        self.output_index_to_variable = dict(checkpoint.output_tensor_index_to_variable)
+        self.output_index_to_variable = dict(metadata.output_tensor_index_to_variable)
         self.variable_to_output_index = {v: k for k, v in self.output_index_to_variable.items()}
 
-        self.lagged = checkpoint.lagged
-        self.typed_variables = checkpoint.typed_variables
-        self.prognostic_variables = checkpoint.select_variables(include=["prognostic"], has_mars_requests=False)
-        self.diagnostic_variables = checkpoint.select_variables(include=["diagnostic"], has_mars_requests=False)
-        self.timestep = checkpoint.timestep
+        self.lagged = metadata.lagged
+        self.typed_variables = metadata.typed_variables
+        self.prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
+        self.diagnostic_variables = metadata.select_variables(include=["diagnostic"], has_mars_requests=False)
+        self.timestep = metadata.timestep
 
         self.first = True
         self.constant_in_time: dict[int, torch.Tensor] = {}

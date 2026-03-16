@@ -26,10 +26,6 @@ if TYPE_CHECKING:
 
 LOG = logging.getLogger(__name__)
 
-# TODO: only one method is need: `load_data`.
-# The other methods can be implemenneted concreetly
-# using the `load_data` method.
-
 
 class Input(ABC):
     """Abstract base class for input handling."""

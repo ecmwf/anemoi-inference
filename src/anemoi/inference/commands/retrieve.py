@@ -14,6 +14,7 @@ import logging
 import sys
 from argparse import ArgumentParser
 from argparse import Namespace
+from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
@@ -46,6 +47,149 @@ def print_request(verb, request, file=sys.stdout):
     r = ",\n   ".join(r)
     print(r, file=file)
     print(file=file)
+
+
+def mars_requests(
+    checkpoint: Checkpoint,
+    *,
+    variables: list[str],
+    dates: list[Date],
+    use_grib_paramid: bool = False,
+    always_split_time: bool = False,
+    patch_request: Callable[[DataRequest], DataRequest] | None = None,
+    dont_fail_for_missing_paramid: bool = False,
+    **kwargs: Any,
+) -> list[DataRequest]:
+    """Generate MARS requests for the given variables and dates.
+
+    Parameters
+    ----------
+    checkpoint : Checkpoint
+        The checkpoint object containing the necessary data.
+    variables : list[str]
+        The list of variables.
+    dates : list[Date]
+        The list of dates.
+    use_grib_paramid : bool, optional
+        Whether to use GRIB paramid, by default False.
+    always_split_time : bool, optional
+        Whether to always split time, by default False.
+    patch_request : Optional[Callable], optional
+        A callable to patch the request, by default None.
+    dont_fail_for_missing_paramid : bool, optional
+        Whether to not fail for missing param ids, by default False.
+    **kwargs : Any
+        Additional keyword arguments.
+
+    Returns
+    -------
+    List[DataRequest]
+        The list of MARS requests.
+    """
+    from anemoi.utils.grib import shortname_to_paramid
+    from earthkit.data.utils.availability import Availability
+
+    assert variables, "No variables provided"
+
+    if not isinstance(dates, (list, tuple)):
+        dates = [dates]
+
+    dates = [to_datetime(d) for d in dates]
+
+    assert dates, "No dates provided"
+
+    result: list[DataRequest] = []
+
+    DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
+    DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
+
+    # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
+    # The split oper/scda is a bit special
+
+    # CHANGE: Avoid duplicate GRIB values when training on forecasts by removing the time dependency in KEYS.
+    # Set always_split_time=True to restore it.
+    KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
+
+    requests = defaultdict(list)
+    for r in checkpoint._metadata.mars_requests(variables=variables):
+        for date in dates:
+            r = r.copy()
+
+            base = date
+
+            r["date"] = base.strftime("%Y-%m-%d")
+            r["time"] = base.strftime("%H%M")
+
+            r.update(kwargs)  # We do it here so that the Availability can use that information
+
+            if always_split_time:
+                keys = DEFAULT_KEYS_AND_TIME
+            else:
+                keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+            key = tuple(r.get(k) for k in keys)
+
+            # Special case because of oper/scda
+
+            requests[key].append(r)
+
+    result = []
+    for reqs in requests.values():
+
+        compressed = Availability(reqs)
+        for r in compressed.iterate():
+
+            if not r:
+                continue
+
+            r = r.copy()
+
+            # Convert all to lists
+            for k, v in r.items():
+                if not isinstance(v, (list, tuple, set)):
+                    v = [v]
+                r[k] = sorted(set(v))
+
+            # Patch BEFORE the shortname to paramid
+            if patch_request:
+                r = patch_request(r, checkpoint._metadata.dataset_name)
+
+            # Convert all to lists (again)
+            for k, v in r.items():
+                if not isinstance(v, (list, tuple, set)):
+                    v = [v]
+                r[k] = sorted(set(v))
+
+            if use_grib_paramid and "param" in r:
+
+                def shortname_to_paramid_no_fail(x: str) -> str:
+                    try:
+                        return shortname_to_paramid(x)
+                    except KeyError:
+                        LOG.warning("Could not convert shortname '%s' to paramid", x)
+                        return x
+
+                if dont_fail_for_missing_paramid:
+                    _ = shortname_to_paramid_no_fail
+                else:
+                    _ = shortname_to_paramid
+
+                r["param"] = [_(p) for p in r["param"]]
+
+            # Simplify the request
+
+            for k in list(r.keys()):
+                v = r[k]
+                if len(v) == 1:
+                    v = v[0]
+
+                # Remove empty values for when tree is not fully defined
+                if v == "-":
+                    r.pop(k)
+                    continue
+                r[k] = v
+            result.append(r)
+
+    return result
 
 
 def checkpoint_to_requests(
@@ -100,19 +244,18 @@ def checkpoint_to_requests(
     List[DataRequest]
         A list of data requests.
     """
-    # TODO: Move this to the runner
 
     LOG.info("Converting checkpoint to requests")
     LOG.info("Include categories: %s", include)
     LOG.info("Exclude categories: %s", exclude)
 
-    variables = checkpoint.select_variables(include=include, exclude=exclude)
+    variables = checkpoint._metadata.select_variables(include=include, exclude=exclude)
 
     if not variables:
         return []
 
-    area = checkpoint.area
-    grid = checkpoint.grid
+    area = checkpoint._metadata.area
+    grid = checkpoint._metadata.grid
 
     more = postproc(grid, area)
 
@@ -143,7 +286,8 @@ def checkpoint_to_requests(
         dates = sorted(new_dates)
 
     requests = []
-    for r in checkpoint.mars_requests(
+    for r in mars_requests(
+        checkpoint,
         dates=dates,
         variables=variables,
         use_grib_paramid=use_grib_paramid,

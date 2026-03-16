@@ -13,19 +13,19 @@ from anemoi.inference.testing import fake_checkpoints
 
 @fake_checkpoints
 def test_checkpoint() -> None:
-    """Test the Checkpoint class.
-
-    Returns
-    -------
-    None
-    """
+    """Simple test to check that the Checkpoint doesn't crash on important properties."""
     from anemoi.inference.checkpoint import Checkpoint
 
-    c = Checkpoint("unit/checkpoints/simple.ckpt")
-    c.select_variables(
+    checkpoint = Checkpoint("unit/checkpoints/simple.ckpt")
+    checkpoint._metadata.select_variables(
         include=["prognostic"],
         exclude=["forcing", "computed", "diagnostic"],
     )
+    checkpoint.timestep
+    checkpoint.multi_dataset
+    checkpoint.multi_dataset_metadata
+    checkpoint.precision
+    checkpoint._metadata
 
 
 if __name__ == "__main__":

@@ -142,27 +142,26 @@ class Runner(Context):
                 boundary_forcings_input=self.boundary_forcings_inputs[dataset],
             )
 
-        # TODO: these verbosity prints only do the first dataset
-        if self.verbosity > 2:
-            logging.basicConfig(level=logging.DEBUG)
-            for logger_name in logging.root.manager.loggerDict:
-                logging.getLogger(logger_name).setLevel(logging.DEBUG)
+            if self.verbosity > 2:
+                logging.basicConfig(level=logging.DEBUG)
+                for logger_name in logging.root.manager.loggerDict:
+                    logging.getLogger(logger_name).setLevel(logging.DEBUG)
 
-            self.checkpoint.print_indices()
+                metadata.print_indices()
 
-        if self.verbosity > 1:
-            from rich.console import Console
-            from rich.table import Table
+            if self.verbosity > 1:
+                from rich.console import Console
+                from rich.table import Table
 
-            console = Console(file=sys.stderr)
-            table = Table(title="Variable categories")
-            table.add_column("Variable", no_wrap=True)
-            table.add_column("Categories", no_wrap=True)
+                console = Console(file=sys.stderr)
+                table = Table(title=f"\[{metadata.dataset_name}] Variable categories")
+                table.add_column("Variable", no_wrap=True)
+                table.add_column("Categories", no_wrap=True)
 
-            for dataset, categories in self.checkpoint.variable_categories().items():
-                table.add_row(dataset, ", ".join(categories))
+                for dataset, categories in metadata.variable_categories().items():
+                    table.add_row(dataset, ", ".join(categories))
 
-            console.print(table)
+                console.print(table)
 
         if trace_path := config.trace_path:
             # TODO: multi-dataset support for trace
@@ -599,7 +598,7 @@ class Runner(Context):
                             raise ValueError(f"[{dataset}] Missing variables in input tensor: {sorted(missing)}")
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                            handler._print_input_tensor(f"[{dataset}] Next input tensor", input_tensors_torch)
+                            handler._print_input_tensor(f"[{dataset}] Next input tensor", input_tensors_torch[dataset])
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         for p in self.pre_processors[dataset_name]:
@@ -715,13 +714,13 @@ class Runner(Context):
                 🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
                 """)  # ecmwf/anemoi-inference#131
 
+    #########################################################################################################
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
         config = multi_datasets_config(self.config.output, dataset_name)
         output = create_output(self, config, metadata)
         LOG.info(f"[{dataset_name}] Output: {output}")
         return output
 
-    #########################################################################################################
     def create_input(
         self,
         input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"],

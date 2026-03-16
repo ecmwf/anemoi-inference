@@ -166,6 +166,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
 
 def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     """Run the integration test suite."""
+    # TODO: full multi-dataset support: integration test checkpoints can currently only have 1 dataset
 
     overrides = {"lead_time": "48h", "device": "cpu"}
     LOG.info(f"Config overrides: {overrides}")
@@ -180,7 +181,7 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     for file in test_setup.output:
         assert file.exists(), f"Output file was not created: {file}."
 
-    checkpoint_output_variables = _typed_variables_output(runner._checkpoint)
+    checkpoint_output_variables = _typed_variables_output(runner._checkpoint._metadata)
     LOG.info(f"Checkpoint output variables: {checkpoint_output_variables}")
 
     # run the checks defined in the test configuration
@@ -198,11 +199,11 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
             check,
             file=file,
             expected_variables=expected_variables,
-            checkpoint=runner._checkpoint,
+            metadata=runner._checkpoint._metadata,
             **kwargs,
         )
 
 
-def _typed_variables_output(checkpoint):
-    output_variables = checkpoint.output_tensor_index_to_variable.values()
-    return [checkpoint.typed_variables[name] for name in output_variables]
+def _typed_variables_output(metadata):
+    output_variables = metadata.output_tensor_index_to_variable.values()
+    return [metadata.typed_variables[name] for name in output_variables]
