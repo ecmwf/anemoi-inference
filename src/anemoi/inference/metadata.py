@@ -28,9 +28,11 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 
@@ -726,7 +728,148 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(self, *, variables: list[str]) -> Iterator[DataRequest]:
+    def mars_requests(
+        self,
+        *,
+        variables: list[str],
+        dates: list[Date],
+        use_grib_paramid: bool = False,
+        always_split_time: bool = False,
+        patch_request: Callable[[DataRequest], DataRequest] | None = None,
+        dont_fail_for_missing_paramid: bool = False,
+        **kwargs: Any,
+    ) -> list[DataRequest]:
+        """Generate MARS requests for the given variables and dates.
+
+        Parameters
+        ----------
+        variables : list[str]
+            The list of variables.
+        dates : list[Date]
+            The list of dates.
+        use_grib_paramid : bool, optional
+            Whether to use GRIB paramid, by default False.
+        always_split_time : bool, optional
+            Whether to always split time, by default False.
+        patch_request : Optional[Callable], optional
+            A callable to patch the request, by default None.
+        dont_fail_for_missing_paramid : bool, optional
+            Whether to not fail for missing param ids, by default False.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        List[DataRequest]
+            The list of MARS requests.
+        """
+        # TODO: this code should could somewhere else
+        from anemoi.utils.grib import shortname_to_paramid
+        from earthkit.data.utils.availability import Availability
+
+        assert variables, "No variables provided"
+
+        if not isinstance(dates, (list, tuple)):
+            dates = [dates]
+
+        dates = [to_datetime(d) for d in dates]
+
+        assert dates, "No dates provided"
+
+        result: list[DataRequest] = []
+
+        DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
+        DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
+
+        # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
+        # The split oper/scda is a bit special
+
+        # CHANGE: Avoid duplicate GRIB values when training on forecasts by removing the time dependency in KEYS.
+        # Set always_split_time=True to restore it.
+        KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
+
+        requests = defaultdict(list)
+        for r in self.simple_mars_requests(variables=variables):
+            for date in dates:
+                r = r.copy()
+
+                base = date
+
+                r["date"] = base.strftime("%Y-%m-%d")
+                r["time"] = base.strftime("%H%M")
+
+                r.update(kwargs)  # We do it here so that the Availability can use that information
+
+                if always_split_time:
+                    keys = DEFAULT_KEYS_AND_TIME
+                else:
+                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                key = tuple(r.get(k) for k in keys)
+
+                # Special case because of oper/scda
+
+                requests[key].append(r)
+
+        result = []
+        for reqs in requests.values():
+
+            compressed = Availability(reqs)
+            for r in compressed.iterate():
+
+                if not r:
+                    continue
+
+                r = r.copy()
+
+                # Convert all to lists
+                for k, v in r.items():
+                    if not isinstance(v, (list, tuple, set)):
+                        v = [v]
+                    r[k] = sorted(set(v))
+
+                # Patch BEFORE the shortname to paramid
+                if patch_request:
+                    r = patch_request(r, self.dataset_name)
+
+                # Convert all to lists (again)
+                for k, v in r.items():
+                    if not isinstance(v, (list, tuple, set)):
+                        v = [v]
+                    r[k] = sorted(set(v))
+
+                if use_grib_paramid and "param" in r:
+
+                    def shortname_to_paramid_no_fail(x: str) -> str:
+                        try:
+                            return shortname_to_paramid(x)
+                        except KeyError:
+                            LOG.warning("Could not convert shortname '%s' to paramid", x)
+                            return x
+
+                    if dont_fail_for_missing_paramid:
+                        _ = shortname_to_paramid_no_fail
+                    else:
+                        _ = shortname_to_paramid
+
+                    r["param"] = [_(p) for p in r["param"]]
+
+                # Simplify the request
+
+                for k in list(r.keys()):
+                    v = r[k]
+                    if len(v) == 1:
+                        v = v[0]
+
+                    # Remove empty values for when tree is not fully defined
+                    if v == "-":
+                        r.pop(k)
+                        continue
+                    r[k] = v
+                result.append(r)
+
+        return result
+
+    def simple_mars_requests(self, *, variables: list[str]) -> Iterator[DataRequest]:
         """Generate MARS requests for the given variables.
 
         Parameters
