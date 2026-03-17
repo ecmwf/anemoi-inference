@@ -786,6 +786,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         # CHANGE: Avoid duplicate GRIB values when training on forecasts by removing the time dependency in KEYS.
         # Set always_split_time=True to restore it.
+        # TODO: revisit this code, can probably be removed
         KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
 
         requests = defaultdict(list)
@@ -829,7 +830,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
                 # Patch BEFORE the shortname to paramid
                 if patch_request:
-                    r = patch_request(r, self.dataset_name)
+                    r = patch_request(r)
 
                 # Convert all to lists (again)
                 for k, v in r.items():
