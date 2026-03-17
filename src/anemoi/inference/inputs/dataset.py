@@ -270,7 +270,7 @@ class DatasetInputArgsKwargs(DatasetInput):
             Whether to use original paths.
         """
         if not args and not kwargs:
-            args, kwargs = self.metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+            args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
             # TODO: remove start/end from the arguments
 
@@ -321,7 +321,7 @@ class DataloaderInput(DatasetInput):
         use_original_paths : bool
             Whether to use original paths.
         """
-        open_dataset_args, open_dataset_kwargs = self.metadata.open_dataset_args_kwargs(
+        open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=self.name,
         )
