@@ -165,7 +165,8 @@ class DownscalingRunner(DefaultRunner):
         ensemble_members: int = 1,
         field_shape: tuple[int, ...] | None = None,
         hres_zarr: str | None = None, 
-        extra_args: dict | None = None,
+        noise_scheduler_params: dict | None = None,
+        sampler_params: dict | None = None,
     ):
         super().__init__(config)
 
@@ -187,7 +188,8 @@ class DownscalingRunner(DefaultRunner):
         self.ensemble_members = ensemble_members
 
         # Overrides for predictions
-        self.extra_args = extra_args if extra_args is not None else {}
+        self.noise_scheduler_params = noise_scheduler_params if noise_scheduler_params is not None else {}
+        self.sampler_params = sampler_params if sampler_params is not None else {}
 
         # TODO: remove eventually
         self.verbosity = 3
@@ -351,10 +353,16 @@ class DownscalingRunner(DefaultRunner):
 
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
-        print("self.extra_args", self.extra_args)
+        #TODO: remove?
+        print("self.noise_scheduler_params", self.noise_scheduler_params)
+        print("self.sampler_params", self.sampler_params)
 
         output_tensor = model.predict_step(
-            low_res_tensor, high_res_tensor, extra_args=self.extra_args, **kwargs
+            low_res_tensor,
+            high_res_tensor,
+            noise_scheduler_params=self.noise_scheduler_params,
+            sampler_params=self.sampler_params,
+            **kwargs
         )
 
         return output_tensor
