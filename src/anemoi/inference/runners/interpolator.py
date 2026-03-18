@@ -310,7 +310,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
             # First yield the boundary states (t and t+window_size)
             boundary_times = self.checkpoint.input_explicit_times
 
-            if self.write_initial_state:  # Always True
+            if self.write_initial_state:
                 initial_states: dict[str, State] = {}
                 for dataset, handler in self.tensor_handlers.items():
                     # Yield initial boundary state (t)
