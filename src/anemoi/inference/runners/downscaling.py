@@ -281,8 +281,12 @@ class DownscalingRunner(DefaultRunner):
         for processor in self.post_processors:
             initial_state = processor.process(initial_state)
 
-        template_path = getattr(self.config.output.netcdf, "template_path", None)
-        output.open(initial_state, template_path)
+        netcdf_cfg = getattr(self.config.output, "netcdf", None)
+        if netcdf_cfg is not None:
+            template_path = getattr(self.config.output.netcdf, "template_path", None)
+            output.open(initial_state, template_path)
+        else:
+            output.open(initial_state)
 
         LOG.info("write_initial_state: %s", output)
         output.write_initial_state(initial_state)
