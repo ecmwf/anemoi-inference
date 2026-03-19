@@ -1254,6 +1254,16 @@ class MultiDatasetMetadata(Metadata):
         return len(self._inference.timesteps.output_relative_date_indices)
 
     @cached_property
+    def input_explicit_times(self) -> Any:
+        """Explicit times of the input steps used for the interpolator."""
+        return self._inference.timesteps.input_relative_date_indices
+
+    @cached_property
+    def target_explicit_times(self) -> Any:
+        """Explicit times of the target steps used for the interpolator."""
+        return self._inference.timesteps.output_relative_date_indices
+
+    @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
         return frozendict(self._inference.data_indices.input)
 
