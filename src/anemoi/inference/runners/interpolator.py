@@ -10,58 +10,109 @@
 import datetime
 import logging
 from collections.abc import Generator
+from functools import cached_property
 
 import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
-from numpy.typing import NDArray
 
-from anemoi.inference.config import Configuration
+from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.forcings import ConstantDateForcings
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
-from anemoi.inference.runner import Kind
+from anemoi.inference.metadata import Metadata
+from anemoi.inference.profiler import ProfilingLabel
+from anemoi.inference.runner import Runner
+from anemoi.inference.runner import RunnerClasses
+from anemoi.inference.tensors import Kind
+from anemoi.inference.tensors import TensorHandler
+from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..forcings import ConstantDateForcings
-from ..forcings import Forcings
-from ..profiler import ProfilingLabel
-from ..runners.default import DefaultRunner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
 
-def _get_interpolation_window(data_frequency: str, input_explicit_times: list[int]) -> datetime.timedelta:
-    """Get the interpolation window."""
-    return to_timedelta(data_frequency) * (input_explicit_times[1] - input_explicit_times[0])
+class TimeInterpolatorTensorHandler(TensorHandler):
+    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
+        date = input_state["date"]
+        fields = input_state["fields"]
+
+        dates = [date + h for h in self.metadata.lagged]
+        reference_date = self.context.reference_date or date
+        reference_dates = [reference_date + h for h in self.metadata.lagged]
+
+        # TODO: Check for user provided forcings
+
+        # We may need different forcings initial conditions
+        initial_constant_forcings_inputs = self.context.initial_constant_forcings_inputs(self.constant_forcings_inputs)
+        initial_dynamic_forcings_inputs = self.context.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+
+        LOG.info("-" * 80)
+        LOG.info("Initial forcings inputs:")
+        LOG.info("  Constant forcings:")
+        for f in initial_constant_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("  Dynamic forcings:")
+        for f in initial_dynamic_forcings_inputs:
+            LOG.info(f"    {f}")
+        LOG.info("Initial forcings dates:")
+        LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
+        LOG.info("-" * 80)
+
+        for source in initial_constant_forcings_inputs:
+            arrays = source.load_forcings_array(reference_dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial constant forcings")
+
+        for source in initial_dynamic_forcings_inputs:
+            arrays = source.load_forcings_array(dates, input_state)
+            for name, forcing in zip(source.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(name, source, "initial dynamic forcings")
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        result = ConstantDateForcings(self, self.constant_forcings_input, variables, mask)
+        return [result]
+
+
+class TimeInterpolatorMetadata(Metadata):
+    @cached_property
+    def lagged(self) -> list[datetime.timedelta]:
+        """Return the list of steps for the `multi_step_input` fields.
+        An interpolator looks ahead instead of backwards.
+        """
+        return sorted([s * to_timedelta(self.data_frequency) for s in self.input_explicit_times])
 
 
 @runner_registry.register("time_multi_interpolator")
-class TimeInterpolatorMultiOutRunner(DefaultRunner):
+class TimeInterpolatorMultiOutRunner(Runner):
     """A runner to be used for inference of a trained interpolator with multiple output steps.
     Unlike the single output, the interpolation is all done as one step.
     Can be applied directly on analysis/forecast data without being coupled to a forecasting model.
+
+    This runner makes the following assumptions:
+        - The model was trained with two input states: (t and t+interpolation_window)
+        - The output states are between these two states and are set by "frequency" in the config
+        - interpolation_window / frequency - 1 is equal to the number of output states
     """
 
-    def __init__(self, config: Configuration) -> None:
-        """Initialise the TimeInterpolatorMultiOutRunner
-        The runner makes the following assumptions:
-            - The model was trained with two input states: (t and t+interpolation_window)
-            - The output states are between these two states and are set by "frequency" in the config
-            - interpolation_window / frequency - 1 is equal to the number of output states
-
-        Parameters
-        ----------
-        config : Configuration | dict | str | BaseModel | None
-            The configuration for the runner.
-        **kwargs : dict
-            Keyword arguments to initialise a config for the runner.
-        """
-        super().__init__(config)
-        self._patch_checkpoint_lagged_property()
+    def __init__(self, config: RunConfiguration):
+        super().__init__(
+            config,
+            classes=RunnerClasses(tensor_handler=TimeInterpolatorTensorHandler, metadata=TimeInterpolatorMetadata),
+        )
 
         self.multi_step_input = 2
-        self.constants_input = None
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
@@ -76,18 +127,18 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
-        # This may be used by Output objects to compute the step
-        self.interpolation_window = _get_interpolation_window(
-            self.checkpoint.data_frequency, self.checkpoint.input_explicit_times
+
+        self.interpolation_window = to_timedelta(self.checkpoint.data_frequency) * (
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0]
         )
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.interpolation_window
 
-    def patch_data_request(self, request: dict) -> dict:
+    def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
         req = request.copy()
 
-        req = super().patch_data_request(req)
+        req = super().patch_data_request(req, dataset_name)
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
@@ -98,53 +149,11 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         )
         return req
 
-    def _patch_checkpoint_lagged_property(self):
-        # Override the cached_property on this specific checkpoint instance by writing
-        # directly into __dict__
-        self.checkpoint.__dict__["lagged"] = sorted(
-            [s * to_timedelta(self.checkpoint.data_frequency) for s in self.checkpoint.input_explicit_times]
-        )
-
-    def create_input_state(self, *, date: datetime.datetime) -> State:
-
-        if self.constants_input is None:
-            self.constants_input = self.create_constant_coupled_forcings_input()
-            LOG.info("📥 Constant forcings input: %s", self.constants_input)
-            self.constants_state = self.constants_input.create_input_state(
-                date=self.config.date, constant=True, ref_date_index=0
-            )
-            for key in self.constants_state["fields"].keys():
-                self.constants_state["fields"][key] = np.concatenate(
-                    [self.constants_state["fields"][key], self.constants_state["fields"][key]], axis=0
-                )
-            self._check_state(self.constants_state, "constant_forcings")
-
-        prognostic_input = self.create_prognostics_input()
-        LOG.info("📥 Prognostic input: %s", prognostic_input)
-        prognostic_state = prognostic_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
-        self._check_state(prognostic_state, "prognostics")
-
-        forcings_input = self.create_dynamic_forcings_input()
-        LOG.info("📥 Dynamic forcings input: %s", forcings_input)
-        forcings_state = forcings_input.create_input_state(date=date, select_reference_date=True, ref_date_index=0)
-        self._check_state(forcings_state, "dynamic_forcings")
-
-        self.constants_state["date"] = prognostic_state["date"]
-
-        input_state = self._combine_states(
-            prognostic_state,
-            self.constants_state,
-            forcings_state,
-        )
-
-        return input_state
-
     def execute(self) -> None:
         """Execute the interpolator runner with support for multiple interpolation periods."""
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
-        output = self.create_output()
         # Get the interpolation window size from training config
         boundary_idx = self.checkpoint.input_explicit_times
         # Calculate how many interpolation windows we need for the lead_time
@@ -158,123 +167,80 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 num_windows * self.interpolation_window,
             )
 
+        # create constant forcings states only once, they will be reused in each window
+        self.constants_states: dict[str, State] = {}
+        for dataset in self.tensor_handlers:
+            self.constants_states[dataset] = self.constant_forcings_inputs[dataset].create_input_state(
+                date=self.config.date, constant=True, ref_date_index=0
+            )
+            for key in self.constants_states[dataset]["fields"].keys():
+                self.constants_states[dataset]["fields"][key] = np.concatenate(
+                    [self.constants_states[dataset]["fields"][key], self.constants_states[dataset]["fields"][key]],
+                    axis=0,
+                )
+            self._check_state(self.constants_states[dataset], "constant_forcings")
+
         # Process each interpolation window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.interpolation_window
 
-            LOG.info(
-                "Processing interpolation window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
-            )
+            LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
 
-            input_state = self.create_input_state(date=window_start_date)
+            input_states: dict[str, State] = {}
+            for dataset in self.tensor_handlers:
+                prognostic_state = self.prognostics_inputs[dataset].create_input_state(
+                    date=window_start_date, select_reference_date=True, ref_date_index=0
+                )
+                self._check_state(prognostic_state, "prognostics")
 
-            self.input_state_hook(input_state)
-            initial_state = input_state.copy()
-            for processor in self.post_processors:
-                initial_state = processor.process(initial_state)
+                forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
+                    date=window_start_date, select_reference_date=True, ref_date_index=0
+                )
+                self._check_state(forcings_state, "dynamic_forcings")
 
-            output.open(initial_state)
+                self.constants_states[dataset]["date"] = window_start_date
+
+                input_states[dataset] = self._combine_states(
+                    prognostic_state,
+                    self.constants_states[dataset],
+                    forcings_state,
+                )
+
+                self.input_state_hook(self.constants_states[dataset])
+
+                initial_state = input_states[dataset].copy()
+                for processor in self.post_processors[dataset]:
+                    initial_state = processor.process(initial_state)
+
+                self.outputs[dataset].open(initial_state)
 
             # Run interpolation for this window
-            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.interpolation_window)):
+            for state_idx, states in enumerate(
+                self.run(input_states=input_states, lead_time=self.interpolation_window)
+            ):
+                for dataset, state in states.items():
+                    # In the first window, we want to write the initial state (t=0)
+                    # In other windows, we want to skip the initial state (t=0)
+                    # because it is written as the last state of the previous window
+                    if window_idx != 0 and state_idx == boundary_idx[0]:
+                        continue
 
-                # In the first window, we want to write the initial state (t=0)
-                # In other windows, we want to skip the initial state (t=0)
-                # because it is written as the last state of the previous window
-                if window_idx != 0 and state_idx == boundary_idx[0]:
-                    continue
+                    # Updating state step to be a global step not relative to window
+                    state["step"] = state["step"] + window_idx * self.interpolation_window
 
-                # Updating state step to be a global step not relative to window
-                state["step"] = state["step"] + window_idx * self.interpolation_window
+                    # Apply post-processing
+                    for processor in self.post_processors[dataset]:
+                        state = processor.process(state)
 
-                # Apply post-processing
-                for processor in self.post_processors:
-                    state = processor.process(state)
+                    self.outputs[dataset].write_state(state)
 
-                output.write_state(state)
-
-        output.close()
-
-    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
-        """Add initial forcings to the input state.
-
-        Parameters
-        ----------
-        input_state : State
-            The input state.
-        """
-        # Should that be alreay a list of dates
-        date = input_state["date"]
-        fields = input_state["fields"]
-
-        dates = [date + h for h in self.checkpoint.lagged]
-
-        # For output object. Should be moved elsewhere
-        self.reference_date = self.reference_date or date
-        self.reference_dates = [self.reference_date + h for h in self.checkpoint.lagged]
-        self.initial_dates = dates
-
-        # TODO: Check for user provided forcings
-
-        # We may need different forcings initial conditions
-        initial_constant_forcings_inputs = self.initial_constant_forcings_inputs(self.constant_forcings_inputs)
-        initial_dynamic_forcings_inputs = self.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
-
-        LOG.info("-" * 80)
-        LOG.info("Initial forcings:")
-        LOG.info("  Constant forcings inputs:")
-        for f in initial_constant_forcings_inputs:
-            LOG.info(f"    {f}")
-        LOG.info("  Dynamic forcings inputs:")
-        for f in initial_dynamic_forcings_inputs:
-            LOG.info(f"    {f}")
-        LOG.info("-" * 80)
-
-        for source in initial_constant_forcings_inputs:
-            LOG.info("Constant forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings_array(self.reference_dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial constant forcings")
-
-        for source in initial_dynamic_forcings_inputs:
-            LOG.info("Dynamic forcings input: %s %s (%s)", source, source.variables, dates)
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
-
-    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create constant coupled forcings.
-
-        Parameters
-        ----------
-        variables : list
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created constant coupled forcings.
-        """
-        input = self.create_constant_coupled_forcings_input()
-        result = ConstantDateForcings(self, input, variables, mask)
-        LOG.info("Constant coupled forcing: %s", result)
-
-        return [result]
+        for output in self.outputs.values():
+            output.close()
 
     def interpolator_stepper(
         self, start_date: datetime.datetime
     ) -> Generator[tuple[datetime.timedelta, datetime.datetime], None, None]:
-        """Generate step and date variables for the forecast loop.
+        """Generate step and date variables for the interpolation loop.
 
         Parameters
         ----------
@@ -293,7 +259,7 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
         steps = len(target_steps)
 
         LOG.info(
-            "Time stepping: [%s, %s], Interpolating %s steps", start_date, start_date + self.interpolation_window, steps
+            f"Time stepping: [{start_date}, {start_date + self.interpolation_window}], Interpolating {steps} steps"
         )
 
         for s in range(steps):
@@ -302,117 +268,117 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
             yield step, date
 
     def forecast(
-        self, lead_time: datetime.timedelta, input_tensor_numpy: NDArray, input_state: State
-    ) -> Generator[State, None, None]:
+        self, lead_time: datetime.timedelta, input_tensors_numpy: dict[str, FloatArray], input_states: dict[str, State]
+    ) -> Generator[dict[str, State], None, None]:
         """Interpolate between the current and future state in the input tensor.
 
         Parameters
         ----------
         lead_time : datetime.timedelta
-            Lead time for this interpolation window (should match the window size).
-        input_tensor_numpy : NDArray
-            The input tensor.
-        input_state : State
-            The input state. It contains both input dates defined by the config explicit_times.input
+            Unused. This method processes one interpolation window at a time.
+        input_tensors_numpy : dict[str, FloatArray]
+            The input tensors for each dataset, as numpy arrays with shape (multi_step_input, variables, values).
+        input_states : dict[str, State]
+            The input states for each dataset. It contains both input dates defined by the config explicit_times.input
 
         Returns
         -------
-        State
-            The forecasted state.
+        dict[str, State]
+            The interpolated states for each dataset.
         """
         # This does interpolation but called forecast so we can reuse run()
         with torch.inference_mode():
             self.model.eval()
 
             # Create pytorch input tensor
-            input_tensor_torch = torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(
-                self.device
-            )
+            input_tensors_torch = {
+                dataset: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+                for dataset, input_tensor_numpy in input_tensors_numpy.items()
+            }
 
             LOG.info("Using autocast %s", self.autocast)
 
-            result = input_state.copy()  # We should not modify the input state
-            result["fields"] = dict()
-            result["step"] = to_timedelta(0)
+            new_states = input_states.copy()  # We should not modify the input state
+            for dataset, handler in self.tensor_handlers.items():
+                new_states[dataset]["fields"] = dict()
+                new_states[dataset]["step"] = to_timedelta(0)
+                start = input_states[dataset]["date"]
 
-            start = input_state["date"]
-
-            reset = np.full((input_tensor_torch.shape[-1],), False)
-            variable_to_input_tensor_index = self.checkpoint.variable_to_input_tensor_index
-            typed_variables = self.checkpoint.typed_variables
-            for variable, i in variable_to_input_tensor_index.items():
-                if typed_variables[variable].is_constant_in_time:
-                    reset[i] = True
-
-            if self.verbosity > 0:
-                self._print_input_tensor("First input tensor", input_tensor_torch)
+                if self.verbosity > 0:
+                    handler._print_input_tensor("First input tensor", input_tensors_torch[dataset])
 
             # First yield the boundary states (t and t+window_size)
             boundary_times = self.checkpoint.input_explicit_times
 
-            if self.write_initial_state:  # Always True
-                # Yield initial boundary state (t)
-                initial_result = result.copy()
-                initial_result["date"] = start
-                initial_result["step"] = to_timedelta(0)
-                initial_result["interpolated"] = False
-                # Extract fields from the first time step of input tensor
-                input_numpy = (
-                    input_tensor_torch[0, boundary_times[0]].cpu().numpy()
-                )  # # Select the initial boundary state (t) - First time step
-                for i in range(input_numpy.shape[-1]):
-                    var_name = None
-                    for var, idx in variable_to_input_tensor_index.items():
-                        if idx == i:
-                            var_name = var
-                            break
-                    if var_name and var_name in self.checkpoint.output_tensor_index_to_variable.values():
-                        initial_result["fields"][var_name] = input_numpy[:, i]
+            if self.write_initial_state:
+                initial_states: dict[str, State] = {}
+                for dataset, handler in self.tensor_handlers.items():
+                    # Yield initial boundary state (t)
+                    initial_states[dataset] = new_states[dataset].copy()
+                    initial_states[dataset]["date"] = start
+                    initial_states[dataset]["step"] = to_timedelta(0)
+                    initial_states[dataset]["interpolated"] = False
+                    # Extract fields from the first time step of input tensor
+                    input_numpy = (
+                        input_tensors_torch[dataset][0, boundary_times[0]].cpu().numpy()
+                    )  # # Select the initial boundary state (t) - First time step
+                    for i in range(input_numpy.shape[-1]):
+                        var_name = None
+                        for var, idx in handler.metadata.variable_to_input_tensor_index.items():
+                            if idx == i:
+                                var_name = var
+                                break
+                        if var_name and var_name in handler.metadata.output_tensor_index_to_variable.values():
+                            initial_states[dataset]["fields"][var_name] = input_numpy[:, i]
 
-                yield initial_result
+                yield initial_states
 
-            title = f"Interpolating step ({start})"
             # Predict next state of atmosphere
             with (
                 torch.autocast(device_type=self.device.type, dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
-                Timer(title),
+                Timer(f"Interpolating step ({start})"),
             ):
-                y_pred = self.predict_step(self.model, input_tensor_torch)
+                y_pred = self.predict_step(self.model, input_tensors_torch)
 
             # Now interpolate between the boundaries
-            for s, (step, dates) in enumerate(self.interpolator_stepper(start)):
+            for s, (step, date) in enumerate(self.interpolator_stepper(start)):
+                for dataset, handler in self.tensor_handlers.items():
+                    new_states[dataset]["date"] = date
+                    new_states[dataset]["previous_step"] = new_states[dataset].get("step")
+                    new_states[dataset]["step"] = step
+                    new_states[dataset]["interpolated"] = True
 
-                # this should be changed
-                result["date"] = dates
-                result["previous_step"] = result.get("step")
-                result["step"] = step
-                result["interpolated"] = True
+                    if self.trace:
+                        self.trace.write_input_tensor(
+                            date,
+                            s,
+                            input_tensors_torch[dataset].cpu().numpy(),
+                            handler.metadata.variable_to_input_tensor_index,
+                            self.checkpoint.timestep,
+                        )
 
-                if self.trace:
-                    self.trace.write_input_tensor(
-                        dates,
-                        s,
-                        input_tensor_torch.cpu().numpy(),
-                        variable_to_input_tensor_index,
-                        self.checkpoint.timestep,
-                    )
+                    # Detach tensor and squeeze (should we detach here?)
+                    with ProfilingLabel("Sending output to cpu", self.use_profiler):
+                        output = np.squeeze(y_pred[dataset].cpu().numpy())  # shape: (values, variables)
 
-                # Detach tensor and squeeze (should we detach here?)
-                with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                    output = np.squeeze(y_pred.cpu().numpy())  # shape: (values, variables)
+                    if self.trace:
+                        self.trace.write_output_tensor(
+                            date,
+                            s,
+                            output[s],
+                            handler.metadata.output_tensor_index_to_variable,
+                            self.checkpoint.timestep,
+                        )
 
-                if self.trace:
-                    self.trace.write_output_tensor(
-                        dates, s, output[s], self.checkpoint.output_tensor_index_to_variable, self.checkpoint.timestep
-                    )
+                    # Update state
+                    with ProfilingLabel("Updating state (CPU)", self.use_profiler):
+                        for i in range(output.shape[2]):
+                            new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[i]] = output[
+                                s, :, i
+                            ]
 
-                # Update state
-                with ProfilingLabel("Updating state (CPU)", self.use_profiler):
-                    for i in range(output.shape[2]):
-                        result["fields"][self.checkpoint.output_tensor_index_to_variable[i]] = output[s, :, i]
+                    if self.verbosity > 0:
+                        handler._print_output_tensor("Output tensor", output)
 
-                if self.verbosity > 0:
-                    self._print_output_tensor("Output tensor", output)
-
-                yield result
+                yield new_states

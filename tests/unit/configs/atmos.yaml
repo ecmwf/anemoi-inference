@@ -1,5 +1,5 @@
 checkpoint: unit/checkpoints/atmos.ckpt
-runner: testing
+runner: default
 device: cpu
 
 lead_time: 480

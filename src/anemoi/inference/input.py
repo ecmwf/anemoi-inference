@@ -18,15 +18,13 @@ from anemoi.inference.processor import Processor
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
+from anemoi.inference.variables import Variables
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context
+    from anemoi.inference.metadata import Metadata
 
 LOG = logging.getLogger(__name__)
-
-# TODO: only one method is need: `load_data`.
-# The other methods can be implemenneted concreetly
-# using the `load_data` method.
 
 
 class Input(ABC):
@@ -37,6 +35,7 @@ class Input(ABC):
     def __init__(
         self,
         context: "Context",
+        metadata: "Metadata",
         *,
         variables: list[str] | None = None,
         pre_processors: list[ProcessorConfig] | None = None,
@@ -48,6 +47,8 @@ class Input(ABC):
         ----------
         context : Context
             The context for the input.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         variables : list of str or None
             List of variable names to be handled by the input, or None for all available variables.
         pre_processors : list of ProcessorConfig or None, optional
@@ -56,12 +57,13 @@ class Input(ABC):
             The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
         """
         self.context = context
-        self.checkpoint = context.checkpoint
+        self.metadata = metadata
+        self.dataset_name = metadata.dataset_name
         self.reference_date = context.reference_date
         self._pre_processor_confs = pre_processors or []
 
         if variables is None:
-            variables = self.context.variables.default_input_variables()  # type: ignore
+            variables = Variables(metadata).default_input_variables()
 
         assert isinstance(variables, list), "variables must be a list of strings"
         self.variables = variables
@@ -74,13 +76,13 @@ class Input(ABC):
         processors = []
         # inner-level pre-processors
         for processor in self._pre_processor_confs:
-            processors.append(create_pre_processor(self.context, processor))
+            processors.append(create_pre_processor(self.context, processor, self.metadata))
 
         # top-level pre-processors
         if hasattr(self.context, "pre_processors"):
-            processors.extend(self.context.pre_processors)
+            processors.extend(self.context.pre_processors[self.dataset_name])
 
-        LOG.info("Pre-processors: %s", processors)
+        LOG.info(f"[{self.dataset_name}] Inner pre-processors: {processors}")
         return processors
 
     def pre_process(self, x: Any) -> Any:
@@ -158,7 +160,7 @@ class Input(ABC):
         List[str]
             The list of input variables.
         """
-        return list(self.checkpoint.variable_to_input_tensor_index.keys())
+        return list(self.metadata.variable_to_input_tensor_index.keys())
 
     def patch_data_request(self, request: Any) -> Any:
         """Patch the data request.
@@ -175,7 +177,7 @@ class Input(ABC):
         Any
             The patched data request.
         """
-        request = self.context.patch_data_request(request)
+        request = self.context.patch_data_request(request, self.dataset_name)
         for p in self.pre_processors:
             request = p.patch_data_request(request)
 

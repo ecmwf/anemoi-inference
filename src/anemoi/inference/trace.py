@@ -63,7 +63,7 @@ class Trace:
 
         console = Console(file=self.file, width=WIDTH)
 
-        panel = Panel(f"Trace {datetime.datetime.utcnow()}")
+        panel = Panel(f"Trace {datetime.datetime.now(datetime.UTC)}")
 
         console.print(panel)
 

@@ -15,6 +15,7 @@ from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -39,19 +40,21 @@ class BackwardTransformFilter(Processor):
         The filter instance used for processing the state.
     """
 
-    def __init__(self, context: Context, filter: str, **kwargs: Any) -> None:
+    def __init__(self, context: Context, metadata: Metadata, *, filter: str, **kwargs: Any) -> None:
         """Initialize the BackwardTransformFilter.
 
         Parameters
         ----------
         context : Context
             The context for the filter.
+        metadata : Metadata
+            Metadata corresponding to the dataset this processor is handling.
         filter : str
             The name of the filter to be used.
         **kwargs : Any
             Additional keyword arguments for the filter.
         """
-        super().__init__(context)
+        super().__init__(context, metadata)
         self.filter: Any = filter_registry.create(filter, **kwargs)
 
     def process(self, state: State) -> State:
@@ -70,4 +73,4 @@ class BackwardTransformFilter(Processor):
 
         fields = self.filter.backward(wrap_state(state))
 
-        return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
+        return unwrap_state(fields, state, namer=self.metadata.default_namer())

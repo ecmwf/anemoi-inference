@@ -8,16 +8,17 @@
 # nor does it submit to any jurisdiction.
 
 
+import inspect
 import logging
 from pathlib import Path
 from typing import Any
 from typing import TypeVar
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 
 LOG = logging.getLogger("anemoi.inference")
 
-MARKER = object()
 F = TypeVar("F", bound=type)
 
 
@@ -61,11 +62,22 @@ class main_argument:
         if not isinstance(cls, type):
             raise TypeError("'main_argument' can only be used to decorate classes")
 
+        # position of the main argument changes depending on whether the decorated class takes `metadata` or not
+        # so inspect the wrapped class to find the offset of the main arguments in the args list
+        for klass in cls.mro():
+            # our decorators can be stacked, so traverse the MRO to find the parent decorated class
+            parameters = inspect.signature(klass.__init__).parameters
+            if "wrapped_cls" in parameters:
+                continue
+            _offset = 2 if "metadata" in parameters else 1  # accounts for `self``
+            break
+
         class WrappedClass(cls):
-            def __init__(wrapped_cls, context: Context, main: object = MARKER, *args: Any, **kwargs: Any) -> Any:
-                if main is not MARKER:
-                    kwargs[self.name] = main
-                super().__init__(context, *args, **kwargs)
+            def __init__(wrapped_cls, *args, **kwargs) -> None:
+                args = list(args)
+                if len(args) > _offset:
+                    kwargs[self.name] = args.pop(_offset)
+                super().__init__(*args, **kwargs)
 
         return type(cls.__name__, (WrappedClass,), {})
 
@@ -95,10 +107,10 @@ class ensure_path:
         """Decorate the object to ensure the path argument is a Path object."""
 
         class WrappedClass(cls):
-            def __init__(wrapped_cls, context: Context, *args: Any, **kwargs: Any) -> None:
+            def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
                 if self.arg not in kwargs:
                     LOG.debug(f"Argument '{self.arg}' not found in kwargs, cannot ensure path.")
-                    super().__init__(context, *args, **kwargs)
+                    super().__init__(*args, **kwargs)
                     return
 
                 path = kwargs[self.arg] = Path(kwargs[self.arg])
@@ -111,7 +123,7 @@ class ensure_path:
                 if self.create:
                     path.mkdir(parents=True, exist_ok=True)
 
-                super().__init__(context, *args, **kwargs)
+                super().__init__(*args, **kwargs)
 
         return type(cls.__name__, (WrappedClass,), {})
 
@@ -132,3 +144,37 @@ class ensure_dir(ensure_path):
 
     def __init__(self, arg: str, create: bool = True, must_exist: bool = False):
         super().__init__(arg, is_dir=True, create=create, must_exist=must_exist)
+
+
+class format_dataset_name:
+    """Decorator to format a string argument with the dataset name.
+    Substitutes `{dataset}` or `{dataset_name}` in the argument with the dataset name.
+    Can only be used for classes that take `metadata`. For example:
+    ```
+    output:
+        grib: output-{dataset}.grib
+    ```
+    """
+
+    def __init__(self, arg: str):
+        self.arg = arg
+
+    def __call__(self, cls: F) -> F:
+        if not isinstance(cls, type):
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
+
+        if not any("metadata" in inspect.signature(klass.__init__).parameters for klass in cls.mro()):
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes that take `metadata`")
+
+        class WrappedClass(cls):
+            def __init__(wrapped_cls, context: Context, metadata: Metadata, *args: Any, **kwargs: Any) -> Any:
+                assert self.arg in kwargs, f"{self.arg} not found in decorated class arguments: {kwargs}"
+                assert isinstance(
+                    kwargs[self.arg], str
+                ), f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
+
+                name = metadata.dataset_name
+                kwargs[self.arg] = kwargs[self.arg].format(dataset=name, dataset_name=name)
+                super().__init__(context, metadata, *args, **kwargs)
+
+        return type(cls.__name__, (WrappedClass,), {})

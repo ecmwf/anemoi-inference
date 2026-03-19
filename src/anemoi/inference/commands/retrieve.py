@@ -100,19 +100,18 @@ def checkpoint_to_requests(
     List[DataRequest]
         A list of data requests.
     """
-    # TODO: Move this to the runner
 
     LOG.info("Converting checkpoint to requests")
     LOG.info("Include categories: %s", include)
     LOG.info("Exclude categories: %s", exclude)
 
-    variables = checkpoint.select_variables(include=include, exclude=exclude)
+    variables = checkpoint._metadata.select_variables(include=include, exclude=exclude)
 
     if not variables:
         return []
 
-    area = checkpoint.area
-    grid = checkpoint.grid
+    area = checkpoint._metadata.area
+    grid = checkpoint._metadata.grid
 
     more = postproc(grid, area)
 
@@ -143,7 +142,8 @@ def checkpoint_to_requests(
         dates = sorted(new_dates)
 
     requests = []
-    for r in checkpoint.mars_requests(
+    for r in checkpoint._metadata.mars_requests(
+        checkpoint,
         dates=dates,
         variables=variables,
         use_grib_paramid=use_grib_paramid,
@@ -179,6 +179,7 @@ def comma_separated_list(value):
 class RetrieveCmd(Command):
     """Used by prepml."""
 
+    # TODO: multi-dataset support
     def add_arguments(self, command_parser: ArgumentParser) -> None:
         """Add arguments to the command parser.
 

@@ -14,10 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
-import anemoi.inference.checkpoint
-from anemoi.inference.runner import Runner
-
-from .fake_metadata import FakeMetadata
+from anemoi.inference.checkpoint import Checkpoint
 
 
 @pytest.fixture(scope="session")
@@ -83,11 +80,9 @@ def test_huggingface_repo_download_str(
     fake_huggingface_repo : pathlib.Path
         Path to the fake huggingface repo.
     """
-    monkeypatch.setattr(anemoi.inference.checkpoint.Checkpoint, "_metadata", FakeMetadata())
     huggingface_mock.return_value = fake_huggingface_repo
-
-    runner = Runner({"huggingface": ckpt})
-    assert runner.checkpoint.path == str(fake_huggingface_repo / "model.ckpt")
+    checkpoint = Checkpoint({"huggingface": ckpt})
+    assert checkpoint.path == str(fake_huggingface_repo / "model.ckpt")
 
     assert huggingface_mock.called
     huggingface_mock.assert_called_once_with(repo_id=ckpt)
@@ -114,11 +109,10 @@ def test_huggingface_repo_download_dict(
     fake_huggingface_repo : pathlib.Path
         Path to the fake huggingface repo.
     """
-    monkeypatch.setattr(anemoi.inference.checkpoint.Checkpoint, "_metadata", FakeMetadata())
     huggingface_mock.return_value = fake_huggingface_repo
 
-    runner = Runner({"huggingface": ckpt})
-    assert runner.checkpoint.path == str(fake_huggingface_repo / "model.ckpt")
+    checkpoint = Checkpoint({"huggingface": ckpt})
+    assert checkpoint.path == str(fake_huggingface_repo / "model.ckpt")
 
     assert huggingface_mock.called
     huggingface_mock.assert_called_once_with(**ckpt)
@@ -145,11 +139,10 @@ def test_huggingface_file_download(
     fake_huggingface_ckpt : pathlib.Path
         Path to the fake huggingface checkpoint.
     """
-    monkeypatch.setattr(anemoi.inference.checkpoint.Checkpoint, "_metadata", FakeMetadata())
     huggingface_mock.return_value = fake_huggingface_ckpt
 
-    runner = Runner({"huggingface": ckpt})
-    assert runner.checkpoint.path == str(fake_huggingface_ckpt)
+    checkpoint = Checkpoint({"huggingface": ckpt})
+    assert checkpoint.path == str(fake_huggingface_ckpt)
 
     assert huggingface_mock.called
     huggingface_mock.assert_called_once_with(**ckpt)

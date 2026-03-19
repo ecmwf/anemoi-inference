@@ -10,27 +10,29 @@
 
 import datetime
 import logging
-from collections import defaultdict
-from collections.abc import Callable
 from functools import cached_property
 from pathlib import Path
 from typing import Any
 from typing import Literal
 
-import deprecation
-import earthkit.data as ekd
 from anemoi.utils.checkpoints import load_metadata
-from earthkit.data.utils.dates import to_datetime
-
-from anemoi.inference._version import __version__
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
 
 from .metadata import Metadata
 from .metadata import MetadataFactory
-from .metadata import Variable
 
 LOG = logging.getLogger(__name__)
+
+
+def get_multi_dataset_metadata(metadata: dict, supporting_arrays: dict, base_class=Metadata) -> dict[str, Metadata]:
+    """Metadata objects for all datasets in the raw metadata, as a mapping from dataset name to Metadata object.
+    For legacy checkpoints, the dataset name defaults to `data`
+    """
+    dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
+
+    return {
+        dataset: MetadataFactory(metadata, supporting_arrays, dataset_name=dataset, base_class=base_class)
+        for dataset in dataset_names
+    }
 
 
 def _download_huggingfacehub(huggingface_config: Any) -> str:
@@ -74,20 +76,24 @@ class Checkpoint:
 
     def __init__(
         self,
-        source: str | Metadata | dict[str, Any],
+        source: str | Metadata | dict[Literal["huggingface"], str | dict],
         *,
+        metadata_base: type[Metadata] = Metadata,
         patch_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Checkpoint.
 
         Parameters
         ----------
-        path : str
-            The path to the checkpoint.
-        patch_metadata : Optional[Dict[str, Any]], optional
+        source : str | Metadata | dict[Literal["huggingface"], str | dict]
+            The source of the checkpoint as a path, a metadata object, or huggingface mapping.
+        metadata_base : type[Metadata], optional
+            The base class for the checkpoint's metadata object, useful for overriding task/runner-specific metadata.
+        patch_metadata : dict[str, Any], optional
             Metadata to patch the checkpoint with, by default None.
         """
         self._source = source
+        self.metadata_base = metadata_base
         self.patch_metadata = patch_metadata
 
     def __repr__(self) -> str:
@@ -125,29 +131,61 @@ class Checkpoint:
         if isinstance(self._source, Metadata):
             return self._source
 
-        try:
-            result = MetadataFactory(*load_metadata(self.path, supporting_arrays=True))
-        except Exception as e:
-            LOG.warning("Version does not support `supporting_arrays` (%s)", e)
-            result = MetadataFactory(load_metadata(self.path))
+        # for multi-dataset checkpoints, we assume that metadata attributes accessed via the checkpoint
+        # are shared across datasets and we can use the metadata of the first dataset.
+        # objects that need dataset-specific metadata should get their own MultiDatasetMetadata directly
+        # via self.multi_dataset_metadata or get_multi_dataset_metadata()
+        multi_metadata = self.multi_dataset_metadata
+        result = multi_metadata[next(iter(multi_metadata))]
 
         if self.patch_metadata:
+            # TODO: figure out multi-datasets patching
             LOG.warning("Patching metadata with %r", self.patch_metadata)
             result.patch(self.patch_metadata)
 
         return result
 
-    ###########################################################################
-    # Forwards used by the runner
-    # We do not want to expose the metadata object directly
-    # We do not use `getattr` to avoid exposing all methods and make debugging
-    # easier
-    ###########################################################################
+    @cached_property
+    def _raw_metadata(self) -> tuple[dict, dict]:
+        return load_metadata(self.path, supporting_arrays=True)
 
+    @cached_property
+    def multi_dataset(self) -> bool:
+        """Check if the checkpoint is a multi-dataset checkpoint."""
+        metadata, _ = self._raw_metadata
+        return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
+
+    @cached_property
+    def multi_dataset_metadata(self) -> dict[str, Metadata]:
+        """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
+        For legacy checkpoints, the dataset name defaults to `data`
+        """
+        metadata, supporting_arrays = self._raw_metadata
+        return get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
+
+    ###########################################################################
+    # Forwards to the metadata
+    # We assume that all attributes here are shared across datasets for multi-dataset checkpoints.
+    ###########################################################################
     @property
     def timestep(self) -> Any:
         """Get the timestep."""
         return self._metadata.timestep
+
+    @property
+    def lagged(self) -> list[datetime.timedelta]:
+        """Return the list of steps for the `multi_step_input` fields."""
+        return self._metadata.lagged
+
+    @property
+    def multi_step_input(self) -> int:
+        """Get the multi-step input."""
+        return self._metadata.multi_step_input
+
+    @property
+    def multi_step_output(self) -> int:
+        """Get the multi-step output."""
+        return self._metadata.multi_step_output
 
     @property
     def input_explicit_times(self) -> Any:
@@ -162,127 +200,20 @@ class Checkpoint:
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._metadata._config.data.frequency
+        return self._metadata.data_frequency
 
     @property
     def precision(self) -> Any:
         """Get the precision."""
         return self._metadata.precision
 
-    @property
-    def number_of_grid_points(self) -> Any:
-        """Get the number of grid points."""
-        return self._metadata.number_of_grid_points
-
-    @property
-    def number_of_input_features(self) -> Any:
-        """Get the number of input features."""
-        return self._metadata.number_of_input_features
-
-    @property
-    def variable_to_input_tensor_index(self) -> Any:
-        """Get the variable to input tensor index."""
-        return self._metadata.variable_to_input_tensor_index
-
-    @property
-    def variable_to_output_tensor_index(self) -> Any:
-        """Get the variable to output tensor index."""
-        return self._metadata.variable_to_output_tensor_index
-
-    @property
-    def model_computed_variables(self) -> Any:
-        """Get the model computed variables."""
-        return self._metadata.model_computed_variables
-
-    @property
-    def typed_variables(self) -> dict[str, Variable]:
-        """Get the typed variables."""
-        return self._metadata.typed_variables
-
-    @property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.8.0",
-        current_version=__version__,
-        details="Use `select_variables` instead.",
-    )
-    def diagnostic_variables(self) -> Any:
-        """Get the diagnostic variables."""
-        return self._metadata.diagnostic_variables
-
-    @property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.8.0",
-        current_version=__version__,
-        details="Use `select_variables` instead.",
-    )
-    def prognostic_variables(self) -> Any:
-        """Get the prognostic variables."""
-        return self._metadata.prognostic_variables
-
-    @property
-    def prognostic_output_mask(self) -> Any:
-        """Get the prognostic output mask."""
-        return self._metadata.prognostic_output_mask
-
-    @property
-    def prognostic_input_mask(self) -> Any:
-        """Get the prognostic input mask."""
-        return self._metadata.prognostic_input_mask
-
-    @property
-    def input_tensor_index_to_variable(self) -> Any:
-        """Get the output tensor index to variable."""
-        return self._metadata.input_tensor_index_to_variable
-
-    @property
-    def output_tensor_index_to_variable(self) -> Any:
-        """Get the output tensor index to variable."""
-        return self._metadata.output_tensor_index_to_variable
-
-    @property
-    def accumulations(self) -> Any:
-        """Get the accumulations."""
-        return self._metadata.accumulations
-
-    @property
-    def latitudes(self) -> Any:
-        """Get the latitudes."""
-        return self._metadata.latitudes
-
-    @property
-    def longitudes(self) -> Any:
-        """Get the longitudes."""
-        return self._metadata.longitudes
-
-    @property
-    def grid_points_mask(self) -> Any:
-        """Get the grid points mask."""
-        return self._metadata.grid_points_mask
-
+    ###########################################################################
+    # Misc
+    ###########################################################################
     @cached_property
     def sources(self) -> list["SourceCheckpoint"]:
         """Get the sources."""
         return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
-
-    def default_namer(self, *args: Any, **kwargs: Any) -> Callable[[ekd.Field, Any], str]:
-        """Return a callable that can be used to name fields.
-
-        Parameters
-        ----------
-        *args : Any
-            Additional arguments.
-
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        Callable
-            The namer that was used to create the training dataset.
-        """
-        return self._metadata.default_namer(*args, **kwargs)
 
     def report_error(self) -> None:
         """Report an error."""
@@ -316,395 +247,6 @@ class Checkpoint:
             all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
 
-    def open_dataset(
-        self,
-        *,
-        use_original_paths: bool | None = None,
-        from_dataloader: Any | None = None,
-    ) -> Any:
-        """Open the dataset.
-
-        Parameters
-        ----------
-        use_original_paths : bool, optional
-            Whether to use the original paths, by default None.
-        from_dataloader : Any, optional
-            The dataloader to use, by default None.
-
-        Returns
-        -------
-        Any
-            The opened dataset.
-        """
-        return self._metadata.open_dataset(use_original_paths=use_original_paths, from_dataloader=from_dataloader)
-
-    def open_dataset_args_kwargs(
-        self, *, use_original_paths: bool, from_dataloader: Any | None = None
-    ) -> tuple[Any, Any]:
-        """Get arguments and keyword arguments for opening the dataset.
-
-        Parameters
-        ----------
-        use_original_paths : bool
-            Whether to use original paths.
-        from_dataloader : Optional[Any], optional
-            Data loader, by default None.
-
-        Returns
-        -------
-        Tuple[Any, Any]
-            Arguments and keyword arguments for opening the dataset.
-        """
-        return self._metadata.open_dataset_args_kwargs(
-            use_original_paths=use_original_paths,
-            from_dataloader=from_dataloader,
-        )
-
-    def name_fields(self, fields: Any, namer: Callable[..., str] | None = None) -> Any:
-        """Name fields.
-
-        Parameters
-        ----------
-        fields : Any
-            The fields to name.
-        namer : Optional[Callable[...,str]], optional
-            The namer, by default None.
-
-        Returns
-        -------
-        Any
-            The named fields.
-        """
-        return self._metadata.name_fields(fields, namer=namer)
-
-    def sort_by_name(
-        self, fields: ekd.FieldList, *args: Any, namer: Callable[..., str] | None = None, **kwargs: Any
-    ) -> ekd.FieldList:
-        """Sort fields by name.
-
-        Parameters
-        ----------
-        fields : ekd.FieldList
-            The fields to sort.
-        *args : Any
-            Additional arguments.
-        namer : Optional[Callable[...,str]], optional
-            The namer, by default None.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        ekd.FieldList
-            The sorted fields.
-        """
-        return self._metadata.sort_by_name(fields, *args, namer=namer, **kwargs)
-
-    def print_indices(self, print=LOG.info) -> None:
-        """Print the indices."""
-        return self._metadata.print_indices(print=print)
-
-    ###########################################################################
-    # Variable categories
-    ###########################################################################
-    def print_variable_categories(self, print=LOG.info) -> None:
-        """Print the variable categories."""
-        return self._metadata.print_variable_categories(print=print)
-
-    def variable_categories(self) -> Any:
-        """Get the variable categories.
-
-        Returns
-        -------
-        Any
-            The variable categories.
-        """
-        return self._metadata.variable_categories()
-
-    def select_variables(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None, has_mars_requests: bool = True
-    ) -> list[str]:
-        """Get variables from input.
-
-        Parameters
-        ----------
-        include : Optional[List[str]]
-            Categories to include.
-        exclude : Optional[List[str]]
-            Categories to exclude.
-        has_mars_requests: bool
-            If True, only include variables that have MARS requests.
-
-        Returns
-        -------
-        List[str]
-            The selected variables.
-
-        """
-        return self._metadata.select_variables(include=include, exclude=exclude, has_mars_requests=has_mars_requests)
-
-    def select_variables_and_masks(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None
-    ) -> list[str]:
-        """Get variables from input.
-
-        Parameters
-        ----------
-        include : Optional[List[str]]
-            Categories to include.
-
-        exclude : Optional[List[str]]
-            Categories to exclude.
-
-        Returns
-        -------
-        List[str]
-            The selected variables.
-        """
-        return self._metadata.select_variables_and_masks(include=include, exclude=exclude)
-
-    ###########################################################################
-    def load_supporting_array(self, name: str) -> Any:
-        """Load a supporting array.
-
-        Parameters
-        ----------
-        name : str
-            The name of the supporting array.
-
-        Returns
-        -------
-        Any
-            The supporting array.
-        """
-        return self._metadata.load_supporting_array(name)
-
-    @property
-    def supporting_arrays(self) -> Any:
-        """Get the supporting arrays."""
-        return self._metadata.supporting_arrays
-
-    ###########################################################################
-
-    @cached_property
-    def lagged(self) -> list[datetime.timedelta]:
-        """Return the list of steps for the `multi_step_input` fields."""
-        result = list(range(0, self._metadata.multi_step_input))
-
-        result = [-s * self._metadata.timestep for s in result]
-        return sorted(result)
-
-    @property
-    def multi_step_input(self) -> int:
-        """Get the multi-step input."""
-        return self._metadata.multi_step_input
-
-    @property
-    def multi_step_output(self) -> int:
-        """Get the multi-step output."""
-        return self._metadata.multi_step_output
-
-    ###########################################################################
-    # Data retrieval
-    ###########################################################################
-    @property
-    def grid(self) -> Any:
-        """Get the grid."""
-        return self._metadata.grid
-
-    @property
-    def area(self) -> Any:
-        """Get the area."""
-        return self._metadata.area
-
-    def mars_by_levtype(self, levtype: str) -> Any:
-        """Get MARS requests by level type.
-
-        Parameters
-        ----------
-        levtype : str
-            The level type.
-
-        Returns
-        -------
-        Any
-            The MARS requests by level type.
-        """
-        return self._metadata.mars_by_levtype(levtype)
-
-    def mars_requests(
-        self,
-        *,
-        variables: list[str],
-        dates: list[Date],
-        use_grib_paramid: bool = False,
-        always_split_time: bool = False,
-        patch_request: Callable[[DataRequest], DataRequest] | None = None,
-        dont_fail_for_missing_paramid: bool = False,
-        **kwargs: Any,
-    ) -> list[DataRequest]:
-        """Generate MARS requests for the given variables and dates.
-
-        Parameters
-        ----------
-        variables : List[str]
-            The list of variables.
-        dates : List[Any]
-            The list of dates.
-        use_grib_paramid : bool, optional
-            Whether to use GRIB paramid, by default False.
-        always_split_time : bool, optional
-            Whether to always split time, by default False.
-        patch_request : Optional[Callable], optional
-            A callable to patch the request, by default None.
-        dont_fail_for_missing_paramid : bool, optional
-            Whether to not fail for missing param ids, by default False.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        List[DataRequest]
-            The list of MARS requests.
-        """
-        from anemoi.utils.grib import shortname_to_paramid
-        from earthkit.data.utils.availability import Availability
-
-        assert variables, "No variables provided"
-
-        if not isinstance(dates, (list, tuple)):
-            dates = [dates]
-
-        dates = [to_datetime(d) for d in dates]
-
-        assert dates, "No dates provided"
-
-        result: list[DataRequest] = []
-
-        DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
-        DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
-
-        # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
-        # The split oper/scda is a bit special
-
-        # CHANGE: Avoid duplicate GRIB values when training on forecasts by removing the time dependency in KEYS.
-        # Set always_split_time=True to restore it.
-        KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
-
-        requests = defaultdict(list)
-        for r in self._metadata.mars_requests(variables=variables):
-            for date in dates:
-                r = r.copy()
-
-                base = date
-
-                r["date"] = base.strftime("%Y-%m-%d")
-                r["time"] = base.strftime("%H%M")
-
-                r.update(kwargs)  # We do it here so that the Availability can use that information
-
-                if always_split_time:
-                    keys = DEFAULT_KEYS_AND_TIME
-                else:
-                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
-                key = tuple(r.get(k) for k in keys)
-
-                # Special case because of oper/scda
-
-                requests[key].append(r)
-
-        result = []
-        for reqs in requests.values():
-
-            compressed = Availability(reqs)
-            for r in compressed.iterate():
-
-                if not r:
-                    continue
-
-                r = r.copy()
-
-                # Convert all to lists
-                for k, v in r.items():
-                    if not isinstance(v, (list, tuple, set)):
-                        v = [v]
-                    r[k] = sorted(set(v))
-
-                # Patch BEFORE the shortname to paramid
-                if patch_request:
-                    r = patch_request(r)
-
-                # Convert all to lists (again)
-                for k, v in r.items():
-                    if not isinstance(v, (list, tuple, set)):
-                        v = [v]
-                    r[k] = sorted(set(v))
-
-                if use_grib_paramid and "param" in r:
-
-                    def shortname_to_paramid_no_fail(x: str) -> str:
-                        try:
-                            return shortname_to_paramid(x)
-                        except KeyError:
-                            LOG.warning("Could not convert shortname '%s' to paramid", x)
-                            return x
-
-                    if dont_fail_for_missing_paramid:
-                        _ = shortname_to_paramid_no_fail
-                    else:
-                        _ = shortname_to_paramid
-
-                    r["param"] = [_(p) for p in r["param"]]
-
-                # Simplify the request
-
-                for k in list(r.keys()):
-                    v = r[k]
-                    if len(v) == 1:
-                        v = v[0]
-
-                    # Remove empty values for when tree is not fully defined
-                    if v == "-":
-                        r.pop(k)
-                        continue
-                    r[k] = v
-                result.append(r)
-
-        return result
-
-    ###########################################################################
-    # supporting arrays
-    ###########################################################################
-
-    @cached_property
-    def _supporting_arrays(self) -> Any:
-        """Get the supporting arrays."""
-        return self._metadata._supporting_arrays
-
-    @property
-    def name(self) -> Any:
-        """Get the name."""
-        return self._metadata.name
-
-    def has_supporting_array(self, name: str) -> bool:
-        """Check if the checkpoint has a supporting array with the given name.
-
-        Parameters
-        ----------
-        name : str
-            The name of the supporting array.
-
-        Returns
-        -------
-        bool
-            True if the supporting array exists, False otherwise.
-        """
-        return self._metadata.has_supporting_array(name)
-
-    ###########################################################################
-    # Misc
-    ###########################################################################
-
     def provenance_training(self) -> Any:
         """Get the provenance of the training.
 
@@ -720,28 +262,12 @@ class SourceCheckpoint(Checkpoint):
     """A checkpoint that represents a source."""
 
     def __init__(self, owner: Checkpoint, metadata: Any) -> None:
-        """Initialize the SourceCheckpoint.
-
-        Parameters
-        ----------
-        owner : Checkpoint
-            The owner checkpoint.
-        metadata : Any
-            The metadata for the source checkpoint.
-        """
         super().__init__(owner.path)
         self._owner = owner
         self._metadata = metadata
 
     def __repr__(self) -> str:
-        """Represent the SourceCheckpoint as a string.
-
-        Returns
-        -------
-        str
-            String representation of the SourceCheckpoint.
-        """
-        return f"Source({self.name}@{self.path})"
+        return f"Source({self.path})"
 
     @property
     def operational_config(self) -> dict[str, Any]:

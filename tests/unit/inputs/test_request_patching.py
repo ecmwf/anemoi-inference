@@ -18,8 +18,8 @@ from anemoi.inference.testing import files_for_tests
 
 
 class DummyProcessor(Processor):
-    def __init__(self, context, mark: str):
-        super().__init__(context)
+    def __init__(self, context, metadata, mark: str):
+        super().__init__(context, metadata)
         self.mark = mark
 
     def process(self, data: dict) -> dict:  # type: ignore
@@ -37,17 +37,18 @@ class DummyProcessor(Processor):
 def runner() -> None:
     config = RunConfiguration.load(
         files_for_tests("unit/configs/simple.yaml"),
-        overrides=dict(runner="testing", device="cpu", input="dummy", trace_path="trace.log"),
+        overrides=dict(runner="default", device="cpu", input="dummy", trace_path="trace.log"),
     )
     return create_runner(config)
 
 
 @fake_checkpoints
 def test_patched_by_input_and_context(runner):
-    runner.pre_processors.append(DummyProcessor(runner, "context"))
+    metadata = runner.checkpoint._metadata
+    runner.pre_processors["data"].append(DummyProcessor(runner, metadata, "context"))
 
-    input = DummyInput(runner)
-    input.pre_processors.append(DummyProcessor(runner, "input"))
+    input = DummyInput(runner, metadata)
+    input.pre_processors.append(DummyProcessor(runner, metadata, "input"))
 
     empty_request = {}
     patched_request = input.patch_data_request(empty_request)
