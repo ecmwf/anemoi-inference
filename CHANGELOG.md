@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.10.1](https://github.com/ecmwf/anemoi-inference/compare/0.10.0...0.10.1) (2026-03-19)
+
+
+### Bug Fixes
+
+* Use inference metadata to get explicit times ([#466](https://github.com/ecmwf/anemoi-inference/issues/466)) ([d97d73b](https://github.com/ecmwf/anemoi-inference/commit/d97d73b8a3f0fa28e0b924c7300741f166a97dcc))
+
 ## [0.10.0](https://github.com/ecmwf/anemoi-inference/compare/0.9.1...0.10.0) (2026-03-13)
 
 
