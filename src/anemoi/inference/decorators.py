@@ -10,6 +10,7 @@
 
 import inspect
 import logging
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 from typing import TypeVar
@@ -20,6 +21,7 @@ from anemoi.inference.metadata import Metadata
 LOG = logging.getLogger("anemoi.inference")
 
 F = TypeVar("F", bound=type)
+UNIQUE_PATHS = defaultdict(set)
 
 
 class main_argument:
@@ -88,6 +90,7 @@ class ensure_path:
     If `is_dir` is True, the path is treated as a directory, if not for files, the parent directory is treated as a directory.
     If `must_exist` is True, the directory must exist.
     If `create` is True, the directory will be created if it doesn't exist.
+    If 'unique' is True, the same path cannot be reused between multiple decorated classes.
 
     For example:
     ```
@@ -97,11 +100,14 @@ class ensure_path:
             ...
     """
 
-    def __init__(self, arg: str, is_dir: bool = False, create: bool = True, must_exist: bool = False):
+    def __init__(
+        self, arg: str, is_dir: bool = False, create: bool = True, must_exist: bool = False, unique: bool = True
+    ):
         self.arg = arg
         self.is_dir = is_dir
         self.create = create
         self.must_exist = must_exist
+        self.unique = unique
 
     def __call__(self, cls: F) -> F:
         """Decorate the object to ensure the path argument is a Path object."""
@@ -114,6 +120,14 @@ class ensure_path:
                     return
 
                 path = kwargs[self.arg] = Path(kwargs[self.arg])
+
+                if self.unique:
+                    if path in UNIQUE_PATHS[self.arg]:
+                        raise ValueError(
+                            f"'{self.arg}={path}' is already used by another output. For multi-dataset output, ensure you are using different output paths for each dataset."
+                        )
+                    UNIQUE_PATHS[self.arg].add(path)
+
                 if not self.is_dir:
                     path = path.parent
 
@@ -133,6 +147,7 @@ class ensure_dir(ensure_path):
 
     If `must_exist` is True, the directory must exist.
     If `create` is True, the directory will be created if it doesn't exist.
+    If 'unique' is True, the same path cannot be reused between multiple decorated classes.
 
     For example:
     ```
@@ -142,8 +157,8 @@ class ensure_dir(ensure_path):
             ...
     """
 
-    def __init__(self, arg: str, create: bool = True, must_exist: bool = False):
-        super().__init__(arg, is_dir=True, create=create, must_exist=must_exist)
+    def __init__(self, arg: str, create: bool = True, must_exist: bool = False, unique: bool = True):
+        super().__init__(arg, is_dir=True, create=create, must_exist=must_exist, unique=unique)
 
 
 class format_dataset_name:
