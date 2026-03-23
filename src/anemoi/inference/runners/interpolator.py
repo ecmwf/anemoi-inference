@@ -103,7 +103,6 @@ class TimeInterpolatorMultiOutRunner(Runner):
     This runner makes the following assumptions:
         - The model was trained with two input states: (t and t+interpolation_window)
         - The output states are between these two states and are set by "frequency" in the config
-        - interpolation_window / frequency - 1 is equal to the number of output states
     """
 
     def __init__(self, config: RunConfiguration):
