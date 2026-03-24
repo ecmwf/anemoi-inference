@@ -39,6 +39,7 @@ Common use cases include:
 
 - Extracting subsets with ``extract_mask``, ``extract_slice``, or ``extract_from_state``
 - Applying backward transforms with ``backward_transform_filter``
+- Applying forward transforms with ``forward_transform_filter``
 - Accumulating fields with ``accumulate_from_start_of_forecast``
 - Assigning data to masked regions with ``assign_mask``
 
