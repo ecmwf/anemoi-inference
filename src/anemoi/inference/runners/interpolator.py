@@ -348,8 +348,8 @@ class TimeInterpolatorMultiOutRunner(Runner):
                     new_states[dataset]["step"] = step
                     new_states[dataset]["interpolated"] = True
 
-                    if self.trace:
-                        self.trace.write_input_tensor(
+                    if handler.trace:
+                        handler.trace.write_input_tensor(
                             date,
                             s,
                             input_tensors_torch[dataset].cpu().numpy(),
@@ -361,8 +361,8 @@ class TimeInterpolatorMultiOutRunner(Runner):
                     with ProfilingLabel("Sending output to cpu", self.use_profiler):
                         output = np.squeeze(y_pred[dataset].cpu().numpy())  # shape: (values, variables)
 
-                    if self.trace:
-                        self.trace.write_output_tensor(
+                    if handler.trace:
+                        handler.trace.write_output_tensor(
                             date,
                             s,
                             output[s],

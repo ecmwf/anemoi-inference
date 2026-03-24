@@ -140,6 +140,7 @@ class Runner(Context):
                 constant_forcings_input=self.constant_forcings_inputs[dataset],
                 dynamic_forcings_input=self.dynamic_forcings_inputs[dataset],
                 boundary_forcings_input=self.boundary_forcings_inputs[dataset],
+                trace_path=multi_datasets_config(config.trace_path, dataset),
             )
 
             if self.verbosity > 2:
@@ -162,14 +163,6 @@ class Runner(Context):
                     table.add_row(dataset, ", ".join(categories))
 
                 console.print(table)
-
-        if trace_path := config.trace_path:
-            # TODO: multi-dataset support for trace
-            from .trace import Trace
-
-            self.trace = Trace(trace_path)
-        else:
-            self.trace = None
 
     @property
     def checkpoint(self) -> Checkpoint:
@@ -491,14 +484,15 @@ class Runner(Context):
                 dates_str = f"{dates_str[:-2]})"
                 title = f"Forecasting, model call {s+1}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
 
-                # if self.trace:
-                #     self.trace.write_input_tensor(
-                #         dates[-1],
-                #         s,
-                #         input_tensor_torch.cpu().numpy(),
-                #         variable_to_input_tensor_index,
-                #         self.checkpoint.timestep,
-                #     )
+                for dataset, handler in self.tensor_handlers.items():
+                    if handler.trace:
+                        handler.trace.write_input_tensor(
+                            dates[-1],
+                            s,
+                            input_tensors_torch[dataset].cpu().numpy(),
+                            handler.metadata.variable_to_input_tensor_index,
+                            self.checkpoint.timestep,
+                        )
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
 
                 # Predict next state of atmosphere
@@ -540,14 +534,14 @@ class Runner(Context):
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
 
-                    # if self.trace:
-                    #     self.trace.write_output_tensor(
-                    #         dates[i],
-                    #         s,
-                    #         output.cpu().numpy(),
-                    #         self.checkpoint.output_tensor_index_to_variable,
-                    #         self.checkpoint.timestep,
-                    #     )
+                            if handler.trace:
+                                handler.trace.write_output_tensor(
+                                    dates[i],
+                                    s,
+                                    output.cpu().numpy(),
+                                    handler.metadata.output_tensor_index_to_variable,
+                                    self.checkpoint.timestep,
+                                )
 
                     # we only need to check the first dataset's step as they should all be the same
                     if next(iter(new_states.values()))["step"] <= lead_time:
@@ -563,8 +557,8 @@ class Runner(Context):
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
-                        # if self.trace:
-                        #     self.trace.reset_sources(reset[name], self.checkpoint.variable_to_input_tensor_index)
+                        if handler.trace:
+                            handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
                         input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
                             input_tensors_torch[dataset], y_pred[dataset], check[dataset]

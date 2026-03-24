@@ -158,8 +158,8 @@ class DatasetInput(Input):
             values = np.squeeze(data[:, i], axis=1)
             fields[variable] = values[:, self.grid_indices]
 
-            if self.context.trace:
-                self.context.trace.from_input(variable, self)
+            if trace := self.context.tensor_handlers[self.dataset_name].trace:
+                trace.from_input(variable, self)
 
         input_state["_input"] = self
 

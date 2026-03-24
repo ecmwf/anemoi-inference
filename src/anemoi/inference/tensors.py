@@ -64,6 +64,7 @@ class TensorHandler:
         constant_forcings_input: "Input",
         dynamic_forcings_input: "Input",
         boundary_forcings_input: "Input",
+        trace_path: str | None = None,
     ) -> None:
         self.context = context
         self.metadata = metadata
@@ -96,6 +97,16 @@ class TensorHandler:
         for f in self.boundary_forcings_inputs:
             LOG.info(f"  {f}")
         LOG.info("-" * 80)
+
+        if trace_path:
+            from .trace import Trace
+
+            if isinstance(trace_path, str):
+                trace_path = trace_path.format(dataset=self.dataset_name, dataset_name=self.dataset_name)
+
+            self.trace = Trace(path=trace_path)
+        else:
+            self.trace = None
 
     def __repr__(self):
         return f"TensorHandler(dataset={self.dataset_name})"

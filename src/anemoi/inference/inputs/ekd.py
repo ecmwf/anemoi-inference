@@ -359,9 +359,9 @@ class EkdInput(Input):
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
 
-        if self.context.trace:
+        if trace := self.context.tensor_handlers[self.dataset_name].trace:
             for name in check.keys():
-                self.context.trace.from_input(name, self)
+                trace.from_input(name, self)
 
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
