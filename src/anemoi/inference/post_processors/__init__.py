@@ -15,7 +15,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import ProcessorConfig
 
-post_processor_registry = Registry(__name__)
+post_processor_registry: Registry[Processor] = Registry(__name__)
 
 
 def create_post_processor(context: Context, config: ProcessorConfig, metadata: Metadata, **kwargs) -> Processor:
@@ -25,7 +25,7 @@ def create_post_processor(context: Context, config: ProcessorConfig, metadata: M
     ----------
     context : Context
         The context for the post-processor.
-    config : Configuration
+    config : ProcessorConfig
         The configuration for the post-processor.
     metadata : Metadata
         Metadata corresponding to the dataset this post-processor is handling.
