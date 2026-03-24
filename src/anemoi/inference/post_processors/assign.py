@@ -18,6 +18,21 @@ from ..processor import Processor
 from . import post_processor_registry
 
 
+def _nearest_valid_indices(mask: np.ndarray) -> np.ndarray:
+    """Return, for every position, the nearest True index in the mask."""
+    valid = np.flatnonzero(mask)
+    if valid.size == 0:
+        raise ValueError("AssignMask requires at least one True value in the mask.")
+
+    indices = np.arange(mask.size)
+    pos = np.searchsorted(valid, indices)
+
+    left = valid[np.clip(pos - 1, 0, valid.size - 1)]
+    right = valid[np.clip(pos, 0, valid.size - 1)]
+    choose_right = np.abs(right - indices) < np.abs(indices - left)
+    return np.where(choose_right, right, left)
+
+
 @post_processor_registry.register("assign_mask")
 @main_argument("mask")
 class AssignMask(Processor):
@@ -29,18 +44,15 @@ class AssignMask(Processor):
     This processor can be seen as the opposite of "extract_mask".
     Instead of extracting a smaller area from a larger one,
     it assigns a state to a larger area using a mask.
-
-    Parameters
-    ----------
-    context : Context
-        The context containing the checkpoint and supporting arrays.
-    mask : str
-        The name of the mask supporting array or a path to a file containing the mask.
-    fill_value : float, optional
-        The value to fill the non-assigned area, by default NaN.
     """
 
-    def __init__(self, context: Context, mask: str, fill_value: float = float("NaN")) -> None:
+    def __init__(
+        self,
+        context: Context,
+        mask: str,
+        fill_value: float = float("NaN"),
+        fill_nearest: bool = False,
+    ) -> None:
         super().__init__(context)
 
         self._maskname = mask
@@ -56,22 +68,13 @@ class AssignMask(Processor):
             )
 
         self.indexer = mask
-        self.npoints = np.sum(mask)
+        self.npoints = int(np.sum(mask))
         self.fill_value = fill_value
+        self.fill_nearest = fill_nearest
+        self.nearest_index = _nearest_valid_indices(mask) if fill_nearest else None
 
     def process(self, state: State) -> State:
-        """Assign the state to the mask.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-
-        Returns
-        -------
-        State
-            The masked state dictionary.
-        """
+        """Assign the state to the mask."""
         state = state.copy()
         state["fields"] = state["fields"].copy()
 
@@ -90,14 +93,16 @@ class AssignMask(Processor):
             res[self.indexer] = array
         else:
             res[..., self.indexer] = array
+
+        if self.nearest_index is not None:
+            res = res[..., self.nearest_index]
+
         return res
 
     def __repr__(self) -> str:
-        """Return a string representation of the AssignMask object.
-
-        Returns
-        -------
-        str
-            A string representation of the AssignMask object.
-        """
-        return f"AssignMask(mask={self._maskname}, points={self.npoints}/{self.indexer.size}, fill_value={self.fill_value})"
+        """Return a string representation of the AssignMask object."""
+        extra = ", fill_nearest=True" if self.fill_nearest else ""
+        return (
+            f"AssignMask(mask={self._maskname}, points={self.npoints}/{self.indexer.size}, "
+            f"fill_value={self.fill_value}{extra})"
+        )
