@@ -37,7 +37,7 @@ class DummyProcessor(Processor):
 def runner() -> None:
     config = RunConfiguration.load(
         files_for_tests("unit/configs/simple.yaml"),
-        overrides=dict(runner="default", device="cpu", input="dummy", trace_path="trace.log"),
+        overrides=dict(runner="default", device="cpu", input="dummy"),
     )
     return create_runner(config)
 

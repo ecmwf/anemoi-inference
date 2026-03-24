@@ -57,7 +57,7 @@ def runner() -> None:
     """Runner for testing"""
     config = RunConfiguration.load(
         files_for_tests("unit/configs/simple.yaml"),
-        overrides=dict(runner="default", device="cpu", input="dummy", trace_path="trace.log"),
+        overrides=dict(runner="default", device="cpu", input="dummy"),
     )
     runner = create_runner(config)
     assert runner.checkpoint
