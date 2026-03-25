@@ -422,7 +422,7 @@ class Checkpoint:
         return self._metadata.variable_categories()
 
     def select_variables(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None, has_mars_requests: bool = True
+        self, *, include: list[str] | None = None, exclude: list[str] | None = None, has_mars_requests: bool = False
     ) -> list[str]:
         """Get variables from input.
 
