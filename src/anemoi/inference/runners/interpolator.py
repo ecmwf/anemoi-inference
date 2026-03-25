@@ -108,7 +108,10 @@ class TimeInterpolatorMultiOutRunner(Runner):
     def __init__(self, config: RunConfiguration):
         super().__init__(
             config,
-            classes=RunnerClasses(tensor_handler=TimeInterpolatorTensorHandler, metadata=TimeInterpolatorMetadata),
+            classes=RunnerClasses(
+                tensor_handler=TimeInterpolatorTensorHandler,
+                metadata=TimeInterpolatorMetadata,
+            ),
         )
 
         self.multi_step_input = 2

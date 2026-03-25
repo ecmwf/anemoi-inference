@@ -9,6 +9,7 @@
 
 
 import logging
+from collections.abc import Generator
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import Forcings
@@ -16,6 +17,7 @@ from anemoi.inference.runner import Runner
 from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 from . import runner_registry
 
@@ -59,7 +61,10 @@ class SimpleRunner(Runner):
             Additional keyword arguments passed to the `RunConfiguration`.
         """
         config = RunConfiguration(
-            checkpoint=checkpoint, input=kwargs.pop("input", "empty"), output=kwargs.pop("output", "none"), **kwargs
+            checkpoint=checkpoint,
+            input=kwargs.pop("input", "empty"),
+            output=kwargs.pop("output", "none"),
+            **kwargs,
         )
         super().__init__(config, classes=RunnerClasses(tensor_handler=SimpleTensorHandler))
 
@@ -67,3 +72,31 @@ class SimpleRunner(Runner):
         raise NotImplementedError(
             "The `execute` method is not supported by SimpleRunner. Use the `run` generator instead."
         )
+
+    def run(
+        self, *, input_states: dict[str, State] | State, **kwargs
+    ) -> Generator[dict[str, State] | State, None, None]:
+        # for multi-dataset checkpoints with more than one dataset, users must provide a dict of States
+        # for backwards compatibility also allow users to pass a single State for single-dataset checkpoints
+
+        multi_metadata = self.checkpoint.multi_dataset_metadata
+        legacy = False
+
+        if len(multi_metadata) == 1:
+            dataset_name = next(iter(multi_metadata))
+            if dataset_name not in input_states:
+                legacy = True
+                input_states = {dataset_name: input_states}
+        else:
+            for dataset_name in multi_metadata:
+                if dataset_name not in input_states:
+                    raise ValueError(
+                        f"Dataset `{dataset_name}` is expected by the model but not found in the input_states dictionary."
+                    )
+
+        for states in super().run(input_states=input_states, **kwargs):
+            if legacy:
+                # user provided a single State, so we also return a single State
+                yield next(iter(states.values()))
+            else:
+                yield states
