@@ -143,9 +143,9 @@ class InspectCmd(Command):
         """Print the variable indices in the checkpoint."""
         metadata.print_indices(print=rich.print)
 
-    def datasets(self, checkpoint: "Checkpoint", args: Namespace) -> None:
+    def datasets(self, metadata: "Metadata", args: Namespace) -> None:
         """Print the dataset arguments and keyword arguments for opening datasets."""
-        open_dataset_args, open_dataset_kwargs = checkpoint.open_dataset_args_kwargs(use_original_paths=False)
+        open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(use_original_paths=False)
 
         print("Open dataset arguments:")
 

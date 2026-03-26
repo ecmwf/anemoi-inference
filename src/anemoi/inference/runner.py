@@ -125,7 +125,6 @@ class Runner(Context):
         multi_metadata = self._checkpoint.multi_dataset_metadata
 
         for dataset, metadata in multi_metadata.items():
-            self.multi_step_input = metadata.multi_step_input
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
             self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)
@@ -254,21 +253,22 @@ class Runner(Context):
         return dynamic_forcings_inputs
 
     def prepare_output_state(
-        self, output: Generator[State, None, None], return_numpy: bool
-    ) -> Generator[State, None, None]:
+        self, output: Generator[dict[str, State], None, None], return_numpy: bool
+    ) -> Generator[dict[str, State], None, None]:
         """Prepare the output state.
 
         Parameters
         ----------
-        output : Generator[State, None, None]
-            Output state generator,
-            Expects fields to be torch tensors with shape (values, variables).
+        output : Generator[dict[str, State], None, None]
+            Output state generator.
+            Expects a dictionary of states keyed by dataset name.
+            Expects fields in each state to be torch tensors with shape (values, variables).
         return_numpy : bool
             Whether to return the output state fields as numpy arrays.
 
         Yields
         ------
-        Generator[State, None, None]
+        Generator[dict[str, State], None, None]
             The prepared output state.
         """
 
@@ -510,7 +510,7 @@ class Runner(Context):
                     if ndim == 4:
                         # pre-multistep models output (batch, ensemble, values, variables)
                         # add a time dimension of 1 for backwards compatibility
-                        y_pred[dataset] = tensor.unsqueeze(1)
+                        tensor = tensor.unsqueeze(1)
 
                     outputs[dataset] = torch.squeeze(tensor, dim=(0, 2))  # shape: (time, values, variables)
 
@@ -699,14 +699,6 @@ class Runner(Context):
 
         for output in self.outputs.values():
             output.close()
-
-        # TODO: broken with multi-datasets config, maybe time to remove this
-        if "accumulate_from_start_of_forecast" not in self.config.post_processors:
-            LOG.warning("""
-                🚧 The default accumulation behaviour has changed. 🚧
-                🚧 Accumulation fields have NOT been accumulated from the beginning of the forecast. 🚧
-                🚧 To accumulate from the beginning, set `post_processors: [accumulate_from_start_of_forecast]` 🚧
-                """)  # ecmwf/anemoi-inference#131
 
     #########################################################################################################
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:

@@ -114,8 +114,6 @@ class TimeInterpolatorMultiOutRunner(Runner):
             ),
         )
 
-        self.multi_step_input = 2
-
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
             f"but got {self.checkpoint.input_explicit_times}"
