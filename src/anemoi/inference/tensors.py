@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 class Kind:
     """Used for debugging purposes."""
 
-    def __init__(self, **attributes: dict[str, Any]):
+    def __init__(self, **attributes: Any):
         self.attributes = attributes
 
     def __repr__(self) -> str:

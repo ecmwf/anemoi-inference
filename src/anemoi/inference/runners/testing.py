@@ -25,7 +25,7 @@ class NoModelMixing:
     @cached_property
     def model(self) -> "torch.nn.Module":
 
-        checkpoint: Checkpoint = self.checkpoint
+        checkpoint: Checkpoint = self.checkpoint  # type: ignore
         multi_metadata = checkpoint.multi_dataset_metadata
 
         class NoModel(torch.nn.Module):
@@ -34,7 +34,11 @@ class NoModelMixing:
             def __init__(self):
                 super().__init__()
 
-            def predict_step(self, input_tensors: dict[str, FloatArray], **kwargs: Any) -> Any:
+            def predict_step(self, input_tensors: dict[str, FloatArray] | FloatArray, **kwargs: Any) -> Any:
+                legacy = not isinstance(input_tensors, dict)
+                if legacy:
+                    input_tensors = {next(iter(multi_metadata.keys())): input_tensors}
+
                 output = {}
                 for name, metadata in multi_metadata.items():
                     input_shape = input_tensors[name].shape
@@ -49,6 +53,8 @@ class NoModelMixing:
 
                     output[name] = torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
 
+                if legacy:
+                    return next(iter(output.values()))
                 return output
 
         return NoModel()

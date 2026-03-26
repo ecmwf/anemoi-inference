@@ -31,7 +31,7 @@ def check_data(
     ----------
     title : str
         The title for the data check.
-    data : FieldArray
+    data : FieldList
         The data to be checked.
     variables : List[str]
         The list of variable names.

@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 def retrieve(
     requests: list[DataRequest],
     grid: str | list[float] | None,
-    area: list[float] | None,
+    area: list[float] | str | None,
     dataset: str | dict[str, Any],
     **kwargs: Any,
 ) -> ekd.FieldList:
@@ -43,7 +43,7 @@ def retrieve(
         List of request dictionaries.
     grid : Optional[Union[str, List[float]]]
         Grid specification.
-    area : Optional[List[float]]
+    area : Optional[Union[List[float], str]]
         Area specification.
     dataset : Union[str, Dict[str, Any]]
         Dataset to use.
