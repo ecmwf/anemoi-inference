@@ -201,6 +201,15 @@ class NetCDFOutput(Output):
         )
         dataset["latitude"].attrs.update({"units": "degrees_north", "long_name": "latitude"})
         dataset["longitude"].attrs.update({"units": "degrees_east", "long_name": "longitude"})
+
+        reference_date = int(base_date.strftime("%Y%m%d"))
+        reference_time = int(base_date.strftime("%H%M"))
+        for name in state["fields"]:
+            if self.skip_variable(name):
+                continue
+            # Earthkit builds field metadata from variable attrs when reading NetCDF.
+            dataset[name].attrs.update({"dataDate": reference_date, "dataTime": reference_time})
+
         return dataset
 
     def _xarray_encoding(self, dataset: object) -> dict[str, dict[str, object]]:

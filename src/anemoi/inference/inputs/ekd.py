@@ -34,6 +34,15 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
+def _scalar_metadata_value(value: Any) -> Any:
+    """Convert NumPy metadata wrappers to plain Python scalars when possible."""
+    if isinstance(value, np.ndarray) and value.size == 1:
+        return value.reshape(()).item()
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
 def find_variable(data: Any, name: str, namer: callable, **kwargs: Any) -> Any:
     """Find a variable in an earthkit FieldList/FieldArray.
 
@@ -189,11 +198,13 @@ class EkdInput(Input):
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
         if select_reference_date:
+            reference_date = int(self.reference_date.strftime("%Y%m%d"))
+            reference_time = int(self.reference_date.strftime("%H%M"))
             data = data.sel(
                 name=self.variables,
                 valid_datetime=valid_datetime,
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
+                dataDate=lambda value: _scalar_metadata_value(value) == reference_date,
+                dataTime=lambda value: _scalar_metadata_value(value) == reference_time,
             ).order_by(
                 name=self.variables,
                 valid_datetime="ascending",
