@@ -155,7 +155,7 @@ class Runner(Context):
                 from rich.table import Table
 
                 console = Console(file=sys.stderr)
-                table = Table(title=f"[{metadata.dataset_name}] Variable categories")
+                table = Table(title=f"\\[{metadata.dataset_name}] Variable categories")
                 table.add_column("Variable", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
