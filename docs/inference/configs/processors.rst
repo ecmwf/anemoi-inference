@@ -25,6 +25,27 @@ forward_transform_filter
 Applies a filter from `anemoi-transform
 <https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_.
 
+Either the name of the filter can be provided as a string or a dictionary with the filter name as the key and the filter arguments as the value. For example:
+
+.. code:: yaml
+
+   pre_processors:
+     - forward_transform_filter: cos_sin_mean_wave_direction
+or
+
+.. code:: yaml
+
+   pre_processors:
+     - forward_transform_filter:
+         cos_sin_mean_wave_direction:
+           arg1: value1
+           arg2: value2
+
+
+extract_slice & extract_mask
+==============================
+Extracts a subset of points using a slice or a boolean mask.
+
 **************************
  Top-level pre-processors
 **************************
