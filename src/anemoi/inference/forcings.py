@@ -35,7 +35,8 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
-    mask = None
+    mask: IntArray
+    variables: list[str]
 
     def __init__(self, context: "TensorHandler"):
         """Initialize the Forcings object.

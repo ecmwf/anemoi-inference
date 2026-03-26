@@ -14,7 +14,7 @@ import sys
 from collections import defaultdict
 
 from anemoi.utils.humanize import plural
-from earthkit.data.indexing.fieldlist import FieldArray
+from earthkit.data import FieldList
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.metadata import Metadata
@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 
 
 def check_data(
-    title: str, data: FieldArray, variables: list[str], dates: list[datetime.datetime], metadata: Metadata
+    title: str, data: FieldList, variables: list[str], dates: list[datetime.datetime], metadata: Metadata
 ) -> None:
     """Check if the data matches the expected number of fields based on variables and dates.
 

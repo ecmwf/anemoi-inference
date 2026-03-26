@@ -73,7 +73,6 @@ class TensorHandler:
         self.dynamic_forcings_input = dynamic_forcings_input
         self.boundary_forcings_input = boundary_forcings_input
 
-        self.trace = None  # TODO: fix trace
         self._input_kinds = {}
         self._input_tensor_by_name = []
 
@@ -101,9 +100,7 @@ class TensorHandler:
         if trace_path:
             from .trace import Trace
 
-            if isinstance(trace_path, str):
-                trace_path = trace_path.format(dataset=self.dataset_name, dataset_name=self.dataset_name)
-
+            trace_path = trace_path.format(dataset=self.dataset_name, dataset_name=self.dataset_name)
             self.trace = Trace(path=trace_path)
         else:
             self.trace = None
