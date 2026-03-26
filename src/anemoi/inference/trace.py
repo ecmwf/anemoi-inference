@@ -53,7 +53,7 @@ class InputSource:
 class Trace:
     """Implementation of a trace."""
 
-    def __init__(self, *, path: Path) -> None:
+    def __init__(self, *, path: str | Path) -> None:
         self.path = path
         self.file = open(path, "w")
         LOG.info(f"Tracing to {self.file.name}")

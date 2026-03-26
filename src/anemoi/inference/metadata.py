@@ -83,6 +83,7 @@ class Metadata(PatchMixin, LegacyMixin):
     """Base Metadata class."""
 
     multi_dataset = False
+    _metadata: DotDict
     dataset_name = "data"  # required for backwards compatibility with single-datasets checkpoints
 
     def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):

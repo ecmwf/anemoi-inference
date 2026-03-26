@@ -100,14 +100,14 @@ def area_is_valid(area: list[float] | None) -> bool:
         return False
 
 
-def postproc(grid: str | list[float] | None, area: list[float] | None) -> dict[str, str | list[float]]:
+def postproc(grid: str | list[float] | None, area: list[float] | str | None) -> dict[str, str | list[float]]:
     """Post-process the grid and area.
 
     Parameters
     ----------
     grid : Optional[Union[str, List[float]]]
         The grid to be post-processed.
-    area : Optional[List[float]]
+    area : Optional[Union[List[float], str]]
         The area to be post-processed.
 
     Returns
