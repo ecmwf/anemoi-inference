@@ -174,6 +174,7 @@ class DownscalingRunner(DefaultRunner):
         self.time_step = to_timedelta(time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
         self.write_initial_state = False
+        self.end_date = config.end_date
 
         self._checkpoint = DsCheckpoint(
             self._checkpoint.path,
@@ -290,6 +291,7 @@ class DownscalingRunner(DefaultRunner):
         for processor in self.post_processors:
             initial_state = processor.process(initial_state)
 
+        # TODO: remove
         netcdf_cfg = getattr(self.config.output, "netcdf", None)
         if netcdf_cfg is not None:
             template_path = getattr(self.config.output.netcdf, "template_path", None)
@@ -322,13 +324,13 @@ class DownscalingRunner(DefaultRunner):
         # the full input tensor is retrieved from the input at each step (as dynamic forcings)
         return input_tensor_torch
 
-    def forecast_stepper(self, start_date, lead_time):
-        # for downscaling we do a prediction for each step of the input
-        steps = (lead_time // self.time_step) + 1  # include step 0
+    def forecast_stepper(self, start_date, lead_time: timedelta):
+        steps = (self.end_date - start_date) // self.time_step
 
         LOG.info(
-            "Lead time: %s, time stepping: %s Forecasting %s steps",
-            lead_time,
+            "Start time: %s, end time: %s, time stepping: %s. Forecasting %s steps",
+            start_date,
+            self.end_date,
             self.time_step,
             steps,
         )

@@ -4,9 +4,7 @@ checkpoint: /path/to/ckpt
 
 # starting date of the forecast
 date: 2022-01-01T00:00:00
-
-# Predict a month of data
-lead_time: 31d
+end_date: 2022-02-01T00:00:00
 
 input:
   # NOTE: this is hardcoded to select the same variables provided with `dataloader.select_in` from the training config
@@ -16,6 +14,7 @@ input:
 output:
   netcdf:
     path: /path/to/output
+
     # Reference date for time variable, defaults to `date` if not set here
     reference_date: 1970-01-01T00:00:00Z
 
@@ -36,14 +35,15 @@ runner:
     # directly loaded from the `hardware.files.dataset_y` dataset present in the checkpoint
     # hres_dataset_path: /path/to/zarr
  
-    # Dict of params for model noise scheduler and sampler
-    # extra_args:
-    #    # nsteps=20,
-    #    # sigma_min=0.03,
-    #    # sigma_max=80,
-    #    # rho=7,
+    # Optional diffusion parameters
+    # noise_scheduler_params:
+    #    # nsteps: 20
+    #    # sigma_min: 0.03
+    #    # sigma_max: 80
+    #    # rho: 7
     #
-    #    # S_churn=2.5,
-    #    # S_min=0.75,
-    #    # S_max=80.0,
-    #    # S_noise=1.05,
+    # sampler_params:
+    #    S_churn: 2.5
+    #    S_min: 0.75
+    #    S_max: 80.0
+    #    S_noise: 1.05
