@@ -136,7 +136,13 @@ def check_grib_cutout(
 
 @testing_registry.register("check_with_xarray")
 def check_with_xarray(
-    *, file: Path, expected_variables: list["Variable"], check_accum: str | None = None, check_nans=False, **kwargs
+    *,
+    file: Path,
+    expected_variables: list["Variable"],
+    check_accum: str | None = None,
+    check_nans=False,
+    expected_time: int | None = None,
+    **kwargs,
 ) -> None:
     LOG.info(f"Checking file: {file}")
     import numpy as np
@@ -145,6 +151,11 @@ def check_with_xarray(
     ds = xr.open_dataset(file)
 
     assert len(ds.data_vars) > 0, "No data found in the xarray compatible file."
+    assert len(ds.time) > 0, "No time steps found in the xarray compatible file."
+    assert len(ds.time.where(ds.time.notnull(), drop=True)) > 0, "All time steps are NaN in the xarray compatible file."
+
+    if expected_time is not None:
+        assert len(ds.time) == expected_time, f"Expected {expected_time} time steps, but found {len(ds.time)}."
 
     # lat and lon are variables in the file, but they are not variables of the model so skip them
     skip = {"latitude", "longitude"}

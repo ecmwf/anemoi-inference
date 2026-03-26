@@ -137,8 +137,8 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the input explicit times from the training configuration."""
         return self._config_training.explicit_times.input
 
-    def _dataloader(self, partition="training"):
-        """Dataloader configuration for the given partition."""
+    def _dataloader_dataset(self, partition="training"):
+        """Dataloader dataset configuration for the given partition."""
         return self._config.dataloader[partition]
 
     ###########################################################################
@@ -280,6 +280,12 @@ class Metadata(PatchMixin, LegacyMixin):
     def multi_step_input(self) -> int:
         """Number of past steps needed for the initial conditions tensor."""
         return self._config_training.multistep_input
+
+    @cached_property
+    def multi_step_output(self) -> int:
+        """Number of future steps predicted by single model forward."""
+        # For backward compatibility we set a default of 1
+        return 1
 
     @cached_property
     def prognostic_output_mask(self) -> IntArray:
@@ -816,6 +822,8 @@ class Metadata(PatchMixin, LegacyMixin):
         result = []
 
         def _find(x: Any) -> None:
+            if isinstance(x, str):
+                result.append(x)
 
             if isinstance(x, list):
                 for y in x:
@@ -831,7 +839,7 @@ class Metadata(PatchMixin, LegacyMixin):
                 for k, v in x.items():
                     _find(v)
 
-        _find(self._dataloader("training").dataset)
+        _find(self._dataloader_dataset("training").dataset)
         return result
 
     def open_dataset(
@@ -925,7 +933,7 @@ class Metadata(PatchMixin, LegacyMixin):
             return x
 
         if from_dataloader is not None:
-            args, kwargs = [], self._dataloader(from_dataloader)
+            args, kwargs = [], self._dataloader_dataset(from_dataloader)
         else:
             args, kwargs = self._dataset.arguments.args, self._dataset.arguments.kwargs
 
@@ -1203,8 +1211,19 @@ class MultiDatasetMetadata(Metadata):
     def _inference(self) -> DotDict:
         return self._metadata_inference[self.name]
 
-    def _dataloader(self, partition="training"):
-        return self._config.dataloader[partition].datasets[self.name]
+    def _dataloader_dataset(self, partition="training"):
+        dataloader = self._config.dataloader[partition].datasets[self.name]
+
+        # for new checkpoints the dataset config is under "dataset_config"
+        if config := dataloader.get("dataset_config"):
+            # copy extra dataloader keys that are also open_dataset kwargs
+            for k in ("start", "end"):
+                if k in dataloader:
+                    config.setdefault(k, dataloader[k])
+            return DotDict({key: value for key, value in config.items() if value is not None})
+
+        # for older checkpoints, the dataloader itself is the dataset config
+        return dataloader
 
     #############################################################################
     # Overrides for properties derived from the new `metadata_inference`
@@ -1223,6 +1242,26 @@ class MultiDatasetMetadata(Metadata):
     @cached_property
     def timestep(self) -> datetime.timedelta:
         return to_timedelta(self._inference.timesteps.timestep)
+
+    @cached_property
+    def multi_step_input(self) -> int:
+        """Number of past steps needed for the initial conditions tensor."""
+        return len(self._inference.timesteps.input_relative_date_indices)
+
+    @cached_property
+    def multi_step_output(self) -> int:
+        """Number of future steps predicted by single model forward."""
+        return len(self._inference.timesteps.output_relative_date_indices)
+
+    @cached_property
+    def input_explicit_times(self) -> Any:
+        """Explicit times of the input steps used for the interpolator."""
+        return self._inference.timesteps.input_relative_date_indices
+
+    @cached_property
+    def target_explicit_times(self) -> Any:
+        """Explicit times of the target steps used for the interpolator."""
+        return self._inference.timesteps.output_relative_date_indices
 
     @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:

@@ -13,7 +13,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import ProcessorConfig
 
-pre_processor_registry = Registry(__name__)
+pre_processor_registry: Registry[Processor] = Registry(__name__)
 
 
 def create_pre_processor(context: Context, config: ProcessorConfig) -> Processor:
@@ -23,7 +23,7 @@ def create_pre_processor(context: Context, config: ProcessorConfig) -> Processor
     ----------
     context : Context
         The context for the pre-processor.
-    config : Configuration
+    config : ProcessorConfig
         The configuration for the pre-processor.
 
     Returns
