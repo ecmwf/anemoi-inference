@@ -17,6 +17,8 @@ from typing import Literal
 
 from anemoi.utils.checkpoints import load_metadata
 
+from anemoi.inference.config.utils import multi_datasets_config
+
 from .metadata import Metadata
 from .metadata import MetadataFactory
 
@@ -30,7 +32,12 @@ def get_multi_dataset_metadata(metadata: dict, supporting_arrays: dict, base_cla
     dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
 
     return {
-        dataset: MetadataFactory(metadata, supporting_arrays, dataset_name=dataset, base_class=base_class)
+        dataset: MetadataFactory(
+            metadata,
+            supporting_arrays,
+            dataset_name=dataset,
+            base_class=base_class,
+        )
         for dataset in dataset_names
     }
 
@@ -138,11 +145,6 @@ class Checkpoint:
         multi_metadata = self.multi_dataset_metadata
         result = multi_metadata[next(iter(multi_metadata))]
 
-        if self.patch_metadata:
-            # TODO: figure out multi-datasets patching
-            LOG.warning("Patching metadata with %r", self.patch_metadata)
-            result.patch(self.patch_metadata)
-
         return result
 
     @cached_property
@@ -161,7 +163,15 @@ class Checkpoint:
         For legacy checkpoints, the dataset name defaults to `data`
         """
         metadata, supporting_arrays = self._raw_metadata
-        return get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
+        multi_metadata = get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
+
+        if self.patch_metadata:
+            for dataset, metadata in multi_metadata.items():
+                patch = multi_datasets_config(self.patch_metadata, dataset, list(multi_metadata.keys()), strict=False)
+                LOG.warning(f"[{dataset}] Patching metadata with {patch}")
+                metadata.patch(patch)
+
+        return multi_metadata
 
     ###########################################################################
     # Forwards to the metadata

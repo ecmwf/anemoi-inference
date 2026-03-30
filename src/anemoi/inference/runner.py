@@ -122,7 +122,8 @@ class Runner(Context):
         self.boundary_forcings_inputs: dict[str, Input] = {}
         self.outputs: dict[str, Output] = {}
 
-        multi_metadata = self._checkpoint.multi_dataset_metadata
+        multi_metadata = self.checkpoint.multi_dataset_metadata
+        self.dataset_names = list(multi_metadata.keys())
 
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
@@ -139,7 +140,7 @@ class Runner(Context):
                 constant_forcings_input=self.constant_forcings_inputs[dataset],
                 dynamic_forcings_input=self.dynamic_forcings_inputs[dataset],
                 boundary_forcings_input=self.boundary_forcings_inputs[dataset],
-                trace_path=multi_datasets_config(config.trace_path, dataset),
+                trace_path=multi_datasets_config(config.trace_path, dataset, self.dataset_names),
             )
 
             if self.verbosity > 2:
@@ -158,8 +159,8 @@ class Runner(Context):
                 table.add_column("Variable", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
-                for dataset, categories in metadata.variable_categories().items():
-                    table.add_row(dataset, ", ".join(categories))
+                for variable, categories in metadata.variable_categories().items():
+                    table.add_row(variable, ", ".join(categories))
 
                 console.print(table)
 
@@ -702,7 +703,7 @@ class Runner(Context):
 
     #########################################################################################################
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
-        config = multi_datasets_config(self.config.output, dataset_name)
+        config = multi_datasets_config(self.config.output, dataset_name, self.dataset_names)
         output = create_output(self, config, metadata)
         LOG.info(f"[{dataset_name}] Output: {output}")
         return output
@@ -734,7 +735,7 @@ class Runner(Context):
             case _:
                 raise ValueError(f"Unknown input type: {input_type}")
 
-        config = multi_datasets_config(config, dataset_name)
+        config = multi_datasets_config(config, dataset_name, self.dataset_names)
         input = create_input(self, config, metadata, variables=variables, purpose=input_type)
 
         LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
@@ -742,7 +743,7 @@ class Runner(Context):
 
     def create_pre_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        config = multi_datasets_config(self.config.pre_processors, dataset_name)
+        config = multi_datasets_config(self.config.pre_processors, dataset_name, self.dataset_names)
         for processor in config:
             result.append(create_pre_processor(self, processor, metadata))
 
@@ -751,7 +752,7 @@ class Runner(Context):
 
     def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        config = multi_datasets_config(self.config.post_processors, dataset_name)
+        config = multi_datasets_config(self.config.post_processors, dataset_name, self.dataset_names)
         for processor in config:
             result.append(create_post_processor(self, processor, metadata))
 
