@@ -51,6 +51,7 @@ def print_request(verb, request, file=sys.stdout):
 def checkpoint_to_requests(
     checkpoint: Checkpoint,
     *,
+    dataset_name: str,
     date: Date,
     staging_dates: str | None = None,
     forecast_dates: bool = False,
@@ -70,6 +71,8 @@ def checkpoint_to_requests(
     ----------
     checkpoint : Checkpoint
         The checkpoint object containing the necessary data.
+    dataset_name : str
+        The name of the dataset to prepare requests for (used for multi-dataset checkpoints).
     date : Date
         The date for the data request.
     staging_dates : str, optional
@@ -105,13 +108,20 @@ def checkpoint_to_requests(
     LOG.info("Include categories: %s", include)
     LOG.info("Exclude categories: %s", exclude)
 
-    variables = checkpoint._metadata.select_variables(include=include, exclude=exclude)
+    multi_metadata = checkpoint.multi_dataset_metadata
+    assert (
+        dataset_name in multi_metadata
+    ), f"Dataset name '{dataset_name}' not found in checkpoint metadata. Available datasets: {list(multi_metadata.keys())}"
+
+    metadata = multi_metadata[dataset_name]
+
+    variables = metadata.select_variables(include=include, exclude=exclude)
 
     if not variables:
         return []
 
-    area = checkpoint._metadata.area
-    grid = checkpoint._metadata.grid
+    area = metadata.area
+    grid = metadata.grid
 
     more = postproc(grid, area)
 
@@ -124,11 +134,11 @@ def checkpoint_to_requests(
         with open(staging_dates) as f:
             for line in f:
                 date = to_datetime(line.strip())
-                dates.update([date + h for h in checkpoint.lagged])
+                dates.update([date + h for h in metadata.lagged])
         dates = sorted(dates)
     else:
         date = to_datetime(date)
-        dates = [date + h for h in checkpoint.lagged]
+        dates = [date + h for h in metadata.lagged]
 
     if forecast_dates:
         new_dates = set()
@@ -142,8 +152,7 @@ def checkpoint_to_requests(
         dates = sorted(new_dates)
 
     requests = []
-    for r in checkpoint._metadata.mars_requests(
-        checkpoint,
+    for r in metadata.mars_requests(
         dates=dates,
         variables=variables,
         use_grib_paramid=use_grib_paramid,
@@ -231,6 +240,11 @@ class RetrieveCmd(Command):
             "--target", default="input.grib", help="Target path for the MARS retrieval requests"
         )
         command_parser.add_argument("--verb", default="retrieve", help="Verb for the MARS retrieval requests")
+        command_parser.add_argument(
+            "--dataset-name",
+            default="data",
+            help="Dataset name to prepare requests for (used for multi-dataset checkpoints)",
+        )
         command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
@@ -245,11 +259,13 @@ class RetrieveCmd(Command):
             args.overrides.append(args.config)
             args.config = {}
 
+        if args.date is not None:
+            # may be used by the runner to set things like `reference_date`
+            args.overrides.append(f"date={args.date}")
+
         config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
-        if args.date is not None:
-            runner.reference_date = to_datetime(args.date)  # may be used by the runner in patch_data_request
         lead_time = frequency_to_timedelta(config.lead_time)
         time_step = frequency_to_timedelta(runner.checkpoint.timestep)
 
@@ -265,13 +281,14 @@ class RetrieveCmd(Command):
 
         requests = checkpoint_to_requests(
             runner.checkpoint,
+            dataset_name=args.dataset_name,
             date=args.date,
             extra=args.extra,
             staging_dates=args.staging_dates,
             forecast_dates=args.forecast_dates,
             use_grib_paramid=config.use_grib_paramid or args.use_grib_paramid,
             dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
-            patch_request=runner.patch_data_request,
+            patch_request=lambda r: runner.patch_data_request(r, args.dataset_name),
             use_scda=args.use_scda,
             include=args.include if args.include else None,
             exclude=args.exclude if args.exclude else None,
