@@ -15,11 +15,18 @@ optionally be written in a multi-dataset format where entries are placed
 inside a dictionary keyed by dataset name. The dataset names are defined in
 the checkpoint metadata.
 
-.. note::
+.. tip::
 
    Single-dataset checkpoints are fully backwards compatible.
    No config changes are needed. The existing config format continues to
    work as before.
+
+.. note::
+
+   In the examples below, we use the dataset names ``era5`` and ``cerra`` for illustration purposes.
+   These must match the actual dataset names in the checkpoint metadata.
+   During training, they can be freely chosen, and could be something like ``local`` and ``global`` instead.
+   Refer to :ref:`anemoi-training:user-guide/multi-datasets` for more details on how to set up multi-dataset training.
 
 *********************************
  Per-dataset config format
@@ -99,7 +106,7 @@ Every dataset will use the ``printer`` output.
             netcdf: output-era5.nc
 
    And when per-dataset config is used for an entry, all datasets must be specified.
-   For example, if you have a checkpoint trained on ``era5`` and ``cerra``, this is not allowed:
+   For example, if the model also expects a dataset named ``cerra``, this is not allowed:
 
    .. code:: yaml
 
