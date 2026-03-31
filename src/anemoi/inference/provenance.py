@@ -202,7 +202,7 @@ def validate_environment(
                 f"Inference environment contains uncommited changes missing in training: {git_record}"
             )
 
-    if len(invalid_messages) > 0:
+    if any(invalid_messages.values()):
         text = "Environment validation failed. The following issues were found:\n" + "\n".join(
             [f"  {key}:\n    " + "\n    ".join(value) for key, value in invalid_messages.items() if len(value) > 0]
         )
