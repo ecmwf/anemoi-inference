@@ -26,7 +26,7 @@ the checkpoint metadata.
    In the examples below, we use the dataset names ``era5`` and ``cerra`` for illustration purposes.
    These must match the actual dataset names in the checkpoint metadata.
    During training, they can be freely chosen, and could be something like ``local`` and ``global`` instead.
-   Refer to :ref:`anemoi-training:user-guide/multi-datasets` for more details on how to set up multi-dataset training.
+   Refer to :doc:`anemoi-training <anemoi-training:user-guide/multi-datasets>` for more details on how to set up multi-dataset training.
 
 *********************************
  Per-dataset config format
