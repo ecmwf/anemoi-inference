@@ -16,6 +16,7 @@ from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -43,6 +44,8 @@ class BackwardTransformFilter(Processor):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
+        *,
         filter: str | dict[str, Any] | None = None,
         skip_initial_state: bool = False,
         **kwargs: Any,
@@ -51,8 +54,10 @@ class BackwardTransformFilter(Processor):
 
         Parameters
         ----------
-        context : object
+        context : Context
             The context in which the filter is being used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this processor is handling.
         filter : str | dict[str, Any] | None, optional
             The name of the filter or a configuration dictionary for the filter, by default None
         skip_initial_state : bool, optional
@@ -66,7 +71,7 @@ class BackwardTransformFilter(Processor):
         >>> filter_config = {"my_filter": {"param1": value1, "param2": value2}}
         >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
-        super().__init__(context)
+        super().__init__(context, metadata)
         self.skip_initial_state = skip_initial_state
 
         if filter is None:
@@ -92,7 +97,7 @@ class BackwardTransformFilter(Processor):
 
         fields = self.filter.backward(wrap_state(state))
 
-        return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
+        return unwrap_state(fields, state, namer=self.metadata.default_namer())
 
     def __repr__(self) -> str:
         """Return a string representation of the BackwardTransformFilter object.

@@ -17,6 +17,7 @@ from anemoi.transform.fields import new_fieldlist_from_list
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import State
 
@@ -32,8 +33,8 @@ class ExtractBase(Processor):
     # this needs to be set in subclasses
     indexer: BoolArray | slice
 
-    def __init__(self, context: Context) -> None:
-        super().__init__(context)
+    def __init__(self, context: Context, metadata: Metadata) -> None:
+        super().__init__(context, metadata)
         self._indexer: BoolArray | slice | None = None
 
     @property
@@ -73,20 +74,22 @@ class ExtractMask(ExtractBase):
     ----------
     context : Any
         The context in which the processor is running.
+    metadata : Metadata
+        Metadata corresponding to the dataset this processor is handling.
     mask : str
         Either a path to a `.npy` file containing the boolean mask or
         the name of a supporting array found in the checkpoint.
     """
 
-    def __init__(self, context: Context, mask: str) -> None:
-        super().__init__(context)
+    def __init__(self, context: Context, metadata: Metadata, *, mask: str) -> None:
+        super().__init__(context, metadata)
 
         self._maskname = mask
 
         if Path(mask).is_file():
             mask = np.load(mask)
         else:
-            mask = context.checkpoint.load_supporting_array(mask)
+            mask = metadata.load_supporting_array(mask)
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(
@@ -115,13 +118,15 @@ class ExtractSlice(ExtractBase):
     ----------
     context : Context
         The context in which the processor is running.
+    metadata : Metadata
+        Metadata corresponding to the dataset this processor is handling.
     slice_args : int
         Arguments to create a slice object. This can be a single integer or
         a tuple of integers representing the start, stop, and step of the slice.
     """
 
-    def __init__(self, context: Context, *slice_args: int) -> None:
-        super().__init__(context)
+    def __init__(self, context: Context, metadata: Metadata, *slice_args: int) -> None:
+        super().__init__(context, metadata)
         self.indexer = slice(*slice_args)
 
     def __repr__(self) -> str:

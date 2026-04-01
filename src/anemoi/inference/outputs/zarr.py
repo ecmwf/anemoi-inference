@@ -19,9 +19,11 @@ from typing import Literal
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -74,12 +76,15 @@ def create_zarr_array(
 
 @output_registry.register("zarr")  # type: ignore
 @main_argument("store")
+@format_dataset_name("store")
 class ZarrOutput(Output):
     """Zarr output class."""
 
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
+        *,
         store: "StoreLike",
         variables: list[str] | None = None,
         output_frequency: int | None = None,
@@ -114,7 +119,11 @@ class ZarrOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            metadata,
+            variables=variables,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         self.zarr_store: StoreLike = store

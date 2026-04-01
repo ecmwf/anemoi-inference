@@ -18,6 +18,8 @@ import logging
 import earthkit.data as ekd
 import numpy as np
 
+from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -35,15 +37,8 @@ class DummyInput(EkdInput):
 
     trace_name = "dummy"
 
-    def __init__(self, context, **kwargs) -> None:
-        """Initialize the DummyInput.
-
-        Parameters
-        ----------
-        context : Context
-            The context for the input.
-        """
-        super().__init__(context, **kwargs)
+    def __init__(self, context: Context, metadata: Metadata, **kwargs) -> None:
+        super().__init__(context, metadata, **kwargs)
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
@@ -62,7 +57,7 @@ class DummyInput(EkdInput):
         """
         assert date is not None, "date must be provided for dummy input"
 
-        dates = [date + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.metadata.lagged]
         return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -104,7 +99,7 @@ class DummyInput(EkdInput):
 
         LOG.info("Generating fields for %s", variables)
 
-        typed_variables = self.checkpoint.typed_variables
+        typed_variables = self.metadata.typed_variables
 
         result = []
         for variable in variables:
@@ -116,9 +111,9 @@ class DummyInput(EkdInput):
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
                 handle = dict(
-                    values=np.ones(self.checkpoint.number_of_grid_points, dtype=np.float32) * x,
-                    latitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
-                    longitudes=np.zeros(self.checkpoint.number_of_grid_points, dtype=np.float32),
+                    values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
+                    latitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                    longitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
                     date=date.strftime("%Y%m%d"),
                     time=date.strftime("%H%M"),
                     name=variable,

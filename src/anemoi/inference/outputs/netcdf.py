@@ -15,10 +15,12 @@ from pathlib import Path
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import ensure_path
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -32,6 +34,7 @@ LOCK = threading.RLock()
 
 @output_registry.register("netcdf")
 @main_argument("path")
+@format_dataset_name("path")
 @ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""
@@ -39,6 +42,8 @@ class NetCDFOutput(Output):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
+        *,
         path: Path,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
@@ -70,6 +75,7 @@ class NetCDFOutput(Output):
 
         super().__init__(
             context,
+            metadata,
             variables=variables,
             post_processors=post_processors,
             output_frequency=output_frequency,

@@ -16,7 +16,9 @@ from anemoi.utils.grib import units
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import ensure_dir
+from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
@@ -46,6 +48,7 @@ def fix(lons: FloatArray) -> FloatArray:
 
 @output_registry.register("plot")
 @main_argument("dir")
+@format_dataset_name("dir")
 @ensure_dir("dir")
 class PlotOutput(Output):
     """Use `earthkit-plots` to plot the outputs."""
@@ -53,8 +56,9 @@ class PlotOutput(Output):
     def __init__(
         self,
         context: Context,
-        dir: Path,
+        metadata: Metadata,
         *,
+        dir: Path,
         variables: list[str] | None = None,
         mode: str = "subplots",
         domain: str | list[str] | None = None,
@@ -72,6 +76,8 @@ class PlotOutput(Output):
         ----------
         context : Context
             The context.
+        metadata : Metadata
+            Metadata corresponding to the dataset this output is handling.
         dir : Path
             The directory to save the plots.
             If the directory does not exist, it will be created.
@@ -105,6 +111,7 @@ class PlotOutput(Output):
 
         super().__init__(
             context,
+            metadata,
             variables=variables,
             post_processors=post_processors,
             output_frequency=output_frequency,
