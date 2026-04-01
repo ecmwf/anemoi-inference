@@ -115,7 +115,7 @@ def checkpoint_to_requests(
 
     metadata = multi_metadata[dataset_name]
 
-    variables = metadata.select_variables(include=include, exclude=exclude)
+    variables = metadata.select_variables(include=include, exclude=exclude, has_mars_requests=True)
 
     if not variables:
         return []
