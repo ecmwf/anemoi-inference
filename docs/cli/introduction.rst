@@ -23,6 +23,7 @@ Commands for running model inference:
 - :ref:`Run Command <run-command>` - Run inference with a trained model
 - :ref:`Couple Command <couple-command>` - Run coupled inference tasks
 - :ref:`Retrieve Command <retrieve-command>` - Generate data retrieval requests
+- :ref:`Input Comparison Command <input-comparison-command>` - Compare input states from multiple sources for consistency
 
 Checkpoint Management Commands
 ------------------------------

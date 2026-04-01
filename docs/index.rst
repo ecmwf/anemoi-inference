@@ -142,6 +142,7 @@ Get more information in the :ref:`installing <installing>` section.
    cli/patch
    cli/sanitise
    cli/requests
+   cli/input-comparison
 
 .. toctree::
    :maxdepth: 1
