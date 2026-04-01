@@ -20,6 +20,7 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.state import reduce_state
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -82,6 +83,7 @@ class ZarrOutput(Output):
         context: Context,
         store: "StoreLike",
         variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         missing_value: float | None = np.nan,
@@ -101,6 +103,8 @@ class ZarrOutput(Output):
             be a writable store and empty.
         variables : list, optional
             The list of variables to write, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -114,7 +118,11 @@ class ZarrOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         self.zarr_store: StoreLike = store
