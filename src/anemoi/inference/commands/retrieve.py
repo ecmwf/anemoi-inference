@@ -106,7 +106,7 @@ def checkpoint_to_requests(
     LOG.info("Include categories: %s", include)
     LOG.info("Exclude categories: %s", exclude)
 
-    variables = checkpoint.select_variables(include=include, exclude=exclude)
+    variables = checkpoint.select_variables(include=include, exclude=exclude, has_mars_requests=True)
 
     if not variables:
         return []
