@@ -19,8 +19,8 @@ from typing import Literal
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.state import reduce_state
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -118,11 +118,11 @@ class ZarrOutput(Output):
         """
 
         super().__init__(
-            context, 
-            variables=variables, 
+            context,
+            variables=variables,
             post_processors=post_processors,
-            output_frequency=output_frequency, 
-            write_initial_state=write_initial_state
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         self.zarr_store: StoreLike = store
