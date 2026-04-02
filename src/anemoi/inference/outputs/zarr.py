@@ -214,7 +214,7 @@ class ZarrOutput(Output):
             name="latitude",
             shape=(values,),
             dtype=self.float_size,
-            dimensions=("latitude",),
+            dimensions=("values",),
             chunks=self.chunks,
             fill_value=self.missing_value,
         )
@@ -226,7 +226,7 @@ class ZarrOutput(Output):
             name="longitude",
             shape=(values,),
             dtype=self.float_size,
-            dimensions=("longitude",),
+            dimensions=("values",),
             chunks=self.chunks,
             fill_value=self.missing_value,
         )
