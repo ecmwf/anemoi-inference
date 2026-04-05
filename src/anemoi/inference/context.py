@@ -168,3 +168,13 @@ class Context(ABC):
             List of post-processors.
         """
         return []
+
+    def create_mid_processors(self) -> list[Processor]:
+        """Creates a list of mid-processors.
+
+        Returns
+        -------
+        List[Processor]
+            List of mid-processors.
+        """
+        return []
