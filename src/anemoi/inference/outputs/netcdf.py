@@ -179,7 +179,7 @@ class NetCDFOutput(Output):
         LOG.info(f"Created variable {var_name}")
         return var
 
-    def open(self, state: State, template_path: str | None = None) -> None:
+    def open(self, state: State) -> None:
         """Open the NetCDF file and initialize dimensions and variables.
 
         Parameters
@@ -190,19 +190,6 @@ class NetCDFOutput(Output):
         with LOCK:
             if self.ncfile is not None:
                 return
-
-        # TODO: why is this back? Also the variables are not used
-        if template_path is not None and os.path.exists(template_path):
-            LOG.info(f"📄 Using output template: {template_path}")
-            with Dataset(template_path) as tmpl:
-                values = len(tmpl.dimensions["values"])
-                latitudes = tmpl.variables["latitude"][:]
-                longitudes = tmpl.variables["longitude"][:]
-        else:
-            LOG.info("⚠️ No template provided, falling back to state lat/lon")
-            values = len(state["latitudes"])
-            latitudes = state["latitudes"]
-            longitudes = state["longitudes"]
 
         state = self.post_process(state)
 
