@@ -101,6 +101,8 @@ following resolvers that will be substituted at runtime:
 
 -  ``${s3:}`` S3 URL in HTTP format of the model's data folder.
 
+These also support a multi-dataset configuration, see the `multi-dataset support`_ section below.
+
 Checks
 ======
 
@@ -116,13 +118,46 @@ function.
 By default, the following arguments are passed to the check function:
 
 -  ``file``: The path to the output file after inference.
+   If there is more than one output file defined, the first one is passed by default.
 
 -  ``expected_variables``: A list of variables that should be in the
    output file, according to the metadata.
 
--  ``checkpoint``: The :class:`anemoi.inference.checkpoint.Checkpoint`
-   object as created by the runner during the integration test. This can
+-  ``metadata``: The :class:`anemoi.inference.metadata.Metadata`
+   object associated with the output-dataset the check is running on. This can
    be useful if the check needs to access any metadata.
+
+The default values of ``file`` and ``expected_variables`` can be overridden in the config as needed.
+
+Multi-dataset support
+=================
+
+For checkpoints with more than one dataset, the input and output entries need to be specified separately for each dataset.
+This is done by setting the ``input`` and ``output`` entries in the config as dicts keyed by dataset name. For example:
+
+.. code:: yaml
+
+   input:
+      era5: input-era5.grib
+      cerra: input-cerra.nc
+   output:
+      era5: output-era5.grib
+      cerra: output-cerra.nc
+
+The input and output resolvers can then be used by prepending them with the dataset name, e.g. ``${era5.input:}``, ``${cerra.output:}``.
+Just like before, each entry can optionally be a list and accessed by index, e.g. ``${era5.input:0}``, ``${cerra.output:0}``, etc.
+
+Checks should be configured on each dataset's output file as needed, by using the dataset-specific output resolver. For example:
+
+.. code:: yaml
+
+   checks:
+      - check_grib:
+         file: ${era5.output:}
+         check_nans: true
+      - check_with_xarray:
+         file: ${cerra.output:}
+         check_nans: true
 
 *******************
  Adding new models

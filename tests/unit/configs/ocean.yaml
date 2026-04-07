@@ -1,5 +1,5 @@
 checkpoint: unit/checkpoints/ocean.ckpt
-runner: testing
+runner: default
 device: cpu
 
 allow_nans: true
