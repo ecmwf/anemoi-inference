@@ -1387,6 +1387,9 @@ class MultiDatasetMetadata(Metadata):
 
         # for new checkpoints the dataset config is under "dataset_config"
         if config := dataloader.get("dataset_config"):
+            # config could be just the name of a dataset
+            if isinstance(config, str):
+                config = dict(dataset=config)
             # copy extra dataloader keys that are also open_dataset kwargs
             for k in ("start", "end"):
                 if k in dataloader:
