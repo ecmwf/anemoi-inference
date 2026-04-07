@@ -174,8 +174,12 @@ class Cutout(Input):
 
         combined_state = {}
 
-        for source in self.sources.keys():
-            source_state = self.sources[source].create_input_state(date=date, **kwargs)
+        for i, source in enumerate(self.sources.keys()):
+            latitudes = self.checkpoint.supporting_arrays.get(f"source{i}/latitudes")
+            longitudes = self.checkpoint.supporting_arrays.get(f"source{i}/longitudes")
+            source_state = self.sources[source].create_input_state(
+                date=date, latitudes=latitudes, longitudes=longitudes, **kwargs
+            )
             source_mask = self.masks[source]
 
             # Create the mask front padded with zeros
