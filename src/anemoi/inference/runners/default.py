@@ -385,7 +385,7 @@ class DefaultRunner(Runner):
         return result
 
     def create_mid_processors(self) -> list[Processor]:
-        """Create mid-processors.
+        """Create mid-processors, (processors which are applied after each inference step).
 
         Returns
         -------
