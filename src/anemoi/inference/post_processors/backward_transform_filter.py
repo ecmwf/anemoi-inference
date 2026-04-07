@@ -9,6 +9,7 @@
 
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from anemoi.transform.filters import filter_registry
@@ -39,20 +40,39 @@ class BackwardTransformFilter(Processor):
         The filter instance used for processing the state.
     """
 
-    def __init__(self, context: Context, filter: str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        context: Context,
+        filter: str | dict[str, Any] | None = None,
+        skip_initial_state: bool = False,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the BackwardTransformFilter.
 
         Parameters
         ----------
-        context : Context
-            The context for the filter.
-        filter : str
-            The name of the filter to be used.
-        **kwargs : Any
-            Additional keyword arguments for the filter.
+        context : object
+            The context in which the filter is being used.
+        filter : str | dict[str, Any] | None, optional
+            The name of the filter or a configuration dictionary for the filter, by default None
+        skip_initial_state : bool, optional
+            Whether to skip processing the initial state, by default False
+
+        Examples
+        --------
+        To initialize a BackwardTransformFilter with a filter name:
+        >>> filter_processor = BackwardTransformFilter(context, filter="my_filter")
+        To initialize a BackwardTransformFilter with a filter configuration:
+        >>> filter_config = {"my_filter": {"param1": value1, "param2": value2}}
+        >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
         super().__init__(context)
-        self.filter: Any = filter_registry.create(filter, **kwargs)
+        self.skip_initial_state = skip_initial_state
+
+        if filter is None:
+            filter = kwargs
+            kwargs = {}
+        self.filter = filter_registry.from_config(filter, **kwargs)
 
     def process(self, state: State) -> State:
         """Process the given state using the backward transform filter.
@@ -67,7 +87,38 @@ class BackwardTransformFilter(Processor):
         State
             The processed state.
         """
+        if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
+            return state
 
         fields = self.filter.backward(wrap_state(state))
 
         return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
+
+    def __repr__(self) -> str:
+        """Return a string representation of the BackwardTransformFilter object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"BackwardTransformFilter(filter={self.filter})"
+
+
+@post_processor_registry.register("forward_transform_filter")
+class ForwardTransformFilter(BackwardTransformFilter):
+    """Apply a transform forward as a post-processor."""
+
+    def __init__(self, *args, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.filter = self.filter.reverse()
+
+    def __repr__(self) -> str:
+        """Return a string representation of the ForwardTransformFilter object.
+
+        Returns
+        -------
+        str
+            String representation of the object.
+        """
+        return f"ForwardTransformFilter(filter={self.filter})"
