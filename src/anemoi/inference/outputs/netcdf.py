@@ -53,7 +53,8 @@ class NetCDFOutput(Output):
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         projection_string: str | None = None,
-        reference_date: datetime.datetime | str = None,
+        reference_date: datetime.datetime | str | None = None,
+        variable_metadata: dict = {},
         field_shape: tuple[int, ...] = (),
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -119,19 +120,17 @@ class NetCDFOutput(Output):
         assert ref_date is not None, (
             "Either `date` or `ouput.netcdf.reference_date` needs to be specified"
         )
+
         if isinstance(ref_date, str):
             from earthkit.data.utils.dates import to_datetime
 
             ref_date = to_datetime(ref_date)
+
         self.reference_date = ref_date.replace(tzinfo=None)
 
-        # TODO: is something like this available somewhere inside state?
-        # Otherwise we probably need to have it as input in the config?
         self.variable_metadata = {
-            "2t": VarMetadata(
-                name="air_temperature_2m",
-                attrs={"units": "K", "standard_name": "air_temperature"},
-            )
+            key: VarMetadata(val["name"], val["attrs"])
+            for (key, val) in variable_metadata.values()
         }
 
         # timestep number
@@ -216,6 +215,7 @@ class NetCDFOutput(Output):
             # TODO: make sure this is right?
             var[:] = (state["date"] - self.reference_date).total_seconds()
 
+        # Check if we are producing a downscaling output
         if self.hres_dataset is not None:
             lats = np.reshape(self.hres_dataset.lats, self.field_shape)
             lons = np.reshape(self.hres_dataset.lons, self.field_shape)
@@ -224,8 +224,6 @@ class NetCDFOutput(Output):
             lons = state["longitudes"]
             self.field_shape = (len(lats),)
 
-        # Check if we are producing a downscaling output
-        # if self.hres_dataset is not None:
         if len(self.field_shape) == 2:
             (y, x) = self.field_shape
             with LOCK:
