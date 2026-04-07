@@ -20,6 +20,7 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.state import reduce_state
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -82,6 +83,7 @@ class ZarrOutput(Output):
         context: Context,
         store: "StoreLike",
         variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         missing_value: float | None = np.nan,
@@ -101,6 +103,8 @@ class ZarrOutput(Output):
             be a writable store and empty.
         variables : list, optional
             The list of variables to write, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -114,7 +118,11 @@ class ZarrOutput(Output):
         """
 
         super().__init__(
-            context, variables=variables, output_frequency=output_frequency, write_initial_state=write_initial_state
+            context,
+            variables=variables,
+            post_processors=post_processors,
+            output_frequency=output_frequency,
+            write_initial_state=write_initial_state,
         )
 
         self.zarr_store: StoreLike = store
@@ -139,21 +147,34 @@ class ZarrOutput(Output):
         import zarr
 
         if isinstance(self.zarr_store, (str, Path)):
-            zarr_store = Path(self.zarr_store)
-            zarr_store.parent.mkdir(parents=True, exist_ok=True)
+            store_str = str(self.zarr_store)
 
-            if zarr_store.exists():
-                LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
-                shutil.rmtree(self.zarr_store)
+            if "://" in store_str:
+                # Remote store (e.g. S3, GCS) — delegate to fsspec
+                if zarr.__version__ >= "3":
+                    from zarr.storage import FsspecStore
 
-            if zarr.__version__ >= "3":
-                from zarr.storage import LocalStore
+                    self.zarr_store = FsspecStore.from_url(store_str)
+                else:
+                    from zarr.storage import FSStore
 
-                self.zarr_store = LocalStore(self.zarr_store)
+                    self.zarr_store = FSStore(store_str)
             else:
-                from zarr.storage import DirectoryStore
+                zarr_store = Path(self.zarr_store)
+                zarr_store.parent.mkdir(parents=True, exist_ok=True)
 
-                self.zarr_store = DirectoryStore(self.zarr_store)
+                if zarr_store.exists():
+                    LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
+                    shutil.rmtree(self.zarr_store)
+
+                if zarr.__version__ >= "3":
+                    from zarr.storage import LocalStore
+
+                    self.zarr_store = LocalStore(self.zarr_store)
+                else:
+                    from zarr.storage import DirectoryStore
+
+                    self.zarr_store = DirectoryStore(self.zarr_store)
 
         if zarr.__version__ >= "3":
             self.zarr_group = self.zarr_store
@@ -206,7 +227,7 @@ class ZarrOutput(Output):
             name="latitude",
             shape=(values,),
             dtype=self.float_size,
-            dimensions=("latitude",),
+            dimensions=("values",),
             chunks=self.chunks,
             fill_value=self.missing_value,
         )
@@ -218,7 +239,7 @@ class ZarrOutput(Output):
             name="longitude",
             shape=(values,),
             dtype=self.float_size,
-            dimensions=("longitude",),
+            dimensions=("values",),
             chunks=self.chunks,
             fill_value=self.missing_value,
         )

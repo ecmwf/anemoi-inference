@@ -134,7 +134,6 @@ def validate_environment(
     for module in train_environment["module_versions"].keys():
         inference_module_name = module  # Due to package name differences between retrieval methods this may change
 
-        train_module_version_str = version_parser(train_environment["module_versions"][module])
         if not all_packages and "anemoi" not in module:
             continue
         elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
@@ -153,7 +152,7 @@ def validate_environment(
                 except (ModuleNotFoundError, ImportError):
                     pass
                 invalid_messages["missing"].append(
-                    f"Missing module in inference environment: {module}=={train_module_version_str}"
+                    f"Missing module in inference environment: {module}=={train_environment['module_versions'][module]}"
                 )
                 continue
 
@@ -162,7 +161,7 @@ def validate_environment(
 
         if train_environment_version < inference_environment_version:
             invalid_messages["mismatch"].append(
-                f"Version of module {module} was lower in training than in inference: {train_environment_version!s} <= {inference_environment_version!s}"
+                f"Version of module {module} was lower in training than in inference: {train_environment_version!s} < {inference_environment_version!s}"
             )
         elif train_environment_version > inference_environment_version:
             invalid_messages["critical mismatch"].append(
@@ -202,7 +201,7 @@ def validate_environment(
                 f"Inference environment contains uncommited changes missing in training: {git_record}"
             )
 
-    if len(invalid_messages) > 0:
+    if any(invalid_messages.values()):
         text = "Environment validation failed. The following issues were found:\n" + "\n".join(
             [f"  {key}:\n    " + "\n    ".join(value) for key, value in invalid_messages.items() if len(value) > 0]
         )
