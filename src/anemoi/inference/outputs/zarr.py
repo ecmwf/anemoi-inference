@@ -21,6 +21,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
+from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
 from ..decorators import format_dataset_name
@@ -87,6 +88,7 @@ class ZarrOutput(Output):
         *,
         store: "StoreLike",
         variables: list[str] | None = None,
+        post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         missing_value: float | None = np.nan,
@@ -106,6 +108,8 @@ class ZarrOutput(Output):
             be a writable store and empty.
         variables : list, optional
             The list of variables to write, by default None.
+        post_processors : Optional[List[ProcessorConfig]], default None
+            Post-processors to apply to the input
         output_frequency : int, optional
             The frequency of output, by default None.
         write_initial_state : bool, optional
@@ -122,6 +126,7 @@ class ZarrOutput(Output):
             context,
             metadata,
             variables=variables,
+            post_processors=post_processors,
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
@@ -215,7 +220,7 @@ class ZarrOutput(Output):
             name="latitude",
             shape=(values,),
             dtype=self.float_size,
-            dimensions=("latitude",),
+            dimensions=("values",),
             chunks=self.chunks,
             fill_value=self.missing_value,
         )
@@ -227,7 +232,7 @@ class ZarrOutput(Output):
             name="longitude",
             shape=(values,),
             dtype=self.float_size,
-            dimensions=("longitude",),
+            dimensions=("values",),
             chunks=self.chunks,
             fill_value=self.missing_value,
         )

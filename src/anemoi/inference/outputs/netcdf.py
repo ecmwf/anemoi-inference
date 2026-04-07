@@ -61,6 +61,8 @@ class NetCDFOutput(Output):
         path : Path
             The path to save the NetCDF file to.
             If the parent directory does not exist, it will be created.
+        variables : list, optional
+            The list of variables to write, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional

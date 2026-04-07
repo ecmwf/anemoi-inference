@@ -6,7 +6,6 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [ "setuptools>=60", "setuptools-scm>=8" ]
@@ -94,14 +93,14 @@ packages.find.where = [ "src" ]
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
 
-[tool.pytest]
-ini_options.markers = [
-  "skip_on_hpc: mark a test that should not be run on HPC",
-]
-ini_options.testpaths = "tests"
-
 [tool.mypy]
 exclude = [ "docs/" ]
 strict = false
 ignore_missing_imports = true
 allow_redefinition = true
+
+[tool.pytest]
+ini_options.markers = [
+  "skip_on_hpc: mark a test that should not be run on HPC",
+]
+ini_options.testpaths = "tests"
