@@ -415,4 +415,6 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 if self.verbosity > 0:
                     self._print_output_tensor("Output tensor", output)
 
+                result, _ = self._mid_process(result)
+
                 yield result

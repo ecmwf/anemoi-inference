@@ -769,6 +769,7 @@ class Runner(Context):
                 outputs = torch.squeeze(y_pred, dim=(0, 2))
 
                 new_states = []
+                mid_processed = False
 
                 for i in range(self.checkpoint.multi_step_output):
                     new_state["date"] = dates[i]
@@ -794,12 +795,9 @@ class Runner(Context):
                             self.checkpoint.timestep,
                         )
 
-                    if self.mid_processors:
-                        # Apply mid processors before preparing the next input tensor,
-                        # so that they can operate on the state
-                        for p in self.mid_processors:
-                            new_state = p.process(new_state)
+                    new_state, mid_processed = self._mid_process(new_state)
 
+                    if mid_processed:
                         for name, field in new_state["fields"].items():
                             if name not in self.checkpoint.variable_to_output_tensor_index:
                                 continue
@@ -816,8 +814,8 @@ class Runner(Context):
 
                 self.output_state_hook(new_states[-1])
 
-                # If using mid processors, set y_pred
-                if self.mid_processors:
+                # If mid-processing was applied, rebuild y_pred from modified outputs
+                if mid_processed:
                     y_pred = outputs.unsqueeze(0).unsqueeze(2)
 
                 # Update tensor for next iteration
@@ -1263,6 +1261,30 @@ class Runner(Context):
     def complete_forecast_hook(self) -> None:
         """Hook called at the end of the forecast."""
         pass
+
+    def _mid_process(self, new_state: State) -> tuple[State, bool]:
+        """Hook for mid-processing between forecast steps.
+
+        Applies mid-processors to the state after model prediction.
+        Override in child runners to customize or disable mid-processing.
+
+        Parameters
+        ----------
+        new_state : State
+            The state to process.
+
+        Returns
+        -------
+        tuple[State, bool]
+            The (possibly modified) state and whether processing was applied.
+        """
+        if not self.mid_processors:
+            return new_state, False
+
+        for p in self.mid_processors:
+            new_state = p.process(new_state)
+
+        return new_state, True
 
     def has_split_input(self) -> bool:
         # To be overridden by a subclass if the we use different inputs
