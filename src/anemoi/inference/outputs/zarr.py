@@ -147,21 +147,34 @@ class ZarrOutput(Output):
         import zarr
 
         if isinstance(self.zarr_store, (str, Path)):
-            zarr_store = Path(self.zarr_store)
-            zarr_store.parent.mkdir(parents=True, exist_ok=True)
+            store_str = str(self.zarr_store)
 
-            if zarr_store.exists():
-                LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
-                shutil.rmtree(self.zarr_store)
+            if "://" in store_str:
+                # Remote store (e.g. S3, GCS) — delegate to fsspec
+                if zarr.__version__ >= "3":
+                    from zarr.storage import FsspecStore
 
-            if zarr.__version__ >= "3":
-                from zarr.storage import LocalStore
+                    self.zarr_store = FsspecStore.from_url(store_str)
+                else:
+                    from zarr.storage import FSStore
 
-                self.zarr_store = LocalStore(self.zarr_store)
+                    self.zarr_store = FSStore(store_str)
             else:
-                from zarr.storage import DirectoryStore
+                zarr_store = Path(self.zarr_store)
+                zarr_store.parent.mkdir(parents=True, exist_ok=True)
 
-                self.zarr_store = DirectoryStore(self.zarr_store)
+                if zarr_store.exists():
+                    LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
+                    shutil.rmtree(self.zarr_store)
+
+                if zarr.__version__ >= "3":
+                    from zarr.storage import LocalStore
+
+                    self.zarr_store = LocalStore(self.zarr_store)
+                else:
+                    from zarr.storage import DirectoryStore
+
+                    self.zarr_store = DirectoryStore(self.zarr_store)
 
         if zarr.__version__ >= "3":
             self.zarr_group = self.zarr_store
