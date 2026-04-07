@@ -18,7 +18,7 @@ mid_processor_registry: Registry[Processor] = Registry(__name__)
 
 
 def create_mid_processor(context: Context, config: ProcessorConfig) -> Processor:
-    """Create a mid-processor.
+    """Create a mid-processor, applied after each inference step.
 
     Parameters
     ----------
