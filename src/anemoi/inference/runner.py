@@ -1278,7 +1278,7 @@ class Runner(Context):
         tuple[State, bool]
             The (possibly modified) state and whether processing was applied.
         """
-        if not self.mid_processors:
+        if not getattr(self, "mid_processors", None):
             return new_state, False
 
         for p in self.mid_processors:
