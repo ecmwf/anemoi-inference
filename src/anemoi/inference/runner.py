@@ -298,7 +298,6 @@ class Runner(Context):
         computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
             include=["computed+constant"]
         )
-
         if len(computed_variables_mask) > 0:
             result.extend(
                 self.create_constant_computed_forcings(
@@ -718,6 +717,7 @@ class Runner(Context):
             new_state["step"] = to_timedelta(0)
 
             start = input_state["date"]
+            self._forecast_start = start
 
             # The variable `check` is used to keep track of which variables have been updated
             # In the input tensor. `reset` is used to reset `check` to False except
@@ -795,6 +795,10 @@ class Runner(Context):
                             self.checkpoint.timestep,
                         )
 
+                    # Save the raw model output state for writing (before mid-processing)
+                    output_state = new_state.copy()
+                    output_state["fields"] = dict(new_state["fields"])
+
                     new_state, mid_processed = self._mid_process(new_state)
 
                     if mid_processed:
@@ -804,8 +808,9 @@ class Runner(Context):
                             output[:, self.checkpoint.variable_to_output_tensor_index[name]] = field
                         outputs[i] = output
 
-                    if new_state["step"] <= lead_time:
-                        yield new_state
+                    if output_state["step"] <= lead_time:
+                        yield output_state
+
                     new_states.append(new_state)
 
                 # No need to prepare next input tensor if we are at the last autoregressive step
@@ -954,7 +959,12 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
+            source_dates = dates
+            if self.hacks and self.development_hacks.get("freeze_computed_forcings", False):
+                if source.kinds.get("computed", False):
+                    source_dates = [self._forecast_start]
+
+            forcings = source.load_forcings_array(source_dates, state)  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
