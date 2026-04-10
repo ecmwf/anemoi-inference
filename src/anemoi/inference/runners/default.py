@@ -31,6 +31,7 @@ from ..forcings import ConstantForcings
 from ..forcings import CoupledForcings
 from ..forcings import Forcings
 from ..inputs import create_input
+from ..mid_processors import create_mid_processor
 from ..outputs import create_output
 from ..post_processors import create_post_processor
 from ..pre_processors import create_pre_processor
@@ -381,6 +382,21 @@ class DefaultRunner(Runner):
             result.append(create_post_processor(self, processor))
 
         LOG.info("Post processors: %s", result)
+        return result
+
+    def create_mid_processors(self) -> list[Processor]:
+        """Create mid-processors, (processors which are applied after each inference step).
+
+        Returns
+        -------
+        List[Processor]
+            The created mid-processors.
+        """
+        result = []
+        for processor in self.config.mid_processors:
+            result.append(create_mid_processor(self, processor))
+
+        LOG.info("Mid processors: %s", result)
         return result
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:

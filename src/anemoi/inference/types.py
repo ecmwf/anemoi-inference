@@ -39,4 +39,4 @@ Shape = tuple[int, ...]
 """A tuple of integers representing the shape of an array."""
 
 ProcessorConfig = Union[str, dict[str, Any]]
-"""A str or dict of str representing a pre- or post-processor configuration."""
+"""A str or dict of str representing a pre/mid/post -processor configuration."""

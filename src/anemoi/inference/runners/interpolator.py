@@ -415,4 +415,10 @@ class TimeInterpolatorMultiOutRunner(DefaultRunner):
                 if self.verbosity > 0:
                     self._print_output_tensor("Output tensor", output)
 
-                yield result
+                # Save the raw model output state for writing (before mid-processing)
+                output_state = result.copy()
+                output_state["fields"] = dict(result["fields"])
+
+                result, _ = self._mid_process(result)
+
+                yield output_state

@@ -168,6 +168,8 @@ class Runner(Context):
 
         self.pre_processors = self.create_pre_processors()
         self.post_processors = self.create_post_processors()
+        self.mid_processors = self.create_mid_processors()
+
         self.preload_checkpoint = preload_checkpoint
         self.preload_buffer_size = preload_buffer_size
 
@@ -296,7 +298,6 @@ class Runner(Context):
         computed_variables, computed_variables_mask = self.checkpoint.select_variables_and_masks(
             include=["computed+constant"]
         )
-
         if len(computed_variables_mask) > 0:
             result.extend(
                 self.create_constant_computed_forcings(
@@ -716,6 +717,7 @@ class Runner(Context):
             new_state["step"] = to_timedelta(0)
 
             start = input_state["date"]
+            self._forecast_start = start
 
             # The variable `check` is used to keep track of which variables have been updated
             # In the input tensor. `reset` is used to reset `check` to False except
@@ -763,9 +765,11 @@ class Runner(Context):
                 if ndim == 4:
                     # for backwards compatibility
                     y_pred = y_pred.unsqueeze(1)
+
                 outputs = torch.squeeze(y_pred, dim=(0, 2))
 
                 new_states = []
+                mid_processed = False
 
                 for i in range(self.checkpoint.multi_step_output):
                     new_state["date"] = dates[i]
@@ -790,8 +794,23 @@ class Runner(Context):
                             self.checkpoint.output_tensor_index_to_variable,
                             self.checkpoint.timestep,
                         )
-                    if new_state["step"] <= lead_time:
-                        yield new_state
+
+                    # Save the raw model output state for writing (before mid-processing)
+                    output_state = new_state.copy()
+                    output_state["fields"] = dict(new_state["fields"])
+
+                    new_state, mid_processed = self._mid_process(new_state)
+
+                    if mid_processed:
+                        for name, field in new_state["fields"].items():
+                            if name not in self.checkpoint.variable_to_output_tensor_index:
+                                continue
+                            output[:, self.checkpoint.variable_to_output_tensor_index[name]] = field
+                        outputs[i] = output
+
+                    if output_state["step"] <= lead_time:
+                        yield output_state
+
                     new_states.append(new_state)
 
                 # No need to prepare next input tensor if we are at the last autoregressive step
@@ -800,7 +819,11 @@ class Runner(Context):
 
                 self.output_state_hook(new_states[-1])
 
-                # Update  tensor for next iteration
+                # If mid-processing was applied, rebuild y_pred from modified outputs
+                if mid_processed:
+                    y_pred = outputs.unsqueeze(0).unsqueeze(2)
+
+                # Update tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     check[:] = reset
                     if self.trace:
@@ -936,7 +959,12 @@ class Runner(Context):
         # batch is always 1
 
         for source in self.dynamic_forcings_inputs:
-            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
+            source_dates = dates
+            if self.hacks and self.development_hacks.get("freeze_computed_forcings", False):
+                if source.kinds.get("computed", False):
+                    source_dates = [self._forecast_start]
+
+            forcings = source.load_forcings_array(source_dates, state)  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
@@ -1243,6 +1271,30 @@ class Runner(Context):
     def complete_forecast_hook(self) -> None:
         """Hook called at the end of the forecast."""
         pass
+
+    def _mid_process(self, new_state: State) -> tuple[State, bool]:
+        """Hook for mid-processing between forecast steps.
+
+        Applies mid-processors to the state after model prediction.
+        Override in child runners to customize or disable mid-processing.
+
+        Parameters
+        ----------
+        new_state : State
+            The state to process.
+
+        Returns
+        -------
+        tuple[State, bool]
+            The (possibly modified) state and whether processing was applied.
+        """
+        if not getattr(self, "mid_processors", None):
+            return new_state, False
+
+        for p in self.mid_processors:
+            new_state = p.process(new_state)
+
+        return new_state, True
 
     def has_split_input(self) -> bool:
         # To be overridden by a subclass if the we use different inputs
