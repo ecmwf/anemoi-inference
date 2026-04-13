@@ -557,7 +557,7 @@ class Runner(Context):
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     for dataset, handler in self.tensor_handlers.items():
-                        check[dataset][:] = reset[dataset].copy()
+                        check[dataset][:] = reset[dataset]
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
