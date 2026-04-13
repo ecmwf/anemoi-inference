@@ -162,7 +162,10 @@ class TemporalDownscalerRunner(DefaultRunner):
             window_start_date = self.config.date + window_idx * self.temporal_downscaling_window
 
             LOG.info(
-                "Processing temporal downscaling window %d/%d starting at %s", window_idx + 1, num_windows, window_start_date
+                "Processing temporal downscaling window %d/%d starting at %s",
+                window_idx + 1,
+                num_windows,
+                window_start_date,
             )
 
             input_state = self.create_input_state(date=window_start_date)
@@ -175,7 +178,9 @@ class TemporalDownscalerRunner(DefaultRunner):
             output.open(initial_state)
 
             # Run temporal downscaling for this window
-            for state_idx, state in enumerate(self.run(input_state=input_state, lead_time=self.temporal_downscaling_window)):
+            for state_idx, state in enumerate(
+                self.run(input_state=input_state, lead_time=self.temporal_downscaling_window)
+            ):
 
                 # In the first window, we want to write the initial state (t=0)
                 # In other windows, we want to skip the initial state (t=0)
@@ -292,7 +297,10 @@ class TemporalDownscalerRunner(DefaultRunner):
         steps = len(target_steps)
 
         LOG.info(
-            "Time stepping: [%s, %s], Temporal downscaling %s steps", start_date, start_date + self.temporal_downscaling_window, steps
+            "Time stepping: [%s, %s], Temporal downscaling %s steps",
+            start_date,
+            start_date + self.temporal_downscaling_window,
+            steps,
         )
 
         for s in range(steps):
