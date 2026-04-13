@@ -11,7 +11,7 @@ def test_load_config() -> None:
     RunConfiguration.load(files_for_tests("unit/configs/simple.yaml"))
 
 
-def test_interpolation(monkeypatch: MonkeyPatch) -> None:
+def test_temporal_downscaling(monkeypatch: MonkeyPatch) -> None:
     """Test loading the configuration with some OmegaConf interpolations"""
     monkeypatch.setenv("TEST", "foo")
     config = RunConfiguration.load(files_for_tests("unit/configs/interpolation.yaml"))

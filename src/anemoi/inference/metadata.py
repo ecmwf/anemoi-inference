@@ -1255,12 +1255,12 @@ class MultiDatasetMetadata(Metadata):
 
     @cached_property
     def input_explicit_times(self) -> Any:
-        """Explicit times of the input steps used for the interpolator."""
+        """Explicit times of the input steps used for the temporal downscaler."""
         return self._inference.timesteps.input_relative_date_indices
 
     @cached_property
     def target_explicit_times(self) -> Any:
-        """Explicit times of the target steps used for the interpolator."""
+        """Explicit times of the target steps used for the temporal downscaler."""
         return self._inference.timesteps.output_relative_date_indices
 
     @cached_property
