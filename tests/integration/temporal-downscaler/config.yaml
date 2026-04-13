@@ -14,7 +14,7 @@
         path: ${output:}
         negative_step_mode: skip
     date: 2026-02-01T00
-    runner: time_multi_interpolator
+    runner: temporal_downscaler
 
 
 - name: grib-in-netcdf-out
@@ -32,5 +32,5 @@
       netcdf:
         path: ${output:}
     date: 2026-02-01T00
-    runner: time_multi_interpolator
+    runner: temporal_downscaler
     write_initial_state: false
