@@ -52,7 +52,6 @@ class PatchMixin(MetadataProtocol):
     def patch_metadata(
         self,
         supporting_arrays: dict[str, Any],
-        root: str,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Patch the metadata with supporting arrays and root.
 
@@ -60,8 +59,6 @@ class PatchMixin(MetadataProtocol):
         ----------
         supporting_arrays : dict
             The supporting arrays to patch.
-        root : str
-            The root path for the supporting arrays.
 
         Returns
         -------
