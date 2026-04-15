@@ -176,6 +176,13 @@ def test_simple_packing_encoding(tmp_path):
     np.testing.assert_allclose(decoded, values, atol=0.002)
 
 
+def test_simple_packing_requires_bits(tmp_path):
+    """encoding='simple_packing' without bits raises ValueError immediately."""
+    context = _make_context(["2t"])
+    with pytest.raises(ValueError, match="bits must be set"):
+        TensogramOutput(context, str(tmp_path / "out.tgm"), encoding="simple_packing")
+
+
 def test_grib_metadata_forwarded(tmp_path):
     """level/levtype from grib_keys appear in per-object anemoi metadata."""
     path = tmp_path / "levs.tgm"

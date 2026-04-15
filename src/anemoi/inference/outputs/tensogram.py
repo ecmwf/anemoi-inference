@@ -108,6 +108,8 @@ class TensogramOutput(Output):
             output_frequency=output_frequency,
             write_initial_state=write_initial_state,
         )
+        if encoding == "simple_packing" and bits is None:
+            raise ValueError("bits must be set when encoding='simple_packing'")
         self.path = path
         self.encoding = encoding
         self.bits = bits
