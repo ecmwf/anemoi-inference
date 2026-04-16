@@ -69,7 +69,7 @@ MODEL_CONFIGS = (
 
 class Setup(NamedTuple):
     config: OmegaConf
-    output: list[Path]
+    output: dict[str, list[Path]]
 
 
 @pytest.fixture(params=MODEL_CONFIGS)
@@ -80,21 +80,34 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     inference_config = config.inference_config
     s3_path = f"anemoi-integration-tests/inference/{model}"
 
+    # multi-dataset support for the integration test is handled by setting the input and output config entries as dicts keyed by dataset name
+    # we also keep the old config format where input and output were lists or single values, for backward compatibility and simplicity for single-dataset tests
+
     # set output path(s)
-    if not isinstance(output, (list, ListConfig)):
-        output = [output]
-    output = [tmp_path / file_name for file_name in output]
+    if not isinstance(output, (dict, DictConfig)):
+        output = {"data": output}
+
+    for dataset, value in output.items():
+        if not isinstance(value, (list, ListConfig)):
+            value = [value]
+        output[dataset] = [tmp_path / file_name for file_name in value]
 
     # download input file(s)
     if not input:
         input = []
-    if not isinstance(input, (list, ListConfig)):
-        input = [input]
-    input_data = [get_test_data(f"{s3_path}/{file}") for file in input]
+
+    if not isinstance(input, (dict, DictConfig)):
+        input = {"data": input}
+
+    input_data = {}
+    for dataset, value in input.items():
+        if not isinstance(value, (list, ListConfig)):
+            value = [value]
+        input_data[dataset] = [get_test_data(f"{s3_path}/{file}") for file in value]
 
     # change working directory to the input temporary directory, so the config could use relative paths to input files
-    if input_data:
-        workdir = Path(input_data[0]).parent
+    if first_input := next(iter(input_data.values())):
+        workdir = Path(first_input[0]).parent
     else:
         workdir = tmp_path
     LOG.info(f"Changing working directory to {workdir}")
@@ -143,16 +156,23 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
             for dataset_name, name, array in results:
                 supporting_arrays.setdefault(dataset_name, {})[name] = array
 
-    LOG.info(f"Supporting arrays: {supporting_arrays.keys()}")
-
     save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays)
 
     # substitute inference config with real paths
-    OmegaConf.register_new_resolver("input", lambda i=0: str(input_data[i]), replace=True)
-    OmegaConf.register_new_resolver("output", lambda i=0: str(output[i]), replace=True)
+    OmegaConf.register_new_resolver("input", lambda i=0: str(input_data["data"][i]), replace=True)
+    OmegaConf.register_new_resolver("output", lambda i=0: str(output["data"][i]), replace=True)
     OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
     OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
     OmegaConf.register_new_resolver("sys.prefix", lambda: sys.prefix, replace=True)
+
+    # multi-dataset resolvers
+    def _make_resolver(data, dataset_name):
+        return lambda i=0: str(data[dataset_name][i])
+
+    for dataset in input_data.keys():
+        OmegaConf.register_new_resolver(f"{dataset}.input", _make_resolver(input_data, dataset), replace=True)
+    for dataset in output.keys():
+        OmegaConf.register_new_resolver(f"{dataset}.output", _make_resolver(output, dataset), replace=True)
 
     # save the inference config to disk
     inference_config = OmegaConf.to_yaml(inference_config, resolve=True)
@@ -177,32 +197,48 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
     runner = create_runner(config)
     runner.execute()
 
-    for file in test_setup.output:
-        assert file.exists(), f"Output file was not created: {file}."
+    for files in test_setup.output.values():
+        for file in files:
+            assert file.exists(), f"Output file was not created: {file}."
 
-    checkpoint_output_variables = _typed_variables_output(runner._checkpoint)
-    LOG.info(f"Checkpoint output variables: {checkpoint_output_variables}")
+    multi_metadata = runner.checkpoint.multi_dataset_metadata
+    checkpoint_output_variables = {
+        dataset: _typed_variables_output(metadata) for dataset, metadata in multi_metadata.items()
+    }
+
+    for dataset, variables in checkpoint_output_variables.items():
+        LOG.info(f"[{dataset}] Checkpoint output variables: {variables}")
 
     # run the checks defined in the test configuration
     # checks is a list of dicts, each with a single key-value pair
     for checks in test_setup.config.checks:
         check, kwargs = next(iter(checks.items()))
+
+        # output file we are checking
+        file = kwargs.pop("file") if "file" in kwargs else test_setup.output["data"][0]
+
+        # reverse-search which dataset it belongs to
+        dataset_name = "data"
+        for dataset, files in test_setup.output.items():
+            if str(file) in [str(f) for f in files]:
+                dataset_name = dataset
+                break
+
         # config can optionally pass expected output variables, by default it uses the checkpoint variables
         expected_variables_config = kwargs.pop("expected_variables", [])
         expected_variables = [
             VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
-        ] or checkpoint_output_variables
+        ] or checkpoint_output_variables[dataset_name]
 
-        file = kwargs.pop("file", test_setup.output[0])
         testing_registry.create(
             check,
             file=file,
             expected_variables=expected_variables,
-            checkpoint=runner._checkpoint,
+            metadata=multi_metadata[dataset_name],
             **kwargs,
         )
 
 
-def _typed_variables_output(checkpoint):
-    output_variables = checkpoint.output_tensor_index_to_variable.values()
-    return [checkpoint.typed_variables[name] for name in output_variables]
+def _typed_variables_output(metadata):
+    output_variables = metadata.output_tensor_index_to_variable.values()
+    return [metadata.typed_variables[name] for name in output_variables]
