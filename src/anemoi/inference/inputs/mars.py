@@ -14,6 +14,7 @@ from typing import Any
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
@@ -99,14 +100,14 @@ def area_is_valid(area: list[float] | None) -> bool:
         return False
 
 
-def postproc(grid: str | list[float] | None, area: list[float] | None) -> dict[str, str | list[float]]:
+def postproc(grid: str | list[float] | None, area: list[float] | str | None) -> dict[str, str | list[float]]:
     """Post-process the grid and area.
 
     Parameters
     ----------
     grid : Optional[Union[str, List[float]]]
         The grid to be post-processed.
-    area : Optional[List[float]]
+    area : Optional[Union[List[float], str]]
         The area to be post-processed.
 
     Returns
@@ -203,6 +204,7 @@ class MarsInput(GribInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         variables: list[str] | None = None,
         patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
@@ -218,6 +220,8 @@ class MarsInput(GribInput):
         ----------
         context : Any
             The context in which the input is used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
         namer : Optional[Any]
@@ -231,6 +235,7 @@ class MarsInput(GribInput):
         """
         super().__init__(
             context,
+            metadata,
             variables=variables,
             pre_processors=pre_processors,
             purpose=purpose,
@@ -269,7 +274,7 @@ class MarsInput(GribInput):
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [retrieve_date + h for h in self.checkpoint.lagged],
+                [retrieve_date + h for h in self.metadata.lagged],
             ),
             variables=self.variables,
             date=date,
@@ -292,7 +297,7 @@ class MarsInput(GribInput):
         Any
             The retrieved data.
         """
-        requests = self.checkpoint.mars_requests(
+        requests = self.metadata.mars_requests(
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
@@ -304,8 +309,8 @@ class MarsInput(GribInput):
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
-        kwargs.setdefault("grid", self.checkpoint.grid)
-        kwargs.setdefault("area", self.checkpoint.area)
+        kwargs.setdefault("grid", self.metadata.grid)
+        kwargs.setdefault("area", self.metadata.area)
 
         return retrieve(
             requests,

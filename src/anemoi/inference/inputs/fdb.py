@@ -14,6 +14,9 @@ from typing import Any
 import earthkit.data as ekd
 import numpy as np
 
+from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
+
 from ..types import Date
 from ..types import State
 from . import input_registry
@@ -30,7 +33,8 @@ class FDBInput(GribInput):
 
     def __init__(
         self,
-        context,
+        context: Context,
+        metadata: Metadata,
         *,
         fdb_config: dict | None = None,
         fdb_userconfig: dict | None = None,
@@ -40,8 +44,10 @@ class FDBInput(GribInput):
 
         Parameters
         ----------
-        context : dict
-            The context runner.pytest
+        context : Context
+            The context for the input.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         fdb_config : dict, optional
             The FDB config to use.
         fdb_userconfig : dict, optional
@@ -49,7 +55,7 @@ class FDBInput(GribInput):
         kwargs : dict, optional
             Additional keyword arguments for the request to FDB.
         """
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
         self.kwargs = kwargs
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         # NOTE: this is a temporary workaround for #191 thus not documented
@@ -57,7 +63,7 @@ class FDBInput(GribInput):
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         date = np.datetime64(date).astype(datetime.datetime)
-        dates = [date + h for h in self.checkpoint.lagged]
+        dates = [date + h for h in self.metadata.lagged]
         ds = self.retrieve(variables=self.variables, dates=dates)
         res = self._create_input_state(ds, variables=None, date=date, **kwargs)
         return res
@@ -67,7 +73,7 @@ class FDBInput(GribInput):
         return self._load_forcings_state(ds, dates=dates, current_state=current_state)
 
     def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
-        requests = self.checkpoint.mars_requests(
+        requests = self.metadata.mars_requests(
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,

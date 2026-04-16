@@ -20,11 +20,13 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 
 from ..decorators import ensure_path
+from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
@@ -120,6 +122,7 @@ class GribIoOutput(BaseGribOutput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         out: Path | IOBase,
         post_processors: list[ProcessorConfig] | None = None,
@@ -142,6 +145,8 @@ class GribIoOutput(BaseGribOutput):
         ----------
         context : Context
             The context.
+        metadata : Metadata
+            Metadata corresponding to the dataset this output is handling.
         out : Union[Path, IOBase]
             Path or file-like object to write the grib data to.
             If a file-like object, it should be opened in binary write mode.
@@ -180,7 +185,8 @@ class GribIoOutput(BaseGribOutput):
         """
         super().__init__(
             context,
-            post_processors,
+            metadata,
+            post_processors=post_processors,
             encoding=encoding,
             templates=templates,
             grib1_keys=grib1_keys,
@@ -327,6 +333,7 @@ class GribIoOutput(BaseGribOutput):
 
 @output_registry.register("grib")
 @main_argument("path")
+@format_dataset_name("path")
 @ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
@@ -334,6 +341,7 @@ class GribFileOutput(GribIoOutput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         path: Path,
         post_processors: list[ProcessorConfig] | None = None,
@@ -349,6 +357,7 @@ class GribFileOutput(GribIoOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
+        **kwargs,
     ) -> None:
         """Initialise the GribFileOutput.
 
@@ -356,6 +365,8 @@ class GribFileOutput(GribIoOutput):
         ----------
         context : Context
             The context.
+        metadata : Metadata
+            Metadata corresponding to the dataset this output is handling.
         path : Path
             Path to the grib file to write the data to.
             If the parent directory does not exist, it will be created.
@@ -393,6 +404,7 @@ class GribFileOutput(GribIoOutput):
         """
         super().__init__(
             context,
+            metadata,
             out=path,
             post_processors=post_processors,
             encoding=encoding,
@@ -407,4 +419,5 @@ class GribFileOutput(GribIoOutput):
             variables=variables,
             split_output=split_output,
             negative_step_mode=negative_step_mode,
+            **kwargs,
         )
