@@ -68,6 +68,9 @@ def test_format_dataset_name():
     cls = _Cls("context", metadata, path="output-{dataset}.grib")
     assert cls.path == "output-era5.grib"
 
+    cls = _Cls("context", metadata, path="output-{dataset}-{levtype}.grib")
+    assert cls.path == "output-era5-{levtype}.grib"
+
     cls = _Cls("context", metadata, path="output-{dataset_name}.grib")
     assert cls.path == "output-era5.grib"
 
