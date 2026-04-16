@@ -23,19 +23,32 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+# Written into base[i]["name"] for lat/lon objects.  These names are
+# deliberately NOT in tensogram-xarray's KNOWN_COORD_NAMES so that lat/lon
+# objects share the same flat dimension as all field objects rather than each
+# spawning its own dimension.  The canonical names are preserved in the "anemoi"
+# namespace for downstream consumers.
+_COORD_NAME_MAP = {
+    "latitude": "grid_latitude",
+    "longitude": "grid_longitude",
+}
+
 
 @output_registry.register("tensogram")
 @main_argument("path")
 class TensogramOutput(Output):
     """Tensogram output class.
 
-    Writes each forecast step as one tensogram message appended to a .tgm file.
-    Each message contains lat/lon coordinate objects followed by one object per
-    field (or one stacked object per pressure-level parameter when
-    ``stack_pressure_levels=True``).
+    Writes each forecast step as one tensogram message appended to a .tgm file
+    or streamed over a TCP socket.  Each message contains lat/lon coordinate
+    objects followed by one object per field (or one stacked object per
+    pressure-level parameter when ``stack_pressure_levels=True``).
 
     Per-object metadata is stored under the ``"anemoi"`` namespace in CBOR.
     Message-level metadata (date, step) is stored in ``_extra_["anemoi"]``.
+    Dimension-name hints are stored in ``_extra_["dim_names"]`` so the
+    tensogram-xarray backend can resolve meaningful names without the reader
+    having to pass ``dim_names`` explicitly.
 
     Supports local paths and remote URLs (s3://, gs://, az://, ...) via fsspec.
     Each step is encoded and written immediately -- no full-forecast buffering.
@@ -43,10 +56,10 @@ class TensogramOutput(Output):
     Pressure-level stacking
     -----------------------
     When ``stack_pressure_levels=True``, all fields sharing the same ``param``
-    and ``levtype="pl"`` are stacked into a single 2-D object of shape
-    ``(n_levels, n_grid)``, sorted by level in ascending order.  The
-    per-object metadata stores ``"levels": [500, 850, ...]`` (plural) instead
-    of the scalar ``"level"`` key used for unstacked fields.
+    are stacked into a single 2-D object of shape ``(n_grid, n_levels)``,
+    sorted by level in ascending order.  The per-object metadata stores
+    ``"levels": [500, 850, ...]`` (plural) instead of the scalar ``"level"``
+    key used for unstacked fields.
 
     Without stacking (default), every field is a separate 1-D object and the
     scalar ``"level"`` key is always stored when it is present in the
@@ -75,7 +88,11 @@ class TensogramOutput(Output):
         context : Context
             The forecast context.
         path : str
-            Destination path. Local file path or remote URL (s3://, gs://, az://, ...).
+            Destination path:
+
+            * Local file path -- e.g. ``"forecast.tgm"`` or ``"/data/out.tgm"``
+            * Remote object-store URL -- e.g. ``"s3://bucket/out.tgm"``,
+              ``"gs://..."``, ``"az://..."``
         encoding : str, optional
             Encoding stage: "none" (default) or "simple_packing".
         bits : int | None, optional
@@ -87,10 +104,11 @@ class TensogramOutput(Output):
             Coordinate arrays (lat/lon) are always float64.
             When encoding="simple_packing", arrays are promoted to float64 automatically.
         storage_options : dict | None, optional
-            Options forwarded to fsspec for remote destinations (credentials, etc.).
+            Options forwarded to fsspec for remote destinations (credentials,
+            region, endpoint overrides, etc.).  Ignored for local files.
         stack_pressure_levels : bool, optional
-            When True, fields with levtype="pl" sharing the same param are stacked
-            into a single (n_levels, n_grid) object sorted by level ascending.
+            When True, pressure-level fields sharing the same param are stacked
+            into a single (n_grid, n_levels) object sorted by level ascending.
             Metadata stores ``"levels": [...]`` (plural).  Default False.
         variables : list[str] | None, optional
             Restrict output to this subset of variables. None means all variables.
@@ -133,8 +151,12 @@ class TensogramOutput(Output):
     def open(self, state: State) -> None:
         """Open the output stream.
 
-        For local paths, creates parent directories and opens a binary file.
-        For remote URLs, opens a writable fsspec stream.
+        For local paths, creates parent directories and opens a binary file
+        via fsspec.  For remote URLs (``s3://``, ``gs://``, ``az://``, ...),
+        opens a writable fsspec stream.
+
+        ``@ensure_path`` is intentionally not used so that ``self.path`` stays
+        a ``str``; the fsspec path detection relies on string prefix checks.
         """
         import fsspec
 
@@ -154,6 +176,9 @@ class TensogramOutput(Output):
 
     def write_step(self, state: State) -> None:
         """Encode one forecast step as a tensogram message and write it immediately."""
+        if self._handle is None:
+            raise RuntimeError(f"{self!r}: write_step called before open() or after close()")
+
         global_meta = {
             "version": 2,
             "base": [],
@@ -167,13 +192,6 @@ class TensogramOutput(Output):
         descriptors_and_data = []
 
         # Coordinate objects -- always float64, no lossy encoding.
-        # "name" uses "grid_latitude"/"grid_longitude" (not in KNOWN_COORD_NAMES)
-        # so all objects share one flat dimension rather than each coord getting
-        # its own dimension.  The "anemoi" namespace preserves the canonical name.
-        _COORD_NAME_MAP = {
-            "latitude": "grid_latitude",
-            "longitude": "grid_longitude",
-        }
         for coord_name, coord_arr in [
             ("latitude", state["latitudes"]),
             ("longitude", state["longitudes"]),
@@ -198,15 +216,18 @@ class TensogramOutput(Output):
         else:
             self._add_fields_flat(state, global_meta, descriptors_and_data)
 
-        # Embed dimension-name hints in _extra_["dim_names"] (generic, no namespace)
-        # so the tensogram-xarray backend can replace dim_N fallback names.
-        # Grid axis → "values"; level axis (2-D stacked objects) → "level".
+        # Embed dimension-name hints in _extra_["dim_names"] (generic, no
+        # namespace) so the tensogram-xarray backend can replace dim_N fallback
+        # names.  Grid axis → "values".  When stacking, also map each unique
+        # level-axis size → "level".
         n_grid = len(state["latitudes"])
         dim_names_hint: dict[str, str] = {str(n_grid): "values"}
-        for _, arr in descriptors_and_data:
-            if arr.ndim == 2:
-                dim_names_hint[str(arr.shape[1])] = "level"
-                break
+        if self.stack_pressure_levels:
+            for _, arr in descriptors_and_data:
+                if arr.ndim == 2:
+                    level_size = str(arr.shape[1])
+                    if level_size not in dim_names_hint:
+                        dim_names_hint[level_size] = "level"
         global_meta["_extra_"]["dim_names"] = dim_names_hint
 
         import tensogram
@@ -217,6 +238,10 @@ class TensogramOutput(Output):
     def close(self) -> None:
         """Flush and close the output stream."""
         if self._handle is not None:
+            try:
+                self._handle.flush()
+            except Exception:
+                pass
             self._handle.close()
             self._handle = None
 
@@ -235,6 +260,8 @@ class TensogramOutput(Output):
             if self.skip_variable(name):
                 continue
             variable = self.typed_variables.get(name)
+            if variable is None:
+                LOG.warning("TensogramOutput: no typed variable for %r -- metadata will be incomplete", name)
             grib = getattr(variable, "grib_keys", {}) if variable else {}
             base_entry, descriptor, arr = self._build_field_object(name, grib, values)
             global_meta["base"].append(base_entry)
@@ -255,6 +282,8 @@ class TensogramOutput(Output):
             if self.skip_variable(name):
                 continue
             variable = self.typed_variables.get(name)
+            if variable is None:
+                LOG.warning("TensogramOutput: no typed variable for %r -- metadata will be incomplete", name)
             grib = getattr(variable, "grib_keys", {}) if variable else {}
             if variable is not None and variable.is_pressure_level:
                 param = variable.param
@@ -263,7 +292,7 @@ class TensogramOutput(Output):
             else:
                 non_pl.append((name, grib, values))
 
-        if self.stack_pressure_levels and not pl_groups:
+        if not pl_groups:
             LOG.warning("TensogramOutput: stack_pressure_levels=True but no pressure-level fields found")
 
         # Non-PL fields: one object each.
@@ -337,20 +366,24 @@ class TensogramOutput(Output):
         param : str
             The shared GRIB parameter name for this group.
         group : list
-            Sorted list of ``(level, variable_name, grib_keys, values)`` tuples.
+            Sorted list of ``(level, variable_name, grib_keys, values)`` tuples,
+            already sorted by level ascending.
 
         Returns
         -------
         tuple[dict, dict, np.ndarray]
             ``(base_entry, descriptor, array)`` ready to append to the message.
+            The array has shape ``(n_grid, n_levels)`` -- grid axis first so that
+            all objects in the message share the same leading dimension in the
+            tensogram-xarray backend.
         """
         levels = [item[0] for item in group]
         first_grib = group[0][2]
 
         arrays = [self._prepare_array(item[3]) for item in group]
-        # Shape (n_grid, n_levels): grid axis first so all objects share dim_0
-        # in the tensogram-xarray backend (which assigns dim names by axis position).
-        stacked = np.column_stack(arrays)  # (n_grid, n_levels)
+        # (n_grid, n_levels): grid axis first so all objects share dim "values"
+        # in the tensogram-xarray backend.
+        stacked = np.column_stack(arrays)
 
         anemoi_meta = {
             "variable": param,

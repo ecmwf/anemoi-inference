@@ -77,6 +77,50 @@ def _make_state(step_hours=1, field_names=FIELD_NAMES, n_grid=N_GRID, seed=0):
 # ---------------------------------------------------------------------------
 
 
+def test_write_step_before_open_raises():
+    """write_step raises RuntimeError when called before open()."""
+    context = _make_context()
+    output = TensogramOutput(context, "/tmp/never.tgm")
+    with pytest.raises(RuntimeError, match="open"):
+        output.write_step(_make_state())
+
+
+def test_write_initial_state_reduces_multistep(tmp_path):
+    """write_initial_state reduces a multi-step field array to its last step."""
+    from unittest.mock import patch
+
+    path = tmp_path / "init.tgm"
+    # write_initial_state=True so the base class actually calls write_step.
+    context = _make_context(["2t"])
+    output = TensogramOutput(context, str(path), write_initial_state=True)
+
+    # Build a state where "2t" has shape (3, N_GRID) -- 3 input steps.
+    rng = np.random.default_rng(1)
+    multi_step_values = rng.random((3, N_GRID)).astype(np.float32)
+    state = {
+        "date": datetime(2024, 1, 1),
+        "step": timedelta(0),
+        "latitudes": np.linspace(-90, 90, N_GRID, dtype=np.float64),
+        "longitudes": np.linspace(0, 360, N_GRID, dtype=np.float64),
+        "fields": {"2t": multi_step_values},
+    }
+
+    written_states = []
+
+    def capture_write_step(s):
+        written_states.append(s)
+
+    output.open(state)
+    with patch.object(output, "write_step", side_effect=capture_write_step):
+        output.write_initial_state(state)
+    output.close()
+
+    assert written_states, "write_step was not called by write_initial_state"
+    written_field = written_states[0]["fields"]["2t"]
+    # reduce_state selects the last step along axis 0.
+    np.testing.assert_array_equal(written_field, multi_step_values[-1])
+
+
 def test_write_and_read_local(tmp_path):
     """Write 3 steps to a local .tgm file and verify round-trip."""
     path = tmp_path / "forecast.tgm"
@@ -383,7 +427,7 @@ def test_stack_object_count(tmp_path):
 
 
 def test_stack_shape(tmp_path):
-    """Stacked objects have shape (n_levels, n_grid)."""
+    """Stacked objects have shape (n_grid, n_levels) -- grid axis first."""
     path = tmp_path / "stacked.tgm"
     context = _make_pl_context()
     output = TensogramOutput(context, str(path), stack_pressure_levels=True)
