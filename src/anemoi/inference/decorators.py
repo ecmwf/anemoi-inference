@@ -189,7 +189,14 @@ class format_dataset_name:
                 ), f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
 
                 name = metadata.dataset_name
-                kwargs[self.arg] = kwargs[self.arg].format(dataset=name, dataset_name=name)
+
+                class _PartialFormatDict(dict):
+                    def __missing__(self, key):
+                        return "{" + key + "}"
+
+                kwargs[self.arg] = kwargs[self.arg].format_map(
+                    _PartialFormatDict(dataset=name, dataset_name=name)
+                )
                 super().__init__(context, metadata, *args, **kwargs)
 
         return type(cls.__name__, (WrappedClass,), {})
