@@ -135,9 +135,9 @@ For example to use regrid as a post-processor:
 
    post_processors:
      - forward_transform_filter:
-         use_forward: true
-         filter: regrid
-         # ...
+         regrid:
+           use_forward: true
+           # other options for the filter
 
 Extractors and Masking
 ======================
