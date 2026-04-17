@@ -196,7 +196,8 @@ class TensogramOutput(Output):
         step_hours = int(step_seconds / 3600) if step_seconds % 3600 == 0 else step_seconds / 3600
         base_dt = state["date"] - state["step"]
         mars_extra = {
-            "basedatetime": base_dt.isoformat(),
+            "date": base_dt.strftime("%Y%m%d"),
+            "time": base_dt.strftime("%H%M"),
             "step": step_hours,
         }
 
@@ -381,7 +382,7 @@ class TensogramOutput(Output):
             Sorted list of ``(level, variable_name, grib_keys, values)`` tuples,
             already sorted by level ascending.
         mars_extra : dict
-            Per-message MARS keys (``basedatetime``, ``step``) merged into
+            Per-message MARS keys (``date``, ``time``, ``step``) merged into
             ``base[i]["mars"]`` for every object.
 
         Returns

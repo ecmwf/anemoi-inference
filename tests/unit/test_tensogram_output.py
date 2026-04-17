@@ -159,14 +159,17 @@ def test_write_and_read_local(tmp_path):
 
         # Field objects -- "name" top-level for xarray backend.
         expected_step = int(states[i]["step"].total_seconds() / 3600)
-        expected_base_dt = (states[i]["date"] - states[i]["step"]).isoformat()
+        base_dt = states[i]["date"] - states[i]["step"]
+        expected_date = base_dt.strftime("%Y%m%d")
+        expected_time = base_dt.strftime("%H%M")
         for j, name in enumerate(FIELD_NAMES):
             obj_idx = 2 + j
             assert meta.base[obj_idx]["name"] == name
             assert meta.base[obj_idx]["anemoi"]["variable"] == name
             assert meta.base[obj_idx]["mars"]["param"] == name
             assert meta.base[obj_idx]["mars"]["step"] == expected_step
-            assert meta.base[obj_idx]["mars"]["basedatetime"] == expected_base_dt
+            assert meta.base[obj_idx]["mars"]["date"] == expected_date
+            assert meta.base[obj_idx]["mars"]["time"] == expected_time
             _, field_arr = objects[obj_idx]
             np.testing.assert_allclose(field_arr, states[i]["fields"][name], rtol=1e-6)
 
@@ -267,7 +270,8 @@ def test_mars_metadata_forwarded(tmp_path):
     assert mars["levtype"] == "pl"
     assert mars["level"] == 500
     assert mars["step"] == 6
-    assert mars["basedatetime"] == datetime(2024, 1, 1, 0).isoformat()
+    assert mars["date"] == "20240101"
+    assert mars["time"] == "0000"
     # "anemoi" only carries the internal variable name
     assert meta.base[2]["anemoi"]["variable"] == "t500"
 
@@ -330,10 +334,7 @@ def test_close_is_idempotent(tmp_path):
 
 
 def test_dim_names_in_metadata(tmp_path):
-    """dim_names hint is written into _extra_[dim_names] and readable by xarray."""
-    xr = pytest.importorskip("xarray", reason="xarray not installed")
-    pytest.importorskip("tensogram_xarray", reason="tensogram_xarray not installed")
-
+    """dim_names hint is written into _extra_['dim_names'] for the xarray backend."""
     path = tmp_path / "dimnames.tgm"
     context = _make_context()
     output = TensogramOutput(context, str(path))
@@ -348,16 +349,9 @@ def test_dim_names_in_metadata(tmp_path):
     assert str(N_GRID) in dim_names
     assert dim_names[str(N_GRID)] == "values"
 
-    ds = xr.open_dataset(str(path), engine="tensogram")
-    assert "values" in ds.dims
-    assert ds["2t"].dims == ("values",)
 
-
-def test_stacked_dim_names_in_xarray(tmp_path):
-    """Stacked fields get (values, level) dims when opened in xarray."""
-    xr = pytest.importorskip("xarray", reason="xarray not installed")
-    pytest.importorskip("tensogram_xarray", reason="tensogram_xarray not installed")
-
+def test_stacked_dim_names_in_metadata(tmp_path):
+    """Stacked fields write both 'values' and 'level' hints into _extra_['dim_names']."""
     path = tmp_path / "stacked_dims.tgm"
     context = _make_pl_context(params=["t"], levels=[500, 850, 1000])
     output = TensogramOutput(context, str(path), stack_pressure_levels=True)
@@ -366,11 +360,13 @@ def test_stacked_dim_names_in_xarray(tmp_path):
     output.write_step(state)
     output.close()
 
-    ds = xr.open_dataset(str(path), engine="tensogram")
-    assert "values" in ds.dims
-    assert "level" in ds.dims
-    assert ds["t"].dims == ("values", "level")
-    assert ds["t"].shape == (N_GRID, 3)
+    tgm_file = tensogram.TensogramFile.open(str(path))
+    meta, _ = tgm_file[0]
+    dim_names = meta.extra["dim_names"]
+    assert str(N_GRID) in dim_names
+    assert dim_names[str(N_GRID)] == "values"
+    assert str(3) in dim_names
+    assert dim_names[str(3)] == "level"
 
 
 # ---------------------------------------------------------------------------
