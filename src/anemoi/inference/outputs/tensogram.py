@@ -191,6 +191,15 @@ class TensogramOutput(Output):
         }
         descriptors_and_data = []
 
+        # Per-field MARS keys that are the same for every object in this message.
+        step_seconds = state["step"].total_seconds()
+        step_hours = int(step_seconds / 3600) if step_seconds % 3600 == 0 else step_seconds / 3600
+        base_dt = state["date"] - state["step"]
+        mars_extra = {
+            "basedatetime": base_dt.isoformat(),
+            "step": step_hours,
+        }
+
         # Coordinate objects -- always float64, no lossy encoding.
         for coord_name, coord_arr in [
             ("latitude", state["latitudes"]),
@@ -212,9 +221,9 @@ class TensogramOutput(Output):
 
         # Field objects.
         if self.stack_pressure_levels:
-            self._add_fields_stacked(state, global_meta, descriptors_and_data)
+            self._add_fields_stacked(state, global_meta, descriptors_and_data, mars_extra)
         else:
-            self._add_fields_flat(state, global_meta, descriptors_and_data)
+            self._add_fields_flat(state, global_meta, descriptors_and_data, mars_extra)
 
         # Embed dimension-name hints in _extra_["dim_names"] (generic, no
         # namespace) so the tensogram-xarray backend can replace dim_N fallback
@@ -254,6 +263,7 @@ class TensogramOutput(Output):
         state: State,
         global_meta: dict,
         descriptors_and_data: list,
+        mars_extra: dict,
     ) -> None:
         """Add one object per field (default, no stacking)."""
         for name, values in state["fields"].items():
@@ -263,7 +273,7 @@ class TensogramOutput(Output):
             if variable is None:
                 LOG.warning("TensogramOutput: no typed variable for %r -- metadata will be incomplete", name)
             grib = getattr(variable, "grib_keys", {}) if variable else {}
-            base_entry, descriptor, arr = self._build_field_object(name, grib, values)
+            base_entry, descriptor, arr = self._build_field_object(name, grib, values, mars_extra)
             global_meta["base"].append(base_entry)
             descriptors_and_data.append((descriptor, arr))
 
@@ -272,6 +282,7 @@ class TensogramOutput(Output):
         state: State,
         global_meta: dict,
         descriptors_and_data: list,
+        mars_extra: dict,
     ) -> None:
         """Group pressure-level fields by param and stack; write others flat."""
         # pl_groups[param] = [(level, name, grib, values), ...]
@@ -297,14 +308,14 @@ class TensogramOutput(Output):
 
         # Non-PL fields: one object each.
         for name, grib, values in non_pl:
-            base_entry, descriptor, arr = self._build_field_object(name, grib, values)
+            base_entry, descriptor, arr = self._build_field_object(name, grib, values, mars_extra)
             global_meta["base"].append(base_entry)
             descriptors_and_data.append((descriptor, arr))
 
         # PL groups: one stacked object per param, sorted by level ascending.
         for param in sorted(pl_groups):
             group = sorted(pl_groups[param], key=lambda x: x[0])
-            base_entry, descriptor, arr = self._build_stacked_object(param, group)
+            base_entry, descriptor, arr = self._build_stacked_object(param, group, mars_extra)
             global_meta["base"].append(base_entry)
             descriptors_and_data.append((descriptor, arr))
 
@@ -341,16 +352,16 @@ class TensogramOutput(Output):
         name: str,
         grib: dict,
         values: np.ndarray,
+        mars_extra: dict,
     ) -> tuple[dict, dict, np.ndarray]:
         """Build (base_entry, descriptor, array) for a single flat field object."""
-        anemoi_meta = {"variable": name, "param": grib.get("param", name)}
-        for k in ("levtype", "level"):
-            if k in grib:
-                anemoi_meta[k] = grib[k]
-
         # "name" at the top level lets the tensogram-xarray backend resolve
         # the variable name without knowing the "anemoi" namespace.
-        base_entry = {"name": name, "anemoi": anemoi_meta}
+        # MARS keys go under "mars" following tensogram-grib convention.
+        mars = {**mars_extra, **grib}
+        base_entry: dict = {"name": name, "anemoi": {"variable": name}}
+        if mars:
+            base_entry["mars"] = mars
         arr = self._prepare_array(values)
         return base_entry, self._build_descriptor(arr), arr
 
@@ -358,6 +369,7 @@ class TensogramOutput(Output):
         self,
         param: str,
         group: list[tuple[int, str, dict, np.ndarray]],
+        mars_extra: dict,
     ) -> tuple[dict, dict, np.ndarray]:
         """Build (base_entry, descriptor, array) for a stacked pressure-level object.
 
@@ -368,6 +380,9 @@ class TensogramOutput(Output):
         group : list
             Sorted list of ``(level, variable_name, grib_keys, values)`` tuples,
             already sorted by level ascending.
+        mars_extra : dict
+            Per-message MARS keys (``basedatetime``, ``step``) merged into
+            ``base[i]["mars"]`` for every object.
 
         Returns
         -------
@@ -385,13 +400,13 @@ class TensogramOutput(Output):
         # in the tensogram-xarray backend.
         stacked = np.column_stack(arrays)
 
-        anemoi_meta = {
-            "variable": param,
-            "param": param,
-            "levtype": first_grib.get("levtype", "pl"),
-            "levels": levels,
-        }
+        # MARS keys follow tensogram-grib convention; omit scalar "level"
+        # since this object spans multiple levels.
+        mars = {**mars_extra, **{k: v for k, v in first_grib.items() if k != "level"}}
+
         # "name" at the top level lets the tensogram-xarray backend resolve
         # the variable name without knowing the "anemoi" namespace.
-        base_entry = {"name": param, "anemoi": anemoi_meta}
+        base_entry: dict = {"name": param, "anemoi": {"variable": param, "levels": levels}}
+        if mars:
+            base_entry["mars"] = mars
         return base_entry, self._build_descriptor(stacked), stacked

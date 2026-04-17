@@ -158,11 +158,15 @@ def test_write_and_read_local(tmp_path):
         np.testing.assert_allclose(lon_arr, states[i]["longitudes"])
 
         # Field objects -- "name" top-level for xarray backend.
+        expected_step = int(states[i]["step"].total_seconds() / 3600)
+        expected_base_dt = (states[i]["date"] - states[i]["step"]).isoformat()
         for j, name in enumerate(FIELD_NAMES):
             obj_idx = 2 + j
             assert meta.base[obj_idx]["name"] == name
             assert meta.base[obj_idx]["anemoi"]["variable"] == name
-            assert meta.base[obj_idx]["anemoi"]["param"] == name
+            assert meta.base[obj_idx]["mars"]["param"] == name
+            assert meta.base[obj_idx]["mars"]["step"] == expected_step
+            assert meta.base[obj_idx]["mars"]["basedatetime"] == expected_base_dt
             _, field_arr = objects[obj_idx]
             np.testing.assert_allclose(field_arr, states[i]["fields"][name], rtol=1e-6)
 
@@ -227,8 +231,10 @@ def test_simple_packing_requires_bits(tmp_path):
         TensogramOutput(context, str(tmp_path / "out.tgm"), encoding="simple_packing")
 
 
-def test_grib_metadata_forwarded(tmp_path):
-    """level/levtype from grib_keys appear in per-object anemoi metadata."""
+def test_mars_metadata_forwarded(tmp_path):
+    """grib_keys appear in per-object 'mars' namespace, following tensogram-grib convention.
+    step and basedatetime are also written into mars.
+    """
     path = tmp_path / "levs.tgm"
     typed_variables = {
         "t500": _make_variable(param="t", levtype="pl", level=500),
@@ -244,8 +250,8 @@ def test_grib_metadata_forwarded(tmp_path):
 
     output = TensogramOutput(context, str(path))
     state = {
-        "date": datetime(2024, 1, 1, 1),
-        "step": timedelta(hours=1),
+        "date": datetime(2024, 1, 1, 6),
+        "step": timedelta(hours=6),
         "latitudes": np.zeros(10, dtype=np.float64),
         "longitudes": np.zeros(10, dtype=np.float64),
         "fields": {"t500": np.ones(10, dtype=np.float32)},
@@ -256,10 +262,14 @@ def test_grib_metadata_forwarded(tmp_path):
 
     tgm_file = tensogram.TensogramFile.open(str(path))
     meta, _ = tgm_file[0]
-    anemoi = meta.base[2]["anemoi"]
-    assert anemoi["param"] == "t"
-    assert anemoi["levtype"] == "pl"
-    assert anemoi["level"] == 500
+    mars = meta.base[2]["mars"]
+    assert mars["param"] == "t"
+    assert mars["levtype"] == "pl"
+    assert mars["level"] == 500
+    assert mars["step"] == 6
+    assert mars["basedatetime"] == datetime(2024, 1, 1, 0).isoformat()
+    # "anemoi" only carries the internal variable name
+    assert meta.base[2]["anemoi"]["variable"] == "t500"
 
 
 def test_remote_write_via_memory_fs():
@@ -462,13 +472,15 @@ def test_stack_levels_metadata(tmp_path):
     for obj_idx in range(2, 2 + len(PL_PARAMS)):
         entry = meta.base[obj_idx]
         anemoi = entry["anemoi"]
+        mars = entry["mars"]
         assert "levels" in anemoi, "stacked objects must have 'levels' key"
-        assert "level" not in anemoi, "stacked objects must not have scalar 'level'"
+        assert "level" not in anemoi, "stacked objects must not have scalar 'level' in anemoi"
+        assert "level" not in mars, "stacked objects must not have scalar 'level' in mars"
         assert anemoi["levels"] == sorted(PL_LEVELS)
-        assert anemoi["levtype"] == "pl"
-        # "name" top-level for xarray backend
+        assert mars["levtype"] == "pl"
+        # "name" top-level for xarray backend matches the param in mars
         assert "name" in entry
-        assert entry["name"] == anemoi["param"]
+        assert entry["name"] == mars["param"]
 
 
 def test_stack_values_round_trip(tmp_path):
@@ -548,9 +560,10 @@ def test_no_stack_level_metadata_correct(tmp_path):
     assert len(objects) == 4
 
     for obj_idx in range(2, 4):
+        mars = meta.base[obj_idx]["mars"]
         anemoi = meta.base[obj_idx]["anemoi"]
-        assert "level" in anemoi
-        assert "levtype" in anemoi
-        assert anemoi["levtype"] == "pl"
-        assert anemoi["param"] == "t"
+        assert "level" in mars
+        assert "levtype" in mars
+        assert mars["levtype"] == "pl"
+        assert mars["param"] == "t"
         assert "levels" not in anemoi  # no plural key in flat mode
