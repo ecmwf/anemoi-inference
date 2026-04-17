@@ -13,6 +13,7 @@ from datetime import timedelta
 from typing import Any
 
 from anemoi.transform.filters import filter_registry
+from earthkit.data import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
@@ -95,9 +96,12 @@ class BackwardTransformFilter(Processor):
         if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
-        fields = self.filter.backward(wrap_state(state))
+        fields = self._exec_filter(wrap_state(state))
 
         return unwrap_state(fields, state, namer=self.metadata.default_namer())
+
+    def _exec_filter(self, state: FieldList) -> FieldList:
+        return self.filter.backward(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the BackwardTransformFilter object.
@@ -135,45 +139,15 @@ class ForwardTransformFilter(BackwardTransformFilter):
         if not self.use_forward:
             self.filter = self.filter.reverse()
 
-    def _process_forward(self, state: State) -> State:
-        """Process the given state using the forward transform filter.
-
-        Parameters
-        ----------
-        state : State
-            The state to be processed.
-
-        Returns
-        -------
-        State
-            The processed state.
-        """
-        if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
-            return state
-
-        fields = self.filter.forward(wrap_state(state))
-
-        return unwrap_state(fields, state, namer=self.metadata.default_namer())
-
-    def process(self, state: State) -> State:
+    def _exec_filter(self, state: FieldList) -> FieldList:
         """Process the given state using the forward transform filter if use_forward=True,
         otherwise uses the backward transform filter with the filter reversed.
-
-        Parameters
-        ----------
-        state : State
-            The state to be processed.
-
-        Returns
-        -------
-        State
-            The processed state.
         """
 
         if self.use_forward:
-            return self._process_forward(state)
+            return self.filter.forward(state)
 
-        return super().process(state)
+        return self.filter.backward(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the ForwardTransformFilter object.
