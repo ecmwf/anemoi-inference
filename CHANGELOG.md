@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.10.2](https://github.com/ecmwf/anemoi-inference/compare/0.10.1...0.10.2) (2026-04-17)
+
+
+### Features
+
+* Full multi-dataset support ([#463](https://github.com/ecmwf/anemoi-inference/issues/463)) ([adc79b0](https://github.com/ecmwf/anemoi-inference/commit/adc79b0202d50c88a321d18cc87d67892a416315))
+* **post-processors:** Allow using the filter's forward method in forward_transform_filter ([#491](https://github.com/ecmwf/anemoi-inference/issues/491)) ([c039f14](https://github.com/ecmwf/anemoi-inference/commit/c039f145c3942ac79ed45e61f94d63a1e93b3740))
+
 ## [0.10.1](https://github.com/ecmwf/anemoi-inference/compare/0.10.0...0.10.1) (2026-04-13)
 
 
