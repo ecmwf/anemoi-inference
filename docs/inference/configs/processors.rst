@@ -122,6 +122,23 @@ backward_transform_filter
 Applies a backward transform filter from `anemoi-transform
 <https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_.
 
+forward_transform_filter
+=========================
+
+Applies a backward transform on the reversed filter from `anemoi-transform
+<https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_
+or applies the forward transform if `use_forward: true` is given.
+
+For example to use regrid as a post-processor:
+
+.. code:: yaml
+
+   post_processors:
+     - forward_transform_filter:
+         use_forward: true
+         filter: regrid
+         # ...
+
 Extractors and Masking
 ======================
 
