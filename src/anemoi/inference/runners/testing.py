@@ -41,17 +41,11 @@ class NoModelMixing:
 
                 output = {}
                 for name, metadata in multi_metadata.items():
-                    input_shape = input_tensors[name].shape
-                    input_tensor = input_tensors[name]
-                    output_shape = (
-                        input_shape[0],  # batch
-                        metadata.multi_step_output,  # time
-                        1,  # ensemble
-                        input_shape[2],  # gridpoints
-                        len(metadata.output_tensor_index_to_variable),  # variables
+                    output[name] = torch.ones(
+                        *metadata.output_shape,
+                        dtype=input_tensors[name].dtype,
+                        device=input_tensors[name].device,
                     )
-
-                    output[name] = torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
 
                 if legacy:
                     return next(iter(output.values()))
