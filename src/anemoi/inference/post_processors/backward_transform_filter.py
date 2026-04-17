@@ -112,11 +112,68 @@ class BackwardTransformFilter(Processor):
 
 @post_processor_registry.register("forward_transform_filter")
 class ForwardTransformFilter(BackwardTransformFilter):
-    """Apply a transform forward as a post-processor."""
+    """Apply a transform forward or reversed backward as a post-processor."""
 
-    def __init__(self, *args, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, use_forward: bool = False, **kwargs: Any) -> None:
+        """Initialize the ForwardTransformFilter.
+
+        Parameters
+        ----------
+        *args : Any
+            Positional arguments to pass to the parent's __init__.
+        use_forward : bool
+            Whether to use the forward method of the transform filter. If False, will
+            use the backward transform with the .reverse() method applied to the filter.
+            Defaults to False.
+        **kwargs : Any
+            Additional arguments to pass to the parent's __init__.
+        """
         super().__init__(*args, **kwargs)
-        self.filter = self.filter.reverse()
+
+        self.use_forward = use_forward
+
+        if not self.use_forward:
+            self.filter = self.filter.reverse()
+
+    def _process_forward(self, state: State) -> State:
+        """Process the given state using the forward transform filter.
+
+        Parameters
+        ----------
+        state : State
+            The state to be processed.
+
+        Returns
+        -------
+        State
+            The processed state.
+        """
+        if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
+            return state
+
+        fields = self.filter.forward(wrap_state(state))
+
+        return unwrap_state(fields, state, namer=self.metadata.default_namer())
+
+    def process(self, state: State) -> State:
+        """Process the given state using the forward transform filter if use_forward=True,
+        otherwise uses the backward transform filter with the filter reversed.
+
+        Parameters
+        ----------
+        state : State
+            The state to be processed.
+
+        Returns
+        -------
+        State
+            The processed state.
+        """
+
+        if self.use_forward:
+            return self._process_forward(state)
+
+        return super().process(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the ForwardTransformFilter object.
@@ -126,4 +183,4 @@ class ForwardTransformFilter(BackwardTransformFilter):
         str
             String representation of the object.
         """
-        return f"ForwardTransformFilter(filter={self.filter})"
+        return f"ForwardTransformFilter(filter={self.filter}, use_forward={self.use_forward})"
