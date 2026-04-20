@@ -184,7 +184,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.temporal_downscaling_window
 
-            LOG.info(f"Processing temporal downscaling window {window_idx + 1}/{num_windows} starting at {window_start_date}")
+            LOG.info(
+                f"Processing temporal downscaling window {window_idx + 1}/{num_windows} starting at {window_start_date}"
+            )
 
             input_states: dict[str, State] = {}
             for dataset in self.tensor_handlers:
