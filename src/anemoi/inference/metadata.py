@@ -1460,16 +1460,16 @@ class MultiDatasetMetadata(Metadata):
     @cached_property
     def output_shape(self) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
         # newer checkpoint have an extra multi-step output dimension, but older ones don't
-        if hasattr(self._config_training, "multistep_output"):
-            return (
-                1,
-                self.multi_step_output,
-                1,
-                self.number_of_grid_points,
-                len(self.output_tensor_index_to_variable),
-            )
+        if not hasattr(self._config_training, "multistep_output"):
+            return super().output_shape
 
-        return super().output_shape
+        return (
+            1,
+            self.multi_step_output,
+            1,
+            self.number_of_grid_points,
+            len(self.output_tensor_index_to_variable),
+        )
 
     @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
