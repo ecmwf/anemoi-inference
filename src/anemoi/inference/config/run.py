@@ -114,8 +114,8 @@ class RunConfiguration(Configuration):
     development_hacks: dict[str, Any] = {}
     """A dictionary of development hacks to apply to the runner. This is used to test new features or to work around."""
 
-    trace_path: str | None = None
-    """A path to a directory where to store the trace of the runner. This is useful to debug the runner."""
+    trace_path: dict | str | None = None
+    """A path to a file where to store the trace of the runner. This is useful to debug the runner."""
 
     debugging_info: dict[str, Any] = {}
     """A dictionary to store debug information. This is ignored."""

@@ -1,8 +1,11 @@
+from typing import Any
+
 import pytest
 import yaml
 from pytest import MonkeyPatch
 
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.testing import files_for_tests
 
 
@@ -111,3 +114,57 @@ def test_config_patch_metadata_file(tmp_path) -> None:
     )
     assert isinstance(config.patch_metadata, dict)
     assert config.patch_metadata["dataset"]["variables_metadata"]["2t"] == "some_patch"
+
+
+@pytest.mark.parametrize(
+    "config, dataset_name, datasets, expected, strict",
+    [
+        # Single dataset present in config -> return its value
+        ({"era5": {"grib": "out.grib"}}, "era5", ["era5"], {"grib": "out.grib"}, True),
+        # Multi-dataset config -> return matching dataset
+        (
+            {"era5": {"grib": "out-era5.grib"}, "cerra": {"netcdf": "out-cerra.nc"}},
+            "era5",
+            ["era5", "cerra"],
+            {"grib": "out-era5.grib"},
+            True,
+        ),
+        (
+            {"era5": {"grib": "out-era5.grib"}, "cerra": {"netcdf": "out-cerra.nc"}},
+            "cerra",
+            ["era5", "cerra"],
+            {"netcdf": "out-cerra.nc"},
+            True,
+        ),
+        # Config with a single key -> return as-is
+        ({"output": "file.grib"}, "era5", ["era5", "cerra"], {"output": "file.grib"}, True),
+        # Non-dict config -> return as-is
+        ("some_string", "era5", ["era5"], "some_string", True),
+        ([1, 2, 3], "era5", ["era5"], [1, 2, 3], True),
+        # strict=False with multi-key dict where dataset_name is missing -> return as-is
+        ({"a": 1, "b": 2}, "era5", ["era5"], {"a": 1, "b": 2}, False),
+    ],
+)
+def test_multi_datasets_config(
+    config: Any, dataset_name: str, datasets: list[str], expected: Any, strict: bool
+) -> None:
+    """Test the multi_datasets_config function with various inputs and expected outputs."""
+    result = multi_datasets_config(config, dataset_name, datasets, strict=strict)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "config, dataset_name, datasets, strict",
+    [
+        # Multi-key dict where dataset_name is missing
+        ({"a": 1, "b": 2}, "era5", ["era5"], True),
+        # Typo in one of the dataset names
+        ({"era5": {"grib": "out.grib"}, "berra": "x"}, "era5", ["era5", "cerra"], True),
+        # Only one of the datasets present
+        ({"era5": {"grib": "out.grib"}}, "era5", ["era5", "cerra"], True),
+    ],
+)
+def test_multi_datasets_config_errors(config: Any, dataset_name: str, datasets: list[str], strict: bool) -> None:
+    """Test that multi_datasets_config raises AssertionError for invalid inputs."""
+    with pytest.raises(AssertionError):
+        multi_datasets_config(config, dataset_name, datasets, strict=strict)

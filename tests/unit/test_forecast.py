@@ -17,6 +17,7 @@ import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.runner import Runner
+from anemoi.inference.tensors import TensorHandler
 
 # This is a test to test stepping of the forecast method, in particular its robustness to changes in multi_step_ in- and output.
 # The test checks if the forecast method of runner.py can correctly reproduce the "truth" described below.
@@ -40,7 +41,8 @@ from anemoi.inference.runner import Runner
 #  Boundary forcings:  overwrite values at boundary points with prog
 
 
-def basic_predict_step(model, input_tensor, **kwargs):
+def basic_predict_step(model, input_tensors, **kwargs):
+    input_tensor = input_tensors["data"]
     input_force = input_tensor[..., 0]  # (batch, multi_step_input, n_grid,)
     input_prog = input_tensor[..., 1]  # (batch, multi_step_input, n_grid,)
     multi_step_output = model.checkpoint.multi_step_output
@@ -64,7 +66,7 @@ def basic_predict_step(model, input_tensor, **kwargs):
 
     output = torch.stack([output_prog, diag], dim=-1)  # (batch, multi_step_output, n_grid, n_vars_out)
 
-    return output.unsqueeze(2)
+    return dict(data=output.unsqueeze(2))
 
 
 @pytest.fixture
@@ -73,7 +75,7 @@ def forecast_runner_factory():
 
         runner = Runner.__new__(Runner)
 
-        runner._checkpoint = SimpleNamespace(
+        metadata = SimpleNamespace(
             timestep=timedelta(hours=1),
             multi_step_input=multi_step_input,
             multi_step_output=multi_step_output,
@@ -92,24 +94,28 @@ def forecast_runner_factory():
             def eval(self):
                 pass
 
+        runner._checkpoint = metadata  # this only works for single-dataset case, but sufficient for this test
         runner.model = TrivialModel(checkpoint=runner._checkpoint)
         runner.device = torch.device("cpu")
+        runner.autocast = torch.bfloat16
         runner.verbosity = 0
-        runner.trace = False
         runner.use_profiler = False
-        runner.autocast = torch.float32
-        runner._input_tensor_by_name = ["force", "prog"]
-        runner._input_kinds = {}
         runner.hacks = None
 
-        checkpoint = runner._checkpoint
+        tensor_handler = TensorHandler.__new__(TensorHandler)
+
+        tensor_handler.context = runner
+        tensor_handler.metadata = metadata
+        tensor_handler.trace = False
+        tensor_handler._input_kinds = {}
+        tensor_handler._input_tensor_by_name = ["force", "prog"]
 
         class GeometricDynamicForcer:
             mask = np.array([0])
             kinds = {}
 
             def load_forcings_array(self, dates, state):
-                actual_step = round(state["step"] / checkpoint.timestep)
+                actual_step = round(state["step"] / metadata.timestep)
                 n_dates = len(dates)
                 values = np.array(
                     [np.float32(0.5 ** (actual_step - (n_dates - 1 - i))) for i in range(n_dates)],
@@ -117,15 +123,15 @@ def forecast_runner_factory():
                 )
                 return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 2)).copy()
 
-        runner.dynamic_forcings_inputs = [GeometricDynamicForcer()]
+        tensor_handler.dynamic_forcings_inputs = [GeometricDynamicForcer()]
 
         class SequentialBoundaryForcer:
-            spatial_mask = ~checkpoint.output_mask
-            variables_mask = checkpoint.prognostic_input_mask
+            spatial_mask = ~metadata.output_mask
+            variables_mask = metadata.prognostic_input_mask
             kinds = dict(retrieved=True)
 
             def load_forcings_array(self, dates, state):
-                actual_step = round(state["step"] / checkpoint.timestep)
+                actual_step = round(state["step"] / metadata.timestep)
                 n_dates = len(dates)
                 values = np.array(
                     [np.float32((actual_step - (n_dates - 1 - i))) for i in range(n_dates)],
@@ -133,8 +139,9 @@ def forecast_runner_factory():
                 )
                 return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 1)).copy()
 
-        runner.boundary_forcings_inputs = [SequentialBoundaryForcer()]
+        tensor_handler.boundary_forcings_inputs = [SequentialBoundaryForcer()]
 
+        runner.tensor_handlers = dict(data=tensor_handler)
         return runner
 
     return make_forecast_runner
@@ -180,11 +187,11 @@ def test_forecast(
     results_diag = []
     for new_state in runner.forecast(
         lead_time=lead_time,
-        input_tensor_numpy=test_input,
-        input_state={"date": datetime(2020, 1, 1)},
+        input_tensors_numpy=dict(data=test_input),
+        input_states=dict(data={"date": datetime(2020, 1, 1)}),
     ):
-        results_prog.append(new_state["fields"]["prog"][0].numpy())
-        results_diag.append(new_state["fields"]["diag"][0].numpy())
+        results_prog.append(new_state["data"]["fields"]["prog"][0].numpy())
+        results_diag.append(new_state["data"]["fields"]["diag"][0].numpy())
 
     assert np.array(results_prog) == pytest.approx(expected_prog_output, abs=1e-4), "prog mismatch"
     assert np.array(results_diag) == pytest.approx(expected_diag_output, abs=1e-4), "diag mismatch"

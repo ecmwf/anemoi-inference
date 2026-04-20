@@ -37,8 +37,8 @@ class TemplateManager:
             A list of template providers or a single provider, by default None.
         """
         self.owner = owner
-        self.checkpoint = owner.context.checkpoint
-        self.typed_variables = self.checkpoint.typed_variables
+        self.metadata = owner.metadata
+        self.typed_variables = self.metadata.typed_variables
 
         self._template_cache = {}
         self._history = defaultdict(list)
@@ -119,19 +119,17 @@ class TemplateManager:
             The template field if found, otherwise None.
         """
 
-        checkpoint = self.owner.context.checkpoint
-
         typed = typed_variables[name]
 
-        grid = state.get("_geography", {}).get("grid", checkpoint.grid)
-        area = state.get("_geography", {}).get("area", checkpoint.area)
+        grid = state.get("_geography", {}).get("grid", self.metadata.grid)
+        area = state.get("_geography", {}).get("area", self.metadata.area)
 
         lookup = dict(
             name=name,
             grid=self._grid(grid),
             area=area,
             time_processing=typed.time_processing,
-            number_of_grid_points=checkpoint.number_of_grid_points,
+            number_of_grid_points=self.metadata.number_of_grid_points,
         )
 
         for key, value in typed.grib_keys.items():

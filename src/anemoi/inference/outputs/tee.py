@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..output import Output
@@ -29,6 +30,7 @@ class TeeOutput(Output):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *args,
         outputs: Sequence | None = None,
         **kwargs: Any,
@@ -39,6 +41,8 @@ class TeeOutput(Output):
         ----------
         context : object
             The context object.
+        metadata : Metadata
+            Metadata corresponding to the dataset this output is handling.
         *args :
             Additional positional arguments.
         outputs : Sequence, optional
@@ -48,6 +52,7 @@ class TeeOutput(Output):
         """
         super().__init__(
             context,
+            metadata,
             **kwargs,
         )
 
@@ -56,7 +61,7 @@ class TeeOutput(Output):
         else:
             outputs = [*args, *outputs]
 
-        self.outputs = [create_output(context, output) for output in outputs]
+        self.outputs = [create_output(context, output, self.metadata) for output in outputs]
 
     # We override write_initial_state and write_state
     # so users can configures each levels independently

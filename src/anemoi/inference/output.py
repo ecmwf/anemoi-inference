@@ -21,6 +21,7 @@ from anemoi.inference.types import State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context
+    from anemoi.inference.metadata import Metadata
 
 LOG = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
+        metadata: "Metadata",
+        *,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -42,15 +45,18 @@ class Output(ABC):
         ----------
         context : Context
             The context in which the output operates.
+        metadata : Metadata
+            Metadata corresponding to the dataset this output is handling.
         post_processors : Optional[List[ProcessorConfig]], default None
-            Post-processors to apply to the input
+            Post-processors to apply to the output
         output_frequency : Optional[int], optional
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
             Whether to write the initial state, by default None.
         """
         self.context = context
-        self.checkpoint = context.checkpoint
+        self.metadata = metadata
+        self.dataset_name = metadata.dataset_name
         self.reference_date = context.reference_date
 
         self._post_processor_confs = post_processors or []
@@ -63,7 +69,7 @@ class Output(ABC):
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
-        self.typed_variables = self.checkpoint.typed_variables.copy()
+        self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
 
     def skip_variable(self, variable: str) -> bool:
@@ -88,7 +94,7 @@ class Output(ABC):
         processors = []
 
         for processor in self._post_processor_confs:
-            processors.append(create_post_processor(self.context, processor))
+            processors.append(create_post_processor(self.context, processor, self.metadata))
 
         return processors
 
@@ -245,6 +251,7 @@ class ForwardOutput(Output):
     def __init__(
         self,
         context: "Context",
+        metadata: "Metadata",
         output: Output | Any,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
@@ -273,13 +280,14 @@ class ForwardOutput(Output):
 
         super().__init__(
             context,
+            metadata,
             variables=variables,
             post_processors=post_processors,
             output_frequency=None,
             write_initial_state=write_initial_state,
         )
         if not isinstance(output, Output):
-            output = create_output(context, output)
+            output = create_output(context, output, self.metadata)
         self.output = output
 
         if self.context.output_frequency is not None:

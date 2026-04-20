@@ -23,7 +23,9 @@ from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
+from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -131,6 +133,7 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         namer: Any | None = None,
         **kwargs,
@@ -141,18 +144,20 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
         """
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
             assert "rules" in namer, namer
             assert len(namer) == 1, namer
-            namer = RulesNamer(namer["rules"], self.checkpoint.default_namer())
+            namer = RulesNamer(namer["rules"], self.metadata.default_namer())
 
-        self._namer = namer if namer is not None else self.checkpoint.default_namer()
+        self._namer = namer if namer is not None else self.metadata.default_namer()
         assert callable(self._namer), type(self._namer)
 
     def _filter_and_sort(
@@ -204,7 +209,7 @@ class EkdInput(Input):
                 valid_datetime="ascending",
             )
 
-        check_data(title, data, self.variables, dates, self.context.checkpoint)
+        check_data(title, data, self.variables, dates, self.metadata)
 
         return data
 
@@ -285,8 +290,8 @@ class EkdInput(Input):
                     "%s: could not get `latitudes` and `longitudes` from the input fields.",
                     self.__class__.__name__,
                 )
-                latitudes = self.checkpoint.latitudes
-                longitudes = self.checkpoint.longitudes
+                latitudes = self.metadata.latitudes
+                longitudes = self.metadata.longitudes
                 if latitudes is not None and longitudes is not None:
                     LOG.info(
                         "%s: using `latitudes` and `longitudes` found in the checkpoint.",
@@ -336,7 +341,7 @@ class EkdInput(Input):
                     "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
                 )
                 LOG.error("dates %s", dates)
-                LOG.error("number_of_grid_points %s", self.checkpoint.number_of_grid_points)
+                LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
                 raise
 
             if date_idx in check[name]:
@@ -354,9 +359,9 @@ class EkdInput(Input):
                 LOG.error("Got %s", list(idx))
                 raise ValueError(f"Missing dates for {name}")
 
-        if self.context.trace:
+        if trace := self.context.tensor_handlers[self.dataset_name].trace:
             for name in check.keys():
-                self.context.trace.from_input(name, self)
+                trace.from_input(name, self)
 
         # This is our chance to communicate output object
         # This is useful for GRIB that requires a template field
@@ -419,7 +424,7 @@ class EkdInput(Input):
         if constant:
             dates = [date]
         else:
-            dates = [date + h for h in self.checkpoint.lagged]
+            dates = [date + h for h in self.metadata.lagged]
 
         return self._create_state(
             input_fields,
@@ -484,6 +489,7 @@ class EkdInput(Input):
 
 
 @main_argument("path")
+@format_dataset_name("path")
 class FieldlistInput(EkdInput):
     """Handles earthkit-data FieldList as input."""
 
@@ -492,6 +498,7 @@ class FieldlistInput(EkdInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         path: str,
         **kwargs: Any,
@@ -511,7 +518,7 @@ class FieldlistInput(EkdInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
         self.path = path
 
     def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:

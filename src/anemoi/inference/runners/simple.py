@@ -9,147 +9,94 @@
 
 
 import logging
-from typing import Any
+from collections.abc import Generator
 
+from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.forcings import Forcings
+from anemoi.inference.runner import Runner
+from anemoi.inference.runner import RunnerClasses
+from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
-from ..forcings import ComputedForcings
-from ..forcings import Forcings
-from ..runner import Runner
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
 
-# This is because forcings are assumed to already be in the
-# state dictionary, so we don't need to load them from anywhere.
 
+class SimpleTensorHandler(TensorHandler):
+    """This tensor handler only supports computed forcings."""
 
-class NoForcings(Forcings):
-    """No forcings."""
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        LOG.warning(f"[{self.dataset_name}] Constant forcings are not supported by this runner.")
+        if variables:
+            LOG.warning(f"[{self.dataset_name}] {variables} must be provided in the input state by the user.")
+        return []
 
-    def __init__(self, context: Any, variables: list[str], mask: IntArray) -> None:
-        """Initialize the NoForcings.
-
-        Parameters
-        ----------
-        context : object
-            The context for the forcings.
-        variables : list
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-        """
-        super().__init__(context)
-        self.variables = variables
-        self.mask = mask
-        self.kinds = dict(unknown=True)
-
-    def load_forcings_state(self, state: State, date: str) -> None:
-        """Load forcings state.
-
-        Parameters
-        ----------
-        state : State
-            The state to load the forcings into.
-        date : str
-            The date for which to load the forcings.
-        """
-        pass
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        LOG.warning(f"[{self.dataset_name}] Dynamic forcings are not supported by this runner.")
+        if variables:
+            LOG.warning(
+                f"[{self.dataset_name}] {variables} must be provided in the input state and updated during rollout by the user."
+            )
+        return []
 
 
 @runner_registry.register("simple")
 class SimpleRunner(Runner):
-    """Use that runner when using the low level API."""
+    """Runner for the low-level API.
+    The user provides a prepared State object and directly calls the `Runner.run` generator.
+    The input State must contain all fields expected by the model, except for computed forcings which will be loaded by the runner.
+    The user is responsible for providing any constant and dynamic forcings in the input State and during rollout.
+    """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, checkpoint: str, **kwargs):
         """Initialize the SimpleRunner.
 
         Parameters
         ----------
-        *args : tuple
-            Positional arguments.
-        **kwargs : dict
-            Keyword arguments.
+        checkpoint : str
+            Path to the model checkpoint.
+        **kwargs : Any
+            Additional keyword arguments passed to the `RunConfiguration`.
         """
-        super().__init__(*args, **kwargs)
+        config = RunConfiguration(
+            checkpoint=checkpoint,
+            input=kwargs.pop("input", "empty"),
+            output=kwargs.pop("output", "none"),
+            **kwargs,
+        )
+        super().__init__(config, classes=RunnerClasses(tensor_handler=SimpleTensorHandler))
 
-    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create constant computed forcings.
+    def execute(self) -> None:
+        raise NotImplementedError(
+            "The `execute` method is not supported by SimpleRunner. Use the `run` generator instead."
+        )
 
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
+    def run(
+        self, *, input_states: dict[str, State] | State, **kwargs
+    ) -> Generator[dict[str, State] | State, None, None]:
+        # for multi-dataset checkpoints with more than one dataset, users must provide a dict of States
+        # for backwards compatibility also allow users to pass a single State for single-dataset checkpoints
 
-        Returns
-        -------
-        List[Forcings]
-            The created constant computed forcings.
-        """
-        result = ComputedForcings(self, variables, mask)
-        LOG.info("Constant computed forcing: %s", result)
-        return [result]
+        multi_metadata = self.checkpoint.multi_dataset_metadata
+        legacy = False
 
-    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create dynamic computed forcings.
+        if len(multi_metadata) == 1:
+            dataset_name = next(iter(multi_metadata))
+            if dataset_name not in input_states:
+                legacy = True
+                input_states = {dataset_name: input_states}
+        else:
+            for dataset_name in multi_metadata:
+                if dataset_name not in input_states:
+                    raise ValueError(
+                        f"Dataset `{dataset_name}` is expected by the model but not found in the input_states dictionary."
+                    )
 
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List[Forcings]
-            The created dynamic computed forcings.
-        """
-        result = ComputedForcings(self, variables, mask)
-        LOG.info("Dynamic computed forcing: %s", result)
-        return [result]
-
-    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create constant coupled forcings.
-
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List
-            The created constant coupled forcings.
-        """
-        # This runner does not support coupled forcings
-        # there are supposed to be already in the state dictionary
-        # or managed by the user.
-        LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
-        return []
-
-    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        """Create dynamic coupled forcings.
-
-        Parameters
-        ----------
-        variables : List[str]
-            The variables for the forcings.
-        mask : IntArray
-            The mask for the forcings.
-
-        Returns
-        -------
-        List
-            The created dynamic coupled forcings.
-        """
-        # This runner does not support coupled forcings
-        # there are supposed to be already in the state dictionary
-        # or managed by the user.
-        LOG.warning("Coupled forcings are not supported by this runner: %s", variables)
-        return []
+        for states in super().run(input_states=input_states, **kwargs):
+            if legacy:
+                # user provided a single State, so we also return a single State
+                yield next(iter(states.values()))
+            else:
+                yield states
