@@ -182,11 +182,16 @@ class Cutout(Input):
         combined_state = {}
 
         for i, source in enumerate(self.sources.keys()):
-            latitudes = self.checkpoint.supporting_arrays.get(f"source{i}/latitudes")
-            longitudes = self.checkpoint.supporting_arrays.get(f"source{i}/longitudes")
-            source_state = self.sources[source].create_input_state(
-                date=date, latitudes=latitudes, longitudes=longitudes, **kwargs
-            )
+    
+            try:
+                latitudes, longitudes = self.sources[source]._fieldlist[0].grid_points()
+            except Exception as e:
+                LOG.warning("Failed to get coordinates from source %s: %s", source, e)
+                LOG.warning("Loading coordinates from supporting arrays  %s and %s", f"source{i}/latitudes", f"source{i}/longitudes")
+                latitudes = self.metadata.load_supporting_array(f"source{i}/latitudes")
+                longitudes = self.metadata.load_supporting_array(f"source{i}/longitudes")
+
+            source_state = self.sources[source].create_input_state(date=date, latitudes=latitudes, longitudes=longitudes, **kwargs)
             source_mask = self.masks[source]
 
             # Create the mask front padded with zeros
