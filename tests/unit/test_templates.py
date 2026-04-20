@@ -7,7 +7,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import json
 from datetime import datetime
 from pathlib import Path
 
@@ -19,30 +18,31 @@ from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
 
+from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.grib.encoding import GribWriter
 from anemoi.inference.grib.encoding import check_encoding
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.templates.manager import TemplateManager
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
 
 
-def _metadata():
-    with open(files_for_tests("unit/checkpoints/atmos.json"), "r") as f:
-        data = json.load(f)
-    metadata = Metadata(data)
-    metadata.typed_variables["unknown"] = metadata.typed_variables["2t"]  # used in auto-unknown test
+@fake_checkpoints
+def _checkpoint():
+    checkpoint = Checkpoint(files_for_tests("unit/checkpoints/atmos.json"))
+    checkpoint.typed_variables["unknown"] = checkpoint.typed_variables["2t"]  # used in auto-unknown test
 
     # 100u failed at one point in test_builtin_gribwriter, make sure 100u is still present if checkpoint is ever updated
-    assert "100u" in metadata.typed_variables.keys()
-    return metadata
+    assert "100u" in checkpoint.typed_variables.keys()
+    return checkpoint
 
 
 @pytest.fixture
 def manager(mocker: MockerFixture) -> type[TemplateManager]:
+    @fake_checkpoints
     def _manager(config=None):
         owner = mocker.MagicMock()
-        owner.metadata = _metadata()
+        owner.context.checkpoint = _checkpoint()
         return TemplateManager(owner, templates=config)
 
     return _manager
@@ -174,7 +174,7 @@ def test_input(manager, config, request):
     [
         pytest.param(variable, id=variable.param)
         for variable in {
-            var.param: var for var in _metadata().typed_variables.values() if not var.is_computed_forcing
+            var.param: var for var in _checkpoint().typed_variables.values() if not var.is_computed_forcing
         }.values()  # dict to get only one level per pl param
     ],
 )

@@ -11,7 +11,6 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
-from typing import TYPE_CHECKING
 from typing import Any
 
 import earthkit.data as ekd
@@ -19,15 +18,12 @@ import numpy as np
 from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
 
+from anemoi.inference.context import Context
 from anemoi.inference.inputs.dataset import DatasetInput
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
-
-if TYPE_CHECKING:
-    from anemoi.inference.input import Input
-    from anemoi.inference.tensors import TensorHandler
 
 LOG = logging.getLogger(__name__)
 
@@ -35,18 +31,16 @@ LOG = logging.getLogger(__name__)
 class Forcings(ABC):
     """Represents the forcings for the model."""
 
-    mask: IntArray
-    variables: list[str]
-
-    def __init__(self, context: "TensorHandler"):
+    def __init__(self, context: Context):
         """Initialize the Forcings object.
 
         Parameters
         ----------
-        context : TensorHandler
+        context : Context
             The context for the forcings.
         """
         self.context = context
+        self.checkpoint = context.checkpoint
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
@@ -115,12 +109,12 @@ class ComputedForcings(Forcings):
 
     trace_name = "computed"
 
-    def __init__(self, context: "TensorHandler", variables: list[str], mask: Any):
+    def __init__(self, context: Context, variables: list[str], mask: Any):
         """Initialize the ComputedForcings object.
 
         Parameters
         ----------
-        context : TensorHandler
+        context : Context
             The context for the forcings.
         variables : List[str]
             The list of variables to compute.
@@ -185,14 +179,14 @@ class CoupledForcings(Forcings):
         """Return the trace name of the input."""
         return self.input.trace_name
 
-    def __init__(self, context: "TensorHandler", input: "Input", variables: list[str], mask: IntArray):
+    def __init__(self, context: Context, input: Any, variables: list[str], mask: IntArray):
         """Initialize the CoupledForcings object.
 
         Parameters
         ----------
-        context : TensorHandler
+        context : Context
             The context for the forcings.
-        input : Input
+        input : Any
             The input object.
         variables : List[str]
             The list of variables to retrieve.
@@ -272,12 +266,12 @@ class ConstantForcings(CoupledForcings):
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
-    def __init__(self, context: "TensorHandler", input: "DatasetInput", variables: list[str], variables_mask: IntArray):
+    def __init__(self, context: Context, input: DatasetInput, variables: list[str], variables_mask: IntArray):
         """Initialize the BoundaryForcings object.
 
         Parameters
         ----------
-        context : TensorHandler
+        context : Context
             The context for the forcings.
         input : DatasetInput
             The input object.
@@ -291,8 +285,8 @@ class BoundaryForcings(Forcings):
         self.variables_mask = variables_mask
         assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
-        if "output_mask" in context.metadata._supporting_arrays:
-            self.spatial_mask = ~context.metadata.load_supporting_array("output_mask")
+        if "output_mask" in context.checkpoint._supporting_arrays:
+            self.spatial_mask = ~context.checkpoint.load_supporting_array("output_mask")
         else:
             self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)
         self.kinds = dict(retrieved=True)  # Used for debugging

@@ -3,7 +3,6 @@
   output: output.nc
   checks:
     - check_with_xarray:
-        file: ${output:}
         check_accum: tp
         check_nans: true
   inference_config:

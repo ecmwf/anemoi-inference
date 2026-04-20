@@ -80,7 +80,7 @@ class FileTemplates(TemplateProvider):
             case "last":
                 return self._data[-1]
             case "auto":
-                namer = getattr(state.get("_input"), "_namer", self.manager.metadata.default_namer())
+                namer = getattr(state.get("_input"), "_namer", self.manager.owner.context.checkpoint.default_namer())
                 field = find_variable(self._data, variable, namer)
                 if len(field) > 0:
                     return field[0]

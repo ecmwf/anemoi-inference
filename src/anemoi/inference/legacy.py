@@ -199,7 +199,7 @@ class LegacyMixin(MetadataProtocol):
         """
         from anemoi.utils.config import find
 
-        result = find(self._dataset, "data_request")
+        result = find(self._metadata["dataset"], "data_request")
         if len(result) == 0:
             raise ValueError("No data_request found in metadata")
 

@@ -9,12 +9,11 @@
 
 import datetime
 import logging
-from pathlib import Path
+import sys
 from typing import Any
 
 import numpy as np
 
-from anemoi.inference.decorators import ensure_path
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
 
@@ -49,14 +48,12 @@ class InputSource:
         self.trace_name = input.trace_name
 
 
-@ensure_path("path")
 class Trace:
     """Implementation of a trace."""
 
-    def __init__(self, *, path: str | Path) -> None:
+    def __init__(self, path: bool | str) -> None:
         self.path = path
-        self.file = open(path, "w")
-        LOG.info(f"Tracing to {self.file.name}")
+        self.file = sys.stdout if path is True else open(path, "w")
 
         self.sources: dict[str, Any] = {}
         self.extra: dict[str, Any] = {}
@@ -66,7 +63,7 @@ class Trace:
 
         console = Console(file=self.file, width=WIDTH)
 
-        panel = Panel(f"Trace {datetime.datetime.now(datetime.UTC)}")
+        panel = Panel(f"Trace {datetime.datetime.utcnow()}")
 
         console.print(panel)
 
@@ -98,16 +95,12 @@ class Trace:
         from rich.panel import Panel
         from rich.table import Table
 
-        panel = Panel(f"Input tensor to forecast date {date - timestep} => {date} ({input_tensor.shape})", width=WIDTH)
+        panel = Panel(f"Input tensor to forecast date {date - timestep} => {date} ({input_tensor.shape})")
         table = Table()
-        console = Console(file=self.file)
+        console = Console(file=self.file, width=WIDTH)
 
-        table.add_column("Variable", justify="left")
-        for s in range(input_tensor.shape[1]):
-            for c in ["Min", "Max", "Mean", "Std"]:
-                table.add_column(f"{c}_{s}", justify="right")
-        table.add_column("Constant", justify="right")
-        table.add_column("Source", justify="left")
+        for c in ["Variable", "Min", "Max", "Mean", "Std", "Min", "Max", "Mean", "Std", "C", "Source"]:
+            table.add_column(c, justify="right" if c != "Variable" and c != "Source" else "left")
 
         names = {v: k for k, v in variable_to_input_tensor_index.items()}
         assert input_tensor.shape[0] == 1
@@ -121,12 +114,11 @@ class Trace:
                         [names[i], np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values)]
                     )
                 else:
-                    lines[i].extend([np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values)])
-
-        for i in range(input_tensor.shape[-1]):
-            constant = np.all(input_tensor[0, 0:1, :, i] == input_tensor[0, :, :, i])
-            constant = "C" if constant else ""
-            lines[i].extend([constant])
+                    constant = np.all(values == input_tensor[0, 0, :, i])
+                    constant = "C" if constant else ""
+                    lines[i].extend(
+                        [np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values), constant]
+                    )
 
         unknown = UnknownSource()
         for line in lines:

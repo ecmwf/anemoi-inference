@@ -179,10 +179,6 @@ class ExternalGraphRunner(DefaultRunner):
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
         super().__init__(config)
-        # TODO: multi-dataset checkpoint support
-        assert (
-            not self.checkpoint.multi_dataset
-        ), "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
         self.check_state_dict = check_state_dict
         self.graph_path = graph
 
@@ -234,12 +230,12 @@ class ExternalGraphRunner(DefaultRunner):
             )
             LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
             indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
-            self.checkpoint._metadata._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
+            self.checkpoint._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
 
         if output_mask:
             nodes = output_mask["nodes_name"]
             attribute = output_mask["attribute_name"]
-            self.checkpoint._metadata._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
+            self.checkpoint._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
             LOG.info(
                 "Moving attribute '%s' of nodes '%s' from external graph to supporting arrays as 'output_mask'.",
                 attribute,
@@ -247,7 +243,7 @@ class ExternalGraphRunner(DefaultRunner):
             )
 
         if update_supporting_arrays is not None:
-            self.checkpoint._metadata._supporting_arrays.update(
+            self.checkpoint._supporting_arrays.update(
                 get_updated_supporting_arrays(update_supporting_arrays, self.graph)
             )
 

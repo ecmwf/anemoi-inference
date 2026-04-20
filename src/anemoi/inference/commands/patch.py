@@ -84,27 +84,22 @@ class PatchCmd(Command):
             The arguments passed to the command.
         """
         from anemoi.utils.checkpoints import load_metadata
+        from anemoi.utils.checkpoints import metadata_root
         from anemoi.utils.checkpoints import replace_metadata
 
         from anemoi.inference.metadata import MetadataFactory
-        from anemoi.inference.metadata import SingleDatasetMetadata
+
+        root = metadata_root(args.path)
 
         original_metadata, original_supporting_arrays = load_metadata(args.path, supporting_arrays=True)
         original_metadata = deepcopy(original_metadata)
         original_supporting_arrays = deepcopy(original_supporting_arrays)
 
-        try:
-            metadata_object = MetadataFactory(original_metadata)
-        except AssertionError:
-            raise AssertionError("Only legacy single-dataset checkpoints are supported for patching at the moment.")
+        metadata, supporting_arrays = MetadataFactory(original_metadata).patch_metadata(
+            original_supporting_arrays, root
+        )
 
-        assert isinstance(
-            metadata_object, SingleDatasetMetadata
-        ), "Only legacy single-dataset checkpoints are supported for patching at the moment."
-
-        metadata, supporting_arrays = metadata_object.patch_metadata(original_supporting_arrays)
-
-        if diff(original_metadata, metadata) or diff(original_supporting_arrays, supporting_arrays):
+        if diff(metadata, original_metadata) or diff(original_supporting_arrays, supporting_arrays):
             LOG.info("Patching metadata")
             assert "sources" in metadata["dataset"]
             replace_metadata(args.path, metadata, supporting_arrays)

@@ -15,7 +15,6 @@ import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
@@ -31,7 +30,7 @@ LOG = logging.getLogger(__name__)
 def retrieve(
     requests: list[DataRequest],
     grid: str | list[float] | None,
-    area: list[float] | str | None,
+    area: list[float] | None,
     dataset: str | dict[str, Any],
     **kwargs: Any,
 ) -> ekd.FieldList:
@@ -43,7 +42,7 @@ def retrieve(
         List of request dictionaries.
     grid : Optional[Union[str, List[float]]]
         Grid specification.
-    area : Optional[Union[List[float], str]]
+    area : Optional[List[float]]
         Area specification.
     dataset : Union[str, Dict[str, Any]]
         Dataset to use.
@@ -113,7 +112,6 @@ class CDSInput(GribInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
         *,
         variables: list[str] | None = None,
         pre_processors: list[ProcessorConfig] | None = None,
@@ -128,8 +126,6 @@ class CDSInput(GribInput):
         ----------
         context : Context
             The context in which the input is used.
-        metadata : Metadata
-            Metadata corresponding to the dataset this input is handling.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
         pre_processors : Optional[List[ProcessorConfig]], default None
@@ -141,9 +137,7 @@ class CDSInput(GribInput):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(
-            context, metadata, variables=variables, pre_processors=pre_processors, namer=namer, purpose=purpose
-        )
+        super().__init__(context, variables=variables, pre_processors=pre_processors, namer=namer, purpose=purpose)
 
         self.dataset = dataset
         self.kwargs = kwargs
@@ -170,7 +164,7 @@ class CDSInput(GribInput):
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [date + h for h in self.metadata.lagged],
+                [date + h for h in self.checkpoint.lagged],
             ),
             variables=self.variables,
             date=date,
@@ -193,7 +187,7 @@ class CDSInput(GribInput):
             Retrieved data.
         """
 
-        requests = self.metadata.mars_requests(
+        requests = self.checkpoint.mars_requests(
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
@@ -204,7 +198,7 @@ class CDSInput(GribInput):
             raise ValueError(f"No requests for {variables} ({dates})")
 
         return retrieve(
-            requests, self.metadata.grid, self.metadata.area, dataset=self.dataset, expver="0001", **self.kwargs
+            requests, self.checkpoint.grid, self.checkpoint.area, dataset=self.dataset, expver="0001", **self.kwargs
         )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:

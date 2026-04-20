@@ -14,11 +14,9 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from anemoi.inference.context import Context
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -103,8 +101,7 @@ class Cutout(Input):
 
     def __init__(
         self,
-        context: Context,
-        metadata: Metadata,
+        context,
         *args: dict[str, dict],
         sources: list[dict[str, dict]] | None = None,
         **kwargs,
@@ -113,10 +110,8 @@ class Cutout(Input):
 
         Parameters
         ----------
-        context : Context
+        context : dict
             The context runner.
-        metadata : Metadata
-            Metadata corresponding to the dataset this input is handling.
         sources : list[dict[str, dict]]
             List of sources / inputs to combine, the order defines the order in which they are combined.
         """
@@ -125,7 +120,7 @@ class Cutout(Input):
                 "Cutout input has changed to set the sub-inputs as a list, if using the config, prefix each input with `-` to update."
             )
 
-        super().__init__(context, metadata, pre_processors=None, **kwargs)
+        super().__init__(context, pre_processors=None, **kwargs)
 
         if not sources:
             sources = []
@@ -145,12 +140,10 @@ class Cutout(Input):
                 cfg = cfg.copy()
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
-            self.sources[src] = create_input(
-                context, cfg, self.metadata, variables=self.variables, purpose=self.purpose
-            )
+            self.sources[src] = create_input(context, cfg, variables=self.variables, purpose=self.purpose)
 
             if isinstance(mask, str):
-                self.masks[src] = self.sources[src].metadata.load_supporting_array(mask)
+                self.masks[src] = self.sources[src].checkpoint.load_supporting_array(mask)
             else:
                 self.masks[src] = mask if mask is not None else slice(0, None)  # type: ignore
 

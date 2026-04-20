@@ -8,26 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
-## [0.10.1](https://github.com/ecmwf/anemoi-inference/compare/0.10.0...0.10.1) (2026-04-13)
-
-
-### Features
-
-* Add a MaskValues processor ([#458](https://github.com/ecmwf/anemoi-inference/issues/458)) ([3003f20](https://github.com/ecmwf/anemoi-inference/commit/3003f2092e3ef51dc925fbf2dc5fd01bc66167fb))
-* Alter config flow of processor ([#459](https://github.com/ecmwf/anemoi-inference/issues/459)) ([86f85c9](https://github.com/ecmwf/anemoi-inference/commit/86f85c9d639fb4a66c0f9fca587f760e11379ce1))
-* **zarr output:** Add support for writing directly to s3-buckets ([#481](https://github.com/ecmwf/anemoi-inference/issues/481)) ([da59b6a](https://github.com/ecmwf/anemoi-inference/commit/da59b6a004d40f227e11f641dad20233becdb467))
-
-
-### Bug Fixes
-
-* **metadata:** `select_variables` return all variables by default ([#476](https://github.com/ecmwf/anemoi-inference/issues/476)) ([ce65e50](https://github.com/ecmwf/anemoi-inference/commit/ce65e502fb0f093215925261d77d16e4f8eb1924))
-* **metadata:** Use inference metadata to get explicit times ([#466](https://github.com/ecmwf/anemoi-inference/issues/466)) ([d97d73b](https://github.com/ecmwf/anemoi-inference/commit/d97d73b8a3f0fa28e0b924c7300741f166a97dcc))
-* **patch:** Remove outdated import and assert ckpt type ([#485](https://github.com/ecmwf/anemoi-inference/issues/485)) ([4d1d058](https://github.com/ecmwf/anemoi-inference/commit/4d1d0585cfcc004c8178ffbd0fae8cbe005be655))
-* **provenance:** Prevent false warning in environment validation ([#475](https://github.com/ecmwf/anemoi-inference/issues/475)) ([83e199d](https://github.com/ecmwf/anemoi-inference/commit/83e199dcb81c1e9c7d882c1e86abe537883b36ba))
-* **provenance:** Remove premature version parse ([#470](https://github.com/ecmwf/anemoi-inference/issues/470)) ([eceeed0](https://github.com/ecmwf/anemoi-inference/commit/eceeed00618790dcaae4689953e895fb12f8e6ce))
-* **zarr output:** Change dimension of latitude and longitude ([#479](https://github.com/ecmwf/anemoi-inference/issues/479)) ([0281a24](https://github.com/ecmwf/anemoi-inference/commit/0281a24f7bd64c4c6f48fb868a953b8601a817f4))
-* **zarr output:** Missing inner-level post-processor config ([#477](https://github.com/ecmwf/anemoi-inference/issues/477)) ([d345c3e](https://github.com/ecmwf/anemoi-inference/commit/d345c3ec1eb7b84cdde82d6ab278da49fa14cd5d))
-
 ## [0.10.0](https://github.com/ecmwf/anemoi-inference/compare/0.9.1...0.10.0) (2026-03-13)
 
 

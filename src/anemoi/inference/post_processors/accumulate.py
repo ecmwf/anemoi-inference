@@ -14,7 +14,6 @@ from datetime import timedelta
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
@@ -32,8 +31,6 @@ class Accumulate(Processor):
     ----------
     context : Any
         The context in which the processor is running.
-    metadata : Metadata
-        Metadata corresponding to the dataset this processor is handling.
     accumulations : Optional[List[str]], optional
         List of fields to accumulate, by default None.
         If None, the fields are taken from the context's checkpoint.
@@ -44,14 +41,12 @@ class Accumulate(Processor):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
-        *,
         accumulations: list[str] | None = None,
         allow_negative: bool = False,
     ) -> None:
-        super().__init__(context, metadata)
+        super().__init__(context)
         if accumulations is None:
-            accumulations = metadata.accumulations
+            accumulations = context.checkpoint.accumulations
 
         self.accumulations = accumulations
         self.allow_negative = allow_negative

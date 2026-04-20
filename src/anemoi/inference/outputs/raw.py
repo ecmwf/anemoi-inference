@@ -13,12 +13,10 @@ from pathlib import Path
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
 
 from ..decorators import ensure_dir
-from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -27,8 +25,7 @@ LOG = logging.getLogger(__name__)
 
 
 @output_registry.register("raw")
-@main_argument("dir")
-@format_dataset_name("dir")
+@main_argument("path")
 @ensure_dir("dir")
 class RawOutput(Output):
     """Raw output class."""
@@ -36,8 +33,6 @@ class RawOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
-        *,
         dir: Path,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
@@ -50,8 +45,6 @@ class RawOutput(Output):
         ----------
         context : dict
             The context.
-        metadata : Metadata
-            Metadata corresponding to the dataset this output is handling.
         dir : Path
             The directory to save the raw output.
             If the parent directory does not exist, it will be created.
@@ -61,7 +54,7 @@ class RawOutput(Output):
         strftime : str, optional
             The date format string, by default "%Y%m%d%H%M%S".
         """
-        super().__init__(context, metadata, variables=variables, **kwargs)
+        super().__init__(context, variables=variables, **kwargs)
         self.dir = dir
         self.template = template
         self.strftime = strftime

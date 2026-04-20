@@ -19,7 +19,6 @@ from typing import Union
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..decorators import ensure_path
@@ -51,6 +50,7 @@ def print_state(
     variables : list, optional
         The list of variables to print, by default None.
     """
+    print()
     print("😀", end=" ")
     for key, value in state.items():
         if isinstance(value, datetime.datetime):
@@ -113,8 +113,6 @@ class PrinterOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
-        *,
         path: Path | None = None,
         variables: ListOrAll | None = None,
         max_lines: int = 4,
@@ -126,8 +124,6 @@ class PrinterOutput(Output):
         ----------
         context : Context
             The context.
-        metadata : Metadata
-            Metadata corresponding to the dataset this output is handling.
         path : Path, optional
             The path to save the printed output, by default None.
             If the parent directory does not exist, it will be created.
@@ -140,7 +136,7 @@ class PrinterOutput(Output):
             Additional keyword arguments.
         """
 
-        super().__init__(context, metadata, variables=variables, **kwargs)
+        super().__init__(context, variables=variables, **kwargs)
         self.print = print
         self.variables = variables
         self.max_lines = max_lines
@@ -159,9 +155,6 @@ class PrinterOutput(Output):
         state : State
             The state dictionary.
         """
-        self.print()
-        if self.metadata.multi_dataset:
-            self.print(f"[{self.dataset_name}]", end=" ")
         print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
 
     def close(self) -> None:

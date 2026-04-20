@@ -16,7 +16,7 @@ from . import testing_registry
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
 
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def check_grib(
 def check_grib_cutout(
     *,
     file: Path,
-    metadata: "Metadata",
+    checkpoint: "Checkpoint",
     reference_grib: str,
     reference_datetime: str | None = None,
     mask="lam_0",
@@ -113,9 +113,9 @@ def check_grib_cutout(
     assert len(ds) > 0, "No fields found in the output GRIB file."
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
 
-    mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
+    mask = checkpoint.load_supporting_array(f"{mask}/cutout_mask")
     prognostic_params = [
-        var.param for var in metadata.typed_variables.values() if var.name in metadata.prognostic_variables
+        var.param for var in checkpoint.typed_variables.values() if var.name in checkpoint.prognostic_variables
     ]
 
     for param in prognostic_params:
@@ -188,7 +188,7 @@ def check_with_xarray(
 def check_cutout_with_xarray(
     *,
     file: Path,
-    metadata: "Metadata",
+    checkpoint: "Checkpoint",
     mask="lam_0",
     reference_date: str = None,
     reference_dataset={},
@@ -202,7 +202,7 @@ def check_cutout_with_xarray(
     ds = xr.open_dataset(file)
 
     # check shape of inner region against the mask in the checkpoint
-    mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
+    mask = checkpoint.load_supporting_array(f"{mask}/cutout_mask")
     for var in ds.data_vars:
         assert ds[var].shape[-1] == np.sum(
             mask
@@ -215,7 +215,7 @@ def check_cutout_with_xarray(
 
         ref_ds = open_dataset(**reference_dataset, start=reference_date, end=reference_date)
 
-        for var in metadata.prognostic_variables:
+        for var in checkpoint.prognostic_variables:
             assert var in ds.data_vars, f"Variable {var} not found in output file."
             ref_idx = ref_ds.name_to_index[var]
             # loop through time dimension
@@ -232,7 +232,7 @@ def check_cutout_with_xarray(
 def check_boundary_forcings_with_xarray(
     *,
     file: Path,
-    metadata: "Metadata",
+    checkpoint: "Checkpoint",
     reference_dataset={},
     reference_file=None,
     **kwargs,
@@ -240,7 +240,7 @@ def check_boundary_forcings_with_xarray(
     LOG.info(f"Checking boundary forcings: {file}")
 
     # get boundary mask from checkpoint
-    supporting_arrays = metadata.supporting_arrays
+    supporting_arrays = checkpoint.supporting_arrays
     LOG.info(f"Supporting arrays in checkpoint: {supporting_arrays.keys()}")
     if "output_mask" not in supporting_arrays:
         LOG.warning("Boundary forcings check is trivial. Consider removing from test config.")
@@ -295,7 +295,7 @@ def check_boundary_forcings_with_xarray(
         # boundary forcings are applied to output i in the creation of input i+1
         # the current mock inference model simply passes the input, so output i+1 == input i+1
         # the boundary forcing applied on output i (ref dataset at i) appear thus directly in output i+1
-        for var in metadata.prognostic_variables:
+        for var in checkpoint.prognostic_variables:
             assert var in ds.data_vars, f"Variable {var} not found in output file."
             ref_idx = ref_ds.name_to_index[var]
             for i in range(len(dates) - 1):

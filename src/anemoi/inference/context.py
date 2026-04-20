@@ -15,9 +15,15 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
+from anemoi.inference.processor import Processor
+from anemoi.inference.types import IntArray
+
 if TYPE_CHECKING:
+    from anemoi.inference.input import Input
+    from anemoi.inference.output import Output
 
     from .checkpoint import Checkpoint
+    from .forcings import Forcings
 
 LOG = logging.getLogger(__name__)
 
@@ -46,3 +52,129 @@ class Context(ABC):
     def checkpoint(self) -> Checkpoint:
         """Returns the checkpoint used for the inference."""
         pass
+
+    ##################################################################
+    # The methods below are not marked as abstract because they are
+    # not required to be implemented by subclasses. However, they are
+    # expected to be implemented by subclasses when relevant.
+    # For example, when running the `SimpleRunner`, the user is
+    # expected to provide the forcings directly as input to the runner.
+    ##################################################################
+
+    def create_input(self) -> Input:
+        """Creates an input object for the inference.
+
+        Returns
+        -------
+        Input
+            The input object for the inference.
+        """
+        raise NotImplementedError()
+
+    def create_output(self) -> Output:
+        """Creates an output object for the inference.
+
+        Returns
+        -------
+        Output
+            The output object for the inference.
+        """
+        raise NotImplementedError()
+
+    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates constant computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of constant computed forcings.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.create_constant_computed_forcings")
+
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates constant coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of constant coupled forcings.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.create_constant_coupled_forcings")
+
+    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates dynamic computed forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of dynamic computed forcings.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_computed_forcings")
+
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        """Creates dynamic coupled forcings.
+
+        Parameters
+        ----------
+        variables : List[str]
+            List of variable names.
+        mask : IntArray
+            Mask array.
+
+        Returns
+        -------
+        List[Forcings]
+            List of dynamic coupled forcings.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__}.create_dynamic_coupled_forcings")
+
+    def create_pre_processors(self) -> list[Processor]:
+        """Creates a list of pre-processors.
+
+        Returns
+        -------
+        List[Processor]
+            List of pre-processors.
+        """
+        return []
+
+    def create_post_processors(self) -> list[Processor]:
+        """Creates a list of post-processors.
+
+        Returns
+        -------
+        List[Processor]
+            List of post-processors.
+        """
+        return []
+
+    def create_mid_processors(self) -> list[Processor]:
+        """Creates a list of mid-processors.
+
+        Returns
+        -------
+        List[Processor]
+            List of mid-processors.
+        """
+        return []

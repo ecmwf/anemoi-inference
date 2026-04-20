@@ -5,15 +5,17 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+
+from typing import Any
+
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.runner import Runner
 
 runner_registry = Registry(__name__)
 
 
-def create_runner(config: RunConfiguration, **kwargs) -> Runner:
+def create_runner(config: RunConfiguration, **kwargs: Any) -> Any:
     """Create a runner instance based on the given configuration.
 
     Parameters

@@ -14,8 +14,9 @@ from typing import Any
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.runner import Runner
+from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.runners.testing import NoModelMixing
+from anemoi.inference.runners.testing import TestingMixing
 from anemoi.inference.state import reduce_state
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
@@ -37,7 +38,7 @@ class CouplingForcings(CoupledForcings):
         self.kinds = dict(coupled=True)
 
 
-class CoupledRunner(Runner):
+class CoupledRunner(DefaultRunner):
     """Runner for coupled models.
 
     This class handles the initialization and running of coupled models
@@ -236,7 +237,7 @@ class CoupledInput:
         self.tag += 1
 
 
-class TestCoupledRunner(CoupledRunner):
+class TestCoupledRunner(TestingMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
     def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:

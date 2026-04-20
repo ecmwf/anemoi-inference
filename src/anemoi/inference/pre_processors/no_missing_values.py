@@ -16,7 +16,6 @@ from anemoi.transform.fields import new_field_from_numpy
 from anemoi.transform.fields import new_fieldlist_from_list
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -29,19 +28,17 @@ LOG = logging.getLogger(__name__)
 class NoMissingValues(Processor):
     """Replace NaNs with mean."""
 
-    def __init__(self, context: Context, metadata: Metadata, **kwargs: Any) -> None:
+    def __init__(self, context: Context, **kwargs: Any) -> None:
         """Initialize the NoMissingValues processor.
 
         Parameters
         ----------
         context : Context
             The context in which the processor operates.
-        metadata : Metadata
-            Metadata corresponding to the dataset this processor is handling.
         kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, metadata)
+        super().__init__(context)
 
     def process(self, state: State) -> State:
         """Process the fields to replace NaNs with the mean value.

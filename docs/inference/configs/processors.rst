@@ -22,7 +22,8 @@ Replaces NaNs with the mean.
 forward_transform_filter
 ========================
 
-Applies a filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
+Applies a filter from `anemoi-transform
+<https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_.
 
 Either the name of the filter can be provided as a string or a dictionary with the filter name as the key and the filter arguments as the value. For example:
 
@@ -118,24 +119,8 @@ To specify the fields to accumulate:
 backward_transform_filter
 =========================
 
-Applies a backward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
-
-forward_transform_filter
-=========================
-
-Applies a backward transform on the reversed filter from
-:ref:`anemoi-transform <anemoi-transform:list-of-filters>` or applies the forward
-transform if `use_forward: true` is given.
-
-For example to use regrid as a post-processor:
-
-.. code:: yaml
-
-   post_processors:
-     - forward_transform_filter:
-         regrid:
-           use_forward: true
-           # other options for the filter
+Applies a backward transform filter from `anemoi-transform
+<https://anemoi.readthedocs.io/projects/transform/en/latest/_api/transform.filters.html>`_.
 
 Extractors and Masking
 ======================

@@ -12,18 +12,18 @@ import datetime
 import logging
 import sys
 from collections import defaultdict
+from typing import Any
 
 from anemoi.utils.humanize import plural
-from earthkit.data import FieldList
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
 
 
 def check_data(
-    title: str, data: FieldList, variables: list[str], dates: list[datetime.datetime], metadata: Metadata
+    title: str, data: Any, variables: list[str], dates: list[datetime.datetime], checkpoint: Checkpoint
 ) -> None:
     """Check if the data matches the expected number of fields based on variables and dates.
 
@@ -31,14 +31,14 @@ def check_data(
     ----------
     title : str
         The title for the data check.
-    data : FieldList
+    data : Any
         The data to be checked.
     variables : List[str]
         The list of variable names.
     dates : List[datetime.datetime]
         The list of dates.
-    metadata : Metadata
-        The metadata object associated with the dataset that produced the data.
+    checkpoint : Checkpoint
+        The checkpoint
 
     Raises
     ------
@@ -86,7 +86,7 @@ def check_data(
                 )
             avail[name].add(date)
 
-        variable_categories = metadata.variable_categories()
+        variable_categories = checkpoint.variable_categories()
         for name in variables:
             row = [name]
             for d in dates:

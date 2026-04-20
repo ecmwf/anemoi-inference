@@ -13,7 +13,6 @@ from typing import Any
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
-from anemoi.inference.types import FloatArray
 
 from . import runner_registry
 from .default import DefaultRunner
@@ -21,12 +20,54 @@ from .default import DefaultRunner
 LOG = logging.getLogger(__name__)
 
 
+class TestingMixing:
+    # Used with dummy checkpoint (see pytests)
+    def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
+        """Perform a prediction step using the model.
+
+        Parameters
+        ----------
+        model : Any
+            The model to use for prediction.
+        input_tensor_torch : torch.Tensor
+            The input tensor for the model.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Any
+            The prediction result.
+        """
+        return model.predict_step(input_tensor_torch, **kwargs)
+
+
 class NoModelMixing:
+    # Use with a real checkpoint (see prepml/regression)
+    def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
+        """Perform a prediction step using the model.
+
+        Parameters
+        ----------
+        model : Any
+            The model to use for prediction.
+        input_tensor_torch : torch.Tensor
+            The input tensor for the model.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        Any
+            The prediction result.
+        """
+        return model.predict_step(input_tensor_torch, **kwargs)
+
     @cached_property
     def model(self) -> "torch.nn.Module":
 
-        checkpoint: Checkpoint = self.checkpoint  # type: ignore
-        multi_metadata = checkpoint.multi_dataset_metadata
+        checkpoint: Checkpoint = self.checkpoint
+        number_of_output_variables = len(checkpoint.output_tensor_index_to_variable)
 
         class NoModel(torch.nn.Module):
             """Dummy model class for testing purposes."""
@@ -34,30 +75,26 @@ class NoModelMixing:
             def __init__(self):
                 super().__init__()
 
-            def predict_step(self, input_tensors: dict[str, FloatArray] | FloatArray, **kwargs: Any) -> Any:
-                legacy = not isinstance(input_tensors, dict)
-                if legacy:
-                    input_tensors = {next(iter(multi_metadata.keys())): input_tensors}
+            def predict_step(self, input_tensor: Any, **kwargs: Any) -> Any:
+                input_shape = input_tensor.shape
+                output_shape = (
+                    input_shape[0],  # batch
+                    checkpoint.multi_step_output,  # time
+                    input_shape[2],  # gridpoints
+                    number_of_output_variables,  # variables
+                )
 
-                output = {}
-                for name, metadata in multi_metadata.items():
-                    input_shape = input_tensors[name].shape
-                    input_tensor = input_tensors[name]
-                    output_shape = (
-                        input_shape[0],  # batch
-                        metadata.multi_step_output,  # time
-                        1,  # ensemble
-                        input_shape[2],  # gridpoints
-                        len(metadata.output_tensor_index_to_variable),  # variables
-                    )
-
-                    output[name] = torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
-
-                if legacy:
-                    return next(iter(output.values()))
-                return output
+                return torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
 
         return NoModel()
+
+
+@runner_registry.register("testing")
+class TestingRunner(TestingMixing, DefaultRunner):
+    """Runner for running tests.
+
+    Inherits from DefaultRunner.
+    """
 
 
 @runner_registry.register("no-model")

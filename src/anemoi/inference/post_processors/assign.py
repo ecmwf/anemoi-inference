@@ -12,7 +12,6 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -34,24 +33,22 @@ class AssignMask(Processor):
     Parameters
     ----------
     context : Context
-        The context in which the processor is running.
-    metadata : Metadata
-        Metadata corresponding to the dataset this processor is handling.
+        The context containing the checkpoint and supporting arrays.
     mask : str
         The name of the mask supporting array or a path to a file containing the mask.
     fill_value : float, optional
         The value to fill the non-assigned area, by default NaN.
     """
 
-    def __init__(self, context: Context, metadata: Metadata, *, mask: str, fill_value: float = float("NaN")) -> None:
-        super().__init__(context, metadata)
+    def __init__(self, context: Context, mask: str, fill_value: float = float("NaN")) -> None:
+        super().__init__(context)
 
         self._maskname = mask
 
         if Path(mask).is_file():
             mask = np.load(mask)
         else:
-            mask = metadata.load_supporting_array(mask)
+            mask = context.checkpoint.load_supporting_array(mask)
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(

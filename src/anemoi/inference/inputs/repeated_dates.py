@@ -14,7 +14,6 @@ from typing import Any
 from anemoi.utils.dates import as_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -35,9 +34,7 @@ class RepeatedDatesInput(Input):
 
     trace_name = "repeated dates"
 
-    def __init__(
-        self, context: Context, metadata: Metadata, *, source: str, mode: str = "constant", **kwargs: Any
-    ) -> None:
+    def __init__(self, context: Context, *, source: str, mode: str = "constant", **kwargs: Any) -> None:
 
         self.date = kwargs.pop("date", None)
         assert self.date is not None, "date must be provided for repeated-dates input"
@@ -48,8 +45,8 @@ class RepeatedDatesInput(Input):
 
         assert self.mode in ["constant"], f"Unknown mode {self.mode}"
 
-        super().__init__(context, metadata, **kwargs)
-        self.source = create_input(context, source, self.metadata, variables=self.variables, purpose=self.purpose)
+        super().__init__(context, **kwargs)
+        self.source = create_input(context, source, variables=self.variables, purpose=self.purpose)
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the repeated-dates input.

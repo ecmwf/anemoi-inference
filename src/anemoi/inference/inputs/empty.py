@@ -17,7 +17,6 @@ import logging
 from typing import Any
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -34,7 +33,7 @@ class EmptyInput(Input):
 
     trace_name = "empty"
 
-    def __init__(self, context: Context, metadata: Metadata, **kwargs: Any) -> None:
+    def __init__(self, context: Context, **kwargs: Any) -> None:
         """Initialise the EmptyInput.
 
         Parameters
@@ -44,7 +43,8 @@ class EmptyInput(Input):
         **kwargs : object
             Additional keyword arguments.
         """
-        super().__init__(context, metadata, **kwargs)
+        super().__init__(context, **kwargs)
+        assert self.variables in (None, []), "EmptyInput should not have variables"
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create an empty input state.

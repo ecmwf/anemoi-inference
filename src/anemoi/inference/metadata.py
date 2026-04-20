@@ -28,11 +28,9 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
-from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 
@@ -83,8 +81,6 @@ class Metadata(PatchMixin, LegacyMixin):
     """Base Metadata class."""
 
     multi_dataset = False
-    _metadata: DotDict
-    dataset_name = "data"  # required for backwards compatibility with single-datasets checkpoints
 
     def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
         """Initialize the Metadata object.
@@ -141,11 +137,6 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the input explicit times from the training configuration."""
         return self._config_training.explicit_times.input
 
-    @property
-    def data_frequency(self) -> Any:
-        """Get the data frequency."""
-        return self._config.data.frequency
-
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
         return self._config.dataloader[partition]
@@ -195,31 +186,14 @@ class Metadata(PatchMixin, LegacyMixin):
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
         s = self.output_tensor_index_to_variable
 
+        self._print_indices("Data indices", self._indices.data, dict(input=v, output=v), skip=["output"], print=print)
         self._print_indices(
-            f"[{self.dataset_name}] Data indices",
-            self._indices.data,
-            dict(input=v, output=v),
-            skip=["output", "input.name_to_index"],
-            print=print,
-        )
-        self._print_indices(
-            f"[{self.dataset_name}] Model indices",
-            self._indices.model,
-            dict(input=r, output=s),
-            skip=["output.full", "input.name_to_index", "output.name_to_index"],
-            print=print,
+            "Model indices", self._indices.model, dict(input=r, output=s, skip=["output.full"]), print=print
         )
 
     ###########################################################################
     # Inference
     ###########################################################################
-    @cached_property
-    def lagged(self) -> list[datetime.timedelta]:
-        """Return the list of steps for the `multi_step_input` fields."""
-        result = list(range(0, self.multi_step_input))
-
-        result = [-s * self.timestep for s in result]
-        return sorted(result)
 
     @cached_property
     def timestep(self) -> datetime.timedelta:
@@ -311,7 +285,6 @@ class Metadata(PatchMixin, LegacyMixin):
     def multi_step_output(self) -> int:
         """Number of future steps predicted by single model forward."""
         # For backward compatibility we set a default of 1
-        # only multi-dataset checkpoints can be > 1
         return 1
 
     @cached_property
@@ -674,7 +647,7 @@ class Metadata(PatchMixin, LegacyMixin):
         return np.array(indices)
 
     def select_variables_and_masks(
-        self, *, include: list[str] | None = None, exclude: list[str] | None = None
+        self, *, include: list[str] | None = None, exclude: list[str] | None
     ) -> tuple[list[str], IntArray]:
         variables = self.select_variables(include=include, exclude=exclude, has_mars_requests=False)
         return variables, self.variables_mask(variables=variables)
@@ -729,149 +702,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         return params, levels
 
-    def mars_requests(
-        self,
-        *,
-        variables: list[str],
-        dates: list[Date],
-        use_grib_paramid: bool = False,
-        always_split_time: bool = False,
-        patch_request: Callable[[DataRequest], DataRequest] | None = None,
-        dont_fail_for_missing_paramid: bool = False,
-        **kwargs: Any,
-    ) -> list[DataRequest]:
-        """Generate MARS requests for the given variables and dates.
-
-        Parameters
-        ----------
-        variables : list[str]
-            The list of variables.
-        dates : list[Date]
-            The list of dates.
-        use_grib_paramid : bool, optional
-            Whether to use GRIB paramid, by default False.
-        always_split_time : bool, optional
-            Whether to always split time, by default False.
-        patch_request : Optional[Callable], optional
-            A callable to patch the request, by default None.
-        dont_fail_for_missing_paramid : bool, optional
-            Whether to not fail for missing param ids, by default False.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        List[DataRequest]
-            The list of MARS requests.
-        """
-        # TODO: this code should could somewhere else
-        from anemoi.utils.grib import shortname_to_paramid
-        from earthkit.data.utils.availability import Availability
-
-        assert variables, "No variables provided"
-
-        if not isinstance(dates, (list, tuple)):
-            dates = [dates]
-
-        dates = [to_datetime(d) for d in dates]
-
-        assert dates, "No dates provided"
-
-        result: list[DataRequest] = []
-
-        DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
-        DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
-
-        # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
-        # The split oper/scda is a bit special
-
-        # CHANGE: Avoid duplicate GRIB values when training on forecasts by removing the time dependency in KEYS.
-        # Set always_split_time=True to restore it.
-        # TODO: revisit this code, can probably be removed
-        KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
-
-        requests = defaultdict(list)
-        for r in self.simple_mars_requests(variables=variables):
-            for date in dates:
-                r = r.copy()
-
-                base = date
-
-                r["date"] = base.strftime("%Y-%m-%d")
-                r["time"] = base.strftime("%H%M")
-
-                r.update(kwargs)  # We do it here so that the Availability can use that information
-
-                if always_split_time:
-                    keys = DEFAULT_KEYS_AND_TIME
-                else:
-                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
-                key = tuple(r.get(k) for k in keys)
-
-                # Special case because of oper/scda
-
-                requests[key].append(r)
-
-        result = []
-        for reqs in requests.values():
-
-            compressed = Availability(reqs)
-            for r in compressed.iterate():
-
-                if not r:
-                    continue
-
-                r = r.copy()
-
-                # Convert all to lists
-                for k, v in r.items():
-                    if not isinstance(v, (list, tuple, set)):
-                        v = [v]
-                    r[k] = sorted(set(v))
-
-                # Patch BEFORE the shortname to paramid
-                if patch_request:
-                    r = patch_request(r)
-
-                # Convert all to lists (again)
-                for k, v in r.items():
-                    if not isinstance(v, (list, tuple, set)):
-                        v = [v]
-                    r[k] = sorted(set(v))
-
-                if use_grib_paramid and "param" in r:
-
-                    def shortname_to_paramid_no_fail(x: str) -> str:
-                        try:
-                            return shortname_to_paramid(x)
-                        except KeyError:
-                            LOG.warning("Could not convert shortname '%s' to paramid", x)
-                            return x
-
-                    if dont_fail_for_missing_paramid:
-                        _ = shortname_to_paramid_no_fail
-                    else:
-                        _ = shortname_to_paramid
-
-                    r["param"] = [_(p) for p in r["param"]]
-
-                # Simplify the request
-
-                for k in list(r.keys()):
-                    v = r[k]
-                    if len(v) == 1:
-                        v = v[0]
-
-                    # Remove empty values for when tree is not fully defined
-                    if v == "-":
-                        r.pop(k)
-                        continue
-                    r[k] = v
-                result.append(r)
-
-        return result
-
-    def simple_mars_requests(self, *, variables: list[str]) -> Iterator[DataRequest]:
+    def mars_requests(self, *, variables: list[str]) -> Iterator[DataRequest]:
         """Generate MARS requests for the given variables.
 
         Parameters
@@ -1353,26 +1184,24 @@ class MultiDatasetMetadata(Metadata):
 
     multi_dataset = True
 
-    def __init__(
-        self, metadata: dict[str, Any], supporting_arrays: dict[str, dict[str, FloatArray]] = {}, dataset_name="data"
-    ):
-        super().__init__(metadata, supporting_arrays.get(dataset_name, {}))
-        self.dataset_name = dataset_name
+    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, dict[str, FloatArray]] = {}, name="data"):
+        super().__init__(metadata, supporting_arrays.get(name, {}))
+        self.name = name
 
     def __repr__(self) -> str:
-        return f"MultiDatasetMetadata(name='{self.dataset_name}')"
+        return f"MultiDatasetMetadata(name='{self.name}')"
 
     @property
     def _indices(self) -> DotDict:
-        return self._metadata.data_indices[self.dataset_name]
+        return self._metadata.data_indices[self.name]
 
     @property
     def _config_data(self) -> DotDict:
-        return self._config.data.datasets[self.dataset_name]
+        return self._config.data.datasets[self.name]
 
     @property
     def _dataset(self) -> DotDict:
-        return self._metadata.dataset[self.dataset_name]
+        return self._metadata.dataset[self.name]
 
     @property
     def _metadata_inference(self) -> DotDict:
@@ -1380,16 +1209,13 @@ class MultiDatasetMetadata(Metadata):
 
     @property
     def _inference(self) -> DotDict:
-        return self._metadata_inference[self.dataset_name]
+        return self._metadata_inference[self.name]
 
     def _dataloader_dataset(self, partition="training"):
-        dataloader = self._config.dataloader[partition].datasets[self.dataset_name]
+        dataloader = self._config.dataloader[partition].datasets[self.name]
 
         # for new checkpoints the dataset config is under "dataset_config"
         if config := dataloader.get("dataset_config"):
-            # config could be just the name of a dataset
-            if isinstance(config, str):
-                config = dict(dataset=config)
             # copy extra dataloader keys that are also open_dataset kwargs
             for k in ("start", "end"):
                 if k in dataloader:
@@ -1486,22 +1312,14 @@ class MultiDatasetMetadata(Metadata):
 
 
 class MetadataFactory:
-    def __new__(
-        cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, dataset_name="data", base_class=Metadata
-    ) -> Metadata:
-        suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
-
+    def __new__(cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, name="data") -> Metadata:
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
-            assert (
-                dataset_name in datasets
-            ), f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
-            LOG.info(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
-            return type("MultiDatasetMetadata", (MultiDatasetMetadata, base_class), {})(
-                metadata, supporting_arrays, dataset_name=dataset_name
-            )
+            assert name in datasets, f"Multi-dataset name `{name}` not found in metadata. Available names: {datasets}"
+            LOG.info(f"Loading multi-dataset metadata with dataset name `{name}`")
+            return MultiDatasetMetadata(metadata, supporting_arrays, name=name)
 
-        LOG.info(f"Loading legacy single-dataset metadata{suffix}")
-        return type("SingleDatasetMetadata", (SingleDatasetMetadata, base_class), {})(metadata, supporting_arrays)
+        LOG.info("Loading legacy single-dataset metadata.")
+        return SingleDatasetMetadata(metadata, supporting_arrays)
 
 
 class SourceMetadata(Metadata):

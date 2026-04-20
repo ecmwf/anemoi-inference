@@ -14,17 +14,13 @@ import warnings
 from argparse import ArgumentParser
 from argparse import Namespace
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 from typing import Any
 
 import rich
 import yaml
 
+from ..checkpoint import Checkpoint
 from . import Command
-
-if TYPE_CHECKING:
-    from anemoi.inference.checkpoint import Checkpoint
-    from anemoi.inference.metadata import Metadata
 
 CORE = ("models", "training", "graphs")
 
@@ -76,36 +72,30 @@ class InspectCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        from anemoi.inference.checkpoint import Checkpoint
 
-        checkpoint = Checkpoint(args.path)
-        multi_metadata = checkpoint.multi_dataset_metadata
+        c = Checkpoint(args.path)
 
         if args.validate:
-            checkpoint.validate_environment()
+            c.validate_environment()
+            return
+
+        if args.variables:
+            self.variables(c, args)
             return
 
         if args.requirements:
-            self.requirements(checkpoint, args)
+            self.requirements(c, args)
             return
 
-        for dataset_name, metadata in multi_metadata.items():
-            if metadata.multi_dataset:
-                print(f"Dataset: {dataset_name}")
+        if args.datasets:
+            self.datasets(c, args)
+            return
 
-            if args.variables:
-                self.variables(metadata, args)
-                continue
+        if args.dump:
+            self.dump(c, args)
+            return
 
-            if args.datasets:
-                self.datasets(metadata, args)
-                continue
-
-            if args.dump:
-                self.dump(metadata, args)
-                continue
-
-    def dump(self, metadata: "Metadata", args: Namespace) -> None:
+    def dump(self, c: Checkpoint, args: Namespace) -> None:
 
         if args.json:
             # turn off all other logging so json output can be piped cleanly
@@ -113,19 +103,30 @@ class InspectCmd(Command):
             warnings.filterwarnings("ignore")
 
         def _(f: Callable[[], Any]) -> Any:
-            """Wrapper function to print exceptions as strings."""
+            """Wrapper function to handle exceptions.
+
+            Parameters
+            ----------
+            f : Callable
+                The function to be called.
+
+            Returns
+            -------
+            Any
+                The result of the function call or the exception message.
+            """
             try:
                 return f()
             except Exception as e:
                 return str(e)
 
         data = {}
-        for name in sorted(dir(metadata)):
+        for name in sorted(dir(c)):
 
             if name.startswith("_"):
                 continue
 
-            data[name] = _(lambda: getattr(metadata, name))
+            data[name] = _(lambda: getattr(c, name))
 
         if args.json:
             print(json.dumps(data, indent=None, default=str))
@@ -135,17 +136,41 @@ class InspectCmd(Command):
                 print("  ", json.dumps(value, indent=4, default=str))
                 print()
 
-    def variables(self, metadata: "Metadata", args: Namespace) -> None:
-        """Print the variable categories in the checkpoint."""
-        metadata.print_variable_categories(print=rich.print)
+    def variables(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the variable categories in the checkpoint.
 
-    def indices(self, metadata: "Metadata", args: Namespace) -> None:
-        """Print the variable indices in the checkpoint."""
-        metadata.print_indices(print=rich.print)
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
+        c.print_variable_categories(print=rich.print)
 
-    def datasets(self, metadata: "Metadata", args: Namespace) -> None:
-        """Print the dataset arguments and keyword arguments for opening datasets."""
-        open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(use_original_paths=False)
+    def indices(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the variable indices in the checkpoint.
+
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
+        c.print_indices(print=rich.print)
+
+    def datasets(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the dataset arguments and keyword arguments for opening datasets.
+
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
+        open_dataset_args, open_dataset_kwargs = c.open_dataset_args_kwargs(use_original_paths=False)
 
         print("Open dataset arguments:")
 
@@ -157,9 +182,18 @@ class InspectCmd(Command):
             print()
             print(yaml.dump(open_dataset_kwargs, indent=4, default_flow_style=False))
 
-    def requirements(self, checkpoint: "Checkpoint", args: Namespace) -> None:
-        """Print the requirements for the checkpoint, including PyPI and Git dependencies."""
-        r = checkpoint.provenance_training()
+    def requirements(self, c: Checkpoint, args: Namespace) -> None:
+        """Print the requirements for the checkpoint, including PyPI and Git dependencies.
+
+        Parameters
+        ----------
+        c : Checkpoint
+            The checkpoint object.
+        args : Namespace
+            The command-line arguments.
+        """
+        c = Checkpoint(args.path)
+        r = c.provenance_training()
 
         f = sys.stdout
 
@@ -181,8 +215,6 @@ class InspectCmd(Command):
         for k, v in r.get("module_versions", {}).items():
             if k.startswith("_"):
                 continue
-            if hasattr(v, "version"):
-                v = v.version
             if v[0].isdigit():
                 v = [x for x in v.split(".") if x.isdigit()]
                 v = ".".join(v)
