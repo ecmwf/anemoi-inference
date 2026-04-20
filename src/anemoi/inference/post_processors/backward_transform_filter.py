@@ -13,9 +13,11 @@ from datetime import timedelta
 from typing import Any
 
 from anemoi.transform.filters import filter_registry
+from earthkit.data import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -43,6 +45,8 @@ class BackwardTransformFilter(Processor):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
+        *,
         filter: str | dict[str, Any] | None = None,
         skip_initial_state: bool = False,
         **kwargs: Any,
@@ -51,8 +55,10 @@ class BackwardTransformFilter(Processor):
 
         Parameters
         ----------
-        context : object
+        context : Context
             The context in which the filter is being used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this processor is handling.
         filter : str | dict[str, Any] | None, optional
             The name of the filter or a configuration dictionary for the filter, by default None
         skip_initial_state : bool, optional
@@ -66,7 +72,7 @@ class BackwardTransformFilter(Processor):
         >>> filter_config = {"my_filter": {"param1": value1, "param2": value2}}
         >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
-        super().__init__(context)
+        super().__init__(context, metadata)
         self.skip_initial_state = skip_initial_state
 
         if filter is None:
@@ -90,9 +96,12 @@ class BackwardTransformFilter(Processor):
         if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
-        fields = self.filter.backward(wrap_state(state))
+        fields = self._exec_filter(wrap_state(state))
 
-        return unwrap_state(fields, state, namer=self.context.checkpoint.default_namer())
+        return unwrap_state(fields, state, namer=self.metadata.default_namer())
+
+    def _exec_filter(self, state: FieldList) -> FieldList:
+        return self.filter.backward(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the BackwardTransformFilter object.
@@ -107,11 +116,38 @@ class BackwardTransformFilter(Processor):
 
 @post_processor_registry.register("forward_transform_filter")
 class ForwardTransformFilter(BackwardTransformFilter):
-    """Apply a transform forward as a post-processor."""
+    """Apply a transform forward or reversed backward as a post-processor."""
 
-    def __init__(self, *args, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, use_forward: bool = False, **kwargs: Any) -> None:
+        """Initialize the ForwardTransformFilter.
+
+        Parameters
+        ----------
+        *args : Any
+            Positional arguments to pass to the parent's __init__.
+        use_forward : bool
+            Whether to use the forward method of the transform filter. If False, will
+            use the backward transform with the .reverse() method applied to the filter.
+            Defaults to False.
+        **kwargs : Any
+            Additional arguments to pass to the parent's __init__.
+        """
         super().__init__(*args, **kwargs)
-        self.filter = self.filter.reverse()
+
+        self.use_forward = use_forward
+
+        if not self.use_forward:
+            self.filter = self.filter.reverse()
+
+    def _exec_filter(self, state: FieldList) -> FieldList:
+        """Process the given state using the forward transform filter if use_forward=True,
+        otherwise uses the backward transform filter with the filter reversed.
+        """
+
+        if self.use_forward:
+            return self.filter.forward(state)
+
+        return self.filter.backward(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the ForwardTransformFilter object.
@@ -121,4 +157,4 @@ class ForwardTransformFilter(BackwardTransformFilter):
         str
             String representation of the object.
         """
-        return f"ForwardTransformFilter(filter={self.filter})"
+        return f"ForwardTransformFilter(filter={self.filter}, use_forward={self.use_forward})"

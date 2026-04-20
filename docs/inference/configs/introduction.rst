@@ -53,3 +53,4 @@ or if it expects a single argument, it can be simplified as:
    forcings
    grib-input
    grib-output
+   multi-dataset

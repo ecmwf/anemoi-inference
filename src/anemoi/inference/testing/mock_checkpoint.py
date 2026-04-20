@@ -168,13 +168,13 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     Any
         The mock torch model.
     """
-    from .mock_model import MockModel
+    from .mock_model import LegacyMockModel
 
     assert weights_only is False, "Not implemented"
 
     metadata, arrays = mock_load_metadata(path)
 
-    return MockModel(metadata, arrays)
+    return LegacyMockModel(metadata, arrays)
 
 
 class MockRunConfiguration:

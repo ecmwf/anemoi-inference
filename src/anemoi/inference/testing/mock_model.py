@@ -8,123 +8,156 @@
 # nor does it submit to any jurisdiction.
 
 import datetime
+from dataclasses import dataclass
 from typing import Any
 
 import torch
 from anemoi.utils.config import DotDict
 
 from anemoi.inference.checkpoint import Checkpoint
+from anemoi.inference.checkpoint import get_multi_dataset_metadata
 from anemoi.inference.config import LOG
 from anemoi.inference.metadata import MetadataFactory
 from anemoi.inference.testing import float_hash
 
 
-class MockModelBase(torch.nn.Module):
-    """Mock model base class for testing."""
+@dataclass
+class SimpleMetadata:
+    """Some Metadata attributes are not serialisable, so we store only the necessary information in here."""
 
-    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
+    multi_step_output: int
+    prognostic_variables: list[str]
+    variable_to_input_index: dict[str, int]
+    output_index_to_variable: dict[int, str]
+    variable_to_output_index: dict[str, int]
+    features_out: int
+    is_multi_out: bool
+    prognostic_input_indices: list[int]
+    prognostic_output_indices: list[int]
+
+
+class SimpleMockModel(torch.nn.Module):
+    """Simple mock model that copies prognostics from input to output. Diagnostics are filled with ones.
+    In the case of multi-step input, only the last input step is copied to the output.
+    In the case of multi-step output, the same output is repeated for each output step.
+
+    This model has support for legacy models and newer multi-dataset models.
+    When loaded with legacy metadata, the `predict_step` will take a single tensor and output a single output tensor.
+    When loaded with multi-dataset metadata, the `predict_step` will take a dict of tensors and output a dict of tensors,
+    with the dataset names, as defined in the metadata, as keys.
+    """
+
+    def __init__(self, raw_metadata: dict, supporting_arrays: dict) -> None:
         super().__init__()
-        metadata = DotDict(metadata)
+        multi_metadata = get_multi_dataset_metadata(raw_metadata, supporting_arrays)
+
+        self.metadata: dict[str, SimpleMetadata] = {}
+
+        for dataset, metadata in multi_metadata.items():
+            prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
+            variable_to_input_index = dict(metadata.variable_to_input_tensor_index)
+            output_index_to_variable = dict(metadata.output_tensor_index_to_variable)
+            variable_to_output_index = dict(metadata.variable_to_output_tensor_index)
+
+            self.metadata[dataset] = SimpleMetadata(
+                multi_step_output=metadata.multi_step_output,
+                prognostic_variables=prognostic_variables,
+                variable_to_input_index=variable_to_input_index,
+                output_index_to_variable=output_index_to_variable,
+                variable_to_output_index=variable_to_output_index,
+                prognostic_input_indices=[variable_to_input_index[var] for var in prognostic_variables],
+                prognostic_output_indices=[variable_to_output_index[var] for var in prognostic_variables],
+                features_out=len(output_index_to_variable),
+                is_multi_out=hasattr(metadata._config_training, "multistep_output"),
+            )
+
+    def predict_step(
+        self,
+        input_tensor: torch.Tensor | dict[str, torch.Tensor],
+        date: datetime.datetime = None,
+        step: datetime.timedelta = None,
+        **kwargs: Any,
+    ) -> torch.Tensor | dict[str, torch.Tensor]:
+        if not isinstance(input_tensor, dict):
+            # legacy model: the runner will pass a single tensor if it detects a legacy checkpoint, we must return a tensor
+            # we could hardcode "data" here, but better to rely on the default key set by the metadata factory
+            assert len(self.metadata) == 1, "Expected a single dataset in the metadata for legacy model"
+            default_key = next(iter(self.metadata.keys()))
+            return self._predict_step({default_key: input_tensor})[default_key]
+
+        # multi-dataset model
+        return self._predict_step(input_tensor)
+
+    def _predict_step(self, input_tensor: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        outputs: dict[str, torch.Tensor] = {}
+
+        for dataset, metadata in self.metadata.items():
+            output_shape = (
+                1,  # batch
+                metadata.multi_step_output,  # time
+                1,  # ensemble
+                input_tensor[dataset].shape[2],  # values
+                metadata.features_out,  # variables
+            )
+
+            # for legacy models without multi-step output, we also output a single time step
+            # this is not technically required because the runner has a switch to unsqueeze the time dimension when it detects this
+            # this ensures the switch is triggered and tested
+            # TODO: if all test checkpoints are ever updated to multi-step output, this can be removed
+            if not metadata.is_multi_out:
+                output_shape = (1, 1, input_tensor[dataset].shape[2], metadata.features_out)
+
+            output_tensor = torch.ones(
+                *output_shape, dtype=input_tensor[dataset].dtype, device=input_tensor[dataset].device
+            )
+
+            # copy prognostic input variables of the last time step to output tensor
+            if metadata.prognostic_input_indices:
+                output_tensor[..., metadata.prognostic_output_indices] = input_tensor[dataset][
+                    :, -1, :, metadata.prognostic_input_indices
+                ]
+
+            outputs[dataset] = output_tensor
+
+        return outputs
+
+
+class LegacyMockModel(torch.nn.Module):
+    """Mock model with internal sanity checks. Assumes the input comes from the `dummy` input source."""
+
+    def __init__(self, raw_metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
+        super().__init__()
+        raw_metadata = DotDict(raw_metadata)
         self.supporting_arrays = supporting_arrays
 
-        checkpoint = Checkpoint(MetadataFactory(metadata))
+        # this model is only used in unit tests with legacy checkpoints
+        # we don't have to account for multi-datasets
+        # TODO: re-assess if the unit tests get updated to multi-dataset checkpoints
+        metadata = Checkpoint(MetadataFactory(raw_metadata))._metadata
 
-        self.features_in = len(checkpoint.variable_to_input_tensor_index)
-        self.features_out = len(checkpoint.output_tensor_index_to_variable)
-        self.roll_window = checkpoint.multi_step_input
-        self.grid_size = checkpoint.number_of_grid_points
-        self.multi_step_output = checkpoint.multi_step_output
-
-        self._is_multi_out = hasattr(metadata.config.training, "multistep_output")
+        self.features_in = len(metadata.variable_to_input_tensor_index)
+        self.features_out = len(metadata.output_tensor_index_to_variable)
+        self.roll_window = metadata.multi_step_input
+        self.grid_size = metadata.number_of_grid_points
+        self.multi_step_output = metadata.multi_step_output
 
         self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
         self.output_shape = (1, self.multi_step_output, self.grid_size, self.features_out)
 
-        self.variable_to_input_index = dict(checkpoint.variable_to_input_tensor_index)
+        self.variable_to_input_index = dict(metadata.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
 
-        self.output_index_to_variable = dict(checkpoint.output_tensor_index_to_variable)
+        self.output_index_to_variable = dict(metadata.output_tensor_index_to_variable)
         self.variable_to_output_index = {v: k for k, v in self.output_index_to_variable.items()}
 
-        self.lagged = checkpoint.lagged
-        self.typed_variables = checkpoint.typed_variables
-        self.prognostic_variables = checkpoint.select_variables(include=["prognostic"], has_mars_requests=False)
-        self.diagnostic_variables = checkpoint.select_variables(include=["diagnostic"], has_mars_requests=False)
-        self.timestep = checkpoint.timestep
+        self.lagged = metadata.lagged
+        self.typed_variables = metadata.typed_variables
+        self.prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
+        self.diagnostic_variables = metadata.select_variables(include=["diagnostic"], has_mars_requests=False)
+        self.timestep = metadata.timestep
 
         self.first = True
         self.constant_in_time: dict[int, torch.Tensor] = {}
-
-    def predict_step(
-        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
-    ) -> torch.Tensor:
-        """Perform a prediction step.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            The input tensor.
-        date : datetime.datetime
-            The current date.
-        step : datetime.timedelta
-            The time step.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        torch.Tensor
-            The output tensor.
-        """
-
-        raise NotImplementedError("This method should be implemented by subclasses.")
-
-
-class SimpleMockModel(MockModelBase):
-    """Simple mock model that copies prognostics from input to output. Diagnostics are filled with ones.
-    In the case of multi-step input, the last time step is copied.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.prognostic_input_indices = [self.variable_to_input_index[var] for var in self.prognostic_variables]
-        self.prognostic_output_indices = [self.variable_to_output_index[var] for var in self.prognostic_variables]
-
-    # NOTE: This is a temporary hack to support the single dataset case for multi-dataset mock models
-    # TODO: change when we have a proper multi-dataset (mock) model
-    def predict_step(
-        self, x: torch.Tensor, date: datetime.datetime = None, step: datetime.timedelta = None, **kwargs: Any
-    ) -> torch.Tensor:
-        if isinstance(x, dict):
-            assert "data" in x, "Expected input to be a dict with a 'data' key"
-            assert len(x.keys()) == 1, "Expected input dict to only contain a 'data' key"
-            return {"data": self._predict_step(x["data"], date, step, **kwargs)}
-        return self._predict_step(x, date, step, **kwargs)
-
-    def _predict_step(
-        self, x: torch.Tensor, date: datetime.datetime, step: datetime.timedelta, **kwargs: Any
-    ) -> torch.Tensor:
-        output_shape = (
-            1,  # batch
-            self.multi_step_output,  # output_times
-            1,  # time
-            x.shape[2],  # gridpoints
-            self.features_out,  # variables
-        )
-        # TODO remove this when all tests are updated to use multi-step output
-        if not self._is_multi_out:
-            output_shape = (1, 1, x.shape[2], self.features_out)  # for backwards compatibility
-        y = torch.ones(*output_shape, dtype=x.dtype, device=x.device)
-
-        # copy prognostic input variables of the last time step to output tensor
-        if self.prognostic_input_indices:
-            y[..., self.prognostic_output_indices] = x[:, -1, :, self.prognostic_input_indices]
-
-        return y
-
-
-class MockModel(MockModelBase):
-    """Mock model with internal sanity checks. Assumes the input comes from the `dummy` input source."""
 
     def _check(
         self,

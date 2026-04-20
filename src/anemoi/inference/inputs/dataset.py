@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
@@ -33,6 +34,7 @@ class DatasetInput(Input):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         open_dataset_args: tuple[Any, ...],
         open_dataset_kwargs: dict[str, Any],
@@ -45,6 +47,8 @@ class DatasetInput(Input):
         ----------
         context : Any
             The context in which the input is used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         open_dataset_args : Tuple[Any, ...]
             Arguments for the dataset.
         open_dataset_kwargs : Dict[str, Any]
@@ -54,7 +58,7 @@ class DatasetInput(Input):
         **kwargs : Any
             Additional keyword arguments.
         """
-        super().__init__(context, **kwargs)
+        super().__init__(context, metadata, **kwargs)
 
         self.open_dataset_args = open_dataset_args
         self.open_dataset_kwargs = open_dataset_kwargs
@@ -69,8 +73,8 @@ class DatasetInput(Input):
                 ),
             )
 
-        if grid_indices is None and "grid_indices" in context.checkpoint._supporting_arrays:
-            grid_indices = context.checkpoint.load_supporting_array("grid_indices")
+        if grid_indices is None and "grid_indices" in self.metadata._supporting_arrays:
+            grid_indices = self.metadata.load_supporting_array("grid_indices")
             if context.verbosity > 0:
                 LOG.info("Loading supporting array `grid_indices` from checkpoint, \
                     the input grid will be reduced accordingly.")
@@ -139,7 +143,7 @@ class DatasetInput(Input):
         if constant:
             dates = [date]
         else:
-            dates = [date + np.timedelta64(h) for h in self.checkpoint.lagged]
+            dates = [date + np.timedelta64(h) for h in self.metadata.lagged]
 
         data = self._load_dates(dates)
 
@@ -154,8 +158,8 @@ class DatasetInput(Input):
             values = np.squeeze(data[:, i], axis=1)
             fields[variable] = values[:, self.grid_indices]
 
-            if self.context.trace:
-                self.context.trace.from_input(variable, self)
+            if trace := self.context.tensor_handlers[self.dataset_name].trace:
+                trace.from_input(variable, self)
 
         input_state["_input"] = self
 
@@ -245,6 +249,7 @@ class DatasetInputArgsKwargs(DatasetInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *args: Any,
         use_original_paths: bool = False,
         variables: list[str] | None,
@@ -259,11 +264,13 @@ class DatasetInputArgsKwargs(DatasetInput):
         ----------
         context : Context
             The context in which the input is used.
+        metadata : Metadata
+            Metadata corresponding to the dataset this input is handling.
         use_original_paths : bool
             Whether to use original paths.
         """
         if not args and not kwargs:
-            args, kwargs = context.checkpoint.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+            args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
             # TODO: remove start/end from the arguments
 
@@ -279,6 +286,7 @@ class DatasetInputArgsKwargs(DatasetInput):
 
         super().__init__(
             context,
+            metadata,
             variables=variables,
             pre_processors=pre_processors,
             grid_indices=grid_indices,
@@ -294,6 +302,7 @@ class DataloaderInput(DatasetInput):
     def __init__(
         self,
         context: Context,
+        metadata: Metadata,
         *,
         use_original_paths: bool = False,
         **kwargs: Any,
@@ -304,18 +313,22 @@ class DataloaderInput(DatasetInput):
         ----------
         context : Any
             The context in which the input is used.
+        metadata : Metadata
+            The metadata corresponding to the dataset this input is handling.
+
         name : str
             The name of the dataloader.
         use_original_paths : bool
             Whether to use original paths.
         """
-        open_dataset_args, open_dataset_kwargs = context.checkpoint.open_dataset_args_kwargs(
+        open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(
             use_original_paths=use_original_paths,
             from_dataloader=self.name,
         )
 
         super().__init__(
             context,
+            metadata,
             open_dataset_args=open_dataset_args,
             open_dataset_kwargs=open_dataset_kwargs,
             **kwargs,
