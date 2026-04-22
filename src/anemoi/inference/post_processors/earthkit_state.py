@@ -187,7 +187,7 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
             new_fields[name] = n.to_numpy()
         else:
             new_fields[name] = n.to_numpy(flatten=True)
-    
+
     state = state.copy()
     state["fields"] = new_fields
 
