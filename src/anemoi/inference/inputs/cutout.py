@@ -181,9 +181,34 @@ class Cutout(Input):
 
         combined_state = {}
 
-        for source in self.sources.keys():
-            source_state = self.sources[source].create_input_state(date=date, **kwargs)
+        for i, source in enumerate(self.sources.keys()):
+
             source_mask = self.masks[source]
+
+            try:
+                latitudes, longitudes = self.sources[source]._fieldlist[0].grid_points()
+            except Exception as e:
+                LOG.warning("Failed to get coordinates from source %s: %s", source, e)
+                LOG.warning(
+                    "Loading coordinates from supporting arrays  %s and %s",
+                    f"source{i}/latitudes",
+                    f"source{i}/longitudes",
+                )
+                latitudes = self.metadata.load_supporting_array(f"source{i}/latitudes")
+                longitudes = self.metadata.load_supporting_array(f"source{i}/longitudes")
+
+                # this fallback for getting coordinates is index-based and therefore sensitive to
+                # the order of the sources in the configuration
+                if isinstance(source_mask, np.ndarray):
+                    assert source_mask.shape == latitudes.shape, (
+                        "Expected source mask shape to match coordinates shape. "
+                        f"Got mask of shape {source_mask.shape} and latitudes of shape {latitudes.shape}. "
+                        "Check that the cutout sources are in the correct order."
+                    )
+
+            source_state = self.sources[source].create_input_state(
+                date=date, latitudes=latitudes, longitudes=longitudes, **kwargs
+            )
 
             # Create the mask front padded with zeros
             # to match the length of the combined state
