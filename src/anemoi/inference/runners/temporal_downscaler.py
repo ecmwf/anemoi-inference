@@ -35,7 +35,7 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-class TimeInterpolatorTensorHandler(TensorHandler):
+class TemporalDownscalerTensorHandler(TensorHandler):
     def add_initial_forcings_to_input_state(self, input_state: State) -> None:
         date = input_state["date"]
         fields = input_state["fields"]
@@ -85,23 +85,23 @@ class TimeInterpolatorTensorHandler(TensorHandler):
         return [result]
 
 
-class TimeInterpolatorMetadata(Metadata):
+class TemporalDownscalerMetadata(Metadata):
     @cached_property
     def lagged(self) -> list[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields.
-        An interpolator looks ahead instead of backwards.
+        A temporal downscaler looks ahead instead of backwards.
         """
         return sorted([s * to_timedelta(self.data_frequency) for s in self.input_explicit_times])
 
 
-@runner_registry.register("time_multi_interpolator")
-class TimeInterpolatorMultiOutRunner(Runner):
-    """A runner to be used for inference of a trained interpolator with multiple output steps.
-    Unlike the single output, the interpolation is all done as one step.
+@runner_registry.register("temporal_downscaler")
+class TemporalDownscalerMultiOutRunner(Runner):
+    """A runner to be used for inference of a trained temporal downscaler with multiple output steps.
+    Unlike the single output, the temporal downscaling is all done as one step.
     Can be applied directly on analysis/forecast data without being coupled to a forecasting model.
 
     This runner makes the following assumptions:
-        - The model was trained with two input states: (t and t+interpolation_window)
+        - The model was trained with two input states: (t and t+temporal_downscaling_window)
         - The output states are between these two states and are set by "frequency" in the config
     """
 
@@ -109,30 +109,30 @@ class TimeInterpolatorMultiOutRunner(Runner):
         super().__init__(
             config,
             classes=RunnerClasses(
-                tensor_handler=TimeInterpolatorTensorHandler,
-                metadata=TimeInterpolatorMetadata,
+                tensor_handler=TemporalDownscalerTensorHandler,
+                metadata=TemporalDownscalerMetadata,
             ),
         )
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
-            "Interpolator runner requires exactly two input explicit times (t and t+interpolation_window), "
+            "Temporal downscaler runner requires exactly two input explicit times (t and t+temporal_downscaling_window), "
             f"but got {self.checkpoint.input_explicit_times}"
         )
         assert len(self.checkpoint.target_explicit_times) in (
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
         ), (
-            "Interpolator runner requires the number of target explicit times to be equal to "
-            "interpolation_window / frequency - 1, but got "
-            f"{len(self.checkpoint.target_explicit_times)} for interpolation_window {self.interpolation_window} and "
+            "Temporal downscaler runner requires the number of target explicit times to be equal to "
+            "temporal_downscaling_window / frequency - 1, but got "
+            f"{len(self.checkpoint.target_explicit_times)} for temporal_downscaling_window {self.temporal_downscaling_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
 
-        self.interpolation_window = to_timedelta(self.checkpoint.data_frequency) * (
+        self.temporal_downscaling_window = to_timedelta(self.checkpoint.data_frequency) * (
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0]
         )
         self.lead_time = to_timedelta(self.config.lead_time)
-        self.time_step = self.interpolation_window
+        self.time_step = self.temporal_downscaling_window
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
@@ -145,26 +145,26 @@ class TimeInterpolatorMultiOutRunner(Runner):
         if self.reference_date is not None:
             req["time"] = f"{self.reference_date.hour*100:04d}"
         req["step"] = (
-            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.interpolation_window.total_seconds()//3600)}"
+            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.temporal_downscaling_window.total_seconds()//3600)}"
         )
         return req
 
     def execute(self) -> None:
-        """Execute the interpolator runner with support for multiple interpolation periods."""
+        """Execute the temporal downscaler runner with support for multiple temporal downscaling periods."""
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
-        # Get the interpolation window size from training config
+        # Get the temporal downscaling window size from training config
         boundary_idx = self.checkpoint.input_explicit_times
-        # Calculate how many interpolation windows we need for the lead_time
-        num_windows = int(self.lead_time / self.interpolation_window)
+        # Calculate how many temporal downscaling windows we need for the lead_time
+        num_windows = int(self.lead_time / self.temporal_downscaling_window)
 
-        if self.lead_time % self.interpolation_window != to_timedelta(0):
+        if self.lead_time % self.temporal_downscaling_window != to_timedelta(0):
             LOG.warning(
-                "Lead time %s is not a multiple of interpolation window %s. Will interpolate for %s",
+                "Lead time %s is not a multiple of temporal downscaling window %s. Will perform temporal downscaling for %s",
                 self.lead_time,
-                self.interpolation_window,
-                num_windows * self.interpolation_window,
+                self.temporal_downscaling_window,
+                num_windows * self.temporal_downscaling_window,
             )
 
         # create constant forcings states only once, they will be reused in each window
@@ -180,11 +180,13 @@ class TimeInterpolatorMultiOutRunner(Runner):
                 )
             self._check_state(self.constants_states[dataset], "constant_forcings")
 
-        # Process each interpolation window
+        # Process each temporal downscaling window
         for window_idx in range(num_windows):
-            window_start_date = self.config.date + window_idx * self.interpolation_window
+            window_start_date = self.config.date + window_idx * self.temporal_downscaling_window
 
-            LOG.info(f"Processing interpolation window {window_idx + 1}/{num_windows} starting at {window_start_date}")
+            LOG.info(
+                f"Processing temporal downscaling window {window_idx + 1}/{num_windows} starting at {window_start_date}"
+            )
 
             input_states: dict[str, State] = {}
             for dataset in self.tensor_handlers:
@@ -214,9 +216,9 @@ class TimeInterpolatorMultiOutRunner(Runner):
 
                 self.outputs[dataset].open(initial_state)
 
-            # Run interpolation for this window
+            # Run temporal downscaler for this window
             for state_idx, states in enumerate(
-                self.run(input_states=input_states, lead_time=self.interpolation_window)
+                self.run(input_states=input_states, lead_time=self.temporal_downscaling_window)
             ):
                 for dataset, state in states.items():
                     # In the first window, we want to write the initial state (t=0)
@@ -226,7 +228,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
                         continue
 
                     # Updating state step to be a global step not relative to window
-                    state["step"] = state["step"] + window_idx * self.interpolation_window
+                    state["step"] = state["step"] + window_idx * self.temporal_downscaling_window
 
                     # Apply post-processing
                     for processor in self.post_processors[dataset]:
@@ -237,10 +239,10 @@ class TimeInterpolatorMultiOutRunner(Runner):
         for output in self.outputs.values():
             output.close()
 
-    def interpolator_stepper(
+    def temporal_downscaler_stepper(
         self, start_date: datetime.datetime
     ) -> Generator[tuple[datetime.timedelta, datetime.datetime], None, None]:
-        """Generate step and date variables for the interpolation loop.
+        """Generate step and date variables for the temporal downscaling loop.
 
         Parameters
         ----------
@@ -259,23 +261,23 @@ class TimeInterpolatorMultiOutRunner(Runner):
         steps = len(target_steps)
 
         LOG.info(
-            f"Time stepping: [{start_date}, {start_date + self.interpolation_window}], Interpolating {steps} steps"
+            f"Time stepping: [{start_date}, {start_date + self.temporal_downscaling_window}], Temporal downscaling {steps} steps"
         )
 
         for s in range(steps):
-            step = self.interpolation_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
+            step = self.temporal_downscaling_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
             date = start_date + step
             yield step, date
 
     def forecast(
         self, lead_time: datetime.timedelta, input_tensors_numpy: dict[str, FloatArray], input_states: dict[str, State]
     ) -> Generator[dict[str, State], None, None]:
-        """Interpolate between the current and future state in the input tensor.
+        """Temporally downscale between the current and future state in the input tensor.
 
         Parameters
         ----------
         lead_time : datetime.timedelta
-            Unused. This method processes one interpolation window at a time.
+            Unused. This method processes one temporal downscaling window at a time.
         input_tensors_numpy : dict[str, FloatArray]
             The input tensors for each dataset, as numpy arrays with shape (multi_step_input, variables, values).
         input_states : dict[str, State]
@@ -284,9 +286,9 @@ class TimeInterpolatorMultiOutRunner(Runner):
         Returns
         -------
         dict[str, State]
-            The interpolated states for each dataset.
+            The temporally downscaled states for each dataset.
         """
-        # This does interpolation but called forecast so we can reuse run()
+        # This does temporal downscaling but called forecast so we can reuse run()
         with torch.inference_mode():
             self.model.eval()
 
@@ -317,7 +319,7 @@ class TimeInterpolatorMultiOutRunner(Runner):
                     initial_states[dataset] = new_states[dataset].copy()
                     initial_states[dataset]["date"] = start
                     initial_states[dataset]["step"] = to_timedelta(0)
-                    initial_states[dataset]["interpolated"] = False
+                    initial_states[dataset]["temporally_downscaled"] = False
                     # Extract fields from the first time step of input tensor
                     input_numpy = (
                         input_tensors_torch[dataset][0, boundary_times[0]].cpu().numpy()
@@ -337,17 +339,17 @@ class TimeInterpolatorMultiOutRunner(Runner):
             with (
                 torch.autocast(device_type=self.device.type, dtype=self.autocast),
                 ProfilingLabel("Predict step", self.use_profiler),
-                Timer(f"Interpolating step ({start})"),
+                Timer(f"Temporal downscaling step ({start})"),
             ):
                 y_pred = self.predict_step(self.model, input_tensors_torch)
 
-            # Now interpolate between the boundaries
-            for s, (step, date) in enumerate(self.interpolator_stepper(start)):
+            # Now perform temporal downscaling between the boundaries
+            for s, (step, date) in enumerate(self.temporal_downscaler_stepper(start)):
                 for dataset, handler in self.tensor_handlers.items():
                     new_states[dataset]["date"] = date
                     new_states[dataset]["previous_step"] = new_states[dataset].get("step")
                     new_states[dataset]["step"] = step
-                    new_states[dataset]["interpolated"] = True
+                    new_states[dataset]["temporally_downscaled"] = True
 
                     if handler.trace:
                         handler.trace.write_input_tensor(
