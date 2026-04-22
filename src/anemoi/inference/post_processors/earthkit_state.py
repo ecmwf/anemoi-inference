@@ -120,7 +120,7 @@ class StateField(ekd.Field):
         FloatArray
             The values of the field in the specified data type.
         """
-        return self.__values.astype(dtype)
+        return np.asarray(self.__values, dtype=dtype)
 
     @property
     def shape(self) -> Shape:
@@ -178,7 +178,15 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
 
     for n in fields:
         name = namer(n, n.metadata())
-        new_fields[name] = n.to_numpy(flatten=True)
+        if isinstance(n, StateField):
+            # StateField values are already flat 1D numpy arrays.
+            # Use to_numpy() without flatten=True to avoid the always-copy
+            # behavior of ndarray.flatten(). Combined with np.asarray in
+            # _values(), this avoids unnecessary copies for pass-through
+            # fields that were not transformed.
+            new_fields[name] = n.to_numpy()
+        else:
+            new_fields[name] = n.to_numpy(flatten=True)
 
     state = state.copy()
     state["fields"] = new_fields
