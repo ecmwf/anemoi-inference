@@ -199,11 +199,12 @@ class Cutout(Input):
 
                 # this fallback for getting coordinates is index-based and therefore sensitive to
                 # the order of the sources in the configuration
-                assert source_mask.shape == latitudes.shape, (
-                    "Expected source mask shape to match coordinates shape. "
-                    f"Got mask of shape {source_mask.shape} and latitudes of shape {latitudes.shape}. "
-                    "Check that the cutout sources are in the correct order."
-                )
+                if isinstance(source_mask, np.ndarray):
+                    assert source_mask.shape == latitudes.shape, (
+                        "Expected source mask shape to match coordinates shape. "
+                        f"Got mask of shape {source_mask.shape} and latitudes of shape {latitudes.shape}. "
+                        "Check that the cutout sources are in the correct order."
+                    )
 
             source_state = self.sources[source].create_input_state(
                 date=date, latitudes=latitudes, longitudes=longitudes, **kwargs
