@@ -47,22 +47,26 @@ class TemporalDownscalerTensorHandler(TensorHandler):
         # TODO: Check for user provided forcings
 
         # We may need different forcings initial conditions
-        initial_constant_forcings_inputs = self.context.initial_constant_forcings_inputs(self.constant_forcings_inputs)
-        initial_dynamic_forcings_inputs = self.context.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+        initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
+            self.constant_forcings_providers
+        )
+        initial_dynamic_forcings_providers = self.context.initial_dynamic_forcings_providers(
+            self.dynamic_forcings_providers
+        )
 
         LOG.info("-" * 80)
-        LOG.info("Initial forcings inputs:")
+        LOG.info("Initial forcings providers:")
         LOG.info("  Constant forcings:")
-        for f in initial_constant_forcings_inputs:
+        for f in initial_constant_forcings_providers:
             LOG.info(f"    {f}")
         LOG.info("  Dynamic forcings:")
-        for f in initial_dynamic_forcings_inputs:
+        for f in initial_dynamic_forcings_providers:
             LOG.info(f"    {f}")
         LOG.info("Initial forcings dates:")
         LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
         LOG.info("-" * 80)
 
-        for source in initial_constant_forcings_inputs:
+        for source in initial_constant_forcings_providers:
             arrays = source.load_forcings_array(reference_dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
@@ -71,7 +75,7 @@ class TemporalDownscalerTensorHandler(TensorHandler):
                 if self.trace:
                     self.trace.from_source(name, source, "initial constant forcings")
 
-        for source in initial_dynamic_forcings_inputs:
+        for source in initial_dynamic_forcings_providers:
             arrays = source.load_forcings_array(dates, input_state)
             for name, forcing in zip(source.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)

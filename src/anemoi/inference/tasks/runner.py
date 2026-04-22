@@ -103,24 +103,24 @@ class CoupledRunner(Runner):
 
         return result
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
-        """Modify the dynamic forcings inputs for the first step.
+    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings providers for the first step.
 
         Parameters
         ----------
-        dynamic_forcings_inputs : list of Forcings
-            The dynamic forcings inputs.
+        dynamic_forcings_providers : list of Forcings
+            The dynamic forcings providers.
 
         Returns
         -------
         list[Forcings]
-            The modified dynamic forcings inputs.
+            The modified dynamic forcings providers.
         """
         # For the initial state we need to load the forcings
-        # from the default input.
+        # from the default provider.
 
         result = []
-        for f in dynamic_forcings_inputs:
+        for f in dynamic_forcings_providers:
             if isinstance(f, CoupledForcings):
                 result.extend(super().create_dynamic_coupled_forcings(f.variables, f.mask))
             else:
