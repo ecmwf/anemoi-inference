@@ -123,7 +123,7 @@ def forecast_runner_factory():
                 )
                 return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 2)).copy()
 
-        tensor_handler.dynamic_forcings_inputs = [GeometricDynamicForcer()]
+        tensor_handler.dynamic_forcings_providers = [GeometricDynamicForcer()]
 
         class SequentialBoundaryForcer:
             spatial_mask = ~metadata.output_mask
@@ -139,7 +139,7 @@ def forecast_runner_factory():
                 )
                 return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 1)).copy()
 
-        tensor_handler.boundary_forcings_inputs = [SequentialBoundaryForcer()]
+        tensor_handler.boundary_forcings_providers = [SequentialBoundaryForcer()]
 
         runner.tensor_handlers = dict(data=tensor_handler)
         return runner

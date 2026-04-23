@@ -238,20 +238,20 @@ class Runner(Context):
             finally:
                 self.complete_forecast_hook()
 
-    def initial_constant_forcings_inputs(self, constant_forcings_inputs: list[Forcings]) -> list[Forcings]:
-        """Modify the constant forcings inputs for the first step."""
+    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the constant forcings providers for the first step."""
         # Give an opportunity to modify the forcings for the first step
-        return constant_forcings_inputs
+        return constant_forcings_providers
 
-    def initial_dynamic_forcings_inputs(self, dynamic_forcings_inputs: list[Forcings]) -> list[Forcings]:
-        """Modify the dynamic forcings inputs for the initial step of the inference process.
+    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings providers for the initial step of the inference process.
 
         This method provides a hook to adjust the list of dynamic forcings before the first
         inference step is executed. By default, it returns the inputs unchanged, but subclasses
         can override this method to implement custom preprocessing or initialization logic.
         """
         # Give an opportunity to modify the forcings for the first step
-        return dynamic_forcings_inputs
+        return dynamic_forcings_providers
 
     def prepare_output_state(
         self, output: Generator[dict[str, State], None, None], return_numpy: bool
