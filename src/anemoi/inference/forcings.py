@@ -33,7 +33,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Forcings(ABC):
-    """Represents the forcings for the model."""
+    """Represents a forcings provider for the model."""
 
     mask: IntArray
     variables: list[str]
