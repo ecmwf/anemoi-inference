@@ -23,15 +23,14 @@ from anemoi.inference.testing import float_hash
 
 @dataclass
 class SimpleMetadata:
-    """Some Metadata attributes are not serialisable, so we store only the necessary information in here."""
+    """Some Metadata attributes are not serialisable, so we store only a subset of metadata in here."""
 
-    multi_step_output: int
+    input_shape: tuple
+    output_shape: tuple
     prognostic_variables: list[str]
     variable_to_input_index: dict[str, int]
     output_index_to_variable: dict[int, str]
     variable_to_output_index: dict[str, int]
-    features_out: int
-    is_multi_out: bool
     prognostic_input_indices: list[int]
     prognostic_output_indices: list[int]
 
@@ -60,15 +59,14 @@ class SimpleMockModel(torch.nn.Module):
             variable_to_output_index = dict(metadata.variable_to_output_tensor_index)
 
             self.metadata[dataset] = SimpleMetadata(
-                multi_step_output=metadata.multi_step_output,
+                input_shape=metadata.input_shape,
+                output_shape=metadata.output_shape,
                 prognostic_variables=prognostic_variables,
                 variable_to_input_index=variable_to_input_index,
                 output_index_to_variable=output_index_to_variable,
                 variable_to_output_index=variable_to_output_index,
                 prognostic_input_indices=[variable_to_input_index[var] for var in prognostic_variables],
                 prognostic_output_indices=[variable_to_output_index[var] for var in prognostic_variables],
-                features_out=len(output_index_to_variable),
-                is_multi_out=hasattr(metadata._config_training, "multistep_output"),
             )
 
     def predict_step(
@@ -92,23 +90,10 @@ class SimpleMockModel(torch.nn.Module):
         outputs: dict[str, torch.Tensor] = {}
 
         for dataset, metadata in self.metadata.items():
-            output_shape = (
-                1,  # batch
-                metadata.multi_step_output,  # time
-                1,  # ensemble
-                input_tensor[dataset].shape[2],  # values
-                metadata.features_out,  # variables
-            )
-
-            # for legacy models without multi-step output, we also output a single time step
-            # this is not technically required because the runner has a switch to unsqueeze the time dimension when it detects this
-            # this ensures the switch is triggered and tested
-            # TODO: if all test checkpoints are ever updated to multi-step output, this can be removed
-            if not metadata.is_multi_out:
-                output_shape = (1, 1, input_tensor[dataset].shape[2], metadata.features_out)
-
             output_tensor = torch.ones(
-                *output_shape, dtype=input_tensor[dataset].dtype, device=input_tensor[dataset].device
+                *metadata.output_shape,
+                dtype=input_tensor[dataset].dtype,
+                device=input_tensor[dataset].device,
             )
 
             # copy prognostic input variables of the last time step to output tensor
@@ -135,14 +120,8 @@ class LegacyMockModel(torch.nn.Module):
         # TODO: re-assess if the unit tests get updated to multi-dataset checkpoints
         metadata = Checkpoint(MetadataFactory(raw_metadata))._metadata
 
-        self.features_in = len(metadata.variable_to_input_tensor_index)
-        self.features_out = len(metadata.output_tensor_index_to_variable)
-        self.roll_window = metadata.multi_step_input
-        self.grid_size = metadata.number_of_grid_points
-        self.multi_step_output = metadata.multi_step_output
-
-        self.input_shape = (1, self.roll_window, self.grid_size, self.features_in)
-        self.output_shape = (1, self.multi_step_output, self.grid_size, self.features_out)
+        self.input_shape = metadata.input_shape
+        self.output_shape = metadata.output_shape
 
         self.variable_to_input_index = dict(metadata.variable_to_input_tensor_index)
         self.input_index_to_variable = {v: k for k, v in self.variable_to_input_index.items()}
