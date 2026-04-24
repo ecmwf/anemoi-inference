@@ -170,7 +170,7 @@ def test_forecast(
 ):
     runner = forecast_runner_factory(multi_step_input, multi_step_output)
     monkeypatch.setattr(runner, "predict_step", basic_predict_step)
-    monkeypatch.setattr(runner, "output_state_hook", lambda x: None)
+    monkeypatch.setattr(runner, "output_states_hook", lambda x: None)
 
     lead_time = to_timedelta(f"{lead_time_hours}h")
 
