@@ -50,6 +50,7 @@ class NetCDFOutput(Output):
         # NOTE: this seems to be the runner?
         context: Context,
         path: Path,
+        filename: str | None = None,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         projection_string: str | None = None,
