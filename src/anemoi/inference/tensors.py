@@ -20,6 +20,7 @@ from anemoi.inference.forcings import BoundaryForcings
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.forcings import ConstantForcings
 from anemoi.inference.forcings import CoupledForcings
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
@@ -251,12 +252,8 @@ class TensorHandler:
         dates = [date + h for h in self.metadata.lagged]
 
         # TODO: Check for user provided forcings
-        initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
-            self.constant_forcings_providers
-        )
-        initial_dynamic_forcings_providers = self.context.initial_dynamic_forcings_providers(
-            self.dynamic_forcings_providers
-        )
+        initial_constant_forcings_providers = self.initial_constant_forcings_providers(self.constant_forcings_providers)
+        initial_dynamic_forcings_providers = self.initial_dynamic_forcings_providers(self.dynamic_forcings_providers)
 
         LOG.info("-" * 80)
         LOG.info("Initial forcings providers:")
@@ -361,6 +358,21 @@ class TensorHandler:
             )
 
         return result
+
+    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the constant forcings providers for the first step."""
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_providers
+
+    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings providers for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
+        """
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_providers
 
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
