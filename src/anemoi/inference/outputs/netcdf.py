@@ -50,6 +50,7 @@ class NetCDFOutput(Output):
         # NOTE: this seems to be the runner?
         context: Context,
         path: Path,
+        filename: str | None = None,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         projection_string: str | None = None,
@@ -104,7 +105,7 @@ class NetCDFOutput(Output):
                 f"Fields should either be 1D or 2D, got `field_shape` = {self.field_shape}"
             )
 
-        self.path = path
+        self.path = path if filename is None else path / filename
         self.float_size = float_size
         self.missing_value = missing_value
         self.compression = {}  # dict(zlib=False, complevel=0)
