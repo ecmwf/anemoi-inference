@@ -9,7 +9,7 @@
 from typing import cast
 
 import numpy as np
-from pytest_mock import MockerFixture
+from pytest_mock import MockerFixture  # type: ignore
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.post_processors.assign import AssignMask
@@ -26,11 +26,11 @@ def test_assign_mask_supporting_array(
     # mock the context to return the mask when load_supporting_array is called
     mask = np.load(assign_mask_npy)
     metadata = cast(Metadata, mocker.MagicMock())
-    metadata.load_supporting_array.return_value = mask
+    metadata.load_supporting_array.return_value = mask  # type: ignore
     processor = AssignMask(mocker.MagicMock(), metadata, mask="some_supporting_array")
 
     # check that load_supporting_array was called with the correct name
-    metadata.load_supporting_array.assert_called_once_with("some_supporting_array")
+    metadata.load_supporting_array.assert_called_once_with("some_supporting_array")  # type: ignore
 
     # check that the indexer is set correctly
     np.testing.assert_equal(processor.indexer, mask)
@@ -56,7 +56,7 @@ def test_assign_mask_npy(
     processor = AssignMask(mocker.MagicMock(), metadata, mask=assign_mask_npy)
 
     # check that nothing was done with the context
-    metadata.load_supporting_array.assert_not_called()
+    metadata.load_supporting_array.assert_not_called()  # type: ignore
 
     # check that the indexer is set correctly
     np.testing.assert_equal(processor.indexer, mask)
@@ -79,11 +79,11 @@ def test_extract_mask_supporting_array(
     # mock the context to return the mask when load_supporting_array is called
     mask = np.load(extract_mask_npy)
     metadata = cast(Metadata, mocker.MagicMock())
-    metadata.load_supporting_array.return_value = mask
+    metadata.load_supporting_array.return_value = mask  # type: ignore
     processor = ExtractMask(mocker.MagicMock(), metadata, mask="some_supporting_array")
 
     # check that load_supporting_array was called with the correct name
-    metadata.load_supporting_array.assert_called_once_with("some_supporting_array")
+    metadata.load_supporting_array.assert_called_once_with("some_supporting_array")  # type: ignore
 
     # check that the indexer is set correctly
     np.testing.assert_equal(processor.indexer, mask)
@@ -108,7 +108,7 @@ def test_extract_mask_npy(
     processor = ExtractMask(mocker.MagicMock(), metadata, mask=extract_mask_npy)
 
     # check that nothing was done with the context
-    metadata.load_supporting_array.assert_not_called()
+    metadata.load_supporting_array.assert_not_called()  # type: ignore
 
     # check that the indexer is set correctly
     np.testing.assert_equal(processor.indexer, mask)
@@ -133,7 +133,7 @@ def test_extract_slice(
     processor = ExtractSlice(mocker.MagicMock(), metadata, *slice_args)
 
     # check that nothing was done with the context
-    metadata.load_supporting_array.assert_not_called()
+    metadata.load_supporting_array.assert_not_called()  # type: ignore
 
     # check that the indexer is set correctly
     np.testing.assert_equal(processor.indexer, extract_slice)

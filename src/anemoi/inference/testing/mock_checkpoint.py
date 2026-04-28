@@ -10,6 +10,8 @@
 import os
 from copy import deepcopy
 from typing import Any
+from typing import Literal
+from typing import overload
 
 import yaml
 
@@ -60,7 +62,19 @@ SIMPLE_METADATA = {
 }
 
 
-def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> tuple[dict[str, Any], dict[str, Any]]:
+@overload
+def mock_load_metadata(
+    path: str | None, *, supporting_arrays: Literal[True] = True
+) -> tuple[dict[str, Any], dict[str, Any]]: ...
+
+
+@overload
+def mock_load_metadata(path: str | None, *, supporting_arrays: Literal[False]) -> dict[str, Any]: ...
+
+
+def mock_load_metadata(
+    path: str | None, *, supporting_arrays: bool = True
+) -> tuple[dict[str, Any], dict[str, Any]] | dict[str, Any]:
     """Load metadata from a YAML file.
 
     Parameters
@@ -95,7 +109,7 @@ def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> t
     if supporting_arrays:
         return metadata, arrays
 
-    return metadata  # type: ignore
+    return metadata
 
 
 def minimum_mock_checkpoint(metadata: dict[str, Any]) -> dict[str, Any]:

@@ -1,8 +1,8 @@
 from typing import Any
 
-import pytest
+import pytest  # type: ignore
 import yaml
-from pytest import MonkeyPatch
+from pytest import MonkeyPatch  # type: ignore
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.config.utils import multi_datasets_config

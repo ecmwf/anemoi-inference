@@ -8,15 +8,16 @@
 # nor does it submit to any jurisdiction.
 
 import json
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore
 import yaml
 from anemoi.utils.testing import GetTestData
 from earthkit.data.readers.grib.codes import GribField
 from earthkit.data.utils.dates import to_timedelta
-from pytest_mock import MockerFixture
+from pytest_mock import MockerFixture  # type: ignore
 from rich import print
 
 from anemoi.inference.grib.encoding import GribWriter
@@ -39,7 +40,7 @@ def _metadata():
 
 
 @pytest.fixture
-def manager(mocker: MockerFixture) -> type[TemplateManager]:
+def manager(mocker: MockerFixture) -> "Callable":
     def _manager(config=None):
         owner = mocker.MagicMock()
         owner.metadata = _metadata()
@@ -49,7 +50,7 @@ def manager(mocker: MockerFixture) -> type[TemplateManager]:
 
 
 @pytest.fixture
-def grib_template(get_test_data: GetTestData) -> Path:
+def grib_template(get_test_data: GetTestData) -> str:
     return get_test_data("anemoi-integration-tests/inference/single-o48-1.1/input.grib")
 
 
@@ -203,7 +204,7 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
         }
         template = builtin_provider.template(None, lookup, state={})
         metadata = grib_keys(
-            values=None,
+            values=None,  # type: ignore
             template=template,
             variable=variable,
             param=variable.param,

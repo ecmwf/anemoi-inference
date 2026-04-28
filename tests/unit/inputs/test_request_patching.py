@@ -7,11 +7,12 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import pytest
+import pytest  # type: ignore
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.inputs.dummy import DummyInput
 from anemoi.inference.processor import Processor
+from anemoi.inference.runner import Runner
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
@@ -34,7 +35,7 @@ class DummyProcessor(Processor):
 
 @pytest.fixture
 @fake_checkpoints
-def runner() -> None:
+def runner() -> Runner:
     config = RunConfiguration.load(
         files_for_tests("unit/configs/simple.yaml"),
         overrides=dict(runner="default", device="cpu", input="dummy"),

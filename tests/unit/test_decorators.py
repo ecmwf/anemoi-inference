@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore
 
 from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
@@ -23,7 +23,7 @@ def test_main_argument():
     assert isinstance(main_argument("path")(_Cls), type)  # decorator should return a class
 
     with pytest.raises(TypeError):
-        main_argument("path")(lambda x: x)  # not a class
+        main_argument("path")(lambda x: x)  # not a class  # type: ignore
 
     # no metadata
     @main_argument("path")
@@ -80,7 +80,7 @@ def test_format_dataset_name():
     assert isinstance(format_dataset_name("path")(_Cls), type)  # decorator should return a class
 
     with pytest.raises(TypeError) as excinfo:
-        format_dataset_name("path")(lambda x: x)  # not a class
+        format_dataset_name("path")(lambda x: x)  # not a class  # type: ignore
     assert "only be used to decorate classes" in str(excinfo.value)
 
     with pytest.raises(AssertionError):

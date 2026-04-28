@@ -327,4 +327,4 @@ class ZarrOutput(Output):
             if isinstance(self.zarr_store, Store):
                 zarr.consolidate_metadata(self.zarr_store)
                 self.zarr_store.close()
-            self.zarr_store = None
+            self.zarr_store = None  # type: ignore

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
-import pytest
+import pytest  # type: ignore
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData
@@ -59,8 +59,8 @@ MODELS = [
 MODEL_CONFIGS = (
     pytest.param(
         (model, config),
-        id=f"{model}/{config.name}",
-        marks=_markers(config),
+        id=f"{model}/{config.name}",  # type: ignore
+        marks=_markers(config),  # type: ignore
     )
     for model in MODELS
     for config in OmegaConf.load(INTEGRATION_ROOT / model / "config.yaml")
@@ -211,7 +211,7 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
     # run the checks defined in the test configuration
     # checks is a list of dicts, each with a single key-value pair
-    for checks in test_setup.config.checks:
+    for checks in test_setup.config.checks:  # type: ignore
         check, kwargs = next(iter(checks.items()))
 
         # output file we are checking

@@ -12,7 +12,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import numpy as np
-import pytest
+import pytest  # type: ignore
 import torch
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 

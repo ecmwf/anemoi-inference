@@ -11,7 +11,7 @@
 import datetime
 
 import numpy as np
-import pytest
+import pytest  # type: ignore
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.inputs.cutout import _mask_and_combine_states
@@ -53,7 +53,7 @@ def test_mask_and_combine_states():
 
 @pytest.fixture
 @fake_checkpoints
-def runner() -> None:
+def runner() -> tuple[Runner, Metadata]:
     """Runner for testing"""
     config = RunConfiguration.load(
         files_for_tests("unit/configs/simple.yaml"),
@@ -71,12 +71,12 @@ def test_cutout_no_mask(runner: tuple[Runner, Metadata]):
 
     from anemoi.inference.inputs.cutout import Cutout
 
-    runner, metadata = runner
+    ctx, metadata = runner
     cutout_config = [
         {"lam": {"mask": None, "dummy": {}}},
         {"global": {"mask": None, "dummy": {}}},
     ]
-    cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
+    cutout_input = Cutout(ctx, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
     with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
         input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
@@ -97,12 +97,12 @@ def test_cutout_with_slice(runner: tuple[Runner, Metadata]):
 
     from anemoi.inference.inputs.cutout import Cutout
 
-    runner, metadata = runner
+    ctx, metadata = runner
     cutout_config = [
         {"lam": {"mask": slice(0, 10), "dummy": {}}},
         {"global": {"mask": slice(10, 25), "dummy": {}}},
     ]
-    cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
+    cutout_input = Cutout(ctx, metadata, variables=["2t"], sources=cutout_config)
     assert list(cutout_input.sources.keys()) == ["lam", "global"]
     number_of_grid_points = metadata.number_of_grid_points
     with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
@@ -124,7 +124,7 @@ def test_cutout_with_array(runner: tuple[Runner, Metadata]):
 
     from anemoi.inference.inputs.cutout import Cutout
 
-    runner, metadata = runner
+    ctx, metadata = runner
     number_of_grid_points = metadata.number_of_grid_points
 
     lam_mask = np.zeros(number_of_grid_points, dtype=bool)
@@ -134,7 +134,7 @@ def test_cutout_with_array(runner: tuple[Runner, Metadata]):
     global_mask[10:25] = True
 
     cutout_config = [{"lam": {"mask": lam_mask, "dummy": {}}}, {"global": {"mask": global_mask, "dummy": {}}}]
-    cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
+    cutout_input = Cutout(ctx, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
     with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
         input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))

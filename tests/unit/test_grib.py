@@ -8,7 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-import pytest
+import pytest  # type: ignore
 from earthkit.data.utils.dates import to_datetime
 from earthkit.data.utils.dates import to_timedelta
 
@@ -154,7 +154,7 @@ def test_render_template(template, handle, expected):
 )
 def test_grib_keys(variable, date, step, start_steps, expected_keys):
     encoding = grib_keys(
-        values=None,
+        values=None,  # type: ignore
         template=None,
         variable=variable,
         ensemble=False,

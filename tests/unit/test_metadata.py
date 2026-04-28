@@ -7,7 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import pytest
+import pytest  # type: ignore
 
 from anemoi.inference.metadata import MetadataFactory
 from anemoi.inference.metadata import MultiDatasetMetadata

@@ -9,10 +9,11 @@
 
 
 import unittest
+import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
+import pytest  # type: ignore
 
 from anemoi.inference.checkpoint import Checkpoint
 

@@ -176,6 +176,6 @@ for item in model_path.iterdir():
 
 print(f"☁️ Files in {S3_ROOT}/{args.model}:")
 for item in _list_objects(f"{S3_ROOT}/{args.model}"):
-    print(f" - {item['path'].split(f'{args.model}/')[-1]}")
+    print(f" - {item['path'].split(f'{args.model}/')[-1]}")  # type: ignore
 
 print(f"✅ Model {args.model} added successfully.")

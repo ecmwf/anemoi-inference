@@ -1035,7 +1035,7 @@ class Metadata(PatchMixin, LegacyMixin):
             args, kwargs = self.open_dataset_args_kwargs(
                 use_original_paths=use_original_paths, from_dataloader=from_dataloader
             )
-            return open_dataset(*args, **kwargs)
+            return open_dataset(*args, **kwargs)  # type: ignore
 
         args, kwargs = self.open_dataset_args_kwargs(use_original_paths=True, from_dataloader=from_dataloader)
 
@@ -1060,7 +1060,7 @@ class Metadata(PatchMixin, LegacyMixin):
         args, kwargs = _((args, kwargs))
 
         with temporary_config(dict(datasets=dict(use_search_path_not_found=True))):
-            return open_dataset(*args, **kwargs)
+            return open_dataset(*args, **kwargs)  # type: ignore
 
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: str | None = None
