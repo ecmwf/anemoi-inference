@@ -86,12 +86,20 @@ urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"
 urls.Repository = "https://github.com/ecmwf/anemoi-inference/"
 scripts.anemoi-inference = "anemoi.inference.__main__:main"
 
+[dependency-groups]
+dev = [
+  "anemoi-inference[dev]",
+]
+
 [tool.setuptools]
 package-data."anemoi.inference.grib.templates" = [ "*.yaml" ]
 packages.find.where = [ "src" ]
 
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
+
+[tool.uv]
+sources.anemoi-inference = { workspace = true }
 
 [tool.mypy]
 exclude = [ "docs/" ]
