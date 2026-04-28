@@ -8,6 +8,11 @@
 #
 import logging
 from abc import ABC
+from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from anemoi.inference.transport import Transport
 
 LOG = logging.getLogger(__name__)
 
@@ -30,6 +35,17 @@ class Task(ABC):
             The name of the task.
         """
         self.name = name
+
+    @abstractmethod
+    def run(self, transport: "Transport") -> None:
+        """Run the task.
+
+        Parameters
+        ----------
+        transport : Transport
+            The transport to use.
+        """
+        pass
 
     def __repr__(self) -> str:
         """Return a string representation of the Task.

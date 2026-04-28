@@ -18,6 +18,7 @@ from typing import Any
 if TYPE_CHECKING:
 
     from .checkpoint import Checkpoint
+    from .tensors import TensorHandler
 
 LOG = logging.getLogger(__name__)
 
@@ -36,10 +37,21 @@ class Context(ABC):
     reference_date = None
     time_step = None
     lead_time = None
-    output_frequency: int | None = None
+    output_frequency: int | str | None = None
     write_initial_state: bool = True
 
+    # Attributes set by Runner subclass
+    config: Any = None
+    typed_variables: dict[str, Any] = {}
+    tensor_handlers: dict[str, "TensorHandler"] = {}
+    pre_processors: dict[str, list[Any]] = {}
+    post_processors: dict[str, list[Any]] = {}
+
     ##################################################################
+
+    def patch_data_request(self, request: Any, dataset_name: str) -> Any:
+        """Patch the data request. Override in subclasses."""
+        return request
 
     @property
     @abstractmethod

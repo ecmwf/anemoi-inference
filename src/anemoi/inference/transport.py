@@ -146,6 +146,16 @@ class Transport(ABC):
         self.tasks: dict[str, Task] = tasks
 
     @abstractmethod
+    def start(self) -> None:
+        """Start the transport."""
+        pass
+
+    @abstractmethod
+    def wait(self) -> None:
+        """Wait for all tasks to complete."""
+        pass
+
+    @abstractmethod
     def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send the state from the sender to the target.
 
