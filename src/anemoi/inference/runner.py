@@ -535,8 +535,7 @@ class Runner(Context):
                                     output[:, j]
                                 )
 
-                            if self.mid_processors:
-                                new_states[dataset] = self._apply_mid_processors(new_states[dataset], dataset)
+                            new_states[dataset] = self._apply_mid_processors(new_states[dataset], dataset)
 
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
