@@ -107,6 +107,9 @@ strict = false
 ignore_missing_imports = true
 allow_redefinition = true
 
+[tool.ty]
+rules.unresolved-import = "ignore"
+
 [tool.pytest]
 ini_options.markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
