@@ -36,4 +36,4 @@ def create_output(context: Context, config: Configuration, metadata: Metadata, *
     object
         The created output.
     """
-    return output_registry.from_config(config, context, metadata, **kwargs)
+    return output_registry.from_config(config, context, metadata, **kwargs)  # type: ignore

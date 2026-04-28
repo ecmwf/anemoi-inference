@@ -42,21 +42,16 @@ class ValidateCmd(Command):
 
         command_parser.add_argument("checkpoint", help="Path to checkpoint file.")
 
-    def run(self, args: Namespace) -> bool:
+    def run(self, args: Namespace) -> None:
         """Run the validation command.
 
         Parameters
         ----------
         args : Namespace
             The arguments passed to the command.
-
-        Returns
-        -------
-        bool
-            True if the environment is valid, False otherwise.
         """
         checkpoint = Checkpoint(args.checkpoint)
-        return checkpoint.validate_environment(
+        checkpoint.validate_environment(
             all_packages=args.all_packages,
             on_difference=args.on_difference,
             exempt_packages=args.exempt_packages,

@@ -34,7 +34,7 @@ def retrieve(
     area: list[float] | str | None,
     dataset: str | dict[str, Any],
     **kwargs: Any,
-) -> ekd.FieldList:
+) -> Any:
     """Retrieve data from CDS.
 
     Parameters
@@ -170,7 +170,7 @@ class CDSInput(GribInput):
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [date + h for h in self.metadata.lagged],
+                [date + h for h in self.metadata.lagged],  # type: ignore
             ),
             variables=self.variables,
             date=date,

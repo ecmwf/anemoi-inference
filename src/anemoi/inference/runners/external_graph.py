@@ -188,7 +188,7 @@ class ExternalGraphRunner(DefaultRunner):
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
-            from anemoi.datasets import open_dataset
+            from anemoi.datasets import open_dataset  # type: ignore
 
             graph_ds = open_dataset(graph_dataset)
             LOG.info(
@@ -280,8 +280,8 @@ class ExternalGraphRunner(DefaultRunner):
 
         # rebuild the model with the new graph
         model_instance.graph_data = self.graph
-        model_instance.config = self.checkpoint._metadata._config
-        model_instance._build_model()
+        model_instance.config = self.checkpoint._metadata._config  # type: ignore
+        model_instance._build_model()  # type: ignore
 
         # reinstate the weights, biases and normalizer from the checkpoint
         # reinstating the normalizer is necessary for checkpoints that were created

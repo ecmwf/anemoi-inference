@@ -9,6 +9,7 @@
 
 import datetime
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +76,7 @@ class Trace:
         date: datetime.datetime,
         fcstep: int,
         input_tensor: FloatArray,
-        variable_to_input_tensor_index: dict[str, int],
+        variable_to_input_tensor_index: Mapping[str, int],
         timestep: datetime.timedelta,
     ) -> None:
         """Write the input tensor details to the trace file.
@@ -143,7 +144,7 @@ class Trace:
         date: datetime.datetime,
         fcstep: int,
         output_tensor: FloatArray,
-        output_tensor_index_to_variable: dict[int, str],
+        output_tensor_index_to_variable: Mapping[int, str],
         timestep: datetime.timedelta,
     ) -> None:
         """Write the output tensor details to the trace file.
@@ -230,7 +231,7 @@ class Trace:
         """
         self.from_source(name, InputSource(input))
 
-    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: dict[str, int]) -> None:
+    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: Mapping[str, int]) -> None:
         """Reset the sources in the trace.
 
         Parameters

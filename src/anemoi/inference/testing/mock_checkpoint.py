@@ -95,7 +95,7 @@ def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> t
     if supporting_arrays:
         return metadata, arrays
 
-    return metadata
+    return metadata  # type: ignore
 
 
 def minimum_mock_checkpoint(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -203,4 +203,4 @@ class MockRunConfiguration:
         if not os.path.isabs(path):
             path = files_for_tests(path)
 
-        return RunConfiguration.load(path, *args, **kwargs)
+        return RunConfiguration.load(path, *args, **kwargs)  # type: ignore

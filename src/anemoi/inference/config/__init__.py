@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from typing import TypeVar
 
@@ -45,9 +46,9 @@ class Configuration(BaseModel):
     @classmethod
     def load(
         cls: type[T],
-        path: str | dict[str, Any],
+        path: str | Path | dict[str, Any],
         overrides: list[str] | list[dict] | str | dict = [],
-        defaults: str | list[str] | dict | None = None,
+        defaults: str | list[str | dict] | dict | None = None,
     ) -> T:
         """Load the configuration.
 
@@ -71,8 +72,10 @@ class Configuration(BaseModel):
         # Set default values
         if defaults is not None:
             if not isinstance(defaults, list):
-                defaults = [defaults]
-            for d in defaults:
+                defaults_list: list[str | dict] = [defaults]
+            else:
+                defaults_list = defaults
+            for d in defaults_list:
                 if isinstance(d, str):
                     configs.append(OmegaConf.load(d))
                     continue
@@ -90,12 +93,14 @@ class Configuration(BaseModel):
             configs.append(OmegaConf.create(yaml.safe_dump(config, sort_keys=False)))
 
         if not isinstance(overrides, list):
-            overrides = [overrides]
+            overrides_list: list[str | dict] = [overrides]
+        else:
+            overrides_list = overrides
 
         # unsafe merge should be fine as we don't re-use the original configs
         oc_config = OmegaConf.unsafe_merge(*configs)
 
-        for override in overrides:
+        for override in overrides_list:
             if isinstance(override, dict):
                 oc_config = OmegaConf.unsafe_merge(oc_config, OmegaConf.create(override))
             else:
@@ -115,7 +120,7 @@ class Configuration(BaseModel):
 
         # Set environment variables found in the configuration
         # as soon as possible
-        for key, value in config.env.items():
+        for key, value in config.env.items():  # type: ignore
             os.environ[key] = str(value)
 
         return config

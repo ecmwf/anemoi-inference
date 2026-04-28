@@ -13,6 +13,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import datetime
 from functools import cached_property
 from typing import Any
 
@@ -36,7 +37,7 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
-def find_variable(data: Any, name: str, namer: callable, **kwargs: Any) -> Any:
+def find_variable(data: Any, name: str, namer: Any, **kwargs: Any) -> Any:
     """Find a variable in an earthkit FieldList/FieldArray.
 
     Parameters
@@ -194,6 +195,7 @@ class EkdInput(Input):
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
         if select_reference_date:
+            assert self.reference_date is not None
             data = data.sel(
                 name=self.variables,
                 valid_datetime=valid_datetime,
@@ -315,10 +317,10 @@ class EkdInput(Input):
         if len(fields) == 0:
             raise ValueError("No input fields provided")
 
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        sorted_dates: list[datetime] = sorted([to_datetime(d) for d in dates])
+        date_to_index = {d.isoformat(): i for i, d in enumerate(sorted_dates)}
 
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
+        fields = self._filter_and_sort(fields, dates=sorted_dates, title="Create input state", **kwargs)
 
         check = defaultdict(set)
 
@@ -327,7 +329,7 @@ class EkdInput(Input):
             name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
             if name not in state_fields:
                 state_fields[name] = np.full(
-                    shape=(len(dates), n_points),
+                    shape=(len(sorted_dates), n_points),
                     fill_value=np.nan,
                     dtype=dtype,
                 )
@@ -340,7 +342,7 @@ class EkdInput(Input):
                 LOG.error(
                     "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
                 )
-                LOG.error("dates %s", dates)
+                LOG.error("dates %s", sorted_dates)
                 LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
                 raise
 
@@ -353,7 +355,7 @@ class EkdInput(Input):
             check[name].add(date_idx)
         state["fields"] = state_fields
         for name, idx in check.items():
-            if len(idx) != len(dates):
+            if len(idx) != len(sorted_dates):
                 LOG.error("Missing dates for %s: %s", name, idx)
                 LOG.error("Expected %s", list(date_to_index.keys()))
                 LOG.error("Got %s", list(idx))
@@ -405,7 +407,7 @@ class EkdInput(Input):
         flatten : bool
             Whether to flatten the data.
         constant: bool
-            Whether the field is constant or dynamic
+            Whether the field is constant or dynamic.
         ref_date_index: int = -1
             If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
@@ -424,7 +426,7 @@ class EkdInput(Input):
         if constant:
             dates = [date]
         else:
-            dates = [date + h for h in self.metadata.lagged]
+            dates = [date + h for h in self.metadata.lagged]  # type: ignore
 
         return self._create_state(
             input_fields,
@@ -563,7 +565,7 @@ class FieldlistInput(EkdInput):
         )
 
     @cached_property
-    def _fieldlist(self) -> ekd.FieldList:
+    def _fieldlist(self) -> Any:
         """Get the input fieldlist from the file or collection."""
         path = self.path
 
@@ -573,8 +575,8 @@ class FieldlistInput(EkdInput):
             files = [p for p in matches if os.path.isfile(p)]
             if not files:
                 LOG.warning("No files matched pattern %r", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", sorted(files))  # type: ignore[reportReturnType]
+                return ekd.from_source("empty")
+            return ekd.from_source("file", sorted(files))
 
         # Case 2: directory path -> search for files recursively
         if os.path.isdir(path):
@@ -584,16 +586,16 @@ class FieldlistInput(EkdInput):
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
                 LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", files)  # type: ignore[reportReturnType]
+                return ekd.from_source("empty")
+            return ekd.from_source("file", files)
 
         # Case 3: single file path
         try:
             if os.path.getsize(path) == 0:
                 LOG.warning("File %r is empty", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+                return ekd.from_source("empty")
         except FileNotFoundError:
             LOG.warning("Path %r not found", path)
-            return ekd.from_source("empty")  # type: ignore[reportReturnType]
+            return ekd.from_source("empty")
 
-        return ekd.from_source("file", path)  # type: ignore[reportReturnType]
+        return ekd.from_source("file", path)

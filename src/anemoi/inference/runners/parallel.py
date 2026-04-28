@@ -45,8 +45,8 @@ def create_parallel_runner(config: Configuration, client_factory: ComputeClientF
         runner_config = {"base_runner": runner_config}
     runner_config["cluster"] = client_factory.create_client()
 
-    runner = ParallelRunnerFactory(config, **runner_config)  # type: ignore
-    runner.execute()
+    runner = ParallelRunnerFactory(config, **runner_config)
+    runner.execute()  # type: ignore
 
 
 class NoOp:
@@ -87,7 +87,7 @@ class ParallelRunnerFactory:
         except ValueError:
             raise ValueError(f"Base runner '{base_runner}' not found in the registry.")
 
-        assert issubclass(base_class, Runner), f"Base runner '{base_runner}' must be a subclass of Runner."
+        assert issubclass(base_class, Runner), f"Base runner '{base_runner}' must be a subclass of Runner."  # type: ignore
 
         LOG.debug(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
@@ -108,7 +108,7 @@ class ParallelRunnerFactory:
         return ParallelRunner(config, *args, compute_client=compute_client, **kwargs)
 
     @staticmethod
-    def get_class(base_class: Runner):
+    def get_class(base_class: type[Runner]):
         """Returns a ParallelRunner class object of the given base class."""
         return type("ParallelRunner", (ParallelRunnerMixin, base_class), {})
 
@@ -180,15 +180,15 @@ class ParallelRunnerMixin(Runner):
 
         torch.manual_seed(seed)
 
-    def predict_step(self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any) -> "torch.Tensor":
+    def predict_step(self, model: Any, input_tensor_torch: dict[str, "torch.Tensor"], **kwargs: Any) -> Any:  # type: ignore
         """Performs a prediction step.
 
         Parameters
         ----------
         model : Any
             The model to use for prediction.
-        input_tensor_torch : torch.Tensor
-            The input tensor for the model.
+        input_tensor_torch : dict[str, torch.Tensor]
+            The input tensors for the model.
         **kwargs : Any
             Additional arguments for the prediction step.
 
@@ -225,5 +225,5 @@ class ParallelRunnerMixin(Runner):
         else:
             # passing the metadata here is a bit of a hack, the `none` output doesn't really need it
             # but in multi-datasets world every output needs metadata, so do this workaround
-            output = create_output(self, "none", self.checkpoint._metadata)
+            output = create_output(self, "none", self.checkpoint._metadata)  # type: ignore
             return output

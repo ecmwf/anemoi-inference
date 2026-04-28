@@ -46,7 +46,7 @@ class InputTemplates(TemplateProvider):
             fallback = f"(fallback {fallback})"
         return info.format(fallback=fallback)
 
-    def template(
+    def template(  # type: ignore
         self,
         variable: str,
         lookup: dict[str, Any],

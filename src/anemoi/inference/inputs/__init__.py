@@ -37,4 +37,4 @@ def create_input(context: Context, config: Configuration, metadata: Metadata, **
     Any
         The created input instance.
     """
-    return input_registry.from_config(config, context, metadata, **kwargs)
+    return input_registry.from_config(config, context, metadata, **kwargs)  # type: ignore

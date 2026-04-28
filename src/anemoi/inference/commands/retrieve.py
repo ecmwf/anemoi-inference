@@ -51,7 +51,7 @@ def print_request(verb, request, file=sys.stdout):
 def checkpoint_to_requests(
     checkpoint: Checkpoint,
     *,
-    dataset_name: str,
+    dataset_name: str | None = None,
     date: Date,
     staging_dates: str | None = None,
     forecast_dates: bool = False,

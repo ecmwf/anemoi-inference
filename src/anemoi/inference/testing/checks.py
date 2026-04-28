@@ -10,6 +10,7 @@
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 from . import testing_registry
 
@@ -32,7 +33,7 @@ def check_grib(
     grib_keys: dict = {},
     check_accum: str | None = None,
     check_nans=False,
-    reference_date: str = None,
+    reference_date: str | None = None,
     **kwargs,
 ) -> None:
     LOG.info(f"Checking GRIB file: {file}")
@@ -42,7 +43,7 @@ def check_grib(
 
     ds = ekd.from_source("file", file)
 
-    assert len(ds) > 0, "No fields found in the GRIB file."
+    assert len(ds) > 0, "No fields found in the GRIB file."  # type: ignore
 
     params = set(ds.metadata("param"))
     expected_params = [var.param for var in expected_variables]
@@ -50,7 +51,7 @@ def check_grib(
         set(expected_params) == params
     ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
 
-    for field in ds:
+    for field in ds:  # type: ignore
         for key, value in grib_keys.items():
             assert field[key] == value, f"Key {key} does not match expected value {value}."
         assert not np.all(field.values == 0), f"Field {field} is zero."
@@ -60,16 +61,16 @@ def check_grib(
 
     # check time continuity
     if reference_date:
-        reference_date = to_datetime(reference_date)
-        LOG.info(f"Using reference date: {reference_date}")
+        ref_dt: Any = to_datetime(reference_date)  # type: ignore
+        LOG.info(f"Using reference date: {ref_dt}")
 
     fields = ds.sel(param=expected_params[0])
     previous_field = fields[0]
     for field in fields[1:]:
         if reference_date:
-            assert field["base_time"] == reference_date.isoformat()
-            assert field["date"] == int(reference_date.strftime("%Y%m%d"))
-            assert field["time"] == reference_date.hour * 100
+            assert field["base_time"] == ref_dt.isoformat()
+            assert field["date"] == int(ref_dt.strftime("%Y%m%d"))
+            assert field["time"] == ref_dt.hour * 100
         assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
             f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
             f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
@@ -110,8 +111,8 @@ def check_grib_cutout(
     if not reference_datetime:
         reference_datetime = ref_ds.order_by(valid_datetime="ascending")[-1].metadata("valid_time")
 
-    assert len(ds) > 0, "No fields found in the output GRIB file."
-    assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
+    assert len(ds) > 0, "No fields found in the output GRIB file."  # type: ignore
+    assert len(ref_ds) > 0, "No fields found in the reference GRIB file."  # type: ignore
 
     mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
     prognostic_params = [
@@ -190,7 +191,7 @@ def check_cutout_with_xarray(
     file: Path,
     metadata: "Metadata",
     mask="lam_0",
-    reference_date: str = None,
+    reference_date: str | None = None,
     reference_dataset={},
     reference_file=None,
     **kwargs,
@@ -211,7 +212,7 @@ def check_cutout_with_xarray(
     # check that the extracted inner region matches the reference input dataset
     # the mock model passes input to output, values in the output file should match the input dataset at the reference date
     if reference_dataset:
-        from anemoi.datasets import open_dataset
+        from anemoi.datasets import open_dataset  # type: ignore
 
         ref_ds = open_dataset(**reference_dataset, start=reference_date, end=reference_date)
 
@@ -262,7 +263,7 @@ def check_boundary_forcings_with_xarray(
     dates = ds["time"].astype("datetime64[s]").values
     freq = dates[1] - dates[0]
     if reference_dataset:
-        from anemoi.datasets import open_dataset
+        from anemoi.datasets import open_dataset  # type: ignore
 
         ref_ds = open_dataset(**reference_dataset, start=dates[0])
         ref_freq = np.timedelta64(ref_ds.frequency)

@@ -56,8 +56,8 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
         Path to the downloaded model.
     """
     try:
-        from huggingface_hub import hf_hub_download
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import hf_hub_download  # type: ignore
+        from huggingface_hub import snapshot_download  # type: ignore
     except ImportError as e:
         raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
 
@@ -86,7 +86,7 @@ class Checkpoint:
         source: str | Metadata | dict[Literal["huggingface"], str | dict],
         *,
         metadata_base: type[Metadata] = Metadata,
-        patch_metadata: dict[str, Any] | None = None,
+        patch_metadata: dict[str, Any] | Path | None = None,
     ) -> None:
         """Initialize the Checkpoint.
 
@@ -119,7 +119,7 @@ class Checkpoint:
         import json
 
         try:
-            path = json.loads(self._source)
+            path = json.loads(self._source)  # type: ignore
         except Exception:
             path = self._source
 
@@ -127,7 +127,7 @@ class Checkpoint:
             return str(path)
         elif isinstance(path, dict):
             if "huggingface" in path:
-                return _download_huggingfacehub(path["huggingface"])
+                return _download_huggingfacehub(path["huggingface"])  # type: ignore
             pass
         raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
@@ -243,9 +243,9 @@ class Checkpoint:
         all_packages : bool, optional
             Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
-            What to do on difference, by default "warn"
+            What to do on difference, by default "warn".
         exempt_packages : list[str], optional
-            List of packages to exempt from the check, by default EXEMPT_PACKAGES
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES.
 
         Returns
         -------
@@ -280,6 +280,6 @@ class SourceCheckpoint(Checkpoint):
         return f"Source({self.path})"
 
     @property
-    def operational_config(self) -> dict[str, Any]:
+    def operational_config(self) -> dict[str, Any] | bool:
         LOG.warning("The `operational_config` property is deprecated.")
         return False

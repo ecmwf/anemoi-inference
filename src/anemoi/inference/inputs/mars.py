@@ -40,7 +40,7 @@ def rounded_area(area: list[float] | None) -> list[float] | None:
         The rounded area or the original area if no rounding is needed.
     """
     try:
-        surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360
+        surface = (area[0] - area[2]) * (area[3] - area[1]) / 180 / 360  # type: ignore
         if surface > 0.98:
             return [90, 0.0, -90, 360]
     except TypeError:
@@ -274,7 +274,7 @@ class MarsInput(GribInput):
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [retrieve_date + h for h in self.metadata.lagged],
+                [retrieve_date + h for h in self.metadata.lagged],  # type: ignore
             ),
             variables=self.variables,
             date=date,

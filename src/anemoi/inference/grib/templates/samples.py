@@ -40,4 +40,4 @@ class SamplesTemplates(IndexTemplateProvider):
             return None
 
         LOG.debug(f"Loading sample file: {template}")
-        return ekd.from_source("file", template)[0]
+        return ekd.from_source("file", template)[0]  # type: ignore

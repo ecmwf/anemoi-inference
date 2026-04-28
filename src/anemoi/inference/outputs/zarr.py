@@ -32,7 +32,7 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from zarr.storage import StoreLike
+    from zarr.storage import StoreLike  # type: ignore
 
 
 def create_zarr_array(
@@ -48,12 +48,12 @@ def create_zarr_array(
 
     Parses the Zarr version to handle differences in API between versions 2 and 3.
     """
-    import zarr
+    import zarr  # type: ignore
 
     chunks = chunks if zarr.__version__ >= "3" else chunks if not chunks == "auto" else True
 
     if zarr.__version__ >= "3":
-        from zarr import create_array
+        from zarr import create_array  # type: ignore
     else:
 
         def create_array(*, store, **kwargs):
@@ -75,7 +75,7 @@ def create_zarr_array(
     return array
 
 
-@output_registry.register("zarr")  # type: ignore
+@output_registry.register("zarr")
 @main_argument("store")
 @format_dataset_name("store")
 class ZarrOutput(Output):
@@ -150,7 +150,7 @@ class ZarrOutput(Output):
         state : State
             The state dictionary.
         """
-        import zarr
+        import zarr  # type: ignore
 
         if isinstance(self.zarr_store, (str, Path)):
             store_str = str(self.zarr_store)
@@ -158,11 +158,11 @@ class ZarrOutput(Output):
             if "://" in store_str:
                 # Remote store (e.g. S3, GCS) — delegate to fsspec
                 if zarr.__version__ >= "3":
-                    from zarr.storage import FsspecStore
+                    from zarr.storage import FsspecStore  # type: ignore
 
                     self.zarr_store = FsspecStore.from_url(store_str)
                 else:
-                    from zarr.storage import FSStore
+                    from zarr.storage import FSStore  # type: ignore
 
                     self.zarr_store = FSStore(store_str)
             else:
@@ -174,11 +174,11 @@ class ZarrOutput(Output):
                     shutil.rmtree(self.zarr_store)
 
                 if zarr.__version__ >= "3":
-                    from zarr.storage import LocalStore
+                    from zarr.storage import LocalStore  # type: ignore
 
                     self.zarr_store = LocalStore(self.zarr_store)
                 else:
-                    from zarr.storage import DirectoryStore
+                    from zarr.storage import DirectoryStore  # type: ignore
 
                     self.zarr_store = DirectoryStore(self.zarr_store)
 
@@ -316,12 +316,12 @@ class ZarrOutput(Output):
 
     def close(self) -> None:
         """Close the Zarr file."""
-        import zarr
+        import zarr  # type: ignore
 
         if zarr.__version__ >= "3":
-            from zarr.abc.store import Store
+            from zarr.abc.store import Store  # type: ignore
         else:
-            from zarr.storage import BaseStore as Store
+            from zarr.storage import BaseStore as Store  # type: ignore
 
         if self.zarr_store is not None and not isinstance(self.zarr_store, str):
             if isinstance(self.zarr_store, Store):

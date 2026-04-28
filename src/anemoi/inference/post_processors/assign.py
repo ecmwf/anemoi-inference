@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -49,17 +50,17 @@ class AssignMask(Processor):
         self._maskname = mask
 
         if Path(mask).is_file():
-            mask = np.load(mask)
+            mask_data: Any = np.load(mask)
         else:
-            mask = metadata.load_supporting_array(mask)
+            mask_data = metadata.load_supporting_array(mask)
 
-        if not isinstance(mask, np.ndarray) or mask.dtype != bool:
+        if not isinstance(mask_data, np.ndarray) or mask_data.dtype != bool:
             raise ValueError(
-                "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
+                "Expected the mask to be a boolean numpy array. " f"Got {type(mask_data)} with dtype {mask_data.dtype}."
             )
 
-        self.indexer = mask
-        self.npoints = np.sum(mask)
+        self.indexer = mask_data
+        self.npoints = np.sum(mask_data)
         self.fill_value = fill_value
 
     def process(self, state: State) -> State:

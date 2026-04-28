@@ -20,7 +20,7 @@ from anemoi.inference.metadata import Metadata
 
 LOG = logging.getLogger("anemoi.inference")
 
-F = TypeVar("F", bound=type)
+F = TypeVar("F")
 UNIQUE_PATHS = defaultdict(set)
 
 
@@ -58,7 +58,7 @@ class main_argument:
         """
         self.name = name
 
-    def __call__(self, cls: F) -> F:
+    def __call__(self, cls: type) -> type:
         """Decorate the class to set the main argument."""
 
         if not isinstance(cls, type):
@@ -74,7 +74,7 @@ class main_argument:
             _offset = 2 if "metadata" in parameters else 1  # accounts for `self``
             break
 
-        class WrappedClass(cls):
+        class WrappedClass(cls):  # type: ignore
             def __init__(wrapped_cls, *args, **kwargs) -> None:
                 args = list(args)
                 if len(args) > _offset:
@@ -109,10 +109,10 @@ class ensure_path:
         self.must_exist = must_exist
         self.unique = unique
 
-    def __call__(self, cls: F) -> F:
+    def __call__(self, cls: type) -> type:
         """Decorate the object to ensure the path argument is a Path object."""
 
-        class WrappedClass(cls):
+        class WrappedClass(cls):  # type: ignore
             def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
                 if self.arg not in kwargs:
                     LOG.debug(f"Argument '{self.arg}' not found in kwargs, cannot ensure path.")
@@ -174,7 +174,7 @@ class format_dataset_name:
     def __init__(self, arg: str):
         self.arg = arg
 
-    def __call__(self, cls: F) -> F:
+    def __call__(self, cls: type) -> type:
         if not isinstance(cls, type):
             raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
 
@@ -185,7 +185,7 @@ class format_dataset_name:
             def __missing__(self, key):
                 return f"{{{key}}}"  # if the key is not found, return the placeholder unchanged
 
-        class WrappedClass(cls):
+        class WrappedClass(cls):  # type: ignore
             def __init__(wrapped_cls, context: Context, metadata: Metadata, *args: Any, **kwargs: Any) -> Any:
                 assert self.arg in kwargs, f"{self.arg} not found in decorated class arguments: {kwargs}"
                 assert isinstance(

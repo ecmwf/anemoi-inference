@@ -74,8 +74,8 @@ class SimpleMockModel(torch.nn.Module):
     def predict_step(
         self,
         input_tensor: torch.Tensor | dict[str, torch.Tensor],
-        date: datetime.datetime = None,
-        step: datetime.timedelta = None,
+        date: datetime.datetime | None = None,
+        step: datetime.timedelta | None = None,
         **kwargs: Any,
     ) -> torch.Tensor | dict[str, torch.Tensor]:
         if not isinstance(input_tensor, dict):
@@ -86,7 +86,7 @@ class SimpleMockModel(torch.nn.Module):
             return self._predict_step({default_key: input_tensor})[default_key]
 
         # multi-dataset model
-        return self._predict_step(input_tensor)
+        return self._predict_step(input_tensor)  # type: ignore
 
     def _predict_step(self, input_tensor: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         outputs: dict[str, torch.Tensor] = {}

@@ -44,12 +44,12 @@ def _mask_and_combine_states(
     mask : np.ndarray
         The mask to apply to new_state.
     fields: Iterable[str]
-        The fields to combine in the states
+        The fields to combine in the states.
 
     Returns
     -------
     State
-        The combined state
+        The combined state.
     """
     was_empty = existing_state == {}
 
@@ -146,13 +146,13 @@ class Cutout(Input):
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
             self.sources[src] = create_input(
-                context, cfg, self.metadata, variables=self.variables, purpose=self.purpose
+                context, cfg, self.metadata, variables=self.variables, purpose=self.purpose  # type: ignore
             )
 
             if isinstance(mask, str):
                 self.masks[src] = self.sources[src].metadata.load_supporting_array(mask)
             else:
-                self.masks[src] = mask if mask is not None else slice(0, None)  # type: ignore
+                self.masks[src] = mask if mask is not None else slice(0, None)
 
     def __repr__(self):
         """Return a string representation of the Cutout object."""
@@ -186,7 +186,7 @@ class Cutout(Input):
             source_mask = self.masks[source]
 
             try:
-                latitudes, longitudes = self.sources[source]._fieldlist[0].grid_points()
+                latitudes, longitudes = self.sources[source]._fieldlist[0].grid_points()  # type: ignore
             except Exception as e:
                 LOG.warning("Failed to get coordinates from source %s: %s", source, e)
                 LOG.warning(

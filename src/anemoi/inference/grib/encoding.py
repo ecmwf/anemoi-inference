@@ -35,7 +35,7 @@ GRIB1_ONLY: list[str] = []
 GRIB2_ONLY: list[str] = ["typeOfGeneratingProcess"]
 
 
-ORDERING = (
+_ORDERING_KEYS = (
     "edition",
     "typeOfLevel",
     "stepType",
@@ -44,7 +44,7 @@ ORDERING = (
     "number",
 )
 
-ORDERING = {k: i for i, k in enumerate(ORDERING)}
+ORDERING: dict[str, int] = {k: i for i, k in enumerate(_ORDERING_KEYS)}
 
 
 def _ordering(item: tuple) -> int:
@@ -100,9 +100,9 @@ def _step_in_hours(step: timedelta) -> int:
     int
         The step in hours.
     """
-    step = step.total_seconds() / 3600
-    assert int(step) == step
-    return int(step)
+    step_hours = step.total_seconds() / 3600
+    assert int(step_hours) == step_hours
+    return int(step_hours)
 
 
 STEP_TYPE = {
@@ -207,7 +207,7 @@ LEVTYPES = {
 def grib_keys(
     *,
     values: FloatArray,
-    template: ekd.Field,
+    template: Any,
     variable: "Variable",
     ensemble: bool,
     param: int | float | str | None,
@@ -216,8 +216,8 @@ def grib_keys(
     previous_step: timedelta | None,
     start_steps: dict[str, timedelta],
     keys: dict[str, Any],
-    grib1_keys: dict[int | float | str, dict[str, Any]] = {},
-    grib2_keys: dict[int | float | str, dict[str, Any]] = {},
+    grib1_keys: dict[str, Any] | dict[int | float | str, dict[str, Any]] = {},
+    grib2_keys: dict[str, Any] | dict[int | float | str, dict[str, Any]] = {},
 ) -> dict[str, Any]:
     """Generate GRIB keys for encoding.
 
@@ -276,10 +276,10 @@ def grib_keys(
         result.setdefault(_param(param), param)
 
         if edition == 1:
-            result.update(grib1_keys.get(param, {}))
+            result.update(grib1_keys.get(param, {}))  # type: ignore
 
         if edition == 2:
-            result.update(grib2_keys.get(param, {}))
+            result.update(grib2_keys.get(param, {}))  # type: ignore
 
     result.setdefault("type", "fc")
 

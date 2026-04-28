@@ -16,9 +16,6 @@ import earthkit.data as ekd
 import yaml
 from anemoi.utils.registry import Registry
 
-from anemoi.inference.config import Configuration
-from anemoi.inference.output import Output
-
 if TYPE_CHECKING:
     from .manager import TemplateManager
 
@@ -28,7 +25,7 @@ LOG = logging.getLogger(__name__)
 template_provider_registry = Registry(__name__)
 
 
-def create_template_provider(owner: Output, config: Configuration) -> "TemplateProvider":
+def create_template_provider(owner: Any, config: Any) -> "TemplateProvider":
     """Create a template provider from the given configuration.
 
     Parameters
@@ -62,7 +59,7 @@ class TemplateProvider:
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
-    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
+    def template(self, variable: str, lookup: dict[str, Any], state: Any = None, **kwargs) -> ekd.Field | None:
         """Get the template for the given variable and lookup.
 
         Parameters
@@ -71,6 +68,8 @@ class TemplateProvider:
             The variable to get the template for.
         lookup : Dict[str, Any]
             The lookup dictionary.
+        state : Any, optional
+            The current state.
         kwargs
             Extra arguments for specific template providers.
 
@@ -123,7 +122,7 @@ class IndexTemplateProvider(TemplateProvider):
             if not isinstance(grib, str):
                 raise ValueError(f"Invalid grib in index element, must be a string: {grib}")
 
-    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
+    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:  # type: ignore
         def _as_list(value: Any) -> list[Any]:
             if not isinstance(value, list):
                 return [value]

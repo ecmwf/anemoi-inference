@@ -183,7 +183,7 @@ class NetCDFOutput(Output):
             with LOCK:
                 missing_value = self.missing_value
 
-                self.vars[name] = self.ncfile.createVariable(
+                self.vars[name] = self.ncfile.createVariable(  # type: ignore
                     name,
                     self.float_size,
                     ("time", "values"),

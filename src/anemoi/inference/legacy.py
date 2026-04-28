@@ -38,7 +38,7 @@ def warn(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        warnings.warn(f"Using legacy {func.__name__}, please try to patch your weights.")
+        warnings.warn(f"Using legacy {func.__name__}, please try to patch your weights.")  # type: ignore
         return func(*args, **kwargs)
 
     return wrapper
@@ -199,7 +199,7 @@ class LegacyMixin(MetadataProtocol):
         """
         from anemoi.utils.config import find
 
-        result = find(self._dataset, "data_request")
+        result = find(self._dataset, "data_request")  # type: ignore
         if len(result) == 0:
             raise ValueError("No data_request found in metadata")
 

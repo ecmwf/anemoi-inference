@@ -84,7 +84,7 @@ class DatasetInput(Input):
     @cached_property
     def ds(self) -> Any:
         """Return the dataset."""
-        from anemoi.datasets import open_dataset
+        from anemoi.datasets import open_dataset  # type: ignore
 
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
         if self.variables is not None:
@@ -114,7 +114,7 @@ class DatasetInput(Input):
         date : Optional[Any]
             The date for which to create the input state.
         constant: bool
-            Whether the field is constant or dynamic
+            Whether the field is constant or dynamic.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -136,16 +136,16 @@ class DatasetInput(Input):
             fields=dict(),
         )
 
-        fields = input_state["fields"]
+        fields: dict[str, Any] = input_state["fields"]  # type: ignore
 
-        date = np.datetime64(date)
+        date_np = np.datetime64(date)  # type: ignore
 
         if constant:
-            dates = [date]
+            dates_np = [date_np]
         else:
-            dates = [date + np.timedelta64(h) for h in self.metadata.lagged]
+            dates_np = [date_np + np.timedelta64(h) for h in self.metadata.lagged]
 
-        data = self._load_dates(dates)
+        data = self._load_dates(dates_np)  # type: ignore
 
         if data.shape[2] != 1:
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
@@ -298,6 +298,8 @@ class DatasetInputArgsKwargs(DatasetInput):
 
 class DataloaderInput(DatasetInput):
     """Handles `anemoi-datasets` dataset as input."""
+
+    name: str = ""
 
     def __init__(
         self,

@@ -77,5 +77,5 @@ class PatchMixin(MetadataProtocol):
         # We assume that the datasets are reachable via the content of
         # ~/.config/anemoi/settings.toml.
 
-        ds = self.open_dataset()
+        ds = self.open_dataset()  # type: ignore
         return ds.metadata(), ds.supporting_arrays()

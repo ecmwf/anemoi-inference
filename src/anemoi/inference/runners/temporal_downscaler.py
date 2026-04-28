@@ -149,7 +149,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         if self.reference_date is not None:
             req["time"] = f"{self.reference_date.hour*100:04d}"
         req["step"] = (
-            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.temporal_downscaling_window.total_seconds()//3600)}"
+            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.temporal_downscaling_window.total_seconds()//3600)}"  # type: ignore
         )
         return req
 
@@ -251,14 +251,14 @@ class TemporalDownscalerMultiOutRunner(Runner):
         Parameters
         ----------
         start_date : datetime.datetime
-            Input start date
+            Input start date.
 
         Returns
         -------
         step : datetime.timedelta
-            Time delta between the target index date and the start date
+            Time delta between the target index date and the start date.
         date : datetime.datetime
-            Date of the zeroth index of the input tensor
+            Date of the zeroth index of the input tensor.
         """
         target_steps = self.checkpoint.target_explicit_times
         boundary_idx = self.checkpoint.input_explicit_times
@@ -273,7 +273,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
             date = start_date + step
             yield step, date
 
-    def forecast(
+    def forecast(  # type: ignore
         self, lead_time: datetime.timedelta, input_tensors_numpy: dict[str, FloatArray], input_states: dict[str, State]
     ) -> Generator[dict[str, State], None, None]:
         """Temporally downscale between the current and future state in the input tensor.
@@ -285,7 +285,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         input_tensors_numpy : dict[str, FloatArray]
             The input tensors for each dataset, as numpy arrays with shape (multi_step_input, variables, values).
         input_states : dict[str, State]
-            The input states for each dataset. It contains both input dates defined by the config explicit_times.input
+            The input states for each dataset. It contains both input dates defined by the config explicit_times.input.
 
         Returns
         -------
@@ -341,7 +341,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
             # Predict next state of atmosphere
             with (
-                torch.autocast(device_type=self.device.type, dtype=self.autocast),
+                torch.autocast(device_type=self.device.type, dtype=self.autocast),  # type: ignore
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(f"Temporal downscaling step ({start})"),
             ):

@@ -37,9 +37,9 @@ class MPITransport(Transport):
         tasks : Dict[str, Any]
             The tasks to be executed.
         """
-        from mpi4py import MPI
+        from mpi4py import MPI  # type: ignore
 
-        super().__init__(couplings, tasks)
+        super().__init__(couplings, tasks)  # type: ignore
         self.comm: MPI.Comm = MPI.COMM_WORLD
         self.rank: int = self.comm.Get_rank()
         self.size: int = self.comm.Get_size()

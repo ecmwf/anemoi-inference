@@ -10,6 +10,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -105,20 +106,20 @@ class ExtractMask(ExtractBase):
         self._maskname = mask
 
         if Path(mask).is_file():
-            mask = np.load(mask)
+            mask_data: Any = np.load(mask)
         else:
-            mask = metadata.load_supporting_array(mask)
+            mask_data = metadata.load_supporting_array(mask)
 
-        if not isinstance(mask, np.ndarray) or mask.dtype != bool:
+        if not isinstance(mask_data, np.ndarray) or mask_data.dtype != bool:
             raise ValueError(
-                "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
+                "Expected the mask to be a boolean numpy array. " f"Got {type(mask_data)} with dtype {mask_data.dtype}."
             )
 
         if as_slice:
-            self.indexer = slice(None, np.sum(mask)) if not inverse else slice(np.sum(mask), None)
+            self.indexer = slice(None, np.sum(mask_data)) if not inverse else slice(np.sum(mask_data), None)
         else:
-            self.indexer = mask if not inverse else ~mask
-        self.npoints = np.sum(mask)
+            self.indexer = mask_data if not inverse else ~mask_data
+        self.npoints = np.sum(mask_data)
 
     def __repr__(self) -> str:
         """Return a string representation of the ExtractMask object.

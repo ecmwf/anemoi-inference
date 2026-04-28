@@ -46,16 +46,16 @@ class MaskValues(Processor):
             - `threshold_operator`: The operator to use for thresholding the mask if using a threshold (default: None).
             - `threshold`: The threshold value for the mask if using operator (default: None).
         """
-        super().__init__(context)
-        if mask in self.checkpoint.supporting_arrays:
-            mask_array = self.checkpoint.supporting_arrays[mask]
+        super().__init__(context)  # type: ignore
+        if mask in self.checkpoint.supporting_arrays:  # type: ignore
+            mask_array = self.checkpoint.supporting_arrays[mask]  # type: ignore
         elif mask.endswith(".npy"):
             mask_array = np.load(mask)
         elif mask.endswith(".grib") or mask.endswith(".nc"):
             mask_array = ekd.from_source("file", mask)[0].to_numpy(flatten=True)  # type: ignore
         else:
             raise ValueError(
-                f"Mask '{mask}' not found in supporting arrays nor does it appear to be a file, available arrays: {list(self.checkpoint.supporting_arrays.keys())}."
+                f"Mask '{mask}' not found in supporting arrays nor does it appear to be a file, available arrays: {list(self.checkpoint.supporting_arrays.keys())}."  # type: ignore
             )
 
         with tempfile.NamedTemporaryFile(suffix=".npy") as tmp_file:

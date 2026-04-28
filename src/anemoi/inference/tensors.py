@@ -424,7 +424,7 @@ class TensorHandler:
         # batch is always 1
 
         for source in self.dynamic_forcings_providers:
-            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)  # type: ignore
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
@@ -462,7 +462,7 @@ class TensorHandler:
         # batch is always 1
         sources = self.boundary_forcings_providers
         for source in sources:
-            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)  # type: ignore
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
@@ -472,7 +472,7 @@ class TensorHandler:
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
             for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
-                total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)
+                total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)  # type: ignore
                 input_tensor_torch[total_mask] = forcings[
                     :, -(i + 1), ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
@@ -485,7 +485,7 @@ class TensorHandler:
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
-    def _print_input_tensor(self, title: str, input_tensor_torch: dict[str, "torch.Tensor"]) -> None:
+    def _print_input_tensor(self, title: str, input_tensor_torch: "torch.Tensor") -> None:
         input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
 
         assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
@@ -497,7 +497,7 @@ class TensorHandler:
         self._print_tensor(
             f"{title} - dataset: `{self.dataset_name}`",
             input_tensor_numpy,
-            self._input_tensor_by_name,
+            self._input_tensor_by_name,  # type: ignore
             self._input_kinds,
         )
 
@@ -608,5 +608,5 @@ class TensorHandler:
         return [result]
 
     def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
-        result = BoundaryForcings(self, self.boundary_forcings_input, variables, mask)
+        result = BoundaryForcings(self, self.boundary_forcings_input, variables, mask)  # type: ignore
         return [result]

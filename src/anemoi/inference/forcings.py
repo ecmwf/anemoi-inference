@@ -163,12 +163,12 @@ class ComputedForcings(Forcings):
 
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
 
-        assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
+        assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)  # type: ignore
 
         def rename(field: ekd.Field, _: str, metadata: dict[str, Any]) -> str:
             return metadata["param"]
 
-        ds = FieldArray([f.clone(name=rename) for f in ds])
+        ds = FieldArray([f.clone(name=rename) for f in ds])  # type: ignore
 
         forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
 
@@ -294,7 +294,7 @@ class BoundaryForcings(Forcings):
         if "output_mask" in context.metadata._supporting_arrays:
             self.spatial_mask = ~context.metadata.load_supporting_array("output_mask")
         else:
-            self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)
+            self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)  # type: ignore
         self.kinds = dict(retrieved=True)  # Used for debugging
 
     def __repr__(self) -> str:

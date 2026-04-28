@@ -79,7 +79,7 @@ def print_state(
     if not isinstance(variables, (list, tuple, set)):
         variables = [variables]
 
-    variables = set(variables)
+    variables_set: set = set(variables)
 
     n = max_lines
 
@@ -94,7 +94,7 @@ def print_state(
 
     for i in idx:
         name = names[i]
-        if name not in variables:
+        if name not in variables_set:
             continue
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
@@ -140,7 +140,7 @@ class PrinterOutput(Output):
             Additional keyword arguments.
         """
 
-        super().__init__(context, metadata, variables=variables, **kwargs)
+        super().__init__(context, metadata, variables=variables, **kwargs)  # type: ignore
         self.print = print
         self.variables = variables
         self.max_lines = max_lines
@@ -162,7 +162,7 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
+        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)  # type: ignore
 
     def close(self) -> None:
         if self.f is not None:

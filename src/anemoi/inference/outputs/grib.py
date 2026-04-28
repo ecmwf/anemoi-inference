@@ -44,7 +44,7 @@ class HindcastOutput:
 
         self.reference_year = reference_year
 
-    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(self, variable: Any, values: FloatArray, template: Any, keys: dict) -> tuple:
         """Call the HindcastOutput object.
 
         Parameters
@@ -113,7 +113,7 @@ class PatchOutput:
             assert key == "variable", patch
         self.patches.append(Matching(patch[key]))
 
-    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(self, variable: Any, values: FloatArray, template: Any, keys: dict) -> tuple:
         original_keys = keys.copy()
         result = keys.copy()
         for patch in self.patches:
@@ -150,7 +150,7 @@ def modifier_factory(modifiers: list) -> list:
         assert isinstance(modifier, dict), modifier
         assert len(modifier) == 1, modifier
 
-        klass = list(modifier.keys())[0]
+        klass: str = list(modifier.keys())[0]  # type: ignore
         if isinstance(modifier[klass], list):
             result.append(MODIFIERS[klass](*modifier[klass]))
         else:
@@ -164,7 +164,7 @@ class BaseGribOutput(Output):
 
     def __init__(
         self,
-        context: dict,
+        context: Any,
         metadata: Metadata,
         *,
         post_processors: list[ProcessorConfig] | None = None,
@@ -227,7 +227,7 @@ class BaseGribOutput(Output):
         self.grib1_keys = grib1_keys if grib1_keys is not None else {}
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
 
-        self.modifiers = modifier_factory(modifiers)
+        self.modifiers = modifier_factory(modifiers)  # type: ignore
         self.variables = variables
         assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
         self.negative_step_mode = negative_step_mode

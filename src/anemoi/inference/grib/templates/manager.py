@@ -137,7 +137,7 @@ class TemplateManager:
                 continue
             lookup[key] = value
 
-        lookup.update(self.owner.template_lookup(name))
+        lookup.update(self.owner.template_lookup(name))  # type: ignore
 
         if LOG.isEnabledFor(logging.DEBUG):
             LOG.debug(f"Loading template for `{name}` with lookup:")
@@ -158,7 +158,7 @@ class TemplateManager:
         LOG.warning("%s", json.dumps(lookup, indent=2, default=str))
         return None
 
-    def _grid(self, grid: str | list[float] | tuple[int, int]) -> str:
+    def _grid(self, grid: str | list[float] | tuple[int, int]) -> Any:
         """Convert the grid information to a standardised format.
 
         Parameters

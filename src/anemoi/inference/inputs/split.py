@@ -32,7 +32,7 @@ class SplitInput(Input):
 
     def __init__(self, context: Context, metadata: Metadata, *splits, **kwargs: Any) -> None:
 
-        all_variables = set(kwargs.get("variables"))
+        all_variables = set(kwargs.get("variables"))  # type: ignore
         assert all_variables is not None, "variables must be provided for split input"
 
         self.splits = {}

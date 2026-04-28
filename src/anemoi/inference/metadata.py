@@ -155,7 +155,7 @@ class Metadata(PatchMixin, LegacyMixin):
     ###########################################################################
 
     def _print_indices(
-        self, title: str, indices: dict[str, list[int]], naming: dict, skip: list[str] = [], print=LOG.info
+        self, title: str, indices: dict[str, Any], naming: dict, skip: list[str] = [], print=LOG.info
     ) -> None:
         """Print indices for debugging purposes.
 
@@ -554,7 +554,7 @@ class Metadata(PatchMixin, LegacyMixin):
             # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
-                metadata.get("param"),
+                metadata.get("param", ""),
                 metadata.get("levelist"),
                 metadata.get("levtype"),
             )
@@ -619,7 +619,7 @@ class Metadata(PatchMixin, LegacyMixin):
         variable_categories = self.variable_categories()
         result = []
 
-        def parse_category(categories: str) -> set:
+        def parse_category(categories: Any) -> set | None:
             if categories is None:
                 return None
 
@@ -638,12 +638,12 @@ class Metadata(PatchMixin, LegacyMixin):
                     return True
             return False
 
-        include = parse_category(include)
-        exclude = parse_category(exclude)
+        include_set = parse_category(include)
+        exclude_set = parse_category(exclude)
 
-        if include is not None and exclude is not None:
-            if not include.isdisjoint(exclude):
-                raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
+        if include_set is not None and exclude_set is not None:
+            if not include_set.isdisjoint(exclude_set):
+                raise ValueError(f"Include and exclude sets must not overlap {include_set} & {exclude_set}")
 
         for variable, metadata in self.variables_metadata.items():
 
@@ -658,10 +658,10 @@ class Metadata(PatchMixin, LegacyMixin):
             if has_mars_requests and "mars" not in metadata:
                 continue
 
-            if exclude is not None and match(exclude, categories, variable):
+            if exclude_set is not None and match(exclude_set, categories, variable):
                 continue
 
-            if include is None or match(include, categories, variable):
+            if include_set is None or match(include_set, categories, variable):
                 result.append(variable)
 
         return result
@@ -773,9 +773,9 @@ class Metadata(PatchMixin, LegacyMixin):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        dates = [to_datetime(d) for d in dates]
+        parsed_dates: list[datetime.datetime] = [to_datetime(d) for d in dates]
 
-        assert dates, "No dates provided"
+        assert parsed_dates, "No dates provided"
 
         result: list[DataRequest] = []
 
@@ -792,7 +792,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
         requests = defaultdict(list)
         for r in self.simple_mars_requests(variables=variables):
-            for date in dates:
+            for date in parsed_dates:
                 r = r.copy()
 
                 base = date
@@ -805,7 +805,7 @@ class Metadata(PatchMixin, LegacyMixin):
                 if always_split_time:
                     keys = DEFAULT_KEYS_AND_TIME
                 else:
-                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)
+                    keys = KEYS.get((r.get("stream"), r.get("type")), DEFAULT_KEYS)  # type: ignore
                 key = tuple(r.get(k) for k in keys)
 
                 # Special case because of oper/scda
@@ -841,7 +841,7 @@ class Metadata(PatchMixin, LegacyMixin):
 
                 if use_grib_paramid and "param" in r:
 
-                    def shortname_to_paramid_no_fail(x: str) -> str:
+                    def shortname_to_paramid_no_fail(x: str) -> str | int:
                         try:
                             return shortname_to_paramid(x)
                         except KeyError:
@@ -949,9 +949,9 @@ class Metadata(PatchMixin, LegacyMixin):
         all_packages : bool, optional
             Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
-            What to do on difference, by default "warn"
+            What to do on difference, by default "warn".
         exempt_packages : list[str], optional
-            List of packages to exempt from the check, by default EXEMPT_PACKAGES
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES.
 
         Returns
         -------
@@ -1028,7 +1028,7 @@ class Metadata(PatchMixin, LegacyMixin):
         tuple
             The opened dataset and its arguments.
         """
-        from anemoi.datasets import open_dataset
+        from anemoi.datasets import open_dataset  # type: ignore
         from anemoi.utils.config import temporary_config
 
         if use_original_paths is not None:
@@ -1132,7 +1132,7 @@ class Metadata(PatchMixin, LegacyMixin):
         """
 
         if self._variables_categories is not None:
-            return self._variables_categories
+            return self._variables_categories  # type: ignore
 
         result = defaultdict(set)
         typed_variables = self.typed_variables
@@ -1169,7 +1169,7 @@ class Metadata(PatchMixin, LegacyMixin):
             result[name] = sorted(result[name])
 
         self._variables_categories = frozendict(result)
-        return self._variables_categories
+        return self._variables_categories  # type: ignore
 
     ###########################################################################
     # Supporting arrays
@@ -1453,7 +1453,7 @@ class MultiDatasetMetadata(Metadata):
     def output_tensor_index_to_variable(self) -> frozendict:
         return frozendict({v: k for k, v in self.variable_to_output_tensor_index.items()})
 
-    def variable_categories(self) -> dict[str, set[str]]:
+    def variable_categories(self) -> Any:
         if self._variables_categories is not None:
             return self._variables_categories
 

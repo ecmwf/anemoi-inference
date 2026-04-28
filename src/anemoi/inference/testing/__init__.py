@@ -82,7 +82,7 @@ def save_fake_checkpoint(metadata: dict | str | Path, save_path: Path, supportin
     torch.save(model, save_path)
 
     save_metadata(
-        save_path,
+        save_path,  # type: ignore
         metadata,
         supporting_arrays=supporting_arrays,
     )
@@ -98,7 +98,7 @@ def float_hash(s: str, date: datetime.datetime, accuracy: int = 1_000_000) -> fl
     date : datetime.datetime
         The date to be hashed.
     accuracy : int, optional
-        The accuracy of the hash, by default 1_000_000
+        The accuracy of the hash, by default 1_000_000.
 
     Returns
     -------

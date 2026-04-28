@@ -41,4 +41,4 @@ class BuiltinTemplates(IndexTemplateProvider):
 
     def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
         template = zlib.decompress(base64.b64decode(grib))
-        return ekd.from_source("memory", template)[0]
+        return ekd.from_source("memory", template)[0]  # type: ignore

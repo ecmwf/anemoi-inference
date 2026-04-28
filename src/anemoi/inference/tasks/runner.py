@@ -99,7 +99,7 @@ class CoupledRunner(Runner):
             result.append(CouplingForcings(self, self.coupled_input, [variables[i] for i in mine], mask[mine]))
 
         if other:
-            result.extend(super().create_dynamic_coupled_forcings([variables[i] for i in other], mask[other]))
+            result.extend(super().create_dynamic_coupled_forcings([variables[i] for i in other], mask[other]))  # type: ignore
 
         return result
 
@@ -122,7 +122,7 @@ class CoupledRunner(Runner):
         result = []
         for f in dynamic_forcings_providers:
             if isinstance(f, CoupledForcings):
-                result.extend(super().create_dynamic_coupled_forcings(f.variables, f.mask))
+                result.extend(super().create_dynamic_coupled_forcings(f.variables, f.mask))  # type: ignore
             else:
                 result.append(f)
         return result
@@ -176,7 +176,7 @@ class CoupledInput:
         state = dict(date=dates)
 
         for c in self.couplings:
-            c.apply(
+            c.apply(  # type: ignore
                 self.task,
                 self.transport,
                 input_state=current_state,
@@ -185,7 +185,7 @@ class CoupledInput:
                 tag=self.tag,
             )
 
-        for f, v in state["fields"].items():
+        for f, v in state["fields"].items():  # type: ignore
             assert len(v.shape) == 1, (f, v.shape)
 
         assert state["date"] == dates, (state["date"], dates)
@@ -224,7 +224,7 @@ class CoupledInput:
         # we do it here.
 
         for c in self.couplings:
-            c.apply(
+            c.apply(  # type: ignore
                 self.task,
                 self.transport,
                 input_state=state,
@@ -315,12 +315,12 @@ class RunnerTask(Task):
 
         # TODO: a factory method would be better here
         if self.config.runner == "no-model":
-            runner = NoModelCoupledRunner(self.config, coupler)
+            runner = NoModelCoupledRunner(self.config, coupler)  # type: ignore
         elif self.config.runner == "testing":
 
-            runner = TestCoupledRunner(self.config, coupler)
+            runner = TestCoupledRunner(self.config, coupler)  # type: ignore
         else:
-            runner = CoupledRunner(self.config, coupler)
+            runner = CoupledRunner(self.config, coupler)  # type: ignore
 
         runner.execute()
         LOG.info("Finished task %s", self.name)

@@ -51,7 +51,7 @@ class NoModelMixing:
                         len(metadata.output_tensor_index_to_variable),  # variables
                     )
 
-                    output[name] = torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+                    output[name] = torch.ones(*output_shape, dtype=input_tensor.dtype, device=input_tensor.device)  # type: ignore
 
                 if legacy:
                     return next(iter(output.values()))

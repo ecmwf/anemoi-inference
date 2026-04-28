@@ -70,7 +70,7 @@ class FileTemplates(TemplateProvider):
     def _data(self):
         return ekd.from_source("file", self.path)
 
-    def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field | None:
+    def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field | None:  # type: ignore
         if self.variables and variable not in self.variables:
             return None
 

@@ -57,7 +57,7 @@ class DummyInput(EkdInput):
         """
         assert date is not None, "date must be provided for dummy input"
 
-        dates = [date + h for h in self.metadata.lagged]
+        dates = [date + h for h in self.metadata.lagged]  # type: ignore
         return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -108,20 +108,20 @@ class DummyInput(EkdInput):
             keys = {k: v for k, v in typed_variables[variable].grib_keys.items() if k not in SKIP_KEYS}
 
             for date in dates:
-                x = float_hash(variable, dates[0] if is_constant_in_time else date)
+                x = float_hash(variable, dates[0] if is_constant_in_time else date)  # type: ignore
 
                 handle = dict(
                     values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
                     latitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
                     longitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    date=date.strftime("%Y%m%d"),
-                    time=date.strftime("%H%M"),
+                    date=date.strftime("%Y%m%d"),  # type: ignore
+                    time=date.strftime("%H%M"),  # type: ignore
                     name=variable,
                     **keys,
                 )
                 result.append(handle)
 
-        return ekd.from_source("list-of-dicts", result)
+        return ekd.from_source("list-of-dicts", result)  # type: ignore
 
     def template_lookup(self, name: str) -> dict:
         """Lookup a template by name.

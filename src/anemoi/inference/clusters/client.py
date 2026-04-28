@@ -75,7 +75,7 @@ class ComputeClientFactory(ABC):
     @property
     def backend(self) -> str:
         """Return the backend for distributed computing."""
-        return "nccl" if torch.cuda.is_available() else "gloo"  # type: ignore
+        return "nccl" if torch.cuda.is_available() else "gloo"
 
     def create_model_comm_group(self) -> "torch.distributed.ProcessGroup | None":
         """Create the communication group for model parallelism."""

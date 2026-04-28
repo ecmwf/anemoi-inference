@@ -78,8 +78,8 @@ class Runner(Context):
     This class provides the default forecaster implementation with rollout.
     """
 
-    def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
-        self._device = config.device
+    def __init__(self, config: RunConfiguration | dict[str, Any], *, classes: RunnerClasses | None = None) -> None:
+        self._device = config.device  # type: ignore
         LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}")
 
         classes = classes or RunnerClasses()
@@ -374,9 +374,9 @@ class Runner(Context):
         if not self.checkpoint.multi_dataset:
             assert len(input_tensors_torch) == 1, "Expected only one dataset in input tensors"
             name, tensor = next(iter(input_tensors_torch.items()))
-            return {name: model.predict_step(tensor, **kwargs)}
+            return {name: model.predict_step(tensor, **kwargs)}  # type: ignore
 
-        return model.predict_step(input_tensors_torch, **kwargs)
+        return model.predict_step(input_tensors_torch, **kwargs)  # type: ignore
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
@@ -386,20 +386,20 @@ class Runner(Context):
         Parameters
         ----------
         start_date : datetime.datetime
-            Start date of the forecast
+            Start date of the forecast.
         lead_time : datetime.timedelta
-            Lead time of the forecast
+            Lead time of the forecast.
 
         Returns
         -------
         step : datetime.timedelta
-            Time delta since beginning of forecast
+            Time delta since beginning of forecast.
         valid_date : list[datetime.datetime]
-            Date of the forecast
+            Date of the forecast.
         next_date : list[datetime.datetime]
-            Date used to prepare the next input tensor
+            Date used to prepare the next input tensor.
         is_last_step : bool
-            True if it's the last step of the forecast
+            True if it's the last step of the forecast.
         """
         output_horizon = self.checkpoint.timestep * self.checkpoint.multi_step_output
         steps = math.ceil(lead_time / output_horizon)
@@ -424,7 +424,10 @@ class Runner(Context):
             yield step, valid_dates, next_dates, is_last_step
 
     def forecast(
-        self, lead_time: str, input_tensors_numpy: dict[str, FloatArray], input_states: dict[str, State]
+        self,
+        lead_time: str | datetime.timedelta,
+        input_tensors_numpy: dict[str, FloatArray],
+        input_states: dict[str, State],
     ) -> Generator[dict[str, State], None, None]:
         """Forecast the future states.
 
@@ -452,7 +455,7 @@ class Runner(Context):
                 for dataset, input_tensor_numpy in input_tensors_numpy.items()
             }
 
-            lead_time = to_timedelta(lead_time)
+            lead_time_td = to_timedelta(lead_time)
 
             new_states = input_states.copy()  # We should not modify the input state
 
@@ -478,7 +481,7 @@ class Runner(Context):
                 if self.verbosity > 0:
                     handler._print_input_tensor("First input tensor", input_tensors_torch[dataset])
 
-            for s, (step, dates, next_dates, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
+            for s, (step, dates, next_dates, is_last_step) in enumerate(self.forecast_stepper(start, lead_time_td)):
                 dates_str = "("
                 for d in dates:
                     dates_str += f"{d}, "
@@ -494,7 +497,7 @@ class Runner(Context):
                             handler.metadata.variable_to_input_tensor_index,
                             self.checkpoint.timestep,
                         )
-                amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
+                amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)  # type: ignore
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
@@ -545,7 +548,7 @@ class Runner(Context):
                                 )
 
                     # we only need to check the first dataset's step as they should all be the same
-                    if next(iter(new_states.values()))["step"] <= lead_time:
+                    if next(iter(new_states.values()))["step"] <= lead_time_td:
                         yield new_states
 
                 # No need to prepare next input tensor if we are at the last autoregressive step

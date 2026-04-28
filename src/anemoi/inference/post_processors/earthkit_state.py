@@ -67,7 +67,7 @@ class StateFieldMetadata(RawMetadata):
         )
         self._field = field
 
-    def as_namespace(self, ns: str) -> dict[str, Any]:
+    def as_namespace(self, ns: str) -> dict[str, Any]:  # type: ignore
         """Convert metadata to a specific namespace.
 
         Parameters
@@ -107,7 +107,7 @@ class StateField(ekd.Field):
         self.__values = values
         self.state = state
 
-    def _values(self, dtype: np.dtype) -> FloatArray:
+    def _values(self, dtype: np.dtype) -> FloatArray:  # type: ignore
         """Get the values of the field with a specific data type.
 
         Parameters

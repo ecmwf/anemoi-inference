@@ -73,13 +73,13 @@ def validate_environment(
     Parameters
     ----------
     metadata : Metadata
-        Metadata object of the checkpoint, to validate against
+        Metadata object of the checkpoint, to validate against.
     all_packages : bool, optional
-        Check all packages in environment or just `anemoi`'s, by default False
+        Check all packages in environment or just `anemoi`'s, by default False.
     on_difference : Literal['warn', 'error', 'ignore'], optional
-        What to do on difference, by default "warn"
+        What to do on difference, by default "warn".
     exempt_packages : List[str], optional
-        List of packages to exempt from the check, by default EXEMPT_PACKAGES
+        List of packages to exempt from the check, by default EXEMPT_PACKAGES.
 
     Returns
     -------
@@ -101,7 +101,7 @@ def validate_environment(
     import importlib.metadata as imp_metadata
 
     module_versions = {
-        distribution.metadata.get("Name", "").replace("-", "_"): distribution.metadata["Version"]
+        distribution.metadata.get("Name", "").replace("-", "_"): distribution.metadata["Version"]  # type: ignore
         for distribution in imp_metadata.distributions()
     }
 

@@ -10,6 +10,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from anemoi.transform.fields import new_field_from_numpy
@@ -87,17 +88,17 @@ class ExtractMask(ExtractBase):
         self._maskname = mask
 
         if Path(mask).is_file():
-            mask = np.load(mask)
+            mask_data: Any = np.load(mask)
         else:
-            mask = metadata.load_supporting_array(mask)
+            mask_data = metadata.load_supporting_array(mask)
 
-        if not isinstance(mask, np.ndarray) or mask.dtype != bool:
+        if not isinstance(mask_data, np.ndarray) or mask_data.dtype != bool:
             raise ValueError(
-                f"Expected the mask to be a boolean numpy array. Got {type(mask)} with dtype {mask.dtype}."
+                f"Expected the mask to be a boolean numpy array. Got {type(mask_data)} with dtype {mask_data.dtype}."
             )
 
-        self.indexer = mask
-        self.npoints = np.sum(mask)
+        self.indexer = mask_data
+        self.npoints = np.sum(mask_data)
 
     def __repr__(self) -> str:
         """Return a string representation of the ExtractMask object.
@@ -107,7 +108,7 @@ class ExtractMask(ExtractBase):
         str
             String representation of the object.
         """
-        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer.size})"
+        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer.size})"  # type: ignore
 
 
 @pre_processor_registry.register("extract_slice")

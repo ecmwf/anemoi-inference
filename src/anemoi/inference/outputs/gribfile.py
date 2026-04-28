@@ -226,12 +226,12 @@ class GribIoOutput(BaseGribOutput):
             class Dummy:
                 def __init__(self, template: ekd.Field) -> None:
                     self.template = template
-                    self.handle = template.handle
+                    self.handle = template.handle  # type: ignore
 
                 def __repr__(self) -> str:
                     return f"Dummy({self.template})"
 
-            template = Dummy(template)
+            template = Dummy(template)  # type: ignore
 
         # LOG.info("Writing message to %s %s", template, keys)
         try:
@@ -240,7 +240,7 @@ class GribIoOutput(BaseGribOutput):
                     values=message,
                     template=template,
                     metadata=keys,
-                    check_nans=self.context.allow_nans,
+                    check_nans=self.context.allow_nans,  # type: ignore
                 ),
                 template,
                 **keys,
