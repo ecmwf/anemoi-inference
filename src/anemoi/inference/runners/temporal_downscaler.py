@@ -17,76 +17,17 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.forcings import ConstantDateForcings
-from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.profiler import ProfilingLabel
 from anemoi.inference.runner import Runner
 from anemoi.inference.runner import RunnerClasses
-from anemoi.inference.tensors import Kind
-from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
-
-
-class TemporalDownscalerTensorHandler(TensorHandler):
-    def add_initial_forcings_to_input_state(self, input_state: State) -> None:
-        date = input_state["date"]
-        fields = input_state["fields"]
-
-        dates = [date + h for h in self.metadata.lagged]
-        reference_date = self.context.reference_date or date
-        reference_dates = [reference_date + h for h in self.metadata.lagged]
-
-        # TODO: Check for user provided forcings
-
-        # We may need different forcings initial conditions
-        initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
-            self.constant_forcings_providers
-        )
-        initial_dynamic_forcings_providers = self.context.initial_dynamic_forcings_providers(
-            self.dynamic_forcings_providers
-        )
-
-        LOG.info("-" * 80)
-        LOG.info("Initial forcings providers:")
-        LOG.info("  Constant forcings:")
-        for f in initial_constant_forcings_providers:
-            LOG.info(f"    {f}")
-        LOG.info("  Dynamic forcings:")
-        for f in initial_dynamic_forcings_providers:
-            LOG.info(f"    {f}")
-        LOG.info("Initial forcings dates:")
-        LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
-        LOG.info("-" * 80)
-
-        for source in initial_constant_forcings_providers:
-            arrays = source.load_forcings_array(reference_dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial constant forcings")
-
-        for source in initial_dynamic_forcings_providers:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
-
-    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
-        result = ConstantDateForcings(self, self.constant_forcings_input, variables, mask)
-        return [result]
 
 
 class TemporalDownscalerMetadata(Metadata):
@@ -113,7 +54,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
         super().__init__(
             config,
             classes=RunnerClasses(
-                tensor_handler=TemporalDownscalerTensorHandler,
                 metadata=TemporalDownscalerMetadata,
             ),
         )
@@ -122,6 +62,11 @@ class TemporalDownscalerMultiOutRunner(Runner):
             "Temporal downscaler runner requires exactly two input explicit times (t and t+temporal_downscaling_window), "
             f"but got {self.checkpoint.input_explicit_times}"
         )
+
+        self.temporal_downscaling_window = to_timedelta(self.checkpoint.data_frequency) * (
+            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0]
+        )
+
         assert len(self.checkpoint.target_explicit_times) in (
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
@@ -132,9 +77,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
 
-        self.temporal_downscaling_window = to_timedelta(self.checkpoint.data_frequency) * (
-            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0]
-        )
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.temporal_downscaling_window
 
