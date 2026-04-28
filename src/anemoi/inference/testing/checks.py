@@ -61,7 +61,7 @@ def check_grib(
 
     # check time continuity
     if reference_date:
-        ref_dt: Any = to_datetime(reference_date)  # type: ignore
+        ref_dt: Any = to_datetime(reference_date)
         LOG.info(f"Using reference date: {ref_dt}")
 
     fields = ds.sel(param=expected_params[0])
@@ -212,7 +212,7 @@ def check_cutout_with_xarray(
     # check that the extracted inner region matches the reference input dataset
     # the mock model passes input to output, values in the output file should match the input dataset at the reference date
     if reference_dataset:
-        from anemoi.datasets import open_dataset  # type: ignore
+        from anemoi.datasets import open_dataset
 
         ref_ds = open_dataset(**reference_dataset, start=reference_date, end=reference_date)
 
@@ -263,7 +263,7 @@ def check_boundary_forcings_with_xarray(
     dates = ds["time"].astype("datetime64[s]").values
     freq = dates[1] - dates[0]
     if reference_dataset:
-        from anemoi.datasets import open_dataset  # type: ignore
+        from anemoi.datasets import open_dataset
 
         ref_ds = open_dataset(**reference_dataset, start=dates[0])
         ref_freq = np.timedelta64(ref_ds.frequency)

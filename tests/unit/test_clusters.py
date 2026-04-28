@@ -11,7 +11,7 @@ import os
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest  # type: ignore
+import pytest
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters import create_cluster

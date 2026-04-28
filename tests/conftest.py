@@ -12,7 +12,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import numpy as np
-import pytest  # type: ignore
+import pytest
 
 pytest_plugins = "anemoi.utils.testing"
 

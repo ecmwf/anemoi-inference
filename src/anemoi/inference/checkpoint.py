@@ -56,8 +56,8 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
         Path to the downloaded model.
     """
     try:
-        from huggingface_hub import hf_hub_download  # type: ignore
-        from huggingface_hub import snapshot_download  # type: ignore
+        from huggingface_hub import hf_hub_download
+        from huggingface_hub import snapshot_download
     except ImportError as e:
         raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
 

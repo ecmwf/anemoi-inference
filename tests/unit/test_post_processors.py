@@ -9,7 +9,7 @@
 from typing import cast
 
 import numpy as np
-from pytest_mock import MockerFixture  # type: ignore
+from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.post_processors.assign import AssignMask

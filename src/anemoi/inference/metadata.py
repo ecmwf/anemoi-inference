@@ -1028,7 +1028,7 @@ class Metadata(PatchMixin, LegacyMixin):
         tuple
             The opened dataset and its arguments.
         """
-        from anemoi.datasets import open_dataset  # type: ignore
+        from anemoi.datasets import open_dataset
         from anemoi.utils.config import temporary_config
 
         if use_original_paths is not None:

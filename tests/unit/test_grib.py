@@ -8,7 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-import pytest  # type: ignore
+import pytest
 from earthkit.data.utils.dates import to_datetime
 from earthkit.data.utils.dates import to_timedelta
 

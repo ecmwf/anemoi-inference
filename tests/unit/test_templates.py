@@ -12,12 +12,12 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-import pytest  # type: ignore
+import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
 from earthkit.data.readers.grib.codes import GribField
 from earthkit.data.utils.dates import to_timedelta
-from pytest_mock import MockerFixture  # type: ignore
+from pytest_mock import MockerFixture
 from rich import print
 
 from anemoi.inference.grib.encoding import GribWriter

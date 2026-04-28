@@ -13,7 +13,7 @@ import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest  # type: ignore
+import pytest
 
 from anemoi.inference.checkpoint import Checkpoint
 

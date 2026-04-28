@@ -84,7 +84,7 @@ class DatasetInput(Input):
     @cached_property
     def ds(self) -> Any:
         """Return the dataset."""
-        from anemoi.datasets import open_dataset  # type: ignore
+        from anemoi.datasets import open_dataset
 
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
         if self.variables is not None:

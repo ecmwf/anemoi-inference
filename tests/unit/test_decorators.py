@@ -1,4 +1,4 @@
-import pytest  # type: ignore
+import pytest
 
 from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument

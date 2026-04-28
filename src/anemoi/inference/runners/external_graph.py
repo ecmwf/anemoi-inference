@@ -188,7 +188,7 @@ class ExternalGraphRunner(DefaultRunner):
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
-            from anemoi.datasets import open_dataset  # type: ignore
+            from anemoi.datasets import open_dataset
 
             graph_ds = open_dataset(graph_dataset)
             LOG.info(

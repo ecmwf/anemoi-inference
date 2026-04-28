@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
-import pytest  # type: ignore
+import pytest
 from anemoi.transform.variables.variables import VariableFromMarsVocabulary
 from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData

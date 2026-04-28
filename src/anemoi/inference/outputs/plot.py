@@ -136,7 +136,7 @@ class PlotOutput(Output):
             The state dictionary.
         """
         import earthkit.data as ekd
-        import earthkit.plots as ekp  # type: ignore
+        import earthkit.plots as ekp
 
         if self.schema:
             ekp.schema.use(self.schema)

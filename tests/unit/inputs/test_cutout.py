@@ -11,7 +11,7 @@
 import datetime
 
 import numpy as np
-import pytest  # type: ignore
+import pytest
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.inputs.cutout import _mask_and_combine_states
