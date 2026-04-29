@@ -535,7 +535,14 @@ class Runner(Context):
                                     output[:, j]
                                 )
 
-                            new_states[dataset] = self._apply_mid_processors(new_states[dataset], dataset)
+                            new_states[dataset], applied = self._apply_mid_processors(new_states[dataset], dataset)
+                            if applied:
+                                for name, field in new_states[dataset]["fields"].items():
+                                    if name not in handler.metadata.variable_to_output_tensor_index:
+                                        continue
+                                    y_pred[dataset][
+                                        0, i, ..., handler.metadata.variable_to_output_tensor_index[name]
+                                    ] = field
 
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
@@ -773,11 +780,13 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result
 
-    def _apply_mid_processors(self, state: dict[str, Any], dataset_name: str) -> dict[str, Any]:
+    def _apply_mid_processors(self, state: dict[str, Any], dataset_name: str) -> tuple[dict[str, Any], bool]:
         """Apply mid-processors to the state."""
+        applied = False
         for processor in self.mid_processors[dataset_name]:
             state = processor.process(state)
-        return state
+            applied = True
+        return state, applied
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
         """Combine multiple states into one."""
