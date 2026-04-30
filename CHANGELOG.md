@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.11.0](https://github.com/ecmwf/anemoi-inference/compare/0.10.1...0.11.0) (2026-04-30)
+
+
+### Features
+
+* Full multi-dataset support ([#463](https://github.com/ecmwf/anemoi-inference/issues/463)) ([adc79b0](https://github.com/ecmwf/anemoi-inference/commit/adc79b0202d50c88a321d18cc87d67892a416315))
+* **metadata:** Add input and output shape attributes ([#492](https://github.com/ecmwf/anemoi-inference/issues/492)) ([6954425](https://github.com/ecmwf/anemoi-inference/commit/695442506e3c978855b81a55b037097e4690bacf))
+* **patch:** Support for multi-dataset checkpoint patching ([#496](https://github.com/ecmwf/anemoi-inference/issues/496)) ([cbe9249](https://github.com/ecmwf/anemoi-inference/commit/cbe92495ddbf955c689ee4c1f1155e4ef1cf4746))
+* **post-processors:** Allow using the filter's forward method in forward_transform_filter ([#491](https://github.com/ecmwf/anemoi-inference/issues/491)) ([c039f14](https://github.com/ecmwf/anemoi-inference/commit/c039f145c3942ac79ed45e61f94d63a1e93b3740))
+* Rename interpolator to temporal downscaler ([#488](https://github.com/ecmwf/anemoi-inference/issues/488)) ([524583f](https://github.com/ecmwf/anemoi-inference/commit/524583ff2307123549bb6a7368fdc8bf3a7c250c))
+
+
+### Bug Fixes
+
+* **cutout input:** Fetch correct coordinates from checkpoint in cutout source ([#483](https://github.com/ecmwf/anemoi-inference/issues/483)) ([1ddb1be](https://github.com/ecmwf/anemoi-inference/commit/1ddb1be4c7f0f99aec7d91a8c93dd4f8441ed39a))
+
+
+### Performance Improvements
+
+* **forcings:** Skip loading of initial forcings already in input state ([#498](https://github.com/ecmwf/anemoi-inference/issues/498)) ([e540cd2](https://github.com/ecmwf/anemoi-inference/commit/e540cd26de4c80691e5072cf9c8e7d9de6e8e979))
+* **post-processors:** Excessive memory copying in post-processing pipeline ([#493](https://github.com/ecmwf/anemoi-inference/issues/493)) ([9ace127](https://github.com/ecmwf/anemoi-inference/commit/9ace127f3916e9ce39d90e78dd458f57b00ded22))
+
+
+### Miscellaneous Chores
+
+* Bump next release to 0.11.0 ([b23c4c8](https://github.com/ecmwf/anemoi-inference/commit/b23c4c8b6b902845853d038ed1f68be0e08a709a))
+
 ## [0.10.1](https://github.com/ecmwf/anemoi-inference/compare/0.10.0...0.10.1) (2026-04-13)
 
 
