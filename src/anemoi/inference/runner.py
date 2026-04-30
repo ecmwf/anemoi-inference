@@ -39,6 +39,7 @@ from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.mid_processors import create_mid_processor
 from anemoi.inference.output import Output
 from anemoi.inference.outputs import create_output
 from anemoi.inference.post_processors import create_post_processor
@@ -114,6 +115,7 @@ class Runner(Context):
 
         # processors, I/O and tensor handlers for each dataset in the checkpoint
         self.pre_processors: dict[str, list[Processor]] = {}
+        self.mid_processors: dict[str, list[Processor]] = {}
         self.post_processors: dict[str, list[Processor]] = {}
         self.tensor_handlers: dict[str, TensorHandler] = {}
         self.prognostics_inputs: dict[str, Input] = {}
@@ -128,6 +130,7 @@ class Runner(Context):
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
+            self.mid_processors[dataset] = self.create_mid_processors(dataset, metadata)
             self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)
             self.constant_forcings_inputs[dataset] = self.create_input("constant_forcings", dataset, metadata)
             self.dynamic_forcings_inputs[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
@@ -532,6 +535,15 @@ class Runner(Context):
                                     output[:, j]
                                 )
 
+                            new_states[dataset], applied = self._apply_mid_processors(new_states[dataset], dataset)
+                            if applied:
+                                for name, field in new_states[dataset]["fields"].items():
+                                    if name not in handler.metadata.variable_to_output_tensor_index:
+                                        continue
+                                    y_pred[dataset][
+                                        0, i, ..., handler.metadata.variable_to_output_tensor_index[name]
+                                    ] = field
+
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
 
@@ -554,7 +566,7 @@ class Runner(Context):
 
                 self.output_state_hook(new_states)
 
-                # Update  tensor for next iteration
+                # Update tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
@@ -750,6 +762,15 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
 
+    def create_mid_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
+        result = []
+        config = multi_datasets_config(self.config.mid_processors, dataset_name, self.dataset_names)
+        for processor in config:
+            result.append(create_mid_processor(self, processor, metadata))
+
+        LOG.info(f"[{dataset_name}] Mid processors: {result}")
+        return result
+
     def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
         config = multi_datasets_config(self.config.post_processors, dataset_name, self.dataset_names)
@@ -758,6 +779,14 @@ class Runner(Context):
 
         LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result
+
+    def _apply_mid_processors(self, state: dict[str, Any], dataset_name: str) -> tuple[dict[str, Any], bool]:
+        """Apply mid-processors to the state."""
+        applied = False
+        for processor in self.mid_processors[dataset_name]:
+            state = processor.process(state)
+            applied = True
+        return state, applied
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
         """Combine multiple states into one."""

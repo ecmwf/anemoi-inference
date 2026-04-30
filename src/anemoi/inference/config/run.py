@@ -56,6 +56,7 @@ class RunConfiguration(Configuration):
     output: str | dict[str, Any] = "printer"
 
     pre_processors: list[ProcessorConfig] = []
+    mid_processors: list[ProcessorConfig] = []
     post_processors: list[ProcessorConfig] = []
 
     dynamic_forcings: str | dict[str, Any] | None = None
