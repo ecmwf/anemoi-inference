@@ -126,6 +126,9 @@ class RunConfiguration(Configuration):
     preload_buffer_size: int = 32 * 1024 * 1024
     """Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB."""
 
+    writers_per_device: int = 0
+    """Number of parallel writer processes to spawn per device. If 0 (default), writing is done synchronously in the main process."""
+
     @field_validator("patch_metadata", mode="after")
     @classmethod
     def as_dict(cls, patch_metadata: dict | FilePath) -> dict:

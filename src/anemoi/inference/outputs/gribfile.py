@@ -402,6 +402,7 @@ class GribFileOutput(GribIoOutput):
             - `write`: write the variable as normal
             - `skip`: skip writing the variable
         """
+        self.path = path
         super().__init__(
             context,
             metadata,
@@ -421,3 +422,12 @@ class GribFileOutput(GribIoOutput):
             negative_step_mode=negative_step_mode,
             **kwargs,
         )
+
+    #This function is called once per writer, on writer startup
+    #Writer startup happens at the start fo the first timestep writing
+    #so after the output class has been initialised
+    def per_writer_init(self, writer_id) -> None:
+        split_output = self.output.split_output
+        #if "/dev/null" not in self.path:
+        self.output = GribWriter(str(self.path) + f"_w{writer_id}", split_output=split_output)
+        return super().per_writer_init(writer_id)        

@@ -102,6 +102,7 @@ class Runner(Context):
         self.hacks = bool(config.development_hacks)
         self.output_frequency = config.output_frequency
         self.write_initial_state = config.write_initial_state
+        self.writers_per_device = config.writers_per_device
         self.initial_state_categories = config.initial_state_categories
         self.use_profiler = config.use_profiler
 
