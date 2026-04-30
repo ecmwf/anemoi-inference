@@ -79,21 +79,21 @@ class TensorHandler:
         self._output_kinds = {}
         self._output_tensor_by_name = []
 
-        self.constant_forcings_inputs = self.create_constant_forcings_inputs()
-        self.dynamic_forcings_inputs = self.create_dynamic_forcings_inputs()
-        self.boundary_forcings_inputs = self.create_boundary_forcings_inputs()
+        self.constant_forcings_providers = self.create_constant_forcings_providers()
+        self.dynamic_forcings_providers = self.create_dynamic_forcings_providers()
+        self.boundary_forcings_providers = self.create_boundary_forcings_providers()
 
         LOG.info("-" * 80)
-        LOG.info("Constant forcings inputs:")
-        for f in self.constant_forcings_inputs:
+        LOG.info("Constant forcings providers:")
+        for f in self.constant_forcings_providers:
             LOG.info(f"  {f}")
 
-        LOG.info("Dynamic forcings inputs:")
-        for f in self.dynamic_forcings_inputs:
+        LOG.info("Dynamic forcings providers:")
+        for f in self.dynamic_forcings_providers:
             LOG.info(f"  {f}")
 
-        LOG.info("Boundary forcings inputs:")
-        for f in self.boundary_forcings_inputs:
+        LOG.info("Boundary forcings providers:")
+        for f in self.boundary_forcings_providers:
             LOG.info(f"  {f}")
         LOG.info("-" * 80)
 
@@ -250,41 +250,57 @@ class TensorHandler:
 
         dates = [date + h for h in self.metadata.lagged]
 
-        # TODO: Check for user provided forcings
-        initial_constant_forcings_inputs = self.context.initial_constant_forcings_inputs(self.constant_forcings_inputs)
-        initial_dynamic_forcings_inputs = self.context.initial_dynamic_forcings_inputs(self.dynamic_forcings_inputs)
+        initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
+            self.constant_forcings_providers
+        )
+        initial_dynamic_forcings_providers = self.context.initial_dynamic_forcings_providers(
+            self.dynamic_forcings_providers
+        )
 
         LOG.info("-" * 80)
-        LOG.info("Initial forcings inputs:")
+        LOG.info("Initial forcings providers:")
         LOG.info("  Constant forcings:")
-        for f in initial_constant_forcings_inputs:
+        for f in initial_constant_forcings_providers:
             LOG.info(f"    {f}")
         LOG.info("  Dynamic forcings:")
-        for f in initial_dynamic_forcings_inputs:
+        for f in initial_dynamic_forcings_providers:
             LOG.info(f"    {f}")
         LOG.info("Initial forcings dates:")
         LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
+
+        for provider in initial_constant_forcings_providers:
+            if all(
+                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                for name in provider.variables
+            ):
+                LOG.info(f"Skipping initial constant forcings {provider}, all variables are present in the input state")
+                continue
+            arrays = provider.load_forcings_array(dates, input_state)
+            for name, forcing in zip(provider.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **provider.kinds)
+                if self.trace:
+                    self.trace.from_source(name, provider, "initial constant forcings")
+
+        for provider in initial_dynamic_forcings_providers:
+            if all(
+                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                for name in provider.variables
+            ):
+                LOG.info(f"Skipping initial dynamic forcings {provider}, all variables are present in the input state")
+                continue
+            arrays = provider.load_forcings_array(dates, input_state)
+            for name, forcing in zip(provider.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **provider.kinds)
+                if self.trace:
+                    self.trace.from_source(name, provider, "initial dynamic forcings")
+
         LOG.info("-" * 80)
 
-        for source in initial_constant_forcings_inputs:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial constant forcings")
-
-        for source in initial_dynamic_forcings_inputs:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
-
-    def create_constant_forcings_inputs(self) -> list["Forcings"]:
+    def create_constant_forcings_providers(self) -> list["Forcings"]:
         result = []
 
         loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(
@@ -313,7 +329,7 @@ class TensorHandler:
 
         return result
 
-    def create_dynamic_forcings_inputs(self) -> list["Forcings"]:
+    def create_dynamic_forcings_providers(self) -> list["Forcings"]:
         result = []
 
         loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(
@@ -341,7 +357,7 @@ class TensorHandler:
             )
         return result
 
-    def create_boundary_forcings_inputs(self) -> list["BoundaryForcings"]:
+    def create_boundary_forcings_providers(self) -> list["BoundaryForcings"]:
         if not self.metadata.has_supporting_array("output_mask"):
             return []
 
@@ -419,7 +435,7 @@ class TensorHandler:
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
-        for source in self.dynamic_forcings_inputs:
+        for source in self.dynamic_forcings_providers:
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
@@ -456,7 +472,7 @@ class TensorHandler:
     ) -> "torch.Tensor":
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
-        sources = self.boundary_forcings_inputs
+        sources = self.boundary_forcings_providers
         for source in sources:
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 

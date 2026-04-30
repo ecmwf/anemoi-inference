@@ -37,7 +37,6 @@ from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 
 from .legacy import LegacyMixin
-from .patch import PatchMixin
 
 if TYPE_CHECKING:
     from earthkit.data import FieldList
@@ -79,7 +78,7 @@ def _remove_full_paths(x: Any) -> Any:
     return x
 
 
-class Metadata(PatchMixin, LegacyMixin):
+class Metadata(LegacyMixin):
     """Base Metadata class."""
 
     multi_dataset = False
@@ -1449,12 +1448,12 @@ class MultiDatasetMetadata(Metadata):
 
     @cached_property
     def input_explicit_times(self) -> Any:
-        """Explicit times of the input steps used for the interpolator."""
+        """Explicit times of the input steps used for the temporal downscaler."""
         return self._inference.timesteps.input_relative_date_indices
 
     @cached_property
     def target_explicit_times(self) -> Any:
-        """Explicit times of the target steps used for the interpolator."""
+        """Explicit times of the target steps used for the temporal downscaler."""
         return self._inference.timesteps.output_relative_date_indices
 
     @cached_property
@@ -1522,7 +1521,7 @@ class MultiDatasetMetadata(Metadata):
 class MetadataFactory:
     def __new__(
         cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, dataset_name="data", base_class=Metadata
-    ) -> Metadata:
+    ) -> SingleDatasetMetadata | MultiDatasetMetadata:
         suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
 
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
