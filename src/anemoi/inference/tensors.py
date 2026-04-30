@@ -250,7 +250,6 @@ class TensorHandler:
 
         dates = [date + h for h in self.metadata.lagged]
 
-        # TODO: Check for user provided forcings
         initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
             self.constant_forcings_providers
         )
@@ -268,25 +267,38 @@ class TensorHandler:
             LOG.info(f"    {f}")
         LOG.info("Initial forcings dates:")
         LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
+
+        for provider in initial_constant_forcings_providers:
+            if all(
+                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                for name in provider.variables
+            ):
+                LOG.info(f"Skipping initial constant forcings {provider}, all variables are present in the input state")
+                continue
+            arrays = provider.load_forcings_array(dates, input_state)
+            for name, forcing in zip(provider.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **provider.kinds)
+                if self.trace:
+                    self.trace.from_source(name, provider, "initial constant forcings")
+
+        for provider in initial_dynamic_forcings_providers:
+            if all(
+                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                for name in provider.variables
+            ):
+                LOG.info(f"Skipping initial dynamic forcings {provider}, all variables are present in the input state")
+                continue
+            arrays = provider.load_forcings_array(dates, input_state)
+            for name, forcing in zip(provider.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **provider.kinds)
+                if self.trace:
+                    self.trace.from_source(name, provider, "initial dynamic forcings")
+
         LOG.info("-" * 80)
-
-        for source in initial_constant_forcings_providers:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial constant forcings")
-
-        for source in initial_dynamic_forcings_providers:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def create_constant_forcings_providers(self) -> list["Forcings"]:
         result = []
