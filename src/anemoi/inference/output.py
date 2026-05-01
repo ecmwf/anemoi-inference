@@ -8,10 +8,6 @@
 #
 import datetime
 import logging
-import math
-import multiprocessing as mp
-import os
-import traceback
 from abc import ABC
 from abc import abstractmethod
 from functools import cached_property
@@ -42,7 +38,6 @@ class Output(ABC):
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
-        num_writers: int | None = None,
     ):
         """Initialize the Output object.
 
@@ -58,9 +53,6 @@ class Output(ABC):
             The frequency at which to output states, by default None.
         write_initial_state : Optional[bool], optional
             Whether to write the initial state, by default None.
-        num_writers : Optional[int], optional
-            Number of parallel writer processes to use per device.
-            If 0 or None, writing is done synchronously in the main process.
         """
         self.context = context
         self.metadata = metadata
@@ -79,13 +71,6 @@ class Output(ABC):
 
         self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
-
-        # Parallel writer configuration
-        if num_writers is not None:
-            self.num_writers = num_writers
-        else:
-            self.num_writers = getattr(self.context, "writers_per_device", 0) or 0
-        self._writers_running = False
 
     def skip_variable(self, variable: str) -> bool:
         """Check if a variable should be skipped.
@@ -166,30 +151,7 @@ class Output(ABC):
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
-        state = self.post_process(state)
-
-        # seq writing path
-        if self.num_writers == 0:
-            return self.write_step(state)
-
-        # Parallel writing path
-
-        # spawn writers if not already running
-        # can't spawn during initialisation
-        if not self._writers_running:
-            self._spawn_writers()
-            self._writers_running = True
-
-
-        state_chunks = self._split_state(state, self.num_writers)
-        for i, chunk in enumerate(state_chunks):
-            # Remove all private keys (prefixed with '_') as they may contain
-            # unpicklable objects (e.g. _input, _grib_templates_for_output, _mask, etc.)
-            chunk = {k: v for k, v in chunk.items() if not k.startswith("_")}
-            # Convert any remaining CUDA/torch tensors to numpy to avoid
-            # "Cannot re-initialize CUDA in forked subprocess" errors
-            chunk = self._detach_tensors(chunk)
-            self._queues[i].put(chunk)
+        return self.write_step(self.post_process(state))
 
     @classmethod
     def reduce(cls, state: State) -> State:
@@ -227,9 +189,7 @@ class Output(ABC):
 
     def close(self) -> None:
         """Close the output."""
-        return
-        if self.num_writers > 0 and self._writers_running:
-            self._terminate_all_writers()
+        pass
 
     @abstractmethod
     def write_step(self, state: State) -> None:
@@ -272,164 +232,12 @@ class Output(ABC):
             The indentation depth for the summary, by default 0.
         """
         LOG.info(
-            "%s%s: output_frequency=%s write_initial_state=%s num_writers=%s",
+            "%s%s: output_frequency=%s write_initial_state=%s",
             " " * depth,
             self,
             self.output_frequency,
             self.write_step_zero,
-            self.num_writers,
         )
-
-    # ── Parallel writer infrastructure ──────────────────────────────────
-
-    def _spawn_writers(self) -> None:
-        """Spawn parallel writer processes."""
-        self._processes: list[mp.Process] = []
-        self._queues: list[mp.Queue] = []
-        self._stop_event = mp.Event()
-
-        for _ in range(self.num_writers):
-            self._queues.append(mp.Queue())
-
-        mp.set_start_method("fork", force=True)
-        parent_pid = os.getpid()
-        for i in range(self.num_writers):
-            process = mp.Process(
-                target=self._writer_function,
-                args=(i, self._queues[i], self._stop_event),
-                name=f"w{i}_for_p{parent_pid}",
-            )
-            process.start()
-            self._processes.append(process)
-
-        LOG.info("Spawned %d writer processes", self.num_writers)
-
-    def _writer_function(self, writer_id: int, queue: mp.Queue, stop_event: mp.Event) -> None:
-        """Worker function running in each writer process.
-
-        Parameters
-        ----------
-        writer_id : int
-            Unique identifier for this writer.
-        queue : mp.Queue
-            Queue to receive state chunks from the main process.
-        stop_event : mp.Event
-            Event signalling that writing should stop.
-        """
-        LOG.info("Writer %d started and waiting for messages...", writer_id)
-        self.per_writer_init(writer_id)
-
-        while not stop_event.is_set():
-            try:
-                message = queue.get(timeout=1)
-
-                LOG.info("Writer %d about to write: %s", writer_id, message.get("date"))
-                self.write_step(message)
-                LOG.info("Writer %d finished processing: %s", writer_id, message.get("date"))
-            except mp.queues.Empty:
-                LOG.info("Writer %d queue empty – shutting down", writer_id)
-                break
-            except Exception as e:
-                LOG.error("Writer %d encountered error: %s\n%s", writer_id, e, traceback.format_exc())
-                break
-
-        LOG.info("Writer %d shutting down", writer_id)
-
-    def _split_state(self, state: State, num_chunks: int) -> list[State]:
-        """Split a state into *num_chunks* chunks along the fields dimension.
-
-        All non-field entries are replicated across chunks.
-
-        Parameters
-        ----------
-        state : State
-            The state to split.
-        num_chunks : int
-            Number of chunks to produce.
-
-        Returns
-        -------
-        list[State]
-            A list of state chunks.
-        """
-        if "fields" not in state:
-            raise ValueError("State dictionary must contain 'fields' key")
-        if num_chunks <= 1:
-            return [state]
-
-        fields = state["fields"]
-        fields_per_chunk = math.ceil(len(fields) / num_chunks)
-        items = list(fields.items())
-
-        chunks: list[State] = []
-        for i in range(num_chunks):
-            start = i * fields_per_chunk
-            end = min(start + fields_per_chunk, len(items))
-            if start >= len(items):
-                break
-            chunk = state.copy()
-            chunk["fields"] = dict(items[start:end])
-            chunks.append(chunk)
-
-        return chunks
-
-    def _terminate_all_writers(self) -> None:
-        """Terminate all writer processes gracefully."""
-        if self.num_writers == 0:
-            return
-
-        self._writers_running = False
-        LOG.info("Initiating writer shutdown...")
-
-        # Signal each writer to terminate
-        for i, queue in enumerate(self._queues):
-            try:
-                queue.put_nowait("TERMINATE")
-            except Exception as e:
-                LOG.error("Failed to send termination to writer %d: %s", i, e)
-
-        # Wait for processes to finish
-        for p in self._processes:
-            p.join(timeout=30)
-            if p.is_alive():
-                LOG.warning("Writer process %s did not exit in time – terminating", p.name)
-                p.terminate()
-
-        self._stop_event.set()
-        LOG.info("All writer processes terminated and cleaned up.")
-
-    @abstractmethod
-    def per_writer_init(self, writer_id: int) -> None:
-        """Hook for output-specific per-writer initialisation.
-
-        Override in subclasses to perform setup in each writer process,
-        e.g. appending ``_{writer_id}`` to an output file path.
-
-        Parameters
-        ----------
-        writer_id : int
-            Unique identifier for this writer.
-        """
-        pass
-
-    @staticmethod
-    def _detach_tensors(obj):
-        """Recursively convert torch tensors to numpy arrays in a state dict.
-
-        This prevents CUDA re-initialization errors in forked writer processes.
-        """
-        try:
-            import torch
-        except ImportError:
-            return obj
-
-        if isinstance(obj, torch.Tensor):
-            return obj.detach().cpu().numpy()
-        if isinstance(obj, dict):
-            return {k: Output._detach_tensors(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            return type(obj)(Output._detach_tensors(v) for v in obj)
-        return obj
 
 
 class ForwardOutput(Output):
