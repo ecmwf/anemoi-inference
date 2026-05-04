@@ -423,11 +423,15 @@ class GribFileOutput(GribIoOutput):
             **kwargs,
         )
 
-    #This function is called once per writer, on writer startup
-    #Writer startup happens at the start fo the first timestep writing
-    #so after the output class has been initialised
-    def per_writer_init(self, writer_id) -> None:
+    def per_writer_init(self, writer_id: int) -> None:
+        """Re-create the GribWriter with a worker-specific path.
+
+        Called once per forked writer process by AsyncWriterOutput.
+
+        Parameters
+        ----------
+        writer_id : int
+            Unique identifier for this writer.
+        """
         split_output = self.output.split_output
-        #if "/dev/null" not in self.path:
         self.output = GribWriter(str(self.path) + f"_w{writer_id}", split_output=split_output)
-        return super().per_writer_init(writer_id)        
