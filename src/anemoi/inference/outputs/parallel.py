@@ -87,7 +87,7 @@ def _split_state(state: State, num_chunks: int) -> list[State]:
 # ── ParallelOutput ───────────────────────────────────────────────────
 
 
-@output_registry.register("async_writer")
+@output_registry.register("parallel")
 class ParallelOutput(ForwardOutput):
     """Wraps another :class:`Output` and offloads ``write_step`` calls to
     one or more forked writer processes.
@@ -99,7 +99,7 @@ class ParallelOutput(ForwardOutput):
     Usage in YAML::
 
         output:
-          async_writer:
+          parallel:
             num_writers: 2
             output:
               grib:

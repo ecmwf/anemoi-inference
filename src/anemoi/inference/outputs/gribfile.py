@@ -426,7 +426,7 @@ class GribFileOutput(GribIoOutput):
     def per_writer_init(self, writer_id: int) -> None:
         """Re-create the GribWriter with a worker-specific path.
 
-        Called once per forked writer process by AsyncWriterOutput.
+        Called once per forked writer process by ParallelOutput.
 
         Parameters
         ----------
