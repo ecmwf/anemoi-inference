@@ -135,14 +135,11 @@ class ParallelOutput(ForwardOutput):
         """
         super().__init__(context, metadata, output=output, **kwargs)
 
-        if num_writers is not None:
-            self.num_writers = num_writers
-        else:
-            self.num_writers = getattr(context, "writers_per_device", 0) or 0
+        assert num_writers is not None, "Error. ParallelOutput selected but no 'num_writers' specified in config."
+        self.num_writers = num_writers
 
         self._writers_running = False
 
-    # ── public API ──────────────────────────────────────────────────────
 
     def write_state(self, state: State) -> None:
         """Write the state, dispatching to writer processes when enabled."""
@@ -188,10 +185,14 @@ class ParallelOutput(ForwardOutput):
     # ── internals ───────────────────────────────────────────────────────
 
     def _spawn_writers(self) -> None:
-        """Fork writer processes, one per queue."""
+        """Fork writer processes.
+        
+        'self.num_writers' writer processes are spawned, each with its own queue for receiving states to write. 
+        The writer processes run the '_writer_loop' method, which listens for incoming states on the queue and 
+        calls 'write_step' on the wrapped output.
+        """
         self._processes: list[mp.Process] = []
         self._queues: list[mp.Queue] = []
-        self._stop_event = mp.Event()
 
         for _ in range(self.num_writers):
             self._queues.append(mp.Queue())
@@ -201,7 +202,7 @@ class ParallelOutput(ForwardOutput):
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_loop,
-                args=(i, self._queues[i], self._stop_event),
+                args=(i, self._queues[i]),
                 name=f"w{i}_for_p{parent_pid}",
             )
             process.start()
@@ -209,15 +210,22 @@ class ParallelOutput(ForwardOutput):
 
         LOG.info("ParallelOutput: spawned %d writer processes", self.num_writers)
 
-    def _writer_loop(self, writer_id: int, queue: mp.Queue, stop_event: mp.Event) -> None:
-        """Event loop executed inside each forked writer process."""
+    def _writer_loop(self, writer_id: int, queue: mp.Queue) -> None:
+        """Event loop executed inside each forked writer process.
+        
+        Each writer process runs this loop, which listens for incoming messages on its queue.
+        Messages can be either state dictionaries to write (which are passed to the wrapped output's 'write_step' method) or a "TERMINATE" signal to shut down the writer.
+
+        
+        If the wrapped output has a 'per_writer_init' method, it is called once at the start of the loop to allow for any necessary initialization 
+        (e.g., appending a writer ID to the output file name)."""
         LOG.info("Writer %d started", writer_id)
 
-        # Allow the concrete output to re-initialise (e.g. open a new file)
+        # Allow the wrapped output to perform any per-writer initialization (e.g. open a different file per writer)
         if hasattr(self.output, "per_writer_init"):
             self.output.per_writer_init(writer_id)
 
-        while not stop_event.is_set():
+        while True:
             try:
                 message = queue.get(timeout=1)
             except mp.queues.Empty:
@@ -231,9 +239,9 @@ class ParallelOutput(ForwardOutput):
                 break
 
             try:
-                LOG.info("Writer %d writing: %s", writer_id, message.get("date"))
+                LOG.debug("Writer %d writing: %s", writer_id, message.get("date"))
                 self.output.write_step(message)
-                LOG.info("Writer %d done: %s", writer_id, message.get("date"))
+                LOG.debug("Writer %d done: %s", writer_id, message.get("date"))
             except Exception as e:
                 LOG.error("Writer %d write error: %s\n%s", writer_id, e, traceback.format_exc())
                 break
@@ -241,7 +249,9 @@ class ParallelOutput(ForwardOutput):
         LOG.info("Writer %d shutting down", writer_id)
 
     def _terminate_all_writers(self) -> None:
-        """Gracefully shut down all writer processes."""
+        """Gracefully shut down all writer processes.
+        Each writer process is sent a "TERMINATE" message via its queue, then joined with a timeout. If any writer fails to exit within the timeout, it is forcefully terminated.
+        """
         self._writers_running = False
         LOG.info("ParallelOutput: shutting down writers...")
 
@@ -257,5 +267,4 @@ class ParallelOutput(ForwardOutput):
                 LOG.warning("Writer %s did not exit — terminating", p.name)
                 p.terminate()
 
-        self._stop_event.set()
         LOG.info("ParallelOutput: all writers terminated.")
