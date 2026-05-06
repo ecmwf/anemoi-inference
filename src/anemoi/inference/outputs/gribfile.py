@@ -334,7 +334,7 @@ class GribIoOutput(BaseGribOutput):
 @output_registry.register("grib")
 @main_argument("path")
 @format_dataset_name("path")
-@ensure_path("path"+"suffix")
+@ensure_path("path" + "suffix")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
 
@@ -406,7 +406,7 @@ class GribFileOutput(GribIoOutput):
             - `write`: write the variable as normal
             - `skip`: skip writing the variable
         """
-        self.path = Path(str(path) + suffix)
+        self.path = self._add_suffix_to_output_path(path, suffix)
         super().__init__(
             context,
             metadata,
@@ -426,3 +426,10 @@ class GribFileOutput(GribIoOutput):
             negative_step_mode=negative_step_mode,
             **kwargs,
         )
+
+    @staticmethod
+    def _add_suffix_to_output_path(path, suffix) -> Path:
+        """Add the suffix to the output path."""
+        extension = f".grib"
+        new_path = str(path).removesuffix(extension) + suffix + extension
+        return Path(new_path)
