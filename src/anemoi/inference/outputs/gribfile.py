@@ -334,7 +334,7 @@ class GribIoOutput(BaseGribOutput):
 @output_registry.register("grib")
 @main_argument("path")
 @format_dataset_name("path")
-@ensure_path("path" + "suffix")
+@ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
 

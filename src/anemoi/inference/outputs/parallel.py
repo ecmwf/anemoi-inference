@@ -141,13 +141,13 @@ class ParallelOutput(Output):
         self.output_config= output
 
         # Create one output instance per writer, each with a unique path suffix
-        self.outputs = [
-            create_output(context, output, self.metadata, suffix=f"_w{i}")
-            for i in range(self.num_writers)
-        ]
+        #self.outputs = [
+        #    create_output(context, output, self.metadata, suffix=f"_w{i}")
+        #    for i in range(self.num_writers)
+        #]
 
         if not self._writers_running:
-            self._spawn_writers(self.outputs)
+            self._spawn_writers(self.output_config)
             self._writers_running = True
 
 
@@ -192,7 +192,7 @@ class ParallelOutput(Output):
 
     # ── internals ───────────────────────────────────────────────────────
 
-    def _spawn_writers(self, outputs: list[Output]) -> None:
+    def _spawn_writers(self, output_config) -> None:
         """Fork writer processes.
         
         'self.num_writers' writer processes are spawned, each with its own queue for receiving states to write. 
@@ -210,7 +210,7 @@ class ParallelOutput(Output):
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_loop,
-                args=(i, self._queues[i], outputs[i]),
+                args=(i, self._queues[i], output_config),
                 name=f"w{i}_for_p{parent_pid}",
             )
             process.start()
@@ -218,7 +218,7 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: spawned %d writer processes", self.num_writers)
 
-    def _writer_loop(self, writer_id: int, queue: mp.Queue, output: Output) -> None:
+    def _writer_loop(self, writer_id: int, queue: mp.Queue, output_config) -> None:
         """Event loop executed inside each forked writer process.
         
         Each writer process runs this loop, which listens for incoming messages on its queue.
@@ -229,13 +229,7 @@ class ParallelOutput(Output):
         (e.g., appending a writer ID to the output file name)."""
         LOG.info("Writer %d started", writer_id)
 
-        # Allow the wrapped output to perform any per-writer initialization (e.g. open a different file per writer)
-        #if hasattr(self.output, "per_writer_init"):
-        #    self.output.per_writer_init(writer_id)
-        #output = create_output(context, outputs, self.metadata)
-        if hasattr(output, "per_writer_init"):
-            output.per_writer_init(writer_id)
-        
+        output = create_output(self.context, output_config, self.metadata, suffix=f"_w{writer_id}")
         has_written_initial_state = False
 
         while True:
