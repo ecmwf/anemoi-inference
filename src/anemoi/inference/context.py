@@ -38,7 +38,6 @@ class Context(ABC):
     lead_time = None
     output_frequency: int | None = None
     write_initial_state: bool = True
-    writers_per_device: int = 0
 
     ##################################################################
 
