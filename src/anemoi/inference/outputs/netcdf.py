@@ -233,6 +233,6 @@ class NetCDFOutput(Output):
     @staticmethod
     def _add_suffix_to_output_path(path, suffix) -> Path:
         """Add the suffix to the output path."""
-        extension = f".nc"
+        extension = ".nc"
         new_path = str(path).removesuffix(extension) + suffix + extension
         return Path(new_path)

@@ -335,7 +335,7 @@ class ZarrOutput(Output):
     @staticmethod
     def _add_suffix_to_output_store(store, suffix) -> "StoreLike":
         """Add the suffix to the output store."""
-        extension = f".zarr"
+        extension = ".zarr"
         new_store = str(store).removesuffix(extension) + suffix + extension
         if TYPE_CHECKING:
             return StoreLike(new_store)
