@@ -88,11 +88,11 @@ def _split_state(state: State, num_chunks: int) -> list[State]:
 @output_registry.register("parallel")
 class ParallelOutput(Output):
     """Wraps another :class:`Output` and offloads ``write_step`` calls to
-    one or more forked writer processes.
+    one or more forked writer processes. The output is split along the field dimension
+    and each chunk is sent to a different writer process via multiprocessing queues.
+    Each writer process writes the initial state into its own file.
 
-    The wrapped output's ``per_writer_init`` hook (if any) is invoked once
-    per worker so that the concrete output can adjust itself (e.g. open a
-    different file per writer).
+    When writing a file output, a suffix '_{writer_id}' is appended to the file name to avoid conflicts between writers. 
 
     Usage in YAML::
 
@@ -102,6 +102,11 @@ class ParallelOutput(Output):
             output:
               grib:
                 path: output.grib
+
+    This yaml will result in the following outputs being written:
+        - output_w0.grib
+        - output_w1.grib
+
     """
 
     def __init__(
@@ -125,9 +130,8 @@ class ParallelOutput(Output):
             The inner output (or its config dict) that will be forked into
             writer processes.
         num_writers : int, optional
-            Number of writer processes to spawn.  Falls back to
-            ``context.writers_per_device`` if not given, and to ``0``
-            (synchronous) if neither is set.
+            Number of writer processes to spawn.  
+            If not specified, an error is raised.
         **kwargs : Any
             Extra keyword arguments forwarded to :class:`ForwardOutput`.
         """
@@ -136,21 +140,28 @@ class ParallelOutput(Output):
         assert num_writers is not None, "Error. ParallelOutput selected but no 'num_writers' specified in config."
         self.num_writers = num_writers
 
+        # store the output config for printing and for creating outputs in the writer processes.
+        self.output_config = output 
+
+        # Writers are spawned in open() rather than here, because at
+        # __init__ time the context may not yet have lead_time / time_step set.
+        # Forking before those are populated would give the children stale copies.
         self._writers_running = False
 
-        self.output_config= output
+    def open(self, state: State) -> None:
+        """Spawn writer processes now that the context is fully initialised.
 
-        # Create one output instance per writer, each with a unique path suffix
-        #self.outputs = [
-        #    create_output(context, output, self.metadata, suffix=f"_w{i}")
-        #    for i in range(self.num_writers)
-        #]
-
+        This is called by the runner *after* lead_time and time_step have been
+        set on the context, so the forked children will inherit a valid context.
+        """
         if not self._writers_running:
-            self._spawn_writers(self.output_config)
+            self._spawn_writers(self.context, self.output_config)
             self._writers_running = True
+        # self.write_state(state) # Do I need to write the initial state here?
+        pass
 
 
+    # Cannot be an abstract method but should not be called directly on ParallelOutput.
     def write_step(self, state: State) -> None:
         return ValueError("ParallelOutput does not support write_step directly — it dispatches to writer processes. Make sure to call write_state instead.")
 
@@ -161,17 +172,12 @@ class ParallelOutput(Output):
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
-        state = self.post_process(state)
-
-        if self.num_writers <= 0:
-            # Sequntial fallback — delegate to wrapped output
-            self.output.write_step(self.modify_state(state))
-            return
-
         # Parallel case — split state into chunks and send to writers via queues
-        #state = self.modify_state(state)
         state_chunks = _split_state(state, self.num_writers)
         for i, chunk in enumerate(state_chunks):
+            if not self._processes[i].is_alive():
+                LOG.debug("Writer %d is dead", i)
+                continue
             self._queues[i].put(_sanitize_state(chunk))
 
     def close(self) -> None:
@@ -192,7 +198,7 @@ class ParallelOutput(Output):
 
     # ── internals ───────────────────────────────────────────────────────
 
-    def _spawn_writers(self, output_config) -> None:
+    def _spawn_writers(self, context: Context, output_config) -> None:
         """Fork writer processes.
         
         'self.num_writers' writer processes are spawned, each with its own queue for receiving states to write. 
@@ -210,7 +216,7 @@ class ParallelOutput(Output):
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_loop,
-                args=(i, self._queues[i], output_config),
+                args=(i, self._queues[i], context,output_config),
                 name=f"w{i}_for_p{parent_pid}",
             )
             process.start()
@@ -218,21 +224,22 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: spawned %d writer processes", self.num_writers)
 
-    def _writer_loop(self, writer_id: int, queue: mp.Queue, output_config) -> None:
+    def _writer_loop(self, writer_id: int, queue: mp.Queue, context: Context, output_config) -> None:
         """Event loop executed inside each forked writer process.
         
         Each writer process runs this loop, which listens for incoming messages on its queue.
         Messages can be either state dictionaries to write (which are passed to the wrapped output's 'write_step' method) or a "TERMINATE" signal to shut down the writer.
 
-        
-        If the wrapped output has a 'per_writer_init' method, it is called once at the start of the loop to allow for any necessary initialization 
-        (e.g., appending a writer ID to the output file name)."""
+        Writers create their own output instance and write the initial state before entering the loop.
+
+        """
         LOG.info("Writer %d started", writer_id)
 
-        output = create_output(self.context, output_config, self.metadata, suffix=f"_w{writer_id}")
+        output = create_output(context, output_config, self.metadata, suffix=f"_w{writer_id}")
         has_written_initial_state = False
 
         while True:
+            # Receive a message from the main process
             try:
                 message = queue.get()
             except mp.queues.Empty:
@@ -241,14 +248,21 @@ class ParallelOutput(Output):
                 LOG.error("Writer %d queue error: %s\n%s", writer_id, e, traceback.format_exc())
                 break
 
+            # Check for termination signal
             if message == _SIGNAL:
                 LOG.debug("Writer %d received '%s'", writer_id, _SIGNAL)
                 output.close()
                 break
 
+            # Otherwise, post process and write the received state using the wrapped output
             try:
-                #if writer_id == 0 and not has_written_initial_state:
+                message = self.post_process(message)
+
                 if not has_written_initial_state:
+                    # Some outputs (e.g. netcdf) must be explictly opened.
+                    if hasattr(output, "open"):
+                        LOG.debug("Writer %d openning %s", writer_id, output)
+                        output.open(message)
                     # each process needs to write initial state to do some setup
                     output.write_initial_state(message)
                     has_written_initial_state = True
@@ -261,6 +275,7 @@ class ParallelOutput(Output):
                 break
 
         LOG.info("Writer %d shutting down", writer_id)
+        exit(0)
 
     def _terminate_all_writers(self) -> None:
         """Gracefully shut down all writer processes.
@@ -271,14 +286,23 @@ class ParallelOutput(Output):
 
         for i, queue in enumerate(self._queues):
             try:
-                queue.put_nowait(_SIGNAL)
+                if self._processes[i].is_alive():
+                    queue.put_nowait(_SIGNAL)
+                else:
+                    LOG.warning("Writer %d already dead", i)
             except Exception as e:
                 LOG.error("Failed to send '%s' to writer %d: %s", _SIGNAL, i, e)
 
-        for p in self._processes:
-            p.join(timeout=5)
-            if p.is_alive():
-                LOG.warning("Writer %s did not exit — terminating", p.name)
-                p.terminate()
+        LOG.info("ParallelOutput: waiting for writers to exit...")
+        # Prevent hanging on cleanup if a writer had an error during runtime
+        # by draining the queues of any unconsumed messages.
+        for i, queue in enumerate(self._queues):
+            queue.cancel_join_thread()
+            try:
+                while not queue.empty():
+                    queue.get_nowait()
+            except Exception:
+                pass
+            queue.close()
 
         LOG.info("ParallelOutput: all writers terminated.")
