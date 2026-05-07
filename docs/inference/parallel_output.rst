@@ -168,5 +168,3 @@ dead and skip sending further data to it. A warning is logged:
 
 The remaining writers continue operating. On shutdown, dead writers are
 skipped during the termination sequence.
-
-
