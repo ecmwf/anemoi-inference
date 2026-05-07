@@ -149,11 +149,7 @@ class ParallelOutput(Output):
         self._writers_running = False
 
     def open(self, state: State) -> None:
-        """Spawn writer processes now that the context is fully initialised.
-
-        This is called by the runner *after* lead_time and time_step have been
-        set on the context, so the forked children will inherit a valid context.
-        """
+        """ Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context. """
         if not self._writers_running:
             self._spawn_writers(self.context, self.output_config)
             self._writers_running = True
