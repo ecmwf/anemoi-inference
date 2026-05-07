@@ -7,27 +7,26 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import datetime
 import logging
 import math
 import multiprocessing as mp
 import os
 import traceback
-from collections.abc import Sequence
 from typing import Any
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
-from ..output import ForwardOutput
 from ..output import Output
 from . import create_output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
-_SIGNAL="TERMINATE"
+_SIGNAL = "TERMINATE"
+
+
 # ── helpers ─────────────────────────────────────────────────────────────
 def _detach_tensors(obj: Any) -> Any:
     """Recursively convert torch tensors to numpy arrays.
@@ -92,7 +91,7 @@ class ParallelOutput(Output):
     and each chunk is sent to a different writer process via multiprocessing queues.
     Each writer process writes the initial state into its own file.
 
-    When writing a file output, a suffix '_{writer_id}' is appended to the file name to avoid conflicts between writers. 
+    When writing a file output, a suffix '_{writer_id}' is appended to the file name to avoid conflicts between writers.
 
     Usage in YAML::
 
@@ -130,7 +129,7 @@ class ParallelOutput(Output):
             The inner output (or its config dict) that will be forked into
             writer processes.
         num_writers : int, optional
-            Number of writer processes to spawn.  
+            Number of writer processes to spawn.
             If not specified, an error is raised.
         **kwargs : Any
             Extra keyword arguments forwarded to :class:`ForwardOutput`.
@@ -141,7 +140,7 @@ class ParallelOutput(Output):
         self.num_writers = num_writers
 
         # store the output config for printing and for creating outputs in the writer processes.
-        self.output_config = output 
+        self.output_config = output
 
         # Writers are spawned in open() rather than here, because at
         # __init__ time the context may not yet have lead_time / time_step set.
@@ -149,17 +148,18 @@ class ParallelOutput(Output):
         self._writers_running = False
 
     def open(self, state: State) -> None:
-        """ Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context. """
+        """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context."""
         if not self._writers_running:
             self._spawn_writers(self.context, self.output_config)
             self._writers_running = True
         # self.write_state(state) # Do I need to write the initial state here?
         pass
 
-
     # Cannot be an abstract method but should not be called directly on ParallelOutput.
     def write_step(self, state: State) -> None:
-        return ValueError("ParallelOutput does not support write_step directly — it dispatches to writer processes. Make sure to call write_state instead.")
+        return ValueError(
+            "ParallelOutput does not support write_step directly — it dispatches to writer processes. Make sure to call write_state instead."
+        )
 
     def write_state(self, state: State) -> None:
         """Write the state, dispatching to writer processes when enabled."""
@@ -196,9 +196,9 @@ class ParallelOutput(Output):
 
     def _spawn_writers(self, context: Context, output_config) -> None:
         """Fork writer processes.
-        
-        'self.num_writers' writer processes are spawned, each with its own queue for receiving states to write. 
-        The writer processes run the '_writer_loop' method, which listens for incoming states on the queue and 
+
+        'self.num_writers' writer processes are spawned, each with its own queue for receiving states to write.
+        The writer processes run the '_writer_loop' method, which listens for incoming states on the queue and
         calls 'write_step' on the wrapped output.
         """
         self._processes: list[mp.Process] = []
@@ -212,7 +212,7 @@ class ParallelOutput(Output):
         for i in range(self.num_writers):
             process = mp.Process(
                 target=self._writer_loop,
-                args=(i, self._queues[i], context,output_config),
+                args=(i, self._queues[i], context, output_config),
                 name=f"w{i}_for_p{parent_pid}",
             )
             process.start()
@@ -222,7 +222,7 @@ class ParallelOutput(Output):
 
     def _writer_loop(self, writer_id: int, queue: mp.Queue, context: Context, output_config) -> None:
         """Event loop executed inside each forked writer process.
-        
+
         Each writer process runs this loop, which listens for incoming messages on its queue.
         Messages can be either state dictionaries to write (which are passed to the wrapped output's 'write_step' method) or a "TERMINATE" signal to shut down the writer.
 
