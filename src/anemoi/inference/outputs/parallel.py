@@ -168,6 +168,10 @@ class ParallelOutput(Output):
             if (step % self.output_frequency).total_seconds() != 0:
                 return
 
+        if self.num_writers == 0:
+            # write in the main process without parallelism
+            return super().write_state(state)
+
         # Parallel case — split state into chunks and send to writers via queues
         state_chunks = _split_state(state, self.num_writers)
         for i, chunk in enumerate(state_chunks):
