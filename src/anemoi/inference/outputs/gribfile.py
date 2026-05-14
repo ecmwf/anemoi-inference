@@ -344,6 +344,7 @@ class GribFileOutput(GribIoOutput):
         metadata: Metadata,
         *,
         path: Path,
+        suffix: str = "",
         post_processors: list[ProcessorConfig] | None = None,
         encoding: dict[str, Any] | None = None,
         archive_requests: dict[str, Any] | None = None,
@@ -370,6 +371,9 @@ class GribFileOutput(GribIoOutput):
         path : Path
             Path to the grib file to write the data to.
             If the parent directory does not exist, it will be created.
+        suffix : str, optional
+            The suffix to add to the path, by default "".
+            When using parallel output, the writer processes will add a suffix `_w{writer_id}` to the path.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         encoding : dict, optional
@@ -402,10 +406,11 @@ class GribFileOutput(GribIoOutput):
             - `write`: write the variable as normal
             - `skip`: skip writing the variable
         """
+        self.path = self._add_suffix_to_output_path(path, suffix)
         super().__init__(
             context,
             metadata,
-            out=path,
+            out=self.path,
             post_processors=post_processors,
             encoding=encoding,
             archive_requests=archive_requests,
@@ -421,3 +426,10 @@ class GribFileOutput(GribIoOutput):
             negative_step_mode=negative_step_mode,
             **kwargs,
         )
+
+    @staticmethod
+    def _add_suffix_to_output_path(path, suffix) -> Path:
+        """Add the suffix to the output path."""
+        extension = ".grib"
+        new_path = str(path).removesuffix(extension) + suffix + extension
+        return Path(new_path)

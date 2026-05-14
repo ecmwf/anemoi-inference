@@ -87,6 +87,7 @@ class ZarrOutput(Output):
         metadata: Metadata,
         *,
         store: "StoreLike",
+        suffix: str = "",
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -106,6 +107,8 @@ class ZarrOutput(Output):
             Can be a file path or a Zarr store.
             If an existing store is provided, it is assumed to
             be a writable store and empty.
+        suffix : str, optional
+            The suffix to add to the store, by default "".
         variables : list, optional
             The list of variables to write, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
@@ -131,7 +134,7 @@ class ZarrOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-        self.zarr_store: StoreLike = store
+        self.zarr_store: StoreLike = self._add_suffix_to_output_store(store, suffix)
         self.missing_value = missing_value
         self.chunks = chunks
         self.float_size = float_size
@@ -328,3 +331,13 @@ class ZarrOutput(Output):
                 zarr.consolidate_metadata(self.zarr_store)
                 self.zarr_store.close()
             self.zarr_store = None
+
+    @staticmethod
+    def _add_suffix_to_output_store(store, suffix) -> "StoreLike":
+        """Add the suffix to the output store."""
+        extension = ".zarr"
+        new_store = str(store).removesuffix(extension) + suffix + extension
+        if TYPE_CHECKING:
+            return StoreLike(new_store)
+        else:
+            return new_store
