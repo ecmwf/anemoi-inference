@@ -222,12 +222,13 @@ class GribIoOutput(BaseGribOutput):
             Additional keys for the message.
         """
         # Make sure `name` is not in the keys, otherwise grib_encoding will fail
-        if template is not None and template.metadata("name", default=None) is not None:
+        if template is not None and template.get("labels.name", default=None) is not None:
             # We cannot clear the metadata...
             class Dummy:
                 def __init__(self, template: ekd.Field) -> None:
                     self.template = template
-                    self.handle = template.handle
+                    grib = template._get_grib(strict=True)
+                    self.handle = grib.handle if grib is not None else None
 
                 def __repr__(self) -> str:
                     return f"Dummy({self.template})"

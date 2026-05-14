@@ -75,7 +75,7 @@ def check_data(
         avail = defaultdict(set)
         duplicates = defaultdict(set)
         for field in data:
-            name, date = field.metadata("name"), to_datetime(field.metadata("valid_datetime"))
+            name, date = field.get("labels.name"), to_datetime(field.get("time.valid_datetime"))
             if date in avail[name]:
                 duplicates[name].add(date)
                 LOG.warning(

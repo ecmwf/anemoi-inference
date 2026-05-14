@@ -84,5 +84,5 @@ class FDBInput(GribInput):
         for request in requests:
             request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
         sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
-        ds = ekd.from_source("multi", sources)
+        ds = ekd.from_source("multi", sources).to_fieldlist()
         return ds

@@ -304,7 +304,7 @@ def grib_keys(
 
     # 1 if local definition is present, like for ECMWF GRIBs
     if template is not None:
-        local_use_present = template.metadata("localUsePresent", default=0)
+        local_use_present = template.get("metadata.localUsePresent", default=0)
     else:
         local_use_present = 0
 
@@ -399,7 +399,7 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
 
         if first:
             import eccodes
-            from earthkit.data.readers.grib.codes import GribCodesHandle
+            from earthkit.data.readers.grib.handle import GribCodesHandle
 
             handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
             return check_encoding(handle, keys, first=False)
@@ -436,7 +436,15 @@ def encode_message(
         The encoded GRIB handle.
     """
     metadata = metadata.copy()  # avoid modifying the original metadata
-    handle = template.handle.clone()
+    if hasattr(template, 'handle'):
+        # Dummy wrapper or legacy object with handle attribute
+        handle = template.handle.clone()
+    else:
+        # New earthkit Field — get handle via private GRIB metadata
+        grib = template._get_grib(strict=True)
+        if grib is None:
+            raise ValueError("Template is not a GRIB field, cannot encode message")
+        handle = grib.handle.clone()
 
     if check_nans and values is not None:
         import numpy as np

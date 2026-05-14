@@ -110,18 +110,23 @@ class DummyInput(EkdInput):
             for date in dates:
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
-                handle = dict(
-                    values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
-                    latitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    longitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    date=date.strftime("%Y%m%d"),
-                    time=date.strftime("%H%M"),
-                    name=variable,
-                    **keys,
-                )
-                result.append(handle)
+                from earthkit.data.core.field import Field
 
-        return ekd.from_source("list-of-dicts", result)
+                field = Field.from_components(
+                    values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
+                    geography={
+                        "latitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                        "longitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                    },
+                    time={
+                        "valid_datetime": date.isoformat(),
+                    },
+                    parameter={"variable": variable},
+                    labels={"name": variable, **keys},
+                )
+                result.append(field)
+
+        return ekd.create_fieldlist(result)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup a template by name.
