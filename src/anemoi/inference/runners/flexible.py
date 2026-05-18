@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime
 import logging
 import math
+from functools import cached_property
 from typing import Any
 from typing import Generator
 
@@ -116,3 +117,36 @@ class FlexibleRunner(Runner):
             next_dates = valid_dates
             is_last_step = s == steps - 1
             yield step, valid_dates, next_dates, is_last_step
+
+    @cached_property
+    def slot_mapping(self) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+        """Preserve and predict slot pairs for one AR step advance.
+
+        After advancing by ``step_shift``, each new input slot at offset ``o``
+        is filled from the old input slot at ``o + step_shift`` (preserve) or
+        from the output slot at ``o + step_shift`` (predict).
+        A tuple of ``(preserve_pairs, predict_pairs)`` where each element is a
+        list of ``(new_input_slot, source_slot)`` index pairs.
+        """
+        input_index = {o: i for i, o in enumerate(self.input_offsets)}
+        output_index = {o: i for i, o in enumerate(self.output_offsets)}
+        preserve: list[tuple[int, int]] = []
+        predict: list[tuple[int, int]] = []
+        for new_slot, offset in enumerate(self.input_offsets):
+            source = offset + self.step_shift
+            if source in input_index:
+                preserve.append((new_slot, input_index[source]))
+            elif source in output_index:
+                predict.append((new_slot, output_index[source]))
+            else:
+                raise ValueError(
+                    f"Input offset {offset} + step_shift {self.step_shift} = {source} "
+                    f"is neither in input_offsets {self.input_offsets} "
+                    f"nor output_offsets {self.output_offsets}."
+                )
+        LOG.info(
+            "FlexibleRunner slot_mapping: preserve=%s, predict=%s",
+            preserve,
+            predict,
+        )
+        return preserve, predict
