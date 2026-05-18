@@ -68,6 +68,12 @@ class FlexibleRunner(Runner):
             to_timedelta(step_shift) if step_shift is not None else max(self.output_offsets) - max(self.input_offsets)
         )
 
+        # Override metadata.lagged on every dataset so that all input classes
+        # and add_initial_forcings_to_input_state fetch the correct historical
+        # dates instead of the uniform [-i*timestep] sequence.
+        for metadata in self.checkpoint.multi_dataset_metadata.values():
+            metadata.lagged = self.input_offsets
+
         LOG.info(
             "FlexibleRunner: input_offsets=%s, output_offsets=%s, step_shift=%s",
             self.input_offsets,
