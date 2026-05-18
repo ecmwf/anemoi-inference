@@ -225,11 +225,11 @@ class FlexibleRunner(Runner):
             is_last_step = s == steps - 1
             yield step, valid_dates, next_dates, is_last_step
 
-    @cached_property
     def _compute_output_step(self, step: datetime.timedelta, i: int) -> datetime.timedelta:
         """Return the output step timedelta for the i-th model output within an AR step."""
         return step - self.step_shift + self.output_offsets[i]
 
+    @cached_property
     def slot_mapping(self) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
         """Preserve and predict slot pairs for one AR step advance.
 
