@@ -1,0 +1,76 @@
+# (C) Copyright 2026- Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+
+from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.runner import Runner
+from anemoi.inference.runner import RunnerClasses
+
+from . import runner_registry
+
+LOG = logging.getLogger(__name__)
+
+
+@runner_registry.register("flexible")
+class FlexibleRunner(Runner):
+    """Runner for FlexibleForecaster checkpoints.
+
+    All temporal structure (input/output offsets, step shift) is supplied via
+    the inference YAML config.  The runner does **not** rely on
+    ``checkpoint.timestep`` (which is ``None`` for FlexibleForecaster
+    checkpoints).
+    """
+
+    def __init__(
+        self,
+        config: RunConfiguration,
+        input_offsets: list[str],
+        output_offsets: list[str],
+        step_shift: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the FlexibleRunner.
+
+        Parameters
+        ----------
+        config : RunConfiguration
+            Standard inference run configuration.
+        input_offsets : list[str]
+            Duration strings for input time slots, e.g. ``["-6H", "0H"]``.
+        output_offsets : list[str]
+            Duration strings for output time slots, e.g. ``["6H"]``.
+        step_shift : str | None, optional
+            Autoregressive step shift.  If ``None``, inferred as
+            ``max(output_offsets) - max(input_offsets)``.
+        **kwargs : Any
+            Additional keyword arguments (ignored with a warning).
+        """
+        if kwargs:
+            LOG.warning("FlexibleRunner: ignoring unknown runner options: %s", list(kwargs))
+
+        super().__init__(config, classes=RunnerClasses())
+
+        self.input_offsets = sorted(to_timedelta(x) for x in input_offsets)
+        self.output_offsets = sorted(to_timedelta(x) for x in output_offsets)
+        self.step_shift = (
+            to_timedelta(step_shift) if step_shift is not None else max(self.output_offsets) - max(self.input_offsets)
+        )
+
+        LOG.info(
+            "FlexibleRunner: input_offsets=%s, output_offsets=%s, step_shift=%s",
+            self.input_offsets,
+            self.output_offsets,
+            self.step_shift,
+        )
