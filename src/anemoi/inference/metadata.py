@@ -1434,7 +1434,8 @@ class MultiDatasetMetadata(Metadata):
 
     @cached_property
     def timestep(self) -> datetime.timedelta:
-        return to_timedelta(self._inference.timesteps.timestep)
+        ts = self._inference.timesteps.timestep
+        return to_timedelta(ts) if ts is not None else None
 
     @cached_property
     def multi_step_input(self) -> int:
