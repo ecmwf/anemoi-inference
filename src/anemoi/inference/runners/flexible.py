@@ -9,8 +9,11 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
+import math
 from typing import Any
+from typing import Generator
 
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
@@ -92,3 +95,24 @@ class FlexibleRunner(Runner):
                 "Use a different output type (e.g. grib)."
             )
         return output
+
+    def forecast_stepper(
+        self, start_date: datetime.datetime, lead_time: datetime.timedelta
+    ) -> Generator[tuple[datetime.timedelta, list[datetime.datetime], list[datetime.datetime], bool], None, None]:
+        """Generate step and date variables for the flexible forecast autoregressive loop."""
+        steps = math.ceil(lead_time / self.step_shift)
+
+        LOG.info(
+            "FlexibleRunner: lead_time=%s, step_shift=%s, output_offsets=%s, forecasting %s steps.",
+            lead_time,
+            self.step_shift,
+            self.output_offsets,
+            steps,
+        )
+
+        for s in range(steps):
+            step = (s + 1) * self.step_shift
+            valid_dates = [start_date + s * self.step_shift + offset for offset in self.output_offsets]
+            next_dates = valid_dates
+            is_last_step = s == steps - 1
+            yield step, valid_dates, next_dates, is_last_step
