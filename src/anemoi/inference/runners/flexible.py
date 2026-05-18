@@ -19,12 +19,70 @@ from typing import Generator
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.config.run import RunConfiguration
+from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Runner
 from anemoi.inference.runner import RunnerClasses
+from anemoi.inference.tensors import Kind
+from anemoi.inference.tensors import TensorHandler
+from anemoi.inference.types import BoolArray
 
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
+
+
+class FlexibleTensorHandler(TensorHandler):
+    """TensorHandler for FlexibleForecaster checkpoints.
+
+    Overrides the prognostic copy step to use the slot mapping computed by
+    ``FlexibleRunner`` instead of the uniform roll-and-fill logic.
+    """
+
+    def copy_prognostic_fields_to_input_tensor(
+        self,
+        input_tensor_torch: torch.Tensor,
+        y_pred: torch.Tensor,
+        check: BoolArray,
+    ) -> torch.Tensor:
+        """Copy prognostic fields using the flexible slot mapping."""
+        # input_tensor_torch shape: (batch, multi_step_input, values, variables)
+        preserve_pairs, predict_pairs = self.context.slot_mapping
+
+        pmask_in = torch.as_tensor(
+            self.metadata.prognostic_input_mask,
+            device=input_tensor_torch.device,
+            dtype=torch.long,
+        )
+        pmask_out = torch.as_tensor(
+            self.metadata.prognostic_output_mask,
+            device=y_pred.device,
+            dtype=torch.long,
+        )
+
+        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+        new_tensor = input_tensor_torch.clone()
+        for new_slot, old_slot in preserve_pairs:
+            new_tensor[:, new_slot, :, :] = input_tensor_torch[:, old_slot, :, :]
+        for new_slot, out_slot in predict_pairs:
+            new_tensor[:, new_slot, :, pmask_in] = prognostic_fields[:, out_slot, :, :]
+
+        pmask_in_np = pmask_in.detach().cpu().numpy()
+        if check[pmask_in_np].any():
+            conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
+            raise AssertionError(
+                f"[{self.dataset_name}] Attempting to overwrite existing prognostic input slots "
+                f"for variables: {conflicting}"
+            )
+
+        check[pmask_in_np] = True
+
+        for n in pmask_in_np:
+            self._input_kinds[self._input_tensor_by_name[n]] = Kind(prognostic=True)
+            if self.trace:
+                self.trace.from_rollout(self._input_tensor_by_name[n])
+
+        return new_tensor
 
 
 @runner_registry.register("flexible")
@@ -64,7 +122,7 @@ class FlexibleRunner(Runner):
         if kwargs:
             LOG.warning("FlexibleRunner: ignoring unknown runner options: %s", list(kwargs))
 
-        super().__init__(config, classes=RunnerClasses())
+        super().__init__(config, classes=RunnerClasses(tensor_handler=FlexibleTensorHandler))
 
         self.input_offsets = sorted(to_timedelta(x) for x in input_offsets)
         self.output_offsets = sorted(to_timedelta(x) for x in output_offsets)
