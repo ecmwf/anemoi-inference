@@ -559,17 +559,18 @@ class Runner(Context):
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
+                        input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
+                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
+                        )
+
+                        del y_pred[dataset]  # Recover memory
+
                         # some forcings use the new_state(s)
                         # ComputedForcings only uses it to get latlons
                         # For CoupledForcings multi-out not yet supported, last state is only state
                         # ConstantForcings irrelevant
                         # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
                         # so for now ok to simply pass the last of the multi-out new states:
-
-                        input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
-                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
-                        )
-                        del y_pred[dataset]  # Recover memory
 
                         input_tensors_torch[dataset] = handler.add_dynamic_forcings_to_input_tensor(
                             input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
