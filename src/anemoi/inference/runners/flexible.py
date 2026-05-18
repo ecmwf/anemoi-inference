@@ -74,3 +74,15 @@ class FlexibleRunner(Runner):
             self.output_offsets,
             self.step_shift,
         )
+
+    def create_output(self, dataset_name: str, metadata: Any) -> Any:
+        """Create an output object, raising if zarr is requested."""
+        from anemoi.inference.outputs.zarr import ZarrOutput
+
+        output = super().create_output(dataset_name, metadata)
+        if isinstance(output, ZarrOutput):
+            raise NotImplementedError(
+                "FlexibleRunner does not support zarr output yet [time_step=None]. "
+                "Use a different output type (e.g. grib)."
+            )
+        return output
