@@ -521,9 +521,7 @@ class Runner(Context):
                         for dataset, handler in self.tensor_handlers.items():
                             new_states[dataset]["date"] = dates[i]
                             new_states[dataset]["previous_step"] = new_states[dataset].get("step")
-                            new_states[dataset]["step"] = (
-                                step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
-                            )
+                            new_states[dataset]["step"] = self._compute_output_step(step, i)
 
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
@@ -561,10 +559,7 @@ class Runner(Context):
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
-                        input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
-                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
-                        )
-
+                        y_pred_dataset = y_pred[dataset]
                         del y_pred[dataset]  # Recover memory
 
                         # some forcings use the new_state(s)
@@ -574,11 +569,14 @@ class Runner(Context):
                         # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
                         # so for now ok to simply pass the last of the multi-out new states:
 
-                        input_tensors_torch[dataset] = handler.add_dynamic_forcings_to_input_tensor(
-                            input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
-                        )
-                        input_tensors_torch[dataset] = handler.add_boundary_forcings_to_input_tensor(
-                            input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
+                        input_tensors_torch[dataset] = self._advance_input_tensor(
+                            dataset,
+                            handler,
+                            input_tensors_torch[dataset],
+                            y_pred_dataset,
+                            new_states[dataset],
+                            next_dates,
+                            check[dataset],
                         )
 
                         if not check[dataset].all():
@@ -594,6 +592,26 @@ class Runner(Context):
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                             handler._print_input_tensor(f"[{dataset}] Next input tensor", input_tensors_torch[dataset])
+
+    def _compute_output_step(self, step: datetime.timedelta, i: int) -> datetime.timedelta:
+        """Return the output step timedelta for the i-th model output within an AR step."""
+        return step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
+
+    def _advance_input_tensor(
+        self,
+        dataset: str,
+        handler: "TensorHandler",
+        input_tensor: "torch.Tensor",
+        y_pred_dataset: "torch.Tensor",
+        new_state: State,
+        next_dates: list,
+        check: "Any",
+    ) -> "torch.Tensor":
+        """Advance the input tensor for one AR step. Override in subclasses to change tensor-update logic."""
+        input_tensor = handler.copy_prognostic_fields_to_input_tensor(input_tensor, y_pred_dataset, check)
+        input_tensor = handler.add_dynamic_forcings_to_input_tensor(input_tensor, new_state, next_dates, check)
+        input_tensor = handler.add_boundary_forcings_to_input_tensor(input_tensor, new_state, next_dates, check)
+        return input_tensor
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         for p in self.pre_processors[dataset_name]:
