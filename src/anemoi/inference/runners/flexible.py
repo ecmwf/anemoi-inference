@@ -16,6 +16,7 @@ from functools import cached_property
 from typing import Any
 from typing import Generator
 
+import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.config.run import RunConfiguration
@@ -83,6 +84,54 @@ class FlexibleTensorHandler(TensorHandler):
                 self.trace.from_rollout(self._input_tensor_by_name[n])
 
         return new_tensor
+
+    def add_dynamic_forcings_to_input_tensor(
+        self,
+        input_tensor_torch: torch.Tensor,
+        state: Any,
+        dates: list,
+        check: BoolArray,
+    ) -> torch.Tensor:
+        """Add dynamic forcings using the flexible predict slot mapping."""
+        _, predict_pairs = self.context.slot_mapping
+        for source in self.dynamic_forcings_providers:
+            forcings = source.load_forcings_array(dates, state)  # (variables, dates, values)
+            forcings = np.swapaxes(forcings, 0, 1)  # (dates, variables, values)
+            forcings = np.swapaxes(forcings[np.newaxis, :, np.newaxis, ...], -2, -1)  # (1, dates, 1, values, variables)
+            forcings = torch.from_numpy(forcings).to(self.context.device)
+            for new_slot, out_slot in predict_pairs:
+                input_tensor_torch[:, new_slot, :, source.mask] = forcings[:, out_slot, ...]
+            assert not check[source.mask].any()
+            check[source.mask] = True
+            for n in source.mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+            if self.trace:
+                for n in source.mask:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
+        return input_tensor_torch
+
+    def add_boundary_forcings_to_input_tensor(
+        self,
+        input_tensor_torch: torch.Tensor,
+        state: Any,
+        dates: list,
+        check: BoolArray,
+    ) -> torch.Tensor:
+        """Add boundary forcings using the flexible predict slot mapping."""
+        _, predict_pairs = self.context.slot_mapping
+        for source in self.boundary_forcings_providers:
+            forcings = source.load_forcings_array(dates, state)  # (variables, dates, values)
+            forcings = np.swapaxes(forcings, 0, 1)  # (dates, variables, values)
+            forcings = np.swapaxes(forcings[np.newaxis, :, np.newaxis, ...], -2, -1)  # (1, dates, 1, values, variables)
+            forcings = torch.from_numpy(forcings).to(self.context.device)
+            for new_slot, out_slot in predict_pairs:
+                total_mask = np.ix_([0], [new_slot], source.spatial_mask, source.variables_mask)
+                input_tensor_torch[total_mask] = forcings[:, out_slot, ...]
+            for n in source.variables_mask:
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
+                if self.trace:
+                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+        return input_tensor_torch
 
 
 @runner_registry.register("flexible")
