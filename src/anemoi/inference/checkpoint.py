@@ -21,11 +21,17 @@ from anemoi.inference.config.utils import multi_datasets_config
 
 from .metadata import Metadata
 from .metadata import MetadataFactory
+from .metadata import MultiDatasetMetadata
+from .metadata import SingleDatasetMetadata
 
 LOG = logging.getLogger(__name__)
 
 
-def get_multi_dataset_metadata(metadata: dict, supporting_arrays: dict, base_class=Metadata) -> dict[str, Metadata]:
+def get_multi_dataset_metadata(
+    metadata: dict,
+    supporting_arrays: dict,
+    base_class=Metadata,
+) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
     """Metadata objects for all datasets in the raw metadata, as a mapping from dataset name to Metadata object.
     For legacy checkpoints, the dataset name defaults to `data`
     """
@@ -158,12 +164,18 @@ class Checkpoint:
         return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
 
     @cached_property
-    def multi_dataset_metadata(self) -> dict[str, Metadata]:
+    def multi_dataset_metadata(self) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
         """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
         For legacy checkpoints, the dataset name defaults to `data`
         """
         metadata, supporting_arrays = self._raw_metadata
         multi_metadata = get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
+
+        if self.multi_dataset:
+            assert all(isinstance(metadata, MultiDatasetMetadata) for metadata in multi_metadata.values())
+        else:
+            assert len(multi_metadata) == 1
+            assert isinstance(next(iter(multi_metadata.values())), SingleDatasetMetadata)
 
         if self.patch_metadata:
             for dataset, metadata in multi_metadata.items():
@@ -266,6 +278,29 @@ class Checkpoint:
             The provenance of the training.
         """
         return self._metadata.provenance_training()
+
+    def update_metadata_from_zarr(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Get new metadata and supporting array dictionaries from the original training dataset.
+        Useful if the training dataset metadata has been patched/updated.
+        Updates the internal `_raw_metadata` and returns a new `(metadata, supporting_arrays)`.
+        """
+
+        new_metadata, new_supporting_arrays = self._raw_metadata
+
+        for dataset, metadata in self.multi_dataset_metadata.items():
+            ds = metadata.open_dataset()
+            ds_metadata, ds_supporting_arrays = ds.metadata(), ds.supporting_arrays()
+            assert "sources" in ds_metadata
+
+            if self.multi_dataset:
+                new_metadata["dataset"][dataset] = ds_metadata
+                new_supporting_arrays[dataset] = ds_supporting_arrays
+            else:
+                new_metadata["dataset"] = ds_metadata
+                new_supporting_arrays = ds_supporting_arrays
+
+        self._raw_metadata = (new_metadata, new_supporting_arrays)
+        return self._raw_metadata
 
 
 class SourceCheckpoint(Checkpoint):
