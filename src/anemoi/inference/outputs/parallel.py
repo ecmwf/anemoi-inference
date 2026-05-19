@@ -71,8 +71,8 @@ def _split_state(state: State, num_chunks: int) -> list[State]:
     chunks: list[State] = []
     for i in range(num_chunks):
         start = i * fields_per_chunk
-        end = min(start + fields_per_chunk, len(items))
-        if start >= len(items):
+        end = min(start + fields_per_chunk, len(fields))
+        if start >= len(fields):
             break
         chunk = state.copy()
         chunk["fields"] = dict(items[start:end])
@@ -152,7 +152,6 @@ class ParallelOutput(Output):
         if not self._writers_running:
             self._spawn_writers(self.context, self.output_config)
             self._writers_running = True
-        # self.write_state(state) # Do I need to write the initial state here?
         pass
 
     # Cannot be an abstract method but should not be called directly on ParallelOutput.
@@ -209,7 +208,8 @@ class ParallelOutput(Output):
         self._queues: list[mp.Queue] = []
 
         for _ in range(self.num_writers):
-            self._queues.append(mp.Queue())
+            # Use a bounded queue to prevent unlimited memory growth if the writers can't keep up with the main process
+            self._queues.append(mp.Queue(maxsize=10)) 
 
         mp.set_start_method("fork", force=True)
         parent_pid = os.getpid()
