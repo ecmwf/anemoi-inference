@@ -126,6 +126,8 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 )
             self._check_state(self.constants_states[dataset], "constant_forcings")
 
+        self.input_states_hook(self.constants_states)
+
         # Process each temporal downscaling window
         for window_idx in range(num_windows):
             window_start_date = self.config.date + window_idx * self.temporal_downscaling_window
@@ -153,8 +155,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     self.constants_states[dataset],
                     forcings_state,
                 )
-
-                self.input_state_hook(self.constants_states[dataset])
 
                 initial_state = input_states[dataset].copy()
                 for processor in self.post_processors[dataset]:

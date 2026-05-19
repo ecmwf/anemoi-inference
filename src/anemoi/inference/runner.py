@@ -34,7 +34,6 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.config.utils import input_types_config
 from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.device import get_available_device
-from anemoi.inference.forcings import Forcings
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.lazy import torch
@@ -237,21 +236,6 @@ class Runner(Context):
                 raise
             finally:
                 self.complete_forecast_hook()
-
-    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
-        """Modify the constant forcings providers for the first step."""
-        # Give an opportunity to modify the forcings for the first step
-        return constant_forcings_providers
-
-    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
-        """Modify the dynamic forcings providers for the initial step of the inference process.
-
-        This method provides a hook to adjust the list of dynamic forcings before the first
-        inference step is executed. By default, it returns the inputs unchanged, but subclasses
-        can override this method to implement custom preprocessing or initialization logic.
-        """
-        # Give an opportunity to modify the forcings for the first step
-        return dynamic_forcings_providers
 
     def prepare_output_state(
         self, output: Generator[dict[str, State], None, None], return_numpy: bool
@@ -552,7 +536,7 @@ class Runner(Context):
                 if is_last_step:
                     break
 
-                self.output_state_hook(new_states)
+                self.output_states_hook(new_states)
 
                 # Update  tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
@@ -612,11 +596,11 @@ class Runner(Context):
         """
         pass
 
-    def input_state_hook(self, input_state: State) -> None:
+    def input_states_hook(self, input_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""
         pass
 
-    def output_state_hook(self, state: State) -> None:
+    def output_states_hook(self, output_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""
         pass
 
@@ -650,6 +634,7 @@ class Runner(Context):
 
         # input states for each dataset
         input_states: dict[str, State] = {}
+        input_constants_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
         for dataset in self.tensor_handlers:
             prognostic_state = self.prognostics_inputs[dataset].create_input_state(date=self.config.date)
@@ -657,6 +642,7 @@ class Runner(Context):
 
             constants_state = self.constant_forcings_inputs[dataset].create_input_state(date=self.config.date)
             self._check_state(constants_state, "constant_forcings")
+            input_constants_states[dataset] = constants_state
 
             forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(date=self.config.date)
             self._check_state(forcings_state, "dynamic_forcings")
@@ -666,9 +652,6 @@ class Runner(Context):
                 constants_state,
                 forcings_state,
             )
-
-            # This hook is needed for the coupled runner
-            self.input_state_hook(constants_state)
 
             # For step-zero only
             initial_states[dataset] = Output.reduce(
@@ -684,6 +667,9 @@ class Runner(Context):
 
             for processor in self.post_processors[dataset]:
                 initial_states[dataset] = processor.process(initial_states[dataset])
+
+        # This hook is needed for the coupled runner
+        self.input_states_hook(input_constants_states)
 
         for dataset, state in initial_states.items():
             self.outputs[dataset].open(initial_states[dataset])
