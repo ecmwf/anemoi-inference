@@ -20,6 +20,7 @@ from anemoi.inference.forcings import BoundaryForcings
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.forcings import ConstantForcings
 from anemoi.inference.forcings import CoupledForcings
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
@@ -250,13 +251,8 @@ class TensorHandler:
 
         dates = [date + h for h in self.metadata.lagged]
 
-        # TODO: Check for user provided forcings
-        initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
-            self.constant_forcings_providers
-        )
-        initial_dynamic_forcings_providers = self.context.initial_dynamic_forcings_providers(
-            self.dynamic_forcings_providers
-        )
+        initial_constant_forcings_providers = self.initial_constant_forcings_providers(self.constant_forcings_providers)
+        initial_dynamic_forcings_providers = self.initial_dynamic_forcings_providers(self.dynamic_forcings_providers)
 
         LOG.info("-" * 80)
         LOG.info("Initial forcings providers:")
@@ -268,25 +264,38 @@ class TensorHandler:
             LOG.info(f"    {f}")
         LOG.info("Initial forcings dates:")
         LOG.info(f"  {', '.join([date.isoformat() for date in dates])}")
+
+        for provider in initial_constant_forcings_providers:
+            if all(
+                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                for name in provider.variables
+            ):
+                LOG.info(f"Skipping initial constant forcings {provider}, all variables are present in the input state")
+                continue
+            arrays = provider.load_forcings_array(dates, input_state)
+            for name, forcing in zip(provider.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=True, **provider.kinds)
+                if self.trace:
+                    self.trace.from_source(name, provider, "initial constant forcings")
+
+        for provider in initial_dynamic_forcings_providers:
+            if all(
+                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                for name in provider.variables
+            ):
+                LOG.info(f"Skipping initial dynamic forcings {provider}, all variables are present in the input state")
+                continue
+            arrays = provider.load_forcings_array(dates, input_state)
+            for name, forcing in zip(provider.variables, arrays):
+                assert isinstance(forcing, np.ndarray), (name, forcing)
+                fields[name] = forcing
+                self._input_kinds[name] = Kind(forcing=True, constant=False, **provider.kinds)
+                if self.trace:
+                    self.trace.from_source(name, provider, "initial dynamic forcings")
+
         LOG.info("-" * 80)
-
-        for source in initial_constant_forcings_providers:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial constant forcings")
-
-        for source in initial_dynamic_forcings_providers:
-            arrays = source.load_forcings_array(dates, input_state)
-            for name, forcing in zip(source.variables, arrays):
-                assert isinstance(forcing, np.ndarray), (name, forcing)
-                fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **source.kinds)
-                if self.trace:
-                    self.trace.from_source(name, source, "initial dynamic forcings")
 
     def create_constant_forcings_providers(self) -> list["Forcings"]:
         result = []
@@ -361,6 +370,21 @@ class TensorHandler:
             )
 
         return result
+
+    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the constant forcings providers for the first step."""
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_providers
+
+    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings providers for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
+        """
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_providers
 
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray

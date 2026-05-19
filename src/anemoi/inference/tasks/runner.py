@@ -15,12 +15,15 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
 from anemoi.inference.runner import Runner
+from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.state import reduce_state
+from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.transport import Coupling
 from anemoi.inference.transport import Transport
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
 
 from ..task import Task
@@ -37,66 +40,20 @@ class CouplingForcings(CoupledForcings):
         self.kinds = dict(coupled=True)
 
 
-class CoupledRunner(Runner):
-    """Runner for coupled models.
-
-    This class handles the initialization and running of coupled models
-    using the provided configuration and input.
-    """
-
-    def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:
-        """Initialize the CoupledRunner.
-
-        Parameters
-        ----------
-        config : dict
-            Configuration dictionary.
-        coupled_input : CoupledInput
-            Coupled input instance.
-        """
-        super().__init__(config)
-        self.coupled_input = coupled_input
-
-    def input_state_hook(self, input_state: State) -> None:
-        """Hook used by coupled runners to send the input state."""
-        self.coupled_input.initial_state(reduce_state(input_state))
-
-    def output_state_hook(self, state: State) -> None:
-        """Hook used by coupled runners to send the input state."""
-        if self.checkpoint.multi_step_output > 1:
-            raise NotImplementedError(
-                "output_state_hook is not yet supported when multi-step output and coupled runners are combined"
-            )
-        self.coupled_input.output_state(reduce_state(state))
-
-    def create_dynamic_coupled_forcings(self, variables: list[str], mask: Any) -> list[CoupledForcings]:
-        """Create dynamic coupled forcings.
-
-        Parameters
-        ----------
-        variables : list of str
-            List of variable names.
-        mask : Any
-            Mask to apply to the variables.
-
-        Returns
-        -------
-        list of CoupledForcings
-            List of coupled forcings.
-        """
-
+class CoupledTensorHandler(TensorHandler):
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[CoupledForcings]:
         mine = []
         other = []
 
         for i, v in enumerate(variables):
-            if v in self.coupled_input.variables_to_recieve:
+            if v in self.context.coupled_input.variables_to_recieve:
                 mine.append(i)
             else:
                 other.append(i)
 
         result = []
         if mine:
-            result.append(CouplingForcings(self, self.coupled_input, [variables[i] for i in mine], mask[mine]))
+            result.append(CouplingForcings(self, self.context.coupled_input, [variables[i] for i in mine], mask[mine]))
 
         if other:
             result.extend(super().create_dynamic_coupled_forcings([variables[i] for i in other], mask[other]))
@@ -105,19 +62,8 @@ class CoupledRunner(Runner):
 
     def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
         """Modify the dynamic forcings providers for the first step.
-
-        Parameters
-        ----------
-        dynamic_forcings_providers : list of Forcings
-            The dynamic forcings providers.
-
-        Returns
-        -------
-        list[Forcings]
-            The modified dynamic forcings providers.
+        For the initial state we need to load the dynamic coupled forcings from the default provider (i.e.: from disk).
         """
-        # For the initial state we need to load the forcings
-        # from the default provider.
 
         result = []
         for f in dynamic_forcings_providers:
@@ -126,6 +72,42 @@ class CoupledRunner(Runner):
             else:
                 result.append(f)
         return result
+
+
+class CoupledRunner(Runner):
+    """Runner for coupled models.
+
+    This class handles the initialization and running of coupled models
+    using the provided configuration and input.
+    """
+
+    def __init__(self, config: RunConfiguration, coupled_input: "CoupledInput") -> None:
+        """Initialize the CoupledRunner."""
+        self.coupled_input = coupled_input
+        super().__init__(
+            config,
+            classes=RunnerClasses(tensor_handler=CoupledTensorHandler),
+        )
+
+        if len(self.checkpoint.multi_dataset_metadata) > 1:
+            LOG.warning(
+                "Coupling models with multiple datasets is not yet fully supported and may lead to unexpected behaviour."
+                "Coupling variables cross-dataset is not supported."
+            )
+
+    def input_states_hook(self, input_states: dict[str, State]) -> None:
+        """Hook used by coupled runners to send the input state."""
+        for state in input_states.values():
+            self.coupled_input.initial_state(reduce_state(state))
+
+    def output_states_hook(self, output_states: dict[str, State]) -> None:
+        """Hook used by coupled runners to send the input state."""
+        if self.checkpoint.multi_step_output > 1:
+            raise NotImplementedError(
+                "output_state_hook is not yet supported when multi-step output and coupled runners are combined"
+            )
+        for state in output_states.values():
+            self.coupled_input.output_state(reduce_state(state))
 
 
 class CoupledInput:
@@ -137,18 +119,7 @@ class CoupledInput:
 
     trace_name = "coupled"
 
-    def __init__(self, task: Task, transport: Any, couplings: list[Coupling]) -> None:
-        """Initialize the CoupledInput.
-
-        Parameters
-        ----------
-        task : Task
-            Task instance.
-        transport : Any
-            Transport instance.
-        couplings : list of Coupling
-            List of couplings.
-        """
+    def __init__(self, task: Task, transport: Transport, couplings: list[Coupling]):
         self.task = task
         self.transport = transport
         self.couplings = couplings
@@ -158,20 +129,6 @@ class CoupledInput:
         self.variables_to_recieve = set(sum([c.variables for c in couplings if c.target is task], []))
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
-        """Load the forcings state.
-
-        Parameters
-        ----------
-        dates : list of Date
-            List of dates.
-        current_state : State
-            Current state dictionary.
-
-        Returns
-        -------
-        State
-            Updated state dictionary.
-        """
         LOG.info(f"Adding dynamic forcings {dates}")
         state = dict(date=dates)
 
@@ -195,27 +152,21 @@ class CoupledInput:
         return state
 
     def initial_state(self, state: State) -> None:
-        """Initialize the state.
-
-        Parameters
-        ----------
-        state : State
-            State dictionary.
-        """
         # We want to copy the constants that may be requested by the other tasks
         # For now, we keep it simple and just copy the whole state
 
-        self.constants = state["fields"].copy()
+        fields: dict = state["fields"]
+
+        common_fields = set(fields.keys()) & set(self.constants.keys())
+        if common_fields:
+            # with multi-dataset we currently don't support cross-dataset
+            raise RuntimeError(
+                f"Fields {common_fields} are already coupled. Multi-dataset coupling is not yet supported."
+            )
+
+        self.constants.update(fields.copy())
 
     def output_state(self, state: State) -> None:
-        """Output the state.
-
-        Parameters
-        ----------
-        state : State
-            State dictionary.
-        """
-
         if not self.send_only:
             return
 
@@ -236,37 +187,10 @@ class CoupledInput:
         self.tag += 1
 
 
-class TestCoupledRunner(CoupledRunner):
-    """Runner for testing coupled models."""
-
-    def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:
-        """Initialize the TestCoupledRunner.
-
-        Parameters
-        ----------
-        config : dict
-            Configuration dictionary.
-        coupled_input : CoupledInput
-            Coupled input instance.
-        """
-
-        super().__init__(config, coupled_input)
-
-
 class NoModelCoupledRunner(NoModelMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
-    def __init__(self, config: dict[str, Any], coupled_input: "CoupledInput") -> None:
-        """Initialize the NoModelCoupledRunner.
-
-        Parameters
-        ----------
-        config : dict
-            Configuration dictionary.
-        coupled_input : CoupledInput
-            Coupled input instance.
-        """
-
+    def __init__(self, config: RunConfiguration, coupled_input: "CoupledInput") -> None:
         super().__init__(config, coupled_input)
 
 
@@ -279,46 +203,25 @@ class RunnerTask(Task):
     """
 
     def __init__(
-        self, name: str, config: dict[str, Any], overrides: dict[str, Any] = {}, global_config: dict[str, Any] = {}
+        self, task_name: str, config: dict[str, Any], overrides: dict[str, Any] = {}, global_config: dict[str, Any] = {}
     ) -> None:
-        """Initialize the RunnerTask.
-
-        Parameters
-        ----------
-        name : str
-            Name of the task.
-        config : dict
-            Configuration dictionary.
-        overrides : dict, optional
-            Overrides dictionary.
-        global_config : dict, optional
-            Global configuration dictionary.
-        """
-        super().__init__(name)
+        super().__init__(task_name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
         self.config = RunConfiguration.load(config, overrides=[global_config, overrides])
 
     def run(self, transport: Transport) -> None:
-        """Run the task.
+        """Run the task."""
 
-        Parameters
-        ----------
-        transport : Transport
-            Transport instance.
-        """
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 
-        assert self.config.runner in ("default", "testing", "no-model"), self.config.runner
+        assert self.config.runner in ("default", "no-model"), self.config.runner
 
         coupler = CoupledInput(self, transport, couplings)
 
         # TODO: a factory method would be better here
         if self.config.runner == "no-model":
             runner = NoModelCoupledRunner(self.config, coupler)
-        elif self.config.runner == "testing":
-
-            runner = TestCoupledRunner(self.config, coupler)
         else:
             runner = CoupledRunner(self.config, coupler)
 
