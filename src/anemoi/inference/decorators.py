@@ -83,6 +83,7 @@ class main_argument:
 
         return type(cls.__name__, (WrappedClass,), {})
 
+
 class supports_parallel_output:
     """Decorator to indicate that an output supports parallel output.
 
@@ -106,7 +107,7 @@ class supports_parallel_output:
         self.arg = arg
 
     def __call__(self, cls: F) -> F:
-        #if not isinstance(cls, type):
+        # if not isinstance(cls, type):
         #    raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
 
         class WrappedClass(cls):
@@ -120,6 +121,7 @@ class supports_parallel_output:
                 super().__init__(*args, **kwargs)
 
         return type(cls.__name__, (WrappedClass,), {})
+
 
 class ensure_path:
     """Decorator to ensure a path argument is a Path object and optionally exists.

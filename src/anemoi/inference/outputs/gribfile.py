@@ -25,9 +25,10 @@ from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 
-from ..decorators import ensure_path, supports_parallel_output
+from ..decorators import ensure_path
 from ..decorators import format_dataset_name
 from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
