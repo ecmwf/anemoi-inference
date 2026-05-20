@@ -12,6 +12,7 @@ import math
 import multiprocessing as mp
 import os
 import traceback
+from enum import Enum
 from typing import Any
 
 from anemoi.inference.context import Context
@@ -23,8 +24,6 @@ from . import create_output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
-
-_SIGNAL = "TERMINATE"
 
 
 # ── helpers ─────────────────────────────────────────────────────────────
@@ -81,6 +80,14 @@ def _split_state(state: State, num_chunks: int) -> list[State]:
     return chunks
 
 
+class MessageType(str, Enum):
+    """Types of messages sent from the main process to the writer processes. Used for logging and control flow in the writer loop."""
+
+    TERMINATE = "Terminate"
+    INITIAL_STATE = "InitialState"
+    STATE = "State"
+
+
 # ── ParallelOutput ───────────────────────────────────────────────────
 
 
@@ -113,7 +120,7 @@ class ParallelOutput(Output):
         context: Context,
         metadata: Metadata,
         *,
-        output: Output | Any,
+        output: Output | Any | None = None,
         num_writers: int | None = None,
         **kwargs: Any,
     ):
@@ -125,21 +132,28 @@ class ParallelOutput(Output):
             The inference context.
         metadata : Metadata
             Metadata for the dataset.
-        output : Output | Any
+        output : Output | Any | None
             The inner output (or its config dict) that will be forked into
             writer processes.
         num_writers : int, optional
             Number of writer processes to spawn.
             If not specified, an error is raised.
         **kwargs : Any
-            Extra keyword arguments forwarded to :class:`ForwardOutput`.
+            Extra keyword arguments forwarded to :class:`Output`.
         """
-        super().__init__(context, metadata, **kwargs)
+        super().__init__(context, metadata)
 
         assert num_writers is not None, "Error. ParallelOutput selected but no 'num_writers' specified in config."
         self.num_writers = num_writers
 
         # store the output config for printing and for creating outputs in the writer processes.
+        self.kwargs = {}
+        if output is None:
+            output = kwargs
+        else:
+            # pass the kwargs to the writer processes
+            self.kwargs = kwargs
+
         self.output_config = output
 
         # Writers are spawned in open() rather than here, because at
@@ -150,7 +164,7 @@ class ParallelOutput(Output):
     def open(self, state: State) -> None:
         """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context."""
         if not self._writers_running:
-            self._spawn_writers(self.context, self.output_config)
+            self._spawn_writers(self.context, self.output_config, **self.kwargs)
             self._writers_running = True
         pass
 
@@ -160,13 +174,8 @@ class ParallelOutput(Output):
             "ParallelOutput does not support write_step directly — it dispatches to writer processes. Make sure to call write_state instead."
         )
 
-    def write_state(self, state: State) -> None:
+    def write_state(self, state: State, message=MessageType.STATE) -> None:
         """Write the state, dispatching to writer processes when enabled."""
-        step = state["step"]
-        if self.output_frequency is not None:
-            if (step % self.output_frequency).total_seconds() != 0:
-                return
-
         if self.num_writers == 0:
             # write in the main process without parallelism
             return super().write_state(state)
@@ -177,7 +186,7 @@ class ParallelOutput(Output):
             if not self._processes[i].is_alive():
                 LOG.debug("Writer %d is dead", i)
                 continue
-            self._queues[i].put(_sanitize_state(chunk))
+            self._queues[i].put((_sanitize_state(chunk), message))
 
     def close(self) -> None:
         """Terminate writer processes, then close the wrapped output."""
@@ -195,21 +204,25 @@ class ParallelOutput(Output):
         )
         self.output.print_summary(depth + 1)
 
+    def write_initial_state(self, state: State) -> None:
+        """Write the initial state."""
+        self.write_state(state, message=MessageType.INITIAL_STATE)
+
     # ── internals ───────────────────────────────────────────────────────
 
-    def _spawn_writers(self, context: Context, output_config) -> None:
+    def _spawn_writers(self, context: Context, output_config, **kwargs) -> None:
         """Fork writer processes.
 
         'self.num_writers' writer processes are spawned, each with its own queue for receiving states to write.
         The writer processes run the '_writer_loop' method, which listens for incoming states on the queue and
-        calls 'write_step' on the wrapped output.
+        calls 'write_state' on the wrapped output.
         """
         self._processes: list[mp.Process] = []
         self._queues: list[mp.Queue] = []
 
         for _ in range(self.num_writers):
             # Use a bounded queue to prevent unlimited memory growth if the writers can't keep up with the main process
-            self._queues.append(mp.Queue(maxsize=10)) 
+            self._queues.append(mp.Queue(maxsize=10))
 
         mp.set_start_method("fork", force=True)
         parent_pid = os.getpid()
@@ -217,6 +230,7 @@ class ParallelOutput(Output):
             process = mp.Process(
                 target=self._writer_loop,
                 args=(i, self._queues[i], context, output_config),
+                kwargs=kwargs,
                 name=f"w{i}_for_p{parent_pid}",
             )
             process.start()
@@ -224,52 +238,42 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: spawned %d writer processes", self.num_writers)
 
-    def _writer_loop(self, writer_id: int, queue: mp.Queue, context: Context, output_config) -> None:
+    def _writer_loop(self, writer_id: int, queue: mp.Queue, context: Context, output_config, **kwargs) -> None:
         """Event loop executed inside each forked writer process.
 
         Each writer process runs this loop, which listens for incoming messages on its queue.
-        Messages can be either state dictionaries to write (which are passed to the wrapped output's 'write_step' method) or a "TERMINATE" signal to shut down the writer.
+        Messages are a tuple of (content, message_type), where 'message_type' indicates the type of message (e.g., MessageType.STATE, MessageType.INITIAL_STATE, MessageType.TERMINATE)
+        and 'content' is the state dictionary to write (for STATE and INITIAL_STATE messages).
 
-        Writers create their own output instance and write the initial state before entering the loop.
+        Writers create their own output instance inside the writer process.
 
         """
         LOG.info("Writer %d started", writer_id)
 
-        output = create_output(context, output_config, self.metadata, suffix=f"_w{writer_id}")
-        has_written_initial_state = False
+        output = create_output(context, output_config, self.metadata, suffix=f"_w{writer_id}", **kwargs)
 
         while True:
             # Receive a message from the main process
             try:
-                message = queue.get()
-            except mp.queues.Empty:
-                continue
+                message, message_type = queue.get()
             except Exception as e:
                 LOG.error("Writer %d queue error: %s\n%s", writer_id, e, traceback.format_exc())
                 break
 
-            # Check for termination signal
-            if message == _SIGNAL:
-                LOG.debug("Writer %d received '%s'", writer_id, _SIGNAL)
-                output.close()
-                break
-
-            # Otherwise, post process and write the received state using the wrapped output
             try:
-                message = self.post_process(message)
-
-                if not has_written_initial_state:
-                    # Some outputs (e.g. netcdf) must be explictly opened.
-                    if hasattr(output, "open"):
-                        LOG.debug("Writer %d openning %s", writer_id, output)
-                        output.open(message)
-                    # each process needs to write initial state to do some setup
+                # Check for termination signal
+                LOG.debug("Writer %d received '%s'", writer_id, message_type)
+                if message_type == MessageType.TERMINATE:
+                    output.close()
+                    break
+                elif message_type == MessageType.INITIAL_STATE:
                     output.write_initial_state(message)
-                    has_written_initial_state = True
-
-                LOG.debug("Writer %d writing: %s", writer_id, message.get("date"))
-                output.write_step(message)
-                LOG.debug("Writer %d done: %s", writer_id, message.get("date"))
+                elif message_type == MessageType.STATE:
+                    LOG.debug("Writer %d writing: %s", writer_id, message.get("date"))
+                    output.write_state(message)
+                    LOG.debug("Writer %d done: %s", writer_id, message.get("date"))
+                else:
+                    LOG.warning("Writer %d received message with unknown type '%s'", writer_id, message_type)
             except Exception as e:
                 LOG.error("Writer %d write error: %s\n%s", writer_id, e, traceback.format_exc())
                 break
@@ -287,11 +291,11 @@ class ParallelOutput(Output):
         for i, queue in enumerate(self._queues):
             try:
                 if self._processes[i].is_alive():
-                    queue.put_nowait(_SIGNAL)
+                    queue.put_nowait(("", MessageType.TERMINATE))
                 else:
                     LOG.warning("Writer %d already dead", i)
             except Exception as e:
-                LOG.error("Failed to send '%s' to writer %d: %s", _SIGNAL, i, e)
+                LOG.error("Failed to send '%s' to writer %d: %s", MessageType.TERMINATE, i, e)
 
         LOG.info("ParallelOutput: waiting for writers to exit...")
         # Prevent hanging on cleanup if a writer had an error during runtime
