@@ -184,8 +184,9 @@ class ParallelOutput(Output):
         state_chunks = _split_state(state, self.num_writers)
         for i, chunk in enumerate(state_chunks):
             if not self._processes[i].is_alive():
-                LOG.debug("Writer %d is dead", i)
-                continue
+                raise RuntimeError(
+                    f"Writer {i} is dead, inference will now fail. Check previous logs for errors in the writer process."
+                )
             self._queues[i].put((_sanitize_state(chunk), message))
 
     def close(self) -> None:
