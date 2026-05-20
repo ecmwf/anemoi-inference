@@ -47,7 +47,7 @@ def _detach_tensors(obj: Any) -> Any:
     return obj
 
 
-def _sanitize_state(state: State) -> State:
+def _sanitise_state(state: State) -> State:
     """Remove private keys and convert tensors so the state is safe to pickle."""
     clean = {k: v for k, v in state.items() if not k.startswith("_")}
     return _detach_tensors(clean)
@@ -187,7 +187,7 @@ class ParallelOutput(Output):
                 raise RuntimeError(
                     f"Writer {i} is dead, inference will now fail. Check previous logs for errors in the writer process."
                 )
-            self._queues[i].put((_sanitize_state(chunk), message))
+            self._queues[i].put((_sanitise_state(chunk), message))
 
     def close(self) -> None:
         """Terminate writer processes, then close the wrapped output."""

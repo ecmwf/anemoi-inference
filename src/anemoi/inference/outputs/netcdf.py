@@ -21,6 +21,7 @@ from anemoi.inference.types import State
 
 from ..decorators import ensure_path
 from ..decorators import format_dataset_name
+from ..decorators import supports_parallel_output
 from ..decorators import main_argument
 from ..output import Output
 from . import output_registry
@@ -35,6 +36,7 @@ LOCK = threading.RLock()
 @output_registry.register("netcdf")
 @main_argument("path")
 @format_dataset_name("path")
+@supports_parallel_output("path")
 @ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""
@@ -45,7 +47,6 @@ class NetCDFOutput(Output):
         metadata: Metadata,
         *,
         path: Path,
-        suffix: str = "",
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -62,9 +63,6 @@ class NetCDFOutput(Output):
         path : Path
             The path to save the NetCDF file to.
             If the parent directory does not exist, it will be created.
-        suffix : str, optional
-            The suffix to add to the path, by default "".
-            When using parallel output, the writer processes will add a suffix `_w{writer_id}` to the path.
         variables : list, optional
             The list of variables to write, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
@@ -90,10 +88,10 @@ class NetCDFOutput(Output):
 
         from netCDF4 import Dataset
 
-        self.path = self._add_suffix_to_output_path(path, suffix)
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
+        self.path = path
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
@@ -229,10 +227,3 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.ncfile.close()
             self.ncfile = None
-
-    @staticmethod
-    def _add_suffix_to_output_path(path, suffix) -> Path:
-        """Add the suffix to the output path."""
-        extension = ".nc"
-        new_path = str(path).removesuffix(extension) + suffix + extension
-        return Path(new_path)

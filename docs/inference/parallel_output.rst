@@ -58,6 +58,15 @@ This produces four output files:
 - ``/path/to/output_w2.grib``
 - ``/path/to/output_w3.grib``
 
+This short syntax, where the inner output is implied, is also supported:
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       grib:
+         path: /path/to/output.grib
+
 Parameters
 ==========
 
@@ -145,7 +154,7 @@ Only CPU process 0 will spawn writer processes.
  Choosing ``num_writers``
 ***************************
 
-For small resolutions or infrequent output steps, paralel writing might be unnecessary.
+For small resolutions or infrequent output steps, parallel writing might be unnecessary.
 
 For larger output sizes, one can set ``num_writers: 1``. This will produce a single output file, but the writing will happen asynchronously in a separate process, allowing the main inference loop to continue without waiting for disk I/O.
 
@@ -160,11 +169,4 @@ Writer process crashes
 
 If a writer process crashes (e.g. due to a disk-full error or a bug in
 the output backend), the main process will detect that the writer is
-dead and skip sending further data to it. A warning is logged:
-
-.. code:: text
-
-   WARNING Writer 2 is dead — skipping send
-
-The remaining writers continue operating. On shutdown, dead writers are
-skipped during the termination sequence.
+dead and abort inerence with a RuntimeError. 

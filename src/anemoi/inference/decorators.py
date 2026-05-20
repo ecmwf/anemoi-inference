@@ -83,6 +83,43 @@ class main_argument:
 
         return type(cls.__name__, (WrappedClass,), {})
 
+class supports_parallel_output:
+    """Decorator to indicate that an output supports parallel output.
+
+    Intercepts a ``suffix`` kwarg (injected by ParallelOutput) and
+    inserts it into the specified path argument before the file extension.
+
+    For example:
+    ```
+    @supports_parallel_output("path")
+    class GribOutput(Output):
+        def __init__(self, context, metadata, *, path=None, ...):
+            ...
+    ```
+
+    When ParallelOutput spawns writers it passes ``suffix="_w0"`` etc.
+    This decorator turns ``path="out.grib"`` into ``path="out_w0.grib"``.
+    If no ``suffix`` is present in kwargs, the class is instantiated unchanged.
+    """
+
+    def __init__(self, arg: str):
+        self.arg = arg
+
+    def __call__(self, cls: F) -> F:
+        #if not isinstance(cls, type):
+        #    raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
+
+        class WrappedClass(cls):
+            def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
+                suffix = kwargs.pop("suffix", None)
+
+                if suffix and self.arg in kwargs and kwargs[self.arg] is not None:
+                    path = Path(kwargs[self.arg])
+                    kwargs[self.arg] = str(path.with_stem(path.stem + suffix))
+
+                super().__init__(*args, **kwargs)
+
+        return type(cls.__name__, (WrappedClass,), {})
 
 class ensure_path:
     """Decorator to ensure a path argument is a Path object and optionally exists.
