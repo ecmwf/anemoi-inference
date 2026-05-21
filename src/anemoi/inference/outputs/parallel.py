@@ -56,7 +56,7 @@ def _sanitise_state(state: State) -> State:
     for key in unpicklable_keys:
         if state.get(key) is not None:
             state.pop(key)
-            LOG.info("Removed unpicklable key '%s' from state before sending to writer process", key)
+            LOG.debug("Removed unpicklable key '%s' from state before sending to writer process", key)
     return _detach_tensors(state)
 
 
@@ -255,7 +255,7 @@ class ParallelOutput(Output):
         """
         LOG.info("Writer %d started", writer_id)
 
-        output = create_output(context, output_config, self.metadata, suffix=f"_w{writer_id}", **kwargs)
+        output = create_output(context, output_config, self.metadata, parallel_output_suffix=f"_w{writer_id}", **kwargs)
 
         while True:
             # Receive a message from the main process
