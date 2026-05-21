@@ -14,6 +14,7 @@ from typing import Any
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import CoupledForcings
 from anemoi.inference.forcings import Forcings
+from anemoi.inference.lazy import torch
 from anemoi.inference.runner import Runner
 from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.runners.testing import NoModelMixing
@@ -94,6 +95,20 @@ class CoupledRunner(Runner):
                 "Coupling models with multiple datasets is not yet fully supported and may lead to unexpected behaviour."
                 "Coupling variables cross-dataset is not supported."
             )
+
+    def predict_step(self, *args, **kwargs):
+        y_pred = super().predict_step(*args, **kwargs)
+
+        # some datasets may be forcing only and missing from y_pred
+        # the rollout loop expects a tensor so we give it an empty one
+        for dataset, handler in self.tensor_handlers.items():
+            if dataset in y_pred:
+                continue
+            shape = handler.metadata.output_shape
+            LOG.warning(f"y_pred['{dataset}'] is missing, inserting empty tensor of shape {shape}")
+            y_pred[dataset] = torch.empty(shape, device=self.device)
+
+        return y_pred
 
     def input_states_hook(self, input_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""

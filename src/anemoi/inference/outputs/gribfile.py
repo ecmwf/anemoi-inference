@@ -316,7 +316,13 @@ class GribIoOutput(BaseGribOutput):
 
             return r
 
-        with open(self.archive_requests["path"], "w") as f:
+        with open(
+            self.archive_requests["path"].format(
+                dataset=self.metadata.dataset_name,
+                dataset_name=self.metadata.dataset_name,
+            ),
+            "w",
+        ) as f:
             requests = []
 
             for path, archive in self.archiving.items():

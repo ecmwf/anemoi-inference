@@ -539,9 +539,14 @@ class Runner(Context):
                 self.output_states_hook(new_states)
 
                 # Update  tensor for next iteration
+                for dataset, handler in self.tensor_handlers.items():
+                    check[dataset][:] = reset[dataset]
+
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     for dataset, handler in self.tensor_handlers.items():
-                        check[dataset][:] = reset[dataset]
+                        other_dataset = next(d for d in self.dataset_names if d != dataset)
+                        other_handler = self.tensor_handlers[other_dataset]
+                        # check[dataset][:] = reset[dataset]
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
@@ -565,6 +570,19 @@ class Runner(Context):
                             input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
                         )
 
+                        # in coupled world, the forcings provider for the coupled forcings is attached to the tensorhandler of the other dataset
+                        # because the CoupledInput does both sending and receiving, we need this hack to send the current dataset's state to the other model
+                        # and receive back the coupled forcings for the other dataset
+                        # this only works when we have exactly 2 datasets...
+                        input_tensors_torch[other_dataset] = other_handler.add_dynamic_forcings_to_input_tensor(
+                            input_tensors_torch[other_dataset],
+                            new_states[dataset],
+                            next_dates,
+                            check[other_dataset],
+                            coupled_only=True,
+                        )
+
+                    for dataset, handler in self.tensor_handlers.items():
                         if not check[dataset].all():
                             # Not all variables have been updated
                             missing = []

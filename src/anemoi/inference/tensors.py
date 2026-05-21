@@ -434,6 +434,7 @@ class TensorHandler:
         state: State,
         dates: list[datetime],
         check: BoolArray,
+        coupled_only: bool = False,
     ) -> "torch.Tensor":
         # TODO: re-enable
         # if self.hacks:
@@ -447,7 +448,17 @@ class TensorHandler:
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
 
+        if coupled_only and len(state["fields"].keys()) == 0:
+            return input_tensor_torch
+
         for source in self.dynamic_forcings_providers:
+            input = getattr(source, "input", None)
+            if coupled_only:
+                if not hasattr(input, "couplings"):
+                    continue
+            else:
+                if hasattr(input, "couplings"):
+                    continue
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
