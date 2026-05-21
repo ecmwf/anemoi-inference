@@ -87,7 +87,7 @@ class main_argument:
 class supports_parallel_output:
     """Decorator to indicate that an output supports parallel output.
 
-    Intercepts a ``suffix`` kwarg (injected by ParallelOutput) and
+    Intercepts a ``parallel-output-suffix`` kwarg (injected by ParallelOutput) and
     inserts it into the specified path argument before the file extension.
 
     For example:
@@ -98,9 +98,9 @@ class supports_parallel_output:
             ...
     ```
 
-    When ParallelOutput spawns writers it passes ``suffix="_w0"`` etc.
+    When ParallelOutput spawns writers it passes ``parallel-output-suffix="_w0"`` etc.
     This decorator turns ``path="out.grib"`` into ``path="out_w0.grib"``.
-    If no ``suffix`` is present in kwargs, the class is instantiated unchanged.
+    If no ``parallel-output-suffix`` is present in kwargs, the class is instantiated unchanged.
     """
 
     def __init__(self, arg: str):
@@ -112,11 +112,15 @@ class supports_parallel_output:
 
         class WrappedClass(cls):
             def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
-                suffix = kwargs.pop("suffix", None)
+                parallel_output_suffix = kwargs.pop("parallel-output-suffix", None)
+                if type(parallel_output_suffix) is not str:
+                    raise ValueError(
+                        f"Expected 'parallel-output-suffix' to be a string, got {type(parallel_output_suffix)}."
+                    )
 
-                if suffix and self.arg in kwargs and kwargs[self.arg] is not None:
+                if parallel_output_suffix and self.arg in kwargs and kwargs[self.arg] is not None:
                     path = Path(kwargs[self.arg])
-                    kwargs[self.arg] = str(path.with_stem(path.stem + suffix))
+                    kwargs[self.arg] = str(path.with_stem(path.stem + parallel_output_suffix))
 
                 super().__init__(*args, **kwargs)
 

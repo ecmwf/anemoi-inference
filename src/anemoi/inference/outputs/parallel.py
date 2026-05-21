@@ -56,6 +56,7 @@ def _sanitise_state(state: State) -> State:
     for key in unpicklable_keys:
         if state.get(key) is not None:
             state.pop(key)
+            LOG.info("Removed unpicklable key '%s' from state before sending to writer process", key)
     return _detach_tensors(state)
 
 

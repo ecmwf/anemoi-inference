@@ -153,4 +153,4 @@ Writer process crashes
 
 If a writer process crashes (e.g. due to a disk-full error or a bug in
 the output backend), the main process will detect that the writer is
-dead and abort inerence with a RuntimeError.
+dead and abort inference with a RuntimeError.
