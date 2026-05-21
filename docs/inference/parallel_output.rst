@@ -70,23 +70,7 @@ This short syntax, where the inner output is implied, is also supported:
 Parameters
 ==========
 
-.. list-table::
-   :header-rows: 1
-   :widths: 20 15 65
-
-   -  -  Parameter
-      -  Required
-      -  Description
-
-   -  -  ``num_writers``
-      -  Yes
-      -  Number of writer processes to spawn. Each writer handles an
-         equal share of the output fields.
-
-   -  -  ``output``
-      -  Yes
-      -  The inner output configuration. Can be any supported output
-         type (``grib``, ``zarr``, ``netcdf``, etc.).
+.. automethod:: anemoi.inference.outputs.parallel.ParallelOutput.__init__
 
 Examples
 ========

@@ -174,14 +174,21 @@ class ParallelOutput(Output):
             "ParallelOutput does not support write_step directly — it dispatches to writer processes. Make sure to call write_state instead."
         )
 
+    def _check_writer_alive(self, writer_id) -> None:
+        """Raise an error if a writer process has died."""
+        process = self._processes[writer_id]
+        if not process.is_alive():
+            # prevents hanging on cleanup if a writer had an error during runtime by draining the queues of any unconsumed messages.
+            for queue in self._queues:
+                queue.cancel_join_thread()
+            raise RuntimeError(
+                f"Writer {writer_id} is dead, inference will now fail. Check previous logs for errors in the writer process."
+            )
+
     def write_state(self, state: State, message=MessageType.STATE) -> None:
         """Write the state, dispatching to writer processes when enabled."""
-        # Parallel case — split state into chunks and send to writers via queues
         for i in range(self.num_writers):
-            if not self._processes[i].is_alive():
-                raise RuntimeError(
-                    f"Writer {i} is dead, inference will now fail. Check previous logs for errors in the writer process."
-                )
+            self._check_writer_alive(i)
             chunk = _get_state_chunk(state, self.num_writers, i)
             self._queues[i].put((_sanitise_state(chunk), message))
 
