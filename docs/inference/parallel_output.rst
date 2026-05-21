@@ -59,6 +59,7 @@ This produces four output files:
 - ``/path/to/output_w3.grib``
 
 This short syntax, where the inner output is implied, is also supported:
+
 .. code:: yaml
 
    output:
