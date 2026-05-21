@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import itertools
 import logging
 import math
 import multiprocessing as mp
@@ -49,35 +50,34 @@ def _detach_tensors(obj: Any) -> Any:
 
 def _sanitise_state(state: State) -> State:
     """Remove private keys and convert tensors so the state is safe to pickle."""
-    clean = {k: v for k, v in state.items() if not k.startswith("_")}
-    return _detach_tensors(clean)
+
+    unpicklable_keys = ["_grib_templates_for_output", "_input"]
+
+    for key in unpicklable_keys:
+        if state.get(key) is not None:
+            state.pop(key)
+    return _detach_tensors(state)
 
 
-def _split_state(state: State, num_chunks: int) -> list[State]:
-    """Split a state into *num_chunks* chunks along the fields dimension.
-
-    All non-field entries are replicated across chunks.
-    """
+def _get_state_chunk(state: State, num_chunks: int, index: int) -> State:
+    """Get a specific chunk of a state along the fields dimension."""
     if "fields" not in state:
         raise ValueError("State dictionary must contain 'fields' key")
+    assert 0 <= index < num_chunks, f"Index {index} out of range for {num_chunks} chunks"
     if num_chunks <= 1:
-        return [state]
+        return state
 
+    # determine the subset of fields for this chunk
     fields = state["fields"]
     fields_per_chunk = math.ceil(len(fields) / num_chunks)
-    items = list(fields.items())
+    start = index * fields_per_chunk
+    stop = start + fields_per_chunk
 
-    chunks: list[State] = []
-    for i in range(num_chunks):
-        start = i * fields_per_chunk
-        end = min(start + fields_per_chunk, len(fields))
-        if start >= len(fields):
-            break
-        chunk = state.copy()
-        chunk["fields"] = dict(items[start:end])
-        chunks.append(chunk)
-
-    return chunks
+    # copy the subset of the fields into a new state dict
+    fields_subset = itertools.islice(fields.items(), start, stop)
+    chunk = state.copy()
+    chunk["fields"] = dict(fields_subset)
+    return chunk
 
 
 class MessageType(str, Enum):
@@ -93,7 +93,7 @@ class MessageType(str, Enum):
 
 @output_registry.register("parallel")
 class ParallelOutput(Output):
-    """Wraps another :class:`Output` and offloads ``write_step`` calls to
+    """Wraps another :class:`Output` and offloads ``write_state`` calls to
     one or more forked writer processes. The output is split along the field dimension
     and each chunk is sent to a different writer process via multiprocessing queues.
     Each writer process writes the initial state into its own file.
@@ -121,7 +121,7 @@ class ParallelOutput(Output):
         metadata: Metadata,
         *,
         output: Output | Any | None = None,
-        num_writers: int | None = None,
+        num_writers: int = 1,
         **kwargs: Any,
     ):
         """Initialise the ParallelOutput.
@@ -135,16 +135,17 @@ class ParallelOutput(Output):
         output : Output | Any | None
             The inner output (or its config dict) that will be forked into
             writer processes.
-        num_writers : int, optional
+        num_writers : int
             Number of writer processes to spawn.
-            If not specified, an error is raised.
+            Must be >= 1.
+            Defaults to 1 (single output file, asynchronous writes).
         **kwargs : Any
             Extra keyword arguments forwarded to :class:`Output`.
         """
         super().__init__(context, metadata)
 
-        assert num_writers is not None, "Error. ParallelOutput selected but no 'num_writers' specified in config."
         self.num_writers = num_writers
+        assert self.num_writers >= 1, "num_writers must be at least 1"
 
         # store the output config for printing and for creating outputs in the writer processes.
         self.kwargs = {}
@@ -158,7 +159,6 @@ class ParallelOutput(Output):
 
         # Writers are spawned in open() rather than here, because at
         # __init__ time the context may not yet have lead_time / time_step set.
-        # Forking before those are populated would give the children stale copies.
         self._writers_running = False
 
     def open(self, state: State) -> None:
@@ -176,17 +176,13 @@ class ParallelOutput(Output):
 
     def write_state(self, state: State, message=MessageType.STATE) -> None:
         """Write the state, dispatching to writer processes when enabled."""
-        if self.num_writers == 0:
-            # write in the main process without parallelism
-            return super().write_state(state)
-
         # Parallel case — split state into chunks and send to writers via queues
-        state_chunks = _split_state(state, self.num_writers)
-        for i, chunk in enumerate(state_chunks):
+        for i in range(self.num_writers):
             if not self._processes[i].is_alive():
                 raise RuntimeError(
                     f"Writer {i} is dead, inference will now fail. Check previous logs for errors in the writer process."
                 )
+            chunk = _get_state_chunk(state, self.num_writers, i)
             self._queues[i].put((_sanitise_state(chunk), message))
 
     def close(self) -> None:
@@ -262,7 +258,7 @@ class ParallelOutput(Output):
                 break
 
             try:
-                # Check for termination signal
+                # read message type to determine how to process the message
                 LOG.debug("Writer %d received '%s'", writer_id, message_type)
                 if message_type == MessageType.TERMINATE:
                     output.close()
