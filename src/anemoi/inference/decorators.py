@@ -113,7 +113,7 @@ class supports_parallel_output:
         class WrappedClass(cls):
             def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
                 parallel_output_suffix = kwargs.pop("parallel-output-suffix", None)
-                if type(parallel_output_suffix) is not str:
+                if parallel_output_suffix is not None and not isinstance(parallel_output_suffix, str):
                     raise ValueError(
                         f"Expected 'parallel-output-suffix' to be a string, got {type(parallel_output_suffix)}."
                     )
