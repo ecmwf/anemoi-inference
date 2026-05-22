@@ -53,6 +53,7 @@ def _sanitise_state(state: State) -> State:
 
     unpicklable_keys = ["_grib_templates_for_output", "_input"]
 
+    state = state.copy()
     for key in unpicklable_keys:
         if state.get(key) is not None:
             state.pop(key)
@@ -146,7 +147,8 @@ class ParallelOutput(Output):
         super().__init__(context, metadata)
 
         self.num_writers = num_writers
-        assert self.num_writers >= 1, "num_writers must be at least 1"
+        if self.num_writers < 1:
+            raise ValueError("num_writers must be at least 1")
 
         # store the output config for printing and for creating outputs in the writer processes.
         self.kwargs = {}
@@ -167,11 +169,10 @@ class ParallelOutput(Output):
         if not self._writers_running:
             self._spawn_writers(self.context, self.output_config, **self.kwargs)
             self._writers_running = True
-        pass
 
     # Cannot be an abstract method but should not be called directly on ParallelOutput.
     def write_step(self, state: State) -> None:
-        return ValueError(
+        raise ValueError(
             "ParallelOutput does not support write_step directly — it dispatches to writer processes. Make sure to call write_state instead."
         )
 
@@ -203,11 +204,11 @@ class ParallelOutput(Output):
 
     def print_summary(self, depth: int = 0) -> None:
         LOG.info(
-            "%sParallelOutput: num_writers=%d",
+            "%sParallelOutput: num_writers=%d, output=%s",
             " " * depth,
             self.num_writers,
+            self.output_config,
         )
-        self.output.print_summary(depth + 1)
 
     def write_initial_state(self, state: State) -> None:
         """Write the initial state."""
@@ -286,7 +287,6 @@ class ParallelOutput(Output):
                 break
 
         LOG.info("Writer %d shutting down", writer_id)
-        exit(0)
 
     def _terminate_all_writers(self) -> None:
         """Gracefully shut down all writer processes.
@@ -315,5 +315,11 @@ class ParallelOutput(Output):
             except Exception:
                 pass
             queue.close()
+
+        for i, process in enumerate(self._processes):
+            process.join(timeout=30)
+            if process.is_alive():
+                LOG.warning("Writer %d did not exit within timeout, terminating forcefully", i)
+                process.terminate()
 
         LOG.info("ParallelOutput: all writers terminated.")
