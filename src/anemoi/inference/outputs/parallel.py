@@ -255,7 +255,9 @@ class ParallelOutput(Output):
         """
         LOG.info("Writer %d started", writer_id)
 
-        output = create_output(context, output_config, self.metadata, parallel_output_suffix=f"_w{writer_id}", **kwargs)
+        output = create_output(
+            context, output_config, self.metadata, **kwargs, **{"_parallel-output-suffix": f"_w{writer_id}"}
+        )
 
         while True:
             # Receive a message from the main process
