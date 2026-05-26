@@ -146,7 +146,10 @@ class ParallelOutput(Output):
         **kwargs : Any
             Forwarded to the inner output.
         """
-        super().__init__(context, metadata,)
+        super().__init__(
+            context,
+            metadata,
+        )
 
         self.num_writers = num_writers
         if self.num_writers < 1:
