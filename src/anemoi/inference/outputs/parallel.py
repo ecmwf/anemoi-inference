@@ -144,12 +144,9 @@ class ParallelOutput(Output):
             Must be >= 1.
             Defaults to 1 (single output file, asynchronous writes).
         **kwargs : Any
-            Forwarded to :class:`Output` (e.g. ``variables``,
-            ``post_processors``, ``output_frequency``, ``write_initial_state``).
-            In the short-syntax form, remaining unknown kwargs are also
-            forwarded to the inner output constructor.
+            Forwarded to the inner output.
         """
-        super().__init__(context, metadata, **kwargs)
+        super().__init__(context, metadata,)
 
         self.num_writers = num_writers
         if self.num_writers < 1:
@@ -291,14 +288,11 @@ class ParallelOutput(Output):
                     output.close()
                     break
                 elif message_type == MessageType.OPEN:
-                    message = self.post_process(message)
                     output.open(message)
                 elif message_type == MessageType.INITIAL_STATE:
-                    message = self.post_process(message)
                     output.write_initial_state(message)
                 elif message_type == MessageType.STATE:
                     LOG.debug("Writer %d writing: %s", writer_id, message.get("date"))
-                    message = self.post_process(message)
                     output.write_state(message)
                     LOG.debug("Writer %d done: %s", writer_id, message.get("date"))
                 else:
