@@ -106,6 +106,32 @@ class supports_parallel_output:
     def __init__(self, arg: str):
         self.arg = arg
 
+    @staticmethod
+    def add_suffix_to_path(val: Any, suffix: str) -> Any:
+        """Insert ``suffix`` into a path-like value before the file extension.
+
+        Handles plain strings/Path objects, URL strings (e.g. ``s3://...``),
+        and logs a warning for non-path store objects that cannot be renamed.
+        """
+        if isinstance(val, str) and "://" in val:
+            from urllib.parse import urlsplit
+            from urllib.parse import urlunsplit
+
+            parts = urlsplit(val)
+            p = Path(parts.path)
+            new_path = str(p.with_stem(p.stem + suffix))
+            return urlunsplit(parts._replace(path=new_path))
+        elif isinstance(val, (str, Path)):
+            path = Path(val)
+            return str(path.with_stem(path.stem + suffix))
+        else:
+            LOG.warning(
+                "supports_parallel_output: cannot apply suffix '%s' to non-path store %r, skipping.",
+                suffix,
+                type(val).__name__,
+            )
+            return val
+
     def __call__(self, cls: F) -> F:
         # if not isinstance(cls, type):
         #    raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
@@ -119,8 +145,9 @@ class supports_parallel_output:
                     )
 
                 if parallel_output_suffix and self.arg in kwargs and kwargs[self.arg] is not None:
-                    path = Path(kwargs[self.arg])
-                    kwargs[self.arg] = str(path.with_stem(path.stem + parallel_output_suffix))
+                    kwargs[self.arg] = supports_parallel_output.add_suffix_to_path(
+                        kwargs[self.arg], parallel_output_suffix
+                    )
 
                 super().__init__(*args, **kwargs)
 
