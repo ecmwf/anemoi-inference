@@ -137,6 +137,8 @@ class supports_parallel_output:
         #    raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
 
         class WrappedClass(cls):
+            _supports_parallel_output = True
+
             def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
                 parallel_output_suffix = kwargs.pop("_parallel-output-suffix", None)
                 if parallel_output_suffix is not None and not isinstance(parallel_output_suffix, str):
