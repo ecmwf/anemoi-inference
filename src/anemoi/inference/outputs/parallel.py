@@ -14,6 +14,7 @@ import multiprocessing as mp
 import os
 import traceback
 from enum import Enum
+from time import sleep
 from typing import Any
 
 from anemoi.inference.context import Context
@@ -288,38 +289,46 @@ class ParallelOutput(Output):
 
         LOG.info("Writer %d shutting down", writer_id)
 
-    def _terminate_all_writers(self) -> None:
+    def _terminate_all_writers(self, timeout_s=120) -> None:
         """Gracefully shut down all writer processes.
-        Each writer process is sent a "TERMINATE" signal via its queue, then joined with a timeout. If any writer fails to exit within the timeout, it is forcefully terminated.
+
+        Sends a TERMINATE sentinel to each writer queue. Writers consume all
+        pending messages before reaching the sentinel, so no queued data is lost.
+        After sending, we join each process and only force-terminate if it hangs
+        beyond the timeout (which should not happen under normal conditions).
         """
         self._writers_running = False
         LOG.info("ParallelOutput: shutting down writers...")
 
+        # Send the shutdown signal to each writer.
+        # It will only be consumed after all subsequent messages, to ensure no data loss.
         for i, queue in enumerate(self._queues):
             try:
                 if self._processes[i].is_alive():
-                    queue.put_nowait(("", MessageType.TERMINATE))
+                    queue.put(("", MessageType.TERMINATE))
                 else:
                     LOG.warning("Writer %d already dead", i)
             except Exception as e:
                 LOG.error("Failed to send '%s' to writer %d: %s", MessageType.TERMINATE, i, e)
 
-        LOG.info("ParallelOutput: waiting for writers to exit...")
-        # Prevent hanging on cleanup if a writer had an error during runtime
-        # by draining the queues of any unconsumed messages.
-        for i, queue in enumerate(self._queues):
-            queue.cancel_join_thread()
-            try:
-                while not queue.empty():
-                    queue.get_nowait()
-            except Exception:
-                pass
-            queue.close()
+        LOG.info("ParallelOutput: waiting for writers to finish and exit...")
 
+        sleep(timeout_s)
+
+        forcibly_teminated = False
         for i, process in enumerate(self._processes):
-            process.join(timeout=30)
             if process.is_alive():
-                LOG.warning("Writer %d did not exit within timeout, terminating forcefully", i)
+                LOG.warning(
+                    "Writer %d did not exit within timeout, forcefully terminating - Data yet be written will be lost",
+                    i,
+                )
                 process.terminate()
+                process.join()
+                forcibly_teminated = True
 
         LOG.info("ParallelOutput: all writers terminated.")
+        if forcibly_teminated:
+            raise RuntimeError(
+                "One or more writers were forcefully terminated after exceeding the shutdown timeout of %s. This can result in forecast data loss.Please check the logs for more details. Consider increasing the number of writer processes to avoid this.",
+                timeout_s,
+            )
