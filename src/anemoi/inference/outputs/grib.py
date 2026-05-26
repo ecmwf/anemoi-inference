@@ -310,6 +310,20 @@ class BaseGribOutput(Output):
 
             param = variable.grib_keys.get("param", name)
 
+            # When `use_grib_paramid` is set, convert shortnames to paramIds so
+            # the encoded GRIB message identifies the variable by `paramId`
+            # rather than `shortName`. The dispatch in `grib/encoding._param`
+            # already returns "paramId" for integer values, so feeding an int
+            # here is enough. Mirrors the pattern in
+            # `outputs/gribfile.py:_patch` for archive_requests.
+            if self.context.use_grib_paramid:
+                try:
+                    float(param)
+                except (TypeError, ValueError):
+                    from anemoi.utils.grib import shortname_to_paramid
+
+                    param = shortname_to_paramid(param)
+
             template = self.template(state, name)
 
             keys.update(self.encoding)

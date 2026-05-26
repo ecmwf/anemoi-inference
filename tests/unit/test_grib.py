@@ -168,3 +168,34 @@ def test_grib_keys(variable, date, step, start_steps, expected_keys):
 
     for key, expected_value in expected_keys.items():
         assert encoding[key] == expected_value
+
+
+@pytest.mark.parametrize(
+    "param, expected_key, expected_value",
+    [
+        ("z", "shortName", "z"),
+        (167, "paramId", 167),
+    ],
+)
+def test_grib_keys_param_dispatch(param, expected_key, expected_value):
+    """The ``param`` argument is dispatched by type to either ``shortName``
+    (alphabetic) or ``paramId`` (integer). This is what allows
+    ``use_grib_paramid=True`` to flip the encoding key by converting shortnames
+    to integer paramIds before calling ``grib_keys``.
+    """
+    encoding = grib_keys(
+        values=None,
+        template=None,
+        variable=z,
+        ensemble=False,
+        param=param,
+        date=to_datetime("20250101T0000"),
+        step=to_timedelta(0),
+        previous_step=None,
+        start_steps={},
+        keys={},
+    )
+
+    assert encoding[expected_key] == expected_value
+    for other in {"shortName", "paramId", "param"} - {expected_key}:
+        assert other not in encoding

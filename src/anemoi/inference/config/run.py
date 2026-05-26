@@ -81,7 +81,9 @@ class RunConfiguration(Configuration):
     """
 
     use_grib_paramid: bool = False
-    """If True, the runner will use the grib parameter ID when generating MARS requests."""
+    """If True, identify variables by GRIB ``paramId`` rather than ``shortName``
+    in MARS requests, in the ``archive_requests`` JSON, and in the encoded GRIB
+    messages written by the ``grib`` family of outputs."""
 
     write_initial_state: bool = True
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are
