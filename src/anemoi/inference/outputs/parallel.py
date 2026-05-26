@@ -89,6 +89,7 @@ class MessageType(str, Enum):
     TERMINATE = "Terminate"
     INITIAL_STATE = "InitialState"
     STATE = "State"
+    OPEN = "Open"
 
 
 # ── ParallelOutput ───────────────────────────────────────────────────
@@ -166,10 +167,13 @@ class ParallelOutput(Output):
         self._writers_running = False
 
     def open(self, state: State) -> None:
-        """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context."""
+        """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context.
+        
+        Pass the open() message to the writers so that they can call the output-appropriate open() method."""
         if not self._writers_running:
             self._spawn_writers(self.context, self.output_config, **self.kwargs)
             self._writers_running = True
+        self.dispatch_state_to_writers(state, message=MessageType.OPEN)
 
     # Cannot be an abstract method but should not be called directly on ParallelOutput.
     def write_step(self, state: State) -> None:
@@ -190,6 +194,12 @@ class ParallelOutput(Output):
 
     def write_state(self, state: State, message=MessageType.STATE) -> None:
         """Write the state, dispatching to writer processes when enabled."""
+        self.dispatch_state_to_writers(state, message=message)
+
+    def dispatch_state_to_writers(self, state: State, message=MessageType.STATE) -> None:
+        """Send the state to each writer process via multiprocessing queues.
+
+        Takes an optional 'message' argument to indicate the type of message being sent, which is used for control flow in the writer loop."""
         for i in range(self.num_writers):
             self._check_writer_alive(i)
             chunk = _get_state_chunk(state, self.num_writers, i)
@@ -213,7 +223,7 @@ class ParallelOutput(Output):
 
     def write_initial_state(self, state: State) -> None:
         """Write the initial state."""
-        self.write_state(state, message=MessageType.INITIAL_STATE)
+        self.dispatch_state_to_writers(state, message=MessageType.INITIAL_STATE)
 
     # ── internals ───────────────────────────────────────────────────────
 
@@ -275,6 +285,8 @@ class ParallelOutput(Output):
                 if message_type == MessageType.TERMINATE:
                     output.close()
                     break
+                elif message_type == MessageType.OPEN:
+                    output.open(message)
                 elif message_type == MessageType.INITIAL_STATE:
                     output.write_initial_state(message)
                 elif message_type == MessageType.STATE:
@@ -289,7 +301,7 @@ class ParallelOutput(Output):
 
         LOG.info("Writer %d shutting down", writer_id)
 
-    def _terminate_all_writers(self, timeout_s=120) -> None:
+    def _terminate_all_writers(self, timeout_s=10) -> None:
         """Gracefully shut down all writer processes.
 
         Sends a TERMINATE sentinel to each writer queue. Writers consume all

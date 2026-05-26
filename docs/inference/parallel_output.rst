@@ -98,7 +98,7 @@ Zarr output with 4 writers
        num_writers: 4
        output:
          zarr:
-           path: forecast.zarr
+           store: forecast.zarr
 
 NetCDF output with 8 writers
 ------------------------------
