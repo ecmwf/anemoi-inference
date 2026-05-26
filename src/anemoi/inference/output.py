@@ -38,6 +38,7 @@ class Output(ABC):
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
+        **kwargs: Any,
     ):
         """Initialize the Output object.
 

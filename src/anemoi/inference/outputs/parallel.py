@@ -144,9 +144,12 @@ class ParallelOutput(Output):
             Must be >= 1.
             Defaults to 1 (single output file, asynchronous writes).
         **kwargs : Any
-            Extra keyword arguments forwarded to :class:`Output`.
+            Forwarded to :class:`Output` (e.g. ``variables``,
+            ``post_processors``, ``output_frequency``, ``write_initial_state``).
+            In the short-syntax form, remaining unknown kwargs are also
+            forwarded to the inner output constructor.
         """
-        super().__init__(context, metadata)
+        super().__init__(context, metadata, **kwargs)
 
         self.num_writers = num_writers
         if self.num_writers < 1:
@@ -168,8 +171,9 @@ class ParallelOutput(Output):
 
     def open(self, state: State) -> None:
         """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context.
-        
-        Pass the open() message to the writers so that they can call the output-appropriate open() method."""
+
+        Pass the open() message to the writers so that they can call the output-appropriate open() method.
+        """
         if not self._writers_running:
             self._spawn_writers(self.context, self.output_config, **self.kwargs)
             self._writers_running = True
@@ -199,7 +203,8 @@ class ParallelOutput(Output):
     def dispatch_state_to_writers(self, state: State, message=MessageType.STATE) -> None:
         """Send the state to each writer process via multiprocessing queues.
 
-        Takes an optional 'message' argument to indicate the type of message being sent, which is used for control flow in the writer loop."""
+        Takes an optional 'message' argument to indicate the type of message being sent, which is used for control flow in the writer loop.
+        """
         for i in range(self.num_writers):
             self._check_writer_alive(i)
             chunk = _get_state_chunk(state, self.num_writers, i)
@@ -237,14 +242,14 @@ class ParallelOutput(Output):
         self._processes: list[mp.Process] = []
         self._queues: list[mp.Queue] = []
 
+        ctx = mp.get_context("fork")
         for _ in range(self.num_writers):
             # Use a bounded queue to prevent unlimited memory growth if the writers can't keep up with the main process
-            self._queues.append(mp.Queue(maxsize=10))
+            self._queues.append(ctx.Queue(maxsize=10))
 
-        mp.set_start_method("fork", force=True)
         parent_pid = os.getpid()
         for i in range(self.num_writers):
-            process = mp.Process(
+            process = ctx.Process(
                 target=self._writer_loop,
                 args=(i, self._queues[i], context, output_config),
                 kwargs=kwargs,
@@ -286,11 +291,14 @@ class ParallelOutput(Output):
                     output.close()
                     break
                 elif message_type == MessageType.OPEN:
+                    message = self.post_process(message)
                     output.open(message)
                 elif message_type == MessageType.INITIAL_STATE:
+                    message = self.post_process(message)
                     output.write_initial_state(message)
                 elif message_type == MessageType.STATE:
                     LOG.debug("Writer %d writing: %s", writer_id, message.get("date"))
+                    message = self.post_process(message)
                     output.write_state(message)
                     LOG.debug("Writer %d done: %s", writer_id, message.get("date"))
                 else:
