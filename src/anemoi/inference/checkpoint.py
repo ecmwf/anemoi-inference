@@ -181,7 +181,16 @@ class Checkpoint:
             for dataset, metadata in multi_metadata.items():
                 patch = multi_datasets_config(self.patch_metadata, dataset, list(multi_metadata.keys()), strict=False)
                 LOG.warning(f"[{dataset}] Patching metadata with {patch}")
-                metadata.patch(patch)
+                new_keys = metadata.patch(patch)
+                if new_keys:
+                    LOG.warning(
+                        "[%s] The metadata patch created %d new key(s) that did not exist before: %s. "
+                        "This usually means the patch does not match this checkpoint's metadata schema, "
+                        "so the intended update was not applied.",
+                        dataset,
+                        len(new_keys),
+                        ", ".join(new_keys),
+                    )
 
         return multi_metadata
 
