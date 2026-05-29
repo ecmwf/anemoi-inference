@@ -184,9 +184,9 @@ class Checkpoint:
                 new_keys = metadata.patch(patch)
                 if new_keys:
                     LOG.warning(
-                        "[%s] The metadata patch created %d new key(s) that did not exist before: %s. "
-                        "This usually means the patch does not match this checkpoint's metadata schema, "
-                        "so the intended update was not applied.",
+                        "[%s] The metadata patch added %d new key(s) that did not exist before: %s. "
+                        "These keys were applied as given; if that was not intended, it usually means the "
+                        "patch does not match this checkpoint's metadata schema.",
                         dataset,
                         len(new_keys),
                         ", ".join(new_keys),

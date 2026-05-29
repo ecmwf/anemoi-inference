@@ -1351,10 +1351,11 @@ class Metadata(LegacyMixin):
         -------
         list[str]
             Dotted paths of metadata keys that did not exist before and were created by
-            the patch. Only the top-most new key of any newly-created subtree is reported.
-            A non-empty list usually means the patch does not match this checkpoint's
-            metadata schema (e.g. a stale patch written for an older schema), so the
-            intended update was not applied.
+            the patch (the keys are still applied). Only the top-most new key of any
+            newly-created subtree is reported. A non-empty list may simply be a deliberate
+            addition, but it can also mean the patch does not match this checkpoint's
+            metadata schema (e.g. a stale patch written for an older schema) and an
+            intended update silently landed under a new key instead.
         """
 
         new_keys: list[str] = []
