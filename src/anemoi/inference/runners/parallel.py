@@ -138,9 +138,6 @@ class ParallelRunnerMixin(Runner):
 
         self.compute_client = compute_client
 
-        # give the base class an opportunity to modify the parallel runner
-        super()._configure_parallel_runner()
-
         if self.device.type == "cuda":
             self.device = torch.device("cuda", index=compute_client.local_rank)
             torch.cuda.set_device(self.device)
@@ -151,6 +148,9 @@ class ParallelRunnerMixin(Runner):
         self.compute_client = compute_client
         self.is_master = compute_client.is_master
         self.seed(compute_client.process_group)
+
+        # give the base class an opportunity to modify the parallel runner
+        super()._configure_parallel_runner()
 
         # disable most logging on non-zero ranks
         if not self.is_master and self.verbosity == 0:
