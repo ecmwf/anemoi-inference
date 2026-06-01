@@ -127,8 +127,6 @@ class ParallelRunnerMixin(Runner):
             The compute client to use for distributed inference
         """
 
-        super().__init__(config, **kwargs)
-
         compute_client = compute_client or create_cluster(config.cluster or {}).create_client()  # type: ignore
         assert isinstance(compute_client, ComputeClient), "Compute client must be an instance of ComputeClient."
 
@@ -137,6 +135,12 @@ class ParallelRunnerMixin(Runner):
         LOG.info(f"{compute_client!r}")
 
         self.compute_client = compute_client
+        self.is_master = compute_client.is_master
+
+        super().__init__(config, **kwargs)
+
+        # give the base class an opportunity to modify the parallel runner
+        super()._configure_parallel_runner()
 
         if self.device.type == "cuda":
             self.device = torch.device("cuda", index=compute_client.local_rank)
@@ -145,12 +149,7 @@ class ParallelRunnerMixin(Runner):
         else:
             LOG.warning(f"ParallelRunner device `{self.device}` is unchanged")
 
-        self.compute_client = compute_client
-        self.is_master = compute_client.is_master
         self.seed(compute_client.process_group)
-
-        # give the base class an opportunity to modify the parallel runner
-        super()._configure_parallel_runner()
 
         # disable most logging on non-zero ranks
         if not self.is_master and self.verbosity == 0:
