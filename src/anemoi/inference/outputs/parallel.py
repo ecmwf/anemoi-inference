@@ -346,6 +346,6 @@ class ParallelOutput(Output):
         LOG.info("ParallelOutput: all writers terminated.")
         if forcibly_teminated:
             raise RuntimeError(
-                "One or more writers were forcefully terminated after exceeding the shutdown timeout of %s. This can result in forecast data loss.Please check the logs for more details. Consider increasing the number of writer processes to avoid this.",
+                "One or more writers were forcefully terminated after exceeding the shutdown timeout of %s. This can result in forecast data loss. Please check the logs for more details. Consider increasing the number of writer processes to avoid this.",
                 timeout_s,
             )
