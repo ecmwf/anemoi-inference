@@ -56,7 +56,7 @@ class NetCDFOutput(Output):
         projection_string: str | None = None,
         reference_date: datetime.datetime | str | None = None,
         variable_metadata: dict = {},
-        field_shape: tuple[int, ...] = (),
+        field_shape: tuple[int, ...] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         float_size: str = "f4",
