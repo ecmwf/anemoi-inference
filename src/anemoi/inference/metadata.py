@@ -1339,26 +1339,43 @@ class Metadata(LegacyMixin):
 
     ###########################################################################
 
-    def patch(self, patch: dict) -> None:
+    def patch(self, patch: dict) -> list[str]:
         """Patch the metadata with the given patch.
 
         Parameters
         ----------
         patch : dict
             The patch to apply.
+
+        Returns
+        -------
+        list[str]
+            Dotted paths of metadata keys that did not exist before and were created by
+            the patch (the keys are still applied). Only the top-most new key of any
+            newly-created subtree is reported. A non-empty list may simply be a deliberate
+            addition, but it can also mean the patch does not match this checkpoint's
+            metadata schema (e.g. a stale patch written for an older schema) and an
+            intended update silently landed under a new key instead.
         """
 
-        def merge(main: dict[str, Any], patch: dict[str, Any]) -> None:
+        new_keys: list[str] = []
+
+        def merge(main: dict[str, Any], patch: dict[str, Any], path: str = "", parent_is_new: bool = False) -> None:
 
             for k, v in patch.items():
+                key_path = f"{path}.{k}" if path else k
+                is_new = k not in main
+                if is_new and not parent_is_new:
+                    new_keys.append(key_path)
                 if isinstance(v, dict) and isinstance(main.get(k, {}), dict):
                     if k not in main:
                         main[k] = {}
-                    merge(main[k], v)
+                    merge(main[k], v, key_path, parent_is_new or is_new)
                 else:
                     main[k] = v
 
         merge(self._metadata, patch)
+        return new_keys
 
 
 class SingleDatasetMetadata(Metadata):

@@ -26,6 +26,11 @@ from .metadata import SingleDatasetMetadata
 
 LOG = logging.getLogger(__name__)
 
+# Metadata keys whose creation by a `patch_metadata` patch is expected and must not trigger
+# the new-key warning emitted in `multi_dataset_metadata`. E.g. `constant_fields` is frequently
+# added through a patch even though it's not in the checkpoint metadata. TODO: find a better solution?
+EXPECTED_PATCH_NEW_KEYS = {"constant_fields"}
+
 
 def get_multi_dataset_metadata(
     metadata: dict,
@@ -181,7 +186,17 @@ class Checkpoint:
             for dataset, metadata in multi_metadata.items():
                 patch = multi_datasets_config(self.patch_metadata, dataset, list(multi_metadata.keys()), strict=False)
                 LOG.warning(f"[{dataset}] Patching metadata with {patch}")
-                metadata.patch(patch)
+                new_keys = metadata.patch(patch)
+                new_keys = [key for key in new_keys if key.rsplit(".", 1)[-1] not in EXPECTED_PATCH_NEW_KEYS]
+                if new_keys:
+                    LOG.warning(
+                        "[%s] The metadata patch added %d new key(s) that did not exist before: %s. "
+                        "These keys were applied as given; if that was not intended, it usually means the "
+                        "patch does not match this checkpoint's metadata schema.",
+                        dataset,
+                        len(new_keys),
+                        ", ".join(new_keys),
+                    )
 
         return multi_metadata
 
