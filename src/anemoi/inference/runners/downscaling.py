@@ -123,7 +123,10 @@ class DsCheckpoint(Checkpoint):
 
     @cached_property
     def _metadata(self):
-        return DsMetadata(load_metadata(self.path))
+        result = DsMetadata(load_metadata(self.path))
+        if self.patch_metadata:
+            result.patch(self.patch_metadata)
+        return result
 
     # def variables_from_input(self, *, include_forcings):
     #    # include forcings in initial conditions retrieval
@@ -178,8 +181,10 @@ class DownscalingRunner(DefaultRunner):
 
         self._checkpoint = DsCheckpoint(
             self._checkpoint.path,
-            # some parts of the runner call the checkpoint directly so also overwrite it here
-            patch_metadata={"timestep": self.time_step},
+            # Patch config.data.timestep so checkpoint.timestep returns the configured
+            # value. DefaultRunner.execute() reads self.checkpoint.timestep and would
+            # otherwise overwrite self.time_step with the checkpoint's original value.
+            patch_metadata={"config": {"data": {"timestep": self.time_step}}},
         )
 
         # Need to overwrite this attribute
