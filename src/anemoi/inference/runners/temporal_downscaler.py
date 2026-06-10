@@ -89,7 +89,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
         if self.reference_date is not None:
-            req['date'] = f"{self.reference_date.strftime('%Y-%m-%d')}"
+            req["date"] = f"{self.reference_date.strftime('%Y-%m-%d')}"
             req["time"] = f"{self.reference_date.hour*100:04d}"
         step_hours = int(self.temporal_downscaling_window.total_seconds() // 3600)
         lead_time_hours = int(self.lead_time.total_seconds() // 3600)
