@@ -154,12 +154,15 @@ class Runner(Context):
                 from rich.table import Table
 
                 console = Console(file=sys.stderr)
-                table = Table(title=f"\\[{metadata.dataset_name}] Variable categories")
+                table = Table(title=f"\\[{metadata.dataset_name}] Variable units categories")
                 table.add_column("Variable", no_wrap=True)
+                table.add_column("Units", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
                 for variable, categories in metadata.variable_categories().items():
-                    table.add_row(variable, ", ".join(categories))
+                    typed_variable = metadata.typed_variables.get(variable)
+                    units = typed_variable.units if typed_variable is not None else "N/A"
+                    table.add_row(variable, str(units), ", ".join(categories))
 
                 console.print(table)
 
