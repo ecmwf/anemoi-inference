@@ -14,6 +14,8 @@ from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.encoding import render_template
+from anemoi.inference.testing.variables import lsm_with_paramid
+from anemoi.inference.testing.variables import lsm_without_paramid
 from anemoi.inference.testing.variables import tp
 from anemoi.inference.testing.variables import w_100
 from anemoi.inference.testing.variables import z
@@ -57,7 +59,7 @@ def test_render_template(template, handle, expected):
                 "startStep": 0,
                 "endStep": 6,
                 "stepType": "accum",
-                "shortName": "tp",
+                "shortName": "tp",  # this variable doesn't have paramId in the metadata, so we expect shortName out
                 "dataType": "fc",
             },
         ),
@@ -150,6 +152,20 @@ def test_render_template(template, handle, expected):
                 "typeOfLevel": "isobaricInhPa",
             },
         ),
+        (
+            lsm_with_paramid,
+            to_datetime("20250101T0000"),
+            to_timedelta(0),
+            {},
+            {
+                "date": 20250101,
+                "time": 0,
+                "step": 0,
+                "stepType": "instant",
+                "paramId": 172,  # this variable has paramId in the metadata, so we expect paramId out
+                "dataType": "fc",
+            },
+        ),
     ],
 )
 def test_grib_keys(variable, date, step, start_steps, expected_keys):
@@ -158,7 +174,6 @@ def test_grib_keys(variable, date, step, start_steps, expected_keys):
         template=None,
         variable=variable,
         ensemble=False,
-        param=variable.param,
         date=date,
         step=step,
         previous_step=None,
@@ -171,31 +186,33 @@ def test_grib_keys(variable, date, step, start_steps, expected_keys):
 
 
 @pytest.mark.parametrize(
-    "param, expected_key, expected_value",
+    "convert_grib_paramid, expected_keys",
     [
-        ("z", "shortName", "z"),
-        (167, "paramId", 167),
+        (
+            False,
+            {"shortName": "lsm"},
+        ),
+        (
+            True,
+            {"paramId": 172},
+        ),
     ],
 )
-def test_grib_keys_param_dispatch(param, expected_key, expected_value):
-    """The ``param`` argument is dispatched by type to either ``shortName``
-    (alphabetic) or ``paramId`` (integer). This is what allows
-    ``use_grib_paramid=True`` to flip the encoding key by converting shortnames
-    to integer paramIds before calling ``grib_keys``.
-    """
+def test_grib_keys_convert_paramid(convert_grib_paramid, expected_keys):
     encoding = grib_keys(
         values=None,
         template=None,
-        variable=z,
+        variable=lsm_without_paramid,
         ensemble=False,
-        param=param,
         date=to_datetime("20250101T0000"),
         step=to_timedelta(0),
         previous_step=None,
         start_steps={},
         keys={},
+        convert_grib_paramid=convert_grib_paramid,
     )
 
-    assert encoding[expected_key] == expected_value
-    for other in {"shortName", "paramId", "param"} - {expected_key}:
-        assert other not in encoding
+    for key, expected_value in expected_keys.items():
+        assert encoding[key] == expected_value
+
+    assert "shortName" not in encoding if "paramId" in expected_keys else "paramId" not in encoding

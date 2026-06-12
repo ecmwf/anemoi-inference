@@ -295,7 +295,7 @@ class GribIoOutput(BaseGribOutput):
         indent = self.archive_requests.get("indent", None)
 
         def _patch(r: DataRequest) -> DataRequest:
-            if self.context.config.use_grib_paramid:
+            if self.context.convert_grib_paramid:
                 param = r.get("param", [])
                 if not isinstance(param, list):
                     param = [param]

@@ -206,7 +206,6 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
             values=None,
             template=template,
             variable=variable,
-            param=variable.param,
             date=datetime.now(),
             step=to_timedelta(6),
             keys=keys,

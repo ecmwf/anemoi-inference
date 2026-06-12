@@ -308,22 +308,6 @@ class BaseGribOutput(Output):
             if variable.is_computed_forcing:
                 continue
 
-            param = variable.grib_keys.get("param", name)
-
-            # When `use_grib_paramid` is set, convert shortnames to paramIds so
-            # the encoded GRIB message identifies the variable by `paramId`
-            # rather than `shortName`. The dispatch in `grib/encoding._param`
-            # already returns "paramId" for integer values, so feeding an int
-            # here is enough. Mirrors the pattern in
-            # `outputs/gribfile.py:_patch` for archive_requests.
-            if self.context.use_grib_paramid:
-                try:
-                    float(param)
-                except (TypeError, ValueError):
-                    from anemoi.utils.grib import shortname_to_paramid
-
-                    param = shortname_to_paramid(param)
-
             template = self.template(state, name)
 
             keys.update(self.encoding)
@@ -333,7 +317,6 @@ class BaseGribOutput(Output):
                 template=template,
                 date=reference_date,
                 step=step,
-                param=param,
                 variable=variable,
                 ensemble=self.ensemble,
                 keys=keys,
@@ -341,6 +324,7 @@ class BaseGribOutput(Output):
                 grib2_keys=self.grib2_keys,
                 previous_step=previous_step,
                 start_steps=start_steps,
+                convert_grib_paramid=self.context.convert_grib_paramid,
             )
             encoded_date = to_datetime(f"{keys['date']}T{keys['time']:04d}")
 

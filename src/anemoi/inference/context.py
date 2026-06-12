@@ -26,7 +26,7 @@ class Context(ABC):
     """Represents the context of the inference."""
 
     allow_nans = None  # can be True of False
-    use_grib_paramid = False
+    convert_grib_paramid = False
     verbosity = 0
     development_hacks: dict[str, Any] = {}  # For testing purposes, don't use in production
 

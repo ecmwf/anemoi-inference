@@ -19,6 +19,7 @@ import yaml
 from pydantic import Field
 from pydantic import FilePath
 from pydantic import field_validator
+from pydantic import model_validator
 
 from anemoi.inference.types import ProcessorConfig
 
@@ -80,10 +81,22 @@ class RunConfiguration(Configuration):
     - If True, the model will allow NaNs in the input and output.
     """
 
-    use_grib_paramid: bool = False
-    """If True, identify variables by GRIB ``paramId`` rather than ``shortName``
-    in MARS requests, in the ``archive_requests`` JSON, and in the encoded GRIB
-    messages written by the ``grib`` family of outputs."""
+    convert_grib_paramid: bool = False
+    """When `paramId` is missing in the metadata, if this flag is True, convert param `shortName` into `paramId`
+    using the anemoi-utils `shortname_to_paramid` function in MARS requests, in the ``archive_requests`` JSON,
+    and in the encoded GRIBmessages written by the ``grib`` family of outputs."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def rename_use_grib_paramid(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "use_grib_paramid" in data:
+            LOG.warning(
+                "'use_grib_paramid' has been renamed to 'convert_grib_paramid'. "
+                "Please update your configuration. The old name will be removed in a future version.",
+            )
+            data = dict(data)
+            data.setdefault("convert_grib_paramid", data.pop("use_grib_paramid"))
+        return data
 
     write_initial_state: bool = True
     """Wether to write the initial state to the output file. If the model is multi-step, only fields at the forecast reference date are

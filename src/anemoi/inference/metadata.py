@@ -753,7 +753,7 @@ class Metadata(LegacyMixin):
         *,
         variables: list[str],
         dates: list[Date],
-        use_grib_paramid: bool = False,
+        convert_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Callable[[DataRequest], DataRequest] | None = None,
         dont_fail_for_missing_paramid: bool = False,
@@ -767,8 +767,8 @@ class Metadata(LegacyMixin):
             The list of variables.
         dates : list[Date]
             The list of dates.
-        use_grib_paramid : bool, optional
-            Whether to use GRIB paramid, by default False.
+        convert_grib_paramid : bool, optional
+            Whether to convert GRIB shortnames to paramid if paramid is missing, by default False.
         always_split_time : bool, optional
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
@@ -858,7 +858,7 @@ class Metadata(LegacyMixin):
                         v = [v]
                     r[k] = sorted(set(v))
 
-                if use_grib_paramid and "param" in r:
+                if convert_grib_paramid and "param" in r:
 
                     def shortname_to_paramid_no_fail(x: str) -> str:
                         try:
