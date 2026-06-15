@@ -908,7 +908,11 @@ class Runner(Context):
         checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}
         state_variables = {k: v for k, v in state_variables.items() if k in common}
 
-        Variable.check_compatibility(state_variables, checkpoint_variables)
+        config = multi_datasets_config(self.config.check_variables_compatibility, dataset, self.dataset_names)
+        if config is None:
+            config = {}
+
+        Variable.check_compatibility(state_variables, checkpoint_variables, **config)
 
     def _warn_once(self, message: str) -> None:
         """Log a warning message only once."""
