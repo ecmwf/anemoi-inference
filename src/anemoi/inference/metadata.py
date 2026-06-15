@@ -143,7 +143,7 @@ class Metadata(LegacyMixin):
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._config.data.frequency
+        return self._config.data.step_frequency or self._config.data.frequency
 
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
