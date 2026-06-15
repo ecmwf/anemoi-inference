@@ -125,6 +125,8 @@ class Runner(Context):
         self.dataset_names = list(multi_metadata.keys())
 
         for dataset, metadata in multi_metadata.items():
+            metadata.typed_variables.update(self.typed_variables)
+
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
             self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)

@@ -82,6 +82,21 @@ STEP_TYPE = {
 }
 
 
+def shortname_to_paramid(param: str | int | float) -> int | float:
+    """Convert a shortName to a paramId using the `shortname_to_paramid` function from `anemoi.utils.grib`.
+    If the param is already an integer or float, it is returned unchanged.
+    """
+
+    try:
+        float(param)
+    except (TypeError, ValueError):
+        from anemoi.utils.grib import shortname_to_paramid as _shortname_to_paramid
+
+        param = _shortname_to_paramid(param)
+
+    return param
+
+
 def encode_time_processing(
     *,
     result: dict[str, Any],
@@ -248,14 +263,8 @@ def grib_keys(
         param = variable.param
 
         # When `convert_grib_paramid` is set, convert shortName back to paramId.
-        # Mirrors the pattern in `outputs/gribfile.py:_patch` for archive_requests.
         if convert_grib_paramid:
-            try:
-                float(param)
-            except (TypeError, ValueError):
-                from anemoi.utils.grib import shortname_to_paramid
-
-                param = shortname_to_paramid(param)
+            param = shortname_to_paramid(param)
 
     result.setdefault(_param(param), param)
 
