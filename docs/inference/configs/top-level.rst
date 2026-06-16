@@ -83,7 +83,7 @@ check_variables_compatibility:
 By default, `Anemoi` will check that the data coming from the various input match the data that was used
 to traing the model, e.g. that the variables have the same units, same time processing, etc.
 
-You can turn some of the check off.
+You can turn some of the checks off.
 
 .. code:: yaml
 
@@ -94,12 +94,12 @@ You can turn some of the check off.
       ignore_type_of_level: True # Don't check type of level (e.g. whether the data are on pressure levels or model levels)
 
 
-You can also turn off check for individual variables by setting
+You can also turn off checks for individual variables by setting
 
 .. code:: yaml
 
    check_variables_compatibility:
-      ignore_units: msl # Don't check units for the variable "msl"
+      ignore_type_of_level: msl # Don't check type of level for the variable "msl"
       ignore_units: [msl, t2m] # Don't check units for the variables "msl" and "t2m"
 
 For multi-datasets models, you can specify the checks for each dataset separately:
