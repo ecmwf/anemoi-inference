@@ -480,10 +480,17 @@ class EkdInput(Input):
                 return combo[0]
             return None
 
-        if area := get_geography_info("mars_area"):
-            geography_information["area"] = area
-        if grid := get_geography_info("mars_grid"):
+        grid = get_geography_info("mars_grid")
+        if grid == "undefined":
+            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
             geography_information["grid"] = grid
+
+        else:  # If grid is undefined we don't want to add the area
+            if grid:
+                geography_information["grid"] = grid
+
+            if area := get_geography_info("mars_area"):
+                geography_information["area"] = area
 
         if geography_information:
             state["_geography"] = geography_information
