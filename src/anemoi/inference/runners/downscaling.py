@@ -203,7 +203,7 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
 
         extra_args = self.extra_config.get("extra_args", {})
-        for i in range(6):
+        for i in range(4):
             LOG.info(
                 "Low res tensor statistics for index %d: mean=%f, std=%f",
                 i,
@@ -213,7 +213,7 @@ class DownscalingRunner(DefaultRunner):
         LOG.info("extra_args: %s", extra_args)
         LOG.info("Calling model.predict_step")
         output_tensor = model.predict_step(low_res_tensor, high_res_tensor, extra_args=extra_args, **kwargs)
-        for i in range(6):
+        for i in range(4):
             LOG.info(
                 "output_tensor statistics for index %d: mean=%f, std=%f",
                 i,
