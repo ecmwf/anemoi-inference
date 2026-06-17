@@ -23,7 +23,7 @@ from typing import Literal
 from typing import Union
 
 import numpy as np
-from anemoi.transform.variables.variables import VariableFromMarsVocabulary
+from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
@@ -105,7 +105,7 @@ class Runner(Context):
         self.use_profiler = config.use_profiler
 
         # other attributes derived from config or metadata
-        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in config.typed_variables.items()}
+        self.typed_variables = {k: Variable.from_dict(k, v) for k, v in config.typed_variables.items()}
         self.preload_checkpoint = config.preload_checkpoint
         self.preload_buffer_size = config.preload_buffer_size
         self.precision = config.precision
