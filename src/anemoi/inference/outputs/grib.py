@@ -207,6 +207,13 @@ class GribOutput(Output):
         out_vars = self.variables if self.variables is not None else state["fields"].keys()
 
         for name in out_vars:
+            if name not in self.typed_variables:
+                LOG.warning(
+                    "Output field %r not in checkpoint.typed_variables; skipping "
+                    "(untyped dp_residual diagnostic).",
+                    name,
+                )
+                continue
             variable = self.typed_variables[name]
 
             if variable.is_computed_forcing:
@@ -237,6 +244,13 @@ class GribOutput(Output):
 
         out_vars = self.variables if self.variables is not None else state["fields"].keys()
         for name in out_vars:
+            if name not in self.typed_variables:
+                LOG.warning(
+                    "Output field %r not in checkpoint.typed_variables; skipping "
+                    "(untyped dp_residual diagnostic).",
+                    name,
+                )
+                continue
             values = state["fields"][name]
             keys = {}
 

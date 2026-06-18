@@ -71,6 +71,11 @@ class ParallelRunnerFactory:
     @staticmethod
     def get_class(base_class: Runner):
         """Returns a ParallelRunner class object of the given base class."""
+        # If the base runner already composes ParallelRunnerMixin (e.g. the unified downscaling
+        # runner, which mixes it in so single-node/base-direct runs also init the process group),
+        # don't double-wrap: (ParallelRunnerMixin, <subclass-of-ParallelRunnerMixin>) is an MRO conflict.
+        if isinstance(base_class, type) and issubclass(base_class, ParallelRunnerMixin):
+            return base_class
         return type("ParallelRunner", (ParallelRunnerMixin, base_class), {})
 
 

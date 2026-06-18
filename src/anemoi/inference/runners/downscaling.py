@@ -160,6 +160,29 @@ class DownscalingRunner(DefaultRunner):
 
         lead_hours = int(self.lead_time.total_seconds() // 3600)
         step_hours = int(self.time_step.total_seconds() // 3600)
+
+        # checkpoint.mars_requests set date/time = anchor - template_step (it treats the run
+        # `date` as a *valid* time and subtracts the forecast lead). For downscaling the run
+        # `date` is the forecast ANCHOR and the low-res input is re-fetched as a dynamic
+        # forcing at every forecast-step valid time, so restore the anchor base before
+        # applying the step range. No-op when the template step is 0 (e.g. the o96->o320
+        # analysis lane), so other downscaling lanes are unaffected.
+        import datetime as _dt
+
+        def _first(v):
+            return v[0] if isinstance(v, (list, tuple)) else v
+
+        orig = _first(request.get("step", 0))
+        orig_step = int(str(orig).split("/")[0].split("-")[-1])
+        if orig_step:
+            d = _first(request.get("date"))
+            t = _first(request.get("time"))
+            if d is not None and t is not None:
+                base = _dt.datetime.strptime(f"{d} {int(t):04d}", "%Y-%m-%d %H%M")
+                anchor = base + _dt.timedelta(hours=orig_step)
+                request["date"] = anchor.strftime("%Y-%m-%d")
+                request["time"] = anchor.strftime("%H%M")
+
         request["step"] = f"0/to/{lead_hours}/by/{step_hours}"
         return request
 
