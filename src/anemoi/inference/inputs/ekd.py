@@ -18,7 +18,6 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
-from earthkit.data.indexing.fieldlist import FieldArray
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
@@ -36,13 +35,13 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
-def find_variable(data: Any, name: str, namer: callable, **kwargs: Any) -> Any:
-    """Find a variable in an earthkit FieldList/FieldArray.
+def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
+    """Find a variable in an earthkit FieldList.
 
     Parameters
     ----------
-    data : Any
-        The data to search (FieldList or FieldArray).
+    data : ekd.FieldList
+        The data to search.
     name : str
         The name of the variable to find.
     namer: callable
@@ -52,14 +51,14 @@ def find_variable(data: Any, name: str, namer: callable, **kwargs: Any) -> Any:
 
     Returns
     -------
-    Any
-        The selected variable (FieldArray subset).
+    ekd.FieldList
+        The selected variable (FieldList subset).
     """
 
     def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
         return namer(field, original_metadata)
 
-    data = FieldArray([f.clone(name=_name) for f in data])
+    data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
     return data.sel(name=name, **kwargs)
 
 
@@ -79,12 +78,12 @@ class RulesNamer:
         self.rules = rules
         self.default_namer = default_namer
 
-    def __call__(self, field: Any, original_metadata: dict[str, Any]) -> str:
+    def __call__(self, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
         """Generate a name for the field.
 
         Parameters
         ----------
-        field : Any
+        field : ekd.Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
             The original metadata of the field.
@@ -105,14 +104,14 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template: str, field: Any, original_metadata: dict[str, Any]) -> str:
+    def substitute(self, template: str, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
         """Substitute placeholders in the template with metadata values.
 
         Parameters
         ----------
         template : str
             The template string with placeholders.
-        field : Any
+        field : ekd.Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
             The original metadata of the field.
@@ -161,15 +160,21 @@ class EkdInput(Input):
         assert callable(self._namer), type(self._namer)
 
     def _filter_and_sort(
-        self, data: Any, *, dates: list[Any], title: str, select_reference_date: bool = False, **kwargs
-    ) -> Any:
-        """Filter and sort the data (earthkit FieldList/FieldArray).
+        self,
+        data: ekd.FieldList,
+        *,
+        dates: list[Date],
+        title: str,
+        select_reference_date: bool = False,
+        **kwargs,
+    ) -> ekd.FieldList:
+        """Filter and sort the earthkit FieldList.
 
         Parameters
         ----------
-        data : Any
-            The data to filter and sort (FieldList or FieldArray).
-        dates : List[Any]
+        data : ekd.FieldList
+            The data to filter and sort.
+        dates : List[Date]
             The list of dates to select.
         title : str
             The title for logging.
@@ -181,45 +186,41 @@ class EkdInput(Input):
 
         Returns
         -------
-        Any
-            The filtered and sorted data (FieldArray).
+        ekd.FieldList
+            The filtered and sorted data.
         """
 
-        def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
+        def _name(field: ekd.Field, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
-        data = FieldArray([f.clone(name=_name) for f in data])
-
-        valid_datetime = [_.isoformat() for _ in dates]
-        LOG.info("Selecting fields %s %s", len(data), valid_datetime)
+        valid_datetime = [date.isoformat() for date in dates]
+        datetime_selection = dict(valid_datetime=valid_datetime)
 
         if select_reference_date:
-            data = data.sel(
-                name=self.variables,
-                valid_datetime=valid_datetime,
+            datetime_selection.update(
                 dataDate=int(self.reference_date.strftime("%Y%m%d")),
                 dataTime=int(self.reference_date.strftime("%H%M")),
-            ).order_by(
-                name=self.variables,
-                valid_datetime="ascending",
             )
-        else:
-            data = data.sel(name=self.variables, valid_datetime=valid_datetime).order_by(
-                name=self.variables,
-                valid_datetime="ascending",
-            )
+
+        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
+        LOG.info("Selecting fields %s %s", len(data), valid_datetime)
+
+        data = data.sel(name=self.variables).order_by(
+            name=self.variables,
+            valid_datetime="ascending",
+        )
 
         check_data(title, data, self.variables, dates, self.metadata)
 
         return data
 
-    def _find_variable(self, data: Any, name: str, **kwargs: Any) -> Any:
-        """Find a variable in the data (earthkit FieldList/FieldArray selection).
+    def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
+        """Find a variable in the earthkit FieldList selection.
 
         Parameters
         ----------
-        data : Any
-            The data to search (FieldList or FieldArray).
+        data : ekd.FieldList
+            The data to search.
         name : str
             The name of the variable to find.
         **kwargs : Any
@@ -227,8 +228,8 @@ class EkdInput(Input):
 
         Returns
         -------
-        Any
-            The selected variable (FieldArray subset).
+        ekd.FieldList
+            The selected variable (FieldList subset).
         """
 
         return find_variable(data, name, self._namer, **kwargs)
@@ -249,7 +250,7 @@ class EkdInput(Input):
 
         Notes
         -----
-        - The `fields` argument must be an earthkit FieldList (or FieldArray-compatible).
+        - The `fields` argument must be an earthkit FieldList.
         - This method intentionally converts state["fields"] from a FieldList to
           a Dict[str, np.ndarray] with shape (len(dates), n_points).
         - Pre-processors are run while state["fields"] is still a FieldList.
@@ -466,7 +467,7 @@ class EkdInput(Input):
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
         """Set private attributes to the state.
 
-        Provides geography information if available retrieved from the fields (FieldList/FieldArray).
+        Provides geography information if available retrieved from the fields.
         """
         geography_information = {}
 
@@ -479,10 +480,17 @@ class EkdInput(Input):
                 return combo[0]
             return None
 
-        if area := get_geography_info("mars_area"):
-            geography_information["area"] = area
-        if grid := get_geography_info("mars_grid"):
+        grid = get_geography_info("mars_grid")
+        if grid == "undefined":
+            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
             geography_information["grid"] = grid
+
+        else:  # If grid is undefined we don't want to add the area
+            if grid:
+                geography_information["grid"] = grid
+
+            if area := get_geography_info("mars_area"):
+                geography_information["area"] = area
 
         if geography_information:
             state["_geography"] = geography_information
