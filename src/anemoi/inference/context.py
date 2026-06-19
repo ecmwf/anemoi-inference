@@ -46,3 +46,8 @@ class Context(ABC):
     def checkpoint(self) -> Checkpoint:
         """Returns the checkpoint used for the inference."""
         pass
+
+    @abstractmethod
+    def resolve_path(self, path: str) -> str:
+        """Used to allow the subclass to resolve paths, e.g. to S3 or local filesystem."""
+        pass

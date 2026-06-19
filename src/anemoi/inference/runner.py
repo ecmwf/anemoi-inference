@@ -885,3 +885,12 @@ class Runner(Context):
             # date can be None for an empty input
             if not isinstance(date, datetime.datetime):
                 raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
+
+    def resolve_path(self, path: str) -> str:
+        """Extract files that are embedded in th checkpoint if necessary, and return the resolved path.
+        anemoi.utils.checkpoints.checkpoint_file will return its argument of the file
+        does not start with "checkpoint:"
+        """
+        from anemoi.utils.checkpoints import checkpoint_file
+
+        return checkpoint_file(self.checkpoint.path, path)

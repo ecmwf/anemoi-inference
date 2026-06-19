@@ -147,8 +147,6 @@ class InspectCmd(Command):
         """Print the dataset arguments and keyword arguments for opening datasets."""
         open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(use_original_paths=False)
 
-        print("Open dataset arguments:")
-
         if open_dataset_args:
             print()
             print(yaml.dump(open_dataset_args, indent=4, default_flow_style=False))
