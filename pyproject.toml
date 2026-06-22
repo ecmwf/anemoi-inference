@@ -34,7 +34,8 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "anemoi-transform>0.1.13",
+  # TODO: replace with anemoi-transform release
+  "anemoi-transform @ git+https://github.com/ecmwf/anemoi-transform.git@earthkit-1.0",
   "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
   "anytree",
