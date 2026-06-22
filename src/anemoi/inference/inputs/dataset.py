@@ -15,6 +15,7 @@ from typing import Any
 
 import numpy as np
 
+from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
@@ -86,6 +87,10 @@ class DatasetInput(Input):
         """Return the dataset."""
         from anemoi.datasets import open_dataset
 
+        LOG.info("Opening dataset...")
+        LOG.info("open_dataset_args: %s", json.dumps(self.open_dataset_args, indent=2))
+        LOG.info("open_dataset_kwargs: %s", json.dumps(self.open_dataset_kwargs, indent=2))
+
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
         if self.variables is not None:
             dataset = open_dataset(dataset, select=self.variables)
@@ -151,17 +156,21 @@ class DatasetInput(Input):
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
 
         requested_variables = set(self.input_variables())
+        dataset_variables = {}
+        typed_variables = self.ds.typed_variables
         for i, variable in enumerate(self.ds.variables):
             if variable not in requested_variables:
                 continue
             # Squeeze the data to remove the ensemble dimension
             values = np.squeeze(data[:, i], axis=1)
             fields[variable] = values[:, self.grid_indices]
+            dataset_variables[variable] = typed_variables[variable]
 
             if trace := self.context.tensor_handlers[self.dataset_name].trace:
                 trace.from_input(variable, self)
 
         input_state["_input"] = self
+        input_state["_variables"] = dataset_variables
 
         return input_state
 
@@ -269,6 +278,19 @@ class DatasetInputArgsKwargs(DatasetInput):
         use_original_paths : bool
             Whether to use original paths.
         """
+
+        check_variables_compatibility = multi_datasets_config(
+            context.config.check_variables_compatibility, metadata.dataset_name, context.dataset_names
+        )
+        # assert False, check_variables_compatibility
+
+        # if 'check_variables_compatibility' in self.open_dataset_kwargs and self.check_variables_compatibility is not None:
+        #     LOG.warning(f"Merging `check_variables_compatibility` found in `open_dataset_kwargs` with the one from context: {self.check_variables_compatibility}")
+        #     kwargs_check_variables_compatibility = self.open_dataset_kwargs.pop('check_variables_compatibility')
+        #     kwargs_check_variables_compatibility.update(self.check_variables_compatibility)
+        #     self.check_variables_compatibility = kwargs_check_variables_compatibility
+        #     LOG.warning(f"Resulting `check_variables_compatibility`: {self.check_variables_compatibility}")
+
         if not args and not kwargs:
             args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
@@ -283,6 +305,10 @@ class DatasetInputArgsKwargs(DatasetInput):
                 cmd += f"{key}={value}, "
 
             LOG.warning("%s", cmd)
+
+        if check_variables_compatibility:
+            kwargs = kwargs.copy()
+            kwargs["check_variables_compatibility"] = check_variables_compatibility
 
         super().__init__(
             context,

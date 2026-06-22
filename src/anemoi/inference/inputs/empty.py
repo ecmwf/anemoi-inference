@@ -61,7 +61,7 @@ class EmptyInput(Input):
         State
             The created empty input state.
         """
-        return dict(fields=dict(), _input=self)
+        return dict(fields=dict(), _input=self, _variables=dict())
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load an empty forcings state.
@@ -78,4 +78,4 @@ class EmptyInput(Input):
         State
             The loaded empty forcings state.
         """
-        return dict(date=dates[-1], fields=dict(), _input=self)
+        return dict(date=dates[-1], fields=dict(), _input=self, _variables=dict())
