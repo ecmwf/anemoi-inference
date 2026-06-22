@@ -82,6 +82,18 @@ class DatasetInput(Input):
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
 
+        has_pre_processors = bool(self._pre_processor_confs) or (
+            hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
+        )
+        if has_pre_processors:
+            LOG.warning(
+                "Pre-processors are configured for dataset '%s' but will NOT be applied "
+                "by '%s'. This input type reads data directly from a pre-built dataset "
+                "and does not invoke the pre-processor pipeline.",
+                self.dataset_name,
+                self.__class__.__name__,
+            )
+
     @cached_property
     def ds(self) -> Any:
         """Return the dataset."""
