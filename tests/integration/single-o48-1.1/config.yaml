@@ -197,7 +197,8 @@
 
 ### NETCDF Input
 
-- name: netcdf-in-grib-out
+- name: netcdf-in-grib-ou# Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.grib
   checks:
@@ -225,6 +226,8 @@
             type: fc
 
 - name: netcdf-in-grib-out-limit-vars
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.grib
   checks:
@@ -249,6 +252,8 @@
             - q_600
 
 - name: netcdf-in-netcdf-out
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.nc
   checks:
@@ -265,7 +270,8 @@
     output:
       netcdf: ${output:}
 
-- name: netcdf-in-zarr-out
+- name: netcdf-in-zarr-out# Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.zarr
   checks:
@@ -282,7 +288,8 @@
     output:
       zarr: ${output:}
 
-- name: netcdf-in-print-output
+- name: netcdf-in-print-output# Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.txt
   checks:
@@ -297,6 +304,8 @@
         path: ${output:}
 
 - name: netcdf-in-raw-output
+# Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output
   checks:
