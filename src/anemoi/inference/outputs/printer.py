@@ -24,6 +24,7 @@ from anemoi.inference.types import State
 
 from ..decorators import ensure_path
 from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -107,6 +108,7 @@ def print_state(
 @output_registry.register("printer")
 @main_argument("max_lines")
 @ensure_path("path")
+@supports_parallel_output("path")
 class PrinterOutput(Output):
     """Printer output class."""
 
