@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.11.1](https://github.com/ecmwf/anemoi-inference/compare/0.11.0...0.11.1) (2026-06-22)
+
+
+### Features
+
+* Check units ([#513](https://github.com/ecmwf/anemoi-inference/issues/513)) ([e1b728c](https://github.com/ecmwf/anemoi-inference/commit/e1b728c73b465ae8f75ec71104591a56596fcd1c))
+* **outputs:** Parallel writing output ([#501](https://github.com/ecmwf/anemoi-inference/issues/501)) ([92aea07](https://github.com/ecmwf/anemoi-inference/commit/92aea07f6f2d2e710dbc6d0c006a779dffb39711))
+* Warn if patch_metadata adds new keys ([#506](https://github.com/ecmwf/anemoi-inference/issues/506)) ([947ecf1](https://github.com/ecmwf/anemoi-inference/commit/947ecf1aeb0775cb1ce9a0bf85a694e4cf931d80)), closes [#452](https://github.com/ecmwf/anemoi-inference/issues/452)
+
+
+### Bug Fixes
+
+* Change VariableFromMarsVocabulary to Variable.from_dict ([#517](https://github.com/ecmwf/anemoi-inference/issues/517)) ([65ff106](https://github.com/ecmwf/anemoi-inference/commit/65ff1069e1e29bd75d3e42910c95e7b0d131c441))
+* **coupling:** Update coupled runner to new multi-dataset design ([#497](https://github.com/ecmwf/anemoi-inference/issues/497)) ([de4cc0d](https://github.com/ecmwf/anemoi-inference/commit/de4cc0decd47dd593d2bb04cf9247e57a216d3cd))
+* **inputs/ekd:** Update geography information handling unstructured grids ([#516](https://github.com/ecmwf/anemoi-inference/issues/516)) ([3272509](https://github.com/ecmwf/anemoi-inference/commit/3272509600eb865e8c5aa2a14de7f0da509be6aa))
+* **parallel runner:** Reorder configuration steps ([#509](https://github.com/ecmwf/anemoi-inference/issues/509)) ([c361caf](https://github.com/ecmwf/anemoi-inference/commit/c361cafba7f42c292c91e4fca05634cb53c0c735))
+* **temporal downscaler:** Patch data requests list of steps ([#512](https://github.com/ecmwf/anemoi-inference/issues/512)) ([1b00efd](https://github.com/ecmwf/anemoi-inference/commit/1b00efd249fcb4d6b0fd09ed604e821d1ff2e657))
+
+
+### Performance Improvements
+
+* **ekd:** Select datetime before cloning fields ([#505](https://github.com/ecmwf/anemoi-inference/issues/505)) ([9cc8ade](https://github.com/ecmwf/anemoi-inference/commit/9cc8adef94b40288b0da86171f874414879720c3))
+
 ## [0.11.0](https://github.com/ecmwf/anemoi-inference/compare/0.10.1...0.11.0) (2026-05-06)
 
 
