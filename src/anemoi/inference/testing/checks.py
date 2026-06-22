@@ -70,7 +70,10 @@ def check_grib(
             assert field.time.base_datetime().isoformat() == reference_date.isoformat()
             assert int(field.metadata("date")) == int(reference_date.strftime("%Y%m%d"))
             assert field.metadata("time") == reference_date.hour * 100
-        assert field.metadata("step") > previous_field.metadata("step") and field.time.valid_datetime() > previous_field.time.valid_datetime(), (
+        assert (
+            field.metadata("step") > previous_field.metadata("step")
+            and field.time.valid_datetime() > previous_field.time.valid_datetime()
+        ), (
             f"Field step {field.metadata('step')} (valid_time {field.time.valid_datetime()}) is not greater than previous field "
             f"step {previous_field.metadata('step')} (valid_time {previous_field.time.valid_datetime()})."
         )
@@ -108,7 +111,9 @@ def check_grib_cutout(
     ref_ds = ekd.from_source("file", reference_grib).to_fieldlist()
 
     if not reference_datetime:
-        reference_datetime = ref_ds.order_by(**{"time.valid_datetime": "ascending"})[-1].time.valid_datetime().isoformat()
+        reference_datetime = (
+            ref_ds.order_by(**{"time.valid_datetime": "ascending"})[-1].time.valid_datetime().isoformat()
+        )
 
     assert len(ds) > 0, "No fields found in the output GRIB file."
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
@@ -130,7 +135,8 @@ def check_grib_cutout(
                 mask
             ), f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
             assert np.allclose(
-                field.to_numpy(flatten=True), ref_fields.sel(**{"vertical.level": field.vertical.level()})[0].to_numpy(flatten=True)
+                field.to_numpy(flatten=True),
+                ref_fields.sel(**{"vertical.level": field.vertical.level()})[0].to_numpy(flatten=True),
             ), f"Variable {param} in LAM does not match reference data at {reference_datetime}."
 
 

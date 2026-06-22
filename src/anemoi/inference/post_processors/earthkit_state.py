@@ -13,10 +13,8 @@
 import datetime
 import logging
 from collections.abc import Callable
-from typing import Any
 
 import earthkit.data as ekd
-import numpy as np
 
 from anemoi.inference.inputs.ekd import _get_metadata_dict
 from anemoi.inference.types import FloatArray

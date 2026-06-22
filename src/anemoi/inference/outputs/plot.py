@@ -163,9 +163,7 @@ class PlotOutput(Output):
                     geography={"latitudes": latitudes, "longitudes": longitudes},
                 )
             )
-        fig = ekp.quickplot(
-            ekd.create_fieldlist(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs
-        )
+        fig = ekp.quickplot(ekd.create_fieldlist(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs)
         fname = render_template(
             self.template,
             {

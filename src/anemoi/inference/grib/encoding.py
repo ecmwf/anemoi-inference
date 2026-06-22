@@ -436,7 +436,7 @@ def encode_message(
         The encoded GRIB handle.
     """
     metadata = metadata.copy()  # avoid modifying the original metadata
-    if hasattr(template, 'handle'):
+    if hasattr(template, "handle"):
         # Dummy wrapper or legacy object with handle attribute
         handle = template.handle.clone()
     else:
