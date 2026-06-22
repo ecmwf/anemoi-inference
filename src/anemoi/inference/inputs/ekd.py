@@ -350,7 +350,7 @@ class EkdInput(Input):
         """
         if latitudes is None and longitudes is None:
             try:
-                latitudes, longitudes = fields[0].geography.latlons()
+                latitudes, longitudes = fields[0].geography.latlons(flatten=True)
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,

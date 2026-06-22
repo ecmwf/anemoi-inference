@@ -16,7 +16,6 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
-from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data import create_fieldlist
 
 from anemoi.inference.inputs.dataset import DatasetInput
@@ -156,12 +155,14 @@ class ComputedForcings(Forcings):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        source = UnstructuredGridFieldList.from_values(
+        ds = ekd.from_source(
+            "forcings",
+            None,
+            date=dates,
+            param=self.variables,
             latitudes=current_state["latitudes"],
             longitudes=current_state["longitudes"],
-        )
-
-        ds = ekd.from_source("forcings", source, date=dates, param=self.variables).to_fieldlist()
+        ).to_fieldlist()
 
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
 
