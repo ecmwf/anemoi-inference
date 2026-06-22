@@ -37,7 +37,6 @@ from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 
 from .legacy import LegacyMixin
-from .patch import PatchMixin
 
 if TYPE_CHECKING:
     from earthkit.data import FieldList
@@ -79,7 +78,7 @@ def _remove_full_paths(x: Any) -> Any:
     return x
 
 
-class Metadata(PatchMixin, LegacyMixin):
+class Metadata(LegacyMixin):
     """Base Metadata class."""
 
     multi_dataset = False
@@ -232,6 +231,24 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the precision of the model (bits per float)."""
         return self._config_training.precision
 
+    @cached_property
+    def input_shape(self) -> tuple[int, int, int, int]:
+        return (
+            1,
+            self.multi_step_input,
+            self.number_of_grid_points,
+            len(self.input_tensor_index_to_variable),
+        )
+
+    @cached_property
+    def output_shape(self) -> tuple[int, int, int, int]:
+        return (
+            1,
+            1,
+            self.number_of_grid_points,
+            len(self.output_tensor_index_to_variable),
+        )
+
     def _make_indices_mapping(self, indices_from: list, indices_to: list) -> frozendict:
         """Create a mapping between two sets of indices.
 
@@ -284,6 +301,8 @@ class Metadata(PatchMixin, LegacyMixin):
         """Return the number of grid points per fields."""
         if "grid_indices" in self._supporting_arrays:
             return len(self.load_supporting_array("grid_indices"))
+        if "latitudes" in self._supporting_arrays:
+            return len(self.load_supporting_array("latitudes"))
         try:
             return self._dataset.shape[-1]
         except AttributeError:
@@ -1320,26 +1339,43 @@ class Metadata(PatchMixin, LegacyMixin):
 
     ###########################################################################
 
-    def patch(self, patch: dict) -> None:
+    def patch(self, patch: dict) -> list[str]:
         """Patch the metadata with the given patch.
 
         Parameters
         ----------
         patch : dict
             The patch to apply.
+
+        Returns
+        -------
+        list[str]
+            Dotted paths of metadata keys that did not exist before and were created by
+            the patch (the keys are still applied). Only the top-most new key of any
+            newly-created subtree is reported. A non-empty list may simply be a deliberate
+            addition, but it can also mean the patch does not match this checkpoint's
+            metadata schema (e.g. a stale patch written for an older schema) and an
+            intended update silently landed under a new key instead.
         """
 
-        def merge(main: dict[str, Any], patch: dict[str, Any]) -> None:
+        new_keys: list[str] = []
+
+        def merge(main: dict[str, Any], patch: dict[str, Any], path: str = "", parent_is_new: bool = False) -> None:
 
             for k, v in patch.items():
+                key_path = f"{path}.{k}" if path else k
+                is_new = k not in main
+                if is_new and not parent_is_new:
+                    new_keys.append(key_path)
                 if isinstance(v, dict) and isinstance(main.get(k, {}), dict):
                     if k not in main:
                         main[k] = {}
-                    merge(main[k], v)
+                    merge(main[k], v, key_path, parent_is_new or is_new)
                 else:
                     main[k] = v
 
         merge(self._metadata, patch)
+        return new_keys
 
 
 class SingleDatasetMetadata(Metadata):
@@ -1438,6 +1474,20 @@ class MultiDatasetMetadata(Metadata):
         return self._inference.timesteps.output_relative_date_indices
 
     @cached_property
+    def output_shape(self) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
+        # newer checkpoint have an extra multi-step output dimension, but older ones don't
+        if not hasattr(self._config_training, "multistep_output"):
+            return super().output_shape
+
+        return (
+            1,
+            self.multi_step_output,
+            1,
+            self.number_of_grid_points,
+            len(self.output_tensor_index_to_variable),
+        )
+
+    @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
         return frozendict(self._inference.data_indices.input)
 
@@ -1488,7 +1538,7 @@ class MultiDatasetMetadata(Metadata):
 class MetadataFactory:
     def __new__(
         cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, dataset_name="data", base_class=Metadata
-    ) -> Metadata:
+    ) -> SingleDatasetMetadata | MultiDatasetMetadata:
         suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
 
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):

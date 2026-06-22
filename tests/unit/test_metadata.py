@@ -43,6 +43,41 @@ def test_patch(initial, patch, expected):
     assert metadata._metadata["config"]["dataloader"] == expected
 
 
+@pytest.mark.parametrize(
+    "initial, patch, expected_new_keys",
+    [
+        # updating an existing leaf does not create any new key
+        (
+            {"config": {"dataloader": {"dataset": "abc"}}},
+            {"config": {"dataloader": {"dataset": "xyz"}}},
+            [],
+        ),
+        # a new nested subtree is reported by its top-most new key only
+        (
+            {"config": {"dataloader": {"dataset": "abc"}}},
+            {"config": {"dataloader": {"something": {"else": "123"}}}},
+            ["config.dataloader.something"],
+        ),
+        # a new leaf alongside an existing one is reported on its own
+        (
+            {"a": {"b": 1, "c": 2}},
+            {"a": {"c": 3, "d": 4}},
+            ["a.d"],
+        ),
+        # a brand-new top-level key is reported
+        (
+            {"a": 1},
+            {"b": 2},
+            ["b"],
+        ),
+    ],
+)
+def test_patch_returns_new_keys(initial, patch, expected_new_keys):
+    metadata = MetadataFactory(initial)
+    new_keys = metadata.patch(patch)
+    assert new_keys == expected_new_keys
+
+
 def test_constant_fields_patch():
     model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
     metadata = MetadataFactory(model_metadata)

@@ -62,52 +62,40 @@ def diff(old, new, *path):
 
 
 class PatchCmd(Command):
-    """Patch a checkpoint file."""
+    """Patch a checkpoint file with new dataset metadata from the original training dataset.
+    If the checkpoint's metadata is already up to date, this command does nothing. Otherwise, it updates the metadata and supporting arrays in-place.
+    """
 
     def add_arguments(self, command_parser: ArgumentParser) -> None:
-        """Add arguments to the command parser.
-
-        Parameters
-        ----------
-        command_parser : ArgumentParser
-            The argument parser to which the arguments will be added.
-        """
         command_parser.add_argument("path", help="Path to the checkpoint.")
-        # command_parser.add_argument("--sanitise", action="store_true", help="Sanitise the metadata.")
+        command_parser.add_argument(
+            "--sanitise",
+            action="store_true",
+            help="If there is new metadata, sanitise it before patching.",
+        )
 
     def run(self, args: Namespace) -> None:
-        """Run the patch command.
-
-        Parameters
-        ----------
-        args : Namespace
-            The arguments passed to the command.
-        """
-        from anemoi.utils.checkpoints import load_metadata
+        """Run the patch command."""
         from anemoi.utils.checkpoints import replace_metadata
 
-        from anemoi.inference.metadata import MetadataFactory
-        from anemoi.inference.metadata import SingleDatasetMetadata
+        from anemoi.inference.checkpoint import Checkpoint
 
-        original_metadata, original_supporting_arrays = load_metadata(args.path, supporting_arrays=True)
+        checkpoint = Checkpoint(args.path)
+        original_metadata, original_supporting_arrays = checkpoint._raw_metadata
         original_metadata = deepcopy(original_metadata)
         original_supporting_arrays = deepcopy(original_supporting_arrays)
 
-        try:
-            metadata_object = MetadataFactory(original_metadata)
-        except AssertionError:
-            raise AssertionError("Only legacy single-dataset checkpoints are supported for patching at the moment.")
+        new_metadata, new_supporting_arrays = checkpoint.update_metadata_from_zarr()
 
-        assert isinstance(
-            metadata_object, SingleDatasetMetadata
-        ), "Only legacy single-dataset checkpoints are supported for patching at the moment."
+        if diff(original_metadata, new_metadata) or diff(original_supporting_arrays, new_supporting_arrays):
+            if args.sanitise:
+                LOG.info("Sanitising metadata")
+                from anemoi.utils.sanitise import sanitise
 
-        metadata, supporting_arrays = metadata_object.patch_metadata(original_supporting_arrays)
+                new_metadata = sanitise(new_metadata)
 
-        if diff(original_metadata, metadata) or diff(original_supporting_arrays, supporting_arrays):
             LOG.info("Patching metadata")
-            assert "sources" in metadata["dataset"]
-            replace_metadata(args.path, metadata, supporting_arrays)
+            replace_metadata(args.path, new_metadata, new_supporting_arrays)
 
 
 command = PatchCmd
