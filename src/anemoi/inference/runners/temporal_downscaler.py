@@ -125,7 +125,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     [self.constants_states[dataset]["fields"][key], self.constants_states[dataset]["fields"][key]],
                     axis=0,
                 )
-            self._check_state(self.constants_states[dataset], "constant_forcings")
+            self._check_state(dataset, self.constants_states[dataset], "constant_forcings")
 
         self.input_states_hook(self.constants_states)
 
@@ -142,12 +142,12 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 prognostic_state = self.prognostics_inputs[dataset].create_input_state(
                     date=window_start_date, select_reference_date=True, ref_date_index=0
                 )
-                self._check_state(prognostic_state, "prognostics")
+                self._check_state(dataset, prognostic_state, "prognostics")
 
                 forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
                     date=window_start_date, select_reference_date=True, ref_date_index=0
                 )
-                self._check_state(forcings_state, "dynamic_forcings")
+                self._check_state(dataset, forcings_state, "dynamic_forcings")
 
                 self.constants_states[dataset]["date"] = window_start_date
 

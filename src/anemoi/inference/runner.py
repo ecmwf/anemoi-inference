@@ -154,14 +154,19 @@ class Runner(Context):
                 from rich.table import Table
 
                 console = Console(file=sys.stderr)
-                table = Table(title=f"\\[{metadata.dataset_name}] Variable categories")
+                table = Table(title=f"\\[{metadata.dataset_name}] Variable units categories")
                 table.add_column("Variable", no_wrap=True)
+                table.add_column("Units", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
                 for variable, categories in metadata.variable_categories().items():
-                    table.add_row(variable, ", ".join(categories))
+                    typed_variable = metadata.typed_variables.get(variable)
+                    units = typed_variable.units if typed_variable is not None else "N/A"
+                    table.add_row(variable, str(units), ", ".join(categories))
 
                 console.print(table)
+
+        self.quiet = set()  # So we don't repeat the same warning multiple times
 
     @property
     def checkpoint(self) -> Checkpoint:
@@ -370,20 +375,20 @@ class Runner(Context):
         Parameters
         ----------
         start_date : datetime.datetime
-            Start date of the forecast
+            Start date of the forecast.
         lead_time : datetime.timedelta
-            Lead time of the forecast
+            Lead time of the forecast.
 
         Returns
         -------
         step : datetime.timedelta
-            Time delta since beginning of forecast
+            Time delta since beginning of forecast.
         valid_date : list[datetime.datetime]
             Date of the forecast
         next_date : list[datetime.datetime]
-            Date used to prepare the next input tensor
+            Date used to prepare the next input tensor.
         is_last_step : bool
-            True if it's the last step of the forecast
+            True if it's the last step of the forecast.
         """
         output_horizon = self.checkpoint.timestep * self.checkpoint.multi_step_output
         steps = math.ceil(lead_time / output_horizon)
@@ -638,14 +643,14 @@ class Runner(Context):
         initial_states: dict[str, State] = {}
         for dataset in self.tensor_handlers:
             prognostic_state = self.prognostics_inputs[dataset].create_input_state(date=self.config.date)
-            self._check_state(prognostic_state, "prognostics")
+            self._check_state(dataset, prognostic_state, "prognostics")
 
             constants_state = self.constant_forcings_inputs[dataset].create_input_state(date=self.config.date)
-            self._check_state(constants_state, "constant_forcings")
+            self._check_state(dataset, constants_state, "constant_forcings")
             input_constants_states[dataset] = constants_state
 
             forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(date=self.config.date)
-            self._check_state(forcings_state, "dynamic_forcings")
+            self._check_state(dataset, forcings_state, "dynamic_forcings")
 
             input_states[dataset] = self._combine_states(
                 prognostic_state,
@@ -845,11 +850,13 @@ class Runner(Context):
 
         return self._combine_states(*states)
 
-    def _check_state(self, state: dict[str, Any], title: str) -> None:
+    def _check_state(self, dataset: str, state: dict[str, Any], title: str) -> None:
         """Check the state for consistency.
 
         Parameters
         ----------
+        dataset : str
+            The dataset name (for logging).
         state : dict
             The state to check.
         title : str
@@ -862,12 +869,16 @@ class Runner(Context):
         """
 
         if not isinstance(state, dict):
-            raise ValueError(f"State '{title}' is not a dictionary: {state}")
+            raise ValueError(f"State '{title}' is not a dictionary: {state} ({dataset=})")
 
         input = state.get("_input")
+        state_variables = state.get("_variables")
+        if state_variables is None:
+            self._warn_once(f"State '{title}' does not contain '_variables' ({input=}, {dataset=})")
+            state_variables = {}
 
         if "fields" not in state:
-            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=})")
+            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=}, {dataset=})")
 
         shape = None
 
@@ -877,11 +888,34 @@ class Runner(Context):
             elif shape != values.shape:
                 raise ValueError(
                     f"Field '{field}' in state '{title}' has different shape: "
-                    f"{shape} and {values.shape} ({input=})."
+                    f"{shape} and {values.shape} ({input=}, {dataset=})."
                 )
 
         date = state.get("date")
         if date is None and len(state["fields"]) > 0:
             # date can be None for an empty input
             if not isinstance(date, datetime.datetime):
-                raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
+                raise ValueError(
+                    f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=}, {dataset=})"
+                )
+
+        # Check variables in metadata match the variables in the state
+        from anemoi.transform.variables import Variable
+
+        checkpoint_variables = self.tensor_handlers[dataset].metadata.typed_variables
+        common = set(checkpoint_variables.keys()).intersection(state_variables.keys())
+
+        checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}
+        state_variables = {k: v for k, v in state_variables.items() if k in common}
+
+        config = multi_datasets_config(self.config.check_variables_compatibility, dataset, self.dataset_names)
+        if config is None:
+            config = {}
+
+        Variable.check_compatibility(state_variables, checkpoint_variables, **config)
+
+    def _warn_once(self, message: str) -> None:
+        """Log a warning message only once."""
+        if message not in self.quiet:
+            LOG.warning(message)
+            self.quiet.add(message)

@@ -100,6 +100,9 @@ class RunConfiguration(Configuration):
     output_frequency: str | None = None
     """The frequency at which to write the output. This can be a string or an integer. If a string, it is parsed by :func:`anemoi.utils.dates.as_timedelta`."""
 
+    check_variables_compatibility: dict | None = None
+    """Control how to check the compatibility between variables (checkpoint vs inputs)."""
+
     env: dict[str, str | int] = {}
     """Environment variables to set before running the model. This may be useful to control some packages
     such as `eccodes`. In certain cases, the variables mey be set too late, if the package for which they are intended
