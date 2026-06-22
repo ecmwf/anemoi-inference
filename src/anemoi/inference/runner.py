@@ -921,10 +921,10 @@ class Runner(Context):
             self.quiet.add(message)
 
     def resolve_path(self, path: str) -> str:
-        """Extract files that are embedded in th checkpoint if necessary, and return the resolved path.
-        anemoi.utils.checkpoints.checkpoint_file will return its argument of the file
-        does not start with "checkpoint:"
-        """
-        from anemoi.utils.checkpoints import checkpoint_file
+        """Resolve a path, which can be a normal file path or a checkpoint embedded file path."""
+        from anemoi.utils.checkpoints import extract_from_checkpoint
 
-        return checkpoint_file(self.checkpoint.path, path)
+        if path.startswith("checkpoint://"):
+            return extract_from_checkpoint(self.checkpoint.path, path)
+
+        return path
