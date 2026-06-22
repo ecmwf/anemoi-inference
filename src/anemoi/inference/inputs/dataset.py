@@ -282,14 +282,6 @@ class DatasetInputArgsKwargs(DatasetInput):
         check_variables_compatibility = multi_datasets_config(
             context.config.check_variables_compatibility, metadata.dataset_name, context.dataset_names
         )
-        # assert False, check_variables_compatibility
-
-        # if 'check_variables_compatibility' in self.open_dataset_kwargs and self.check_variables_compatibility is not None:
-        #     LOG.warning(f"Merging `check_variables_compatibility` found in `open_dataset_kwargs` with the one from context: {self.check_variables_compatibility}")
-        #     kwargs_check_variables_compatibility = self.open_dataset_kwargs.pop('check_variables_compatibility')
-        #     kwargs_check_variables_compatibility.update(self.check_variables_compatibility)
-        #     self.check_variables_compatibility = kwargs_check_variables_compatibility
-        #     LOG.warning(f"Resulting `check_variables_compatibility`: {self.check_variables_compatibility}")
 
         if not args and not kwargs:
             args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
