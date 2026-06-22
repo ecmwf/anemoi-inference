@@ -80,8 +80,8 @@ and output. It set to ``null`` (default), the value is set internally to
 check_variables_compatibility:
 ==============================
 
-By default, `Anemoi` will check that the data coming from the various input match the data that was used
-to traing the model, e.g. that the variables have the same units, same time processing, etc.
+By default, `Anemoi` will check that the data coming from the various inputs match the data that was used
+to train the model, i.e. that the variables have the same units, same time processing, etc.
 
 You can turn some of the checks off.
 
