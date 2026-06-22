@@ -197,7 +197,8 @@
 
 ### NETCDF Input
 
-- name: netcdf-in-grib-ou# Temp fix until we use ekd 1.0
+- name: netcdf-in-grib-out
+  # Temp fix until we use ekd 1.0
   markers: [xfail]
   input: input.nc
   output: output.grib
@@ -270,7 +271,8 @@
     output:
       netcdf: ${output:}
 
-- name: netcdf-in-zarr-out# Temp fix until we use ekd 1.0
+- name: netcdf-in-zarr-out
+  # Temp fix until we use ekd 1.0
   markers: [xfail]
   input: input.nc
   output: output.zarr
@@ -288,7 +290,8 @@
     output:
       zarr: ${output:}
 
-- name: netcdf-in-print-output# Temp fix until we use ekd 1.0
+- name: netcdf-in-print-output
+  # Temp fix until we use ekd 1.0
   markers: [xfail]
   input: input.nc
   output: output.txt
@@ -304,7 +307,7 @@
         path: ${output:}
 
 - name: netcdf-in-raw-output
-# Temp fix until we use ekd 1.0
+  # Temp fix until we use ekd 1.0
   markers: [xfail]
   input: input.nc
   output: output
