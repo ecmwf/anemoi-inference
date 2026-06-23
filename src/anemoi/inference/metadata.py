@@ -116,6 +116,11 @@ class Metadata(LegacyMixin):
         return self._config.training
 
     @property
+    def _config_task(self) -> DotDict:
+        """Return the task configuration if it exists."""
+        return getattr(self._config, "task", DotDict())
+
+    @property
     def _config_model(self) -> DotDict:
         """Return the model configuration."""
         return self._config.model
@@ -143,7 +148,8 @@ class Metadata(LegacyMixin):
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._config.data.frequency
+        output_timestep = getattr(self._config_task, "output_timestep", None)
+        return output_timestep or self._config.data.frequency
 
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
