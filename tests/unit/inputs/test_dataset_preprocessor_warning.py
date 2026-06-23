@@ -10,7 +10,6 @@
 import logging
 from types import SimpleNamespace
 
-import pytest
 
 from anemoi.inference.inputs.dataset import DatasetInput
 
