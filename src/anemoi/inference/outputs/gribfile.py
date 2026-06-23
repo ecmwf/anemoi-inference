@@ -242,6 +242,7 @@ class GribIoOutput(BaseGribOutput):
                     template=template,
                     metadata=keys,
                     check_nans=self.context.allow_nans,
+                    missing_value=self.context.missing_value,
                 ),
                 template,
                 **keys,

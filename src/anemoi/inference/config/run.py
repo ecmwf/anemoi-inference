@@ -80,6 +80,13 @@ class RunConfiguration(Configuration):
     - If True, the model will allow NaNs in the input and output.
     """
 
+    missing_value: int | float = 9.999e20
+    """The value used to replace NaN values when encoding GRIB output (requires allow_nans=True).
+    Must match the missingValue set in the GRIB templates used for output.
+    Using a large sentinel (default 9.999e20) avoids collision with physically valid
+    geophysical values (e.g. z_850 ~ 9999 m2/s2 over Switzerland).
+    """
+
     use_grib_paramid: bool = False
     """If True, the runner will use the grib parameter ID when generating MARS requests."""
 
