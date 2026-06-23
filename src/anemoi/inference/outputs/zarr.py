@@ -26,6 +26,7 @@ from anemoi.inference.types import State
 
 from ..decorators import format_dataset_name
 from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -78,6 +79,7 @@ def create_zarr_array(
 @output_registry.register("zarr")  # type: ignore
 @main_argument("store")
 @format_dataset_name("store")
+@supports_parallel_output("store")
 class ZarrOutput(Output):
     """Zarr output class."""
 
@@ -131,7 +133,7 @@ class ZarrOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-        self.zarr_store: StoreLike = store
+        self.zarr_store: "StoreLike" | None = store
         self.missing_value = missing_value
         self.chunks = chunks
         self.float_size = float_size

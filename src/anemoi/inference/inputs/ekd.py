@@ -18,6 +18,7 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
+from anemoi.transform.variables import Variable
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
@@ -322,6 +323,7 @@ class EkdInput(Input):
         fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
 
         check = defaultdict(set)
+        state_variables = {}
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
@@ -345,6 +347,8 @@ class EkdInput(Input):
                 LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
                 raise
 
+            state_variables[name] = Variable.from_earthkit(name, field)
+
             if date_idx in check[name]:
                 LOG.error("Duplicate dates for %s: %s", name, date_idx)
                 LOG.error("Expected %s", list(date_to_index.keys()))
@@ -352,7 +356,9 @@ class EkdInput(Input):
                 raise ValueError(f"Duplicate dates for {name}")
 
             check[name].add(date_idx)
+
         state["fields"] = state_fields
+
         for name, idx in check.items():
             if len(idx) != len(dates):
                 LOG.error("Missing dates for %s: %s", name, idx)
@@ -370,6 +376,7 @@ class EkdInput(Input):
         self.set_private_attributes(state, fields)
 
         state["_input"] = self
+        state["_variables"] = state_variables
 
         return state
 
@@ -406,7 +413,7 @@ class EkdInput(Input):
         flatten : bool
             Whether to flatten the data.
         constant: bool
-            Whether the field is constant or dynamic
+            Whether the field is constant or dynamic.
         ref_date_index: int = -1
             If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
@@ -480,10 +487,17 @@ class EkdInput(Input):
                 return combo[0]
             return None
 
-        if area := get_geography_info("mars_area"):
-            geography_information["area"] = area
-        if grid := get_geography_info("mars_grid"):
+        grid = get_geography_info("mars_grid")
+        if grid == "undefined":
+            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
             geography_information["grid"] = grid
+
+        else:  # If grid is undefined we don't want to add the area
+            if grid:
+                geography_information["grid"] = grid
+
+            if area := get_geography_info("mars_area"):
+                geography_information["area"] = area
 
         if geography_information:
             state["_geography"] = geography_information

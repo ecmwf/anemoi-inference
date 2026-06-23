@@ -22,6 +22,7 @@ from anemoi.inference.types import State
 from ..decorators import ensure_path
 from ..decorators import format_dataset_name
 from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -35,6 +36,7 @@ LOCK = threading.RLock()
 @output_registry.register("netcdf")
 @main_argument("path")
 @format_dataset_name("path")
+@supports_parallel_output("path")
 @ensure_path("path")
 class NetCDFOutput(Output):
     """NetCDF output class."""
@@ -86,10 +88,10 @@ class NetCDFOutput(Output):
 
         from netCDF4 import Dataset
 
-        self.path = path
         self.ncfile: Dataset | None = None
         self.float_size = float_size
         self.missing_value = missing_value
+        self.path = path
 
     def __repr__(self) -> str:
         """Return a string representation of the NetCDFOutput object."""
