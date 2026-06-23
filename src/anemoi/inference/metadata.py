@@ -118,7 +118,7 @@ class Metadata(LegacyMixin):
     @property
     def _config_task(self) -> DotDict:
         """Return the task configuration if it exists."""
-        return getattr(self._config, "task", DotDict)
+        return getattr(self._config, "task", DotDict())
 
     @property
     def _config_model(self) -> DotDict:
