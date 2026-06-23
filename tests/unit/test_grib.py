@@ -10,9 +10,9 @@
 
 import numpy as np
 import pytest
+from earthkit.data.readers.grib.codes import GribCodesHandle
 from earthkit.data.utils.dates import to_datetime
 from earthkit.data.utils.dates import to_timedelta
-from earthkit.data.readers.grib.codes import GribCodesHandle
 
 from anemoi.inference.grib.encoding import encode_message
 from anemoi.inference.grib.encoding import grib_keys
@@ -53,7 +53,6 @@ def _read_values(handle):
 )
 def test_encode_message_nan_becomes_bitmap(missing_value, expect_bitmap):
     """NaN values should be encoded as bitmap-missing, not as real data."""
-    import eccodes
 
     template = _make_template(missing_value=missing_value)
     ndp = template.handle.get("numberOfDataPoints")
@@ -81,7 +80,6 @@ def test_encode_message_nan_becomes_bitmap(missing_value, expect_bitmap):
 
 def test_encode_message_default_missing_value_is_9999():
     """Default missing_value should be 9999 (matches eccodes GRIB2 template default)."""
-    import eccodes
 
     template = _make_template(missing_value=9999)
     ndp = template.handle.get("numberOfDataPoints")
@@ -108,14 +106,13 @@ def test_encode_message_missing_value_collision():
     has a physically valid value that quantizes to exactly 9999, it will be incorrectly
     encoded as bitmap-missing.  Using a large sentinel (e.g. 9.999e20) avoids this.
     """
-    import eccodes
 
     template = _make_template(missing_value=9999)
     ndp = template.handle.get("numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
-    values[0] = np.nan       # intended missing
-    values[1] = 9999.0       # real value equal to sentinel — will also become missing
+    values[0] = np.nan  # intended missing
+    values[1] = 9999.0  # real value equal to sentinel — will also become missing
 
     handle = encode_message(
         values=values,
@@ -128,22 +125,19 @@ def test_encode_message_missing_value_collision():
     nv = handle.get("numberOfValues")
     bitmap_missing = ndp - nv
     # Both the NaN and the 9999 real value are treated as missing
-    assert bitmap_missing == 2, (
-        f"Expected 2 bitmap-missing (NaN + real 9999 collision), got {bitmap_missing}"
-    )
+    assert bitmap_missing == 2, f"Expected 2 bitmap-missing (NaN + real 9999 collision), got {bitmap_missing}"
 
 
 def test_encode_message_large_sentinel_no_collision():
     """Using a large sentinel (9.999e20) avoids collision with real geophysical values."""
-    import eccodes
 
     LARGE_SENTINEL = 9.999e20
     template = _make_template(missing_value=LARGE_SENTINEL)
     ndp = template.handle.get("numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
-    values[0] = np.nan       # intended missing
-    values[1] = 9999.0       # real value near old sentinel — should NOT become missing
+    values[0] = np.nan  # intended missing
+    values[1] = 9999.0  # real value near old sentinel — should NOT become missing
 
     handle = encode_message(
         values=values,
@@ -155,9 +149,7 @@ def test_encode_message_large_sentinel_no_collision():
 
     nv = handle.get("numberOfValues")
     bitmap_missing = ndp - nv
-    assert bitmap_missing == 1, (
-        f"Expected exactly 1 bitmap-missing (only the NaN), got {bitmap_missing}"
-    )
+    assert bitmap_missing == 1, f"Expected exactly 1 bitmap-missing (only the NaN), got {bitmap_missing}"
 
 
 @pytest.mark.parametrize(
