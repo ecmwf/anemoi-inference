@@ -86,13 +86,15 @@ class DatasetInput(Input):
             hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
         )
         if has_pre_processors:
-            LOG.warning(
-                "Pre-processors are configured for dataset '%s' but will NOT be applied "
-                "by '%s'. This input type reads data directly from a pre-built dataset "
-                "and does not invoke the pre-processor pipeline.",
-                self.dataset_name,
-                self.__class__.__name__,
+            msg = (
+                f"Pre-processors are configured for dataset '{self.dataset_name}' but will NOT be applied "
+                f"by '{self.__class__.__name__}'. This input type reads data directly from a pre-built dataset "
+                "and does not invoke the pre-processor pipeline."
             )
+            if hasattr(context, "_warn_once"):
+                context._warn_once(msg)
+            else:
+                LOG.warning(msg)
 
     @cached_property
     def ds(self) -> Any:
