@@ -92,6 +92,10 @@ class DatasetInput(Input):
             raise ValueError(
                 f"Expected dataset with 5 dimensions (base_dates, variables, ensembles, steps, cells) as a trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
             )
+        elif len(self.ds.shape) == 5 and not self.use_trajectories:
+            raise ValueError(
+                f"Expected dataset with 4 dimensions (base_dates, variables, ensembles, cells) as a non-trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
+            )
 
     @cached_property
     def ds(self) -> Any:
