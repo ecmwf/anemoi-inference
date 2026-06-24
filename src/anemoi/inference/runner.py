@@ -96,7 +96,6 @@ class Runner(Context):
         # override the default values set in `Context`
         self.verbosity = config.verbosity
         self.allow_nans = config.allow_nans
-        self.missing_value = config.missing_value
         self.use_grib_paramid = config.use_grib_paramid
         self.development_hacks = config.development_hacks
         self.hacks = bool(config.development_hacks)

@@ -139,6 +139,7 @@ class GribIoOutput(BaseGribOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
+        missing_value: int | float = 9.999e20,
     ) -> None:
         """Initialize the GribIOOutput.
 
@@ -163,6 +164,9 @@ class GribIoOutput(BaseGribOutput):
             The templates list or string, by default None.
         grib1_keys : dict, optional
             The grib1 keys dictionary, by default None.
+        missing_value : int or float, optional
+            Sentinel value used to replace NaNs before GRIB bitmap encoding (requires allow_nans=True).
+            Default 9.999e20 avoids collision with physically valid geophysical values (e.g. z_850 ~ 9999 m2/s2).
         grib2_keys : dict, optional
             The grib2 keys dictionary, by default None.
         modifiers : list, optional
@@ -203,6 +207,7 @@ class GribIoOutput(BaseGribOutput):
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
+        self.missing_value = missing_value
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
@@ -242,7 +247,7 @@ class GribIoOutput(BaseGribOutput):
                     template=template,
                     metadata=keys,
                     check_nans=self.context.allow_nans,
-                    missing_value=self.context.missing_value,
+                    missing_value=self.missing_value,
                 ),
                 template,
                 **keys,

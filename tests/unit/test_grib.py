@@ -78,10 +78,10 @@ def test_encode_message_nan_becomes_bitmap(missing_value, expect_bitmap):
     assert np.all(present == pytest.approx(8500.0)), "Non-NaN values should be unchanged"
 
 
-def test_encode_message_default_missing_value_is_9999():
-    """Default missing_value should be 9999 (matches eccodes GRIB2 template default)."""
+def test_encode_message_default_missing_value_is_large_sentinel():
+    """Default missing_value (9.999e20) avoids collision with physically valid geophysical values."""
 
-    template = _make_template(missing_value=9999)
+    template = _make_template(missing_value=9.999e20)
     ndp = template.handle.get("numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
@@ -92,7 +92,7 @@ def test_encode_message_default_missing_value_is_9999():
         template=template,
         metadata={},
         check_nans=True,
-        # missing_value not passed — should default to 9999
+        # missing_value not passed — should default to 9.999e20
     )
 
     nv = handle.get("numberOfValues")

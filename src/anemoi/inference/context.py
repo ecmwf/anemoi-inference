@@ -29,7 +29,6 @@ class Context(ABC):
     use_grib_paramid = False
     verbosity = 0
     development_hacks: dict[str, Any] = {}  # For testing purposes, don't use in production
-    missing_value: int | float = 9.999e20
 
     # Some runners will set these values, which can be queried by Output objects,
     # but may remain as None
