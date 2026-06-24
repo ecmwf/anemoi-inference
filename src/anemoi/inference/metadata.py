@@ -31,6 +31,7 @@ from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference._version import __version__
+from anemoi.inference.grib.encoding import shortname_to_paramid
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
@@ -759,7 +760,7 @@ class Metadata(LegacyMixin):
         *,
         variables: list[str],
         dates: list[Date],
-        use_grib_paramid: bool = False,
+        convert_grib_paramid: bool = False,
         always_split_time: bool = False,
         patch_request: Callable[[DataRequest], DataRequest] | None = None,
         dont_fail_for_missing_paramid: bool = False,
@@ -773,8 +774,8 @@ class Metadata(LegacyMixin):
             The list of variables.
         dates : list[Date]
             The list of dates.
-        use_grib_paramid : bool, optional
-            Whether to use GRIB paramid, by default False.
+        convert_grib_paramid : bool, optional
+            Whether to convert GRIB shortnames to paramid if paramid is missing, by default False.
         always_split_time : bool, optional
             Whether to always split time, by default False.
         patch_request : Optional[Callable], optional
@@ -789,8 +790,6 @@ class Metadata(LegacyMixin):
         List[DataRequest]
             The list of MARS requests.
         """
-        # TODO: this code should could somewhere else
-        from anemoi.utils.grib import shortname_to_paramid
         from earthkit.data.utils.availability import Availability
 
         assert variables, "No variables provided"
@@ -852,6 +851,9 @@ class Metadata(LegacyMixin):
                 for k, v in r.items():
                     if not isinstance(v, (list, tuple, set)):
                         v = [v]
+                    # convert all to string if there are mixed types (like str and int)
+                    if len(set(type(x) for x in v)) > 1:
+                        v = [str(x) for x in v]
                     r[k] = sorted(set(v))
 
                 # Patch BEFORE the shortname to paramid
@@ -862,9 +864,12 @@ class Metadata(LegacyMixin):
                 for k, v in r.items():
                     if not isinstance(v, (list, tuple, set)):
                         v = [v]
+                    # convert all to string if there are mixed types (like str and int)
+                    if len(set(type(x) for x in v)) > 1:
+                        v = [str(x) for x in v]
                     r[k] = sorted(set(v))
 
-                if use_grib_paramid and "param" in r:
+                if convert_grib_paramid and "param" in r:
 
                     def shortname_to_paramid_no_fail(x: str) -> str:
                         try:
@@ -919,16 +924,19 @@ class Metadata(LegacyMixin):
 
         for variable in variables:
 
-            if variable not in self.variables_metadata:
+            if variable not in self.typed_variables:
                 raise ValueError(f"Variable {variable} not found in the metadata")
 
-            if "mars" not in self.variables_metadata[variable]:
-                raise ValueError(f"Variable {variable} has no MARS metadata")
+            mars = self.typed_variables[variable].mars.copy()
 
-            mars = self.variables_metadata[variable]["mars"].copy()
+            if not mars:
+                raise ValueError(f"Variable {variable} has no MARS metadata")
 
             for k in ("date", "hdate", "time", "valid_datetime", "variable"):
                 mars.pop(k, None)
+
+            if paramId := self.typed_variables[variable].data.get("grib", {}).get("paramId"):
+                mars["param"] = paramId
 
             yield mars
 

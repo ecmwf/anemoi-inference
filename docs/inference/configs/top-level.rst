@@ -149,12 +149,15 @@ This option is set to ``false`` by default.
  Miscellaneous
 ***************
 
-use_grib_paramid:
+convert_grib_paramid:
 =================
 
-The ``use_grib_paramid`` option specifies whether to use the eccodes
-paramId instead of parameter names when appropriate. It is set to
-``false`` by default.
+By default, inference will attempt to use the GRIB paramId when constructing
+MARS requests and encoding GRIB output. If the paramId is missing from the metadata,
+it will fall back to using the value of ``param``, which is typically the shortName.
+In the fallback case, the ``convert_grib_paramid`` option specifies whether to
+convert the shortName to paramId using the anemoi-utils `shortname_to_paramid` function.
+It is set to ``false`` by default.
 
 env:
 ====

@@ -55,7 +55,7 @@ def checkpoint_to_requests(
     date: Date,
     staging_dates: str | None = None,
     forecast_dates: bool = False,
-    use_grib_paramid: bool = False,
+    convert_grib_paramid: bool = False,
     dont_fail_for_missing_paramid: bool = False,
     extra: list[str] | None = None,
     patch_request: Callable[[DataRequest], DataRequest] | None = None,
@@ -79,8 +79,8 @@ def checkpoint_to_requests(
         Path to a file with staging dates.
     forecast_dates : bool, optional
         Whether to use forecast dates (for forcings).
-    use_grib_paramid : bool, optional
-        Whether to use GRIB parameter IDs.
+    convert_grib_paramid : bool, optional
+        Whether to convert GRIB shortnames to paramid if paramid is missing.
     dont_fail_for_missing_paramid : bool, optional
         Whether to ignore missing parameter IDs.
     extra : list of str, optional
@@ -155,7 +155,7 @@ def checkpoint_to_requests(
     for r in metadata.mars_requests(
         dates=dates,
         variables=variables,
-        use_grib_paramid=use_grib_paramid,
+        convert_grib_paramid=convert_grib_paramid,
         patch_request=patch_request,
         always_split_time=use_scda,
         dont_fail_for_missing_paramid=dont_fail_for_missing_paramid,
@@ -286,7 +286,7 @@ class RetrieveCmd(Command):
             extra=args.extra,
             staging_dates=args.staging_dates,
             forecast_dates=args.forecast_dates,
-            use_grib_paramid=config.use_grib_paramid or args.use_grib_paramid,
+            convert_grib_paramid=config.convert_grib_paramid or args.use_grib_paramid,
             dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
             patch_request=lambda r: runner.patch_data_request(r, args.dataset_name),
             use_scda=args.use_scda,
@@ -311,6 +311,8 @@ class RetrieveCmd(Command):
 
         else:
             json.dump(requests, f, indent=4)
+
+        f.close()
 
 
 def _patch_scda(request: dict[str, Any]) -> None:

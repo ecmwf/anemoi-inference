@@ -31,6 +31,7 @@ from ..decorators import main_argument
 from ..decorators import supports_parallel_output
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
+from ..grib.encoding import shortname_to_paramid
 from . import output_registry
 from .grib import BaseGribOutput
 
@@ -296,18 +297,11 @@ class GribIoOutput(BaseGribOutput):
         indent = self.archive_requests.get("indent", None)
 
         def _patch(r: DataRequest) -> DataRequest:
-            if self.context.config.use_grib_paramid:
+            if self.context.convert_grib_paramid:
                 param = r.get("param", [])
                 if not isinstance(param, list):
                     param = [param]
-
-                # Check if we're using param ids already
-                try:
-                    float(next(iter(param)))
-                except ValueError:
-                    from anemoi.utils.grib import shortname_to_paramid
-
-                    r["param"] = [shortname_to_paramid(p) for p in param]
+                r["param"] = [shortname_to_paramid(p) for p in param]
 
             for k, v in patch.items():
                 if v is None:
