@@ -413,7 +413,7 @@ def encode_message(
     template: Any,
     metadata: dict[str, Any],
     check_nans: bool = False,
-    missing_value: int | float = 9.999e20,
+    missing_value: int | float = -9999,
 ) -> Any:
     """Encode a GRIB message.
 
@@ -542,7 +542,7 @@ class GribWriter:
         template: Any,
         metadata: dict[str, Any],
         check_nans: bool = False,
-        missing_value: int | float = 9.999e20,
+        missing_value: int | float = -9999,
     ) -> tuple:
         """Write a GRIB message to the target file.
 

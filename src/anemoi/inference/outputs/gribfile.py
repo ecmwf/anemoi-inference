@@ -139,7 +139,7 @@ class GribIoOutput(BaseGribOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
-        missing_value: int | float = 9.999e20,
+        missing_value: int | float = -9999,
     ) -> None:
         """Initialize the GribIOOutput.
 
@@ -166,7 +166,8 @@ class GribIoOutput(BaseGribOutput):
             The grib1 keys dictionary, by default None.
         missing_value : int or float, optional
             Sentinel value used to replace NaNs before GRIB bitmap encoding (requires allow_nans=True).
-            Default 9.999e20 avoids collision with physically valid geophysical values (e.g. z_850 ~ 9999 m2/s2).
+            Default -9999 avoids collision with physically valid geophysical values which are always positive
+            for most fields (e.g. z_850 ~ 9999 m2/s2 over Switzerland).
         grib2_keys : dict, optional
             The grib2 keys dictionary, by default None.
         modifiers : list, optional

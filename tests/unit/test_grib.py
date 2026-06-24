@@ -48,7 +48,7 @@ def _read_values(handle):
     "missing_value, expect_bitmap",
     [
         (9999, True),
-        (9.999e20, True),
+        (-9999, True),
     ],
 )
 def test_encode_message_nan_becomes_bitmap(missing_value, expect_bitmap):
@@ -78,10 +78,10 @@ def test_encode_message_nan_becomes_bitmap(missing_value, expect_bitmap):
     assert np.all(present == pytest.approx(8500.0)), "Non-NaN values should be unchanged"
 
 
-def test_encode_message_default_missing_value_is_large_sentinel():
-    """Default missing_value (9.999e20) avoids collision with physically valid geophysical values."""
+def test_encode_message_default_missing_value_is_negative_sentinel():
+    """Default missing_value (-9999) avoids collision with physically valid geophysical values."""
 
-    template = _make_template(missing_value=9.999e20)
+    template = _make_template(missing_value=-9999)
     ndp = template.handle.get("numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
@@ -92,7 +92,7 @@ def test_encode_message_default_missing_value_is_large_sentinel():
         template=template,
         metadata={},
         check_nans=True,
-        # missing_value not passed — should default to 9.999e20
+        # missing_value not passed — should default to -9999
     )
 
     nv = handle.get("numberOfValues")
@@ -128,23 +128,23 @@ def test_encode_message_missing_value_collision():
     assert bitmap_missing == 2, f"Expected 2 bitmap-missing (NaN + real 9999 collision), got {bitmap_missing}"
 
 
-def test_encode_message_large_sentinel_no_collision():
-    """Using a large sentinel (9.999e20) avoids collision with real geophysical values."""
+def test_encode_message_negative_sentinel_no_collision():
+    """Using a negative sentinel (-9999) avoids collision with real geophysical values."""
 
-    LARGE_SENTINEL = 9.999e20
-    template = _make_template(missing_value=LARGE_SENTINEL)
+    NEGATIVE_SENTINEL = -9999
+    template = _make_template(missing_value=NEGATIVE_SENTINEL)
     ndp = template.handle.get("numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
     values[0] = np.nan  # intended missing
-    values[1] = 9999.0  # real value near old sentinel — should NOT become missing
+    values[1] = 9999.0  # real value equal to old positive sentinel — should NOT become missing
 
     handle = encode_message(
         values=values,
         template=template,
         metadata={},
         check_nans=True,
-        missing_value=LARGE_SENTINEL,
+        missing_value=NEGATIVE_SENTINEL,
     )
 
     nv = handle.get("numberOfValues")
