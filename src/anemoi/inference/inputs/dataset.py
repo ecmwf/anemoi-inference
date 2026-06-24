@@ -113,6 +113,13 @@ class DatasetInput(Input):
         return dataset
 
     @cached_property
+    def ds_dates(self) -> np.ndarray:
+        """Return the dates of the dataset."""
+        if hasattr(self.ds, "base_dates"):
+            return self.ds.base_dates
+        return self.ds.dates
+
+    @cached_property
     def latitudes(self) -> FloatArray:
         """Return the latitudes."""
         return self.ds.latitudes
@@ -238,10 +245,10 @@ class DatasetInput(Input):
         int
             The index of the date in the dataset.
         """
-        (i,) = np.where(self.ds.base_dates == np.datetime64(date))
+        (i,) = np.where(self.ds_dates == np.datetime64(date))
         if len(i) == 0:
             raise ValueError(
-                f"Date {date} not found in the dataset, available base_dates: {self.ds.base_dates[0]}...{self.ds.base_dates[-1]}"
+                f"Date {date} not found in the dataset, available base_dates: {self.ds_dates[0]}...{self.ds_dates[-1]}"
             )
         assert len(i) == 1, f"Multiple dates found for {date}"
         return int(i[0])
