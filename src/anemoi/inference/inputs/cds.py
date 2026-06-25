@@ -68,7 +68,7 @@ def retrieve(
 
     pproc = postproc(grid, area)
 
-    result = ekd.from_source("empty")
+    result = ekd.from_source("empty").to_fieldlist()
     for r in requests:
         if isinstance(dataset, str):
             d = dataset
@@ -99,7 +99,7 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("cds", d, r)
+        result = concat(result, ekd.from_source("cds", d, r).to_fieldlist())
 
     return result
 
