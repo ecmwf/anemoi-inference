@@ -73,26 +73,26 @@ def validate_environment(
     Parameters
     ----------
     metadata : Metadata
-        Metadata object of the checkpoint, to validate against
+        Metadata object of the checkpoint, to validate against.
     all_packages : bool, optional
-        Check all packages in environment or just `anemoi`'s, by default False
+        Check all packages in environment or just `anemoi`'s, by default False.
     on_difference : Literal['warn', 'error', 'ignore'], optional
-        What to do on difference, by default "warn"
+        What to do on difference, by default "warn".
     exempt_packages : List[str], optional
-        List of packages to exempt from the check, by default EXEMPT_PACKAGES
+        List of packages to exempt from the check, by default EXEMPT_PACKAGES.
 
     Returns
     -------
     Union[bool, str]
-        boolean if `on_difference` is not 'return', otherwise formatted text of the differences
-        True if environment is valid, False otherwise
+        boolean if `on_difference` is not 'return', otherwise formatted text of the differences.
+        True if environment is valid, False otherwise.
 
     Raises
     ------
     RuntimeError
-        If found difference and `on_difference` is 'error'
+        If found difference and `on_difference` is 'error'.
     ValueError
-        If `on_difference` is not 'warn' or 'error'
+        If `on_difference` is not 'warn' or 'error'.
     """
     train_environment = metadata.provenance_training()
     inference_environment = gather_provenance_info(full=False)

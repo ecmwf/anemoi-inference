@@ -41,12 +41,10 @@ def fake_huggingface_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def fake_huggingface_ckpt(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Create a fake huggingface ckpt download.
 
-        Factory for temporary directories.
-
     Parameters
     ----------
     tmp_path_factory : pytest.TempPathFactory
-        Factory for temporary directories
+        Factory for temporary directories.
 
     Returns
     -------

@@ -91,7 +91,7 @@ class Input(ABC):
         Parameters
         ----------
         x : Any
-            input to pre-process
+            Input to pre-process.
 
         Return
         ------

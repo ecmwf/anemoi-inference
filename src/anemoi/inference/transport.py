@@ -154,7 +154,7 @@ class Transport(ABC):
         sender : Task
             The sender of the state.
         target : Task
-            The target
+            The target.
         state : State
             The state dictionary to send.
         tag : int

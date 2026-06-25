@@ -54,15 +54,21 @@ class EnvMapping:
         Parameters
         ----------
         keys : list[str] | None, optional
-            List of keys to check, by default None (checks all keys)
+            List of keys to check, by default None (checks all keys).
 
         Returns
         -------
         bool
-            True if all environment variables are set, False otherwise
+            True if all environment variables are set, False otherwise.
         """
         if keys is None:
-            keys = ["local_rank", "global_rank", "world_size", "master_addr", "master_port"]
+            keys = [
+                "local_rank",
+                "global_rank",
+                "world_size",
+                "master_addr",
+                "master_port",
+            ]
 
         for key in keys:
             if not self.get_env(key):

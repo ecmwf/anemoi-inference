@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+
 def pytest_configure(config):
     config.option.log_cli = False
     config.option.log_cli_level = "INFO"
