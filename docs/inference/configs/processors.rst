@@ -1,5 +1,9 @@
 .. _inference-processors:
 
+############
+ Processors
+############
+
 ################
  Pre-processors
 ################
@@ -77,6 +81,50 @@ grib, mars and cds) also accept a ``pre_processors`` argument
        global:
          grib:
            path: /path/to/global.grib
+
+################
+ Mid-processors
+################
+
+Mid-processors are applied during the rollout loop, after each inference
+step and before the next step's input is prepared. At this point the
+state still contains ``torch.Tensor`` values on the GPU, so
+mid-processors can perform efficient in-place modifications without
+costly device transfers.
+
+This makes them suitable for operations that must happen between model
+steps, such as clipping, renormalising, or applying physical constraints
+to the predicted fields before they are fed back into the model.
+
+Mid-processors use the same registry mechanism as pre- and
+post-processors. Any ``Processor`` registered with the
+``mid_processor_registry`` can be referenced by name in the
+configuration.
+
+**************************
+ Configuring mid-processors
+**************************
+
+List mid-processors under the ``mid_processors`` key:
+
+.. code:: yaml
+
+   mid_processors:
+     - my_mid_processor
+     - another_mid_processor:
+         arg1: value1
+
+Mid-processors are applied in the order they are listed.
+
+For multi-dataset runs, per-dataset mid-processors can be specified in
+the same way as pre- and post-processors:
+
+.. code:: yaml
+
+   mid_processors:
+     - my_mid_processor:
+         datasets:
+           - dataset_0
 
 #################
  Post-processors
