@@ -54,8 +54,9 @@ Setting `use_trajectories` in a dataset input will allow for the model to be ini
 .. code:: yaml
 
    input:
-      test:
-       use_trajectories: true
+      dataset:
+         PATH_GOES_HERE
+         use_trajectories: true
 
 ******
  grib
