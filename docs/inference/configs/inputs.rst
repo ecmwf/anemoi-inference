@@ -41,6 +41,23 @@ You can also provide a full dataset specification as follows:
 See :ref:`anemoi-datasets:opening-datasets` in the documentation of the
 `anemoi-datasets` package for more information on how to open datasets.
 
+#################
+Trajectory Inputs
+#################
+
+`anemoi-datasets` `v0.5.38` introduced a new feature to allow for trajectory datasets, introducing a 5th dimension to the dataset.
+This allows for forecasts to be included in the dataset, and for the model to initialised from steps of a model, not just the analysis.
+
+Setting `use_trajectories` in a dataset input will allow for the model to be initialised from the forecast, filtering by valid_time, rather than just the basetime.
+
+
+.. code:: yaml
+
+   input:
+      dataset:
+         PATH_GOES_HERE
+         use_trajectories: true
+
 ******
  grib
 ******
