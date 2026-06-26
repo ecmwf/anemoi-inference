@@ -10,6 +10,7 @@
 
 import json
 import logging
+import warnings
 from functools import cached_property
 from typing import Any
 
@@ -95,6 +96,7 @@ class DatasetInput(Input):
                 context._warn_once(msg)
             else:
                 LOG.warning(msg)
+                warnings.warn(msg, UserWarning, stacklevel=2)
 
     @cached_property
     def ds(self) -> Any:

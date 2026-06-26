@@ -918,4 +918,5 @@ class Runner(Context):
         """Log a warning message only once."""
         if message not in self.quiet:
             LOG.warning(message)
+            warnings.warn(message, UserWarning, stacklevel=2)
             self.quiet.add(message)
