@@ -10,7 +10,6 @@
 import warnings
 from types import SimpleNamespace
 
-
 from anemoi.inference.inputs.dataset import DatasetInput
 
 _CTX = SimpleNamespace(verbosity=0, reference_date=None)
