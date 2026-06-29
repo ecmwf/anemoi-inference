@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.11.2](https://github.com/ecmwf/anemoi-inference/compare/0.11.1...0.11.2) (2026-06-29)
+
+
+### Features
+
+* **dataset input:** Add warning for preprocessors ([#525](https://github.com/ecmwf/anemoi-inference/issues/525)) ([eaeb36f](https://github.com/ecmwf/anemoi-inference/commit/eaeb36fae30c754a03b8dc0442fc56373b6bedef))
+* Enable trajectory datasets for temporal downscaler ([#519](https://github.com/ecmwf/anemoi-inference/issues/519)) ([68ceb80](https://github.com/ecmwf/anemoi-inference/commit/68ceb80167418efc60a65ce2e52bf3e6f4346233))
+* **outputs/grib:** Allow configuration of grib missing_value sentinel ([#526](https://github.com/ecmwf/anemoi-inference/issues/526)) ([5aeab45](https://github.com/ecmwf/anemoi-inference/commit/5aeab450af6fc8f8284a09f896f90ddb34d78689))
+
 ## [0.11.1](https://github.com/ecmwf/anemoi-inference/compare/0.11.0...0.11.1) (2026-06-22)
 
 
