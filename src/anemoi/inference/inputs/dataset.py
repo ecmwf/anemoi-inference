@@ -258,8 +258,7 @@ class DatasetInput(Input):
         else:
             diff = idx[1] - idx[0]
             if not all(i == diff for i in np.diff(idx)):
-                # TODO: remove that restriction
-                raise ValueError("Dates do not have the same frequency")
+                return np.stack([self.ds[i] for i in idx], axis=0)
             s = slice(idx[0], idx[-1] + 1, diff)
 
         return self.ds[s]
