@@ -520,15 +520,12 @@ class Metadata(LegacyMixin):
         FieldList
             The named fields.
         """
-        from earthkit.data.indexing.fieldlist import FieldArray
+        from anemoi.inference.inputs.ekd import _name_fields
 
         if namer is None:
             namer = self.default_namer()
 
-        def _name(field: ekd.Field, _: str, original_metadata: dict[str, Any]) -> str:
-            return namer(field, original_metadata)
-
-        return FieldArray([f.clone(name=_name) for f in fields])
+        return _name_fields(fields, namer)
 
     def sort_by_name(
         self,
@@ -556,7 +553,7 @@ class Metadata(LegacyMixin):
             The sorted fields.
         """
         fields = self.name_fields(fields, namer=namer)
-        return fields.order_by("name", *args, **kwargs)
+        return fields.order_by("labels.name", *args, **kwargs)
 
     ###########################################################################
     # Default namer
@@ -583,11 +580,9 @@ class Metadata(LegacyMixin):
         def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
             # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
-            param, levelist, levtype = (
-                metadata.get("param"),
-                metadata.get("levelist"),
-                metadata.get("levtype"),
-            )
+            param = metadata.get("param")
+            levelist = metadata.get("levelist")
+            levtype = metadata.get("levtype")
 
             # Bug in eccodes that returns levelist for single level fields in GRIB2
             if levtype in ("sfc", "o2d"):
