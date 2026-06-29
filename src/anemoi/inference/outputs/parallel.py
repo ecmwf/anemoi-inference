@@ -49,12 +49,31 @@ def _detach_tensors(obj: Any) -> Any:
     return obj
 
 
+def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
+    """Convert a dict of earthkit fields to a dict of raw GRIB bytes so they can be pickled."""
+    result = {}
+    for name, field in templates.items():
+        try:
+            result[name] = field.message()
+        except Exception as e:
+            LOG.warning("Could not serialise GRIB template for '%s': %s", name, e)
+    return result
+
+
 def _sanitise_state(state: State) -> State:
     """Remove private keys and convert tensors so the state is safe to pickle."""
 
-    unpicklable_keys = ["_grib_templates_for_output", "_input"]
+    unpicklable_keys = ["_input"]
 
     state = state.copy()
+
+    # Serialise GRIB templates to raw bytes so they survive pickling into writer processes.
+    # The writer reconstructs ekd.Field objects from these bytes via _grib_templates_bytes_for_output.
+    if (templates := state.get("_grib_templates_for_output")) is not None:
+        state["_grib_templates_bytes_for_output"] = _serialise_grib_templates(templates)
+        state.pop("_grib_templates_for_output")
+        LOG.debug("Serialised %d GRIB templates to bytes for writer process", len(templates))
+
     for key in unpicklable_keys:
         if state.get(key) is not None:
             state.pop(key)

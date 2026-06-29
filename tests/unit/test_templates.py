@@ -11,9 +11,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+import eccodes
 import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
+from earthkit.data.readers.grib.codes import GribCodesHandle
 from earthkit.data.readers.grib.codes import GribField
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
@@ -22,8 +24,11 @@ from rich import print
 from anemoi.inference.grib.encoding import GribWriter
 from anemoi.inference.grib.encoding import check_encoding
 from anemoi.inference.grib.encoding import grib_keys
+from anemoi.inference.grib.templates.input import InputTemplates
+from anemoi.inference.grib.templates.input import _GribHandleWrapper
 from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.outputs.parallel import _sanitise_state
 from anemoi.inference.testing import files_for_tests
 
 
@@ -219,3 +224,109 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
         handle, _ = output.write(values=None, template=template, metadata=metadata)
         check_encoding(handle, metadata)
         output.close()
+
+
+# ── Parallel output: GRIB template serialisation / reconstruction ────────────
+
+
+def _make_grib_field_mock(short_name: str, bits_per_value: int) -> object:
+    """Create a minimal mock field whose .message() returns real GRIB bytes."""
+    raw = eccodes.codes_grib_new_from_samples("regular_ll_sfc_grib2")
+    eccodes.codes_set(raw, "shortName", short_name)
+    eccodes.codes_set(raw, "bitsPerValue", bits_per_value)
+    msg = eccodes.codes_get_message(raw)
+    eccodes.codes_release(raw)
+
+    class _MockField:
+        def message(self):
+            return msg
+
+    return _MockField()
+
+
+def test_sanitise_state_serialises_grib_templates():
+    """_sanitise_state converts _grib_templates_for_output to picklable bytes."""
+    field = _make_grib_field_mock("2t", bits_per_value=16)
+    state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
+
+    sanitised = _sanitise_state(state)
+
+    assert "_grib_templates_for_output" not in sanitised
+    assert "_grib_templates_bytes_for_output" in sanitised
+    assert isinstance(sanitised["_grib_templates_bytes_for_output"]["2t"], bytes)
+
+
+def test_sanitise_state_bytes_are_picklable():
+    """Bytes produced by _sanitise_state survive a pickle round-trip."""
+    import pickle
+
+    field = _make_grib_field_mock("2t", bits_per_value=16)
+    state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
+    sanitised = _sanitise_state(state)
+
+    restored = pickle.loads(pickle.dumps(sanitised))
+    assert isinstance(restored["_grib_templates_bytes_for_output"]["2t"], bytes)
+
+
+def test_input_templates_reconstruct_from_bytes(mocker: MockerFixture):
+    """InputTemplates falls back to bytes and reconstructs a usable handle wrapper."""
+    field = _make_grib_field_mock("2t", bits_per_value=16)
+    state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
+    sanitised = _sanitise_state(state)
+
+    owner = mocker.MagicMock()
+    owner.metadata = _metadata()
+    provider = InputTemplates(owner)
+
+    template = provider.template("2t", {}, state=sanitised)
+
+    assert isinstance(template, _GribHandleWrapper)
+    assert template.metadata("shortName") == "2t"
+    assert template.metadata("bitsPerValue") == 16
+
+
+def test_input_templates_reconstruct_preserves_bits_per_value(mocker: MockerFixture):
+    """Reconstructed template preserves the original bitsPerValue so packing is identical."""
+    for bpv in (16, 24):
+        field = _make_grib_field_mock("2t", bits_per_value=bpv)
+        state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
+        sanitised = _sanitise_state(state)
+
+        owner = mocker.MagicMock()
+        owner.metadata = _metadata()
+        provider = InputTemplates(owner)
+
+        template = provider.template("2t", {}, state=sanitised)
+        assert template.metadata("bitsPerValue") == bpv, f"expected bpv={bpv}"
+
+
+def test_input_templates_reconstruct_caches_result(mocker: MockerFixture):
+    """After reconstruction, the wrapper is cached in _grib_templates_for_output."""
+    field = _make_grib_field_mock("2t", bits_per_value=16)
+    state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
+    sanitised = _sanitise_state(state)
+
+    owner = mocker.MagicMock()
+    owner.metadata = _metadata()
+    provider = InputTemplates(owner)
+
+    provider.template("2t", {}, state=sanitised)
+
+    assert "2t" in sanitised.get("_grib_templates_for_output", {})
+
+
+def test_input_templates_reconstructed_handle_is_cloneable(mocker: MockerFixture):
+    """The reconstructed wrapper's handle can be cloned — required by encode_message."""
+    field = _make_grib_field_mock("2t", bits_per_value=16)
+    state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
+    sanitised = _sanitise_state(state)
+
+    owner = mocker.MagicMock()
+    owner.metadata = _metadata()
+    provider = InputTemplates(owner)
+
+    template = provider.template("2t", {}, state=sanitised)
+    cloned = template.handle.clone()
+
+    assert isinstance(cloned, GribCodesHandle)
+    assert eccodes.codes_get(cloned._handle, "bitsPerValue") == 16
