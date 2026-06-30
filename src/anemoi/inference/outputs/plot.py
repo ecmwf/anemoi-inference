@@ -134,8 +134,8 @@ class PlotOutput(Output):
         state : State
             The state dictionary.
         """
-        import earthkit.data as ekd
         import earthkit.plots as ekp
+        from anemoi.transform import Field
         from earthkit.data.core.field import Field
 
         if self.schema:

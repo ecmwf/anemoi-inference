@@ -11,7 +11,6 @@ import datetime
 import logging
 from typing import Any
 
-import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context

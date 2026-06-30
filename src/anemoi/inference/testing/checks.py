@@ -36,7 +36,6 @@ def check_grib(
     **kwargs,
 ) -> None:
     LOG.info(f"Checking GRIB file: {file}")
-    import earthkit.data as ekd
     import numpy as np
     from earthkit.data.utils.dates import to_datetime
 
@@ -104,7 +103,6 @@ def check_grib_cutout(
     """check shape and values of inner region against a reference GRIB"""
 
     LOG.info(f"Checking cutout: {file}")
-    import earthkit.data as ekd
     import numpy as np
 
     ds = ekd.from_source("file", file).to_fieldlist()

@@ -14,7 +14,8 @@ import datetime
 import logging
 from collections.abc import Callable
 
-import earthkit.data as ekd
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from anemoi.inference.inputs.ekd import _get_metadata_dict
 from anemoi.inference.types import FloatArray
@@ -23,7 +24,7 @@ from anemoi.inference.types import State
 LOG = logging.getLogger(__name__)
 
 
-def _create_state_field(name: str, values: FloatArray, state: State) -> ekd.Field:
+def _create_state_field(name: str, values: FloatArray, state: State) -> Field:
     """Create an earthkit Field from a state field.
 
     Parameters
@@ -37,7 +38,7 @@ def _create_state_field(name: str, values: FloatArray, state: State) -> ekd.Fiel
 
     Returns
     -------
-    ekd.Field
+    Field
         The created field.
     """
     labels = {"name": name}
@@ -46,7 +47,7 @@ def _create_state_field(name: str, values: FloatArray, state: State) -> ekd.Fiel
         if isinstance(v, (str, int, float, bool)):
             labels[k] = v
 
-    return ekd.Field.from_components(
+    return Field.from_components(
         values=values,
         parameter={"variable": name},
         labels=labels,
@@ -60,7 +61,7 @@ class _StateFieldMarker:
     pass
 
 
-def wrap_state(state: State) -> ekd.FieldList:
+def wrap_state(state: State) -> FieldList:
     """Transform a state dictionary into an earthkit.data field list.
 
     Parameters
@@ -70,7 +71,7 @@ def wrap_state(state: State) -> ekd.FieldList:
 
     Returns
     -------
-    ekd.FieldList
+    FieldList
         The transformed field list.
     """
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
@@ -83,12 +84,12 @@ def wrap_state(state: State) -> ekd.FieldList:
     return ekd.create_fieldlist(fields)
 
 
-def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
+def unwrap_state(fields: FieldList, state: State, namer: Callable) -> State:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters
     ----------
-    fields : ekd.FieldList
+    fields : FieldList
         The field list to be transformed.
     state : State
         The original state dictionary.
@@ -102,7 +103,7 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
     """
     new_fields = {}
 
-    # namer(field: ekd.Field, metadata: Dict[str, Any]) -> str:
+    # namer(field: Field, metadata: Dict[str, Any]) -> str:
 
     for n in fields:
         md = _get_metadata_dict(n)

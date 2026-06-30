@@ -16,8 +16,9 @@ from collections.abc import Callable
 from functools import cached_property
 from typing import Any
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 from anemoi.transform.variables import Variable
 from earthkit.data import create_fieldlist
 from earthkit.data.utils.dates import to_datetime
@@ -107,12 +108,12 @@ def _name_fields(data: Any, namer: callable) -> Any:
     return create_fieldlist(named)
 
 
-def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
+def find_variable(data: FieldList, name: str, namer: callable, **kwargs: Any) -> FieldList:
     """Find a variable in an earthkit FieldList.
 
     Parameters
     ----------
-    data : ekd.FieldList
+    data : FieldList
         The data to search.
     name : str
         The name of the variable to find.
@@ -123,7 +124,7 @@ def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
 
     Returns
     -------
-    ekd.FieldList
+    FieldList
         The selected variable (FieldList subset).
     """
     data = _name_fields(data, namer)
@@ -146,12 +147,12 @@ class RulesNamer:
         self.rules = rules
         self.default_namer = default_namer
 
-    def __call__(self, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
+    def __call__(self, field: Field, original_metadata: dict[str, Any]) -> str:
         """Generate a name for the field.
 
         Parameters
         ----------
-        field : ekd.Field
+        field : Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
             The original metadata of the field.
@@ -172,14 +173,14 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template: str, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
+    def substitute(self, template: str, field: Field, original_metadata: dict[str, Any]) -> str:
         """Substitute placeholders in the template with metadata values.
 
         Parameters
         ----------
         template : str
             The template string with placeholders.
-        field : ekd.Field
+        field : Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
             The original metadata of the field.
@@ -229,18 +230,18 @@ class EkdInput(Input):
 
     def _filter_and_sort(
         self,
-        data: ekd.FieldList,
+        data: FieldList,
         *,
         dates: list[Date],
         title: str,
         select_reference_date: bool = False,
         **kwargs,
-    ) -> ekd.FieldList:
+    ) -> FieldList:
         """Filter and sort the earthkit FieldList.
 
         Parameters
         ----------
-        data : ekd.FieldList
+        data : FieldList
             The data to filter and sort.
         dates : List[Date]
             The list of dates to select.
@@ -254,7 +255,7 @@ class EkdInput(Input):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The filtered and sorted data.
         """
 
@@ -283,12 +284,12 @@ class EkdInput(Input):
 
         return data
 
-    def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
+    def _find_variable(self, data: FieldList, name: str, **kwargs: Any) -> FieldList:
         """Find a variable in the earthkit FieldList selection.
 
         Parameters
         ----------
-        data : ekd.FieldList
+        data : FieldList
             The data to search.
         name : str
             The name of the variable to find.
@@ -297,7 +298,7 @@ class EkdInput(Input):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The selected variable (FieldList subset).
         """
 
@@ -305,7 +306,7 @@ class EkdInput(Input):
 
     def _create_state(
         self,
-        fields: ekd.FieldList,
+        fields: FieldList,
         *,
         dates: list[Date],
         latitudes: FloatArray | None = None,
@@ -315,7 +316,7 @@ class EkdInput(Input):
         ref_date_index: int = -1,
         **kwargs,
     ) -> State:
-        """Create a state from an ekd.FieldList.
+        """Create a state from an FieldList.
 
         Notes
         -----
@@ -326,7 +327,7 @@ class EkdInput(Input):
 
         Parameters
         ----------
-        fields : ekd.FieldList
+        fields : FieldList
             The ekd fields.
         dates : List[Date]
             The dates for which to create the input state.
@@ -450,7 +451,7 @@ class EkdInput(Input):
 
     def _create_input_state(
         self,
-        input_fields: ekd.FieldList,
+        input_fields: FieldList,
         *,
         date: Date | None = None,
         variables: list[str] | None = None,
@@ -466,7 +467,7 @@ class EkdInput(Input):
 
         Parameters
         ----------
-        input_fields : ekd.FieldList
+        input_fields : FieldList
             The input fields.
         date : Date
             The date for which to create the input state.
@@ -513,12 +514,12 @@ class EkdInput(Input):
             **kwargs,
         )
 
-    def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
+    def _load_forcings_state(self, fields: FieldList, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state.
 
         Parameters
         ----------
-        fields : ekd.FieldList
+        fields : FieldList
             The fields to load.
         dates : List[Any]
             The list of dates to load.
@@ -539,7 +540,7 @@ class EkdInput(Input):
             flatten=True,
         )
 
-    def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
+    def set_private_attributes(self, state: State, fields: FieldList) -> None:  # type: ignore
         """Set private attributes to the state.
 
         Provides geography information if available retrieved from the fields.
@@ -639,7 +640,7 @@ class FieldlistInput(EkdInput):
         )
 
     @cached_property
-    def _fieldlist(self) -> ekd.FieldList:
+    def _fieldlist(self) -> FieldList:
         """Get the input fieldlist from the file or collection."""
         path = self.path
 
@@ -649,7 +650,7 @@ class FieldlistInput(EkdInput):
             files = [p for p in matches if os.path.isfile(p)]
             if not files:
                 LOG.warning("No files matched pattern %r", path)
-                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+                return FieldList()  # type: ignore[reportReturnType]
             return ekd.from_source("file", sorted(files)).to_fieldlist()  # type: ignore[reportReturnType]
 
         # Case 2: directory path -> search for files recursively
@@ -660,16 +661,16 @@ class FieldlistInput(EkdInput):
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
                 LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
-                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+                return FieldList()  # type: ignore[reportReturnType]
             return ekd.from_source("file", files).to_fieldlist()  # type: ignore[reportReturnType]
 
         # Case 3: single file path
         try:
             if os.path.getsize(path) == 0:
                 LOG.warning("File %r is empty", path)
-                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+                return FieldList()  # type: ignore[reportReturnType]
         except FileNotFoundError:
             LOG.warning("Path %r not found", path)
-            return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+            return FieldList()  # type: ignore[reportReturnType]
 
         return ekd.from_source("file", path).to_fieldlist()  # type: ignore[reportReturnType]

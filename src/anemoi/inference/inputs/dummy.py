@@ -15,8 +15,8 @@ These values are then tested in the mock model.
 
 import logging
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -81,7 +81,7 @@ class DummyInput(EkdInput):
             current_state=current_state,
         )
 
-    def _fields(self, dates: list[Date], variables) -> ekd.FieldList:
+    def _fields(self, dates: list[Date], variables) -> FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters
@@ -93,7 +93,7 @@ class DummyInput(EkdInput):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The generated fields.
         """
 

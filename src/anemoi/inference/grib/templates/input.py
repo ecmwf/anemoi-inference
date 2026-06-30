@@ -10,7 +10,7 @@
 import logging
 from typing import Any
 
-import earthkit.data as ekd
+from anemoi.transform import Field
 
 from anemoi.inference.types import State
 
@@ -53,7 +53,7 @@ class InputTemplates(TemplateProvider):
         *,
         state: State,
         **kwargs,
-    ) -> ekd.Field | None:
+    ) -> Field | None:
         if template := state.get("_grib_templates_for_output", {}).get(variable):
             return template
 

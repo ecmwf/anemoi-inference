@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Hashable
 
-import earthkit.data as ekd
+from anemoi.transform import Field
 from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.types import FloatArray
@@ -117,7 +117,7 @@ STEP_TYPE = {
 def encode_time_processing(
     *,
     result: dict[str, Any],
-    template: ekd.Field,
+    template: Field,
     variable: "Variable",
     date: datetime,
     step: timedelta,
@@ -132,7 +132,7 @@ def encode_time_processing(
     ----------
     result : dict[str, Any]
         The result dictionary to update.
-    template : ekd.Field
+    template : Field
         The template field.
     variable : Variable
         The variable containing time processing information.
@@ -207,7 +207,7 @@ LEVTYPES = {
 def grib_keys(
     *,
     values: FloatArray,
-    template: ekd.Field,
+    template: Field,
     variable: "Variable",
     ensemble: bool,
     param: int | float | str | None,
@@ -225,7 +225,7 @@ def grib_keys(
     ----------
     values : FloatArray
         The values to encode.
-    template : ekd.Field
+    template : Field
         The template to use.
     variable : Variable
         The variable containing GRIB keys.

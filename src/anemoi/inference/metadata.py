@@ -22,8 +22,9 @@ from typing import Any
 from typing import Literal
 
 import deprecation
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -494,7 +495,7 @@ class Metadata(LegacyMixin):
         """Return the indices of the variables that are accumulations."""
         return [v.name for v in self.typed_variables.values() if v.is_accumulation]
 
-    def name_fields(self, fields: ekd.FieldList, namer: Callable[..., str] | None = None) -> "FieldList":
+    def name_fields(self, fields: FieldList, namer: Callable[..., str] | None = None) -> "FieldList":
         """Name fields using the provided namer.
 
         Parameters
@@ -518,16 +519,16 @@ class Metadata(LegacyMixin):
 
     def sort_by_name(
         self,
-        fields: ekd.FieldList,
+        fields: FieldList,
         *args: Any,
         namer: Callable[..., Any] | None = None,
         **kwargs: Any,
-    ) -> ekd.FieldList:
+    ) -> FieldList:
         """Sort fields by name.
 
         Parameters
         ----------
-        fields : ekd.FieldList
+        fields : FieldList
             The fields to sort.
         args : Any
             Additional arguments.
@@ -538,7 +539,7 @@ class Metadata(LegacyMixin):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The sorted fields.
         """
         fields = self.name_fields(fields, namer=namer)
@@ -566,7 +567,7 @@ class Metadata(LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
-        def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
+        def namer(field: Field, metadata: dict[str, Any]) -> str:
             # TODO: Return the `namer` used when building the dataset
             warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param = metadata.get("param")

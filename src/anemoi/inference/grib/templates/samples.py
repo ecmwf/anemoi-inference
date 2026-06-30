@@ -11,7 +11,7 @@ import logging
 import os
 from typing import Any
 
-import earthkit.data as ekd
+from anemoi.transform import Field
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
@@ -33,7 +33,7 @@ class SamplesTemplates(IndexTemplateProvider):
 
         return super().__init__(manager, [*args])
 
-    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> Field | None:
         template = grib.format(**lookup)
         if not os.path.exists(template):
             LOG.warning(f"Template not found: {template}")

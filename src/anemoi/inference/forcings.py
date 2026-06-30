@@ -14,7 +14,6 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
-import earthkit.data as ekd
 import numpy as np
 from earthkit.data import create_fieldlist
 

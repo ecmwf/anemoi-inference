@@ -11,7 +11,7 @@
 import logging
 from typing import Any
 
-import earthkit.data as ekd
+from anemoi.transform import FieldList
 
 from .ekd import EkdInput
 
@@ -21,14 +21,14 @@ LOG = logging.getLogger(__name__)
 class GribInput(EkdInput):
     """Handles GRIB input fields."""
 
-    def set_private_attributes(self, state: Any, fields: ekd.FieldList) -> None:
+    def set_private_attributes(self, state: Any, fields: FieldList) -> None:
         """Set private attributes for the state.
 
         Parameters
         ----------
         state : Any
             The state to set private attributes for.
-        fields : ekd.FieldList
+        fields : FieldList
             The input fields.
         """
         # For now we just pass all the fields

@@ -11,7 +11,6 @@
 import logging
 import tempfile
 
-import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
