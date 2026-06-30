@@ -14,10 +14,8 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
-import earthkit.data as ekd
 import numpy as np
-from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
-from earthkit.data.indexing.fieldlist import FieldArray
+from earthkit.data import create_fieldlist
 
 from anemoi.inference.inputs.dataset import DatasetInput
 from anemoi.inference.types import Date
@@ -156,21 +154,20 @@ class ComputedForcings(Forcings):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        source = UnstructuredGridFieldList.from_values(
+        ds = ekd.from_source(
+            "forcings",
+            None,
+            date=dates,
+            param=self.variables,
             latitudes=current_state["latitudes"],
             longitudes=current_state["longitudes"],
-        )
-
-        ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
+        ).to_fieldlist()
 
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
 
-        def rename(field: ekd.Field, _: str, metadata: dict[str, Any]) -> str:
-            return metadata["param"]
+        ds = create_fieldlist([f.set(**{"labels.name": f.parameter.variable()}) for f in ds])
 
-        ds = FieldArray([f.clone(name=rename) for f in ds])
-
-        forcing = ds.order_by(name=self.variables, valid_datetime="ascending")
+        forcing = ds.order_by(**{"labels.name": self.variables, "time.valid_datetime": "ascending"})
 
         # Forcing are sorted by `compute_forcings`  in the order (variable, date)
 

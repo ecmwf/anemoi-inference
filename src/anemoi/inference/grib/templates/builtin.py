@@ -13,7 +13,7 @@ import os
 import zlib
 from typing import Any
 
-import earthkit.data as ekd
+from anemoi.transform import Field
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
@@ -39,6 +39,6 @@ class BuiltinTemplates(IndexTemplateProvider):
 
         super().__init__(manager, index_path)
 
-    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> Field | None:
         template = zlib.decompress(base64.b64decode(grib))
-        return ekd.from_source("memory", template)[0]
+        return ekd.from_source("memory", template).to_fieldlist()[0]
