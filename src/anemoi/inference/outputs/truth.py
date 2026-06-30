@@ -49,11 +49,18 @@ class TruthOutput(ForwardOutput):
 
         super().__init__(context, metadata, output, None, **kwargs)
 
-        self._input = context.prognostics_inputs[metadata.dataset_name]
+        self._prog_input = context.prognostics_inputs[metadata.dataset_name]
+        self._dynamic_forc_input = context.dynamic_forcings_inputs[metadata.dataset_name]
+        self._constant_forc_input = context.constant_forcings_inputs[metadata.dataset_name]
 
     def modify_state(self, state: State) -> State:
         """Modify state by overriding it with the truth state."""
-        truth_state = self.reduce(self._input.create_input_state(date=state["date"]))
+        state = self.context._combine_states(  # type: ignore
+            self._prog_input.create_input_state(date=state["date"]),
+            self._constant_forc_input.create_input_state(date=state["date"]),
+            self._dynamic_forc_input.create_input_state(date=state["date"]),
+        )
+        truth_state = self.reduce(state)
         truth_state["step"] = state.get("step", 0)
         return truth_state
 
