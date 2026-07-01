@@ -105,3 +105,4 @@ ini_options.markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]
 ini_options.testpaths = "tests"
+ini_options.pythonpath = [ "tests" ]
