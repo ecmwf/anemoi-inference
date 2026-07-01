@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 from anemoi.utils.testing import GetTestData
-from earthkit.data.core.field import Field as EkdField
-from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
 
@@ -76,17 +76,17 @@ def test_builtin(manager, variable, expected_param):
     manager = manager()
     template = manager.template(variable, state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, EkdField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == expected_param
 
 
 @pytest.mark.parametrize(
     "file_config, variable, expected_param, expected_type",
     [
-        pytest.param({}, "2t", "10u", EkdField, id="first"),
-        pytest.param({"mode": "last"}, "2t", "v", EkdField, id="last"),
-        pytest.param({"mode": "auto"}, "2t", "2t", EkdField, id="auto-sfc"),
-        pytest.param({"mode": "auto"}, "w_100", "w", EkdField, id="auto-pl"),
+        pytest.param({}, "2t", "10u", Field, id="first"),
+        pytest.param({"mode": "last"}, "2t", "v", Field, id="last"),
+        pytest.param({"mode": "auto"}, "2t", "2t", Field, id="auto-sfc"),
+        pytest.param({"mode": "auto"}, "w_100", "w", Field, id="auto-pl"),
         pytest.param({"mode": "auto"}, "unknown", None, type(None), id="auto unknown"),
         pytest.param({"variables": "10u"}, "2t", None, type(None), id="skip variable"),
     ],
@@ -114,7 +114,7 @@ def test_samples_index_path(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, EkdField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -125,7 +125,7 @@ def test_samples_index_path_str(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, EkdField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -136,7 +136,7 @@ def test_samples_direct_index(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, EkdField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -208,7 +208,7 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
             variable=variable,
             param=variable.param,
             date=datetime.now(),
-            step=to_timedelta(6),
+            step=FieldList.to_timedelta(6),
             keys=keys,
             ensemble=False,
             start_steps={},

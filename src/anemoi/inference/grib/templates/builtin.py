@@ -14,6 +14,7 @@ import zlib
 from typing import Any
 
 from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
@@ -41,4 +42,4 @@ class BuiltinTemplates(IndexTemplateProvider):
 
     def load_template(self, grib: str, lookup: dict[str, Any]) -> Field | None:
         template = zlib.decompress(base64.b64decode(grib))
-        return ekd.from_source("memory", template).to_fieldlist()[0]
+        return FieldList.from_source("memory", template)[0]

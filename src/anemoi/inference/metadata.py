@@ -17,7 +17,6 @@ from collections.abc import Callable
 from collections.abc import Iterator
 from functools import cached_property
 from types import MappingProxyType as frozendict
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
@@ -29,7 +28,6 @@ from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
-from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -38,9 +36,6 @@ from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 
 from .legacy import LegacyMixin
-
-if TYPE_CHECKING:
-    from earthkit.data import FieldList
 
 USE_LEGACY = True
 
@@ -781,14 +776,13 @@ class Metadata(LegacyMixin):
         """
         # TODO: this code should could somewhere else
         from anemoi.utils.grib import shortname_to_paramid
-        from earthkit.data.utils.availability import Availability
 
         assert variables, "No variables provided"
 
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        dates = [to_datetime(d) for d in dates]
+        dates = [FieldList.to_datetime(d) for d in dates]
 
         assert dates, "No dates provided"
 
@@ -830,7 +824,7 @@ class Metadata(LegacyMixin):
         result = []
         for reqs in requests.values():
 
-            compressed = Availability(reqs)
+            compressed = FieldList.availability(reqs)
             for r in compressed.iterate():
 
                 if not r:

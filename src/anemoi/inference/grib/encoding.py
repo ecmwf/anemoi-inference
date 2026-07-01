@@ -19,7 +19,7 @@ from typing import Any
 from typing import Hashable
 
 from anemoi.transform import Field
-from earthkit.data.utils.dates import to_timedelta
+from anemoi.transform import FieldList
 
 from anemoi.inference.types import FloatArray
 from anemoi.inference.utils.templating import render_template
@@ -161,14 +161,14 @@ def encode_time_processing(
 
     if period := getattr(variable, "period", None):
         start = step - period
-        if start < to_timedelta(0):
+        if start < FieldList.to_timedelta(0):
             LOG.warning(
                 f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
             )
 
             date += start
             step -= start
-            start = to_timedelta(0)
+            start = FieldList.to_timedelta(0)
 
             result["date"] = int(date.strftime("%Y%m%d"))
             result["time"] = date.hour * 100 + date.minute
@@ -399,9 +399,8 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
 
         if first:
             import eccodes
-            from earthkit.data.readers.grib.handle import GribCodesHandle
 
-            handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
+            handle = Field.new_grib_handle(eccodes.codes_clone(handle._handle))
             return check_encoding(handle, keys, first=False)
 
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")

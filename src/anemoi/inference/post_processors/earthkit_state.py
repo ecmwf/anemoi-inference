@@ -81,7 +81,7 @@ def wrap_state(state: State) -> FieldList:
         # Tag the field so unwrap_state can detect it
         f._state_field_marker = True
         fields.append(f)
-    return ekd.create_fieldlist(fields)
+    return FieldList.from_fields(fields)
 
 
 def unwrap_state(fields: FieldList, state: State, namer: Callable) -> State:

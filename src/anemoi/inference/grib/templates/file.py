@@ -14,6 +14,7 @@ from typing import Any
 from typing import Literal
 
 from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.inputs.ekd import find_variable
@@ -68,7 +69,7 @@ class FileTemplates(TemplateProvider):
 
     @cached_property
     def _data(self):
-        return ekd.from_source("file", self.path).to_fieldlist()
+        return FieldList.from_source("file", self.path)
 
     def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> Field | None:
         if self.variables and variable not in self.variables:

@@ -12,6 +12,7 @@ import os
 from typing import Any
 
 from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from . import IndexTemplateProvider
 from . import template_provider_registry
@@ -40,4 +41,4 @@ class SamplesTemplates(IndexTemplateProvider):
             return None
 
         LOG.debug(f"Loading sample file: {template}")
-        return ekd.from_source("file", template).to_fieldlist()[0]
+        return FieldList.from_source("file", template)[0]

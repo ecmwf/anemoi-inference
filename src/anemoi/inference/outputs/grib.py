@@ -16,7 +16,7 @@ from abc import abstractmethod
 from typing import Any
 from typing import Literal
 
-from earthkit.data.utils.dates import to_datetime
+from anemoi.transform import FieldList
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import FloatArray
@@ -74,8 +74,8 @@ class HindcastOutput:
             keys.pop(k, None)
 
         keys["localDefinitionNumber"] = 30
-        keys["dataDate"] = int(to_datetime(date).strftime("%Y%m%d"))
-        keys["referenceDate"] = int(to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
+        keys["dataDate"] = int(FieldList.to_datetime(date).strftime("%Y%m%d"))
+        keys["referenceDate"] = int(FieldList.to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
 
         return values, template, keys
 
@@ -328,7 +328,7 @@ class BaseGribOutput(Output):
                 previous_step=previous_step,
                 start_steps=start_steps,
             )
-            encoded_date = to_datetime(f"{keys['date']}T{keys['time']:04d}")
+            encoded_date = FieldList.to_datetime(f"{keys['date']}T{keys['time']:04d}")
 
             if encoded_date < reference_date:
                 _log = f"{encoded_date} < {reference_date}"

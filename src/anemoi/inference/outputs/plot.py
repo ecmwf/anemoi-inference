@@ -136,7 +136,7 @@ class PlotOutput(Output):
         """
         import earthkit.plots as ekp
         from anemoi.transform import Field
-        from earthkit.data.core.field import Field
+        from anemoi.transform import FieldList
 
         if self.schema:
             ekp.schema.use(self.schema)
@@ -163,7 +163,7 @@ class PlotOutput(Output):
                     geography={"latitudes": latitudes, "longitudes": longitudes},
                 )
             )
-        fig = ekp.quickplot(ekd.create_fieldlist(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs)
+        fig = ekp.quickplot(FieldList.from_fields(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs)
         fname = render_template(
             self.template,
             {

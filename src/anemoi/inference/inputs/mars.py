@@ -11,7 +11,7 @@
 import logging
 from typing import Any
 
-from earthkit.data.utils.dates import to_datetime
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -158,7 +158,6 @@ def retrieve(
     Any
         The retrieved data.
     """
-    from anemoi.transform import FieldList
 
     def _(r: DataRequest) -> str:
         mars = r.copy()
@@ -271,7 +270,7 @@ class MarsInput(GribInput):
             The created input state.
         """
         if date is None:
-            date = to_datetime(-1)
+            date = FieldList.to_datetime(-1)
             LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
 
         retrieve_date = date

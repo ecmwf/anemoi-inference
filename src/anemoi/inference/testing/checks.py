@@ -37,9 +37,9 @@ def check_grib(
 ) -> None:
     LOG.info(f"Checking GRIB file: {file}")
     import numpy as np
-    from earthkit.data.utils.dates import to_datetime
+    from anemoi.transform import FieldList
 
-    ds = ekd.from_source("file", file).to_fieldlist()
+    ds = FieldList.from_source("file", file)
 
     assert len(ds) > 0, "No fields found in the GRIB file."
 
@@ -59,7 +59,7 @@ def check_grib(
 
     # check time continuity
     if reference_date:
-        reference_date = to_datetime(reference_date)
+        reference_date = FieldList.to_datetime(reference_date)
         LOG.info(f"Using reference date: {reference_date}")
 
     fields = ds.sel(**{"parameter.variable": expected_params[0]})
@@ -104,9 +104,10 @@ def check_grib_cutout(
 
     LOG.info(f"Checking cutout: {file}")
     import numpy as np
+    from anemoi.transform import FieldList
 
-    ds = ekd.from_source("file", file).to_fieldlist()
-    ref_ds = ekd.from_source("file", reference_grib).to_fieldlist()
+    ds = FieldList.from_source("file", file)
+    ref_ds = FieldList.from_source("file", reference_grib)
 
     if not reference_datetime:
         reference_datetime = (

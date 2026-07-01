@@ -20,8 +20,6 @@ import numpy as np
 from anemoi.transform import Field
 from anemoi.transform import FieldList
 from anemoi.transform.variables import Variable
-from earthkit.data import create_fieldlist
-from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
@@ -105,7 +103,7 @@ def _name_fields(data: Any, namer: callable) -> Any:
         md = _get_metadata_dict(f)
         name = namer(f, md)
         named.append(f.set(**{"labels.name": name}))
-    return create_fieldlist(named)
+    return FieldList.from_fields(named)
 
 
 def find_variable(data: FieldList, name: str, namer: callable, **kwargs: Any) -> FieldList:
@@ -386,7 +384,7 @@ class EkdInput(Input):
         if len(fields) == 0:
             raise ValueError("No input fields provided")
 
-        dates = sorted([to_datetime(d) for d in dates])
+        dates = sorted([FieldList.to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
@@ -404,7 +402,7 @@ class EkdInput(Input):
                     dtype=dtype,
                 )
 
-            date_idx = date_to_index[to_datetime(valid_datetime).isoformat()]
+            date_idx = date_to_index[FieldList.to_datetime(valid_datetime).isoformat()]
 
             try:
                 state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
@@ -651,7 +649,7 @@ class FieldlistInput(EkdInput):
             if not files:
                 LOG.warning("No files matched pattern %r", path)
                 return FieldList()  # type: ignore[reportReturnType]
-            return ekd.from_source("file", sorted(files)).to_fieldlist()  # type: ignore[reportReturnType]
+            return FieldList.from_source("file", sorted(files))  # type: ignore[reportReturnType]
 
         # Case 2: directory path -> search for files recursively
         if os.path.isdir(path):
@@ -662,7 +660,7 @@ class FieldlistInput(EkdInput):
             if not files:
                 LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
                 return FieldList()  # type: ignore[reportReturnType]
-            return ekd.from_source("file", files).to_fieldlist()  # type: ignore[reportReturnType]
+            return FieldList.from_source("file", files)  # type: ignore[reportReturnType]
 
         # Case 3: single file path
         try:
@@ -673,4 +671,4 @@ class FieldlistInput(EkdInput):
             LOG.warning("Path %r not found", path)
             return FieldList()  # type: ignore[reportReturnType]
 
-        return ekd.from_source("file", path).to_fieldlist()  # type: ignore[reportReturnType]
+        return FieldList.from_source("file", path)  # type: ignore[reportReturnType]

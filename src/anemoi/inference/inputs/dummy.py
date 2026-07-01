@@ -16,6 +16,7 @@ These values are then tested in the mock model.
 import logging
 
 import numpy as np
+from anemoi.transform import Field
 from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
@@ -110,8 +111,6 @@ class DummyInput(EkdInput):
             for date in dates:
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
-                from earthkit.data.core.field import Field
-
                 field = Field.from_components(
                     values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
                     geography={
@@ -126,7 +125,7 @@ class DummyInput(EkdInput):
                 )
                 result.append(field)
 
-        return ekd.create_fieldlist(result)
+        return FieldList.from_fields(result)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup a template by name.

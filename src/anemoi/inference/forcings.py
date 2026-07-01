@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import numpy as np
-from earthkit.data import create_fieldlist
+from anemoi.transform import FieldList
 
 from anemoi.inference.inputs.dataset import DatasetInput
 from anemoi.inference.types import Date
@@ -154,18 +154,18 @@ class ComputedForcings(Forcings):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        ds = ekd.from_source(
+        ds = FieldList.from_source(
             "forcings",
             None,
             date=dates,
             param=self.variables,
             latitudes=current_state["latitudes"],
             longitudes=current_state["longitudes"],
-        ).to_fieldlist()
+        )
 
         assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
 
-        ds = create_fieldlist([f.set(**{"labels.name": f.parameter.variable()}) for f in ds])
+        ds = FieldList.from_fields([f.set(**{"labels.name": f.parameter.variable()}) for f in ds])
 
         forcing = ds.order_by(**{"labels.name": self.variables, "time.valid_datetime": "ascending"})
 

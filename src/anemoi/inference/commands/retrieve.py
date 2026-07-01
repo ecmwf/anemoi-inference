@@ -17,8 +17,8 @@ from argparse import Namespace
 from collections.abc import Callable
 from typing import Any
 
+from anemoi.transform import FieldList
 from anemoi.utils.dates import frequency_to_timedelta
-from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.metadata import VARIABLE_CATEGORIES
@@ -133,11 +133,11 @@ def checkpoint_to_requests(
         dates = set()
         with open(staging_dates) as f:
             for line in f:
-                date = to_datetime(line.strip())
+                date = FieldList.to_datetime(line.strip())
                 dates.update([date + h for h in metadata.lagged])
         dates = sorted(dates)
     else:
-        date = to_datetime(date)
+        date = FieldList.to_datetime(date)
         dates = [date + h for h in metadata.lagged]
 
     if forecast_dates:
