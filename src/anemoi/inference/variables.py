@@ -121,27 +121,6 @@ class Variables:
         )
 
     ###############################################################################
-    @classmethod
-    def diagnostic_variables_include_exclude(cls):
-        """Get include/exclude lists for retrieved diagnostic variables."""
-        return dict(
-            include=["diagnostic"],
-            exclude=["computed", "prognostic", "forcing"],
-        )
-
-    def retrieved_diagnostic_variables(self):
-        """Select retrieved diagnostic variables from the checkpoint."""
-        return self.metadata.select_variables(
-            **self.diagnostic_variables_include_exclude(),
-        )
-
-    def retrieved_diagnostic_variables_and_mask(self):
-        """Select retrieved diagnostic variables and masks from the checkpoint."""
-        return self.metadata.select_variables_and_masks(
-            **self.diagnostic_variables_include_exclude(),
-        )
-
-    ###############################################################################
 
     @classmethod
     def input_types(cls):
@@ -151,7 +130,6 @@ class Variables:
             "constant-forcings": cls.retrieved_constant_forcings_variables_include_exclude(),
             "prognostics": cls.retrieved_prognostic_variables_include_exclude(),
             "dynamic-forcings": cls.retrieved_dynamic_forcings_variables_include_exclude(),
-            "diagnostics": cls.diagnostic_variables_include_exclude(),
         }
 
     @classmethod

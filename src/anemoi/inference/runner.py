@@ -701,7 +701,7 @@ class Runner(Context):
 
     def create_input(
         self,
-        input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings", "diagnostics"],
+        input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"],
         dataset_name: str,
         metadata: Metadata,
     ) -> Input:
@@ -716,9 +716,6 @@ class Runner(Context):
             case "dynamic_forcings":
                 variables = variables.retrieved_dynamic_forcings_variables()
                 config = input_types_config(self.config, input_type, "-forcings", "input") if variables else "empty"
-            case "diagnostics":
-                variables = variables.retrieved_diagnostic_variables()
-                config = input_types_config(self.config, input_type, "diagnostics", "input") if variables else "empty"
             case "boundary_forcings":
                 variables = variables.retrieved_prognostic_variables()
                 config = (

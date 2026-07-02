@@ -22,6 +22,20 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 
+def create_diagnostic_input(context, metadata, dataset_name):
+    from anemoi.inference.config.utils import input_types_config
+    from anemoi.inference.config.utils import multi_datasets_config
+    from anemoi.inference.inputs import create_input
+
+    variables = metadata.select_variables(
+        include=["diagnostic"],
+        exclude=["computed", "prognostic", "forcing"],
+    )
+    config = input_types_config(context.config, "diagnostics", "input") if variables else "empty"
+    config = multi_datasets_config(config, dataset_name, context.dataset_names)
+    return create_input(context, config, metadata, variables=variables, purpose="diagnostics")  # type: ignore[reportArgumentType]
+
+
 @output_registry.register("truth")
 @main_argument("output")
 class TruthOutput(ForwardOutput):
@@ -55,9 +69,8 @@ class TruthOutput(ForwardOutput):
         super().__init__(context, metadata, output, None, **kwargs)
 
         self._prog_input = context.prognostics_inputs[metadata.dataset_name]
-        self._diag_input = (
-            context.create_input("diagnostics", metadata.dataset_name, self.metadata) if add_diagnostic else None
-        )
+        self._diag_input = create_diagnostic_input(context, metadata, metadata.dataset_name) if add_diagnostic else None
+
         self._dynamic_forc_input = context.dynamic_forcings_inputs[metadata.dataset_name]
         self._constant_forc_input = context.constant_forcings_inputs[metadata.dataset_name]
 
