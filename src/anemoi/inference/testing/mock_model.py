@@ -12,12 +12,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import torch
-from anemoi.utils.config import DotDict
+from anemoi.metadata import Metadata as PkgMetadata
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.checkpoint import get_multi_dataset_metadata
 from anemoi.inference.config import LOG
-from anemoi.inference.metadata import MetadataFactory
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 
 
@@ -48,7 +48,8 @@ class SimpleMockModel(torch.nn.Module):
 
     def __init__(self, raw_metadata: dict, supporting_arrays: dict) -> None:
         super().__init__()
-        multi_metadata = get_multi_dataset_metadata(raw_metadata, supporting_arrays)
+        pkg_metadata = PkgMetadata.from_dict(raw_metadata, migrate=True)
+        multi_metadata = get_multi_dataset_metadata(pkg_metadata, supporting_arrays)
 
         self.metadata: dict[str, SimpleMetadata] = {}
 
@@ -112,13 +113,13 @@ class LegacyMockModel(torch.nn.Module):
 
     def __init__(self, raw_metadata: dict[str, Any], supporting_arrays: dict[str, Any]) -> None:
         super().__init__()
-        raw_metadata = DotDict(raw_metadata)
         self.supporting_arrays = supporting_arrays
 
         # this model is only used in unit tests with legacy checkpoints
         # we don't have to account for multi-datasets
         # TODO: re-assess if the unit tests get updated to multi-dataset checkpoints
-        metadata = Checkpoint(MetadataFactory(raw_metadata))._metadata
+        pkg_metadata = PkgMetadata.from_dict(raw_metadata, migrate=True)
+        metadata = Checkpoint(Metadata(pkg_metadata, supporting_arrays))._metadata
 
         self.input_shape = metadata.input_shape
         self.output_shape = metadata.output_shape
@@ -193,7 +194,7 @@ class LegacyMockModel(torch.nn.Module):
             LOG.error("x: %s", x[:, :, :, feature])
 
             raise ValueError(
-                f"{title}: expected {expect} for {self.input_index_to_variable[feature]} at lag {lag}, got {x[:, lag, :, feature][...,0]}"
+                f"{title}: expected {expect} for {self.input_index_to_variable[feature]} at lag {lag}, got {x[:, lag, :, feature][..., 0]}"
             )
 
     def predict_step(

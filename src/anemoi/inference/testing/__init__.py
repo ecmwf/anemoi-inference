@@ -49,7 +49,6 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
             patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata),
             patch("anemoi.inference.provenance.validate_environment", MagicMock()),
             patch("torch.load", mock_torch_load),
-            patch("anemoi.inference.metadata.USE_LEGACY", True),
             patch("anemoi.inference.tasks.runner.RunConfiguration", MockRunConfiguration),
         ):
             return func(*args, **kwargs)
