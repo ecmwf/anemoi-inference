@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -10,6 +10,7 @@
 
 import json
 import logging
+import warnings
 from functools import cached_property
 from typing import Any
 
@@ -85,7 +86,6 @@ class DatasetInput(Input):
                     the input grid will be reduced accordingly.")
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
-
         self.use_trajectories = use_trajectories
 
         if not len(self.ds.shape) == 5 and self.use_trajectories:
@@ -96,6 +96,22 @@ class DatasetInput(Input):
             raise ValueError(
                 f"Expected dataset with 4 dimensions (base_dates, variables, ensembles, cells) as a non-trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
             )
+
+        has_pre_processors = bool(self._pre_processor_confs) or (
+            hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
+        )
+
+        if has_pre_processors:
+            msg = (
+                f"Pre-processors are configured for dataset '{self.dataset_name}' but will NOT be applied "
+                f"by '{self.__class__.__name__}'. This input type reads data directly from a pre-built dataset "
+                "and does not invoke the pre-processor pipeline."
+            )
+            if hasattr(context, "_warn_once"):
+                context._warn_once(msg)
+            else:
+                LOG.warning(msg)
+                warnings.warn(msg, UserWarning, stacklevel=2)
 
     @cached_property
     def ds(self) -> Any:

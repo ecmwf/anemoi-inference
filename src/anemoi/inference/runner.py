@@ -1,4 +1,4 @@
-# (C) Copyright 2024-2025 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -111,6 +111,8 @@ class Runner(Context):
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
+        self.quiet: set[str] = set()  # So we don't repeat the same warning multiple times
+
         # processors, I/O and tensor handlers for each dataset in the checkpoint
         self.pre_processors: dict[str, list[Processor]] = {}
         self.post_processors: dict[str, list[Processor]] = {}
@@ -165,8 +167,6 @@ class Runner(Context):
                     table.add_row(variable, str(units), ", ".join(categories))
 
                 console.print(table)
-
-        self.quiet = set()  # So we don't repeat the same warning multiple times
 
     @property
     def checkpoint(self) -> Checkpoint:
@@ -918,4 +918,5 @@ class Runner(Context):
         """Log a warning message only once."""
         if message not in self.quiet:
             LOG.warning(message)
+            warnings.warn(message, UserWarning, stacklevel=2)
             self.quiet.add(message)
