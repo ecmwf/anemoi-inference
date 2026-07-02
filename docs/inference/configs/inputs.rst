@@ -50,6 +50,9 @@ This allows for forecasts to be included in the dataset, and for the model to in
 
 Setting `use_trajectories` in a dataset input will allow for the model to be initialised from the forecast, filtering by valid_time, rather than just the basetime.
 
+In the case of the initial conditions, the prior dates, the model will be initialised from step 0 of the dataset, i.e. the analysis, with future forcings coming from the forecast steps, with the base date
+being the date specified in the config, the base_date.
+
 
 .. code:: yaml
 

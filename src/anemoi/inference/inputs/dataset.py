@@ -211,7 +211,8 @@ class DatasetInput(Input):
         State
             The loaded forcings state.
         """
-        data = self._load_dates(dates, base_date=current_state["date"])  # (date, variables, ensemble, values)
+        base_date = current_state["date"] - current_state["step"]
+        data = self._load_dates(dates, base_date=base_date)  # (date, variables, ensemble, values)
 
         requested_variables = np.array([self.ds.name_to_index[v] for v in self.variables])
         data = data[:, requested_variables]
@@ -298,21 +299,33 @@ class DatasetInput(Input):
             The loaded data.
         """
         base_idx = self._find_index_for_date(base_date)
-        step_index = [int(np.timedelta64(d - base_date) / self.ds.step_frequency) for d in dates]
-        LOG.info("Loading trajectory data for base_date=%s, steps=%s", base_date, step_index)
-        # Convert to slice if consecutive (dataset indexing with lists can be unreliable)
-        if len(step_index) == 1:
-            step_slice = slice(step_index[0], step_index[0] + 1)
-        else:
-            diff = step_index[1] - step_index[0]
-            if all(step_index[i + 1] - step_index[i] == diff for i in range(len(step_index) - 1)):
-                step_slice = slice(step_index[0], step_index[-1] + 1, diff)
+
+        datalist = []
+        dates_before_base = [d for d in dates if d <= base_date]
+        dates_after_base = [d for d in dates if d > base_date]
+
+        for d in dates_before_base:
+            LOG.info("Loading data at step 0 for date=%s", d)
+            datalist.append(self._load_basedates([d])[:, :, :, 0])
+
+        if len(dates_after_base) > 0:
+            step_index = [int(np.timedelta64(d - base_date) / self.ds.step_frequency) for d in dates_after_base]
+            LOG.info("Loading data from trajectory at base_date=%s, steps=%s", base_date, step_index)
+            # Convert to slice if consecutive (dataset indexing with lists can be unreliable)
+            if len(step_index) == 1:
+                step_slice = slice(step_index[0], step_index[0] + 1)
             else:
-                raise ValueError("Requested dates do not have a uniform step spacing")
-        data = self.ds[base_idx, :, :, step_slice]
-        # Transpose to (steps/dates, variables, ensemble, cells) to match _load_basedates
-        data = np.moveaxis(data, 2, 0)
-        return data
+                diff = step_index[1] - step_index[0]
+                if all(step_index[i + 1] - step_index[i] == diff for i in range(len(step_index) - 1)):
+                    step_slice = slice(step_index[0], step_index[-1] + 1, diff)
+                else:
+                    raise ValueError("Requested dates do not have a uniform step spacing")
+            trajectory_data = self.ds[base_idx, :, :, step_slice]
+            # Transpose to (steps/dates, variables, ensemble, cells) to match _load_basedates
+            trajectory_data = np.moveaxis(trajectory_data, 2, 0)
+            datalist.append(trajectory_data)
+
+        return np.concatenate(datalist, axis=0)
 
     def _load_dates(self, dates: list[Date], base_date: Date) -> Any:
         """Load the data for the given dates.
