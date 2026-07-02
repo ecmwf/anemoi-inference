@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from anemoi.inference.metadata import Metadata
@@ -71,10 +72,10 @@ class TruthOutput(ForwardOutput):
         if self._diag_input:
             states.append(self._diag_input.create_input_state(date=state["date"]))
 
-        state = self.context._combine_states(*states)  # type: ignore
+        truth_state = self.context._combine_states(*states)  # type: ignore
+        truth_state = self.reduce(truth_state)
+        truth_state["step"] = state.get("step", timedelta(hours=0))
 
-        truth_state = self.reduce(state)
-        truth_state["step"] = state.get("step", 0)
         return truth_state
 
     def __repr__(self) -> str:
