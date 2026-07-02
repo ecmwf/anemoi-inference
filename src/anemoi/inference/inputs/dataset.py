@@ -86,16 +86,6 @@ class DatasetInput(Input):
                     the input grid will be reduced accordingly.")
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
-        self.use_trajectories = use_trajectories
-
-        if not len(self.ds.shape) == 5 and self.use_trajectories:
-            raise ValueError(
-                f"Expected dataset with 5 dimensions (base_dates, variables, ensembles, steps, cells) as a trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
-            )
-        elif len(self.ds.shape) == 5 and not self.use_trajectories:
-            raise ValueError(
-                f"Expected dataset with 4 dimensions (base_dates, variables, ensembles, cells) as a non-trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
-            )
 
         has_pre_processors = bool(self._pre_processor_confs) or (
             hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
@@ -112,6 +102,17 @@ class DatasetInput(Input):
             else:
                 LOG.warning(msg)
                 warnings.warn(msg, UserWarning, stacklevel=2)
+
+        self.use_trajectories = use_trajectories
+
+        if not len(self.ds.shape) == 5 and self.use_trajectories:
+            raise ValueError(
+                f"Expected dataset with 5 dimensions (base_dates, variables, ensembles, steps, cells) as a trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
+            )
+        elif len(self.ds.shape) == 5 and not self.use_trajectories:
+            raise ValueError(
+                f"Expected dataset with 4 dimensions (base_dates, variables, ensembles, cells) as a non-trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
+            )
 
     @cached_property
     def ds(self) -> Any:
