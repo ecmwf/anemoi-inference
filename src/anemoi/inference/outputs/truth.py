@@ -23,7 +23,6 @@ LOG = logging.getLogger(__name__)
 
 
 def create_diagnostic_input(context, metadata, dataset_name):
-    from anemoi.inference.config.utils import input_types_config
     from anemoi.inference.config.utils import multi_datasets_config
     from anemoi.inference.inputs import create_input
 
