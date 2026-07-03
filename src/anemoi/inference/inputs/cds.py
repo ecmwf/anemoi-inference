@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from anemoi.transform import FieldList
+from anemoi.transform.fields import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -163,7 +164,7 @@ class CDSInput(GribInput):
             The created input state.
         """
         if date is None:
-            date = FieldList.to_datetime(-1)
+            date = to_datetime(-1)
             LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
 
         return self._create_input_state(

@@ -24,6 +24,8 @@ import deprecation
 import numpy as np
 from anemoi.transform import Field
 from anemoi.transform import FieldList
+from anemoi.transform.fields import Availability
+from anemoi.transform.fields import to_datetime
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -782,7 +784,7 @@ class Metadata(LegacyMixin):
         if not isinstance(dates, (list, tuple)):
             dates = [dates]
 
-        dates = [FieldList.to_datetime(d) for d in dates]
+        dates = [to_datetime(d) for d in dates]
 
         assert dates, "No dates provided"
 
@@ -824,7 +826,7 @@ class Metadata(LegacyMixin):
         result = []
         for reqs in requests.values():
 
-            compressed = FieldList.availability(reqs)
+            compressed = Availability(reqs)
             for r in compressed.iterate():
 
                 if not r:

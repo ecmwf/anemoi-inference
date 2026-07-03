@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import yaml
 from anemoi.transform import Field
-from anemoi.transform import FieldList
+from anemoi.transform.fields import to_timedelta
 from anemoi.utils.testing import GetTestData
 from pytest_mock import MockerFixture
 from rich import print
@@ -208,7 +208,7 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
             variable=variable,
             param=variable.param,
             date=datetime.now(),
-            step=FieldList.to_timedelta(6),
+            step=to_timedelta(6),
             keys=keys,
             ensemble=False,
             start_steps={},

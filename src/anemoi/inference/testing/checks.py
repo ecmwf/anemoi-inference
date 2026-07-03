@@ -38,6 +38,7 @@ def check_grib(
     LOG.info(f"Checking GRIB file: {file}")
     import numpy as np
     from anemoi.transform import FieldList
+    from anemoi.transform.fields import to_datetime
 
     ds = FieldList.from_source("file", file)
 
@@ -59,7 +60,7 @@ def check_grib(
 
     # check time continuity
     if reference_date:
-        reference_date = FieldList.to_datetime(reference_date)
+        reference_date = to_datetime(reference_date)
         LOG.info(f"Using reference date: {reference_date}")
 
     fields = ds.sel(**{"parameter.variable": expected_params[0]})
@@ -105,6 +106,7 @@ def check_grib_cutout(
     LOG.info(f"Checking cutout: {file}")
     import numpy as np
     from anemoi.transform import FieldList
+    from anemoi.transform.fields import to_datetime
 
     ds = FieldList.from_source("file", file)
     ref_ds = FieldList.from_source("file", reference_grib)

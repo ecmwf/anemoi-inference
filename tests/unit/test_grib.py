@@ -9,7 +9,8 @@
 
 
 import pytest
-from anemoi.transform import FieldList
+from anemoi.transform.fields import to_datetime
+from anemoi.transform.fields import to_timedelta
 
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.encoding import render_template
@@ -47,8 +48,8 @@ def test_render_template(template, handle, expected):
     [
         (
             tp,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(0),
+            to_datetime("20250101T0000"),
+            to_timedelta(0),
             {},
             {
                 "date": 20241231,
@@ -62,8 +63,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             tp,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(6),
+            to_datetime("20250101T0000"),
+            to_timedelta(6),
             {},
             {
                 "date": 20250101,
@@ -77,8 +78,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             tp,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(12),
+            to_datetime("20250101T0000"),
+            to_timedelta(12),
             {},
             {
                 "date": 20250101,
@@ -92,9 +93,9 @@ def test_render_template(template, handle, expected):
         ),
         (
             tp,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(12),
-            {"tp": FieldList.to_timedelta(0)},
+            to_datetime("20250101T0000"),
+            to_timedelta(12),
+            {"tp": to_timedelta(0)},
             {
                 "date": 20250101,
                 "time": 0,
@@ -107,8 +108,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             z,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(0),
+            to_datetime("20250101T0000"),
+            to_timedelta(0),
             {},
             {
                 "date": 20250101,
@@ -121,8 +122,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             z,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(6),
+            to_datetime("20250101T0000"),
+            to_timedelta(6),
             {},
             {
                 "date": 20250101,
@@ -135,8 +136,8 @@ def test_render_template(template, handle, expected):
         ),
         (
             w_100,
-            FieldList.to_datetime("20250101T0000"),
-            FieldList.to_timedelta(6),
+            to_datetime("20250101T0000"),
+            to_timedelta(6),
             {},
             {
                 "date": 20250101,

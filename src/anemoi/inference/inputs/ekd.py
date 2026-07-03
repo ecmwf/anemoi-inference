@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 from anemoi.transform import Field
 from anemoi.transform import FieldList
+from anemoi.transform.fields import to_datetime
 from anemoi.transform.variables import Variable
 from numpy.typing import DTypeLike
 
@@ -384,7 +385,7 @@ class EkdInput(Input):
         if len(fields) == 0:
             raise ValueError("No input fields provided")
 
-        dates = sorted([FieldList.to_datetime(d) for d in dates])
+        dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
@@ -402,7 +403,7 @@ class EkdInput(Input):
                     dtype=dtype,
                 )
 
-            date_idx = date_to_index[FieldList.to_datetime(valid_datetime).isoformat()]
+            date_idx = date_to_index[to_datetime(valid_datetime).isoformat()]
 
             try:
                 state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)

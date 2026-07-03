@@ -163,7 +163,10 @@ class PlotOutput(Output):
                     geography={"latitudes": latitudes, "longitudes": longitudes},
                 )
             )
-        fig = ekp.quickplot(FieldList.from_fields(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs)
+        # earthkit-plots only recognises raw earthkit-data fieldlists; the
+        # anemoi wrapper would fall through to its numpy extractor.
+        fields = FieldList.from_fields(plotting_fields)._underlying
+        fig = ekp.quickplot(fields, mode=self.mode, domain=self.domain, **self.kwargs)
         fname = render_template(
             self.template,
             {

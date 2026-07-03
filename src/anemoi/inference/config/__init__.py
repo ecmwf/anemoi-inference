@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any
 from typing import TypeVar
 
-from anemoi.transform import FieldList
+from anemoi.transform.fields import to_datetime
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
@@ -40,7 +40,7 @@ class Configuration(BaseModel):
     @classmethod
     def to_datetime(cls, date: str | int | datetime | None) -> datetime | None:
         if date is not None:
-            return FieldList.to_datetime(date)
+            return to_datetime(date)
 
     @classmethod
     def load(
