@@ -46,9 +46,9 @@ Trajectory Inputs
 #################
 
 `anemoi-datasets` `v0.5.38` introduced a new feature to allow for trajectory datasets, introducing a 5th dimension to the dataset.
-This allows for forecasts to be included in the dataset, and for the model to initialised from steps of a model, not just the analysis.
+This allows for forecasts to be included in the dataset, and for inference it means that it is possible for the model to be forced from steps of a model, not just the analysis.
 
-Setting `use_trajectories` in a dataset input will allow for the model to be initialised from the forecast, filtering by valid_time, rather than just the basetime.
+Setting `use_trajectories` in a dataset input will allow for the model to be forced from the forecasts within the dataset, filtering by step and the basetime of the run, rather than just the absolute time throughout the run.
 
 In the case of the initial conditions, the prior dates, the model will be initialised from step 0 of the dataset, i.e. the analysis, with future forcings coming from the forecast steps, with the base date
 being the date specified in the config, the base_date.
