@@ -554,3 +554,57 @@ class TestSupportsParallelOutputDecorator:
                 pass
 
         assert getattr(_O, "_supports_parallel_output", False)
+
+    def _make_nested_cls(self, *paths):
+        @supports_parallel_output(*paths)
+        class _Output:
+            def __init__(self, path=None, archive_requests=None, **kwargs):
+                self.path = path
+                self.archive_requests = archive_requests
+
+        return _Output
+
+    def test_nested_suffix_applied(self):
+        obj = self._make_nested_cls("archive_requests.path")(
+            archive_requests={"path": "out.json"}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests["path"] == "out_w0.json"
+
+    def test_multiple_args_applied(self):
+        obj = self._make_nested_cls("path", "archive_requests.path")(
+            path="out.grib", archive_requests={"path": "out.json"}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.path == "out_w0.grib"
+        assert obj.archive_requests["path"] == "out_w0.json"
+
+    def test_deep_nested_suffix_applied(self):
+        obj = self._make_nested_cls("archive_requests.sub.path")(
+            archive_requests={"sub": {"path": "out.json"}}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests["sub"]["path"] == "out_w0.json"
+
+    def test_nested_no_suffix_unchanged(self):
+        obj = self._make_nested_cls("archive_requests.path")(archive_requests={"path": "out.json"})
+        assert obj.archive_requests["path"] == "out.json"
+
+    def test_nested_missing_leaf_key_ignored(self):
+        obj = self._make_nested_cls("archive_requests.path")(
+            archive_requests={"other": "value"}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests == {"other": "value"}
+
+    def test_nested_missing_parent_key_ignored(self):
+        obj = self._make_nested_cls("archive_requests.path")(**{"_parallel-output-suffix": "_w0"})
+        assert obj.archive_requests is None
+
+    def test_nested_parent_not_dict_ignored(self):
+        obj = self._make_nested_cls("archive_requests.path")(
+            archive_requests="not-a-dict", **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests == "not-a-dict"
+
+    def test_nested_leaf_none_not_modified(self):
+        obj = self._make_nested_cls("archive_requests.path")(
+            archive_requests={"path": None}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests["path"] is None
