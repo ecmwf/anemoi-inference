@@ -56,7 +56,7 @@ class StateFieldMetadata(RawMetadata):
     """
 
     def __init__(self, field: Any) -> None:
-        metadata = dict(field._raw_metadata)
+        metadata = dict(field._raw_metadata.get("mars", field._raw_metadata))
         metadata.update(
             name=field.name,
             **{
