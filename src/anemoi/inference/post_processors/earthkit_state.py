@@ -18,6 +18,7 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
+from anemoi.transform.variables import Variable
 from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
 
@@ -141,14 +142,14 @@ class StateField(ekd.Field):
         return f"{self.__class__.__name__ }({self._metadata})"
 
 
-def wrap_state(state: State, variables_metadata: dict[str, Any]) -> ekd.FieldList:
+def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldList:
     """Transform a state dictionary into an earthkit.data field list.
 
     Parameters
     ----------
     state : Dict[str, Any]
         The state dictionary to be transformed.
-    variables_metadata : Dict[str, Any]
+    typed_variables : dict[str, Variable]
         Metadata for the variables in the state.
 
     Returns
@@ -157,7 +158,19 @@ def wrap_state(state: State, variables_metadata: dict[str, Any]) -> ekd.FieldLis
         The transformed field list.
     """
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
-    fields = [StateField(k, v, state, dict(variables_metadata.get(k, {}))) for k, v in state["fields"].items()]
+    fields = []
+    for f in state["fields"]:
+        variable = typed_variables[f]
+        metadata = variable.grib_keys.copy()
+        metadata.update(
+            name=f,
+            **{
+                k: v
+                for k, v in state.items()
+                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
+            },
+        )
+        fields.append(StateField(f, state["fields"][f], state, metadata))
     return SimpleFieldList(fields)
 
 
