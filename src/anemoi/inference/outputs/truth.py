@@ -31,7 +31,7 @@ def create_diagnostic_input(context, metadata, dataset_name):
         include=["diagnostic"],
         exclude=["computed", "prognostic", "forcing"],
     )
-    config = input_types_config(context.config, "diagnostics", "input") if variables else "empty"
+    config = context.config["input"] if variables else "empty"
     config = multi_datasets_config(config, dataset_name, context.dataset_names)
     return create_input(context, config, metadata, variables=variables, purpose="diagnostics")  # type: ignore[reportArgumentType]
 
