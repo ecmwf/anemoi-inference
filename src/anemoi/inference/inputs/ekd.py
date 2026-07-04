@@ -19,8 +19,8 @@ from typing import Any
 import numpy as np
 from anemoi.transform import Field
 from anemoi.transform import FieldList
-from anemoi.transform.fields import to_datetime
 from anemoi.transform.variables import Variable
+from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
@@ -395,7 +395,7 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-            name, valid_datetime = field.get("labels.name"), field.get("time.valid_datetime")
+            name, valid_datetime = field.name, field.valid_datetime
             if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), n_points),

@@ -38,7 +38,7 @@ def check_grib(
     LOG.info(f"Checking GRIB file: {file}")
     import numpy as np
     from anemoi.transform import FieldList
-    from anemoi.transform.fields import to_datetime
+    from earthkit.data.utils.dates import to_datetime
 
     ds = FieldList.from_source("file", file)
 
@@ -106,7 +106,6 @@ def check_grib_cutout(
     LOG.info(f"Checking cutout: {file}")
     import numpy as np
     from anemoi.transform import FieldList
-    from anemoi.transform.fields import to_datetime
 
     ds = FieldList.from_source("file", file)
     ref_ds = FieldList.from_source("file", reference_grib)

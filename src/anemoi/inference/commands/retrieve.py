@@ -17,8 +17,8 @@ from argparse import Namespace
 from collections.abc import Callable
 from typing import Any
 
-from anemoi.transform.fields import to_datetime
 from anemoi.utils.dates import frequency_to_timedelta
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.metadata import VARIABLE_CATEGORIES

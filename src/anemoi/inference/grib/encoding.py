@@ -19,7 +19,7 @@ from typing import Any
 from typing import Hashable
 
 from anemoi.transform import Field
-from anemoi.transform.fields import to_timedelta
+from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.types import FloatArray
 from anemoi.inference.utils.templating import render_template

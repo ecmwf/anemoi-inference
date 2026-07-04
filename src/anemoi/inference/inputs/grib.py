@@ -40,4 +40,4 @@ class GribInput(EkdInput):
         super().set_private_attributes(state, fields)
         input_fields = fields.order_by("time.valid_datetime")
 
-        state["_grib_templates_for_output"] = {field.get("labels.name"): field for field in input_fields}
+        state["_grib_templates_for_output"] = {field.name: field for field in input_fields}

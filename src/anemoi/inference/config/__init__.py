@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any
 from typing import TypeVar
 
-from anemoi.transform.fields import to_datetime
+from earthkit.data.utils.dates import to_datetime
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf

@@ -16,7 +16,7 @@ from abc import abstractmethod
 from typing import Any
 from typing import Literal
 
-from anemoi.transform.fields import to_datetime
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import FloatArray

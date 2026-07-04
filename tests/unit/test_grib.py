@@ -9,8 +9,8 @@
 
 
 import pytest
-from anemoi.transform.fields import to_datetime
-from anemoi.transform.fields import to_timedelta
+from earthkit.data.utils.dates import to_datetime
+from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.encoding import render_template

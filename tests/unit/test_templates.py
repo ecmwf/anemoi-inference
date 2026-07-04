@@ -14,8 +14,8 @@ from pathlib import Path
 import pytest
 import yaml
 from anemoi.transform import Field
-from anemoi.transform.fields import to_timedelta
 from anemoi.utils.testing import GetTestData
+from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
 

@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from anemoi.transform import FieldList
-from anemoi.transform.fields import to_datetime
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata

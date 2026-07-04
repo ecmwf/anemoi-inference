@@ -24,12 +24,12 @@ import deprecation
 import numpy as np
 from anemoi.transform import Field
 from anemoi.transform import FieldList
-from anemoi.transform.fields import Availability
-from anemoi.transform.fields import to_datetime
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
+from earthkit.data.utils.availability import Availability
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -564,9 +564,36 @@ class Metadata(LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
+        # The naming scheme used when the training dataset was built is
+        # serialised in the dataset metadata; use the same scheme here so
+        # that fields are named identically at training and inference time.
+        variable_naming = self._dataset.get("variable_naming")
+        if variable_naming is not None:
+            from anemoi.transform.naming import create_naming
+
+            naming = create_naming(variable_naming)
+            return lambda field, metadata: naming.name(field)
+
+        # Older checkpoints carried the naming as an earthkit remapping
+        # (e.g. {"param_level": "{param}_{levelist}"}).
+        remapping = self._dataset.get("remapping")
+        if remapping:
+            from anemoi.transform.naming import create_naming_from_remapping
+            from anemoi.transform.naming import variable_naming_from_remapping
+
+            naming = create_naming_from_remapping(remapping)
+            if naming is not None:
+                warnings.warn(
+                    f"Checkpoint metadata carries a deprecated 'remapping' ({remapping}); "
+                    f"substituting the equivalent 'variable_naming' "
+                    f"({variable_naming_from_remapping(remapping)!r})."
+                )
+                return lambda field, metadata: naming.name(field)
+
         def namer(field: Field, metadata: dict[str, Any]) -> str:
-            # TODO: Return the `namer` used when building the dataset
-            warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
+            # Legacy checkpoints do not record the naming scheme; assume the
+            # historical default ({param}_{levelist}).
+            warnings.warn("Checkpoint does not record 'variable_naming'; assuming '{param}_{levelist}'")
             param = metadata.get("param")
             levelist = metadata.get("levelist")
             levtype = metadata.get("levtype")
