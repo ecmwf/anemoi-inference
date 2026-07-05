@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -114,6 +114,11 @@ class Metadata(LegacyMixin):
         return self._config.training
 
     @property
+    def _config_task(self) -> DotDict:
+        """Return the task configuration if it exists."""
+        return getattr(self._config, "task", DotDict())
+
+    @property
     def _config_model(self) -> DotDict:
         """Return the model configuration."""
         return self._config.model
@@ -141,7 +146,8 @@ class Metadata(LegacyMixin):
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._config.data.frequency
+        output_timestep = getattr(self._config_task, "output_timestep", None)
+        return output_timestep or self._config.data.frequency
 
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
@@ -152,7 +158,12 @@ class Metadata(LegacyMixin):
     ###########################################################################
 
     def _print_indices(
-        self, title: str, indices: dict[str, list[int]], naming: dict, skip: list[str] = [], print=LOG.info
+        self,
+        title: str,
+        indices: dict[str, list[int]],
+        naming: dict,
+        skip: list[str] = [],
+        print=LOG.info,
     ) -> None:
         """Print indices for debugging purposes.
 
@@ -685,7 +696,6 @@ class Metadata(LegacyMixin):
                 raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
 
         for variable, metadata in self.variables_metadata.items():
-
             categories = set(variable_categories[variable])
 
             if not categories < VARIABLE_CATEGORIES:
@@ -753,7 +763,6 @@ class Metadata(LegacyMixin):
             include=["prognostic", "forcing"],
             exclude=["computed", "diagnostic"],
         ):
-
             metadata = self.variables_metadata[variable]
 
             mars = metadata["mars"]
@@ -852,10 +861,8 @@ class Metadata(LegacyMixin):
 
         result = []
         for reqs in requests.values():
-
             compressed = Availability(reqs)
             for r in compressed.iterate():
-
                 if not r:
                     continue
 
@@ -931,7 +938,6 @@ class Metadata(LegacyMixin):
             raise ValueError("No variables requested")
 
         for variable in variables:
-
             if variable not in self.variables_metadata:
                 raise ValueError(f"Variable {variable} not found in the metadata")
 
@@ -987,22 +993,22 @@ class Metadata(LegacyMixin):
         all_packages : bool, optional
             Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
-            What to do on difference, by default "warn"
+            What to do on difference, by default "warn".
         exempt_packages : list[str], optional
-            List of packages to exempt from the check, by default EXEMPT_PACKAGES
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES.
 
         Returns
         -------
         Union[bool, str]
-            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
-            True if environment is valid, False otherwise
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences.
+            True if environment is valid, False otherwise.
 
         Raises
         ------
         RuntimeError
-            If found difference and `on_difference` is 'error'
+            If found difference and `on_difference` is 'error'.
         ValueError
-            If `on_difference` is not 'warn' or 'error'
+            If `on_difference` is not 'warn' or 'error'.
         """
         from anemoi.inference.provenance import validate_environment
 
@@ -1050,7 +1056,10 @@ class Metadata(LegacyMixin):
         return result
 
     def open_dataset(
-        self, *, use_original_paths: bool | None = None, from_dataloader: str | None = None
+        self,
+        *,
+        use_original_paths: bool | None = None,
+        from_dataloader: str | None = None,
     ) -> tuple[Any, Any]:
         """Open the dataset.
 
@@ -1379,7 +1388,12 @@ class Metadata(LegacyMixin):
 
         new_keys: list[str] = []
 
-        def merge(main: dict[str, Any], patch: dict[str, Any], path: str = "", parent_is_new: bool = False) -> None:
+        def merge(
+            main: dict[str, Any],
+            patch: dict[str, Any],
+            path: str = "",
+            parent_is_new: bool = False,
+        ) -> None:
 
             for k, v in patch.items():
                 key_path = f"{path}.{k}" if path else k
@@ -1409,7 +1423,10 @@ class MultiDatasetMetadata(Metadata):
     multi_dataset = True
 
     def __init__(
-        self, metadata: dict[str, Any], supporting_arrays: dict[str, dict[str, FloatArray]] = {}, dataset_name="data"
+        self,
+        metadata: dict[str, Any],
+        supporting_arrays: dict[str, dict[str, FloatArray]] = {},
+        dataset_name="data",
     ):
         super().__init__(metadata, supporting_arrays.get(dataset_name, {}))
         self.dataset_name = dataset_name
@@ -1493,7 +1510,9 @@ class MultiDatasetMetadata(Metadata):
         return self._inference.timesteps.output_relative_date_indices
 
     @cached_property
-    def output_shape(self) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
+    def output_shape(
+        self,
+    ) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
         # newer checkpoint have an extra multi-step output dimension, but older ones don't
         if not hasattr(self._config_training, "multistep_output"):
             return super().output_shape
@@ -1556,7 +1575,11 @@ class MultiDatasetMetadata(Metadata):
 
 class MetadataFactory:
     def __new__(
-        cls, metadata: dict[str, Any], supporting_arrays: dict[str, Any] = {}, dataset_name="data", base_class=Metadata
+        cls,
+        metadata: dict[str, Any],
+        supporting_arrays: dict[str, Any] = {},
+        dataset_name="data",
+        base_class=Metadata,
     ) -> SingleDatasetMetadata | MultiDatasetMetadata:
         suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
 

@@ -1,4 +1,4 @@
-# (C) Copyright 2024-2025 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -412,7 +412,7 @@ def encode_message(
     template: Any,
     metadata: dict[str, Any],
     check_nans: bool = False,
-    missing_value: int | float = 9999,
+    missing_value: int | float = -9999,
 ) -> Any:
     """Encode a GRIB message.
 
@@ -549,7 +549,7 @@ class GribWriter:
         template: Any,
         metadata: dict[str, Any],
         check_nans: bool = False,
-        missing_value: int | float = 9999,
+        missing_value: int | float = -9999,
     ) -> tuple:
         """Write a GRIB message to the target file.
 
