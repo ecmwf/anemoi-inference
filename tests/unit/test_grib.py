@@ -10,7 +10,6 @@
 
 import numpy as np
 import pytest
-from earthkit.data.readers.grib.codes import GribCodesHandle
 from earthkit.data.utils.dates import to_datetime
 from earthkit.data.utils.dates import to_timedelta
 
@@ -25,10 +24,11 @@ from anemoi.inference.testing.variables import z
 def _make_template(missing_value=9999):
     """Create a minimal GRIB2 template handle from eccodes samples."""
     import eccodes
+    from anemoi.transform import Field
 
     raw = eccodes.codes_grib_new_from_samples("regular_ll_pl_grib2")
     eccodes.codes_set(raw, "missingValue", missing_value)
-    handle = GribCodesHandle(raw, None, None)
+    handle = Field.new_grib_handle(raw)
 
     class _Template:
         def __init__(self, h):

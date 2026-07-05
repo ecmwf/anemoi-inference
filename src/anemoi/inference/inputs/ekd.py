@@ -415,7 +415,7 @@ class EkdInput(Input):
                 LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
                 raise
 
-            state_variables[name] = Variable.from_earthkit(name, field)
+            state_variables[name] = Variable.from_field(name, field)
 
             if date_idx in check[name]:
                 LOG.error("Duplicate dates for %s: %s", name, date_idx)
