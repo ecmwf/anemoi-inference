@@ -11,7 +11,7 @@
 import logging
 from typing import Any
 
-import earthkit.data as ekd
+from anemoi.transform import FieldList
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
@@ -34,7 +34,7 @@ def retrieve(
     area: list[float] | str | None,
     dataset: str | dict[str, Any],
     **kwargs: Any,
-) -> ekd.FieldList:
+) -> FieldList:
     """Retrieve data from CDS.
 
     Parameters
@@ -68,7 +68,7 @@ def retrieve(
 
     pproc = postproc(grid, area)
 
-    result = ekd.from_source("empty")
+    result = FieldList()
     for r in requests:
         if isinstance(dataset, str):
             d = dataset
@@ -99,7 +99,7 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("cds", d, r)
+        result = FieldList.concat(result, FieldList.from_source("cds", d, r))
 
     return result
 

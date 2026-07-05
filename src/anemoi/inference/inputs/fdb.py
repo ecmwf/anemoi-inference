@@ -11,8 +11,8 @@ import datetime
 import logging
 from typing import Any
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -83,6 +83,6 @@ class FDBInput(GribInput):
         # NOTE: this is a temporary workaround for #191
         for request in requests:
             request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
-        sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
-        ds = ekd.from_source("multi", sources)
+        sources = [FieldList.from_source("fdb", request, stream=False, **self.configs) for request in requests]
+        ds = FieldList.concat(*sources)
         return ds

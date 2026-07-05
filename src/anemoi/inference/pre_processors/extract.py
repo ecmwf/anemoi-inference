@@ -12,8 +12,8 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from anemoi.transform.fields import new_field_from_numpy
-from anemoi.transform.fields import new_fieldlist_from_list
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
@@ -58,8 +58,8 @@ class ExtractBase(Processor):
         result = []
         for field in state["fields"]:
             data = field.to_numpy().flatten()[idx]
-            result.append(new_field_from_numpy(data, template=field))
-        state["fields"] = new_fieldlist_from_list(result)
+            result.append(Field.from_numpy(data, template=field))
+        state["fields"] = FieldList.from_fields(result)
         state["latitudes"] = state["latitudes"][idx]
         state["longitudes"] = state["longitudes"][idx]
         return state

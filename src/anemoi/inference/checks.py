@@ -13,8 +13,8 @@ import logging
 import sys
 from collections import defaultdict
 
+from anemoi.transform import FieldList
 from anemoi.utils.humanize import plural
-from earthkit.data import FieldList
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.metadata import Metadata
@@ -75,7 +75,7 @@ def check_data(
         avail = defaultdict(set)
         duplicates = defaultdict(set)
         for field in data:
-            name, date = field.metadata("name"), to_datetime(field.metadata("valid_datetime"))
+            name, date = field.name, to_datetime(field.valid_datetime)
             if date in avail[name]:
                 duplicates[name].add(date)
                 LOG.warning(

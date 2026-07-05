@@ -15,8 +15,9 @@ These values are then tested in the mock model.
 
 import logging
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -81,7 +82,7 @@ class DummyInput(EkdInput):
             current_state=current_state,
         )
 
-    def _fields(self, dates: list[Date], variables) -> ekd.FieldList:
+    def _fields(self, dates: list[Date], variables) -> FieldList:
         """Generate fields for the given dates and variables.
 
         Parameters
@@ -93,7 +94,7 @@ class DummyInput(EkdInput):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The generated fields.
         """
 
@@ -110,18 +111,21 @@ class DummyInput(EkdInput):
             for date in dates:
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
-                handle = dict(
+                field = Field.from_components(
                     values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
-                    latitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    longitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    date=date.strftime("%Y%m%d"),
-                    time=date.strftime("%H%M"),
-                    name=variable,
-                    **keys,
+                    geography={
+                        "latitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                        "longitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                    },
+                    time={
+                        "valid_datetime": date.isoformat(),
+                    },
+                    parameter={"variable": variable},
+                    labels={"name": variable, **keys},
                 )
-                result.append(handle)
+                result.append(field)
 
-        return ekd.from_source("list-of-dicts", result)
+        return FieldList.from_fields(result)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup a template by name.

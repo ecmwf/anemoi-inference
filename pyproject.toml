@@ -34,12 +34,13 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "anemoi-transform>0.1.13",
+  # TODO: replace with anemoi-transform release
+  "anemoi-transform",
   "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
   "anytree",
   "deprecation",
-  "earthkit-data>=0.12.4,<1",
+  "earthkit-data>=1",
   "eccodes>=2.38.3",
   "numpy",
   "omegaconf>=2.2,<2.4",
@@ -70,11 +71,8 @@ optional-dependencies.docs = [
   "sphinx-rtd-theme",
 ]
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-optional-dependencies.netcdf = [ "earthkit-data>=0.19,<1" ]
-optional-dependencies.plot = [
-  "earthkit-plots<1",
-  "matplotlib<3.11",  # TODO: remove when we start using ekp 1.0
-]
+optional-dependencies.netcdf = [ "earthkit-data>=1" ]
+optional-dependencies.plot = [ "earthkit-plots>=1" ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
   "anemoi-inference[all]",
@@ -104,6 +102,7 @@ strict = false
 
 [tool.pytest]
 ini_options.testpaths = "tests"
+ini_options.pythonpath = [ "tests" ]
 ini_options.markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]

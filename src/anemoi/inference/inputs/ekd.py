@@ -16,8 +16,9 @@ from collections.abc import Callable
 from functools import cached_property
 from typing import Any
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 from anemoi.transform.variables import Variable
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
@@ -36,12 +37,82 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
-def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
+def _get_metadata_dict(field: Any) -> dict[str, Any]:
+    """Build a metadata dictionary from a field for use with namer functions.
+
+    Extracts common metadata keys using the new component-based API,
+    falling back to raw metadata access for GRIB fields.
+
+    Parameters
+    ----------
+    field : Any
+        The field to extract metadata from.
+
+    Returns
+    -------
+    dict
+        A dictionary of metadata key-value pairs.
+    """
+    result = {}
+
+    # Try raw metadata first for GRIB-specific keys (param, levelist, levtype)
+    # These are preferred over component access because component access may
+    # return different values (e.g., parameter.variable() returns shortName
+    # which can differ from the GRIB param key)
+    for key in ("param", "levelist", "levtype", "shortName", "dataDate", "dataTime"):
+        try:
+            result[key] = field.metadata(key)
+        except (KeyError, TypeError, AttributeError):
+            pass
+
+    # Try component-based access for keys not yet found
+    for key, accessor in [
+        ("param", lambda f: f.parameter.variable()),
+        ("levelist", lambda f: f.vertical.level()),
+        ("levtype", lambda f: f.vertical.level_type()),
+        ("valid_datetime", lambda f: f.time.valid_datetime()),
+        ("base_datetime", lambda f: f.time.base_datetime()),
+        ("step", lambda f: f.time.step()),
+        ("number", lambda f: f.ensemble.member()),
+    ]:
+        if key not in result:
+            try:
+                result[key] = accessor(field)
+            except (AttributeError, KeyError, TypeError, NotImplementedError):
+                pass
+
+    return result
+
+
+def _name_fields(data: Any, namer: callable) -> Any:
+    """Apply a namer function to all fields and set labels.name.
+
+    Parameters
+    ----------
+    data : Any
+        The fieldlist to name.
+    namer : callable
+        The namer function: (field, metadata_dict) -> str.
+
+    Returns
+    -------
+    Any
+        A new fieldlist with labels.name set on each field.
+    """
+    named = []
+    for f in data:
+        md = _get_metadata_dict(f)
+        name = namer(f, md)
+        named.append(f.set(**{"labels.name": name}))
+    return FieldList.from_fields(named)
+
+
+def find_variable(data: FieldList, name: str, namer: callable, **kwargs: Any) -> FieldList:
     """Find a variable in an earthkit FieldList.
 
     Parameters
     ----------
-    data : ekd.FieldList
+    data : FieldList
         The data to search.
     name : str
         The name of the variable to find.
@@ -52,15 +123,11 @@ def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
 
     Returns
     -------
-    ekd.FieldList
+    FieldList
         The selected variable (FieldList subset).
     """
-
-    def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
-        return namer(field, original_metadata)
-
-    data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
-    return data.sel(name=name, **kwargs)
+    data = _name_fields(data, namer)
+    return data.sel(**{"labels.name": name}, **kwargs)
 
 
 class RulesNamer:
@@ -79,12 +146,12 @@ class RulesNamer:
         self.rules = rules
         self.default_namer = default_namer
 
-    def __call__(self, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
+    def __call__(self, field: Field, original_metadata: dict[str, Any]) -> str:
         """Generate a name for the field.
 
         Parameters
         ----------
-        field : ekd.Field
+        field : Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
             The original metadata of the field.
@@ -105,14 +172,14 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template: str, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
+    def substitute(self, template: str, field: Field, original_metadata: dict[str, Any]) -> str:
         """Substitute placeholders in the template with metadata values.
 
         Parameters
         ----------
         template : str
             The template string with placeholders.
-        field : ekd.Field
+        field : Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
             The original metadata of the field.
@@ -162,18 +229,18 @@ class EkdInput(Input):
 
     def _filter_and_sort(
         self,
-        data: ekd.FieldList,
+        data: FieldList,
         *,
         dates: list[Date],
         title: str,
         select_reference_date: bool = False,
         **kwargs,
-    ) -> ekd.FieldList:
+    ) -> FieldList:
         """Filter and sort the earthkit FieldList.
 
         Parameters
         ----------
-        data : ekd.FieldList
+        data : FieldList
             The data to filter and sort.
         dates : List[Date]
             The list of dates to select.
@@ -187,40 +254,41 @@ class EkdInput(Input):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The filtered and sorted data.
         """
 
-        def _name(field: ekd.Field, _: Any, original_metadata: dict[str, Any]) -> str:
-            return self._namer(field, original_metadata)
+        data = _name_fields(data, self._namer)
 
-        valid_datetime = [date.isoformat() for date in dates]
-        datetime_selection = dict(valid_datetime=valid_datetime)
-
-        if select_reference_date:
-            datetime_selection.update(
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
-            )
-
-        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
+        valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        data = data.sel(name=self.variables).order_by(
-            name=self.variables,
-            valid_datetime="ascending",
-        )
+        if select_reference_date:
+            data = data.sel(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": valid_datetime},
+                **{"metadata.dataDate": int(self.reference_date.strftime("%Y%m%d"))},
+                **{"metadata.dataTime": int(self.reference_date.strftime("%H%M"))},
+            ).order_by(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": "ascending"},
+            )
+        else:
+            data = data.sel(**{"labels.name": self.variables, "time.valid_datetime": valid_datetime}).order_by(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": "ascending"},
+            )
 
         check_data(title, data, self.variables, dates, self.metadata)
 
         return data
 
-    def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
+    def _find_variable(self, data: FieldList, name: str, **kwargs: Any) -> FieldList:
         """Find a variable in the earthkit FieldList selection.
 
         Parameters
         ----------
-        data : ekd.FieldList
+        data : FieldList
             The data to search.
         name : str
             The name of the variable to find.
@@ -229,7 +297,7 @@ class EkdInput(Input):
 
         Returns
         -------
-        ekd.FieldList
+        FieldList
             The selected variable (FieldList subset).
         """
 
@@ -237,7 +305,7 @@ class EkdInput(Input):
 
     def _create_state(
         self,
-        fields: ekd.FieldList,
+        fields: FieldList,
         *,
         dates: list[Date],
         latitudes: FloatArray | None = None,
@@ -247,7 +315,7 @@ class EkdInput(Input):
         ref_date_index: int = -1,
         **kwargs,
     ) -> State:
-        """Create a state from an ekd.FieldList.
+        """Create a state from an FieldList.
 
         Notes
         -----
@@ -258,7 +326,7 @@ class EkdInput(Input):
 
         Parameters
         ----------
-        fields : ekd.FieldList
+        fields : FieldList
             The ekd fields.
         dates : List[Date]
             The dates for which to create the input state.
@@ -282,7 +350,7 @@ class EkdInput(Input):
         """
         if latitudes is None and longitudes is None:
             try:
-                latitudes, longitudes = fields[0].grid_points()
+                latitudes, longitudes = fields[0].geography.latlons(flatten=True)
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -327,7 +395,7 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
+            name, valid_datetime = field.name, field.valid_datetime
             if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), n_points),
@@ -335,7 +403,7 @@ class EkdInput(Input):
                     dtype=dtype,
                 )
 
-            date_idx = date_to_index[valid_datetime]
+            date_idx = date_to_index[to_datetime(valid_datetime).isoformat()]
 
             try:
                 state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
@@ -347,7 +415,7 @@ class EkdInput(Input):
                 LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
                 raise
 
-            state_variables[name] = Variable.from_earthkit(name, field)
+            state_variables[name] = Variable.from_field(name, field)
 
             if date_idx in check[name]:
                 LOG.error("Duplicate dates for %s: %s", name, date_idx)
@@ -382,7 +450,7 @@ class EkdInput(Input):
 
     def _create_input_state(
         self,
-        input_fields: ekd.FieldList,
+        input_fields: FieldList,
         *,
         date: Date | None = None,
         variables: list[str] | None = None,
@@ -398,7 +466,7 @@ class EkdInput(Input):
 
         Parameters
         ----------
-        input_fields : ekd.FieldList
+        input_fields : FieldList
             The input fields.
         date : Date
             The date for which to create the input state.
@@ -424,7 +492,7 @@ class EkdInput(Input):
             The created input state.
         """
         if date is None:
-            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+            date = input_fields.order_by(**{"time.valid_datetime": "ascending"})[-1].time.valid_datetime()
             LOG.info(
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
@@ -445,12 +513,12 @@ class EkdInput(Input):
             **kwargs,
         )
 
-    def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
+    def _load_forcings_state(self, fields: FieldList, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state.
 
         Parameters
         ----------
-        fields : ekd.FieldList
+        fields : FieldList
             The fields to load.
         dates : List[Any]
             The list of dates to load.
@@ -471,7 +539,7 @@ class EkdInput(Input):
             flatten=True,
         )
 
-    def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
+    def set_private_attributes(self, state: State, fields: FieldList) -> None:  # type: ignore
         """Set private attributes to the state.
 
         Provides geography information if available retrieved from the fields.
@@ -480,24 +548,17 @@ class EkdInput(Input):
 
         def get_geography_info(key: str) -> str | None:
             try:
-                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+                combo = list(getattr(f.geography, key, lambda: None)() for f in fields)
             except NotImplementedError:  # Issue with earthkit.data throwing error here
                 return None
             if len(set(map(str, combo))) == 1 and combo[0] != "None":
                 return combo[0]
             return None
 
-        grid = get_geography_info("mars_grid")
-        if grid == "undefined":
-            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
+        if area := get_geography_info("area"):
+            geography_information["area"] = area
+        if grid := get_geography_info("grid"):
             geography_information["grid"] = grid
-
-        else:  # If grid is undefined we don't want to add the area
-            if grid:
-                geography_information["grid"] = grid
-
-            if area := get_geography_info("mars_area"):
-                geography_information["area"] = area
 
         if geography_information:
             state["_geography"] = geography_information
@@ -578,7 +639,7 @@ class FieldlistInput(EkdInput):
         )
 
     @cached_property
-    def _fieldlist(self) -> ekd.FieldList:
+    def _fieldlist(self) -> FieldList:
         """Get the input fieldlist from the file or collection."""
         path = self.path
 
@@ -588,8 +649,8 @@ class FieldlistInput(EkdInput):
             files = [p for p in matches if os.path.isfile(p)]
             if not files:
                 LOG.warning("No files matched pattern %r", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", sorted(files))  # type: ignore[reportReturnType]
+                return FieldList()  # type: ignore[reportReturnType]
+            return FieldList.from_source("file", sorted(files))  # type: ignore[reportReturnType]
 
         # Case 2: directory path -> search for files recursively
         if os.path.isdir(path):
@@ -599,16 +660,16 @@ class FieldlistInput(EkdInput):
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
                 LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", files)  # type: ignore[reportReturnType]
+                return FieldList()  # type: ignore[reportReturnType]
+            return FieldList.from_source("file", files)  # type: ignore[reportReturnType]
 
         # Case 3: single file path
         try:
             if os.path.getsize(path) == 0:
                 LOG.warning("File %r is empty", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+                return FieldList()  # type: ignore[reportReturnType]
         except FileNotFoundError:
             LOG.warning("Path %r not found", path)
-            return ekd.from_source("empty")  # type: ignore[reportReturnType]
+            return FieldList()  # type: ignore[reportReturnType]
 
-        return ekd.from_source("file", path)  # type: ignore[reportReturnType]
+        return FieldList.from_source("file", path)  # type: ignore[reportReturnType]

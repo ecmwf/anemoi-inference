@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+from anemoi.transform import Field
 from anemoi.utils.testing import GetTestData
-from earthkit.data.readers.grib.codes import GribField
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
@@ -76,17 +76,17 @@ def test_builtin(manager, variable, expected_param):
     manager = manager()
     template = manager.template(variable, state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == expected_param
 
 
 @pytest.mark.parametrize(
     "file_config, variable, expected_param, expected_type",
     [
-        pytest.param({}, "2t", "10u", GribField, id="first"),
-        pytest.param({"mode": "last"}, "2t", "v", GribField, id="last"),
-        pytest.param({"mode": "auto"}, "2t", "2t", GribField, id="auto-sfc"),
-        pytest.param({"mode": "auto"}, "w_100", "w", GribField, id="auto-pl"),
+        pytest.param({}, "2t", "10u", Field, id="first"),
+        pytest.param({"mode": "last"}, "2t", "v", Field, id="last"),
+        pytest.param({"mode": "auto"}, "2t", "2t", Field, id="auto-sfc"),
+        pytest.param({"mode": "auto"}, "w_100", "w", Field, id="auto-pl"),
         pytest.param({"mode": "auto"}, "unknown", None, type(None), id="auto unknown"),
         pytest.param({"variables": "10u"}, "2t", None, type(None), id="skip variable"),
     ],
@@ -114,7 +114,7 @@ def test_samples_index_path(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -125,7 +125,7 @@ def test_samples_index_path_str(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -136,7 +136,7 @@ def test_samples_direct_index(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
