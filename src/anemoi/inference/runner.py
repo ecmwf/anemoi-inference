@@ -315,6 +315,13 @@ class Runner(Context):
             LOG.info("Device is '%s'", self.device)
             LOG.info("Loading model from %s", self.checkpoint.path)
 
+            from anemoi.inference.utils.imports import checkpoint_contains_module
+
+            if checkpoint_contains_module(self.checkpoint.path, "flash_attn"):
+                from anemoi.inference.utils.imports import spoof_flash_attn
+
+                spoof_flash_attn()
+
             try:
                 model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except RuntimeError:
