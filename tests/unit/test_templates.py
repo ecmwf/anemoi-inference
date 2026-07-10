@@ -25,9 +25,10 @@ from anemoi.inference.grib.encoding import GribWriter
 from anemoi.inference.grib.encoding import check_encoding
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.templates.input import InputTemplates
-from anemoi.inference.grib.templates.input import _GribHandleWrapper
 from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.outputs.parallel import _GribHandleWrapper
+from anemoi.inference.outputs.parallel import _restore_grib_templates
 from anemoi.inference.outputs.parallel import _sanitise_state
 from anemoi.inference.testing import files_for_tests
 
@@ -268,64 +269,67 @@ def test_sanitise_state_bytes_are_picklable():
     assert isinstance(restored["_grib_templates_bytes_for_output"]["2t"], bytes)
 
 
-def test_input_templates_reconstruct_from_bytes(mocker: MockerFixture):
-    """InputTemplates falls back to bytes and reconstructs a usable handle wrapper."""
+def test_restore_grib_templates_reconstructs_wrapper(mocker: MockerFixture):
+    """_restore_grib_templates turns serialised bytes back into a usable handle wrapper,
+    which InputTemplates can then serve without any bytes-awareness of its own."""
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
     sanitised = _sanitise_state(state)
+    restored = _restore_grib_templates(sanitised)
+
+    assert "_grib_templates_bytes_for_output" not in restored
+    assert "_grib_templates_for_output" in restored
 
     owner = mocker.MagicMock()
     owner.metadata = _metadata()
     provider = InputTemplates(owner)
 
-    template = provider.template("2t", {}, state=sanitised)
+    template = provider.template("2t", {}, state=restored)
 
     assert isinstance(template, _GribHandleWrapper)
     assert template.metadata("shortName") == "2t"
     assert template.metadata("bitsPerValue") == 16
 
 
-def test_input_templates_reconstruct_preserves_bits_per_value(mocker: MockerFixture):
+def test_restore_grib_templates_preserves_bits_per_value(mocker: MockerFixture):
     """Reconstructed template preserves the original bitsPerValue so packing is identical."""
     for bpv in (16, 24):
         field = _make_grib_field_mock("2t", bits_per_value=bpv)
         state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-        sanitised = _sanitise_state(state)
+        restored = _restore_grib_templates(_sanitise_state(state))
 
         owner = mocker.MagicMock()
         owner.metadata = _metadata()
         provider = InputTemplates(owner)
 
-        template = provider.template("2t", {}, state=sanitised)
+        template = provider.template("2t", {}, state=restored)
         assert template.metadata("bitsPerValue") == bpv, f"expected bpv={bpv}"
 
 
-def test_input_templates_reconstruct_caches_result(mocker: MockerFixture):
-    """After reconstruction, the wrapper is cached in _grib_templates_for_output."""
+def test_restore_grib_templates_noop_without_bytes():
+    """_restore_grib_templates leaves states without serialised templates untouched."""
+    state = {"fields": {}}
+    restored = _restore_grib_templates(state)
+    assert "_grib_templates_for_output" not in restored
+    assert "_grib_templates_bytes_for_output" not in restored
+
+
+def test_restore_grib_templates_populates_cache():
+    """After restore, _grib_templates_for_output is populated on the state."""
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-    sanitised = _sanitise_state(state)
+    restored = _restore_grib_templates(_sanitise_state(state))
 
-    owner = mocker.MagicMock()
-    owner.metadata = _metadata()
-    provider = InputTemplates(owner)
-
-    provider.template("2t", {}, state=sanitised)
-
-    assert "2t" in sanitised.get("_grib_templates_for_output", {})
+    assert "2t" in restored.get("_grib_templates_for_output", {})
 
 
-def test_input_templates_reconstructed_handle_is_cloneable(mocker: MockerFixture):
-    """The reconstructed wrapper's handle can be cloned — required by encode_message."""
+def test_restore_grib_templates_handle_is_cloneable():
+    """The restored wrapper's handle can be cloned — required by encode_message."""
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-    sanitised = _sanitise_state(state)
+    restored = _restore_grib_templates(_sanitise_state(state))
 
-    owner = mocker.MagicMock()
-    owner.metadata = _metadata()
-    provider = InputTemplates(owner)
-
-    template = provider.template("2t", {}, state=sanitised)
+    template = restored["_grib_templates_for_output"]["2t"]
     cloned = template.handle.clone()
 
     assert isinstance(cloned, GribCodesHandle)

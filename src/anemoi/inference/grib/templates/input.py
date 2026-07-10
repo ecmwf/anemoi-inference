@@ -21,20 +21,6 @@ from .manager import TemplateManager
 LOG = logging.getLogger(__name__)
 
 
-class _GribHandleWrapper:
-    """Minimal wrapper around a GribCodesHandle so it satisfies the template.handle.clone() contract
-    expected by encode_message(), while being reconstructable from raw GRIB bytes."""
-
-    def __init__(self, handle: Any) -> None:
-        self.handle = handle
-
-    def metadata(self, key: str, default: Any = None) -> Any:
-        try:
-            return self.handle.get(key, default=default)
-        except Exception:
-            return default
-
-
 @template_provider_registry.register("input")
 class InputTemplates(TemplateProvider):
     """Use input fields as the output GRIB template."""
@@ -60,31 +46,6 @@ class InputTemplates(TemplateProvider):
             fallback = f"(fallback {fallback})"
         return info.format(fallback=fallback)
 
-    def _reconstruct_from_bytes(self, state: State, variable: str) -> "_GribHandleWrapper | None":
-        """Reconstruct a GRIB handle wrapper from serialised bytes stored in the state.
-
-        Used by parallel writer processes that receive raw GRIB bytes instead of live
-        earthkit Field objects. Reconstructed wrappers are cached back into
-        ``_grib_templates_for_output`` so subsequent calls for the same variable are instant.
-        """
-        bytes_templates = state.get("_grib_templates_bytes_for_output", {})
-        if variable not in bytes_templates:
-            return None
-
-        try:
-            import eccodes
-            from earthkit.data.readers.grib.codes import GribCodesHandle
-
-            h = eccodes.codes_new_from_message(bytes_templates[variable])
-            wrapper = _GribHandleWrapper(GribCodesHandle(h, None, None))
-        except Exception as e:
-            LOG.warning("Could not reconstruct GRIB template for '%s' from bytes: %s", variable, e)
-            return None
-
-        # Cache back so subsequent calls for the same variable skip reconstruction
-        state.setdefault("_grib_templates_for_output", {})[variable] = wrapper
-        return wrapper
-
     def template(
         self,
         variable: str,
@@ -96,13 +57,8 @@ class InputTemplates(TemplateProvider):
         if template := state.get("_grib_templates_for_output", {}).get(variable):
             return template
 
-        if template := self._reconstruct_from_bytes(state, variable):
-            return template
-
         if fallback_variable := self.fallback.get(variable):
             if template := state.get("_grib_templates_for_output", {}).get(fallback_variable):
-                return template
-            if template := self._reconstruct_from_bytes(state, fallback_variable):
                 return template
             LOG.warning(f"Fallback variable '{fallback_variable}' for output '{variable}' not found in input state.")
 
