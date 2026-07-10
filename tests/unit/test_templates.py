@@ -271,7 +271,8 @@ def test_sanitise_state_bytes_are_picklable():
 
 def test_restore_grib_templates_reconstructs_wrapper(mocker: MockerFixture):
     """_restore_grib_templates turns serialised bytes back into a usable handle wrapper,
-    which InputTemplates can then serve without any bytes-awareness of its own."""
+    which InputTemplates can then serve without any bytes-awareness of its own.
+    """
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
     sanitised = _sanitise_state(state)
