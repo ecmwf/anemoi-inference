@@ -49,24 +49,6 @@ def _detach_tensors(obj: Any) -> Any:
     return obj
 
 
-class _GribHandleWrapper:
-    """Minimal wrapper around a ``GribCodesHandle`` reconstructed from raw GRIB bytes.
-
-    Satisfies the ``template.metadata(...)`` and ``template.handle.clone()`` contract
-    expected by the GRIB encoder, so the writer processes in :class:`ParallelOutput`
-    can consume templates that were shipped across the process boundary as bytes.
-    """
-
-    def __init__(self, handle: Any) -> None:
-        self.handle = handle
-
-    def metadata(self, key: str, default: Any = None) -> Any:
-        try:
-            return self.handle.get(key, default=default)
-        except Exception:
-            return default
-
-
 def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
     """Convert a dict of earthkit GRIB fields to a dict of raw GRIB bytes so they can be pickled."""
     result = {}
@@ -78,21 +60,21 @@ def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
     return result
 
 
-def _deserialise_grib_templates(bytes_templates: dict[str, bytes]) -> dict[str, "_GribHandleWrapper"]:
-    """Reconstruct wrapped GRIB handles from raw bytes.
+def _deserialise_grib_templates(bytes_templates: dict[str, bytes]) -> dict[str, Any]:
+    """Reconstruct earthkit GRIB fields from raw bytes.
 
-    Used inside writer processes to restore ``_grib_templates_for_output`` before
-    passing the state to the wrapped output. Failed reconstructions are skipped
-    with a warning so a single bad template does not abort the whole state.
+    Uses ``earthkit.data.from_source("memory", ...)`` so the writer processes see
+    the exact same field type they would see in the non-parallel path (i.e. the
+    field the input pipeline stored under ``_grib_templates_for_output``).
+    Failed reconstructions are skipped with a warning so a single bad template
+    does not abort the whole state.
     """
-    import eccodes
-    from earthkit.data.readers.grib.codes import GribCodesHandle
+    import earthkit.data as ekd
 
-    result: dict[str, _GribHandleWrapper] = {}
+    result: dict[str, Any] = {}
     for name, msg in bytes_templates.items():
         try:
-            h = eccodes.codes_new_from_message(msg)
-            result[name] = _GribHandleWrapper(GribCodesHandle(h, None, None))
+            result[name] = ekd.from_source("memory", msg)[0]
         except Exception as e:
             LOG.warning("Could not reconstruct GRIB template for '%s' from bytes: %s", name, e)
     return result
