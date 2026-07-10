@@ -50,13 +50,26 @@ def _detach_tensors(obj: Any) -> Any:
 
 
 def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
-    """Convert a dict of earthkit GRIB fields to a dict of raw GRIB bytes so they can be pickled."""
+    """Convert a dict of earthkit GRIB fields to a dict of raw GRIB bytes so they can be pickled.
+
+    Templates that cannot be converted (e.g. non-GRIB fields, or future earthkit
+    wrappers that do not expose ``.message()``) are skipped with a warning so a
+    single unserialisable template does not abort the whole state; the writer
+    will simply not receive that template and fall back to whatever the
+    template manager provides.
+    """
     result = {}
     for name, field in templates.items():
         try:
             result[name] = field.message()
         except Exception as e:
-            LOG.warning("Could not serialise GRIB template for '%s': %s", name, e)
+            LOG.warning(
+                "Could not serialise GRIB template for '%s' (type=%s): %s; skipping.",
+                name,
+                type(field).__name__,
+                e,
+                exc_info=True,
+            )
     return result
 
 
