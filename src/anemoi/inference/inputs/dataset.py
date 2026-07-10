@@ -10,6 +10,7 @@
 
 import json
 import logging
+import warnings
 from functools import cached_property
 from typing import Any
 
@@ -81,6 +82,21 @@ class DatasetInput(Input):
                     the input grid will be reduced accordingly.")
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
+
+        has_pre_processors = bool(self._pre_processor_confs) or (
+            hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
+        )
+        if has_pre_processors:
+            msg = (
+                f"Pre-processors are configured for dataset '{self.dataset_name}' but will NOT be applied "
+                f"by '{self.__class__.__name__}'. This input type reads data directly from a pre-built dataset "
+                "and does not invoke the pre-processor pipeline."
+            )
+            if hasattr(context, "_warn_once"):
+                context._warn_once(msg)
+            else:
+                LOG.warning(msg)
+                warnings.warn(msg, UserWarning, stacklevel=2)
 
     @cached_property
     def ds(self) -> Any:
