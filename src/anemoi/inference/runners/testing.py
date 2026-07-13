@@ -15,10 +15,10 @@ from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
 from anemoi.inference.types import FloatArray
 
-from . import runner_registry
-from .default import DefaultRunner
 from ..runner import RunnerClasses
 from ..tensors import TensorHandler
+from . import runner_registry
+from .default import DefaultRunner
 
 LOG = logging.getLogger(__name__)
 
