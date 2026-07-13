@@ -69,6 +69,7 @@ optional-dependencies.docs = [
   "sphinx-argparse<0.5",
   "sphinx-rtd-theme",
 ]
+optional-dependencies.fdb = [ "earthkit-data[fdb]", "fdb5lib" ]
 optional-dependencies.huggingface = [ "huggingface-hub" ]
 optional-dependencies.netcdf = [ "earthkit-data>=0.19,<1" ]
 optional-dependencies.plot = [
