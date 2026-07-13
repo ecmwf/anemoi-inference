@@ -29,3 +29,8 @@ def create_runner(config: RunConfiguration, **kwargs) -> Runner:
         The created runner instance.
     """
     return runner_registry.from_config(config.runner, config, **kwargs)
+
+
+# Import runner modules to trigger registration
+from anemoi.inference.runners import default  # noqa: E402, F401
+from anemoi.inference.runners import testing  # noqa: E402, F401

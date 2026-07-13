@@ -17,6 +17,8 @@ from anemoi.inference.types import FloatArray
 
 from . import runner_registry
 from .default import DefaultRunner
+from ..runner import RunnerClasses
+from ..tensors import TensorHandler
 
 LOG = logging.getLogger(__name__)
 
@@ -60,3 +62,25 @@ class NoModelRunner(NoModelMixing, DefaultRunner):
 
     Inherits from DefaultRunner.
     """
+
+
+class SteadyStateTensorHandler(TensorHandler):
+    """TensorHandler that skips loading dynamic forcings, keeping them frozen at their initial values."""
+
+    def add_dynamic_forcings_to_input_tensor(self, input_tensor_torch, state, dates, check):
+        # Keep existing tensor values (frozen from initial state), just mark slots as set
+        for source in self.dynamic_forcings_providers:
+            check[source.mask] = True
+        return input_tensor_torch
+
+
+@runner_registry.register("steady-state")
+class SteadyStateRunner(DefaultRunner):
+    """Runner that uses the real model but freezes dynamic forcings at their initial values.
+
+    Dynamic forcings are not reloaded each step, keeping them at the values
+    from the initial state. This replicates the old development_hacks approach.
+    """
+
+    def __init__(self, config, *, classes=None) -> None:
+        super().__init__(config, classes=RunnerClasses(tensor_handler=SteadyStateTensorHandler))
