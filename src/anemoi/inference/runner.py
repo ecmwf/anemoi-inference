@@ -937,7 +937,9 @@ class Runner(Context):
         checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}
         state_variables = {k: v for k, v in state_variables.items() if k in common}
 
-        config = multi_datasets_config(self.config.check_variables_compatibility, dataset, self.dataset_names)
+        config = multi_datasets_config(
+            self.config.check_variables_compatibility, dataset, self.dataset_names, strict=False
+        )
         if config is None:
             config = {}
 

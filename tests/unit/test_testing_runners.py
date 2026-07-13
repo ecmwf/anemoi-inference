@@ -13,13 +13,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 import torch
 
 from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.runners.testing import SteadyStateTensorHandler
 from anemoi.inference.tensors import TensorHandler
-
 
 # ---------------------------------------------------------------------------
 # Helpers
