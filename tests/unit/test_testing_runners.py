@@ -27,13 +27,7 @@ from anemoi.inference.tensors import TensorHandler
 
 
 def _make_handler(dynamic_masks):
-    """Return a bare SteadyStateTensorHandler with mocked forcings providers.
-
-    Parameters
-    ----------
-    dynamic_masks : list[np.ndarray]
-        One boolean/integer mask per dynamic-forcings provider.
-    """
+    """Return a bare SteadyStateTensorHandler with mocked forcings providers."""
     handler = SteadyStateTensorHandler.__new__(SteadyStateTensorHandler)
     handler.dynamic_forcings_providers = [SimpleNamespace(mask=m) for m in dynamic_masks]
     return handler
@@ -57,9 +51,9 @@ class TestSteadyStateTensorHandler:
         tensor = torch.zeros(1, 1, 10, n_vars)
         check = np.zeros(n_vars, dtype=bool)
 
-        returned = handler.add_dynamic_forcings_to_input_tensor(tensor, state={}, dates=[], check=check)
+        handler.add_dynamic_forcings_to_input_tensor(tensor, state={}, dates=[], check=check)
 
-        assert check[2] and check[4], "dynamic forcing slots not marked as filled"
+        assert check[2] and check[4]
         assert not check[0] and not check[1] and not check[3] and not check[5]
 
     def test_tensor_values_unchanged(self):
@@ -111,7 +105,7 @@ class TestSteadyStateTensorHandler:
 
 
 def _make_no_model_runner(output_shape):
-    """Return a NoModelMixing instance whose checkpoint reports *output_shape*."""
+    """Return a NoModelMixing instance whose checkpoint reports the given output shape."""
     metadata = SimpleNamespace(output_shape=output_shape)
     checkpoint = MagicMock()
     checkpoint.multi_dataset_metadata = {"data": metadata}
