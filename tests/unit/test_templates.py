@@ -11,7 +11,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-import eccodes
 import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
@@ -29,6 +28,7 @@ from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.outputs.parallel import _restore_grib_templates
 from anemoi.inference.outputs.parallel import _sanitise_state
+from anemoi.inference.outputs.parallel import _serialise_grib_templates
 from anemoi.inference.testing import files_for_tests
 
 
@@ -231,11 +231,10 @@ def test_builtin_gribwriter(manager, variable, tmp_path):
 
 def _make_grib_field_mock(short_name: str, bits_per_value: int) -> object:
     """Create a minimal mock field whose .message() returns real GRIB bytes."""
-    raw = eccodes.codes_grib_new_from_samples("regular_ll_sfc_grib2")
-    eccodes.codes_set(raw, "shortName", short_name)
-    eccodes.codes_set(raw, "bitsPerValue", bits_per_value)
-    msg = eccodes.codes_get_message(raw)
-    eccodes.codes_release(raw)
+    handle = GribCodesHandle.from_sample("regular_ll_sfc_grib2")
+    handle.set("shortName", short_name)
+    handle.set("bitsPerValue", bits_per_value)
+    msg = handle.get_buffer()
 
     class _MockField:
         def message(self):
@@ -244,12 +243,19 @@ def _make_grib_field_mock(short_name: str, bits_per_value: int) -> object:
     return _MockField()
 
 
+def _sanitise_with_templates(state: dict) -> dict:
+    """Test helper: mimic ParallelOutput.dispatch by pre-serialising templates."""
+    templates = state.get("_grib_templates_for_output")
+    bytes_map = _serialise_grib_templates(templates) if templates is not None else None
+    return _sanitise_state(state, bytes_map)
+
+
 def test_sanitise_state_serialises_grib_templates():
     """_sanitise_state converts _grib_templates_for_output to picklable bytes."""
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
 
-    sanitised = _sanitise_state(state)
+    sanitised = _sanitise_with_templates(state)
 
     assert "_grib_templates_for_output" not in sanitised
     assert "_grib_templates_bytes_for_output" in sanitised
@@ -262,7 +268,7 @@ def test_sanitise_state_bytes_are_picklable():
 
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-    sanitised = _sanitise_state(state)
+    sanitised = _sanitise_with_templates(state)
 
     restored = pickle.loads(pickle.dumps(sanitised))
     assert isinstance(restored["_grib_templates_bytes_for_output"]["2t"], bytes)
@@ -274,7 +280,7 @@ def test_restore_grib_templates_reconstructs_wrapper(mocker: MockerFixture):
     """
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-    sanitised = _sanitise_state(state)
+    sanitised = _sanitise_with_templates(state)
     restored = _restore_grib_templates(sanitised)
 
     assert "_grib_templates_bytes_for_output" not in restored
@@ -296,7 +302,7 @@ def test_restore_grib_templates_preserves_bits_per_value(mocker: MockerFixture):
     for bpv in (16, 24):
         field = _make_grib_field_mock("2t", bits_per_value=bpv)
         state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-        restored = _restore_grib_templates(_sanitise_state(state))
+        restored = _restore_grib_templates(_sanitise_with_templates(state))
 
         owner = mocker.MagicMock()
         owner.metadata = _metadata()
@@ -314,11 +320,42 @@ def test_restore_grib_templates_noop_without_bytes():
     assert "_grib_templates_bytes_for_output" not in restored
 
 
+def test_template_bytes_are_cached_across_calls():
+    """ParallelOutput._get_or_serialise_grib_templates caches on templates-dict identity."""
+    from anemoi.inference.outputs import parallel as parallel_mod
+
+    field = _make_grib_field_mock("2t", bits_per_value=16)
+    templates = {"2t": field}
+    state = {"_grib_templates_for_output": templates, "fields": {}}
+
+    calls = {"n": 0}
+    orig = parallel_mod._serialise_grib_templates
+
+    def spy(t):
+        calls["n"] += 1
+        return orig(t)
+
+    # Build a minimal ParallelOutput just to exercise its cache method
+    po = parallel_mod.ParallelOutput.__new__(parallel_mod.ParallelOutput)
+    po._grib_templates_bytes_cache_key = None
+    po._grib_templates_bytes_cache_value = None
+
+    parallel_mod._serialise_grib_templates = spy
+    try:
+        b1 = po._get_or_serialise_grib_templates(state)
+        b2 = po._get_or_serialise_grib_templates(state)
+    finally:
+        parallel_mod._serialise_grib_templates = orig
+
+    assert b1 is b2
+    assert calls["n"] == 1
+
+
 def test_restore_grib_templates_populates_cache():
     """After restore, _grib_templates_for_output is populated on the state."""
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-    restored = _restore_grib_templates(_sanitise_state(state))
+    restored = _restore_grib_templates(_sanitise_with_templates(state))
 
     assert "2t" in restored.get("_grib_templates_for_output", {})
 
@@ -327,10 +364,167 @@ def test_restore_grib_templates_handle_is_cloneable():
     """The restored field's handle can be cloned — required by encode_message."""
     field = _make_grib_field_mock("2t", bits_per_value=16)
     state = {"_grib_templates_for_output": {"2t": field}, "fields": {}}
-    restored = _restore_grib_templates(_sanitise_state(state))
+    restored = _restore_grib_templates(_sanitise_with_templates(state))
 
     template = restored["_grib_templates_for_output"]["2t"]
     cloned = template.handle.clone()
 
     assert isinstance(cloned, GribCodesHandle)
-    assert eccodes.codes_get(cloned._handle, "bitsPerValue") == 16
+    assert cloned.get("bitsPerValue") == 16
+
+
+def _make_ekd_field(short_name: str, bits_per_value: int, param_id: int | None = None):
+    """Build a real ekd GribField (same type ParallelOutput sees at runtime)."""
+    import earthkit.data as ekd
+
+    handle = GribCodesHandle.from_sample("regular_ll_sfc_grib2")
+    handle.set("shortName", short_name)
+    handle.set("bitsPerValue", bits_per_value)
+    if param_id is not None:
+        handle.set("paramId", param_id)
+    return ekd.from_source("memory", handle.get_buffer())[0]
+
+
+def _encode_with_template(field, values) -> bytes:
+    """Encode the given values through the template's handle, mirroring what the writer does.
+
+    The writer inherits ``bitsPerValue`` (and other packing settings) from the template
+    rather than setting them explicitly, so we do the same here — this makes the test
+    sensitive to any regression that drops packing metadata from the parallel-path
+    template.
+    """
+    import numpy as np
+
+    handle = field.handle.clone()
+    handle.set_values(np.asarray(values, dtype=float))
+    return handle.get_buffer()
+
+
+@pytest.mark.parametrize("bpv", [16, 24])
+def test_parallel_and_normal_paths_encode_identically_with_templates(bpv):
+    """Round-trip: parallel path (sanitise → pickle → restore) yields templates that
+    encode to the same GRIB bytes as the normal path for the same input values.
+
+    This is the unit-level analogue of the full parallel/non-parallel byte-equal check:
+    it isolates the template serialisation and asserts that a writer using the
+    restored template would produce byte-identical output.
+    """
+    import pickle
+
+    import numpy as np
+
+    field_a = _make_ekd_field("2t", bits_per_value=bpv, param_id=167)
+    field_b = _make_ekd_field("2t", bits_per_value=bpv, param_id=167)  # separate handle, same content
+
+    # Normal path uses field_a directly.
+    # Parallel path takes field_b through sanitise + pickle + restore.
+    state = {"_grib_templates_for_output": {"2t": field_b}, "fields": {}}
+    sanitised = _sanitise_state(state, _serialise_grib_templates(state["_grib_templates_for_output"]))
+    restored = _restore_grib_templates(pickle.loads(pickle.dumps(sanitised)))
+    field_b_restored = restored["_grib_templates_for_output"]["2t"]
+
+    # Product-definition metadata (independent of the stripped data section) must match.
+    for key in ("shortName", "numberOfDataPoints", "Ni", "Nj", "paramId"):
+        assert field_a.metadata(key) == field_b_restored.metadata(key), f"mismatch on {key}"
+
+    # Encoding the same values through both handles must yield identical bytes:
+    # this is the invariant that guarantees the writer produces the same output
+    # regardless of the parallel/non-parallel path. In particular, the restored
+    # template must preserve ``bitsPerValue`` — if it doesn't, eccodes falls
+    # back to a default and every message the writer produces will be packed
+    # differently from the reference.
+    n = int(field_a.handle.get("numberOfDataPoints"))
+    values = np.linspace(240.0, 310.0, n)
+    assert _encode_with_template(field_a, values) == _encode_with_template(field_b_restored, values)
+
+
+def test_parallel_and_normal_paths_agree_without_templates():
+    """Round-trip: a state without GRIB templates comes back equal (modulo private keys)
+    through the parallel sanitise/restore path.
+    """
+    import pickle
+
+    import numpy as np
+
+    state = {
+        "fields": {"2t": np.arange(6, dtype=float)},
+        "date": datetime(2024, 1, 1),
+        "_input": object(),  # private, should be stripped by _sanitise_state
+    }
+
+    sanitised = _sanitise_state(state, None)
+    restored = _restore_grib_templates(pickle.loads(pickle.dumps(sanitised)))
+
+    assert "_input" not in restored
+    assert "_grib_templates_for_output" not in restored
+    assert "_grib_templates_bytes_for_output" not in restored
+    assert restored["date"] == state["date"]
+    np.testing.assert_array_equal(restored["fields"]["2t"], state["fields"]["2t"])
+
+
+@pytest.mark.parametrize("with_templates", [True, False])
+def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool):
+    """A user-supplied input transformation (gh → z) must survive the parallel-runner cross-process pipeline —
+    ``_sanitise_state`` → pickle → ``_restore_grib_templates`` — both with and
+    without GRIB templates attached to the state.
+    """
+    import pickle
+
+    import earthkit.data as ekd
+    import numpy as np
+
+    from anemoi.inference.outputs.parallel import _serialise_grib_templates
+
+    levels = [500, 850]
+    rng = np.random.default_rng(0)
+    n = int(GribCodesHandle.from_sample("regular_ll_sfc_grib2").get("numberOfDataPoints"))
+
+    def make_template(short_name: str) -> ekd.Field:
+        h = GribCodesHandle.from_sample("regular_ll_sfc_grib2")
+        h.set("shortName", short_name)
+        h.set("bitsPerValue", 16)
+        return ekd.from_source("memory", h.get_buffer())[0]
+
+    # Build a "raw open-data" state with gh fields (and optional templates).
+    state: dict = {
+        "date": datetime(2024, 1, 1),
+        "fields": {f"gh_{lvl}": rng.uniform(5000.0, 6000.0, n) for lvl in levels},
+    }
+    if with_templates:
+        state["_grib_templates_for_output"] = {f"gh_{lvl}": make_template("gh") for lvl in levels}
+
+    # Apply the gh → z transformation on the main process side.
+    g = 9.80665
+    for lvl in levels:
+        state["fields"][f"z_{lvl}"] = state["fields"].pop(f"gh_{lvl}") * g
+        if with_templates:
+            tmpl = state["_grib_templates_for_output"].pop(f"gh_{lvl}")
+            h = tmpl.handle.clone()
+            h.set("shortName", "z")
+            state["_grib_templates_for_output"][f"z_{lvl}"] = ekd.from_source(
+                "memory", h.get_buffer()
+            )[0]
+
+    # Push through the exact machinery ParallelOutput.dispatch_state_to_writers uses.
+    templates = state.get("_grib_templates_for_output")
+    bytes_map = _serialise_grib_templates(templates) if templates else None
+    sanitised = _sanitise_state(state, bytes_map)
+    restored = _restore_grib_templates(pickle.loads(pickle.dumps(sanitised)))
+
+    # Field values must arrive on the writer side unchanged.
+    assert sorted(restored["fields"]) == sorted(state["fields"])
+    for k, v in state["fields"].items():
+        np.testing.assert_array_equal(restored["fields"][k], v)
+
+    if with_templates:
+        # Templates must survive: shortName preserved, and encoding the transformed
+        # values through the round-tripped template gives the same GRIB bytes as
+        # through the original template (the writer's byte-exactness invariant).
+        for name, orig in templates.items():
+            rt = restored["_grib_templates_for_output"][name]
+            assert rt.metadata("shortName") == orig.metadata("shortName") == "z"
+            values = state["fields"][name]
+            assert _encode_with_template(orig, values) == _encode_with_template(rt, values)
+    else:
+        assert "_grib_templates_for_output" not in restored
+        assert "_grib_templates_bytes_for_output" not in restored

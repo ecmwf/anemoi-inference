@@ -49,8 +49,43 @@ def _detach_tensors(obj: Any) -> Any:
     return obj
 
 
+def _template_message_bytes(field: Any) -> bytes:
+    """Return the raw GRIB bytes of *field* stripped of its data section.
+
+    The writer only needs the template's metadata (grid, packing, product
+    definition); the values are discarded and overwritten. With this we can
+    reduce what crosses the fork boundary from hundreds of KB to ~200 B per
+    template by overwriting the values with zeros.
+
+    ``bitsPerValue`` is forced back to its original value after zeroing the
+    data section: eccodes otherwise resets it to the default (typically 24)
+    when the section is rewritten with a constant field, which would change
+    the packing of every message the writer produces vs. the non-parallel
+    path.
+
+    Falls back to :meth:`field.message` if the shrink cannot be applied.
+    """
+    import numpy as np
+
+    try:
+        handle = field.handle.clone()
+        bpv = handle.get("bitsPerValue")
+        n = int(handle.get("numberOfDataPoints"))
+        handle.set_values(np.zeros(n))
+        handle.set("bitsPerValue", bpv)
+        return handle.get_buffer()
+    except Exception as e:
+        LOG.debug("Could not strip data section from GRIB template: %s; sending full message.", e)
+        return field.message()
+
+
 def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
     """Convert a dict of earthkit GRIB fields to a dict of raw GRIB bytes so they can be pickled.
+
+    Each template is stripped of its data section before pickling (see
+    :func:`_template_message_bytes`) so the number of bytes shipped through the
+    multiprocessing queue is a few hundred per template instead of the full
+    field size.
 
     Templates that cannot be converted (e.g. non-GRIB fields, or future earthkit
     wrappers that do not expose ``.message()``) are skipped with a warning so a
@@ -61,7 +96,7 @@ def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
     result = {}
     for name, field in templates.items():
         try:
-            result[name] = field.message()
+            result[name] = _template_message_bytes(field)
         except Exception as e:
             LOG.warning(
                 "Could not serialise GRIB template for '%s' (type=%s): %s; skipping.",
@@ -93,20 +128,22 @@ def _deserialise_grib_templates(bytes_templates: dict[str, bytes]) -> dict[str, 
     return result
 
 
-def _sanitise_state(state: State) -> State:
-    """Remove private keys and convert tensors so the state is safe to pickle."""
+def _sanitise_state(state: State, grib_templates_bytes: dict[str, bytes] | None = None) -> State:
+    """Remove private keys and convert tensors so the state is safe to pickle.
+
+    ``grib_templates_bytes``, if provided, replaces ``_grib_templates_for_output``
+    on the returned state with the corresponding ``_grib_templates_bytes_for_output``
+    payload. Callers precompute this once per dispatch so we do not re-serialise the
+    same templates dict N times when there are N writers.
+    """
 
     unpicklable_keys = ["_input"]
 
     state = state.copy()
 
-    # Serialise GRIB templates to raw bytes so they survive pickling into writer processes.
-    # The writer reconstructs ekd.Field-like objects from these bytes via
-    # _restore_grib_templates() before handing the state to the wrapped output.
-    if (templates := state.get("_grib_templates_for_output")) is not None:
-        state["_grib_templates_bytes_for_output"] = _serialise_grib_templates(templates)
-        state.pop("_grib_templates_for_output")
-        LOG.debug("Serialised %d GRIB templates to bytes for writer process", len(templates))
+    if grib_templates_bytes is not None:
+        state["_grib_templates_bytes_for_output"] = grib_templates_bytes
+    state.pop("_grib_templates_for_output", None)
 
     for key in unpicklable_keys:
         if state.get(key) is not None:
@@ -238,6 +275,13 @@ class ParallelOutput(Output):
         # __init__ time the context may not yet have lead_time / time_step set.
         self._writers_running = False
 
+        # Cache of the serialised GRIB templates bytes-map, keyed by id() of the
+        # ``_grib_templates_for_output`` dict on the incoming state. Populated in
+        # dispatch_state_to_writers so we don't re-serialise once per writer
+        # (or once per rollout step, when the input pipeline reuses the same dict).
+        self._grib_templates_bytes_cache_key: int | None = None
+        self._grib_templates_bytes_cache_value: dict[str, bytes] | None = None
+
     def open(self, state: State) -> None:
         """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context.
 
@@ -274,10 +318,35 @@ class ParallelOutput(Output):
 
         Takes an optional 'message' argument to indicate the type of message being sent, which is used for control flow in the writer loop.
         """
+        grib_templates_bytes = self._get_or_serialise_grib_templates(state)
         for i in range(self.num_writers):
             self._check_writer_alive(i)
             chunk = _get_state_chunk(state, self.num_writers, i)
-            self._queues[i].put((_sanitise_state(chunk), message))
+            self._queues[i].put((_sanitise_state(chunk, grib_templates_bytes), message))
+
+    def _get_or_serialise_grib_templates(self, state: State) -> dict[str, bytes] | None:
+        """Return the serialised GRIB templates bytes-map, serialising it on the first call.
+
+        Result is memoised on the instance and keyed by ``id()`` of the
+        ``_grib_templates_for_output`` dict: as long as the input pipeline hands
+        us the same dict object across dispatches, we serialise once and reuse
+        the bytes for every writer and every subsequent step. When the pipeline
+        replaces the dict (e.g. the set of templates changes), the id() mismatch
+        forces a fresh serialisation.
+
+        Returns None if the state has no GRIB templates to send.
+        """
+        templates = state.get("_grib_templates_for_output")
+        if templates is None:
+            return None
+        key = id(templates)
+        if key == self._grib_templates_bytes_cache_key:
+            return self._grib_templates_bytes_cache_value
+        bytes_map = _serialise_grib_templates(templates)
+        LOG.debug("Serialised %d GRIB templates to bytes for writer processes", len(bytes_map))
+        self._grib_templates_bytes_cache_key = key
+        self._grib_templates_bytes_cache_value = bytes_map
+        return bytes_map
 
     def close(self) -> None:
         """Terminate writer processes, then close the wrapped output."""
