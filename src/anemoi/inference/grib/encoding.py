@@ -19,6 +19,7 @@ from typing import Any
 from typing import Hashable
 
 from anemoi.transform import Field
+from anemoi.transform.grib import grib_handle
 from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.types import FloatArray
@@ -398,10 +399,9 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
     if mismatches:
 
         if first:
-            import eccodes
-
-            handle = Field.new_grib_handle(eccodes.codes_clone(handle._handle))
-            return check_encoding(handle, keys, first=False)
+            # Some keys are only recomputed by eccodes on a fresh handle;
+            # retry the comparison on a clone before declaring a mismatch.
+            return check_encoding(handle.clone(), keys, first=False)
 
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
 
@@ -409,7 +409,7 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
 def encode_message(
     *,
     values: Any | None,
-    template: Any,
+    template: Field,
     metadata: dict[str, Any],
     check_nans: bool = False,
     missing_value: int | float = -9999,
@@ -420,8 +420,9 @@ def encode_message(
     ----------
     values : Optional[Any]
         The values to encode.
-    template : Any
-        The template to use.
+    template : Field
+        The template field; must be backed by a GRIB message (its handle
+        is cloned and the metadata keys are set on the clone).
     metadata : Dict[str, Any]
         The metadata for the GRIB message.
     check_nans : bool, optional
@@ -435,15 +436,7 @@ def encode_message(
         The encoded GRIB handle.
     """
     metadata = metadata.copy()  # avoid modifying the original metadata
-    if hasattr(template, "handle"):
-        # Dummy wrapper or legacy object with handle attribute
-        handle = template.handle.clone()
-    else:
-        # New earthkit Field — get handle via private GRIB metadata
-        grib = template._get_grib(strict=True)
-        if grib is None:
-            raise ValueError("Template is not a GRIB field, cannot encode message")
-        handle = grib.handle.clone()
+    handle = grib_handle(template).clone()
 
     if check_nans and values is not None:
         import numpy as np
@@ -546,7 +539,7 @@ class GribWriter:
         self,
         *,
         values: Any | None,
-        template: Any,
+        template: Field,
         metadata: dict[str, Any],
         check_nans: bool = False,
         missing_value: int | float = -9999,
@@ -557,8 +550,8 @@ class GribWriter:
         ----------
         values : Optional[Any]
             The values to encode.
-        template : Any
-            The template to use.
+        template : Field
+            The template field; must be backed by a GRIB message.
         metadata : Dict[str, Any]
             The metadata for the GRIB message.
         check_nans : bool, optional

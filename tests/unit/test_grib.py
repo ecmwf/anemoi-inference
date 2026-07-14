@@ -22,19 +22,15 @@ from anemoi.inference.testing.variables import z
 
 
 def _make_template(missing_value=9999):
-    """Create a minimal GRIB2 template handle from eccodes samples."""
+    """Create a minimal GRIB2 template field from eccodes samples."""
     import eccodes
-    from anemoi.transform import Field
+    from anemoi.transform import FieldList
 
     raw = eccodes.codes_grib_new_from_samples("regular_ll_pl_grib2")
     eccodes.codes_set(raw, "missingValue", missing_value)
-    handle = Field.new_grib_handle(raw)
-
-    class _Template:
-        def __init__(self, h):
-            self.handle = h
-
-    return _Template(handle)
+    message = eccodes.codes_get_message(raw)
+    eccodes.codes_release(raw)
+    return FieldList.from_source("memory", message)[0]
 
 
 def _read_values(handle):
@@ -55,7 +51,7 @@ def test_encode_message_nan_becomes_bitmap(missing_value, expect_bitmap):
     """NaN values should be encoded as bitmap-missing, not as real data."""
 
     template = _make_template(missing_value=missing_value)
-    ndp = template.handle.get("numberOfDataPoints")
+    ndp = template.get("metadata.numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
     values[0] = np.nan  # one NaN that should become bitmap-missing
@@ -82,7 +78,7 @@ def test_encode_message_default_missing_value_is_negative_sentinel():
     """Default missing_value (-9999) avoids collision with physically valid geophysical values."""
 
     template = _make_template(missing_value=-9999)
-    ndp = template.handle.get("numberOfDataPoints")
+    ndp = template.get("metadata.numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
     values[0] = np.nan
@@ -108,7 +104,7 @@ def test_encode_message_missing_value_collision():
     """
 
     template = _make_template(missing_value=9999)
-    ndp = template.handle.get("numberOfDataPoints")
+    ndp = template.get("metadata.numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
     values[0] = np.nan  # intended missing
@@ -133,7 +129,7 @@ def test_encode_message_negative_sentinel_no_collision():
 
     NEGATIVE_SENTINEL = -9999
     template = _make_template(missing_value=NEGATIVE_SENTINEL)
-    ndp = template.handle.get("numberOfDataPoints")
+    ndp = template.get("metadata.numberOfDataPoints")
 
     values = np.full(ndp, 8500.0)
     values[0] = np.nan  # intended missing

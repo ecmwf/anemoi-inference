@@ -10,6 +10,7 @@
 import glob
 import logging
 import os
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from functools import cached_property
@@ -18,6 +19,7 @@ from typing import Any
 import numpy as np
 from anemoi.transform import Field
 from anemoi.transform import FieldList
+from anemoi.transform.fields import metadata_key
 from anemoi.transform.variables import Variable
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
@@ -36,11 +38,26 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
+# The legacy keys exposed to namer callables (rule matching in RulesNamer,
+# user-supplied namers), with their component paths derived from the single
+# mapping in anemoi.transform.fields. The namer interface is a sanctioned
+# legacy surface, so the deprecation warning is silenced while deriving.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    _NAMER_KEYS = {
+        key: metadata_key(key)
+        for key in ("param", "levelist", "levtype", "valid_datetime", "base_datetime", "step", "number")
+    }
+
+
 def _get_metadata_dict(field: Any) -> dict[str, Any]:
     """Build a metadata dictionary from a field for use with namer functions.
 
-    Extracts common metadata keys using the new component-based API,
-    falling back to raw metadata access for GRIB fields.
+    Reads the raw GRIB keys first — namer rules are written against the
+    GRIB vocabulary (e.g. ``levtype: sfc``), which the component vocabulary
+    does not preserve — then falls back to the component paths derived from
+    :func:`anemoi.transform.fields.metadata_key` for fields not backed by
+    GRIB.
 
     Parameters
     ----------
@@ -50,35 +67,21 @@ def _get_metadata_dict(field: Any) -> dict[str, Any]:
     Returns
     -------
     dict
-        A dictionary of metadata key-value pairs.
+        A dictionary of legacy metadata key-value pairs.
     """
     result = {}
 
-    # Try raw metadata first for GRIB-specific keys (param, levelist, levtype)
-    # These are preferred over component access because component access may
-    # return different values (e.g., parameter.variable() returns shortName
-    # which can differ from the GRIB param key)
     for key in ("param", "levelist", "levtype", "shortName", "dataDate", "dataTime"):
         try:
             result[key] = field.metadata(key)
         except (KeyError, TypeError, AttributeError):
             pass
 
-    # Try component-based access for keys not yet found
-    for key, accessor in [
-        ("param", lambda f: f.parameter.variable()),
-        ("levelist", lambda f: f.vertical.level()),
-        ("levtype", lambda f: f.vertical.level_type()),
-        ("valid_datetime", lambda f: f.time.valid_datetime()),
-        ("base_datetime", lambda f: f.time.base_datetime()),
-        ("step", lambda f: f.time.step()),
-        ("number", lambda f: f.ensemble.member()),
-    ]:
+    for key, path in _NAMER_KEYS.items():
         if key not in result:
-            try:
-                result[key] = accessor(field)
-            except (AttributeError, KeyError, TypeError, NotImplementedError):
-                pass
+            value = field.get(path, default=None)
+            if value is not None:
+                result[key] = value
 
     return result
 
