@@ -90,7 +90,7 @@ class TransformFilter(Processor, ABC):
         raise NotImplementedError("Subclasses must implement the _exec_filter method.")
 
     def process(self, state: State) -> State:
-        """Process the given state using the backward transform filter.
+        """Process the given state using the transform filter.
 
         Parameters
         ----------
@@ -126,12 +126,27 @@ class BackwardTransformFilter(TransformFilter):
 
 
 @post_processor_registry.register("forward_transform_filter")
-class ForwardTransformFilter(BackwardTransformFilter):
+class ForwardTransformFilter(TransformFilter):
     """A processor that applies a forward transform filter to a given state.
 
     This class uses a specified filter from the filter registry to process
     the state by applying a forward transformation.
     """
+
+    def __init__(self, *args, use_forward: None = None, **kwargs: Any) -> None:
+        """Initialize the ForwardTransformFilter.
+
+        Parameters
+        ----------
+        use_forward : bool, optional
+            Whether to use the forward transformation, by default True
+        """
+        super().__init__(*args, **kwargs)
+        if use_forward is not None:
+            LOG.warning(
+                "The 'use_forward' argument is deprecated and will be removed in future versions. This processor unconditionally uses the forward transformation.",
+                DeprecationWarning,
+            )
 
     def _exec_filter(self, state: FieldList) -> FieldList:
         return self.filter.forward(state)
