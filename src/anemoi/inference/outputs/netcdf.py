@@ -10,6 +10,8 @@
 import logging
 import os
 import threading
+from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +33,8 @@ LOG = logging.getLogger(__name__)
 
 # In case HDF5 was not compiled with thread safety on
 LOCK = threading.RLock()
+
+CALENDAR = "standard"
 
 
 @output_registry.register("netcdf")
@@ -122,37 +126,64 @@ class NetCDFOutput(Output):
 
         compression = {}  # dict(zlib=False, complevel=0)
 
-        values = len(state["latitudes"])
-        self.reference_date = state["date"]
+        n_values = len(state["latitudes"])
 
-        if reference_date := getattr(self.context, "reference_date", None):
-            self.reference_date = reference_date
+        # set epoch
+        epoch = getattr(self.context, "reference_date", None) or state["date"]
+        if epoch.tzinfo is None:
+            epoch = epoch.replace(tzinfo=timezone.utc)
+        self.epoch = epoch
 
+        # start date of the forecast
+        self.reference_date = np.int64(_to_epoch_seconds(state["date"], self.epoch))
+
+        # Dimensions
         with LOCK:
-            self.values_dim = self.ncfile.createDimension("values", values)
-            # unlimited time dimension avoids pre-allocation mismatches
             self.time_dim = self.ncfile.createDimension("time", None)
-            self.time_var = self.ncfile.createVariable("time", "i4", ("time",), **compression)
+            self.values_dim = self.ncfile.createDimension("values", n_values)
 
-            self.time_var.units = f"seconds since {self.reference_date}"
-            self.time_var.long_name = "time"
-            self.time_var.calendar = "gregorian"
+        # start time of forecast
+        # no dimensions, scalar variable
+        with LOCK:
+            self.reference_date_var = self.ncfile.createVariable("forecast_reference_time", "i8")
+            self.reference_date_var.standard_name = "forecast_reference_time"
+            self.reference_date_var.long_name = "start time of forecast"
+            self.reference_date_var.units = f"seconds since {self.epoch}"
+            self.reference_date_var.calender = CALENDAR
+            self.reference_date_var[:] = self.reference_date
 
+        # valid time
+        # time dimension coordinate
+        with LOCK:
+            self.time_var = self.ncfile.createVariable("time", "i8", ("time",), **compression)
+            self.time_var.standard_name = "time"
+            self.time_var.long_name = "valid time"
+            self.time_var.units = f"seconds since {self.epoch}"
+            self.time_var.calendar = CALENDAR
+            self.time_var.axis = "T"
+
+        # forecast period / lead time
+        # time dimension auxilary coordinate
+        with LOCK:
+            self.period_var = self.ncfile.createVariable("forecast_period", "i8", ("time",), **compression)
+            self.period_var.standard_name = "forecast_period"
+            self.period_var.long_name = "lead time"
+            self.period_var.units = "seconds"
+
+        # latitude / longitude
+        # values dimension auxilary coordinates
         with LOCK:
             latitudes = state["latitudes"]
-
-            self.latitude_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
-            self.latitude_var.units = "degrees_north"
-            self.latitude_var.long_name = "latitude"
+            self.lat_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
+            self.lat_var.standard_name = "latitude"
+            self.lat_var.units = "degrees_north"
+            self.lat_var[:] = latitudes
 
             longitudes = state["longitudes"]
-
-            self.longitude_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
-            self.longitude_var.units = "degrees_east"
-            self.longitude_var.long_name = "longitude"
-
-            self.latitude_var[:] = latitudes
-            self.longitude_var[:] = longitudes
+            self.lon_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
+            self.lon_var.standard_name = "longitude"
+            self.lon_var.units = "degrees_east"
+            self.lon_var[:] = longitudes
 
         self.n = 0
         self.vars = {}
@@ -196,6 +227,7 @@ class NetCDFOutput(Output):
 
                 self.vars[name].fill_value = missing_value
                 self.vars[name].missing_value = missing_value
+                self.vars[name].coordinates = "forecast_reference_time forecast_period latitude longitude"
 
     def write_step(self, state: State) -> None:
         """Write the state.
@@ -208,8 +240,11 @@ class NetCDFOutput(Output):
 
         self.ensure_variables(state)
 
-        step = state["date"] - self.reference_date
-        self.time_var[self.n] = step.total_seconds()
+        step = np.int64(_to_epoch_seconds(state["date"], self.epoch)) - self.reference_date
+
+        # update time coordinates
+        self.period_var[self.n] = step
+        self.time_var[self.n] = self.reference_date + step
 
         for name, value in state["fields"].items():
             if self.skip_variable(name):
@@ -227,3 +262,11 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.ncfile.close()
             self.ncfile = None
+
+
+def _to_epoch_seconds(dt: datetime, epoch: datetime) -> int:
+    """Exact integer seconds since epoch, from a plain python datetime."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)  # assume naive datetimes are UTC
+    delta = dt - epoch
+    return delta.days * 86400 + delta.seconds
