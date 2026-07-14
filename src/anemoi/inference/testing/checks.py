@@ -157,13 +157,17 @@ def check_with_xarray(
     if expected_time is not None:
         assert len(ds.time) == expected_time, f"Expected {expected_time} time steps, but found {len(ds.time)}."
 
-    params = set(ds.data_vars)
+    # lat and lon are variables in the file, but they are not variables of the model so skip them
+    skip = {"latitude", "longitude"}
+    params = set(ds.data_vars) - skip
     expected_params = [var.name for var in expected_variables]
     assert (
         set(expected_params) == params
     ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
 
     for var in ds.data_vars:
+        if var in skip:
+            continue
         assert not np.all(ds[var].values == 0), f"Variable {var} is zero."
 
         if check_nans:
