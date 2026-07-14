@@ -19,6 +19,7 @@ from typing import Any
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.variables import Variable
+from earthkit.data import create_fieldlist
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
@@ -34,6 +35,76 @@ from ..checks import check_data
 from ..input import Input
 
 LOG = logging.getLogger(__name__)
+
+
+def _get_metadata_dict(field: Any) -> dict[str, Any]:
+    """Build a metadata dictionary from a field for use with namer functions.
+
+    Extracts common metadata keys using the new component-based API,
+    falling back to raw metadata access for GRIB fields.
+
+    Parameters
+    ----------
+    field : Any
+        The field to extract metadata from.
+
+    Returns
+    -------
+    dict
+        A dictionary of metadata key-value pairs.
+    """
+    result = {}
+
+    # Try raw metadata first for GRIB-specific keys (param, levelist, levtype)
+    # These are preferred over component access because component access may
+    # return different values (e.g., parameter.variable() returns shortName
+    # which can differ from the GRIB param key)
+    for key in ("param", "levelist", "levtype", "shortName", "dataDate", "dataTime"):
+        try:
+            result[key] = field.metadata(key)
+        except (KeyError, TypeError, AttributeError):
+            pass
+
+    # Try component-based access for keys not yet found
+    for key, accessor in [
+        ("param", lambda f: f.parameter.variable()),
+        ("levelist", lambda f: f.vertical.level()),
+        ("levtype", lambda f: f.vertical.level_type()),
+        ("valid_datetime", lambda f: f.time.valid_datetime()),
+        ("base_datetime", lambda f: f.time.base_datetime()),
+        ("step", lambda f: f.time.step()),
+        ("number", lambda f: f.ensemble.member()),
+    ]:
+        if key not in result:
+            try:
+                result[key] = accessor(field)
+            except (AttributeError, KeyError, TypeError, NotImplementedError):
+                pass
+
+    return result
+
+
+def _name_fields(data: Any, namer: callable) -> Any:
+    """Apply a namer function to all fields and set labels.name.
+
+    Parameters
+    ----------
+    data : Any
+        The fieldlist to name.
+    namer : callable
+        The namer function: (field, metadata_dict) -> str.
+
+    Returns
+    -------
+    Any
+        A new fieldlist with labels.name set on each field.
+    """
+    named = []
+    for f in data:
+        md = _get_metadata_dict(f)
+        name = namer(f, md)
+        named.append(f.set(**{"labels.name": name}))
+    return create_fieldlist(named)
 
 
 def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
@@ -55,12 +126,8 @@ def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
     ekd.FieldList
         The selected variable (FieldList subset).
     """
-
-    def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
-        return namer(field, original_metadata)
-
-    data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
-    return data.sel(name=name, **kwargs)
+    data = _name_fields(data, namer)
+    return data.sel(**{"labels.name": name}, **kwargs)
 
 
 class RulesNamer:
@@ -191,25 +258,26 @@ class EkdInput(Input):
             The filtered and sorted data.
         """
 
-        def _name(field: ekd.Field, _: Any, original_metadata: dict[str, Any]) -> str:
-            return self._namer(field, original_metadata)
+        data = _name_fields(data, self._namer)
 
-        valid_datetime = [date.isoformat() for date in dates]
-        datetime_selection = dict(valid_datetime=valid_datetime)
-
-        if select_reference_date:
-            datetime_selection.update(
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
-            )
-
-        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
+        valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        data = data.sel(name=self.variables).order_by(
-            name=self.variables,
-            valid_datetime="ascending",
-        )
+        if select_reference_date:
+            data = data.sel(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": valid_datetime},
+                **{"metadata.dataDate": int(self.reference_date.strftime("%Y%m%d"))},
+                **{"metadata.dataTime": int(self.reference_date.strftime("%H%M"))},
+            ).order_by(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": "ascending"},
+            )
+        else:
+            data = data.sel(**{"labels.name": self.variables, "time.valid_datetime": valid_datetime}).order_by(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": "ascending"},
+            )
 
         check_data(title, data, self.variables, dates, self.metadata)
 
@@ -282,7 +350,7 @@ class EkdInput(Input):
         """
         if latitudes is None and longitudes is None:
             try:
-                latitudes, longitudes = fields[0].grid_points()
+                latitudes, longitudes = fields[0].geography.latlons(flatten=True)
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -327,7 +395,7 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
+            name, valid_datetime = field.get("labels.name"), field.get("time.valid_datetime")
             if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), n_points),
@@ -335,7 +403,7 @@ class EkdInput(Input):
                     dtype=dtype,
                 )
 
-            date_idx = date_to_index[valid_datetime]
+            date_idx = date_to_index[to_datetime(valid_datetime).isoformat()]
 
             try:
                 state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
@@ -424,7 +492,7 @@ class EkdInput(Input):
             The created input state.
         """
         if date is None:
-            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+            date = input_fields.order_by(**{"time.valid_datetime": "ascending"})[-1].time.valid_datetime()
             LOG.info(
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
@@ -480,24 +548,17 @@ class EkdInput(Input):
 
         def get_geography_info(key: str) -> str | None:
             try:
-                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+                combo = list(getattr(f.geography, key, lambda: None)() for f in fields)
             except NotImplementedError:  # Issue with earthkit.data throwing error here
                 return None
             if len(set(map(str, combo))) == 1 and combo[0] != "None":
                 return combo[0]
             return None
 
-        grid = get_geography_info("mars_grid")
-        if grid == "undefined":
-            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
+        if area := get_geography_info("area"):
+            geography_information["area"] = area
+        if grid := get_geography_info("grid"):
             geography_information["grid"] = grid
-
-        else:  # If grid is undefined we don't want to add the area
-            if grid:
-                geography_information["grid"] = grid
-
-            if area := get_geography_info("mars_area"):
-                geography_information["area"] = area
 
         if geography_information:
             state["_geography"] = geography_information
@@ -588,8 +649,8 @@ class FieldlistInput(EkdInput):
             files = [p for p in matches if os.path.isfile(p)]
             if not files:
                 LOG.warning("No files matched pattern %r", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", sorted(files))  # type: ignore[reportReturnType]
+                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+            return ekd.from_source("file", sorted(files)).to_fieldlist()  # type: ignore[reportReturnType]
 
         # Case 2: directory path -> search for files recursively
         if os.path.isdir(path):
@@ -599,16 +660,16 @@ class FieldlistInput(EkdInput):
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
                 LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", files)  # type: ignore[reportReturnType]
+                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+            return ekd.from_source("file", files).to_fieldlist()  # type: ignore[reportReturnType]
 
         # Case 3: single file path
         try:
             if os.path.getsize(path) == 0:
                 LOG.warning("File %r is empty", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
         except FileNotFoundError:
             LOG.warning("Path %r not found", path)
-            return ekd.from_source("empty")  # type: ignore[reportReturnType]
+            return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
 
-        return ekd.from_source("file", path)  # type: ignore[reportReturnType]
+        return ekd.from_source("file", path).to_fieldlist()  # type: ignore[reportReturnType]

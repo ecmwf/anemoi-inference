@@ -34,12 +34,13 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "anemoi-transform>0.1.13",
+  # TODO: replace with anemoi-transform release
+  "anemoi-transform @ git+https://github.com/ecmwf/anemoi-transform.git@earthkit-1.0",
   "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
   "anytree",
   "deprecation",
-  "earthkit-data>=0.12.4,<1",
+  "earthkit-data==1.0.0rc12",
   "eccodes>=2.38.3",
   "numpy",
   "omegaconf>=2.2,<2.4",
@@ -71,11 +72,8 @@ optional-dependencies.docs = [
 ]
 optional-dependencies.fdb = [ "earthkit-data[fdb]", "fdb5lib" ]
 optional-dependencies.huggingface = [ "huggingface-hub" ]
-optional-dependencies.netcdf = [ "earthkit-data>=0.19,<1" ]
-optional-dependencies.plot = [
-  "earthkit-plots<1",
-  "matplotlib<3.11",  # TODO: remove when we start using ekp 1.0
-]
+optional-dependencies.netcdf = [ "earthkit-data==1.0.0rc12" ]
+optional-dependencies.plot = [ "earthkit-plots==1.0.0rc9" ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
   "anemoi-inference[all]",

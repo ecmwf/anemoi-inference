@@ -13,84 +13,18 @@
 import datetime
 import logging
 from collections.abc import Callable
-from functools import cached_property
-from typing import Any
 
 import earthkit.data as ekd
-import numpy as np
-from earthkit.data.core.metadata import RawMetadata
-from earthkit.data.indexing.fieldlist import SimpleFieldList
 
+from anemoi.inference.inputs.ekd import _get_metadata_dict
 from anemoi.inference.types import FloatArray
-from anemoi.inference.types import Shape
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
 
 
-class StateFieldGeography:
-    """Geographical information of a state field.
-
-    Parameters
-    ----------
-    field : Any
-        The field containing geographical data.
-    """
-
-    def __init__(self, field: Any) -> None:
-        self._field = field
-
-    @property
-    def shape(self) -> Shape:
-        """Tuple: Shape of the geographical field."""
-        return self._field.shape
-
-
-class StateFieldMetadata(RawMetadata):
-    """Metadata for a state field.
-
-    Parameters
-    ----------
-    field : Any
-        The field containing metadata.
-    """
-
-    def __init__(self, field: Any) -> None:
-        super().__init__(
-            name=field.name,
-            param=field.name,
-            **{
-                k: v
-                for k, v in field.state.items()
-                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
-            },
-        )
-        self._field = field
-
-    def as_namespace(self, ns: str) -> dict[str, Any]:
-        """Convert metadata to a specific namespace.
-
-        Parameters
-        ----------
-        ns : str
-            The namespace to convert the metadata to.
-
-        Returns
-        -------
-        Dict[str, Any]
-            The metadata in the specified namespace.
-        """
-        assert ns == "mars"
-        return {k: v for k, v in self.items() if k != "name"}
-
-    @property
-    def geography(self) -> StateFieldGeography:
-        """StateFieldGeography: Geographical information of the field."""
-        return StateFieldGeography(self._field)
-
-
-class StateField(ekd.Field):
-    """State field containing name, values, and state information.
+def _create_state_field(name: str, values: FloatArray, state: State) -> ekd.Field:
+    """Create an earthkit Field from a state field.
 
     Parameters
     ----------
@@ -98,43 +32,32 @@ class StateField(ekd.Field):
         The name of the field.
     values : FloatArray
         The values of the field.
-    state : Dict[str, Any]
+    state : State
         The state information associated with the field.
+
+    Returns
+    -------
+    ekd.Field
+        The created field.
     """
+    labels = {"name": name}
+    # Add serialisable state entries as labels
+    for k, v in state.items():
+        if isinstance(v, (str, int, float, bool)):
+            labels[k] = v
 
-    def __init__(self, name: str, values: FloatArray, state: State) -> None:
-        self.name = name
-        self.__values = values
-        self.state = state
+    return ekd.Field.from_components(
+        values=values,
+        parameter={"variable": name},
+        labels=labels,
+    )
 
-    def _values(self, dtype: np.dtype) -> FloatArray:
-        """Get the values of the field with a specific data type.
 
-        Parameters
-        ----------
-        dtype : np.dtype
-            The data type to convert the values to.
+# Keep StateField as a marker so unwrap_state can detect pass-through fields
+class _StateFieldMarker:
+    """Marker to identify fields created from state dictionaries."""
 
-        Returns
-        -------
-        FloatArray
-            The values of the field in the specified data type.
-        """
-        return np.asarray(self.__values, dtype=dtype)
-
-    @property
-    def shape(self) -> Shape:
-        """Tuple: Shape of the field."""
-        return self.__values.shape
-
-    @cached_property
-    def _metadata(self) -> StateFieldMetadata:
-        """StateFieldMetadata: Metadata of the field."""
-        return StateFieldMetadata(self)
-
-    def __repr__(self) -> str:
-        """Str: String representation of the StateField."""
-        return f"{self.__class__.__name__ }({self._metadata})"
+    pass
 
 
 def wrap_state(state: State) -> ekd.FieldList:
@@ -151,8 +74,13 @@ def wrap_state(state: State) -> ekd.FieldList:
         The transformed field list.
     """
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
-    fields = [StateField(k, v, state) for k, v in state["fields"].items()]
-    return SimpleFieldList(fields)
+    fields = []
+    for k, v in state["fields"].items():
+        f = _create_state_field(k, v, state)
+        # Tag the field so unwrap_state can detect it
+        f._state_field_marker = True
+        fields.append(f)
+    return ekd.create_fieldlist(fields)
 
 
 def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
@@ -177,8 +105,9 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
     # namer(field: ekd.Field, metadata: Dict[str, Any]) -> str:
 
     for n in fields:
-        name = namer(n, n.metadata())
-        if isinstance(n, StateField):
+        md = _get_metadata_dict(n)
+        name = namer(n, md)
+        if getattr(n, "_state_field_marker", False):
             # StateField values are already flat 1D numpy arrays.
             # Use to_numpy() without flatten=True to avoid the always-copy
             # behavior of ndarray.flatten(). Combined with np.asarray in

@@ -106,5 +106,5 @@ class FDBInput(GribInput):
 
         LOG.debug("FDB requests: %s", requests)
         sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
-        ds = ekd.from_source("multi", sources)
+        ds = ekd.from_source("multi", sources).to_fieldlist()
         return ds

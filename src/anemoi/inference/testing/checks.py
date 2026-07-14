@@ -40,7 +40,7 @@ def check_grib(
     import numpy as np
     from earthkit.data.utils.dates import to_datetime
 
-    ds = ekd.from_source("file", file)
+    ds = ekd.from_source("file", file).to_fieldlist()
 
     assert len(ds) > 0, "No fields found in the GRIB file."
 
@@ -52,27 +52,30 @@ def check_grib(
 
     for field in ds:
         for key, value in grib_keys.items():
-            assert field[key] == value, f"Key {key} does not match expected value {value}."
-        assert not np.all(field.values == 0), f"Field {field} is zero."
+            assert field.metadata(key) == value, f"Key {key} does not match expected value {value}."
+        assert not np.all(field.to_numpy(flatten=True) == 0), f"Field {field} is zero."
 
         if check_nans:
-            assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
+            assert not any(np.isnan(field.to_numpy(flatten=True))), f"Field {field} contains NaN values."
 
     # check time continuity
     if reference_date:
         reference_date = to_datetime(reference_date)
         LOG.info(f"Using reference date: {reference_date}")
 
-    fields = ds.sel(param=expected_params[0])
+    fields = ds.sel(**{"parameter.variable": expected_params[0]})
     previous_field = fields[0]
     for field in fields[1:]:
         if reference_date:
-            assert field["base_time"] == reference_date.isoformat()
-            assert field["date"] == int(reference_date.strftime("%Y%m%d"))
-            assert field["time"] == reference_date.hour * 100
-        assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
-            f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
-            f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
+            assert field.time.base_datetime().isoformat() == reference_date.isoformat()
+            assert int(field.metadata("date")) == int(reference_date.strftime("%Y%m%d"))
+            assert field.metadata("time") == reference_date.hour * 100
+        assert (
+            field.metadata("step") > previous_field.metadata("step")
+            and field.time.valid_datetime() > previous_field.time.valid_datetime()
+        ), (
+            f"Field step {field.metadata('step')} (valid_time {field.time.valid_datetime()}) is not greater than previous field "
+            f"step {previous_field.metadata('step')} (valid_time {previous_field.time.valid_datetime()})."
         )
         previous_field = field
 
@@ -80,11 +83,11 @@ def check_grib(
         return
 
     # check that the accumulation field is accumulating
-    fields = list(ds.sel(param=check_accum))
+    fields = list(ds.sel(**{"parameter.variable": check_accum}))
     if len(fields) < 2:
         raise ValueError(f"No fields found for accumulation check: {check_accum}")
 
-    averages = [np.average(field.values) for field in fields]
+    averages = [np.average(field.to_numpy(flatten=True)) for field in fields]
     assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
@@ -104,11 +107,13 @@ def check_grib_cutout(
     import earthkit.data as ekd
     import numpy as np
 
-    ds = ekd.from_source("file", file)
-    ref_ds = ekd.from_source("file", reference_grib)
+    ds = ekd.from_source("file", file).to_fieldlist()
+    ref_ds = ekd.from_source("file", reference_grib).to_fieldlist()
 
     if not reference_datetime:
-        reference_datetime = ref_ds.order_by(valid_datetime="ascending")[-1].metadata("valid_time")
+        reference_datetime = (
+            ref_ds.order_by(**{"time.valid_datetime": "ascending"})[-1].time.valid_datetime().isoformat()
+        )
 
     assert len(ds) > 0, "No fields found in the output GRIB file."
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
@@ -119,18 +124,19 @@ def check_grib_cutout(
     ]
 
     for param in prognostic_params:
-        fields = ds.sel(param=param)
-        ref_fields = ref_ds.sel(param=param, valid_time=reference_datetime)
+        fields = ds.sel(**{"parameter.variable": param})
+        ref_fields = ref_ds.sel(**{"parameter.variable": param, "time.valid_datetime": reference_datetime})
 
         assert len(fields) > 0, f"No fields found for variable {param} in output file."
         assert len(ref_fields) > 0, f"No fields found for variable {param} in reference file at {reference_datetime}."
 
         for field in fields:
-            assert field.values.shape[-1] == np.sum(
+            assert field.to_numpy(flatten=True).shape[-1] == np.sum(
                 mask
             ), f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
             assert np.allclose(
-                field.values, ref_fields.sel(level=field.metadata("level"))[0].values
+                field.to_numpy(flatten=True),
+                ref_fields.sel(**{"vertical.level": field.vertical.level()})[0].to_numpy(flatten=True),
             ), f"Variable {param} in LAM does not match reference data at {reference_datetime}."
 
 
