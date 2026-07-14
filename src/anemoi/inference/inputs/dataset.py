@@ -397,9 +397,7 @@ class DatasetInputArgsKwargs(DatasetInput):
         """
 
         check_variables_compatibility = multi_datasets_config(
-            context.config.check_variables_compatibility,
-            metadata.dataset_name,
-            context.dataset_names,
+            context.config.check_variables_compatibility, metadata.dataset_name, context.dataset_names, strict=False
         )
 
         if not args and not kwargs:
