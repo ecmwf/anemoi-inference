@@ -501,9 +501,7 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
             tmpl = state["_grib_templates_for_output"].pop(f"gh_{lvl}")
             h = tmpl.handle.clone()
             h.set("shortName", "z")
-            state["_grib_templates_for_output"][f"z_{lvl}"] = ekd.from_source(
-                "memory", h.get_buffer()
-            )[0]
+            state["_grib_templates_for_output"][f"z_{lvl}"] = ekd.from_source("memory", h.get_buffer())[0]
 
     # Push through the exact machinery ParallelOutput.dispatch_state_to_writers uses.
     templates = state.get("_grib_templates_for_output")
