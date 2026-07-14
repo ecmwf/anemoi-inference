@@ -59,6 +59,7 @@ class TruthOutput(ForwardOutput):
             The output configuration.
         add_diagnostic : bool, optional
             Whether to add a diagnostic fields into the truth, by default False.
+            Should only be used if the diagnostic fields are available in the input, i.e. datasets.
         kwargs : dict
             Additional keyword arguments.
         """
