@@ -35,6 +35,7 @@ LOG = logging.getLogger(__name__)
 LOCK = threading.RLock()
 
 CALENDAR = "standard"
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 @output_registry.register("netcdf")
@@ -128,14 +129,9 @@ class NetCDFOutput(Output):
 
         n_values = len(state["latitudes"])
 
-        # set epoch
-        epoch = getattr(self.context, "reference_date", None) or state["date"]
-        if epoch.tzinfo is None:
-            epoch = epoch.replace(tzinfo=timezone.utc)
-        self.epoch = epoch
-
         # start date of the forecast
-        self.reference_date = np.int64(_to_epoch_seconds(state["date"], self.epoch))
+        reference_date = getattr(self.context, "reference_date", None) or state["date"]
+        self.reference_date = np.int64(_to_epoch_seconds(reference_date))
 
         # Dimensions
         with LOCK:
@@ -148,7 +144,7 @@ class NetCDFOutput(Output):
             self.reference_date_var = self.ncfile.createVariable("forecast_reference_time", "i8")
             self.reference_date_var.standard_name = "forecast_reference_time"
             self.reference_date_var.long_name = "start time of forecast"
-            self.reference_date_var.units = f"seconds since {self.epoch}"
+            self.reference_date_var.units = f"seconds since {EPOCH}"
             self.reference_date_var.calender = CALENDAR
             self.reference_date_var[:] = self.reference_date
 
@@ -158,7 +154,7 @@ class NetCDFOutput(Output):
             self.time_var = self.ncfile.createVariable("time", "i8", ("time",), **compression)
             self.time_var.standard_name = "time"
             self.time_var.long_name = "valid time"
-            self.time_var.units = f"seconds since {self.epoch}"
+            self.time_var.units = f"seconds since {EPOCH}"
             self.time_var.calendar = CALENDAR
             self.time_var.axis = "T"
 
@@ -240,7 +236,7 @@ class NetCDFOutput(Output):
 
         self.ensure_variables(state)
 
-        step = np.int64(_to_epoch_seconds(state["date"], self.epoch)) - self.reference_date
+        step = np.int64(_to_epoch_seconds(state["date"])) - self.reference_date
 
         # update time coordinates
         self.period_var[self.n] = step
@@ -264,9 +260,9 @@ class NetCDFOutput(Output):
             self.ncfile = None
 
 
-def _to_epoch_seconds(dt: datetime, epoch: datetime) -> int:
+def _to_epoch_seconds(dt: datetime) -> int:
     """Exact integer seconds since epoch, from a plain python datetime."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)  # assume naive datetimes are UTC
-    delta = dt - epoch
+    delta = dt - EPOCH
     return delta.days * 86400 + delta.seconds
