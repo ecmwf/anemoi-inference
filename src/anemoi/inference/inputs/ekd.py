@@ -10,7 +10,6 @@
 import glob
 import logging
 import os
-import re
 from collections import defaultdict
 from collections.abc import Callable
 from functools import cached_property
@@ -145,6 +144,11 @@ class RulesNamer:
         """
         self.rules = rules
         self.default_namer = default_namer
+        # Rendered names come from the shared anemoi.transform.naming factory
+        # (one Naming per distinct template, built lazily), so a rule template
+        # such as "t_{level}" names fields with exactly the same semantics as
+        # anemoi-datasets used when the training dataset was built.
+        self._naming_cache: dict[str, Any] = {}
 
     def __call__(self, field: Field, original_metadata: dict[str, Any]) -> str:
         """Generate a name for the field.
@@ -173,25 +177,37 @@ class RulesNamer:
         return self.default_namer(field, original_metadata)
 
     def substitute(self, template: str, field: Field, original_metadata: dict[str, Any]) -> str:
-        """Substitute placeholders in the template with metadata values.
+        """Render a rule's name template through the transform naming factory.
+
+        The template is turned into a :class:`~anemoi.transform.naming.Naming`
+        via :func:`~anemoi.transform.naming.create_naming` and evaluated
+        against the field. This reuses the datasets-side factory, so legacy
+        bare keys (``{param}``, ``{level}``) are translated to earthkit-data
+        1.0 component paths, missing values drop their separator, and surface
+        ``_0`` suffixes are stripped — matching training-time names.
 
         Parameters
         ----------
         template : str
-            The template string with placeholders.
+            The name template (e.g. ``"t_{level}"``).
         field : Field
             The field for which to generate a name.
         original_metadata : Dict[str, Any]
-            The original metadata of the field.
+            The original metadata of the field (unused; kept for signature
+            compatibility with the legacy substitution).
 
         Returns
         -------
         str
-            The generated name with placeholders substituted.
+            The generated name.
         """
-        matches = re.findall(r"\{(.+?)\}", template)
-        matches = {m: original_metadata.get(m) for m in matches}
-        return template.format(**matches)
+        naming = self._naming_cache.get(template)
+        if naming is None:
+            from anemoi.transform.naming import create_naming
+
+            naming = create_naming(template)
+            self._naming_cache[template] = naming
+        return naming.name(field)
 
 
 class EkdInput(Input):
@@ -213,16 +229,30 @@ class EkdInput(Input):
             The context in which the input is used.
         metadata : Metadata
             Metadata corresponding to the dataset this input is handling.
-        namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
-            Optional namer for the input.
+        namer : callable or dict or str, optional
+            Optional namer for the input. A ``dict`` of the form
+            ``{"rules": [...]}`` builds a :class:`RulesNamer`; a ``str`` (a
+            registered naming scheme or a ``{key}`` template) is built with
+            :func:`anemoi.transform.naming.create_naming`; a callable is used
+            as-is with the ``(field, metadata) -> str`` signature. Defaults to
+            the checkpoint's own scheme via :meth:`Metadata.default_namer`.
         """
         super().__init__(context, metadata, **kwargs)
 
         if isinstance(namer, dict):
-            # TODO: a factory for namers
             assert "rules" in namer, namer
             assert len(namer) == 1, namer
             namer = RulesNamer(namer["rules"], self.metadata.default_namer())
+        elif isinstance(namer, str):
+            # A string namer (a registered scheme name such as "param" or a
+            # template such as "{param}_{levelist}") is built with the shared
+            # anemoi.transform.naming factory — the same factory anemoi-datasets
+            # uses at dataset-build time — and adapted to the (field, metadata)
+            # namer callable interface.
+            from anemoi.transform.naming import create_naming
+
+            naming = create_naming(namer)
+            namer = lambda field, metadata: naming.name(field)  # noqa: E731
 
         self._namer = namer if namer is not None else self.metadata.default_namer()
         assert callable(self._namer), type(self._namer)
