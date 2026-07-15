@@ -9,6 +9,8 @@
 
 
 import logging
+from abc import ABC
+from abc import abstractmethod
 from datetime import timedelta
 from typing import Any
 
@@ -28,13 +30,12 @@ from .earthkit_state import wrap_state
 LOG = logging.getLogger(__name__)
 
 
-@post_processor_registry.register("backward_transform_filter")
 @main_argument("filter")
-class BackwardTransformFilter(Processor):
-    """A processor that applies a backward transform filter to a given state.
+class TransformFilter(Processor, ABC):
+    """A processor that applies a transform filter to a given state.
 
     This class uses a specified filter from the filter registry to process
-    the state by applying a backward transformation.
+    the state by applying a forward or backward transformation.
 
     Attributes
     ----------
@@ -51,7 +52,7 @@ class BackwardTransformFilter(Processor):
         skip_initial_state: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize the BackwardTransformFilter.
+        """Initialize the TransformFilter.
 
         Parameters
         ----------
@@ -63,14 +64,6 @@ class BackwardTransformFilter(Processor):
             The name of the filter or a configuration dictionary for the filter, by default None
         skip_initial_state : bool, optional
             Whether to skip processing the initial state, by default False
-
-        Examples
-        --------
-        To initialize a BackwardTransformFilter with a filter name:
-        >>> filter_processor = BackwardTransformFilter(context, filter="my_filter")
-        To initialize a BackwardTransformFilter with a filter configuration:
-        >>> filter_config = {"my_filter": {"param1": value1, "param2": value2}}
-        >>> filter_processor = BackwardTransformFilter(context, filter_config)
         """
         super().__init__(context, metadata)
         self.skip_initial_state = skip_initial_state
@@ -80,8 +73,24 @@ class BackwardTransformFilter(Processor):
             kwargs = {}
         self.filter = filter_registry.from_config(filter, **kwargs)
 
+    @abstractmethod
+    def _exec_filter(self, state: FieldList) -> FieldList:
+        """Process the given state using the filter.
+
+        Parameters
+        ----------
+        state : FieldList
+            The state to be processed.
+
+        Returns
+        -------
+        FieldList
+            The processed state.
+        """
+        raise NotImplementedError("Subclasses must implement the _exec_filter method.")
+
     def process(self, state: State) -> State:
-        """Process the given state using the backward transform filter.
+        """Process the given state using the transform filter.
 
         Parameters
         ----------
@@ -96,65 +105,51 @@ class BackwardTransformFilter(Processor):
         if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
-        fields = self._exec_filter(wrap_state(state))
+        fields = self._exec_filter(wrap_state(state, self.metadata.typed_variables))
 
         return unwrap_state(fields, state, namer=self.metadata.default_namer())
+
+
+@post_processor_registry.register("backward_transform_filter")
+class BackwardTransformFilter(TransformFilter):
+    """A processor that applies a backward transform filter to a given state.
+
+    This class uses a specified filter from the filter registry to process
+    the state by applying a backward transformation.
+    """
 
     def _exec_filter(self, state: FieldList) -> FieldList:
         return self.filter.backward(state)
 
     def __repr__(self) -> str:
-        """Return a string representation of the BackwardTransformFilter object.
-
-        Returns
-        -------
-        str
-            String representation of the object.
-        """
         return f"BackwardTransformFilter(filter={self.filter})"
 
 
 @post_processor_registry.register("forward_transform_filter")
-class ForwardTransformFilter(BackwardTransformFilter):
-    """Apply a transform forward or reversed backward as a post-processor."""
+class ForwardTransformFilter(TransformFilter):
+    """A processor that applies a forward transform filter to a given state.
 
-    def __init__(self, *args: Any, use_forward: bool = False, **kwargs: Any) -> None:
+    This class uses a specified filter from the filter registry to process
+    the state by applying a forward transformation.
+    """
+
+    def __init__(self, *args, use_forward: None = None, **kwargs: Any) -> None:
         """Initialize the ForwardTransformFilter.
 
         Parameters
         ----------
-        *args : Any
-            Positional arguments to pass to the parent's __init__.
-        use_forward : bool
-            Whether to use the forward method of the transform filter. If False, will
-            use the backward transform with the .reverse() method applied to the filter.
-            Defaults to False.
-        **kwargs : Any
-            Additional arguments to pass to the parent's __init__.
+        use_forward : bool, optional
+            Whether to use the forward transformation, by default True
         """
         super().__init__(*args, **kwargs)
-
-        self.use_forward = use_forward
-
-        if not self.use_forward:
-            self.filter = self.filter.reverse()
+        if use_forward is not None:
+            LOG.warning(
+                "The 'use_forward' argument is deprecated and will be removed in future versions. This processor unconditionally uses the forward transformation.",
+                DeprecationWarning,
+            )
 
     def _exec_filter(self, state: FieldList) -> FieldList:
-        """Process the given state using the forward transform filter if use_forward=True,
-        otherwise uses the backward transform filter with the filter reversed.
-        """
-
-        if self.use_forward:
-            return self.filter.forward(state)
-
-        return self.filter.backward(state)
+        return self.filter.forward(state)
 
     def __repr__(self) -> str:
-        """Return a string representation of the ForwardTransformFilter object.
-
-        Returns
-        -------
-        str
-            String representation of the object.
-        """
-        return f"ForwardTransformFilter(filter={self.filter}, use_forward={self.use_forward})"
+        return f"ForwardTransformFilter(filter={self.filter})"
