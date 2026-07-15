@@ -18,6 +18,7 @@ from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
+from anemoi.transform.variables import Variable
 from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
 
@@ -56,15 +57,16 @@ class StateFieldMetadata(RawMetadata):
     """
 
     def __init__(self, field: Any) -> None:
-        super().__init__(
+        metadata = dict(field._raw_metadata.get("mars", field._raw_metadata))
+        metadata.update(
             name=field.name,
-            param=field.name,
             **{
                 k: v
                 for k, v in field.state.items()
                 if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
             },
         )
+        super().__init__(**metadata)
         self._field = field
 
     def as_namespace(self, ns: str) -> dict[str, Any]:
@@ -100,12 +102,15 @@ class StateField(ekd.Field):
         The values of the field.
     state : Dict[str, Any]
         The state information associated with the field.
+    metadata : Dict[str, Any]
+        Metadata for the field.
     """
 
-    def __init__(self, name: str, values: FloatArray, state: State) -> None:
+    def __init__(self, name: str, values: FloatArray, state: State, metadata: dict[str, Any]) -> None:
         self.name = name
         self.__values = values
         self.state = state
+        self._raw_metadata = metadata
 
     def _values(self, dtype: np.dtype) -> FloatArray:
         """Get the values of the field with a specific data type.
@@ -137,13 +142,15 @@ class StateField(ekd.Field):
         return f"{self.__class__.__name__ }({self._metadata})"
 
 
-def wrap_state(state: State) -> ekd.FieldList:
+def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldList:
     """Transform a state dictionary into an earthkit.data field list.
 
     Parameters
     ----------
     state : Dict[str, Any]
         The state dictionary to be transformed.
+    typed_variables : dict[str, Variable]
+        Metadata for the variables in the state.
 
     Returns
     -------
@@ -151,7 +158,19 @@ def wrap_state(state: State) -> ekd.FieldList:
         The transformed field list.
     """
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
-    fields = [StateField(k, v, state) for k, v in state["fields"].items()]
+    fields = []
+    for f in state["fields"]:
+        variable = typed_variables[f]
+        metadata = variable.grib_keys.copy()
+        metadata.update(
+            name=f,
+            **{
+                k: v
+                for k, v in state.items()
+                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
+            },
+        )
+        fields.append(StateField(f, state["fields"][f], state, metadata))
     return SimpleFieldList(fields)
 
 
