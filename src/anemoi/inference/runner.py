@@ -43,6 +43,7 @@ from anemoi.inference.outputs import create_output
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
+from anemoi.inference.state import reduce_state
 from anemoi.inference.tensors import TensorHandler
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -659,7 +660,7 @@ class Runner(Context):
             )
 
             # For step-zero only
-            initial_states[dataset] = Output.reduce(
+            initial_states[dataset] = reduce_state(
                 self._initial_state(
                     prognostic_state,
                     constants_state,

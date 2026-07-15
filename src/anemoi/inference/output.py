@@ -153,29 +153,6 @@ class Output(ABC):
 
         return self.write_step(self.post_process(state))
 
-    @classmethod
-    def reduce(cls, state: State) -> State:
-        """Create a new state which is a projection of the original state on the last step in the multi-steps dimension.
-
-        Parameters
-        ----------
-        state : State
-            The original state.
-
-        Returns
-        -------
-        State
-            The reduced state.
-        """
-        reduced_state = state.copy()
-        reduced_state["fields"] = {}
-        for field, values in state["fields"].items():
-            if len(values.shape) > 1:
-                reduced_state["fields"][field] = values[-1, :]
-            else:
-                reduced_state["fields"][field] = values
-        return reduced_state
-
     def open(self, state: State) -> None:
         """Open the output for writing.
 

@@ -13,6 +13,7 @@ from typing import Any
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.runners.default import DefaultRunner
+from anemoi.inference.state import reduce_state
 from anemoi.inference.types import State
 
 from ..decorators import main_argument
@@ -86,7 +87,7 @@ class TruthOutput(ForwardOutput):
             states.append(self._diag_input.create_input_state(date=state["date"]))
 
         truth_state = self.context._combine_states(*states)  # type: ignore
-        truth_state = self.reduce(truth_state)
+        truth_state = reduce_state(truth_state)
         truth_state["step"] = state.get("step", timedelta(hours=0))
 
         return truth_state
