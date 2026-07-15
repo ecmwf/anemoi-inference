@@ -20,7 +20,6 @@ import torch
 
 from anemoi.inference.runners.testing import NoModelMixing
 
-
 # ---------------------------------------------------------------------------
 # NoModelMixing
 # ---------------------------------------------------------------------------
