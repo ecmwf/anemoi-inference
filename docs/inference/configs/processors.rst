@@ -168,22 +168,24 @@ backward_transform_filter
 
 Applies a backward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
 
+.. code:: yaml
+
+   post_processors:
+     - backward_transform_filter:
+         ANY_TRANSFORM_FILTER:
+            **ARGUMENTS
+
 forward_transform_filter
 =========================
 
-Applies a backward transform on the reversed filter from
-:ref:`anemoi-transform <anemoi-transform:list-of-filters>` or applies the forward
-transform if `use_forward: true` is given.
-
-For example to use regrid as a post-processor:
+Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
 
 .. code:: yaml
 
    post_processors:
      - forward_transform_filter:
-         regrid:
-           use_forward: true
-           # other options for the filter
+         ANY_TRANSFORM_FILTER:
+            **ARGUMENTS
 
 Extractors and Masking
 ======================
