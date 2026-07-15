@@ -44,36 +44,18 @@ default
 Runs the checkpoint model as-is. This is the standard runner for
 production forecasts.
 
-steady-state
-------------
-
-Runs the real checkpoint model but **freezes dynamic forcings** (e.g.
-insolation, local solar time) at their values from the initial state.
-They are not reloaded at each autoregressive step.
-
-This is useful when combined with ``mid_processors`` that modify the
-predicted fields between steps — for example, subtracting a
-climatological mean tendency to isolate the anomaly response of a
-perturbation:
-
-.. code:: yaml
-
-   runner: steady-state
-
-   mid_processors:
-     - subtract_tendency:
-         tend_pl_path: /path/to/tend_pl.grib
-         tend_sfc_path: /path/to/tend_sfc.grib
-         param_pl: ["z", "q", "t", "u", "v", "w"]
-         level_pl: [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
-         param_sfc: ["msl", "10u", "10v", "2t"]
-
 no-model
 --------
 
 Replaces the checkpoint model with a dummy that returns all-ones. This
 is intended for testing pipelines (processors, inputs, outputs) without
 running a real model.
+
+external-graph
+--------------
+
+Runs inference using an external graph. See
+:ref:`external-graph` for full documentation.
 
 parallel
 --------
