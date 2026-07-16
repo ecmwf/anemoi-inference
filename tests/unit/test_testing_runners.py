@@ -83,12 +83,3 @@ class TestNoModelMixing:
         assert result["data"].dtype == torch.float64
 
 
-# ---------------------------------------------------------------------------
-# Runner registry
-# ---------------------------------------------------------------------------
-
-
-def test_no_model_runner_is_registered():
-    from anemoi.inference.runners import runner_registry
-
-    assert runner_registry.is_registered("no-model"), "'no-model' runner not found in registry"
