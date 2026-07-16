@@ -7,9 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-"""Tests for runners/testing.py: NoModelMixing / NoModelRunner.
-
-"""
+"""Tests for runners/testing.py: NoModelMixing / NoModelRunner."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
