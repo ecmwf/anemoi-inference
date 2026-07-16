@@ -9,8 +9,6 @@
 
 """Tests for runners/testing.py: NoModelMixing / NoModelRunner.
 
-Note: SteadyStateTensorHandler and SteadyStateRunner have been moved to the
-anemoi-plugins-ecmwf package and are tested there.
 """
 
 from types import SimpleNamespace
