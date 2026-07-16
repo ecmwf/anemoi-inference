@@ -170,6 +170,7 @@ class DownscalingRunner(DefaultRunner):
         hres_zarr: str | None = None,
         noise_scheduler_params: dict | None = None,
         sampler_params: dict | None = None,
+        guidance: dict | None = None,
     ):
         super().__init__(config)
 
@@ -195,6 +196,13 @@ class DownscalingRunner(DefaultRunner):
             noise_scheduler_params if noise_scheduler_params is not None else {}
         )
         self.sampler_params = sampler_params if sampler_params is not None else {}
+
+        # Optional diffusion guidance (autoguidance / classifier-free-style).
+        # See _ensure_guidance() for the expected config keys. The guide model is
+        # loaded lazily and attached to the main model on the first predict step.
+        self.guidance = guidance
+        self._guidance_attached = False
+        self._seeded = False
 
         # TODO: remove eventually
         self.verbosity = 3
@@ -294,6 +302,11 @@ class DownscalingRunner(DefaultRunner):
         date = kwargs["date"]
         step = kwargs["step"]
 
+        # Attach the guide model on the first step (model is loaded by now), then
+        # seed once (after all model loading) for reproducible/comparable noise.
+        self._ensure_guidance(model)
+        self._maybe_seed()
+
         input_date = date - step
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)
@@ -314,6 +327,87 @@ class DownscalingRunner(DefaultRunner):
         )
 
         return output_tensor
+
+    def _maybe_seed(self) -> None:
+        """Seed torch RNG once from ``ANEMOI_BASE_SEED`` (if set) for reproducibility.
+
+        Single-GPU downscaling runs otherwise draw the diffusion init noise (and
+        any sampler churn) from an unseeded global RNG, so two runs are not
+        comparable sample-by-sample. With ``ANEMOI_BASE_SEED`` set, the noise is
+        reproducible and *identical across runs that share the seed* -- required
+        to compare a main run against guided runs (e.g. the autoguidance-minus-main
+        difference field). Called after model/guide loading so that loading
+        checkpoints cannot perturb the RNG state, and only once per runner.
+        """
+        if self._seeded:
+            return
+        self._seeded = True
+        env_var = "ANEMOI_BASE_SEED"
+        if env_var not in os.environ:
+            return
+        seed = int(os.environ[env_var])
+        torch.manual_seed(seed)
+        LOG.info("Seeded torch RNG for reproducible sampling: %s=%s", env_var, seed)
+
+    def _ensure_guidance(self, model) -> None:
+        """Load and attach the guide model for diffusion guidance, once.
+
+        Idempotent: does nothing if guidance is not configured or already
+        attached. Expected ``guidance`` config keys (under
+        ``runner.downscaling.guidance``):
+
+        * ``checkpoint`` (str, required) -- path to the guide model ``D0``
+          (e.g. an earlier-epoch checkpoint of the same run for autoguidance).
+        * ``weight`` (float, default ``1.0``) -- guidance weight ``w``;
+          ``1.0`` disables guidance.
+        * ``sigma_min`` (float, default ``0.0``) -- guidance-interval lower
+          bound. Left inactive by default (autoguidance wants no gating).
+        * ``sigma_max`` (float, default ``inf``) -- guidance-interval upper
+          bound. Left inactive by default.
+        """
+        if self._guidance_attached or not self.guidance:
+            return
+
+        inner_model = getattr(model, "model", None)
+        if inner_model is None or not hasattr(inner_model, "set_guidance"):
+            raise TypeError(
+                "Guidance is configured but the loaded model does not support it "
+                "(missing set_guidance); is this a diffusion downscaling checkpoint?"
+            )
+
+        if "checkpoint" not in self.guidance:
+            raise ValueError("runner.downscaling.guidance requires a 'checkpoint' path.")
+
+        weight = float(self.guidance.get("weight", 1.0))
+        sigma_min = float(self.guidance.get("sigma_min", 0.0))
+        sigma_max = float(self.guidance.get("sigma_max", float("inf")))
+        if weight == 1.0:
+            LOG.warning("Guidance weight is 1.0: guidance is configured but will be a no-op.")
+
+        guide_inner_model = self._load_guidance_model(self.guidance["checkpoint"])
+        inner_model.set_guidance(
+            guide_inner_model,
+            weight=weight,
+            sigma_min=sigma_min,
+            sigma_max=sigma_max,
+        )
+        self._guidance_attached = True
+
+    def _load_guidance_model(self, path: str):
+        """Load the guide checkpoint and return its inner diffusion model (``D0``).
+
+        Mirrors the main-model loading in ``Runner.model`` (full pickled model
+        interface via ``torch.load``), then returns the inner ``nn.Module`` in
+        eval mode. The guide's own samplers / pre-/post-processors are never
+        used: only its ``fwd_with_preconditioning`` is consulted during sampling.
+        """
+        LOG.info("Loading guidance (guide) model from %s", path)
+        guide_interface = torch.load(
+            path, map_location=self.device, weights_only=False
+        ).to(self.device)
+        guide_inner_model = guide_interface.model
+        guide_inner_model.eval()
+        return guide_inner_model
 
     # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
