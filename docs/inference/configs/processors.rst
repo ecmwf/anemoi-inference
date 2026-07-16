@@ -120,14 +120,10 @@ For multi-dataset runs, per-dataset mid-processors can be specified in
 the same way as pre- and post-processors:
 
 .. code:: yaml
+   mid_processors:
+     dataset_0:
+       - my_mid_processor
 
-   mid_processors:
-     - my_mid_processor:
-         datasets:
-           - dataset_0
-   mid_processors:
-		dataset_0:
-		     - my_mid_processor:
 #################
  Post-processors
 #################
