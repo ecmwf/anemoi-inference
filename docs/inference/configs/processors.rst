@@ -125,7 +125,9 @@ the same way as pre- and post-processors:
      - my_mid_processor:
          datasets:
            - dataset_0
-
+   mid_processors:
+		dataset_0:
+		     - my_mid_processor:
 #################
  Post-processors
 #################
