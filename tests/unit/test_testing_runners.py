@@ -79,5 +79,3 @@ class TestNoModelMixing:
         result = model.predict_step({"data": input_tensor})
 
         assert result["data"].dtype == torch.float64
-
-
