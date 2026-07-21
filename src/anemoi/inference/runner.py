@@ -513,9 +513,7 @@ class Runner(Context):
                         for dataset, handler in self.tensor_handlers.items():
                             new_states[dataset]["date"] = dates[i]
                             new_states[dataset]["previous_step"] = new_states[dataset].get("step")
-                            new_states[dataset]["step"] = (
-                                step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
-                            )
+                            new_states[dataset]["step"] = self._compute_output_step(step, i)
 
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
@@ -595,6 +593,10 @@ class Runner(Context):
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                             handler._print_input_tensor(f"[{dataset}] Next input tensor", input_tensors_torch[dataset])
+
+    def _compute_output_step(self, step: datetime.timedelta, i: int) -> datetime.timedelta:
+        """Return the output step timedelta for the i-th model output within an AR step."""
+        return step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         for p in self.pre_processors[dataset_name]:
