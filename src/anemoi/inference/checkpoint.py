@@ -15,42 +15,31 @@ from pathlib import Path
 from typing import Any
 from typing import Literal
 
-from anemoi.utils.checkpoints import load_metadata
+from anemoi.metadata import Metadata as PkgMetadata
+from anemoi.metadata.checkpoint import load_metadata
 
 from anemoi.inference.config.utils import multi_datasets_config
 
 from .metadata import Metadata
-from .metadata import MetadataFactory
-from .metadata import MultiDatasetMetadata
-from .metadata import SingleDatasetMetadata
 
 LOG = logging.getLogger(__name__)
 
 # Metadata keys whose creation by a `patch_metadata` patch is expected and must not trigger
 # the new-key warning emitted in `multi_dataset_metadata`. E.g. `constant_fields` is frequently
-# added through a patch even though it's not in the checkpoint metadata. TODO: find a better solution?
+# added through a patch even though it's not in the checkpoint metadata.
 EXPECTED_PATCH_NEW_KEYS = {"constant_fields"}
 
 
 def get_multi_dataset_metadata(
-    metadata: dict,
+    metadata: PkgMetadata,
     supporting_arrays: dict,
     base_class=Metadata,
-) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
+) -> "dict[str, Metadata]":
     """Metadata objects for all datasets in the raw metadata, as a mapping from dataset name to Metadata object.
     For legacy checkpoints, the dataset name defaults to `data`
     """
-    dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
-
-    return {
-        dataset: MetadataFactory(
-            metadata,
-            supporting_arrays,
-            dataset_name=dataset,
-            base_class=base_class,
-        )
-        for dataset in dataset_names
-    }
+    dataset_names = metadata.dataset_names
+    return {dataset: base_class(metadata, supporting_arrays, dataset_name=dataset) for dataset in dataset_names}
 
 
 def _download_huggingfacehub(huggingface_config: Any) -> str:
@@ -105,8 +94,6 @@ class Checkpoint:
         ----------
         source : str | Metadata | dict[Literal["huggingface"], str | dict]
             The source of the checkpoint as a path, a metadata object, or huggingface mapping.
-        metadata_base : type[Metadata], optional
-            The base class for the checkpoint's metadata object, useful for overriding task/runner-specific metadata.
         patch_metadata : dict[str, Any], optional
             Metadata to patch the checkpoint with, by default None.
         """
@@ -151,7 +138,7 @@ class Checkpoint:
 
         # for multi-dataset checkpoints, we assume that metadata attributes accessed via the checkpoint
         # are shared across datasets and we can use the metadata of the first dataset.
-        # objects that need dataset-specific metadata should get their own MultiDatasetMetadata directly
+        # objects that need dataset-specific metadata should get their own Metadata directly
         # via self.multi_dataset_metadata or get_multi_dataset_metadata()
         multi_metadata = self.multi_dataset_metadata
         result = multi_metadata[next(iter(multi_metadata))]
@@ -159,31 +146,22 @@ class Checkpoint:
         return result
 
     @cached_property
-    def _raw_metadata(self) -> tuple[dict, dict]:
-        return load_metadata(self.path, supporting_arrays=True)
+    def _raw_metadata(self) -> tuple[PkgMetadata, dict[str, Any]]:
+        metadata, supporting_arrays = load_metadata(self.path, supporting_arrays=True, migrate=True)
+        return PkgMetadata(metadata), supporting_arrays
 
     @cached_property
     def multi_dataset(self) -> bool:
         """Check if the checkpoint is a multi-dataset checkpoint."""
-        metadata, _ = self._raw_metadata
-        return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
+        return self._metadata.multi_dataset
 
     @cached_property
-    def multi_dataset_metadata(
-        self,
-    ) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
+    def multi_dataset_metadata(self) -> dict[str, Metadata]:
         """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
         For legacy checkpoints, the dataset name defaults to `data`
         """
         metadata, supporting_arrays = self._raw_metadata
         multi_metadata = get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
-
-        if self.multi_dataset:
-            assert all(isinstance(metadata, MultiDatasetMetadata) for metadata in multi_metadata.values())
-        else:
-            assert len(multi_metadata) == 1
-            assert isinstance(next(iter(multi_metadata.values())), SingleDatasetMetadata)
-
         if self.patch_metadata:
             for dataset, metadata in multi_metadata.items():
                 patch = multi_datasets_config(
@@ -277,20 +255,18 @@ class Checkpoint:
         all_packages : bool, optional
             Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
-            What to do on difference, by default "warn".
+            What to do on difference, by default "warn"
         exempt_packages : list[str], optional
-            List of packages to exempt from the check, by default EXEMPT_PACKAGES.
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
         Union[bool, str]
-            boolean if `on_difference` is not 'return', otherwise formatted text of the differences.
-            True if environment is valid, False otherwise.
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
+            True if environment is valid, False otherwise
         """
         return self._metadata.validate_environment(
-            all_packages=all_packages,
-            on_difference=on_difference,
-            exempt_packages=exempt_packages,
+            all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
         )
 
     def provenance_training(self) -> Any:
@@ -302,29 +278,6 @@ class Checkpoint:
             The provenance of the training.
         """
         return self._metadata.provenance_training()
-
-    def update_metadata_from_zarr(self) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Get new metadata and supporting array dictionaries from the original training dataset.
-        Useful if the training dataset metadata has been patched/updated.
-        Updates the internal `_raw_metadata` and returns a new `(metadata, supporting_arrays)`.
-        """
-
-        new_metadata, new_supporting_arrays = self._raw_metadata
-
-        for dataset, metadata in self.multi_dataset_metadata.items():
-            ds = metadata.open_dataset()
-            ds_metadata, ds_supporting_arrays = ds.metadata(), ds.supporting_arrays()
-            assert "sources" in ds_metadata
-
-            if self.multi_dataset:
-                new_metadata["dataset"][dataset] = ds_metadata
-                new_supporting_arrays[dataset] = ds_supporting_arrays
-            else:
-                new_metadata["dataset"] = ds_metadata
-                new_supporting_arrays = ds_supporting_arrays
-
-        self._raw_metadata = (new_metadata, new_supporting_arrays)
-        return self._raw_metadata
 
 
 class SourceCheckpoint(Checkpoint):

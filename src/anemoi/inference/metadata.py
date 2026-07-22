@@ -21,27 +21,22 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
-import deprecation
 import earthkit.data as ekd
 import numpy as np
-from anemoi.transform.variables import Variable
-from anemoi.utils.config import DotDict
+from anemoi.metadata import Metadata as PkgMetadata
+from anemoi.metadata import MetadataRegistry
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 
-from .legacy import LegacyMixin
-
 if TYPE_CHECKING:
+    from anemoi.transform.variables import Variable
     from earthkit.data import FieldList
-
-USE_LEGACY = True
 
 LOG = logging.getLogger(__name__)
 
@@ -78,169 +73,112 @@ def _remove_full_paths(x: Any) -> Any:
     return x
 
 
-class Metadata(LegacyMixin):
-    """Base Metadata class."""
+class Metadata:
+    """Metadata class backed by anemoi-metadata.
 
-    multi_dataset = False
-    _metadata: DotDict
-    dataset_name = "data"  # required for backwards compatibility with single-datasets checkpoints
+    ``self._metadata`` (a :class:`anemoi.metadata.Metadata` instance) is the sole
+    source of truth.  There are no DotDict-based fallback paths.
 
-    def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
+    Supports both single-dataset and multi-dataset checkpoints.  For
+    multi-dataset checkpoints, ``dataset_name`` selects which dataset's
+    variables and indices are exposed.  Supporting arrays may be supplied in
+    either flat format (``{name: array}``) or nested format
+    (``{dataset_name: {name: array}}``); the constructor normalises them to
+    the flat format expected internally.
+    """
+
+    def __init__(
+        self,
+        metadata: PkgMetadata | dict,
+        supporting_arrays: dict | None = None,
+        dataset_name: str = "data",
+    ):
         """Initialize the Metadata object.
 
         Parameters
         ----------
-        metadata : dict
-            The metadata dictionary.
+        metadata : anemoi.metadata.Metadata | dict
+            The anemoi-metadata package instance.  Must not be ``None``.
         supporting_arrays : dict, optional
-            The supporting arrays, by default {}.
+            Supporting arrays.  May be flat (``{name: array}``) for legacy
+            checkpoints or nested by dataset name
+            (``{dataset_name: {name: array}}``) for modern checkpoints.
+            The constructor normalises these to the flat format used internally.
+        dataset_name : str, optional
+            The dataset name to use, by default ``"data"``.
         """
-        self._metadata = DotDict(metadata)
+        if isinstance(metadata, dict):
+            metadata = PkgMetadata(MetadataRegistry.load(metadata, allow_stop=True))
+        elif not isinstance(metadata, PkgMetadata):
+            # Assume it's a raw MetadataContract instance; wrap it.
+            metadata = PkgMetadata(metadata)
+
+        assert isinstance(
+            metadata, PkgMetadata
+        ), f"metadata must be an anemoi.metadata.Metadata instance, got {type(metadata)}"
+        self._metadata = metadata
+        self.dataset_name = dataset_name
+
+        if supporting_arrays is None:
+            supporting_arrays = {}
+
+        # Normalise supporting arrays: if the dict is nested (has a key equal
+        # to dataset_name whose value is itself a dict), extract the inner dict.
         assert isinstance(supporting_arrays, dict)
-        self._supporting_arrays = supporting_arrays
+        inner = supporting_arrays.get(dataset_name)
+        if isinstance(inner, dict):
+            self._supporting_arrays = inner
+        else:
+            self._supporting_arrays = supporting_arrays
+
         self._variables_categories = None
 
-    @property
-    def _indices(self) -> DotDict:
-        """Return the data indices."""
-        return self._metadata.data_indices
+    def __repr__(self) -> str:
+        return f"Metadata(name='{self.dataset_name}')"
 
     @property
-    def _config_data(self) -> DotDict:
-        """Return the data configuration."""
-        return self._config.data
-
-    @property
-    def _config_training(self) -> DotDict:
-        """Return the training configuration."""
-        return self._config.training
-
-    @property
-    def _config_task(self) -> DotDict:
-        """Return the task configuration if it exists."""
-        return getattr(self._config, "task", DotDict())
-
-    @property
-    def _config_model(self) -> DotDict:
-        """Return the model configuration."""
-        return self._config.model
-
-    @property
-    def _config(self) -> DotDict:
-        """Return the configuration."""
-        return self._metadata.config
-
-    @property
-    def _dataset(self) -> DotDict:
-        """Return the dataset configuration."""
-        return self._metadata.dataset
-
-    @property
-    def target_explicit_times(self) -> Any:
-        """Return the target explicit times from the training configuration."""
-        return self._config_training.explicit_times.target
-
-    @property
-    def input_explicit_times(self) -> Any:
-        """Return the input explicit times from the training configuration."""
-        return self._config_training.explicit_times.input
-
-    @property
-    def data_frequency(self) -> Any:
-        """Get the data frequency."""
-        output_timestep = getattr(self._config_task, "output_timestep", None)
-        return output_timestep or self._config.data.frequency
-
-    def _dataloader_dataset(self, partition="training"):
-        """Dataloader dataset configuration for the given partition."""
-        return self._config.dataloader[partition]
+    def multi_dataset(self) -> bool:
+        return self._metadata.original_schema_version != "0.0"
 
     ###########################################################################
     # Debugging
     ###########################################################################
 
-    def _print_indices(
-        self,
-        title: str,
-        indices: dict[str, list[int]],
-        naming: dict,
-        skip: list[str] = [],
-        print=LOG.info,
-    ) -> None:
-        """Print indices for debugging purposes.
-
-        Parameters
-        ----------
-        title : str
-            The title for the indices.
-        indices : Dict[str, List[int]]
-            The indices to print.
-        naming : dict
-            The naming convention for the indices.
-        skip : set, optional
-            The set of indices to skip, by default set().
-        print : callable, optional
-            The print function to use, by default logging.info.
-        """
-        print("")
-        print(title)
-
-        for k, v in sorted(indices.items()):
-            if k in skip:
-                continue
-            for name, idx in sorted(v.items()):
-                entry = f"{k}.{name}"
-                if entry in skip:
-                    continue
-
-                print(f"   {k}.{name}:")
-                for n in idx:
-                    print(f"     {n:3d} - {naming[k].get(n, '?')}")
-                if not idx:
-                    print("     <empty>")
-
     def print_indices(self, print=LOG.info) -> None:
-        """Print data and model indices for debugging purposes."""
-        v = {i: v for i, v in enumerate(self.variables)}
-        r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
-        s = self.output_tensor_index_to_variable
+        """Print variable-to-tensor-index mappings for debugging."""
+        print("Input variable indices:")
+        for name, idx in sorted(self.variable_to_input_tensor_index.items(), key=lambda x: x[1]):
+            print(f"  [{idx:3d}] {name}")
 
-        self._print_indices(
-            f"[{self.dataset_name}] Data indices",
-            self._indices.data,
-            dict(input=v, output=v),
-            skip=["output", "input.name_to_index"],
-            print=print,
-        )
-        self._print_indices(
-            f"[{self.dataset_name}] Model indices",
-            self._indices.model,
-            dict(input=r, output=s),
-            skip=["output.full", "input.name_to_index", "output.name_to_index"],
-            print=print,
-        )
+        print("")
+        print("Output variable indices:")
+        for name, idx in sorted(self.variable_to_output_tensor_index.items(), key=lambda x: x[1]):
+            print(f"  [{idx:3d}] {name}")
+
+        print("")
+        print("Variable categories:")
+        self.print_variable_categories(print=print)
 
     ###########################################################################
     # Inference
     ###########################################################################
+
     @cached_property
     def lagged(self) -> list[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
         result = list(range(0, self.multi_step_input))
-
         result = [-s * self.timestep for s in result]
         return sorted(result)
 
     @cached_property
     def timestep(self) -> datetime.timedelta:
         """Model time stepping timestep."""
-        timestep = to_timedelta(self._config.data.timestep)
-        return timestep
+        return to_timedelta(self._metadata.timestep)
 
     @cached_property
     def precision(self) -> str | int:
         """Return the precision of the model (bits per float)."""
-        return self._config_training.precision
+        return self._metadata.precision
 
     @cached_property
     def input_shape(self) -> tuple[int, int, int, int]:
@@ -252,7 +190,18 @@ class Metadata(LegacyMixin):
         )
 
     @cached_property
-    def output_shape(self) -> tuple[int, int, int, int]:
+    def output_shape(
+        self,
+    ) -> tuple[int, int, int, int] | tuple[int, int, int, int, int]:
+        # Multi-step output checkpoints have an extra time dimension
+        if self.multi_step_output > 1:
+            return (
+                1,
+                self.multi_step_output,
+                1,
+                self.number_of_grid_points,
+                len(self.output_tensor_index_to_variable),
+            )
         return (
             1,
             1,
@@ -278,20 +227,15 @@ class Metadata(LegacyMixin):
         assert len(indices_from) == len(indices_to), (indices_from, indices_to)
         return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
-    @property
+    @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
         """Return the mapping between variable name and input tensor index."""
-        mapping = self._make_indices_mapping(
-            self._indices.data.input.full,
-            self._indices.model.input.full,
-        )
-
-        return frozendict({v: mapping[i] for i, v in enumerate(self.variables) if i in mapping})
+        return frozendict(self._metadata.raw.get_variable_indices(self.dataset_name))
 
     @cached_property
     def variable_to_output_tensor_index(self) -> frozendict:
         """Return the mapping between variable name and output tensor index."""
-        return frozendict({v: k for k, v in self.output_tensor_index_to_variable.items()})
+        return frozendict(self._metadata.raw.get_output_variable_indices(self.dataset_name))
 
     @cached_property
     def input_tensor_index_to_variable(self) -> frozendict:
@@ -301,118 +245,57 @@ class Metadata(LegacyMixin):
     @cached_property
     def output_tensor_index_to_variable(self) -> frozendict:
         """Return the mapping between output tensor index and variable name."""
-        mapping = self._make_indices_mapping(
-            self._indices.model.output.full,
-            self._indices.data.output.full,
-        )
-        return frozendict({k: self.variables[v] for k, v in mapping.items()})
+        return frozendict({v: k for k, v in self.variable_to_output_tensor_index.items()})
 
     @cached_property
     def number_of_grid_points(self) -> int:
         """Return the number of grid points per fields."""
+        # Supporting arrays take priority (e.g. LAM grid_indices defines the cutout)
         if "grid_indices" in self._supporting_arrays:
             return len(self.load_supporting_array("grid_indices"))
         if "latitudes" in self._supporting_arrays:
             return len(self.load_supporting_array("latitudes"))
-        try:
-            return self._dataset.shape[-1]
-        except AttributeError:
-            if not USE_LEGACY:
-                raise
-            return self._legacy_number_of_grid_points()
+        if self._metadata.grid_points is not None:
+            return self._metadata.grid_points
+        raise ValueError(
+            "Cannot determine number of grid points: "
+            "no supporting arrays ('grid_indices' or 'latitudes') and "
+            "anemoi-metadata did not provide grid_points."
+        )
 
     @cached_property
     def number_of_input_features(self) -> int:
         """Return the number of input features."""
-        return len(self._indices.model.input.full)
+        return len(self.variable_to_input_tensor_index)
 
     @cached_property
     def model_computed_variables(self) -> tuple:
         """The initial conditions variables that need to be computed and not retrieved."""
-        typed_variables = self.typed_variables
-        return tuple(name for name, v in typed_variables.items() if v.is_computed_forcing)
+        return tuple(self._metadata.computed_forcings(self.dataset_name))
 
     @cached_property
     def multi_step_input(self) -> int:
         """Number of past steps needed for the initial conditions tensor."""
-        return self._config_training.multistep_input
+        return self._metadata.multi_step_input
 
     @cached_property
     def multi_step_output(self) -> int:
         """Number of future steps predicted by single model forward."""
-        # For backward compatibility we set a default of 1
-        # only multi-dataset checkpoints can be > 1
-        return 1
+        return self._metadata.multi_step_output
 
     @cached_property
     def prognostic_output_mask(self) -> IntArray:
         """Return the prognostic output mask."""
-        return np.array(self._indices.model.output.prognostic)
+        output_vars = self._metadata.raw.get_variable_types(self.dataset_name).get("prognostic", [])
+        output_index = self.variable_to_output_tensor_index
+        return np.array(sorted(output_index[v] for v in output_vars if v in output_index))
 
     @cached_property
     def prognostic_input_mask(self) -> IntArray:
         """Return the prognostic input mask."""
-        return np.array(self._indices.model.input.prognostic)
-
-    @property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.7.0",
-        current_version=__version__,
-        details="Use `select_variables_and_mask` instead.",
-    )
-    def computed_time_dependent_forcings(self) -> tuple[np.ndarray, list]:
-        """Return the indices and names of the computed forcings that are not constant in time."""
-        # Mapping between model and data indices
-        mapping = self._make_indices_mapping(
-            self._indices.model.input.full,
-            self._indices.data.input.full,
-        )
-
-        # Mapping between model indices and variable names
-        forcings_variables = {self.variables[mapping[i]]: i for i in self._indices.model.input.forcing}
-        typed_variables = self.typed_variables
-
-        # Filter out the computed forcings that are not constant in time
-        indices = []
-        variables = []
-        for name, idx in sorted(forcings_variables.items(), key=lambda x: x[1]):
-            v = typed_variables[name]
-            if v.is_computed_forcing and not v.is_constant_in_time:
-                indices.append(idx)
-                variables.append(name)
-
-        return np.array(indices), variables
-
-    @property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.7.0",
-        current_version=__version__,
-        details="Use `select_variables_and_mask` instead.",
-    )
-    def computed_constant_forcings(self) -> tuple[FloatArray, list[str]]:
-        """Return the indices and names of the computed forcings that are  constant in time."""
-        # Mapping between model and data indices
-        mapping = self._make_indices_mapping(
-            self._indices.model.input.full,
-            self._indices.data.input.full,
-        )
-
-        # Mapping between model indices and variable names
-        forcings_variables = {self.variables[mapping[i]]: i for i in self._indices.model.input.forcing}
-        typed_variables = self.typed_variables
-
-        # Filter out the computed forcings that are not constant in time
-        indices = []
-        variables = []
-        for name, idx in sorted(forcings_variables.items(), key=lambda x: x[1]):
-            v = typed_variables[name]
-            if v.is_computed_forcing and v.is_constant_in_time:
-                indices.append(idx)
-                variables.append(name)
-
-        return np.array(indices), variables
+        prognostic_vars = self._metadata.raw.get_variable_types(self.dataset_name).get("prognostic", [])
+        input_index = self.variable_to_input_tensor_index
+        return np.array(sorted(input_index[v] for v in prognostic_vars if v in input_index))
 
     def has_supporting_array(self, name: str) -> bool:
         """Check if the metadata has a supporting array with the given name.
@@ -433,52 +316,30 @@ class Metadata(LegacyMixin):
     # Variables
     ###########################################################################
 
+    @cached_property
+    def dataset_names(self) -> list[str]:
+        """Return the list of dataset names."""
+        return self._metadata.dataset_names
+
+    @cached_property
+    def task(self) -> str | None:
+        """Return the task label."""
+        return self._metadata.task
+
     @property
     def variables(self) -> tuple:
         """Return the variables as found in the training dataset."""
-        return tuple(self._dataset.variables)
+        return tuple(self._metadata.raw.get_variable_indices(self.dataset_name).keys())
 
     @cached_property
     def variables_metadata(self) -> dict[str, Any]:
         """Return the variables and their metadata as found in the training dataset."""
-        try:
-            result = self._dataset.variables_metadata
-            if USE_LEGACY:
-                self._legacy_check_variables_metadata(result)
-        except AttributeError:
-            if not USE_LEGACY:
-                raise
-            result = self._legacy_variables_metadata()
-
-        if "constant_fields" in self._dataset:
-            for name in self._dataset.constant_fields:
-                if name not in result:
-                    continue
-                result[name]["constant_in_time"] = True
-
-        return result
+        return self._metadata.variables_metadata(self.dataset_name)
 
     @cached_property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.7.0",
-        current_version=__version__,
-        details="Use `select_variables` instead.",
-    )
-    def diagnostic_variables(self) -> list:
-        """Variables that are marked as diagnostic."""
-        return [self.index_to_variable[i] for i in self._indices.data.input.diagnostic]
-
-    @cached_property
-    @deprecation.deprecated(
-        deprecated_in="0.6.4",
-        removed_in="0.7.0",
-        current_version=__version__,
-        details="Use `select_variables` instead.",
-    )
     def prognostic_variables(self) -> list:
         """Variables that are marked as prognostic."""
-        return [self.index_to_variable[i] for i in self._indices.data.input.prognostic]
+        return self._metadata.raw.get_variable_types(self.dataset_name).get("prognostic", [])
 
     @cached_property
     def index_to_variable(self) -> frozendict:
@@ -486,24 +347,14 @@ class Metadata(LegacyMixin):
         return frozendict({i: v for i, v in enumerate(self.variables)})
 
     @cached_property
-    def typed_variables(self) -> dict[str, Variable]:
-        """Returns a strongly typed variables."""
-        result = {name: Variable.from_dict(name, self.variables_metadata[name]) for name in self.variables}
-
-        if "cos_latitude" in result:
-            assert result["cos_latitude"].is_computed_forcing
-            assert result["cos_latitude"].is_constant_in_time
-
-        if "cos_julian_day" in result:
-            assert result["cos_julian_day"].is_computed_forcing
-            assert not result["cos_julian_day"].is_constant_in_time
-
-        return result
+    def typed_variables(self) -> "dict[str, Variable]":
+        """Returns strongly typed variables."""
+        return self._metadata.typed_variables(self.dataset_name)
 
     @cached_property
     def accumulations(self) -> list:
         """Return the indices of the variables that are accumulations."""
-        return [v.name for v in self.typed_variables.values() if v.is_accumulation]
+        return list(self._metadata.accumulations(self.dataset_name))
 
     def name_fields(self, fields: ekd.FieldList, namer: Callable[..., str] | None = None) -> "FieldList":
         """Name fields using the provided namer.
@@ -605,22 +456,29 @@ class Metadata(LegacyMixin):
     ###########################################################################
 
     @property
-    def _data_request(self) -> DataRequest:
-        """Return the data request as encoded in the dataset."""
-        try:
-            return self._dataset.data_request
-        except AttributeError:
-            return self._legacy_data_request()
-
-    @property
     def grid(self) -> str | None:
         """Return the grid information."""
-        return self._data_request.get("grid")
+        return self._metadata.data_request(self.dataset_name).get("grid")
 
     @property
     def area(self) -> str | None:
         """Return the area information."""
-        return self._data_request.get("area")
+        return self._metadata.data_request(self.dataset_name).get("area")
+
+    @property
+    def data_frequency(self) -> Any:
+        """Get the data frequency."""
+        return self._metadata.data_frequency(self.dataset_name)
+
+    @property
+    def target_explicit_times(self) -> Any:
+        """Return the target explicit times from the training configuration."""
+        return list(self._metadata.raw.get_output_relative_date_indices(self.dataset_name))
+
+    @property
+    def input_explicit_times(self) -> Any:
+        """Return the input explicit times from the training configuration."""
+        return list(self._metadata.raw.get_input_relative_date_indices(self.dataset_name))
 
     def select_variables(
         self,
@@ -634,9 +492,9 @@ class Metadata(LegacyMixin):
         Parameters
         ----------
         include: List[str]
-            Categories to include.
+            Categories to include. Supports compound expressions with '+'.
         exclude: List[str]
-            Categories to exclude.
+            Categories to exclude. Supports compound expressions with '+'.
         has_mars_requests: bool
             If True, only include variables that have MARS requests.
 
@@ -645,53 +503,15 @@ class Metadata(LegacyMixin):
         List[str]
             The list of variables.
         """
+        result = self._metadata.select_variables(
+            include=include,
+            exclude=exclude,
+            dataset_name=self.dataset_name,
+        )
 
-        variable_categories = self.variable_categories()
-        result = []
-
-        def parse_category(categories: str) -> set:
-            if categories is None:
-                return None
-
-            parsed = set()
-            for category in categories:
-                bits = category.split("+")
-                for bit in bits:
-                    if bit not in VARIABLE_CATEGORIES:
-                        raise ValueError(f"Unknown category {bit} in {categories}. Known: {VARIABLE_CATEGORIES}")
-                parsed.add(frozenset(bits))
-            return parsed
-
-        def match(categories, variable_categories, variable):
-            for c in categories:
-                if c.issubset(variable_categories):
-                    return True
-            return False
-
-        include = parse_category(include)
-        exclude = parse_category(exclude)
-
-        if include is not None and exclude is not None:
-            if not include.isdisjoint(exclude):
-                raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
-
-        for variable, metadata in self.variables_metadata.items():
-            categories = set(variable_categories[variable])
-
-            if not categories < VARIABLE_CATEGORIES:
-                warnings.warn(
-                    f"Variable {variable} has unknown categories: {categories - VARIABLE_CATEGORIES}. "
-                    f"Please update the code."
-                )
-
-            if has_mars_requests and "mars" not in metadata:
-                continue
-
-            if exclude is not None and match(exclude, categories, variable):
-                continue
-
-            if include is None or match(include, categories, variable):
-                result.append(variable)
+        if has_mars_requests:
+            variables_metadata = self.variables_metadata
+            result = [v for v in result if "mars" in variables_metadata.get(v, {})]
 
         return result
 
@@ -805,8 +625,6 @@ class Metadata(LegacyMixin):
 
         assert dates, "No dates provided"
 
-        result: list[DataRequest] = []
-
         DEFAULT_KEYS = ("class", "expver", "type", "stream", "levtype")
         DEFAULT_KEYS_AND_TIME = ("class", "expver", "type", "stream", "levtype", "time")
 
@@ -818,7 +636,7 @@ class Metadata(LegacyMixin):
         # TODO: revisit this code, can probably be removed
         KEYS = {("oper", "fc"): DEFAULT_KEYS, ("scda", "fc"): DEFAULT_KEYS}
 
-        requests = defaultdict(list)
+        requests: dict = defaultdict(list)
         for r in self.simple_mars_requests(variables=variables):
             for date in dates:
                 r = r.copy()
@@ -840,7 +658,7 @@ class Metadata(LegacyMixin):
 
                 requests[key].append(r)
 
-        result = []
+        result: list[DataRequest] = []
         for reqs in requests.values():
             compressed = Availability(reqs)
             for r in compressed.iterate():
@@ -919,6 +737,7 @@ class Metadata(LegacyMixin):
             raise ValueError("No variables requested")
 
         for variable in variables:
+
             if variable not in self.variables_metadata:
                 raise ValueError(f"Variable {variable} not found in the metadata")
 
@@ -938,7 +757,7 @@ class Metadata(LegacyMixin):
 
     def report_error(self) -> None:
         """Report an error with provenance information."""
-        provenance = self._metadata.provenance_training
+        provenance = self.provenance_training()
 
         def _print(title: str, provenance: dict[str, Any]) -> None:
             LOG.info("")
@@ -974,22 +793,22 @@ class Metadata(LegacyMixin):
         all_packages : bool, optional
             Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
-            What to do on difference, by default "warn".
+            What to do on difference, by default "warn"
         exempt_packages : list[str], optional
-            List of packages to exempt from the check, by default EXEMPT_PACKAGES.
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES
 
         Returns
         -------
         Union[bool, str]
-            boolean if `on_difference` is not 'return', otherwise formatted text of the differences.
-            True if environment is valid, False otherwise.
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
+            True if environment is valid, False otherwise
 
         Raises
         ------
         RuntimeError
-            If found difference and `on_difference` is 'error'.
+            If found difference and `on_difference` is 'error'
         ValueError
-            If `on_difference` is not 'warn' or 'error'.
+            If `on_difference` is not 'warn' or 'error'
         """
         from anemoi.inference.provenance import validate_environment
 
@@ -1033,7 +852,11 @@ class Metadata(LegacyMixin):
                 for k, v in x.items():
                     _find(v)
 
-        _find(self._dataloader_dataset("training").dataset)
+        dl = self._metadata.open_dataset_args(self.dataset_name)
+        # open_dataset_args returns {"args": [...], "kwargs": {...}} or similar
+        _find(dl.get("kwargs", dl) if isinstance(dl, dict) else dl)
+        # Also check the args list for dataset path strings
+        _find(dl.get("args", []) if isinstance(dl, dict) else [])
         return result
 
     def open_dataset(
@@ -1130,15 +953,21 @@ class Metadata(LegacyMixin):
             return x
 
         if from_dataloader is not None:
-            args, kwargs = [], self._dataloader_dataset(from_dataloader)
+            args, kwargs = (
+                [],
+                self._metadata.dataloader_config(from_dataloader, self.dataset_name),
+            )
         else:
-            args, kwargs = self._dataset.arguments.args, self._dataset.arguments.kwargs
+            arguments = self._metadata.open_dataset_args(self.dataset_name)
+            args = arguments.get("args", [])
+            kwargs = arguments.get("kwargs", {})
 
         args, kwargs = _fix([args, kwargs])
 
         # Remove keys that should not be passed to open_dataset()
         # See: https://github.com/ecmwf/anemoi-core/pull/756
-        kwargs.pop("trajectory", None)
+        if isinstance(kwargs, dict):
+            kwargs.pop("trajectory", None)
 
         if use_original_paths:
             return args, kwargs
@@ -1156,45 +985,16 @@ class Metadata(LegacyMixin):
         Returns
         -------
         dict
-            The categories of variables.
+            Mapping of variable name to sorted list of category strings.
         """
-
         if self._variables_categories is not None:
             return self._variables_categories
 
-        result = defaultdict(set)
-        typed_variables = self.typed_variables
-
-        variables_in_data_space = self.variables
-        variables_in_model_space = self.output_tensor_index_to_variable
-
-        for name in self._config_data.forcing:
-            result[name].add("forcing")
-
-        for idx in self._indices.data.input.diagnostic:
-            name = variables_in_data_space[idx]
-            result[name].add("diagnostic")
-
-        # assert self._indices.model.input.prognostic == self._indices.model.output.prognostic
-        for idx in self._indices.model.output.prognostic:
-            name = variables_in_model_space[idx]
-            result[name].add("prognostic")
-
-        for name, v in typed_variables.items():
-            if v.is_accumulation:
-                result[name].add("accumulation")
-
-            if v.is_constant_in_time:
-                result[name].add("constant")
-
-            if v.is_computed_forcing:
-                result[name].add("computed")
+        result = self._metadata.variable_categories(self.dataset_name, per_variable=True)
 
         for name in self.variables:
             if name not in result:
                 raise ValueError(f"Variable {name} has no category")
-
-            result[name] = sorted(result[name])
 
         self._variables_categories = frozendict(result)
         return self._variables_categories
@@ -1247,7 +1047,7 @@ class Metadata(LegacyMixin):
     @property
     def grid_points_mask(self) -> FloatArray | None:
         """Return the grid points mask."""
-        # TODO
+        # Not yet available from pkg metadata; returns None until supported
         return None
 
     def provenance_training(self) -> dict[str, Any]:
@@ -1258,7 +1058,7 @@ class Metadata(LegacyMixin):
         dict
             The environmental configuration.
         """
-        return dict(self._metadata.get("provenance_training", {}))
+        return self._metadata.provenance()
 
     def sources(self, path: str) -> list:
         """Get the sources from the metadata.
@@ -1278,7 +1078,8 @@ class Metadata(LegacyMixin):
         ValueError
             If not all paths were fixed.
         """
-        if "sources" not in self._dataset:
+        source_configs = self._metadata.sources(self.dataset_name)
+        if not source_configs:
             return []
 
         import zipfile
@@ -1303,26 +1104,28 @@ class Metadata(LegacyMixin):
             if isinstance(x, dict):
                 if x.get("action", "").startswith("zarr"):
                     LOG.info(n, x)
-                    path = full_paths[n]
+                    path_val = full_paths[n]
                     n += 1
-                    x["path"] = path
+                    x["path"] = path_val
 
                 {k: _fix(v) for k, v in x.items()}
 
-        _fix(self._dataset.sources)
+        _fix(source_configs)
 
         if n != len(full_paths):
             raise ValueError("Not all paths were fixed")
 
         ###########################################################################
 
+        # Get supporting array paths from the raw metadata dict
+        raw_dict = self._metadata.to_dict()
+        supporting_arrays_paths = raw_dict.get("supporting_arrays_paths", {})
+
         sources = []
 
         with zipfile.ZipFile(path, "r") as zipf:
-            for i, source in enumerate(self._dataset.get("sources", [])):
-                entries = {
-                    name: self._metadata.supporting_arrays_paths[name] for name in source.get("supporting_arrays", [])
-                }
+            for i, source in enumerate(source_configs):
+                entries = {name: supporting_arrays_paths[name] for name in source.get("supporting_arrays", [])}
                 arrays = load_supporting_arrays(zipf, entries)
 
                 name = source.get("name")
@@ -1333,7 +1136,7 @@ class Metadata(LegacyMixin):
                     SourceMetadata(
                         self,
                         name,
-                        dict(dataset=source),
+                        source,
                         supporting_arrays=arrays,
                     )
                 )
@@ -1369,6 +1172,9 @@ class Metadata(LegacyMixin):
 
         new_keys: list[str] = []
 
+        # Get the raw dict from the pkg instance
+        raw_dict = self._metadata.to_dict()
+
         def merge(
             main: dict[str, Any],
             patch: dict[str, Any],
@@ -1388,193 +1194,43 @@ class Metadata(LegacyMixin):
                 else:
                     main[k] = v
 
-        merge(self._metadata, patch)
+        merge(raw_dict, patch)
+
+        # Reconstruct the pkg instance from the patched dict (no migration needed
+        # since we are patching an already-migrated dict).
+        self._metadata = PkgMetadata.from_dict(raw_dict, migrate=False)
+
+        # Invalidate cached state
+        self._variables_categories = None
+        # Clear cached_property values that may have been computed from _metadata
+        for attr in (
+            "dataset_names",
+            "task",
+            "timestep",
+            "multi_step_input",
+            "multi_step_output",
+            "variable_to_input_tensor_index",
+            "variable_to_output_tensor_index",
+            "input_tensor_index_to_variable",
+            "output_tensor_index_to_variable",
+            "variables_metadata",
+            "accumulations",
+            "model_computed_variables",
+            "precision",
+            "lagged",
+            "typed_variables",
+            "index_to_variable",
+            "prognostic_variables",
+            "number_of_grid_points",
+            "number_of_input_features",
+            "prognostic_output_mask",
+            "prognostic_input_mask",
+            "input_shape",
+            "output_shape",
+        ):
+            self.__dict__.pop(attr, None)
+
         return new_keys
-
-
-class SingleDatasetMetadata(Metadata):
-    """Legacy single-dataset metadata."""
-
-    pass
-
-
-class MultiDatasetMetadata(Metadata):
-    """Map metadata for a multi-dataset checkpoint to a specific dataset name."""
-
-    multi_dataset = True
-
-    def __init__(
-        self,
-        metadata: dict[str, Any],
-        supporting_arrays: dict[str, dict[str, FloatArray]] = {},
-        dataset_name="data",
-    ):
-        super().__init__(metadata, supporting_arrays.get(dataset_name, {}))
-        self.dataset_name = dataset_name
-
-    def __repr__(self) -> str:
-        return f"MultiDatasetMetadata(name='{self.dataset_name}')"
-
-    @property
-    def _indices(self) -> DotDict:
-        return self._metadata.data_indices[self.dataset_name]
-
-    @property
-    def _config_data(self) -> DotDict:
-        return self._config.data.datasets[self.dataset_name]
-
-    @property
-    def _dataset(self) -> DotDict:
-        return self._metadata.dataset[self.dataset_name]
-
-    @property
-    def _metadata_inference(self) -> DotDict:
-        return self._metadata.metadata_inference
-
-    @property
-    def _inference(self) -> DotDict:
-        return self._metadata_inference[self.dataset_name]
-
-    def _dataloader_dataset(self, partition="training"):
-        dataloader = self._config.dataloader[partition].datasets[self.dataset_name]
-
-        # for new checkpoints the dataset config is under "dataset_config"
-        if config := dataloader.get("dataset_config"):
-            # config could be just the name of a dataset
-            if isinstance(config, str):
-                config = dict(dataset=config)
-            # copy extra dataloader keys that are also open_dataset kwargs
-            for k in ("start", "end"):
-                if k in dataloader:
-                    config.setdefault(k, dataloader[k])
-            return DotDict({key: value for key, value in config.items() if value is not None})
-
-        # for older checkpoints, the dataloader itself is the dataset config
-        return dataloader
-
-    #############################################################################
-    # Overrides for properties derived from the new `metadata_inference`
-    # available in multi-dataset checkpoints
-    #############################################################################
-
-    @cached_property
-    def dataset_names(self) -> list:
-        """List of canonical dataset names."""
-        return self._metadata_inference.dataset_names
-
-    @cached_property
-    def task(self) -> str:
-        return self._metadata_inference.task
-
-    @cached_property
-    def timestep(self) -> datetime.timedelta:
-        return to_timedelta(self._inference.timesteps.timestep)
-
-    @cached_property
-    def multi_step_input(self) -> int:
-        """Number of past steps needed for the initial conditions tensor."""
-        return len(self._inference.timesteps.input_relative_date_indices)
-
-    @cached_property
-    def multi_step_output(self) -> int:
-        """Number of future steps predicted by single model forward."""
-        return len(self._inference.timesteps.output_relative_date_indices)
-
-    @cached_property
-    def input_explicit_times(self) -> Any:
-        """Explicit times of the input steps used for the temporal downscaler."""
-        return self._inference.timesteps.input_relative_date_indices
-
-    @cached_property
-    def target_explicit_times(self) -> Any:
-        """Explicit times of the target steps used for the temporal downscaler."""
-        return self._inference.timesteps.output_relative_date_indices
-
-    @cached_property
-    def output_shape(
-        self,
-    ) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
-        # newer checkpoint have an extra multi-step output dimension, but older ones don't
-        if not hasattr(self._config_training, "multistep_output"):
-            return super().output_shape
-
-        return (
-            1,
-            self.multi_step_output,
-            1,
-            self.number_of_grid_points,
-            len(self.output_tensor_index_to_variable),
-        )
-
-    @cached_property
-    def variable_to_input_tensor_index(self) -> frozendict:
-        return frozendict(self._inference.data_indices.input)
-
-    @cached_property
-    def variable_to_output_tensor_index(self) -> frozendict:
-        return frozendict(self._inference.data_indices.output)
-
-    @cached_property
-    def input_tensor_index_to_variable(self) -> frozendict:
-        return frozendict({v: k for k, v in self.variable_to_input_tensor_index.items()})
-
-    @cached_property
-    def output_tensor_index_to_variable(self) -> frozendict:
-        return frozendict({v: k for k, v in self.variable_to_output_tensor_index.items()})
-
-    def variable_categories(self) -> dict[str, set[str]]:
-        if self._variables_categories is not None:
-            return self._variables_categories
-
-        result = defaultdict(set)
-        typed_variables = self.typed_variables
-        variable_types = self._inference.variable_types
-
-        for var_type in ["forcing", "diagnostic", "prognostic"]:
-            for name in variable_types.get(var_type, []):
-                result[name].add(var_type)
-
-        for name, v in typed_variables.items():
-            if v.is_accumulation:
-                result[name].add("accumulation")
-
-            if v.is_constant_in_time:
-                result[name].add("constant")
-
-            if v.is_computed_forcing:
-                result[name].add("computed")
-
-        for name in self.variables:
-            if name not in result:
-                raise ValueError(f"Variable {name} has no category")
-
-            result[name] = sorted(result[name])
-
-        self._variables_categories = frozendict(result)
-        return self._variables_categories
-
-
-class MetadataFactory:
-    def __new__(
-        cls,
-        metadata: dict[str, Any],
-        supporting_arrays: dict[str, Any] = {},
-        dataset_name="data",
-        base_class=Metadata,
-    ) -> SingleDatasetMetadata | MultiDatasetMetadata:
-        suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
-
-        if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
-            assert (
-                dataset_name in datasets
-            ), f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
-            LOG.info(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
-            return type("MultiDatasetMetadata", (MultiDatasetMetadata, base_class), {})(
-                metadata, supporting_arrays, dataset_name=dataset_name
-            )
-
-        LOG.info(f"Loading legacy single-dataset metadata{suffix}")
-        return type("SingleDatasetMetadata", (SingleDatasetMetadata, base_class), {})(metadata, supporting_arrays)
 
 
 class SourceMetadata(Metadata):
@@ -1582,7 +1238,13 @@ class SourceMetadata(Metadata):
     The rest is forwarded to the parent metadata object.
     """
 
-    def __init__(self, parent: Metadata, name: str, metadata: dict, supporting_arrays: dict = {}):
+    def __init__(
+        self,
+        parent: Metadata,
+        name: str,
+        source_dict: dict,
+        supporting_arrays: dict | None = None,
+    ):
         """Initialize the SourceMetadata object.
 
         Parameters
@@ -1591,12 +1253,17 @@ class SourceMetadata(Metadata):
             The parent metadata object.
         name : str
             The name of the source.
-        metadata : dict
-            The metadata dictionary.
+        source_dict : dict
+            The source metadata dictionary (the individual source entry).
         supporting_arrays : dict, optional
-            The supporting arrays, by default {}.
+            The supporting arrays, by default None.
         """
-        super().__init__(metadata, supporting_arrays)
+        if supporting_arrays is None:
+            supporting_arrays = {}
+        # SourceMetadata delegates most operations to the parent; it only
+        # overrides the supporting arrays and the dataset section.
+        # We pass the parent's _metadata through so the base class is satisfied.
+        super().__init__(parent._metadata, supporting_arrays, dataset_name=parent.dataset_name)
         self.parent = parent
         self.name = name
 
@@ -1618,29 +1285,3 @@ class SourceMetadata(Metadata):
             if k.startswith(f"{self.name}/") and "mask" in k:
                 return v
         return None
-
-    ###########################################################################
-    # Forward to parent metadata
-    ###########################################################################
-
-    @property
-    def _config_training(self) -> DotDict:
-        """Return the training configuration."""
-        return self.parent._config_training
-
-    @property
-    def _config_data(self) -> DotDict:
-        """Return the data configuration."""
-        return self.parent._config_data
-
-    @property
-    def _indices(self) -> DotDict:
-        """Return the indices."""
-        return self.parent._indices
-
-    @property
-    def _config(self) -> DotDict:
-        """Return the configuration."""
-        return self.parent._config
-
-    ###########################################################################
