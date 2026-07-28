@@ -213,6 +213,7 @@ class MarsInput(GribInput):
         pre_processors: list[ProcessorConfig] | None = None,
         namer: Any | None = None,
         purpose: str | None = None,
+        forcings_from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -231,6 +232,12 @@ class MarsInput(GribInput):
             Optional list of patches for the input.
         log : bool
             Whether to log the requests to MARS, by default True.
+        pre_processors : list of ProcessorConfig or None, optional
+            List of pre-processors to apply to the input. If None, no pre-processing is performed.
+        purpose : str or None, optional
+            The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
+        forcings_from_forecast : bool
+            Whether to get forcings from a forecast, i.e. selecting from step, rather than basedate.
         **kwargs : Any
             Additional keyword to pass to the request to MARS.
         """
@@ -241,6 +248,7 @@ class MarsInput(GribInput):
             pre_processors=pre_processors,
             purpose=purpose,
             namer=namer,
+            forcings_from_forecast=forcings_from_forecast,
         )
 
         self.kwargs = kwargs
@@ -338,10 +346,12 @@ class MarsInput(GribInput):
         Any
             The loaded forcings state.
         """
+
         if self.forcings_from_forecast:
             LOG.debug("MarsInput: Loading forcings from forecast for dates: %s", dates)
-            date, steps = convert_dates_to_base_and_step(dates)
-            retrieved_state = self.retrieve(self.variables, [date], step=steps)
+            base_date = current_state["date"] - current_state["step"]
+            date, steps = convert_dates_to_base_and_step(dates, base_date=base_date)
+            retrieved_state = self.retrieve(self.variables, [date], step=steps, type="fc")
         else:
             retrieved_state = self.retrieve(self.variables, dates)
 

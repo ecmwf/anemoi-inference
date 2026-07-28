@@ -12,13 +12,15 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.types import Date
 
 
-def convert_dates_to_base_and_step(dates: list[Date]) -> tuple[Date, list[int]]:
+def convert_dates_to_base_and_step(dates: list[Date], base_date: Date | None = None) -> tuple[Date, list[int]]:
     """Convert a list of dates to base and step.
 
     Parameters
     ----------
     dates : list[Date]
         List of dates to convert.
+    base_date : Date or None
+        The base date to use. If None, the earliest date in the list is used.
 
     Returns
     -------
@@ -29,7 +31,7 @@ def convert_dates_to_base_and_step(dates: list[Date]) -> tuple[Date, list[int]]:
         raise ValueError("The list of dates is empty.")
     datetimes = [to_datetime(date) for date in dates]
 
-    base_date = min(datetimes)
-    steps = [(dt - to_datetime(base_date)).total_seconds() // 3600 for dt in datetimes]
+    base_date = to_datetime(base_date) if base_date else min(datetimes)
+    steps = [int((dt - to_datetime(base_date)).total_seconds() // 3600) for dt in datetimes]
 
     return base_date, steps
