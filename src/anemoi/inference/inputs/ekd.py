@@ -136,6 +136,7 @@ class EkdInput(Input):
         metadata: Metadata,
         *,
         namer: Any | None = None,
+        forcings_from_forecast: bool = False,
         **kwargs,
     ) -> None:
         """Initialize the EkdInput.
@@ -148,8 +149,11 @@ class EkdInput(Input):
             Metadata corresponding to the dataset this input is handling.
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
+        forcings_from_forecast: bool
+            Whether to get forcings from a forecast, i.e. selecting from step, rather than basedate.
         """
         super().__init__(context, metadata, **kwargs)
+        self.forcings_from_forecast = forcings_from_forecast
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -245,6 +249,7 @@ class EkdInput(Input):
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
         ref_date_index: int = -1,
+        select_reference_date: bool = False,
         **kwargs,
     ) -> State:
         """Create a state from an ekd.FieldList.
@@ -272,6 +277,9 @@ class EkdInput(Input):
             Whether to flatten the data.
         ref_date_index: int = -1
             If 0 takes the first date, if -1 takes the last date in sequence.
+        select_reference_date: bool, optional
+            Also include the reference date when selecting data from the FieldList.
+            If False (default), only the valid date is considered.
         **kwargs : Any
             Additional arguments for selecting the variable.
 
@@ -320,7 +328,9 @@ class EkdInput(Input):
         dates = sorted([to_datetime(d) for d in dates])
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
+        fields = self._filter_and_sort(
+            fields, dates=dates, title="Create input state", select_reference_date=select_reference_date, **kwargs
+        )
 
         check = defaultdict(set)
         state_variables = {}
@@ -469,6 +479,7 @@ class EkdInput(Input):
             longitudes=current_state.get("longitudes", None),
             dtype=np.float32,
             flatten=True,
+            select_reference_date=self.forcings_from_forecast,
         )
 
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore

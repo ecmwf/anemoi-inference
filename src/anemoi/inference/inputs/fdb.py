@@ -22,6 +22,7 @@ from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
+from .utils import convert_dates_to_base_and_step
 
 LOG = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class FDBInput(GribInput):
         pre_processors: list[ProcessorConfig] | None = None,
         namer: Any | None = None,
         purpose: str | None = None,
+        forcings_from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialise the FDB input.
@@ -75,6 +77,7 @@ class FDBInput(GribInput):
             pre_processors=pre_processors,
             purpose=purpose,
             namer=namer,
+            forcings_from_forecast=forcings_from_forecast,
         )
         self.kwargs = kwargs
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
@@ -89,17 +92,25 @@ class FDBInput(GribInput):
         return res
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
-        ds = self.retrieve(variables=self.variables, dates=dates)
+        if self.forcings_from_forecast:
+            LOG.debug("FDBInput: Loading forcings from forecast for dates: %s", dates)
+            date, steps = convert_dates_to_base_and_step(dates)
+            ds = self.retrieve(self.variables, [date], step=steps)
+        else:
+            ds = self.retrieve(variables=self.variables, dates=dates)
         return self._load_forcings_state(ds, dates=dates, current_state=current_state)
 
-    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date], **kwargs) -> Any:
         requests = self.metadata.mars_requests(
             variables=variables,
             dates=dates,
             use_grib_paramid=self.context.use_grib_paramid,
             patch_request=self.patch_data_request,
         )
-        requests = [self.kwargs | r for r in requests]
+        retrieval_kwargs = self.kwargs.copy()
+        retrieval_kwargs.update(kwargs)
+
+        requests = [retrieval_kwargs | r for r in requests]
         # NOTE: this is a temporary workaround for #191
         for request in requests:
             request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
