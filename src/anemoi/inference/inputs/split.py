@@ -58,15 +58,15 @@ class SplitInput(Input):
             vars = set(vars)
 
             if not set(vars) <= all_variables:
-                raise ValueError(
-                    f"Variables {vars} not in the provided variables {all_variables} ({set(vars) - all_variables})"
+                LOG.warning(
+                    f"Variables {vars} requested additional field to the model requested variables {all_variables} ({set(vars) - all_variables})"
                 )
 
             self.splits[tuple(sorted(vars))] = create_input(
                 context,
                 s["source"],
                 metadata,
-                variables=vars,
+                variables=list(vars),
                 purpose=s.get("purpose"),
             )
 
@@ -75,9 +75,9 @@ class SplitInput(Input):
         all_variables -= seen
 
         for i, vars1 in enumerate(splits):
-            vars1 = set(vars1)
+            vars1 = set(vars1["variables"])
             for j, vars2 in enumerate(splits):
-                vars2 = set(vars2)
+                vars2 = set(vars2["variables"])
                 if i == j:
                     continue
                 if not vars1.isdisjoint(vars2):
@@ -124,8 +124,6 @@ class SplitInput(Input):
 
         state = combine_states(*states)
 
-        assert set(state["fields"]) == set(self.variables), (sorted(state["fields"]), sorted(self.variables))
-
         state["_input"] = self
         state["date"] = date
 
@@ -150,8 +148,6 @@ class SplitInput(Input):
 
         states = [split.load_forcings_state(dates=dates, current_state=current_state) for split in self.splits]
         state = combine_states(*states)
-
-        assert set(state["fields"]) == set(self.variables)
 
         state["date"] = dates[-1]
         state["_input"] = self
