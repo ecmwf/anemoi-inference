@@ -58,9 +58,12 @@ class SplitInput(Input):
             vars = set(vars)
 
             if not set(vars) <= all_variables:
-                LOG.warning(
-                    f"Variables {vars} requested additional field to the model requested variables {all_variables} ({set(vars) - all_variables})"
-                )
+                LOG.warning(f"Variables {vars} in split {s} are not in the requested variables {all_variables}")
+                vars = all_variables & vars
+
+            if not vars:
+                LOG.warning(f"No valid variables in split {s}, skipping")
+                continue
 
             self.splits[tuple(sorted(vars))] = create_input(
                 context,
@@ -97,8 +100,6 @@ class SplitInput(Input):
                 purpose=kwargs.get("purpose"),
             )
 
-        assert len(self.splits) > 1, "At least two splits must be provided"
-
         self.splits = list(self.splits.values())
 
         super().__init__(context, metadata, **kwargs)
@@ -122,7 +123,10 @@ class SplitInput(Input):
         # TODO: Consider caching the result
         states = [split.create_input_state(date=date, **kwargs) for split in self.splits]
 
-        state = combine_states(*states)
+        if len(states) == 1:
+            state = states[0]
+        else:
+            state = combine_states(*states)
 
         state["_input"] = self
         state["date"] = date
@@ -147,7 +151,10 @@ class SplitInput(Input):
         assert len(dates) > 0, "dates must not be empty for repeated dates input"
 
         states = [split.load_forcings_state(dates=dates, current_state=current_state) for split in self.splits]
-        state = combine_states(*states)
+        if len(states) == 1:
+            state = states[0]
+        else:
+            state = combine_states(*states)
 
         state["date"] = dates[-1]
         state["_input"] = self
