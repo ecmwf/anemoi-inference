@@ -44,7 +44,7 @@ class SplitInput(Input):
             assert isinstance(s, dict), "each split must be a dictionary"
 
             if "default" in s:
-                default = s["default"]
+                default = s["source"]
                 continue
 
             assert "source" in s, "each split must have a 'source' key"
@@ -75,9 +75,9 @@ class SplitInput(Input):
         all_variables -= seen
 
         for i, vars1 in enumerate(splits):
-            vars1 = set(vars1["variables"])
+            vars1 = set(vars1.get("variables", []))
             for j, vars2 in enumerate(splits):
-                vars2 = set(vars2["variables"])
+                vars2 = set(vars2.get("variables", []))
                 if i == j:
                     continue
                 if not vars1.isdisjoint(vars2):
@@ -92,7 +92,7 @@ class SplitInput(Input):
             self.splits[tuple(sorted(all_variables))] = create_input(
                 context,
                 default,
-                self.metadata,
+                metadata,
                 variables=sorted(all_variables),
                 purpose=kwargs.get("purpose"),
             )
