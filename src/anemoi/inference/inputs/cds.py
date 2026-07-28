@@ -24,6 +24,7 @@ from anemoi.inference.types import State
 from . import input_registry
 from .grib import GribInput
 from .mars import postproc
+from .utils import convert_dates_to_base_and_step
 
 LOG = logging.getLogger(__name__)
 
@@ -120,6 +121,7 @@ class CDSInput(GribInput):
         dataset: str | dict[str, Any],
         namer: Any | None = None,
         purpose: str | None = None,
+        forcings_from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the CDSInput.
@@ -138,11 +140,21 @@ class CDSInput(GribInput):
             The dataset to use.
         namer : Optional[Any]
             Optional namer for the input.
+        purpose : Optional[str]
+            The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
+        forcings_from_forecast : bool
+            Whether to get forcings from a forecast, i.e. selecting from step, rather than basedate.
         **kwargs : Any
             Additional keyword arguments.
         """
         super().__init__(
-            context, metadata, variables=variables, pre_processors=pre_processors, namer=namer, purpose=purpose
+            context,
+            metadata,
+            variables=variables,
+            pre_processors=pre_processors,
+            namer=namer,
+            purpose=purpose,
+            forcings_from_forecast=forcings_from_forecast,
         )
 
         self.dataset = dataset
@@ -177,7 +189,7 @@ class CDSInput(GribInput):
             **kwargs,
         )
 
-    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date], **kwargs) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
@@ -186,6 +198,8 @@ class CDSInput(GribInput):
             List of variables to retrieve.
         dates : List[Date]
             List of dates for which to retrieve data.
+        **kwargs : Any
+            Additional keyword arguments to pass to the retrieval function.
 
         Returns
         -------
@@ -203,8 +217,16 @@ class CDSInput(GribInput):
         if not requests:
             raise ValueError(f"No requests for {variables} ({dates})")
 
+        retrieval_kwargs = self.kwargs.copy()
+        retrieval_kwargs.update(kwargs)
+
         return retrieve(
-            requests, self.metadata.grid, self.metadata.area, dataset=self.dataset, expver="0001", **self.kwargs
+            requests,
+            self.metadata.grid,
+            self.metadata.area,
+            dataset=self.dataset,
+            expver="0001",
+            **retrieval_kwargs,
         )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -222,8 +244,15 @@ class CDSInput(GribInput):
         Any
             The loaded forcings state.
         """
+        if self.forcings_from_forecast:
+            LOG.debug("CDSInput: Loading forcings from forecast for dates: %s", dates)
+            date, steps = convert_dates_to_base_and_step(dates)
+            retrieved_state = self.retrieve(self.variables, [date], step=steps)
+        else:
+            retrieved_state = self.retrieve(self.variables, dates)
+
         return self._load_forcings_state(
-            self.retrieve(self.variables, dates),
+            retrieved_state,
             dates=dates,
             current_state=current_state,
         )
