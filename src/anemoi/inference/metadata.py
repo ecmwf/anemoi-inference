@@ -15,6 +15,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from collections.abc import Iterator
+from functools import cache
 from functools import cached_property
 from types import MappingProxyType as frozendict
 from typing import TYPE_CHECKING
@@ -93,12 +94,12 @@ class Metadata:
         supporting_arrays: dict | None = None,
         dataset_name: str = "data",
     ):
-        """Initialize the Metadata object.
+        """Initialise the Metadata object.
 
         Parameters
         ----------
         metadata : anemoi.metadata.Metadata | dict
-            The anemoi-metadata package instance.  Must not be ``None``.
+            The anemoi-metadata package instance.
         supporting_arrays : dict, optional
             Supporting arrays.  May be flat (``{name: array}``) for legacy
             checkpoints or nested by dataset name
@@ -113,9 +114,6 @@ class Metadata:
             # Assume it's a raw MetadataContract instance; wrap it.
             metadata = PkgMetadata(metadata)
 
-        assert isinstance(
-            metadata, PkgMetadata
-        ), f"metadata must be an anemoi.metadata.Metadata instance, got {type(metadata)}"
         self._metadata = metadata
         self.dataset_name = dataset_name
 
@@ -130,8 +128,6 @@ class Metadata:
             self._supporting_arrays = inner
         else:
             self._supporting_arrays = supporting_arrays
-
-        self._variables_categories = None
 
     def __repr__(self) -> str:
         return f"Metadata(name='{self.dataset_name}')"
@@ -176,7 +172,7 @@ class Metadata:
         return to_timedelta(self._metadata.timestep)
 
     @cached_property
-    def precision(self) -> str | int:
+    def precision(self) -> str | None:
         """Return the precision of the model (bits per float)."""
         return self._metadata.precision
 
@@ -230,12 +226,12 @@ class Metadata:
     @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
         """Return the mapping between variable name and input tensor index."""
-        return frozendict(self._metadata.raw.get_variable_indices(self.dataset_name))
+        return frozendict(self._metadata.dataset(self.dataset_name).variable_indices)
 
     @cached_property
     def variable_to_output_tensor_index(self) -> frozendict:
         """Return the mapping between variable name and output tensor index."""
-        return frozendict(self._metadata.raw.get_output_variable_indices(self.dataset_name))
+        return frozendict(self._metadata.dataset(self.dataset_name).output_variable_indices)
 
     @cached_property
     def input_tensor_index_to_variable(self) -> frozendict:
@@ -286,14 +282,14 @@ class Metadata:
     @cached_property
     def prognostic_output_mask(self) -> IntArray:
         """Return the prognostic output mask."""
-        output_vars = self._metadata.raw.get_variable_types(self.dataset_name).get("prognostic", [])
+        output_vars = self._metadata.dataset(self.dataset_name).variable_types.get("prognostic", [])
         output_index = self.variable_to_output_tensor_index
         return np.array(sorted(output_index[v] for v in output_vars if v in output_index))
 
     @cached_property
     def prognostic_input_mask(self) -> IntArray:
         """Return the prognostic input mask."""
-        prognostic_vars = self._metadata.raw.get_variable_types(self.dataset_name).get("prognostic", [])
+        prognostic_vars = self._metadata.dataset(self.dataset_name).variable_types.get("prognostic", [])
         input_index = self.variable_to_input_tensor_index
         return np.array(sorted(input_index[v] for v in prognostic_vars if v in input_index))
 
@@ -329,7 +325,7 @@ class Metadata:
     @property
     def variables(self) -> tuple:
         """Return the variables as found in the training dataset."""
-        return tuple(self._metadata.raw.get_variable_indices(self.dataset_name).keys())
+        return tuple(self._metadata.dataset(self.dataset_name).variable_indices.keys())
 
     @cached_property
     def variables_metadata(self) -> dict[str, Any]:
@@ -339,7 +335,7 @@ class Metadata:
     @cached_property
     def prognostic_variables(self) -> list:
         """Variables that are marked as prognostic."""
-        return self._metadata.raw.get_variable_types(self.dataset_name).get("prognostic", [])
+        return self._metadata.variable_categories(self.dataset_name).get("prognostic", [])
 
     @cached_property
     def index_to_variable(self) -> frozendict:
@@ -349,12 +345,12 @@ class Metadata:
     @cached_property
     def typed_variables(self) -> "dict[str, Variable]":
         """Returns strongly typed variables."""
-        return self._metadata.typed_variables(self.dataset_name)
+        return self._metadata.typed_variables(self.dataset_name)  # TODO: this should use the dataset view
 
     @cached_property
     def accumulations(self) -> list:
         """Return the indices of the variables that are accumulations."""
-        return list(self._metadata.accumulations(self.dataset_name))
+        return list(self._metadata.dataset(self.dataset_name).accumulations)
 
     def name_fields(self, fields: ekd.FieldList, namer: Callable[..., str] | None = None) -> "FieldList":
         """Name fields using the provided namer.
@@ -458,27 +454,27 @@ class Metadata:
     @property
     def grid(self) -> str | None:
         """Return the grid information."""
-        return self._metadata.data_request(self.dataset_name).get("grid")
+        return self._metadata.dataset(self.dataset_name).data_request.get("grid")
 
     @property
     def area(self) -> str | None:
         """Return the area information."""
-        return self._metadata.data_request(self.dataset_name).get("area")
+        return self._metadata.dataset(self.dataset_name).data_request.get("area")
 
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._metadata.data_frequency(self.dataset_name)
+        return self._metadata.dataset(self.dataset_name).data_frequency
 
     @property
     def target_explicit_times(self) -> Any:
         """Return the target explicit times from the training configuration."""
-        return list(self._metadata.raw.get_output_relative_date_indices(self.dataset_name))
+        return list(self._metadata.dataset(self.dataset_name).output_relative_date_indices)
 
     @property
     def input_explicit_times(self) -> Any:
         """Return the input explicit times from the training configuration."""
-        return list(self._metadata.raw.get_input_relative_date_indices(self.dataset_name))
+        return list(self._metadata.dataset(self.dataset_name).input_relative_date_indices)
 
     def select_variables(
         self,
@@ -503,10 +499,9 @@ class Metadata:
         List[str]
             The list of variables.
         """
-        result = self._metadata.select_variables(
+        result = self._metadata.dataset(self.dataset_name).select_variables(
             include=include,
             exclude=exclude,
-            dataset_name=self.dataset_name,
         )
 
         if has_mars_requests:
@@ -974,11 +969,7 @@ class Metadata:
 
         return _remove_full_paths(args), _remove_full_paths(kwargs)
 
-    ###########################################################################
-    # Not sure this belongs here
-    # We need factories
-    ###########################################################################
-
+    @cache
     def variable_categories(self) -> dict:
         """Get the categories of variables.
 
@@ -987,17 +978,13 @@ class Metadata:
         dict
             Mapping of variable name to sorted list of category strings.
         """
-        if self._variables_categories is not None:
-            return self._variables_categories
-
-        result = self._metadata.variable_categories(self.dataset_name, per_variable=True)
+        result = self._metadata.dataset(self.dataset_name).variable_categories(per_variable=True)
 
         for name in self.variables:
             if name not in result:
                 raise ValueError(f"Variable {name} has no category")
 
-        self._variables_categories = frozendict(result)
-        return self._variables_categories
+        return frozendict(result)
 
     ###########################################################################
     # Supporting arrays
@@ -1200,8 +1187,6 @@ class Metadata:
         # since we are patching an already-migrated dict).
         self._metadata = PkgMetadata.from_dict(raw_dict, migrate=False)
 
-        # Invalidate cached state
-        self._variables_categories = None
         # Clear cached_property values that may have been computed from _metadata
         for attr in (
             "dataset_names",
@@ -1227,6 +1212,7 @@ class Metadata:
             "prognostic_input_mask",
             "input_shape",
             "output_shape",
+            "variable_categories",
         ):
             self.__dict__.pop(attr, None)
 
