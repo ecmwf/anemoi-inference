@@ -16,9 +16,10 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
-from ..types import Date
-from ..types import State
 from . import input_registry
 from .grib import GribInput
 
@@ -38,8 +39,12 @@ class FDBInput(GribInput):
         *,
         fdb_config: dict | None = None,
         fdb_userconfig: dict | None = None,
-        **kwargs: dict[str, Any],
-    ):
+        variables: list[str] | None = None,
+        pre_processors: list[ProcessorConfig] | None = None,
+        namer: Any | None = None,
+        purpose: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialise the FDB input.
 
         Parameters
@@ -52,10 +57,25 @@ class FDBInput(GribInput):
             The FDB config to use.
         fdb_userconfig : dict, optional
             The FDB userconfig to use.
+        variables : list[str] | None
+            List of variables to be handled by the input, or None for a sensible default variables.
+        pre_processors : list[ProcessorConfig], optional
+            Pre-processors to apply to the retrieved data.
+        namer : Optional[Any]
+            Optional namer for the input.
+        purpose : str, optional
+            The purpose of the input.
         kwargs : dict, optional
             Additional keyword arguments for the request to FDB.
         """
-        super().__init__(context, metadata, **kwargs)
+        super().__init__(
+            context,
+            metadata,
+            variables=variables,
+            pre_processors=pre_processors,
+            purpose=purpose,
+            namer=namer,
+        )
         self.kwargs = kwargs
         self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
         # NOTE: this is a temporary workaround for #191 thus not documented
@@ -83,6 +103,8 @@ class FDBInput(GribInput):
         # NOTE: this is a temporary workaround for #191
         for request in requests:
             request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
+
+        LOG.debug("FDB requests: %s", requests)
         sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
         ds = ekd.from_source("multi", sources)
         return ds

@@ -342,7 +342,7 @@ class GribIoOutput(BaseGribOutput):
 @output_registry.register("grib")
 @main_argument("path")
 @format_dataset_name("path")
-@supports_parallel_output("path")
+@supports_parallel_output("path", "archive_requests.path")
 @ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
