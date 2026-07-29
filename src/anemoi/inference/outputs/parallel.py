@@ -257,7 +257,7 @@ class ParallelOutput(Output):
             metadata,
         )
 
-        self.num_writers = num_writers
+        self.num_writers = int(num_writers)
         if self.num_writers < 1:
             raise ValueError("num_writers must be at least 1")
 
