@@ -137,7 +137,7 @@ def _sanitise_state(state: State, grib_templates_bytes: dict[str, bytes] | None 
     same templates dict N times when there are N writers.
     """
 
-    unpicklable_keys = ["_input"]
+    unpicklable_keys = ["_input", "_variables"]
 
     state = state.copy()
 
