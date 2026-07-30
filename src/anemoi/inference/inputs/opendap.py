@@ -51,7 +51,11 @@ class OpenDAPInput(EkdInput):
         url: str | list[str]
             The URL or list of URL's of the OpenDAP file / server.
             Python format strings can be used to dynamically construct the URL, with the following variables available:
-            - {date} : The date for which the input is being created.
+            - {date:...} : The date for which the input is being created.
+
+            It is expected that a user formats any variable correctly for the OpenDAP server, e.g. using strftime format codes for dates.
+            i.e.: .../thredds/{date:%Y}/{date:%m}/{date:%d}/det_sfc_{date:%Y%m%d}T{date:%H}Z.nc
+            for dates, if no format string is provided, the default format is isoformat, e.g. 2023-01-01 00:00:00.
         """
         super().__init__(context, metadata, **kwargs)
         self.url = url if isinstance(url, list) else [url]
