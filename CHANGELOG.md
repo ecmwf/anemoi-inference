@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.11.2](https://github.com/ecmwf/anemoi-inference/compare/0.11.1...0.11.2) (2026-07-30)
+
+
+### Features
+
+* Add mid processors ([#473](https://github.com/ecmwf/anemoi-inference/issues/473)) ([3f79e43](https://github.com/ecmwf/anemoi-inference/commit/3f79e43a629f07005fe58d43b40ffed7a0cc77cb))
+* Create and ship py.typed ([#552](https://github.com/ecmwf/anemoi-inference/issues/552)) ([08ca73b](https://github.com/ecmwf/anemoi-inference/commit/08ca73bcee68f9f0fccee6962e048900a36fbba8))
+* **dataset input:** Add use_trajectories option ([#530](https://github.com/ecmwf/anemoi-inference/issues/530)) ([ee35fc0](https://github.com/ecmwf/anemoi-inference/commit/ee35fc01dedf1b172a6801a326d8adc381a77a27))
+* **dataset input:** Add warning for preprocessors ([#525](https://github.com/ecmwf/anemoi-inference/issues/525)) ([eaeb36f](https://github.com/ecmwf/anemoi-inference/commit/eaeb36fae30c754a03b8dc0442fc56373b6bedef))
+* **grib output:** Allow configuration of missing_value sentinel ([#526](https://github.com/ecmwf/anemoi-inference/issues/526)) ([5aeab45](https://github.com/ecmwf/anemoi-inference/commit/5aeab450af6fc8f8284a09f896f90ddb34d78689))
+* **inputs:** Add opendap input source ([#554](https://github.com/ecmwf/anemoi-inference/issues/554)) ([e93b799](https://github.com/ecmwf/anemoi-inference/commit/e93b7997f141dcd450ab3e09301325da21ea84ee))
+* **post processors:** Include metadata in wrap_state and refactor forward ([#539](https://github.com/ecmwf/anemoi-inference/issues/539)) ([e0ccb4f](https://github.com/ecmwf/anemoi-inference/commit/e0ccb4fc3077570f2cb675539212b531ea89a471))
+* **temporal downscaler:** Enable trajectory datasets ([#519](https://github.com/ecmwf/anemoi-inference/issues/519)) ([68ceb80](https://github.com/ecmwf/anemoi-inference/commit/68ceb80167418efc60a65ce2e52bf3e6f4346233))
+* **truth output:** Option to write diagnostics ([#535](https://github.com/ecmwf/anemoi-inference/issues/535)) ([a33adf6](https://github.com/ecmwf/anemoi-inference/commit/a33adf68e093b21a9496011b4b34a2d1843db56d))
+
+
+### Bug Fixes
+
+* **inputs:** Fdb source ([#538](https://github.com/ecmwf/anemoi-inference/issues/538)) ([ad85686](https://github.com/ecmwf/anemoi-inference/commit/ad85686e697a29d6e88e0c32072d76681b873ab1))
+* Invalid use of units config ([#548](https://github.com/ecmwf/anemoi-inference/issues/548)) ([1616a87](https://github.com/ecmwf/anemoi-inference/commit/1616a871ed8d6e5ab85e4e701417e734b6a1d16b))
+* **parallel output:** Convert num_writers to integer before validation ([#553](https://github.com/ecmwf/anemoi-inference/issues/553)) ([f0bbf87](https://github.com/ecmwf/anemoi-inference/commit/f0bbf87c344b9afea798d331d60d74addcc30abd))
+* **parallel output:** Grib input templates ([#547](https://github.com/ecmwf/anemoi-inference/issues/547)) ([ed7f07c](https://github.com/ecmwf/anemoi-inference/commit/ed7f07c07bbd93efb03a7c53c47fb0a005dd0783))
+* **parallel output:** Remove unpicklable state entry and add integration test ([#557](https://github.com/ecmwf/anemoi-inference/issues/557)) ([749554e](https://github.com/ecmwf/anemoi-inference/commit/749554e97bb5199aac2192d02e08f239b0db7ace))
+* **parallel output:** Support parallel grib archive requests ([#537](https://github.com/ecmwf/anemoi-inference/issues/537)) ([3b1ca61](https://github.com/ecmwf/anemoi-inference/commit/3b1ca6159f3c70bb7dfe40438d7d3f64b3685dbd))
+* **temporal downscaler:** Do not squeeze time dimension ([#550](https://github.com/ecmwf/anemoi-inference/issues/550)) ([e610e85](https://github.com/ecmwf/anemoi-inference/commit/e610e85a2221cd4e9b5598434192d15b1c0816de))
+
 ## [0.11.1](https://github.com/ecmwf/anemoi-inference/compare/0.11.0...0.11.1) (2026-06-22)
 
 
