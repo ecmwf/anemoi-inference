@@ -121,6 +121,42 @@ file.
       )
       ds_xr.to_netcdf("input.nc")
 
+*********
+ opendap
+*********
+
+You can specify the input as ``opendap`` to read the data from a remote
+`OpenDAP <https://www.opendap.org/>`_ server, such as a `THREDDS Data
+Server <https://www.unidata.ucar.edu/software/tds/>`_. Under the hood
+this uses `earthkit-data`'s ``opendap`` source.
+
+.. literalinclude:: yaml/inputs_opendap_1.yaml
+   :language: yaml
+
+The URL can be given directly (as above), or under the ``url`` key so
+that additional options can be provided.
+
+The URL may contain Python format strings, which are resolved
+dynamically for the date of each retrieval. The ``date`` variable is
+made available, so you can use `strftime
+<https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes>`_
+format codes to construct the URL:
+
+.. literalinclude:: yaml/inputs_opendap_2.yaml
+   :language: yaml
+
+A list of URLs can also be provided, in which case the data from each is
+retrieved and combined. This is useful when different variables (e.g.
+surface and pressure levels) are served from separate files:
+
+.. literalinclude:: yaml/inputs_opendap_3.yaml
+   :language: yaml
+
+.. note::
+
+   If the retrieved data contains multiple valid datetimes, only the
+   first one is used and a warning is emitted.
+
 ******
  mars
 ******
