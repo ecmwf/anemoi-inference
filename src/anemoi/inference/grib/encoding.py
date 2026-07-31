@@ -9,7 +9,6 @@
 
 
 import logging
-import warnings
 from datetime import datetime
 from datetime import timedelta
 from io import IOBase
@@ -19,7 +18,6 @@ from typing import Any
 from typing import Hashable
 
 import earthkit.data as ekd
-from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.types import FloatArray
 from anemoi.inference.utils.templating import render_template
@@ -117,12 +115,10 @@ STEP_TYPE = {
 def encode_time_processing(
     *,
     result: dict[str, Any],
-    template: ekd.Field,
     variable: "Variable",
-    date: datetime,
+    reference_date: datetime,
     step: timedelta,
     previous_step: timedelta | None,
-    start_steps: dict[str, timedelta],
     edition: int,
     ensemble: bool,
 ) -> None:
@@ -149,51 +145,39 @@ def encode_time_processing(
     ensemble : bool
         Whether the data is part of an ensemble.
     """
+
     assert edition in (1, 2)
 
+    current_date = reference_date + step
     if variable.time_processing is None:
-        result["step"] = _step_in_hours(step)
+        result["step"] = 0
+        result["time"] = current_date.hour * 100 + current_date.minute
+        result["date"] = int(current_date.strftime("%Y%m%d"))
         result["stepType"] = "instant"
+        result["productDefinitionTemplateNumber"] = 1 if ensemble else 0
+        result["type"] = "an"
+        result["dataType"] = "an"
         return
 
     if previous_step is None:
         previous_step = step
 
-    if period := getattr(variable, "period", None):
-        start = step - period
-        if start < to_timedelta(0):
-            LOG.warning(
-                f"Negative start step {_step_in_hours(start)} for variable {variable.name} with period {_step_in_hours(period)} at output step {_step_in_hours(step)}"
-            )
+    # TODO: but it has to be not None, otherwise it would be instant
+    assert variable.period is not None, f"accumulated variable '{variable.name}' should have a period"
 
-            date += start
-            step -= start
-            start = to_timedelta(0)
-
-            result["date"] = int(date.strftime("%Y%m%d"))
-            result["time"] = date.hour * 100 + date.minute
-    else:
-        # backwards compatibility with old transform or if period is missing from the metadata
-        start = previous_step
-        warnings.warn(
-            f"{variable.name} {variable.time_processing} does not have a period set, using previous_step as start={_step_in_hours(start)}."
-        )
-
-    # give post-processors a chance to modify the start step
-    start = _step_in_hours(start_steps.get(variable.name, start))
-    end = _step_in_hours(step)
-
-    result["startStep"] = start
-    result["endStep"] = end
+    current_date -= variable.period
+    step_val = _step_in_hours(variable.period)
+    result["step"] = step_val
+    result["date"] = int(current_date.strftime("%Y%m%d"))
+    result["time"] = current_date.hour * 100 + current_date.minute
+    result["startStep"] = 0
+    result["endStep"] = step_val
     result["stepType"] = STEP_TYPE[variable.time_processing]
+    result["productDefinitionTemplateNumber"] = 11 if ensemble else 8
+    result["type"] = "fc"
+    result["dataType"] = "fc"
 
-    if edition == 1:
-        return
 
-    if ensemble:
-        result["productDefinitionTemplateNumber"] = 11
-    else:
-        result["productDefinitionTemplateNumber"] = 8
 
 
 LEVTYPES = {
@@ -281,23 +265,12 @@ def grib_keys(
         if edition == 2:
             result.update(grib2_keys.get(param, {}))
 
-    result.setdefault("type", "fc")
-
-    if result.get("type") in ("an", "fc"):
-        # For organisations that do not use type
-        result.setdefault("dataType", result.pop("type"))
-
-    result["date"] = int(date.strftime("%Y%m%d"))
-    result["time"] = date.hour * 100
-
     encode_time_processing(
         result=result,
-        template=template,
         variable=variable,
-        date=date,
+        reference_date=date,
         step=step,
         previous_step=previous_step,
-        start_steps=start_steps,
         edition=edition,
         ensemble=ensemble,
     )
@@ -337,7 +310,6 @@ def grib_keys(
             result.setdefault(k, v)
 
     result = {k: v for k, v in sorted(result.items(), key=_ordering) if v is not None}
-
     return result
 
 

@@ -232,6 +232,8 @@ class BaseGribOutput(Output):
             if d.get("type") in ("pf", "cf"):
                 self.ensemble = True
                 break
+            if "perturbationNumber" in d:
+                self.ensemble = True
 
         self.template_manager = TemplateManager(self, templates)
 

@@ -23,9 +23,10 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
-from anemoi.inference.output import Output
 from anemoi.inference.runner import Kind
-from anemoi.inference.types import FloatArray, State
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 from anemoi.inference.variables import Variables
 
 from ..checkpoint import Checkpoint
@@ -98,6 +99,18 @@ class DsMetadata(Metadata):
         except AttributeError:
             return self._legacy_number_of_grid_points()
 
+    # This is needed for grib outputs
+    @property
+    def _data_request(self) -> DataRequest:
+        """Return the data request as encoded in the dataset."""
+        # datasets should have 3 elements: (lres, hres, output)
+        # return the data_request for the output
+        # NOTE: they seem to be empty anyway
+        datasets = self._metadata.dataset.specific.datasets
+        output_dset = datasets[-1]
+        # TODO: this is horrible
+        return output_dset.forward.forward.attrs.data_request
+
     def print_indices(self, print=LOG.info):
         v = {i: v for i, v in enumerate(self.variables)}
         r = {v: k for k, v in self.variable_to_input_tensor_index.items()}
@@ -127,10 +140,6 @@ class DsCheckpoint(Checkpoint):
         if self.patch_metadata:
             result.patch(self.patch_metadata)
         return result
-
-    # def variables_from_input(self, *, include_forcings):
-    #    # include forcings in initial conditions retrieval
-    #    return super().variables_from_input(include_forcings=True)
 
 
 class ZarrDataset:
@@ -166,7 +175,6 @@ class DownscalingRunner(DefaultRunner):
         self,
         config: RunConfiguration,
         time_step: int | str | timedelta,
-        field_shape: tuple[int, ...] | None = None,
         hres_zarr: str | None = None,
         noise_scheduler_params: dict | None = None,
         sampler_params: dict | None = None,
@@ -176,9 +184,12 @@ class DownscalingRunner(DefaultRunner):
 
         self.hres_zarr = hres_zarr
         self.time_step = to_timedelta(time_step)
-        self.lead_time = to_timedelta(self.config.lead_time)
         self.write_initial_state = False
-        self.end_date = config.end_date
+
+        if config.end_date is not None and config.date is not None:
+            self.config.lead_time = config.end_date - config.date
+
+        self.lead_time = to_timedelta(self.config.lead_time)
 
         self._checkpoint = DsCheckpoint(
             self._checkpoint.path,
@@ -237,20 +248,16 @@ class DownscalingRunner(DefaultRunner):
     @cached_property
     def hres_dataset(self):
         """Load the hres Zarr to define the lon/lat points and the forcings."""
-        if self.hres_zarr:  # If the hres Zarr is provided in the config
+        # If the hres Zarr is provided in the config
+        if self.hres_zarr:
             return ZarrDataset(self.hres_zarr, forcings=self.high_res_input)
 
-        elif (
-            "grib" in self.config.output or "netcdf" in self.config.output
-        ):  # read from the checkpoint file
-            hw = self._checkpoint._metadata._config.hardware
-            path = os.path.join(hw.paths.data, hw.files.dataset_y)
-            return ZarrDataset(path, forcings=self.high_res_input)
-
-        else:
-            raise Exception(
-                "Only grib and netcdf ouputs are available with runner type downscaling."
-            )
+        # Otherwise use the dataset defined in the checkpoint
+        # Note that here we only need the high res forcings (static and computed)
+        # So a separate smaller dataset is usually more manageable
+        hw = self._checkpoint._metadata._config.hardware
+        path = os.path.join(hw.paths.data, hw.files.dataset_y)
+        return ZarrDataset(path, forcings=self.high_res_input)
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
@@ -267,12 +274,13 @@ class DownscalingRunner(DefaultRunner):
         return input_tensor_torch
 
     def forecast_stepper(self, start_date, lead_time: timedelta):
-        steps = (self.end_date - start_date) // self.time_step
+        steps = lead_time // self.time_step
+        end_date = start_date + lead_time
 
         LOG.info(
             "Start time: %s, end time: %s, time stepping: %s. Forecasting %s steps",
             start_date,
-            self.end_date,
+            end_date,
             self.time_step,
             steps,
         )
@@ -290,12 +298,6 @@ class DownscalingRunner(DefaultRunner):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
-
-            if "grib" in self.config.output:
-                state["_grib_templates_for_output"] = {
-                    name: self.hres_dataset for name in state["fields"].keys()
-                }
-
             yield state
 
     def predict_step(self, model, input_tensor_torch, **kwargs) -> torch.Tensor:
@@ -313,10 +315,6 @@ class DownscalingRunner(DefaultRunner):
 
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
-
-        # TODO: remove?
-        print("self.noise_scheduler_params", self.noise_scheduler_params)
-        print("self.sampler_params", self.sampler_params)
 
         output_tensor = model.predict_step(
             low_res_tensor,
@@ -409,7 +407,6 @@ class DownscalingRunner(DefaultRunner):
         guide_inner_model.eval()
         return guide_inner_model
 
-    # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
         state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
@@ -471,63 +468,3 @@ class DownscalingRunner(DefaultRunner):
                 )
             },
         )
-
-
-def _match_tensor_channels(input_name_to_index, output_names):
-    """Reorders and selects channels from input tensor to match output tensor structure.
-    x_in: Input tensor of shape [batch, n_grid_points, channels]
-    """
-
-    common_channels = set(input_name_to_index.keys()) & set(output_names)
-
-    # for each output channel, look for corresponding input channel
-    channel_mapping = []
-    for channel_name in output_names:
-        if channel_name in common_channels:
-            input_pos = input_name_to_index[channel_name]
-            channel_mapping.append(input_pos)
-
-    # Convert to tensor for indexing
-    channel_indices = torch.tensor(channel_mapping)
-
-    return channel_indices
-
-
-def _prepare_high_res_output_tensor(
-    model, low_res_in, high_res_residuals, input_name_to_index, output_names
-):
-    # interpolate the low res input tensor to high res,
-    # and add the residuals to get the final high res output
-
-    matching_channel_indices = _match_tensor_channels(input_name_to_index, output_names)
-    print("matching_channel_indices", matching_channel_indices)
-    # [64, 25, 36, 46,  3,  0,  1, 16]
-
-    print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
-
-    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[
-        :, None, None, ...
-    ][..., matching_channel_indices]
-    print("interp_high_res_in", interp_high_res_in.shape)
-
-    high_res_out = interp_high_res_in + high_res_residuals
-    print(
-        "interp_high_res_in is denormalised",
-        interp_high_res_in[..., 0].mean(),
-        interp_high_res_in[..., 0].std(),
-    )
-
-    print(
-        "high_res_residuals is denormalised",
-        high_res_residuals[..., 0].mean(),
-        high_res_residuals[..., 0].std(),
-    )
-
-    print("high_res_out", high_res_out.shape)
-    print(
-        "high_res_out is denormalised",
-        high_res_out[..., 0].mean(),
-        high_res_out[..., 0].std(),
-    )
-
-    return high_res_out
