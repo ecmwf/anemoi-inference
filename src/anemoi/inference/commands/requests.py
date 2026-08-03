@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 
 from anemoi.utils.grib import shortname_to_paramid
 

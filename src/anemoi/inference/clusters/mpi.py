@@ -10,8 +10,7 @@
 import logging
 
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters.mapping import EnvMapping
-from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.mapping import EnvMapping, MappingCluster
 from anemoi.inference.lazy import torch
 
 LOG = logging.getLogger(__name__)

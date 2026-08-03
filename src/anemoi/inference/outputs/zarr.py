@@ -12,21 +12,16 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import ProcessorConfig, State
 
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
+from ..decorators import format_dataset_name, main_argument, supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -37,7 +32,7 @@ if TYPE_CHECKING:
 
 
 def create_zarr_array(
-    store: "StoreLike",
+    store: StoreLike,
     name: str,
     shape: tuple,
     dtype: str,
@@ -88,7 +83,7 @@ class ZarrOutput(Output):
         context: Context,
         metadata: Metadata,
         *,
-        store: "StoreLike",
+        store: StoreLike,
         variables: list[str] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -133,7 +128,7 @@ class ZarrOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-        self.zarr_store: "StoreLike" | None = store
+        self.zarr_store: StoreLike | None = store
         self.missing_value = missing_value
         self.chunks = chunks
         self.float_size = float_size

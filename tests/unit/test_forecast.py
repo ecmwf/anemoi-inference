@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 from collections import defaultdict
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import numpy as np
@@ -135,7 +134,7 @@ def forecast_runner_factory():
                 actual_step = round(state["step"] / metadata.timestep)
                 n_dates = len(dates)
                 values = np.array(
-                    [np.float32((actual_step - (n_dates - 1 - i))) for i in range(n_dates)],
+                    [np.float32(actual_step - (n_dates - 1 - i)) for i in range(n_dates)],
                     dtype=np.float32,
                 )
                 return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 1)).copy()

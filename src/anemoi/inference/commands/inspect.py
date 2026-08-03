@@ -11,11 +11,9 @@ import json
 import logging
 import sys
 import warnings
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import rich
 import yaml

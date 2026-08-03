@@ -10,22 +10,14 @@
 import logging
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import DTypeLike
 
-from anemoi.inference.forcings import BoundaryForcings
-from anemoi.inference.forcings import ComputedForcings
-from anemoi.inference.forcings import ConstantForcings
-from anemoi.inference.forcings import CoupledForcings
-from anemoi.inference.forcings import Forcings
+from anemoi.inference.forcings import BoundaryForcings, ComputedForcings, ConstantForcings, CoupledForcings, Forcings
 from anemoi.inference.lazy import torch
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.types import BoolArray, FloatArray, IntArray, State
 
 if TYPE_CHECKING:
     from anemoi.inference.forcings import Forcings

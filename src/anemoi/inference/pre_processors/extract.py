@@ -12,14 +12,12 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from anemoi.transform.fields import new_field_from_numpy
-from anemoi.transform.fields import new_fieldlist_from_list
+from anemoi.transform.fields import new_field_from_numpy, new_fieldlist_from_list
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import State
+from anemoi.inference.types import BoolArray, State
 
 from ..processor import Processor
 from . import pre_processor_registry

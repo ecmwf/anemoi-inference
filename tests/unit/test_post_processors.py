@@ -13,8 +13,7 @@ from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.post_processors.assign import AssignMask
-from anemoi.inference.post_processors.extract import ExtractMask
-from anemoi.inference.post_processors.extract import ExtractSlice
+from anemoi.inference.post_processors.extract import ExtractMask, ExtractSlice
 from anemoi.inference.types import State
 
 

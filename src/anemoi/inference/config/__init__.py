@@ -12,16 +12,11 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import Any
-from typing import TypeVar
+from typing import Any, Self, TypeVar
 
 from earthkit.data.utils.dates import to_datetime
-from omegaconf import DictConfig
-from omegaconf import ListConfig
-from omegaconf import OmegaConf
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import field_validator
+from omegaconf import DictConfig, ListConfig, OmegaConf
+from pydantic import BaseModel, ConfigDict, field_validator
 
 LOG = logging.getLogger(__name__)
 
@@ -44,11 +39,11 @@ class Configuration(BaseModel):
 
     @classmethod
     def load(
-        cls: type[T],
+        cls,
         path: str | dict[str, Any],
         overrides: list[str] | list[dict] | str | dict = [],
         defaults: str | list[str] | dict | None = None,
-    ) -> T:
+    ) -> Self:
         """Load the configuration.
 
         Parameters

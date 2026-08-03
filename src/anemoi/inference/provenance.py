@@ -9,9 +9,7 @@
 
 
 import logging
-from typing import TYPE_CHECKING
-from typing import Literal
-from typing import overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
@@ -134,11 +132,7 @@ def validate_environment(
     for module in train_environment["module_versions"].keys():
         inference_module_name = module  # Due to package name differences between retrieval methods this may change
 
-        if not all_packages and "anemoi" not in module:
-            continue
-        elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
-            continue
-        elif module.startswith("_"):
+        if not all_packages and "anemoi" not in module or module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES or module.startswith("_"):
             continue
         elif module not in inference_environment["module_versions"]:
             if "." in module and module.replace(".", "_") in inference_environment["module_versions"]:

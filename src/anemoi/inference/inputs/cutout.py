@@ -16,11 +16,9 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.input import Input
-from anemoi.inference.inputs import create_input
-from anemoi.inference.inputs import input_registry
+from anemoi.inference.inputs import create_input, input_registry
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, State
 
 LOG = logging.getLogger(__name__)
 

@@ -10,13 +10,11 @@
 
 import logging
 import warnings
-from datetime import datetime
-from datetime import timedelta
+from collections.abc import Hashable
+from datetime import datetime, timedelta
 from io import IOBase
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Hashable
+from typing import TYPE_CHECKING, Any
 
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_timedelta
@@ -210,7 +208,7 @@ def grib_keys(
     template: ekd.Field,
     variable: "Variable",
     ensemble: bool,
-    param: int | float | str | None,
+    param: float | str | None,
     date: datetime,
     step: timedelta,
     previous_step: timedelta | None,
@@ -413,7 +411,7 @@ def encode_message(
     template: Any,
     metadata: dict[str, Any],
     check_nans: bool = False,
-    missing_value: int | float = -9999,
+    missing_value: float = -9999,
 ) -> Any:
     """Encode a GRIB message.
 
@@ -542,7 +540,7 @@ class GribWriter:
         template: Any,
         metadata: dict[str, Any],
         check_nans: bool = False,
-        missing_value: int | float = -9999,
+        missing_value: float = -9999,
     ) -> tuple:
         """Write a GRIB message to the target file.
 

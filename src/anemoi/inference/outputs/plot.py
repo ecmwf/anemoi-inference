@@ -11,17 +11,12 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from anemoi.utils.grib import shortname_to_paramid
-from anemoi.utils.grib import units
+from anemoi.utils.grib import shortname_to_paramid, units
 
 from anemoi.inference.context import Context
-from anemoi.inference.decorators import ensure_dir
-from anemoi.inference.decorators import format_dataset_name
-from anemoi.inference.decorators import main_argument
+from anemoi.inference.decorators import ensure_dir, format_dataset_name, main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, ProcessorConfig, State
 from anemoi.inference.utils.templating import render_template
 
 from ..output import Output

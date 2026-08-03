@@ -13,24 +13,17 @@ import logging
 from collections import defaultdict
 from io import IOBase
 from pathlib import Path
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import DataRequest, FloatArray, ProcessorConfig
 
-from ..decorators import ensure_path
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
-from ..grib.encoding import GribWriter
-from ..grib.encoding import check_encoding
+from ..decorators import ensure_path, format_dataset_name, main_argument, supports_parallel_output
+from ..grib.encoding import GribWriter, check_encoding
 from . import output_registry
 from .grib import BaseGribOutput
 
@@ -139,7 +132,7 @@ class GribIoOutput(BaseGribOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
-        missing_value: int | float = -9999,
+        missing_value: float = -9999,
     ) -> None:
         """Initialize the GribIOOutput.
 

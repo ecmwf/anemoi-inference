@@ -14,8 +14,7 @@ import earthkit.data as ekd
 
 from anemoi.inference.types import State
 
-from . import TemplateProvider
-from . import template_provider_registry
+from . import TemplateProvider, template_provider_registry
 from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)

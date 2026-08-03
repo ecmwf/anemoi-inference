@@ -16,13 +16,9 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import ProcessorConfig, State
 
-from ..decorators import ensure_path
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
+from ..decorators import ensure_path, format_dataset_name, main_argument, supports_parallel_output
 from ..output import Output
 from . import output_registry
 

@@ -9,8 +9,7 @@
 
 
 import logging
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
 import numpy as np

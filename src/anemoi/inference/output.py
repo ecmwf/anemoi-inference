@@ -8,16 +8,13 @@
 #
 import datetime
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import ProcessorConfig, State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context
@@ -185,11 +182,9 @@ class Output(ABC):
             The state to open.
         """
         # Override this method when initialisation is needed
-        pass
 
     def close(self) -> None:
         """Close the output."""
-        pass
 
     @abstractmethod
     def write_step(self, state: State) -> None:
@@ -200,7 +195,6 @@ class Output(ABC):
         state : State
             The state to write.
         """
-        pass
 
     @cached_property
     def write_step_zero(self) -> bool:

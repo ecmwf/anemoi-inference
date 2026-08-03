@@ -13,28 +13,22 @@ import logging
 import os
 import warnings
 from collections import defaultdict
-from collections.abc import Callable
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import cached_property
 from types import MappingProxyType as frozendict
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import deprecation
 import earthkit.data as ekd
 import numpy as np
+from anemoi.inference._version import __version__
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference._version import __version__
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
+from anemoi.inference.types import DataRequest, Date, FloatArray, IntArray
 
 from .legacy import LegacyMixin
 
@@ -226,7 +220,7 @@ class Metadata(LegacyMixin):
     @cached_property
     def lagged(self) -> list[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
-        result = list(range(0, self.multi_step_input))
+        result = list(range(self.multi_step_input))
 
         result = [-s * self.timestep for s in result]
         return sorted(result)
@@ -1395,7 +1389,6 @@ class Metadata(LegacyMixin):
 class SingleDatasetMetadata(Metadata):
     """Legacy single-dataset metadata."""
 
-    pass
 
 
 class MultiDatasetMetadata(Metadata):

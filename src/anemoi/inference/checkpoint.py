@@ -12,17 +12,13 @@ import datetime
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 from anemoi.utils.checkpoints import load_metadata
 
 from anemoi.inference.config.utils import multi_datasets_config
 
-from .metadata import Metadata
-from .metadata import MetadataFactory
-from .metadata import MultiDatasetMetadata
-from .metadata import SingleDatasetMetadata
+from .metadata import Metadata, MetadataFactory, MultiDatasetMetadata, SingleDatasetMetadata
 
 LOG = logging.getLogger(__name__)
 
@@ -67,8 +63,7 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
         Path to the downloaded model.
     """
     try:
-        from huggingface_hub import hf_hub_download
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import hf_hub_download, snapshot_download
     except ImportError as e:
         raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
 
@@ -139,7 +134,6 @@ class Checkpoint:
         elif isinstance(path, dict):
             if "huggingface" in path:
                 return _download_huggingfacehub(path["huggingface"])
-            pass
         raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
     @cached_property

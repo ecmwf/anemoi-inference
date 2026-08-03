@@ -20,10 +20,8 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.profiler import ProfilingLabel
-from anemoi.inference.runner import Runner
-from anemoi.inference.runner import RunnerClasses
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.runner import Runner, RunnerClasses
+from anemoi.inference.types import FloatArray, State
 
 from . import runner_registry
 

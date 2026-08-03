@@ -22,8 +22,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..output import Output
-from . import create_output
-from . import output_registry
+from . import create_output, output_registry
 
 LOG = logging.getLogger(__name__)
 
