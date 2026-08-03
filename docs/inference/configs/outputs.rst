@@ -274,6 +274,9 @@ outputs that are available to the ``output`` class.
 
 .. literalinclude:: yaml/outputs_9.yaml
 
+``add_diagnostic`` can be set to ``true`` to add diagnostic fields into the truth,
+but should only be used if the diagnostic fields are available in the input, i.e. datasets.
+
 The nested output within ``truth`` supports all common parameters including
 ``variables``, ``post_processors``, ``output_frequency``, and
 ``write_initial_state``.

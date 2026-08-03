@@ -1,4 +1,4 @@
-# (C) Copyright 2024-2025 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -23,7 +23,7 @@ from typing import Literal
 from typing import Union
 
 import numpy as np
-from anemoi.transform.variables.variables import VariableFromMarsVocabulary
+from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.timer import Timer
@@ -34,11 +34,11 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.config.utils import input_types_config
 from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.device import get_available_device
-from anemoi.inference.forcings import Forcings
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.mid_processors import create_mid_processor
 from anemoi.inference.output import Output
 from anemoi.inference.outputs import create_output
 from anemoi.inference.post_processors import create_post_processor
@@ -106,14 +106,17 @@ class Runner(Context):
         self.use_profiler = config.use_profiler
 
         # other attributes derived from config or metadata
-        self.typed_variables = {k: VariableFromMarsVocabulary(k, v) for k, v in config.typed_variables.items()}
+        self.typed_variables = {k: Variable.from_dict(k, v) for k, v in config.typed_variables.items()}
         self.preload_checkpoint = config.preload_checkpoint
         self.preload_buffer_size = config.preload_buffer_size
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
+        self.quiet: set[str] = set()  # So we don't repeat the same warning multiple times
+
         # processors, I/O and tensor handlers for each dataset in the checkpoint
         self.pre_processors: dict[str, list[Processor]] = {}
+        self.mid_processors: dict[str, list[Processor]] = {}
         self.post_processors: dict[str, list[Processor]] = {}
         self.tensor_handlers: dict[str, TensorHandler] = {}
         self.prognostics_inputs: dict[str, Input] = {}
@@ -128,6 +131,7 @@ class Runner(Context):
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
+            self.mid_processors[dataset] = self.create_mid_processors(dataset, metadata)
             self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)
             self.constant_forcings_inputs[dataset] = self.create_input("constant_forcings", dataset, metadata)
             self.dynamic_forcings_inputs[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
@@ -155,12 +159,15 @@ class Runner(Context):
                 from rich.table import Table
 
                 console = Console(file=sys.stderr)
-                table = Table(title=f"\\[{metadata.dataset_name}] Variable categories")
+                table = Table(title=f"\\[{metadata.dataset_name}] Variable units categories")
                 table.add_column("Variable", no_wrap=True)
+                table.add_column("Units", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
                 for variable, categories in metadata.variable_categories().items():
-                    table.add_row(variable, ", ".join(categories))
+                    typed_variable = metadata.typed_variables.get(variable)
+                    units = typed_variable.units if typed_variable is not None else "N/A"
+                    table.add_row(variable, str(units), ", ".join(categories))
 
                 console.print(table)
 
@@ -237,21 +244,6 @@ class Runner(Context):
                 raise
             finally:
                 self.complete_forecast_hook()
-
-    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
-        """Modify the constant forcings providers for the first step."""
-        # Give an opportunity to modify the forcings for the first step
-        return constant_forcings_providers
-
-    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
-        """Modify the dynamic forcings providers for the initial step of the inference process.
-
-        This method provides a hook to adjust the list of dynamic forcings before the first
-        inference step is executed. By default, it returns the inputs unchanged, but subclasses
-        can override this method to implement custom preprocessing or initialization logic.
-        """
-        # Give an opportunity to modify the forcings for the first step
-        return dynamic_forcings_providers
 
     def prepare_output_state(
         self, output: Generator[dict[str, State], None, None], return_numpy: bool
@@ -386,20 +378,20 @@ class Runner(Context):
         Parameters
         ----------
         start_date : datetime.datetime
-            Start date of the forecast
+            Start date of the forecast.
         lead_time : datetime.timedelta
-            Lead time of the forecast
+            Lead time of the forecast.
 
         Returns
         -------
         step : datetime.timedelta
-            Time delta since beginning of forecast
+            Time delta since beginning of forecast.
         valid_date : list[datetime.datetime]
             Date of the forecast
         next_date : list[datetime.datetime]
-            Date used to prepare the next input tensor
+            Date used to prepare the next input tensor.
         is_last_step : bool
-            True if it's the last step of the forecast
+            True if it's the last step of the forecast.
         """
         output_horizon = self.checkpoint.timestep * self.checkpoint.multi_step_output
         steps = math.ceil(lead_time / output_horizon)
@@ -530,6 +522,15 @@ class Runner(Context):
                                     output[:, j]
                                 )
 
+                            new_states[dataset], applied = self._apply_mid_processors(new_states[dataset], dataset)
+                            if applied:
+                                for name, field in new_states[dataset]["fields"].items():
+                                    if name not in handler.metadata.variable_to_output_tensor_index:
+                                        continue
+                                    y_pred[dataset][
+                                        0, i, ..., handler.metadata.variable_to_output_tensor_index[name]
+                                    ] = field
+
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
 
@@ -550,9 +551,9 @@ class Runner(Context):
                 if is_last_step:
                     break
 
-                self.output_state_hook(new_states)
+                self.output_states_hook(new_states)
 
-                # Update  tensor for next iteration
+                # Update tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
@@ -614,11 +615,11 @@ class Runner(Context):
         """
         pass
 
-    def input_state_hook(self, input_state: State) -> None:
+    def input_states_hook(self, input_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""
         pass
 
-    def output_state_hook(self, state: State) -> None:
+    def output_states_hook(self, output_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""
         pass
 
@@ -652,25 +653,24 @@ class Runner(Context):
 
         # input states for each dataset
         input_states: dict[str, State] = {}
+        input_constants_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
         for dataset in self.tensor_handlers:
             prognostic_state = self.prognostics_inputs[dataset].create_input_state(date=self.config.date)
-            self._check_state(prognostic_state, "prognostics")
+            self._check_state(dataset, prognostic_state, "prognostics")
 
             constants_state = self.constant_forcings_inputs[dataset].create_input_state(date=self.config.date)
-            self._check_state(constants_state, "constant_forcings")
+            self._check_state(dataset, constants_state, "constant_forcings")
+            input_constants_states[dataset] = constants_state
 
             forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(date=self.config.date)
-            self._check_state(forcings_state, "dynamic_forcings")
+            self._check_state(dataset, forcings_state, "dynamic_forcings")
 
             input_states[dataset] = self._combine_states(
                 prognostic_state,
                 constants_state,
                 forcings_state,
             )
-
-            # This hook is needed for the coupled runner
-            self.input_state_hook(constants_state)
 
             # For step-zero only
             initial_states[dataset] = Output.reduce(
@@ -686,6 +686,9 @@ class Runner(Context):
 
             for processor in self.post_processors[dataset]:
                 initial_states[dataset] = processor.process(initial_states[dataset])
+
+        # This hook is needed for the coupled runner
+        self.input_states_hook(input_constants_states)
 
         for dataset, state in initial_states.items():
             self.outputs[dataset].open(initial_states[dataset])
@@ -752,6 +755,15 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
 
+    def create_mid_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
+        result = []
+        config = multi_datasets_config(self.config.mid_processors, dataset_name, self.dataset_names)
+        for processor in config:
+            result.append(create_mid_processor(self, processor, metadata))
+
+        LOG.info(f"[{dataset_name}] Mid processors: {result}")
+        return result
+
     def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
         config = multi_datasets_config(self.config.post_processors, dataset_name, self.dataset_names)
@@ -760,6 +772,14 @@ class Runner(Context):
 
         LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result
+
+    def _apply_mid_processors(self, state: dict[str, Any], dataset_name: str) -> tuple[dict[str, Any], bool]:
+        """Apply mid-processors to the state."""
+        applied = False
+        for processor in self.mid_processors[dataset_name]:
+            state = processor.process(state)
+            applied = True
+        return state, applied
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
         """Combine multiple states into one."""
@@ -861,11 +881,13 @@ class Runner(Context):
 
         return self._combine_states(*states)
 
-    def _check_state(self, state: dict[str, Any], title: str) -> None:
+    def _check_state(self, dataset: str, state: dict[str, Any], title: str) -> None:
         """Check the state for consistency.
 
         Parameters
         ----------
+        dataset : str
+            The dataset name (for logging).
         state : dict
             The state to check.
         title : str
@@ -878,12 +900,16 @@ class Runner(Context):
         """
 
         if not isinstance(state, dict):
-            raise ValueError(f"State '{title}' is not a dictionary: {state}")
+            raise ValueError(f"State '{title}' is not a dictionary: {state} ({dataset=})")
 
         input = state.get("_input")
+        state_variables = state.get("_variables")
+        if state_variables is None:
+            self._warn_once(f"State '{title}' does not contain '_variables' ({input=}, {dataset=})")
+            state_variables = {}
 
         if "fields" not in state:
-            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=})")
+            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=}, {dataset=})")
 
         shape = None
 
@@ -893,11 +919,37 @@ class Runner(Context):
             elif shape != values.shape:
                 raise ValueError(
                     f"Field '{field}' in state '{title}' has different shape: "
-                    f"{shape} and {values.shape} ({input=})."
+                    f"{shape} and {values.shape} ({input=}, {dataset=})."
                 )
 
         date = state.get("date")
         if date is None and len(state["fields"]) > 0:
             # date can be None for an empty input
             if not isinstance(date, datetime.datetime):
-                raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
+                raise ValueError(
+                    f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=}, {dataset=})"
+                )
+
+        # Check variables in metadata match the variables in the state
+        from anemoi.transform.variables import Variable
+
+        checkpoint_variables = self.tensor_handlers[dataset].metadata.typed_variables
+        common = set(checkpoint_variables.keys()).intersection(state_variables.keys())
+
+        checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}
+        state_variables = {k: v for k, v in state_variables.items() if k in common}
+
+        config = multi_datasets_config(
+            self.config.check_variables_compatibility, dataset, self.dataset_names, strict=False
+        )
+        if config is None:
+            config = {}
+
+        Variable.check_compatibility(state_variables, checkpoint_variables, **config)
+
+    def _warn_once(self, message: str) -> None:
+        """Log a warning message only once."""
+        if message not in self.quiet:
+            LOG.warning(message)
+            warnings.warn(message, UserWarning, stacklevel=2)
+            self.quiet.add(message)

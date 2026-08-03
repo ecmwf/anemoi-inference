@@ -1,4 +1,4 @@
-# (C) Copyright 2025 Anemoi contributors.
+# (C) Copyright 2025-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -61,7 +61,7 @@ class EmptyInput(Input):
         State
             The created empty input state.
         """
-        return dict(fields=dict(), _input=self)
+        return dict(fields=dict(), _input=self, _variables=dict())
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load an empty forcings state.
@@ -78,4 +78,4 @@ class EmptyInput(Input):
         State
             The loaded empty forcings state.
         """
-        return dict(date=dates[-1], fields=dict(), _input=self)
+        return dict(date=dates[-1], fields=dict(), _input=self, _variables=dict())

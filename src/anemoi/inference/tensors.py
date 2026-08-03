@@ -20,6 +20,7 @@ from anemoi.inference.forcings import BoundaryForcings
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.forcings import ConstantForcings
 from anemoi.inference.forcings import CoupledForcings
+from anemoi.inference.forcings import Forcings
 from anemoi.inference.lazy import torch
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import FloatArray
@@ -75,9 +76,11 @@ class TensorHandler:
 
         self._input_kinds = {}
         self._input_tensor_by_name = []
+        self._input_units = {}
 
         self._output_kinds = {}
         self._output_tensor_by_name = []
+        self._output_units = {}
 
         self.constant_forcings_providers = self.create_constant_forcings_providers()
         self.dynamic_forcings_providers = self.create_dynamic_forcings_providers()
@@ -128,6 +131,7 @@ class TensorHandler:
 
         for name in input_state["fields"]:
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
+            self._input_units[name] = typed_variables[name].units
 
         # Add initial forcings to input state if needed
         self.add_initial_forcings_to_input_state(input_state)
@@ -250,12 +254,8 @@ class TensorHandler:
 
         dates = [date + h for h in self.metadata.lagged]
 
-        initial_constant_forcings_providers = self.context.initial_constant_forcings_providers(
-            self.constant_forcings_providers
-        )
-        initial_dynamic_forcings_providers = self.context.initial_dynamic_forcings_providers(
-            self.dynamic_forcings_providers
-        )
+        initial_constant_forcings_providers = self.initial_constant_forcings_providers(self.constant_forcings_providers)
+        initial_dynamic_forcings_providers = self.initial_dynamic_forcings_providers(self.dynamic_forcings_providers)
 
         LOG.info("-" * 80)
         LOG.info("Initial forcings providers:")
@@ -373,6 +373,21 @@ class TensorHandler:
             )
 
         return result
+
+    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the constant forcings providers for the first step."""
+        # Give an opportunity to modify the forcings for the first step
+        return constant_forcings_providers
+
+    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
+        """Modify the dynamic forcings providers for the initial step of the inference process.
+
+        This method provides a hook to adjust the list of dynamic forcings before the first
+        inference step is executed. By default, it returns the inputs unchanged, but subclasses
+        can override this method to implement custom preprocessing or initialization logic.
+        """
+        # Give an opportunity to modify the forcings for the first step
+        return dynamic_forcings_providers
 
     def copy_prognostic_fields_to_input_tensor(
         self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
@@ -511,6 +526,7 @@ class TensorHandler:
             input_tensor_numpy,
             self._input_tensor_by_name,
             self._input_kinds,
+            self._input_units,
         )
 
     def _print_output_tensor(self, title: str, output_tensor_numpy: FloatArray) -> None:
@@ -529,11 +545,14 @@ class TensorHandler:
 
         if not self._output_tensor_by_name:
             for i in range(output_tensor_numpy.shape[-1]):
-                self._output_tensor_by_name.append(self.metadata.output_tensor_index_to_variable[i])
+                variable = self.metadata.output_tensor_index_to_variable[i]
+                self._output_tensor_by_name.append(variable)
                 if i in self.metadata.prognostic_output_mask:
-                    self._output_kinds[self.metadata.output_tensor_index_to_variable[i]] = Kind(prognostic=True)
+                    self._output_kinds[variable] = Kind(prognostic=True)
                 else:
-                    self._output_kinds[self.metadata.output_tensor_index_to_variable[i]] = Kind(diagnostic=True)
+                    self._output_kinds[variable] = Kind(diagnostic=True)
+
+                self._output_units[variable] = self.metadata.typed_variables[variable].units
 
         # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
 
@@ -542,10 +561,17 @@ class TensorHandler:
 
         output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
 
-        self._print_tensor(title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds)
+        self._print_tensor(
+            title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds, self._output_units
+        )
 
     def _print_tensor(
-        self, title: str, tensor_numpy: FloatArray, tensor_by_name: list[str], kinds: dict[str, Kind]
+        self,
+        title: str,
+        tensor_numpy: FloatArray,
+        tensor_by_name: list[str],
+        kinds: dict[str, Kind],
+        units: dict[str, str],
     ) -> None:
         """Print the tensor.
 
@@ -559,6 +585,8 @@ class TensorHandler:
             The tensor by name.
         kinds : dict
             The kinds.
+        units : dict
+            The units.
         """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
         assert tensor_numpy.shape[0] in (1, self.metadata.multi_step_input), tensor_numpy.shape
@@ -573,6 +601,7 @@ class TensorHandler:
         table.add_column("Min", justify="right")
         table.add_column("Max", justify="right")
         table.add_column("NaNs", justify="center")
+        table.add_column("Units", justify="left")
         table.add_column("Kind", justify="left")
 
         for k, v in enumerate(tensor_by_name):
@@ -595,6 +624,7 @@ class TensorHandler:
                 f"{np.nanmin(data):g}",
                 f"{np.nanmax(data):g}",
                 nans,
+                str(units.get(v, "N/A")),
                 str(kinds.get(v, Kind())),
             )
 

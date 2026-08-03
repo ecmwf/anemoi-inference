@@ -26,6 +26,43 @@ config.
          repo_id: "ecmwf/aifs-single"
          filename: "aifs_single_v0.2.1.ckpt"
 
+runner:
+=======
+
+The ``runner`` option selects the inference runner. The default is
+``default``.
+
+.. code:: yaml
+
+   runner: default
+
+Available runners:
+
+default
+-------
+
+Runs the checkpoint model as-is. This is the standard runner for
+production forecasts.
+
+no-model
+--------
+
+Replaces the checkpoint model with a dummy that returns all-ones. This
+is intended for testing pipelines (processors, inputs, outputs) without
+running a real model.
+
+external-graph
+--------------
+
+Runs inference using an external graph. See
+:ref:`external-graph` for full documentation.
+
+parallel
+--------
+
+Distributes the model across multiple devices. See
+:ref:`parallel-inference` for full documentation.
+
 device:
 =======
 
@@ -75,6 +112,42 @@ and output. It set to ``null`` (default), the value is set internally to
 ``true`` if any of the input fields contain NaNs, otherwise it is set to
 ``false``. You can override this behaviour by setting it to ``true`` or
 ``false`` in the configuration file.
+
+
+check_variables_compatibility:
+==============================
+
+By default, `Anemoi` will check that the data coming from the various inputs match the data that was used
+to train the model, i.e. that the variables have the same units, same time processing, etc.
+
+You can turn some of the checks off.
+
+.. code:: yaml
+
+   check_variables_compatibility:
+      ignore_units: True # Don't check units
+      ignore_time_processing: True # Don't check time processing (e.g. whether the data is instantaneous or accumulated)
+      ignore_processing_period: True # Don't check time processing period (e.g. whether the data are 3-hourly or 6-hourly accumulations)
+      ignore_type_of_level: True # Don't check type of level (e.g. whether the data are on pressure levels or model levels)
+
+
+You can also turn off checks for individual variables by setting
+
+.. code:: yaml
+
+   check_variables_compatibility:
+      ignore_type_of_level: msl # Don't check type of level for the variable "msl"
+      ignore_units: [msl, t2m] # Don't check units for the variables "msl" and "t2m"
+
+For multi-datasets models, you can specify the checks for each dataset separately:
+
+.. code:: yaml
+
+   check_variables_compatibility:
+      dataset1:
+         ignore_units: True # Don't check units for dataset1
+      dataset2:
+         ignore_units: [msl, t2m] # Don't check units for the variables "msl" and "t2m" in dataset2
 
 ********************
  Inputs and outputs

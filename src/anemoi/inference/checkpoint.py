@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -25,6 +25,11 @@ from .metadata import MultiDatasetMetadata
 from .metadata import SingleDatasetMetadata
 
 LOG = logging.getLogger(__name__)
+
+# Metadata keys whose creation by a `patch_metadata` patch is expected and must not trigger
+# the new-key warning emitted in `multi_dataset_metadata`. E.g. `constant_fields` is frequently
+# added through a patch even though it's not in the checkpoint metadata. TODO: find a better solution?
+EXPECTED_PATCH_NEW_KEYS = {"constant_fields"}
 
 
 def get_multi_dataset_metadata(
@@ -164,7 +169,9 @@ class Checkpoint:
         return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
 
     @cached_property
-    def multi_dataset_metadata(self) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
+    def multi_dataset_metadata(
+        self,
+    ) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
         """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
         For legacy checkpoints, the dataset name defaults to `data`
         """
@@ -179,9 +186,24 @@ class Checkpoint:
 
         if self.patch_metadata:
             for dataset, metadata in multi_metadata.items():
-                patch = multi_datasets_config(self.patch_metadata, dataset, list(multi_metadata.keys()), strict=False)
+                patch = multi_datasets_config(
+                    self.patch_metadata,
+                    dataset,
+                    list(multi_metadata.keys()),
+                    strict=False,
+                )
                 LOG.warning(f"[{dataset}] Patching metadata with {patch}")
-                metadata.patch(patch)
+                new_keys = metadata.patch(patch)
+                new_keys = [key for key in new_keys if key.rsplit(".", 1)[-1] not in EXPECTED_PATCH_NEW_KEYS]
+                if new_keys:
+                    LOG.warning(
+                        "[%s] The metadata patch added %d new key(s) that did not exist before: %s. "
+                        "These keys were applied as given; if that was not intended, it usually means the "
+                        "patch does not match this checkpoint's metadata schema.",
+                        dataset,
+                        len(new_keys),
+                        ", ".join(new_keys),
+                    )
 
         return multi_metadata
 
@@ -255,18 +277,20 @@ class Checkpoint:
         all_packages : bool, optional
             Check all packages in the environment (True) or just anemoi's (False), by default False.
         on_difference : Literal['warn', 'error', 'ignore', 'return'], optional
-            What to do on difference, by default "warn"
+            What to do on difference, by default "warn".
         exempt_packages : list[str], optional
-            List of packages to exempt from the check, by default EXEMPT_PACKAGES
+            List of packages to exempt from the check, by default EXEMPT_PACKAGES.
 
         Returns
         -------
         Union[bool, str]
-            boolean if `on_difference` is not 'return', otherwise formatted text of the differences
-            True if environment is valid, False otherwise
+            boolean if `on_difference` is not 'return', otherwise formatted text of the differences.
+            True if environment is valid, False otherwise.
         """
         return self._metadata.validate_environment(
-            all_packages=all_packages, on_difference=on_difference, exempt_packages=exempt_packages
+            all_packages=all_packages,
+            on_difference=on_difference,
+            exempt_packages=exempt_packages,
         )
 
     def provenance_training(self) -> Any:

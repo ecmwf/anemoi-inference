@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -24,6 +24,7 @@ from anemoi.inference.types import State
 
 from ..decorators import ensure_path
 from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -107,6 +108,7 @@ def print_state(
 @output_registry.register("printer")
 @main_argument("max_lines")
 @ensure_path("path")
+@supports_parallel_output("path")
 class PrinterOutput(Output):
     """Printer output class."""
 

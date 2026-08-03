@@ -89,10 +89,11 @@ class TemporalDownscalerMultiOutRunner(Runner):
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
         if self.reference_date is not None:
-            req["time"] = f"{self.reference_date.hour*100:04d}"
-        req["step"] = (
-            f"0/to/{int(self.lead_time.total_seconds()//3600)}/by/{int(self.temporal_downscaling_window.total_seconds()//3600)}"
-        )
+            req["date"] = f"{self.reference_date.strftime('%Y-%m-%d')}"
+            req["time"] = f"{self.reference_date.hour * 100:04d}"
+        step_hours = int(self.temporal_downscaling_window.total_seconds() // 3600)
+        lead_time_hours = int(self.lead_time.total_seconds() // 3600)
+        req["step"] = list(range(0, lead_time_hours + step_hours, step_hours))
         return req
 
     def execute(self) -> None:
@@ -121,10 +122,15 @@ class TemporalDownscalerMultiOutRunner(Runner):
             )
             for key in self.constants_states[dataset]["fields"].keys():
                 self.constants_states[dataset]["fields"][key] = np.concatenate(
-                    [self.constants_states[dataset]["fields"][key], self.constants_states[dataset]["fields"][key]],
+                    [
+                        self.constants_states[dataset]["fields"][key],
+                        self.constants_states[dataset]["fields"][key],
+                    ],
                     axis=0,
                 )
-            self._check_state(self.constants_states[dataset], "constant_forcings")
+            self._check_state(dataset, self.constants_states[dataset], "constant_forcings")
+
+        self.input_states_hook(self.constants_states)
 
         # Process each temporal downscaling window
         for window_idx in range(num_windows):
@@ -139,12 +145,12 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 prognostic_state = self.prognostics_inputs[dataset].create_input_state(
                     date=window_start_date, select_reference_date=True, ref_date_index=0
                 )
-                self._check_state(prognostic_state, "prognostics")
+                self._check_state(dataset, prognostic_state, "prognostics")
 
                 forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
                     date=window_start_date, select_reference_date=True, ref_date_index=0
                 )
-                self._check_state(forcings_state, "dynamic_forcings")
+                self._check_state(dataset, forcings_state, "dynamic_forcings")
 
                 self.constants_states[dataset]["date"] = window_start_date
 
@@ -154,8 +160,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     forcings_state,
                 )
 
-                self.input_state_hook(self.constants_states[dataset])
-
                 initial_state = input_states[dataset].copy()
                 for processor in self.post_processors[dataset]:
                     initial_state = processor.process(initial_state)
@@ -164,7 +168,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
             # Run temporal downscaler for this window
             for state_idx, states in enumerate(
-                self.run(input_states=input_states, lead_time=self.temporal_downscaling_window)
+                self.run(
+                    input_states=input_states,
+                    lead_time=self.temporal_downscaling_window,
+                )
             ):
                 for dataset, state in states.items():
                     # In the first window, we want to write the initial state (t=0)
@@ -193,14 +200,14 @@ class TemporalDownscalerMultiOutRunner(Runner):
         Parameters
         ----------
         start_date : datetime.datetime
-            Input start date
+            Input start date.
 
         Returns
         -------
         step : datetime.timedelta
-            Time delta between the target index date and the start date
+            Time delta between the target index date and the start date.
         date : datetime.datetime
-            Date of the zeroth index of the input tensor
+            Date of the zeroth index of the input tensor.
         """
         target_steps = self.checkpoint.target_explicit_times
         boundary_idx = self.checkpoint.input_explicit_times
@@ -216,7 +223,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
             yield step, date
 
     def forecast(
-        self, lead_time: datetime.timedelta, input_tensors_numpy: dict[str, FloatArray], input_states: dict[str, State]
+        self,
+        lead_time: datetime.timedelta,
+        input_tensors_numpy: dict[str, FloatArray],
+        input_states: dict[str, State],
     ) -> Generator[dict[str, State], None, None]:
         """Temporally downscale between the current and future state in the input tensor.
 
@@ -227,7 +237,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         input_tensors_numpy : dict[str, FloatArray]
             The input tensors for each dataset, as numpy arrays with shape (multi_step_input, variables, values).
         input_states : dict[str, State]
-            The input states for each dataset. It contains both input dates defined by the config explicit_times.input
+            The input states for each dataset. It contains both input dates defined by the config explicit_times.input.
 
         Returns
         -------
@@ -272,7 +282,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     )  # # Select the initial boundary state (t) - First time step
                     for i in range(input_numpy.shape[-1]):
                         var_name = None
-                        for var, idx in handler.metadata.variable_to_input_tensor_index.items():
+                        for (
+                            var,
+                            idx,
+                        ) in handler.metadata.variable_to_input_tensor_index.items():
                             if idx == i:
                                 var_name = var
                                 break
@@ -287,7 +300,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(f"Temporal downscaling step ({start})"),
             ):
-                y_pred = self.predict_step(self.model, input_tensors_torch)
+                y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=0)
 
             # Now perform temporal downscaling between the boundaries
             for s, (step, date) in enumerate(self.temporal_downscaler_stepper(start)):
@@ -308,7 +321,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
                     # Detach tensor and squeeze (should we detach here?)
                     with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                        output = np.squeeze(y_pred[dataset].cpu().numpy())  # shape: (values, variables)
+                        # squeeze batch and ensemble dims of tensor with shape: (batch, steps, ensemble, values, variables)
+                        output = np.squeeze(
+                            y_pred[dataset].cpu().numpy(), axis=(0, 2)
+                        )  # shape: (steps, values, variables)
 
                     if handler.trace:
                         handler.trace.write_output_tensor(
