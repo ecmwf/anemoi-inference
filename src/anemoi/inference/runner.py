@@ -474,7 +474,7 @@ class Runner(Context):
                 for d in dates:
                     dates_str += f"{d}, "
                 dates_str = f"{dates_str[:-2]})"
-                title = f"Forecasting, model call {s+1}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
+                title = f"Forecasting, model call {s+1}: horizon {step}, {dates_str}"
 
                 for dataset, handler in self.tensor_handlers.items():
                     if handler.trace:
