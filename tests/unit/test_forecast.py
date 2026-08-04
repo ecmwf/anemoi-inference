@@ -76,10 +76,20 @@ def forecast_runner_factory():
 
         runner = Runner.__new__(Runner)
 
+        timestep = timedelta(hours=1)
         metadata = SimpleNamespace(
-            timestep=timedelta(hours=1),
+            timestep=timestep,
             multi_step_input=multi_step_input,
             multi_step_output=multi_step_output,
+            output_offsets=[i * timestep for i in range(1, multi_step_output + 1)],
+            rollout_shift=multi_step_output * timestep,
+            advance_map={
+                "outin": [
+                    (multi_step_output - i - 1, multi_step_input - i - 1)
+                    for i in range(min(multi_step_output, multi_step_input))
+                ],
+                "inin": [(i, i - multi_step_output) for i in range(multi_step_output, multi_step_input)],
+            },
             variable_to_input_tensor_index={"force": 0, "prog": 1},
             output_tensor_index_to_variable=["prog", "diag"],
             typed_variables={
