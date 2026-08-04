@@ -92,6 +92,7 @@ scripts.anemoi-inference = "anemoi.inference.__main__:main"
 
 [tool.setuptools]
 packages.find.where = [ "src" ]
+package-data."anemoi.inference" = [ "py.typed" ]
 package-data."anemoi.inference.grib.templates" = [ "*.yaml" ]
 
 [tool.setuptools_scm]
