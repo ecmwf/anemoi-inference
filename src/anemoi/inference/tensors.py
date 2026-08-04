@@ -462,7 +462,7 @@ class TensorHandler:
 
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for out_idx, new_idx in self.checkpoint.advance_map["outin"]:
+            for out_idx, new_idx in self.context.checkpoint.advance_map["outin"]:
                 input_tensor_torch[:, new_idx, :, source.mask] = forcings[
                     :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
@@ -499,7 +499,7 @@ class TensorHandler:
             )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for out_idx, new_idx in self.checkpoint.advance_map["outin"]:
+            for out_idx, new_idx in self.context.checkpoint.advance_map["outin"]:
                 total_mask = np.ix_([0], [new_idx], source.spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
                     :, out_idx, ...
