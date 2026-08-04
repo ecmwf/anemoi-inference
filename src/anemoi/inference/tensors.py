@@ -408,11 +408,12 @@ class TensorHandler:
         # or int (index) tensors
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
-        keep_steps = min(self.metadata.multi_step_output, self.metadata.multi_step_input)
-        input_tensor_torch = input_tensor_torch.roll(-keep_steps, dims=1)
 
-        for i in range(keep_steps):
-            input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
+        for old_idx, new_idx in self.context.checkpoint.advance_map["inin"]:
+            input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
+
+        for out_idx, new_idx in self.context.checkpoint.advance_map["outin"]:
+            input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
@@ -461,9 +462,9 @@ class TensorHandler:
 
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
-                input_tensor_torch[:, -(i + 1), :, source.mask] = forcings[
-                    :, -(i + 1), ...
+            for out_idx, new_idx in self.checkpoint.advance_map["outin"]:
+                input_tensor_torch[:, new_idx, :, source.mask] = forcings[
+                    :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
@@ -498,10 +499,10 @@ class TensorHandler:
             )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
-                total_mask = np.ix_([0], [-(i + 1)], source.spatial_mask, source.variables_mask)
+            for out_idx, new_idx in self.checkpoint.advance_map["outin"]:
+                total_mask = np.ix_([0], [new_idx], source.spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
-                    :, -(i + 1), ...
+                    :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
