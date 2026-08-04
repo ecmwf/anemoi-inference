@@ -145,7 +145,7 @@ class NetCDFOutput(Output):
             self.reference_date_var.standard_name = "forecast_reference_time"
             self.reference_date_var.long_name = "start time of forecast"
             self.reference_date_var.units = f"seconds since {EPOCH}"
-            self.reference_date_var.calender = CALENDAR
+            self.reference_date_var.calendar = CALENDAR
             self.reference_date_var[:] = self.reference_date
 
         # valid time
