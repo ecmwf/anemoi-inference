@@ -250,7 +250,7 @@ class Metadata(LegacyMixin):
         m = self.multi_step_output
         advance_map = {}
         advance_map["outin"] = [(m - i - 1, n - i - 1) for i in range(min(n, m))]
-        advance_map["inin"] = [(n - i - 1, n - m - i - 1) for i in range(n - m)]
+        advance_map["inin"] = [(i, i - m) for i in range(m, n)]
         return advance_map
 
     @cached_property
