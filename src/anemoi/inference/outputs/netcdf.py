@@ -159,7 +159,7 @@ class NetCDFOutput(Output):
             self.time_var.axis = "T"
 
         # forecast period / lead time
-        # time dimension auxilary coordinate
+        # time dimension auxiliary coordinate
         with LOCK:
             self.period_var = self.ncfile.createVariable("forecast_period", "i8", ("time",), **compression)
             self.period_var.standard_name = "forecast_period"
@@ -167,7 +167,7 @@ class NetCDFOutput(Output):
             self.period_var.units = "seconds"
 
         # latitude / longitude
-        # values dimension auxilary coordinates
+        # values dimension auxiliary coordinates
         with LOCK:
             latitudes = state["latitudes"]
             self.lat_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
