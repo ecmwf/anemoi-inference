@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -197,21 +198,25 @@ class ZarrOutput(Output):
         self.reference_date = state["date"]
 
         lead_time = getattr(self.context, "lead_time", None)
-        time_step = self.context.checkpoint.timestep
 
         if lead_time is None:
             raise RuntimeError(
                 "When setting up the ZarrOutput, the `lead_time` was not yet set on the context, therefore unable to construct the arrays."
             )
 
-        time = lead_time // time_step
+        steps = math.ceil(lead_time / self.context.checkpoint.rollout_shift)
+
+        time = (steps - 1) * self.context.checkpoint.multi_step_output
+        for offset in self.context.checkpoint.output_offsets:
+            if offset + (steps - 1) * self.context.checkpoint.rollout_shift <= lead_time:
+                time += 1
         time += int(self.write_step_zero)
 
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
-        if not self.write_step_zero and time_step is not None:
-            self.reference_date -= time_step
+        if not self.write_step_zero:
+            self.reference_date -= self.context.checkpoint.output_offsets[0]
 
         self.time_size = time
         self.time_array = create_zarr_array(
