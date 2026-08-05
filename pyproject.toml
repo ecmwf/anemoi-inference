@@ -34,6 +34,7 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "anemoi-metadata @ git+https://github.com/ecmwf/anemoi-core@add_metadata_package#subdirectory=metadata",
   "anemoi-transform>0.1.13",
   "anemoi-utils[provenance,text]>=0.4.32",
   "aniso8601",
