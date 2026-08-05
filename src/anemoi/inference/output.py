@@ -26,6 +26,25 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
+def _parse_levels(level: Any) -> list:
+    """Expand a level specification into a list of concrete levels.
+
+    Accepts a single level, a list of levels, or a MARS-style range string
+    such as ``"50/to/137"`` or ``"50/to/137/by/2"``.
+    """
+    if isinstance(level, (list, tuple)):
+        return list(level)
+
+    if isinstance(level, str) and "/to/" in level:
+        tokens = level.split("/")
+        start, stop = int(tokens[0]), int(tokens[2])
+        step = int(tokens[4]) if len(tokens) >= 5 and tokens[3] == "by" else 1
+        step = step if start <= stop else -step
+        return list(range(start, stop + (1 if step > 0 else -1), step))
+
+    return [level]
+
+
 class Output(ABC):
     """Abstract base class for output mechanisms."""
 
@@ -34,7 +53,7 @@ class Output(ABC):
         context: "Context",
         metadata: "Metadata",
         *,
-        variables: list[str] | None = None,
+        variables: list[str | dict] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -69,6 +88,20 @@ class Output(ABC):
             if not isinstance(self.variables, (list, tuple)):
                 self.variables = [self.variables]
 
+        # ``variables`` may mix plain names (e.g. ``"t_137"``) with structured
+        # selectors (e.g. ``{"param": "u", "level": "50/to/137"}``). Collect the
+        # exact names, and turn each selector into a ``(param, levels)`` pair
+        # where ``levels`` is ``None`` to mean "every level of this param".
+        self._names: set[str] = set()
+        self._selectors: list[tuple[str, set | None]] = []
+        for entry in self.variables or []:
+            if isinstance(entry, dict):
+                level = entry.get("level")
+                levels = None if level is None else {str(lvl) for lvl in _parse_levels(level)}
+                self._selectors.append((entry["param"], levels))
+            else:
+                self._names.add(entry)
+
         self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
 
@@ -85,7 +118,20 @@ class Output(ABC):
         bool
             True if the variable should be skipped, False otherwise.
         """
-        return self.variables is not None and variable not in self.variables
+        if self.variables is None:
+            return False
+
+        if variable in self._names:
+            return False
+
+        typed = self.typed_variables.get(variable)
+        if typed is not None:
+            level = None if typed.level is None else str(typed.level)
+            for param, levels in self._selectors:
+                if param == typed.param and (levels is None or level in levels):
+                    return False
+
+        return True
 
     @cached_property
     def post_processors(self) -> list[Processor]:
