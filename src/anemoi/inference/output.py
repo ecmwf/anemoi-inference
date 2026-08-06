@@ -30,16 +30,30 @@ def _parse_levels(level: Any) -> list:
     """Expand a level specification into a list of concrete levels.
 
     Accepts a single level, a list of levels, or a MARS-style range string
-    such as ``"50/to/137"`` or ``"50/to/137/by/2"``.
+    such as ``"1/to/50"``, ``"50/to/137"`` or ``"1/to/100/by/3"``.
     """
     if isinstance(level, (list, tuple)):
         return list(level)
 
-    if isinstance(level, str) and "/to/" in level:
-        tokens = level.split("/")
+    if isinstance(level, str) and "/" in level:
+        tokens = [token.strip() for token in level.split("/")]
+
+        if len(tokens) not in (3, 5) or tokens[1].lower() != "to" or (len(tokens) == 5 and tokens[3].lower() != "by"):
+            raise ValueError(
+                f"Invalid level range {level!r}: expected '<start>/to/<stop>' or '<start>/to/<stop>/by/<step>'"
+            )
+
+        # Parse the two range endpoints
         start, stop = int(tokens[0]), int(tokens[2])
-        step = int(tokens[4]) if len(tokens) >= 5 and tokens[3] == "by" else 1
+        # Parse the 'by' step if given (5 tokens: start/to/stop/by/step), otherwise default to 1.
+        step = int(tokens[4]) if len(tokens) == 5 else 1
+        if step <= 0:
+            raise ValueError(f"Invalid level range {level!r}: 'by' step must be a positive integer")
+        # 'by' is always given as a positive number, even for a descending
+        # range (e.g. "137/to/50/by/2"), so flip its sign here when start > stop.
         step = step if start <= stop else -step
+        # range() is exclusive of its stop value, so extend it by one step in the
+        # direction of iteration to make our result inclusive of the given stop level.
         return list(range(start, stop + (1 if step > 0 else -1), step))
 
     return [level]

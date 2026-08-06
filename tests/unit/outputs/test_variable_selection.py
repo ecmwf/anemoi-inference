@@ -24,6 +24,18 @@ from anemoi.inference.output import _parse_levels
         ("50/to/53", [50, 51, 52, 53]),
         ("50/to/56/by/2", [50, 52, 54, 56]),
         ("53/to/50", [53, 52, 51, 50]),
+        ("1/to/2", [1, 2]),
+        (
+            "1/to/1000/by/55",
+            [1, 56, 111, 166, 221, 276, 331, 386, 441, 496, 551, 606, 661, 716, 771, 826, 881, 936, 991],
+        ),
+        (
+            "1000/to/1/by/55",
+            [1000, 945, 890, 835, 780, 725, 670, 615, 560, 505, 450, 395, 340, 285, 230, 175, 120, 65, 10],
+        ),
+        (" 50 / to / 53 ", [50, 51, 52, 53]),
+        ("50/TO/53", [50, 51, 52, 53]),
+        ("50/to/56/BY/2", [50, 52, 54, 56]),
     ],
 )
 def test_parse_levels(spec, expected):
@@ -32,6 +44,21 @@ def test_parse_levels(spec, expected):
 
 def test_parse_levels_range_length():
     assert len(_parse_levels("50/to/137")) == 88
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        "1/to",
+        "1/to/2/by",
+        "1/to/2/by/0",
+        "1/to/2/by/-1",
+        "1/nope/2",
+    ],
+)
+def test_parse_levels_invalid_range_raises(spec):
+    with pytest.raises(ValueError):
+        _parse_levels(spec)
 
 
 class _Concrete(Output):
