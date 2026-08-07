@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.12.0](https://github.com/ecmwf/anemoi-inference/compare/0.11.2...0.12.0) (2026-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **netcdf output:** Produce netCDF-files that follow CF conventions ([#549](https://github.com/ecmwf/anemoi-inference/issues/549))
+
+### Features
+
+* **netcdf output:** Produce netCDF-files that follow CF conventions ([#549](https://github.com/ecmwf/anemoi-inference/issues/549)) ([29dc717](https://github.com/ecmwf/anemoi-inference/commit/29dc717d8c513d22f658fb911123fa6e171af586))
+
 ## [0.11.2](https://github.com/ecmwf/anemoi-inference/compare/0.11.1...0.11.2) (2026-07-30)
 
 
