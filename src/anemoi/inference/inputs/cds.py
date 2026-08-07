@@ -138,11 +138,18 @@ class CDSInput(GribInput):
             The dataset to use.
         namer : Optional[Any]
             Optional namer for the input.
+        purpose : Optional[str]
+            The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
         **kwargs : Any
             Additional keyword arguments.
         """
         super().__init__(
-            context, metadata, variables=variables, pre_processors=pre_processors, namer=namer, purpose=purpose
+            context,
+            metadata,
+            variables=variables,
+            pre_processors=pre_processors,
+            namer=namer,
+            purpose=purpose,
         )
 
         self.dataset = dataset
@@ -204,7 +211,12 @@ class CDSInput(GribInput):
             raise ValueError(f"No requests for {variables} ({dates})")
 
         return retrieve(
-            requests, self.metadata.grid, self.metadata.area, dataset=self.dataset, expver="0001", **self.kwargs
+            requests,
+            self.metadata.grid,
+            self.metadata.area,
+            dataset=self.dataset,
+            expver="0001",
+            **self.kwargs.copy(),
         )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
