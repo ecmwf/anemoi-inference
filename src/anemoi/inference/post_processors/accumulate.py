@@ -26,7 +26,12 @@ LOG = logging.getLogger(__name__)
 
 @post_processor_registry.register("accumulate_from_start_of_forecast")
 class Accumulate(Processor):
-    """Accumulate fields from zero and return the accumulated fields.
+    """Accumulate fields from the start of the forecast and return cumulative values.
+
+    On the first call (step=0), emits zero-valued fields for all accumulation
+    variables regardless of their presence in the state. This provides
+    the reference point required to reverse the accumulation via differencing.
+    Subsequent calls accumulate model output values from that zero baseline.
 
     Parameters
     ----------
@@ -59,9 +64,14 @@ class Accumulate(Processor):
 
         self.accumulators: dict[str, FloatArray] = {}
         self.step_zero = timedelta(0)
+        self._initialized = False
 
     def process(self, state: State) -> State:
-        """Process the state to accumulate specified fields.
+        """Accumulate specified fields, emitting zeros at step=0.
+
+        On the first call, all accumulation variables are set to zero in the
+        returned state (the step=0 reference). On subsequent calls, each field
+        is accumulated into a running total from that zero baseline.
 
         Parameters
         ----------
@@ -75,6 +85,17 @@ class Accumulate(Processor):
         """
         state = state.copy()
         state.setdefault("start_steps", {})
+
+        if not self._initialized:
+            # Emit zero-valued fields at step=0 (initial state).
+            # Physical meaning: no accumulation has occurred at the initial condition.
+            n_points = len(state["latitudes"])
+            for accumulation in self.accumulations:
+                state["fields"][accumulation] = np.zeros(n_points)
+                state["start_steps"][accumulation] = self.step_zero
+            self._initialized = True
+            return state
+
         for accumulation in self.accumulations:
             if accumulation in state["fields"]:
                 if accumulation not in self.accumulators:

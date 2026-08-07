@@ -6,12 +6,15 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
+from datetime import timedelta
 from typing import cast
 
 import numpy as np
+import pytest
 from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.post_processors.accumulate import Accumulate
 from anemoi.inference.post_processors.assign import AssignMask
 from anemoi.inference.post_processors.extract import ExtractMask
 from anemoi.inference.post_processors.extract import ExtractSlice
@@ -144,3 +147,42 @@ def test_extract_slice(
     for field in new_state["fields"]:
         assert new_state["fields"][field].shape[0] == 25
         assert np.all(new_state["fields"][field] == state["fields"][field][extract_slice])
+
+
+@pytest.fixture
+def initial_state(state):
+    """State representing the initial condition (step=0), without accumulation fields."""
+    s = state.copy()
+    s["step"] = timedelta(0)
+    return s
+
+
+def _make_accumulate(mocker, accumulations=("tp",), allow_negative=False):
+    metadata = cast(Metadata, mocker.MagicMock())
+    metadata.accumulations = list(accumulations)
+    return Accumulate(mocker.MagicMock(), metadata, accumulations=list(accumulations), allow_negative=allow_negative)
+
+
+def test_accumulate_step_zero_missing_field(mocker: MockerFixture, initial_state: State):
+    """At step=0, zero-valued fields are emitted for accumulation variables not present in the state."""
+    processor = _make_accumulate(mocker)
+
+    assert "tp" not in initial_state["fields"]
+    new_state = processor.process(initial_state)
+
+    assert "tp" in new_state["fields"]
+    np.testing.assert_array_equal(new_state["fields"]["tp"], 0.0)
+    assert new_state["start_steps"]["tp"] == timedelta(0)
+    # non-accumulation fields are unchanged
+    np.testing.assert_array_equal(new_state["fields"]["2t"], initial_state["fields"]["2t"])
+
+
+def test_accumulate_step_zero_existing_field(mocker: MockerFixture, initial_state: State):
+    """At step=0, accumulation fields already in the state are overridden to zero."""
+    initial_state["fields"]["tp"] = np.ones(len(initial_state["latitudes"]))
+    processor = _make_accumulate(mocker)
+
+    new_state = processor.process(initial_state)
+
+    np.testing.assert_array_equal(new_state["fields"]["tp"], 0.0)
+    assert new_state["start_steps"]["tp"] == timedelta(0)
