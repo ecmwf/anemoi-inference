@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -17,7 +17,7 @@ from typing import NamedTuple
 
 import numpy as np
 import pytest
-from anemoi.transform.variables.variables import VariableFromMarsVocabulary
+from anemoi.transform.variables import Variable
 from anemoi.utils.testing import TEST_DATA_URL
 from anemoi.utils.testing import GetTestData
 from omegaconf import DictConfig
@@ -227,8 +227,11 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
         # config can optionally pass expected output variables, by default it uses the checkpoint variables
         expected_variables_config = kwargs.pop("expected_variables", [])
         expected_variables = [
-            VariableFromMarsVocabulary(var, {"param": var}) for var in expected_variables_config
+            Variable.from_dict(var, {"param": var}) for var in expected_variables_config
         ] or checkpoint_output_variables[dataset_name]
+
+        if not isinstance(file, Path):
+            file = Path(file)
 
         testing_registry.create(
             check,

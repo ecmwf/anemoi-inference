@@ -115,6 +115,7 @@ Get more information in the :ref:`installing <installing>` section.
 
    usage/optimisation
    inference/parallel
+   inference/parallel_output
    inference/external-graph
    inference/input-types
    inference/configs/introduction

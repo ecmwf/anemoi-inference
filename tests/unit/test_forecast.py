@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -7,6 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
@@ -171,6 +172,7 @@ def test_forecast(
     runner = forecast_runner_factory(multi_step_input, multi_step_output)
     monkeypatch.setattr(runner, "predict_step", basic_predict_step)
     monkeypatch.setattr(runner, "output_states_hook", lambda x: None)
+    monkeypatch.setattr(runner, "mid_processors", defaultdict(list), raising=False)
 
     lead_time = to_timedelta(f"{lead_time_hours}h")
 

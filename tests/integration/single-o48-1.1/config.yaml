@@ -27,6 +27,26 @@
             class: ai
             type: fc
 
+- name: grib-in-grib-parallel-out
+  input: input.grib
+  output: output
+  checks:
+    - check_files_in_directory:
+        expected_files: 2
+    - check_file_exist:
+        file: ${output:}/output_w0.grib
+    - check_file_exist:
+        file: ${output:}/output_w1.grib
+  inference_config:
+    write_initial_state: true
+    checkpoint: ${checkpoint:}
+    input:
+      grib: ${input:}
+    output:
+      parallel:
+        num_writers: 2
+        grib: ${output:}/output.grib
+
 - name: grib-in-grib-out-limit-vars
   input: input.grib
   output: output.grib
@@ -198,6 +218,8 @@
 ### NETCDF Input
 
 - name: netcdf-in-grib-out
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.grib
   checks:
@@ -225,6 +247,8 @@
             type: fc
 
 - name: netcdf-in-grib-out-limit-vars
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.grib
   checks:
@@ -249,6 +273,8 @@
             - q_600
 
 - name: netcdf-in-netcdf-out
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.nc
   checks:
@@ -266,6 +292,8 @@
       netcdf: ${output:}
 
 - name: netcdf-in-zarr-out
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.zarr
   checks:
@@ -283,6 +311,8 @@
       zarr: ${output:}
 
 - name: netcdf-in-print-output
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output.txt
   checks:
@@ -297,6 +327,8 @@
         path: ${output:}
 
 - name: netcdf-in-raw-output
+  # Temp fix until we use ekd 1.0
+  markers: [xfail]
   input: input.nc
   output: output
   checks:

@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -10,11 +10,13 @@
 
 import json
 import logging
+import warnings
 from functools import cached_property
 from typing import Any
 
 import numpy as np
 
+from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
@@ -39,6 +41,7 @@ class DatasetInput(Input):
         open_dataset_args: tuple[Any, ...],
         open_dataset_kwargs: dict[str, Any],
         grid_indices: Any = None,
+        use_trajectories: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInput.
@@ -55,6 +58,9 @@ class DatasetInput(Input):
             Keyword arguments for the dataset.
         grid_indices : Optional[Any]
             Indices to reduce the input grid. If None, the full grid is used.
+        use_trajectories : bool
+            Whether to expect dataset as a trajectory (i.e. with a `step / forecast` dimension),
+            and to get multiple dates from within a single trajectory.
         **kwargs : Any
             Additional keyword arguments.
         """
@@ -80,17 +86,53 @@ class DatasetInput(Input):
                     the input grid will be reduced accordingly.")
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
+        self.use_trajectories = use_trajectories
+
+        has_pre_processors = bool(self._pre_processor_confs) or (
+            hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
+        )
+
+        if has_pre_processors:
+            msg = (
+                f"Pre-processors are configured for dataset '{self.dataset_name}' but will NOT be applied "
+                f"by '{self.__class__.__name__}'. This input type reads data directly from a pre-built dataset "
+                "and does not invoke the pre-processor pipeline."
+            )
+            if hasattr(context, "_warn_once"):
+                context._warn_once(msg)
+            else:
+                LOG.warning(msg)
+                warnings.warn(msg, UserWarning, stacklevel=2)
 
     @cached_property
     def ds(self) -> Any:
         """Return the dataset."""
         from anemoi.datasets import open_dataset
 
+        LOG.info("Opening dataset...")
+        LOG.info("open_dataset_args: %s", json.dumps(self.open_dataset_args, indent=2))
+        LOG.info("open_dataset_kwargs: %s", json.dumps(self.open_dataset_kwargs, indent=2))
+
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
         if self.variables is not None:
             dataset = open_dataset(dataset, select=self.variables)
 
+        if not len(dataset.shape) == 5 and self.use_trajectories:
+            raise ValueError(
+                f"Expected dataset with 5 dimensions (base_dates, variables, ensembles, steps, cells) as a trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
+            )
+        elif len(dataset.shape) == 5 and not self.use_trajectories:
+            raise ValueError(
+                f"Expected dataset with 4 dimensions (base_dates, variables, ensembles, cells) as a non-trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
+            )
         return dataset
+
+    @cached_property
+    def ds_dates(self) -> np.ndarray:
+        """Return the dates of the dataset."""
+        if hasattr(self.ds, "base_dates"):
+            return self.ds.base_dates
+        return self.ds.dates
 
     @cached_property
     def latitudes(self) -> FloatArray:
@@ -145,23 +187,27 @@ class DatasetInput(Input):
         else:
             dates = [date + np.timedelta64(h) for h in self.metadata.lagged]
 
-        data = self._load_dates(dates)
+        data = self._load_dates(dates, base_date=date)
 
         if data.shape[2] != 1:
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
 
         requested_variables = set(self.input_variables())
+        dataset_variables = {}
+        typed_variables = self.ds.typed_variables
         for i, variable in enumerate(self.ds.variables):
             if variable not in requested_variables:
                 continue
             # Squeeze the data to remove the ensemble dimension
             values = np.squeeze(data[:, i], axis=1)
             fields[variable] = values[:, self.grid_indices]
+            dataset_variables[variable] = typed_variables[variable]
 
             if trace := self.context.tensor_handlers[self.dataset_name].trace:
                 trace.from_input(variable, self)
 
         input_state["_input"] = self
+        input_state["_variables"] = dataset_variables
 
         return input_state
 
@@ -180,7 +226,8 @@ class DatasetInput(Input):
         State
             The loaded forcings state.
         """
-        data = self._load_dates(dates)  # (date, variables, ensemble, values)
+        base_date = current_state["date"] - current_state["step"]
+        data = self._load_dates(dates, base_date=base_date)  # (date, variables, ensemble, values)
 
         requested_variables = np.array([self.ds.name_to_index[v] for v in self.variables])
         data = data[:, requested_variables]
@@ -201,13 +248,34 @@ class DatasetInput(Input):
             longitudes=self.longitudes,
         )
 
-    def _load_dates(self, dates: list[Date]) -> Any:
-        """Load the data for the given dates.
+    def _find_index_for_date(self, date: Date) -> int:
+        """Find the index of the given date in the dataset.
 
         Parameters
         ----------
-        dates : List[Any]
-            List of dates for which to load the data.
+        date : Any
+            The date for which to find the index.
+
+        Returns
+        -------
+        int
+            The index of the date in the dataset.
+        """
+        (i,) = np.where(self.ds_dates == np.datetime64(date))
+        if len(i) == 0:
+            raise ValueError(
+                f"Date {date} not found in the dataset, available base_dates: {self.ds_dates[0]}...{self.ds_dates[-1]}"
+            )
+        assert len(i) == 1, f"Multiple dates found for {date}"
+        return int(i[0])
+
+    def _load_basedates(self, basedates: list[Date]) -> Any:
+        """Load the data for the given base dates.
+
+        Parameters
+        ----------
+        basedates : List[Any]
+            List of base dates for which to load the data.
 
         Returns
         -------
@@ -215,18 +283,9 @@ class DatasetInput(Input):
             The loaded data.
         """
         # TODO: use the fact that the dates are sorted
-
-        dataset_dates = self.ds.dates
-
         idx = []
-        for d in dates:
-            (i,) = np.where(dataset_dates == d)
-            if len(i) == 0:
-                raise ValueError(
-                    f"Date {d} not found in the dataset, available dates: {dataset_dates[0]}...{dataset_dates[-1]} by {self.ds.frequency}"
-                )
-            assert len(i) == 1, f"Multiple dates found for {d}"
-            idx.append(int(i[0]))
+        for d in basedates:
+            idx.append(self._find_index_for_date(d))
 
         if len(idx) == 1:
             s = slice(idx[0], idx[0] + 1)
@@ -238,6 +297,69 @@ class DatasetInput(Input):
             s = slice(idx[0], idx[-1] + 1, diff)
 
         return self.ds[s]
+
+    def _load_trajectories(self, dates: list[Date], base_date: Date) -> Any:
+        """Load the data for the given dates as trajectories.
+
+        Parameters
+        ----------
+        dates : List[Any]
+            List of dates for which to load the data.
+        base_date : Any
+            The base date for relative date calculations.
+
+        Returns
+        -------
+        Any
+            The loaded data.
+        """
+        base_idx = self._find_index_for_date(base_date)
+
+        datalist = []
+        dates_before_base = [d for d in dates if d <= base_date]
+        dates_after_base = [d for d in dates if d > base_date]
+
+        for d in dates_before_base:
+            LOG.info("Loading data at step 0 for date=%s", d)
+            datalist.append(self._load_basedates([d])[:, :, :, 0])
+
+        if len(dates_after_base) > 0:
+            step_index = [int(np.timedelta64(d - base_date) / self.ds.step_frequency) for d in dates_after_base]
+            LOG.info("Loading data from trajectory at base_date=%s, steps=%s", base_date, step_index)
+            # Convert to slice if consecutive (dataset indexing with lists can be unreliable)
+            if len(step_index) == 1:
+                step_slice = slice(step_index[0], step_index[0] + 1)
+            else:
+                diff = step_index[1] - step_index[0]
+                if all(step_index[i + 1] - step_index[i] == diff for i in range(len(step_index) - 1)):
+                    step_slice = slice(step_index[0], step_index[-1] + 1, diff)
+                else:
+                    raise ValueError("Requested dates do not have a uniform step spacing")
+            trajectory_data = self.ds[base_idx, :, :, step_slice]
+            # Transpose to (steps/dates, variables, ensemble, cells) to match _load_basedates
+            trajectory_data = np.moveaxis(trajectory_data, 2, 0)
+            datalist.append(trajectory_data)
+
+        return np.concatenate(datalist, axis=0)
+
+    def _load_dates(self, dates: list[Date], base_date: Date) -> Any:
+        """Load the data for the given dates.
+
+        Parameters
+        ----------
+        dates : List[Any]
+            List of dates for which to load the data.
+        base_date : Any
+            The base date for relative date calculations.
+
+        Returns
+        -------
+        Any
+            The loaded data.
+        """
+        if not self.use_trajectories:
+            return self._load_basedates(dates)
+        return self._load_trajectories(dates, base_date=base_date)
 
 
 @input_registry.register("dataset")
@@ -256,6 +378,7 @@ class DatasetInputArgsKwargs(DatasetInput):
         pre_processors: list[ProcessorConfig] | None = None,
         grid_indices=None,
         purpose: str | None = None,
+        use_trajectories: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInputArgsKwargs.
@@ -268,7 +391,15 @@ class DatasetInputArgsKwargs(DatasetInput):
             Metadata corresponding to the dataset this input is handling.
         use_original_paths : bool
             Whether to use original paths.
+        use_trajectories : bool
+            Whether to expect dataset as a trajectory (i.e. with a `step / forecast` dimension),
+            and to get multiple dates from within a single trajectory.
         """
+
+        check_variables_compatibility = multi_datasets_config(
+            context.config.check_variables_compatibility, metadata.dataset_name, context.dataset_names, strict=False
+        )
+
         if not args and not kwargs:
             args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
 
@@ -284,6 +415,10 @@ class DatasetInputArgsKwargs(DatasetInput):
 
             LOG.warning("%s", cmd)
 
+        if check_variables_compatibility:
+            kwargs = kwargs.copy()
+            kwargs["check_variables_compatibility"] = check_variables_compatibility
+
         super().__init__(
             context,
             metadata,
@@ -293,6 +428,7 @@ class DatasetInputArgsKwargs(DatasetInput):
             open_dataset_args=args,
             open_dataset_kwargs=kwargs,
             purpose=purpose,
+            use_trajectories=use_trajectories,
         )
 
 

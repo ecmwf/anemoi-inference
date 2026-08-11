@@ -1,4 +1,4 @@
-# (C) Copyright 2024 ECMWF.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -154,7 +154,7 @@ class Transport(ABC):
         sender : Task
             The sender of the state.
         target : Task
-            The target
+            The target.
         state : State
             The state dictionary to send.
         tag : int

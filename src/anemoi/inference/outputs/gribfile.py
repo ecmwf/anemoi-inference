@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -28,6 +28,7 @@ from anemoi.inference.types import ProcessorConfig
 from ..decorators import ensure_path
 from ..decorators import format_dataset_name
 from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from ..grib.encoding import shortname_to_paramid
@@ -139,6 +140,7 @@ class GribIoOutput(BaseGribOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
+        missing_value: int | float = -9999,
     ) -> None:
         """Initialize the GribIOOutput.
 
@@ -163,6 +165,10 @@ class GribIoOutput(BaseGribOutput):
             The templates list or string, by default None.
         grib1_keys : dict, optional
             The grib1 keys dictionary, by default None.
+        missing_value : int or float, optional
+            Sentinel value used to replace NaNs before GRIB bitmap encoding (requires allow_nans=True).
+            Default -9999 avoids collision with physically valid geophysical values which are always positive
+            for most fields (e.g. z_850 ~ 9999 m2/s2 over Switzerland).
         grib2_keys : dict, optional
             The grib2 keys dictionary, by default None.
         modifiers : list, optional
@@ -203,6 +209,7 @@ class GribIoOutput(BaseGribOutput):
         self.archiving = defaultdict(ArchiveCollector)
         self.archive_requests = archive_requests
         self.check_encoding = check_encoding
+        self.missing_value = missing_value
         self._namespace_bug_fix = False
 
     def __repr__(self) -> str:
@@ -242,6 +249,7 @@ class GribIoOutput(BaseGribOutput):
                     template=template,
                     metadata=keys,
                     check_nans=self.context.allow_nans,
+                    missing_value=self.missing_value,
                 ),
                 template,
                 **keys,
@@ -328,6 +336,7 @@ class GribIoOutput(BaseGribOutput):
 @output_registry.register("grib")
 @main_argument("path")
 @format_dataset_name("path")
+@supports_parallel_output("path", "archive_requests.path")
 @ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
