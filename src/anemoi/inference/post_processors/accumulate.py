@@ -28,10 +28,12 @@ LOG = logging.getLogger(__name__)
 class Accumulate(Processor):
     """Accumulate fields from the start of the forecast and return cumulative values.
 
-    On the first call (step=0), emits zero-valued fields for all accumulation
-    variables regardless of their presence in the state. This provides
-    the reference point required to reverse the accumulation via differencing.
-    Subsequent calls accumulate model output values from that zero baseline.
+    By default, accumulation starts from the first forecast step without emitting
+    any fields at step=0. Set ``emit_initial_zeros=True`` to emit zero-valued
+    fields at step=0 as a reference point, which allows downstream consumers to
+    recover per-step values via differencing. When enabled, zeros are only emitted
+    if the state step is actually zero, so the behaviour is consistent regardless
+    of whether the runner is configured to write the initial state.
 
     Parameters
     ----------
@@ -44,6 +46,11 @@ class Accumulate(Processor):
         If None, the fields are taken from the context's checkpoint.
     allow_negative : bool, optional
         Whether to allow negative values in the accumulation, by default False.
+    emit_initial_zeros : bool, optional
+        When False (default), no fields are emitted at step=0 and accumulation
+        starts from the first forecast step.
+        When True, zero-valued fields are emitted at step=0 (only if the runner
+        writes an initial state), providing a reference for differencing.
     """
 
     def __init__(
@@ -53,6 +60,7 @@ class Accumulate(Processor):
         *,
         accumulations: list[str] | None = None,
         allow_negative: bool = False,
+        emit_initial_zeros: bool = False,
     ) -> None:
         super().__init__(context, metadata)
         if accumulations is None:
@@ -60,18 +68,26 @@ class Accumulate(Processor):
 
         self.accumulations = accumulations
         self.allow_negative = allow_negative
-        LOG.info("Accumulating fields %s (allow_negative=%s)", self.accumulations, self.allow_negative)
+        self.emit_initial_zeros = emit_initial_zeros
+        LOG.info(
+            "Accumulating fields %s (allow_negative=%s, emit_initial_zeros=%s)",
+            self.accumulations,
+            self.allow_negative,
+            self.emit_initial_zeros,
+        )
 
         self.accumulators: dict[str, FloatArray] = {}
         self.step_zero = timedelta(0)
-        self._initialized = False
+        # When emit_initial_zeros is False, skip the initialisation block entirely.
+        self._initialized = not emit_initial_zeros
 
     def process(self, state: State) -> State:
-        """Accumulate specified fields, emitting zeros at step=0.
+        """Accumulate specified fields, optionally emitting zeros at step=0.
 
-        On the first call, all accumulation variables are set to zero in the
-        returned state (the step=0 reference). On subsequent calls, each field
-        is accumulated into a running total from that zero baseline.
+        Each field is accumulated into a running total. If ``emit_initial_zeros``
+        is True and the state step is zero, zero-valued fields are emitted first
+        as a reference point; otherwise accumulation proceeds from the first
+        forecast step without any step=0 output.
 
         Parameters
         ----------
@@ -87,8 +103,8 @@ class Accumulate(Processor):
         state.setdefault("start_steps", {})
 
         if not self._initialized and state.get("step", self.step_zero) == self.step_zero:
-            # Emit zero-valued fields for the initial state write, detected via step=0.
-            # Physical meaning: no accumulation has occurred at the initial condition.
+            # emit_initial_zeros=True: emit zero-valued fields at step=0 as a
+            # reference point. Physical meaning: no accumulation has occurred yet.
             n_points = self.metadata.number_of_grid_points
             for accumulation in self.accumulations:
                 state["fields"][accumulation] = np.zeros(n_points)
