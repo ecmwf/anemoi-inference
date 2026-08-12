@@ -157,15 +157,31 @@ def initial_state(state):
     return s
 
 
-def _make_accumulate(mocker, accumulations=("tp",), allow_negative=False):
+def _make_accumulate(mocker, accumulations=("tp",), allow_negative=False, emit_initial_zeros=False, n_points=50):
     metadata = cast(Metadata, mocker.MagicMock())
     metadata.accumulations = list(accumulations)
-    return Accumulate(mocker.MagicMock(), metadata, accumulations=list(accumulations), allow_negative=allow_negative)
+    metadata.number_of_grid_points = n_points
+    return Accumulate(
+        mocker.MagicMock(),
+        metadata,
+        accumulations=list(accumulations),
+        allow_negative=allow_negative,
+        emit_initial_zeros=emit_initial_zeros,
+    )
 
 
-def test_accumulate_step_zero_missing_field(mocker: MockerFixture, initial_state: State):
-    """At step=0, zero-valued fields are emitted for accumulation variables not present in the state."""
+def test_accumulate_default_no_zeros_at_step_zero(mocker: MockerFixture, initial_state: State):
+    """By default (emit_initial_zeros=False), no zeros are emitted at step=0."""
     processor = _make_accumulate(mocker)
+
+    new_state = processor.process(initial_state)
+
+    assert "tp" not in new_state["fields"]
+
+
+def test_accumulate_emit_initial_zeros_missing_field(mocker: MockerFixture, initial_state: State):
+    """With emit_initial_zeros=True, zero-valued fields are emitted at step=0 even when absent from the state."""
+    processor = _make_accumulate(mocker, emit_initial_zeros=True)
 
     assert "tp" not in initial_state["fields"]
     new_state = processor.process(initial_state)
@@ -177,12 +193,25 @@ def test_accumulate_step_zero_missing_field(mocker: MockerFixture, initial_state
     np.testing.assert_array_equal(new_state["fields"]["2t"], initial_state["fields"]["2t"])
 
 
-def test_accumulate_step_zero_existing_field(mocker: MockerFixture, initial_state: State):
-    """At step=0, accumulation fields already in the state are overridden to zero."""
+def test_accumulate_emit_initial_zeros_existing_field(mocker: MockerFixture, initial_state: State):
+    """With emit_initial_zeros=True, accumulation fields already in the state are overridden to zero at step=0."""
     initial_state["fields"]["tp"] = np.ones(len(initial_state["latitudes"]))
-    processor = _make_accumulate(mocker)
+    processor = _make_accumulate(mocker, emit_initial_zeros=True)
 
     new_state = processor.process(initial_state)
 
     np.testing.assert_array_equal(new_state["fields"]["tp"], 0.0)
     assert new_state["start_steps"]["tp"] == timedelta(0)
+
+
+def test_accumulate_emit_initial_zeros_skipped_when_not_step_zero(mocker: MockerFixture, state: State):
+    """With emit_initial_zeros=True, zeros are not emitted when the first call is not at step=0."""
+    n = len(state["latitudes"])
+    state["fields"]["tp"] = np.full(n, 3.0)
+    # state fixture has step=timedelta(hours=6), not step=0
+    processor = _make_accumulate(mocker, emit_initial_zeros=True, n_points=n)
+
+    new_state = processor.process(state)
+
+    # zeros not emitted; accumulation started from this step
+    np.testing.assert_array_almost_equal(new_state["fields"]["tp"], 3.0)
