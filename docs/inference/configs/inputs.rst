@@ -41,6 +41,26 @@ You can also provide a full dataset specification as follows:
 See :ref:`anemoi-datasets:opening-datasets` in the documentation of the
 `anemoi-datasets` package for more information on how to open datasets.
 
+#################
+Trajectory Inputs
+#################
+
+`anemoi-datasets` `v0.5.38` introduced a new feature to allow for trajectory datasets, introducing a 5th dimension to the dataset.
+This allows for forecasts to be included in the dataset, and for inference it means that it is possible for the model to be forced from steps of a model, not just the analysis.
+
+Setting `use_trajectories` in a dataset input will allow for the model to be forced from the forecasts within the dataset, filtering by step and the basetime of the run, rather than just the absolute time throughout the run.
+
+In the case of the initial conditions, the prior dates, the model will be initialised from step 0 of the dataset, i.e. the analysis, with future forcings coming from the forecast steps, with the base date
+being the date specified in the config, the base_date.
+
+
+.. code:: yaml
+
+   input:
+      dataset:
+         PATH_GOES_HERE
+         use_trajectories: true
+
 ******
  grib
 ******
@@ -100,6 +120,42 @@ file.
           add_earthkit_attrs=False,
       )
       ds_xr.to_netcdf("input.nc")
+
+*********
+ opendap
+*********
+
+You can specify the input as ``opendap`` to read the data from a remote
+`OpenDAP <https://www.opendap.org/>`_ server, such as a `THREDDS Data
+Server <https://www.unidata.ucar.edu/software/tds/>`_. Under the hood
+this uses `earthkit-data`'s ``opendap`` source.
+
+.. literalinclude:: yaml/inputs_opendap_1.yaml
+   :language: yaml
+
+The URL can be given directly (as above), or under the ``url`` key so
+that additional options can be provided.
+
+The URL may contain Python format strings, which are resolved
+dynamically for the date of each retrieval. The ``date`` variable is
+made available, so you can use `strftime
+<https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes>`_
+format codes to construct the URL:
+
+.. literalinclude:: yaml/inputs_opendap_2.yaml
+   :language: yaml
+
+A list of URLs can also be provided, in which case the data from each is
+retrieved and combined. This is useful when different variables (e.g.
+surface and pressure levels) are served from separate files:
+
+.. literalinclude:: yaml/inputs_opendap_3.yaml
+   :language: yaml
+
+.. note::
+
+   If the retrieved data contains multiple valid datetimes, only the
+   first one is used and a warning is emitted.
 
 ******
  mars
