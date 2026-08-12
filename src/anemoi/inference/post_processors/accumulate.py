@@ -89,7 +89,7 @@ class Accumulate(Processor):
         if not self._initialized and state.get("step", self.step_zero) == self.step_zero:
             # Emit zero-valued fields for the initial state write, detected via step=0.
             # Physical meaning: no accumulation has occurred at the initial condition.
-            n_points = len(state["latitudes"])
+            n_points = self.metadata.number_of_grid_points
             for accumulation in self.accumulations:
                 state["fields"][accumulation] = np.zeros(n_points)
                 state["start_steps"][accumulation] = self.step_zero
