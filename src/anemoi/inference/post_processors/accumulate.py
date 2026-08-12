@@ -86,8 +86,8 @@ class Accumulate(Processor):
         state = state.copy()
         state.setdefault("start_steps", {})
 
-        if not self._initialized:
-            # Emit zero-valued fields at step=0 (initial state).
+        if not self._initialized and state.get("step", self.step_zero) == self.step_zero:
+            # Emit zero-valued fields for the initial state write, detected via step=0.
             # Physical meaning: no accumulation has occurred at the initial condition.
             n_points = len(state["latitudes"])
             for accumulation in self.accumulations:
