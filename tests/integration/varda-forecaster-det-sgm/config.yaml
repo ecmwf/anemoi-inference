@@ -3,18 +3,30 @@
   input:
     - input-lam.grib
     - input-global.grib
-  output: output.grib
+  output:
+    - output-lam.grib
+    - output-global.grib
   checks:
     - check_grib:
+        file: ${output:0}
         check_nans: true
         reference_date: 20200325T0000
         check_accum: TOT_PREC
+        # write_initial_state adds the FIS/FR_LAND constants at step 0
+        expected_variables: [U_10M, V_10M, TD_2M, T_2M, PS, SKT, QV, T, U, V, FI, TOT_PREC, FIS, FR_LAND]
     - check_grib_cutout:
+        file: ${output:0}
         reference_grib: ${input:0}
+    - check_grib:
+        # the global stream carries NaNs where the LAM is cut out
+        file: ${output:1}
+        check_nans: false
+        reference_date: 20200325T0000
+        expected_variables: [U_10M, V_10M, TD_2M, T_2M, PS, SKT, QV, T, U, V, FI, TOT_PREC, FIS, FR_LAND]
   inference_config:
     checkpoint: ${checkpoint:}
     date: 2020-03-25T00:00:00
-    write_initial_state: false
+    write_initial_state: true
     allow_nans: true
     env:
       ECCODES_DEFINITION_PATH: ${sys.prefix:}/share/eccodes-cosmo-resources/definitions
@@ -66,38 +78,108 @@
           accumulations:
             - tp
     output:
-      grib:
-        path: ${output:}
-        encoding:
-          typeOfGeneratingProcess: 2
-        modifiers:
-          - patches:
-              - variable:
-                  # the TOT_PREC concept does not pin a level type, so the
-                  # template's would leak through without the override; the
-                  # surface params also need their level reset to 0 via the raw
-                  # fixed-surface keys (a plain `level: 0` is ignored once
-                  # typeOfLevel is already `surface`)
-                  tp:
-                    shortName: TOT_PREC
-                    typeOfLevel: surface
-                    scaledValueOfFirstFixedSurface: 0
-                    scaleFactorOfFirstFixedSurface: 0
-                  sp:
-                    typeOfLevel: surface
-                    scaledValueOfFirstFixedSurface: 0
-                    scaleFactorOfFirstFixedSurface: 0
-                  skt:
-                    typeOfLevel: surface
-                    scaledValueOfFirstFixedSurface: 0
-                    scaleFactorOfFirstFixedSurface: 0
-        # the first LAM input message is the structural template for every output
-        # variable; param, level type and level are re-encoded per variable
-        templates:
-          - file:
-              path: ${input:0}
-              mode: first
-        post_processors:
-          - extract_mask: # keep only the LAM points
-              mask: lam_0/cutout_mask
-              as_slice: true
+      tee:
+        # LAM stream: the first LAM input message is the structural template for
+        # every output variable; param, level type and level are re-encoded per
+        # variable
+        - grib:
+            path: ${output:0}
+            encoding:
+              typeOfGeneratingProcess: 2
+            modifiers:
+            - patches:
+                - variable:
+                    # the TOT_PREC concept does not pin a level type, so the
+                    # template's would leak through without the override; the
+                    # surface params also need their level reset to 0 via the raw
+                    # fixed-surface keys (a plain `level: 0` is ignored once
+                    # typeOfLevel is already `surface`)
+                    tp:
+                      shortName: TOT_PREC
+                      typeOfLevel: surface
+                      scaledValueOfFirstFixedSurface: 0
+                      scaleFactorOfFirstFixedSurface: 0
+                    sp:
+                      typeOfLevel: surface
+                      scaledValueOfFirstFixedSurface: 0
+                      scaleFactorOfFirstFixedSurface: 0
+                    skt:
+                      typeOfLevel: surface
+                      scaledValueOfFirstFixedSurface: 0
+                      scaleFactorOfFirstFixedSurface: 0
+            templates:
+              - file:
+                  path: ${input:0}
+                  mode: first
+            post_processors:
+              - extract_mask: # keep only the LAM points
+                  mask: lam_0/cutout_mask
+                  as_slice: true
+        # global stream: same encoding on the o48 grid, with the cut-out LAM hole
+        # filled with missing values
+        - grib:
+            path: ${output:1}
+            encoding:
+              typeOfGeneratingProcess: 2
+            modifiers:
+            - patches:
+                - variable:
+                    # the TOT_PREC concept does not pin a level type, so the
+                    # template's would leak through without the override; the
+                    # surface params also need their level reset to 0 via the raw
+                    # fixed-surface keys (a plain `level: 0` is ignored once
+                    # typeOfLevel is already `surface`)
+                    tp:
+                      shortName: TOT_PREC
+                      typeOfLevel: surface
+                      scaledValueOfFirstFixedSurface: 0
+                      scaleFactorOfFirstFixedSurface: 0
+                    sp:
+                      typeOfLevel: surface
+                      scaledValueOfFirstFixedSurface: 0
+                      scaleFactorOfFirstFixedSurface: 0
+                    skt:
+                      typeOfLevel: surface
+                      scaledValueOfFirstFixedSurface: 0
+                      scaleFactorOfFirstFixedSurface: 0
+            templates:
+              - file:
+                  path: ${input:1}
+                  mode: first
+            post_processors:
+              - extract_mask: # drop the LAM points
+                  mask: lam_0/cutout_mask
+                  as_slice: true
+                  inverse: true
+              - assign_mask: # expand to the full o48 grid, NaN in the LAM hole
+                  mask: global/cutout_mask
+
+# Same model, but the initial conditions come from anemoi datasets: date-subsetted
+# copies of the two training zarrs (2020-03-24T18 and 2020-03-25T00 only), hosted
+# unzipped next to the GRIB inputs and opened over HTTP. The input assembles the
+# training-time cutout directly, so no eccodes/COSMO machinery is involved.
+- name: dataset-in-netcdf-out
+  input: []
+  output: output.nc
+  checks:
+    - check_with_xarray:
+        check_nans: true
+        check_accum: tp
+        expected_time: 8
+  inference_config:
+    checkpoint: ${checkpoint:}
+    date: 2020-03-25T00:00:00
+    write_initial_state: false
+    allow_nans: true
+    input:
+      dataset:
+        cutout:
+          - dataset: ${s3:}/input-lam.zarr
+          - dataset: ${s3:}/input-global.zarr
+        adjust: all
+    post_processors:
+      - accumulate_from_start_of_forecast:
+          accumulations:
+            - tp
+    output:
+      netcdf: ${output:}
