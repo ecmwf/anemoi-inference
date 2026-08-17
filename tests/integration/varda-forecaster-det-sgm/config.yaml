@@ -1,0 +1,103 @@
+- name: grib-in-grib-out
+  markers: cosmo
+  input:
+    - input-lam.grib
+    - input-global.grib
+  output: output.grib
+  checks:
+    - check_grib:
+        check_nans: true
+        reference_date: 20200325T0000
+        check_accum: TOT_PREC
+    - check_grib_cutout:
+        reference_grib: ${input:0}
+  inference_config:
+    checkpoint: ${checkpoint:}
+    date: 2020-03-25T00:00:00
+    write_initial_state: false
+    allow_nans: true
+    env:
+      ECCODES_DEFINITION_PATH: ${sys.prefix:}/share/eccodes-cosmo-resources/definitions
+      ECCODES_VERSION_CHECK_OFF: 1
+    # The cutout members, in training order: the LAM (ICON-CH1-analysis-based test
+    # dataset grid) and the o48 global background. With the COSMO definitions active,
+    # both files decode to COSMO param names while the checkpoint variables are
+    # IFS-named, hence the namer rules on both sources.
+    input:
+      cutout:
+        - lam_0:
+            grib:
+              path: ${input:0}
+              namer:
+                rules: &cosmo_rules
+                  - - param: U_10M
+                    - 10u
+                  - - param: V_10M
+                    - 10v
+                  - - param: TD_2M
+                    - 2d
+                  - - param: T_2M
+                    - 2t
+                  - - param: PS
+                    - sp
+                  - - param: SKT
+                    - skt
+                  - - param: FR_LAND
+                    - lsm
+                  - - param: FIS
+                    - z
+                  - - param: QV
+                    - q_{levelist}
+                  - - param: T
+                    - t_{levelist}
+                  - - param: U
+                    - u_{levelist}
+                  - - param: V
+                    - v_{levelist}
+                  - - param: FI
+                    - z_{levelist}
+        - global:
+            grib:
+              path: ${input:1}
+              namer:
+                rules: *cosmo_rules
+    post_processors:
+      - accumulate_from_start_of_forecast:
+          accumulations:
+            - tp
+    output:
+      grib:
+        path: ${output:}
+        encoding:
+          typeOfGeneratingProcess: 2
+        modifiers:
+          - patches:
+              - variable:
+                  # the TOT_PREC concept does not pin a level type, so the
+                  # template's would leak through without the override; the
+                  # surface params also need their level reset to 0 via the raw
+                  # fixed-surface keys (a plain `level: 0` is ignored once
+                  # typeOfLevel is already `surface`)
+                  tp:
+                    shortName: TOT_PREC
+                    typeOfLevel: surface
+                    scaledValueOfFirstFixedSurface: 0
+                    scaleFactorOfFirstFixedSurface: 0
+                  sp:
+                    typeOfLevel: surface
+                    scaledValueOfFirstFixedSurface: 0
+                    scaleFactorOfFirstFixedSurface: 0
+                  skt:
+                    typeOfLevel: surface
+                    scaledValueOfFirstFixedSurface: 0
+                    scaleFactorOfFirstFixedSurface: 0
+        # the first LAM input message is the structural template for every output
+        # variable; param, level type and level are re-encoded per variable
+        templates:
+          - file:
+              path: ${input:0}
+              mode: first
+        post_processors:
+          - extract_mask: # keep only the LAM points
+              mask: lam_0/cutout_mask
+              as_slice: true
