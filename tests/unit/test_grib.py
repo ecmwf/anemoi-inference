@@ -279,7 +279,7 @@ def test_render_template(template, handle, expected):
                 "stepType": "instant",
                 "shortName": "w",
                 "dataType": "fc",
-                "levelist": 100,
+                "level": 100,
                 "typeOfLevel": "isobaricInhPa",
             },
         ),
