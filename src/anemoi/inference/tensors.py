@@ -409,7 +409,12 @@ class TensorHandler:
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
         keep_steps = min(self.metadata.multi_step_output, self.metadata.multi_step_input)
-        input_tensor_torch = input_tensor_torch.roll(-keep_steps, dims=1)
+        # Shift the time window in-place instead of torch.roll(), which allocates a full
+        # copy of the tensor. Safe because each destination index (i) is strictly
+        # less than its source index (i + keep_steps), so no row is read after
+        # it has been overwritten.
+        for i in range(input_tensor_torch.shape[1] - keep_steps):
+            input_tensor_torch[:, i].copy_(input_tensor_torch[:, i + keep_steps])
 
         for i in range(keep_steps):
             input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
