@@ -24,22 +24,26 @@ class CrpsRunner(DefaultRunner):
     Inherits from DefaultRunner.
     """
 
-    def predict_step(self, model: Any, input_tensor_torch: Any, **kwargs: Any) -> Any:
+    def predict_step(self, model: Any, input_tensor_torch: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         """Perform a prediction step using the model.
 
         Parameters
         ----------
         model : Any
             The model to use for prediction.
-        input_tensor_torch : torch.Tensor
-            The input tensor for the model.
+        input_tensor_torch : dict[str, Any]
+            The input tensors for the model.
         **kwargs : Any
             Additional keyword arguments.
 
         Returns
         -------
-        Any
-            The prediction result.
+        dict[str, Any]
+            The prediction result, keyed by the same keys as the input tensor dictionary.
         """
         warnings.warn("CRPS runner is deprecated, use DefaultRunner instead")
-        return model.predict_step(input_tensor_torch, kwargs["fcstep"])
+        assert len(input_tensor_torch) == 1, "CRPS runner only supports legacy single dataset models"
+
+        dataset, tensor = next(iter(input_tensor_torch.items()))
+
+        return {dataset: model.predict_step(tensor, kwargs["fcstep"])}
