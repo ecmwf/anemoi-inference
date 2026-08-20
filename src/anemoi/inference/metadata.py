@@ -355,6 +355,46 @@ class Metadata(LegacyMixin):
         """Return the prognostic input mask."""
         return np.array(self._indices.model.input.prognostic)
 
+    @cached_property
+    def da_cycles(self) -> int:
+        """Number of data-assimilation cycles the model was trained with.
+
+        Read from the training task configuration. This is the only place the
+        DA-cycle count survives into an inference checkpoint: the ``timesteps``
+        metadata arrays describe a single input/output window and no longer span
+        the DA + rollout window. Returns 0 for models trained without DA cycling.
+        """
+        return int(getattr(self._config_task, "da_cycles", 0) or 0)
+
+    @cached_property
+    def decoder_forcing_variables(self) -> list[str]:
+        """Variables marked as decoder-forcings in the training config.
+
+        These are loaded at the target (predicted) date and injected only
+        into the decoder. Returns an empty list when the dataset has none.
+        """
+        return list(getattr(self._config_data, "decoder_forcing", None) or [])
+
+    @cached_property
+    def corrector_variables(self) -> list[str]:
+        """Variables marked as correctors in the training config.
+
+        Observation metadata (satellite viewing geometry, reportype, ...) fed to
+        the model as input. During training they carry real values while the
+        model assimilates observations and are zeroed whenever the model advances
+        its own state. Returns an empty list when the dataset has none.
+        """
+        return list(getattr(self._config_data, "corrector", None) or [])
+
+    @cached_property
+    def corrector_input_mask(self) -> IntArray:
+        """Input-tensor indices of the corrector variables."""
+        variable_to_index = self.variable_to_input_tensor_index
+        return np.array(
+            sorted(variable_to_index[name] for name in self.corrector_variables if name in variable_to_index),
+            dtype=np.int64,
+        )
+
     @property
     @deprecation.deprecated(
         deprecated_in="0.6.4",
@@ -707,6 +747,9 @@ class Metadata(LegacyMixin):
         self, *, include: list[str] | None = None, exclude: list[str] | None = None
     ) -> tuple[list[str], IntArray]:
         variables = self.select_variables(include=include, exclude=exclude, has_mars_requests=False)
+        # Filter out variables that are not in the input tensor (e.g. decoder-only forcings)
+        variable_to_input_tensor_index = self.variable_to_input_tensor_index
+        variables = [v for v in variables if v in variable_to_input_tensor_index]
         return variables, self.variables_mask(variables=variables)
 
     def mars_input_requests(self) -> Iterator[DataRequest]:
@@ -1201,7 +1244,13 @@ class Metadata(LegacyMixin):
 
         for name in self.variables:
             if name not in result:
-                raise ValueError(f"Variable {name} has no category")
+                # Variables the model consumes/produces that don't fall into a standard
+                # category (e.g. observation channels and decoder-only forcings in
+                # obs-forecaster checkpoints). Treat them as diagnostics so they are
+                # excluded from input/prognostic retrieval and from autoregressive
+                # cycling; runners that handle them (e.g. obs_da_cycling) do so explicitly.
+                warnings.warn(f"Variable {name} has no standard category; treating it as 'diagnostic'.")
+                result[name].add("diagnostic")
 
             result[name] = sorted(result[name])
 
@@ -1531,6 +1580,15 @@ class MultiDatasetMetadata(Metadata):
     def output_tensor_index_to_variable(self) -> frozendict:
         return frozendict({v: k for k, v in self.variable_to_output_tensor_index.items()})
 
+    @cached_property
+    def corrector_variables(self) -> list[str]:
+        """Variables marked as correctors, from the checkpoint's variable_types.
+
+        Uses `metadata_inference.variable_types` rather than the training config
+        so the names match the actual tensor variable names (post-rename).
+        """
+        return list(self._inference.variable_types.get("corrector", []))
+
     def variable_categories(self) -> dict[str, set[str]]:
         if self._variables_categories is not None:
             return self._variables_categories
@@ -1542,6 +1600,13 @@ class MultiDatasetMetadata(Metadata):
         for var_type in ["forcing", "diagnostic", "prognostic"]:
             for name in variable_types.get(var_type, []):
                 result[name].add(var_type)
+
+        # Decoder-only forcings (satellite viewing geometry, reportype, ...) behave
+        # like forcings: loaded/computed per step and fed to the decoder, never
+        # cycled as state. Categorise them as forcings so the forcing providers
+        # pick them up and they are excluded from prognostic retrieval.
+        for name in variable_types.get("decoder_forcing", []):
+            result[name].add("forcing")
 
         for name, v in typed_variables.items():
             if v.is_accumulation:
@@ -1555,7 +1620,13 @@ class MultiDatasetMetadata(Metadata):
 
         for name in self.variables:
             if name not in result:
-                raise ValueError(f"Variable {name} has no category")
+                # Variables the model consumes/produces that don't fall into a standard
+                # category (e.g. observation channels and decoder-only forcings in
+                # obs-forecaster checkpoints). Treat them as diagnostics so they are
+                # excluded from input/prognostic retrieval and from autoregressive
+                # cycling; runners that handle them (e.g. obs_da_cycling) do so explicitly.
+                warnings.warn(f"Variable {name} has no standard category; treating it as 'diagnostic'.")
+                result[name].add("diagnostic")
 
             result[name] = sorted(result[name])
 

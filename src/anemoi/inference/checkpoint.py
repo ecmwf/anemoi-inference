@@ -232,6 +232,11 @@ class Checkpoint:
         return self._metadata.multi_step_output
 
     @property
+    def da_cycles(self) -> int:
+        """Get the number of data-assimilation cycles the model was trained with."""
+        return self._metadata.da_cycles
+
+    @property
     def input_explicit_times(self) -> Any:
         """Get the input explicit times from metadata."""
         return self._metadata.input_explicit_times
