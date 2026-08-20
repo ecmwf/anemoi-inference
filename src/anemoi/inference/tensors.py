@@ -158,6 +158,8 @@ class TensorHandler:
 
         check = set()
         for var, field in input_fields.items():
+            if var not in variable_to_input_tensor_index:
+                continue
             i = variable_to_input_tensor_index[var]
             if i in check:
                 raise ValueError(f"Duplicate variable {var}/{i} in input fields")
@@ -169,7 +171,16 @@ class TensorHandler:
         if len(check) != self.metadata.number_of_input_features:
             missing = set(range(self.metadata.number_of_input_features)) - check
             mapping = {v: k for k, v in self.metadata.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
+            # Input-tensor variables categorised as diagnostic (e.g. observation
+            # channels in obs-forecaster checkpoints) are model inputs only where
+            # observations exist. When absent they are left as NaN so the model's
+            # imputer applies the no-obs sentinel; runners that assimilate them
+            # (e.g. obs_da_cycling) fill the relevant slots later.
+            categories = self.metadata.variable_categories()
+            optional = {i for i in missing if "diagnostic" in categories.get(mapping.get(i), [])}
+            missing = missing - optional
+            if missing:
+                raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
 
@@ -355,6 +366,36 @@ class TensorHandler:
                     computed_variables_mask,
                 )
             )
+
+        # Also create providers for computed variables that are decoder-only forcings
+        # (not in the input tensor but needed by load_decoder_forcings)
+        df_vars = set(self.metadata.decoder_forcing_variables)
+        v2i = self.metadata.variable_to_input_tensor_index
+        all_computed = self.metadata.select_variables(include=["computed"], exclude=["constant"], has_mars_requests=False)
+        decoder_only_computed = [v for v in all_computed if v in df_vars and v not in v2i]
+        if decoder_only_computed:
+            result.extend(
+                self.create_dynamic_computed_forcings(
+                    decoder_only_computed,
+                    np.array([], dtype=int),
+                )
+            )
+
+        # Create coupled providers for decoder-only forcings that are NOT computed
+        # (e.g. insolation, gridsat_cos_sza, satellite viewing geometry).
+        # These must be loaded from the dataset at each forecast step.
+        loaded_set = set(loaded_variables)
+        computed_set = set(all_computed) | set(decoder_only_computed)
+        decoder_only_loaded = [v for v in self.metadata.decoder_forcing_variables
+                               if v not in loaded_set and v not in computed_set and v not in v2i]
+        if decoder_only_loaded:
+            result.extend(
+                self.create_dynamic_coupled_forcings(
+                    decoder_only_loaded,
+                    np.array([], dtype=int),
+                )
+            )
+
         return result
 
     def create_boundary_forcings_providers(self) -> list["BoundaryForcings"]:
@@ -414,6 +455,18 @@ class TensorHandler:
         for i in range(keep_steps):
             input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
 
+        # Corrector slots (satellite viewing geometry, reportype, ...) describe
+        # observations, which don't exist for model-advanced states. Training zeroes
+        # them when advancing the input (rollout _advance_dataset_input); write NaN
+        # here so the checkpoint's imputer applies the same no-obs sentinel. Without
+        # this, values written during DA cycling would wrap around via the roll above
+        # and persist through the whole forecast. No-op when there are no correctors.
+        cmask_in = self.metadata.corrector_input_mask
+        if len(cmask_in) > 0:
+            cmask = torch.as_tensor(cmask_in, device=input_tensor_torch.device, dtype=torch.long)
+            for i in range(keep_steps):
+                input_tensor_torch[:, -(i + 1), :, cmask] = torch.nan
+
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
             # Report which ones are conflicting
@@ -451,6 +504,10 @@ class TensorHandler:
         # batch is always 1
 
         for source in self.dynamic_forcings_providers:
+            # Skip decoder-only forcings providers (empty mask = no input tensor slot)
+            if len(source.mask) == 0:
+                continue
+
             forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
@@ -477,6 +534,59 @@ class TensorHandler:
                     self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
 
         return input_tensor_torch
+
+    def load_decoder_forcings(
+        self,
+        state: State,
+        dates: list[datetime],
+    ) -> "torch.Tensor | None":
+        """Load decoder-forcing variables at the target date(s).
+
+        Decoder-forcings are injected only into the decoder and describe
+        conditions at the time being predicted (e.g. satellite viewing
+        geometry at t+timestep). They are loaded from the dataset's
+        dynamic-forcings providers, then stacked in ascending data-space
+        position order to match how training extracts them via
+        ``batch[..., data_indices.data.input.decoder_forcing]``.
+
+        Returns
+        -------
+        torch.Tensor | None
+            Tensor of shape ``(1, n_step_output, 1, grid, n_decoder_forcing)``
+            in ascending data-position order, or ``None`` if the dataset has
+            no decoder-forcing variables configured.
+        """
+        df_vars = self.metadata.decoder_forcing_variables
+        if not df_vars:
+            return None
+
+        values_per_var: dict[str, np.ndarray] = {}
+        for source in self.dynamic_forcings_providers:
+            needed = [v for v in source.variables if v in df_vars and v not in values_per_var]
+            if not needed:
+                continue
+            # load_forcings_array returns shape (variables, dates, values) for source.variables
+            arr = source.load_forcings_array(dates, state)
+            source_var_to_idx = {v: i for i, v in enumerate(source.variables)}
+            for v in needed:
+                values_per_var[v] = arr[source_var_to_idx[v]]  # (dates, values)
+
+        missing = [v for v in df_vars if v not in values_per_var]
+        if missing:
+            raise RuntimeError(
+                f"[{self.dataset_name}] Decoder-forcing variables not found in any "
+                f"dynamic-forcings source: {missing}",
+            )
+
+        # Sort by ascending data-space position so the tensor matches
+        # data_indices.data.input.decoder_forcing, which is also sorted.
+        var_to_pos = {v: i for i, v in enumerate(self.metadata.variables)}
+        df_vars_sorted = sorted(df_vars, key=lambda v: var_to_pos[v])
+
+        # Stack along feature dim -> (dates, values, n_df) -> (1, dates, 1, values, n_df)
+        df_array = np.stack([values_per_var[v] for v in df_vars_sorted], axis=-1)
+        df_array = df_array[np.newaxis, :, np.newaxis, ...]
+        return torch.from_numpy(df_array).to(self.context.device)
 
     def add_boundary_forcings_to_input_tensor(
         self,
