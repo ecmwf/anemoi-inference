@@ -463,8 +463,16 @@ class Runner(Context):
                 reset[dataset] = np.full((input_tensors_torch[dataset].shape[-1],), False)
                 variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
                 typed_variables = handler.metadata.typed_variables
+                categories = handler.metadata.variable_categories()
                 for variable, i in variable_to_input_tensor_index.items():
                     if typed_variables[variable].is_constant_in_time:
+                        reset[dataset][i] = True
+                    elif "diagnostic" in categories.get(variable, []):
+                        # Diagnostic input variables (e.g. obs-channel assimilation slots) are
+                        # not refreshed by the prognostic/forcing handlers each step; they hold
+                        # the no-obs sentinel during the forecast. Treat them as already
+                        # satisfied so the per-step completeness check passes. Normal
+                        # checkpoints have no diagnostic input columns, so this is a no-op there.
                         reset[dataset][i] = True
 
                 check[dataset] = reset[dataset].copy()
@@ -490,9 +498,29 @@ class Runner(Context):
                         )
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
 
+                # Build per-dataset decoder-forcings dict at the predicted date(s).
+                # Datasets without decoder-forcings are omitted from the dict.
+                decoder_forcings: dict[str, "torch.Tensor"] = {}
+                for dataset, handler in self.tensor_handlers.items():
+                    df_tensor = handler.load_decoder_forcings(new_states[dataset], dates)
+                    if df_tensor is not None:
+                        decoder_forcings[dataset] = df_tensor
+
+                predict_kwargs: dict[str, Any] = dict(
+                    # fcstep also counts forward calls; ensemble models consume it as an
+                    # input channel (capped at 1 internally). The offset lets wrappers
+                    # (e.g. the ensemble DA cycling runner) mark post-DA forecast steps
+                    # as warm-started rather than cold-start calls.
+                    fcstep=getattr(self, "_fcstep_offset", 0) + s,
+                    step=step,
+                    date=dates[-1],
+                )
+                if decoder_forcings:
+                    predict_kwargs["decoder_forcings"] = decoder_forcings
+
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=s, step=step, date=dates[-1])
+                    y_pred = self.predict_step(self.model, input_tensors_torch, **predict_kwargs)
 
                 # y_pred (batch, [time], ensemble, values, variables) -> outputs (time, values, variables)
                 outputs: dict[str, torch.Tensor] = {}
