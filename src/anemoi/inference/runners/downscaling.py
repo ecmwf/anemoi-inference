@@ -267,7 +267,12 @@ class DownscalingRunner(DefaultRunner):
         return input_tensor_torch
 
     def forecast_stepper(self, start_date, lead_time: timedelta):
-        steps = (self.end_date - start_date) // self.time_step
+        if self.end_date is not None:
+            steps = (self.end_date - start_date) // self.time_step
+        else:
+            # No end_date configured: derive the number of steps from lead_time instead,
+            # including step 0 (e.g. lead_time=0h still yields a single forecast step).
+            steps = (lead_time // self.time_step) + 1
 
         LOG.info(
             "Start time: %s, end time: %s, time stepping: %s. Forecasting %s steps",
