@@ -25,8 +25,7 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.output import Output
 from anemoi.inference.runner import Kind
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, State
 from anemoi.inference.variables import Variables
 
 from ..checkpoint import Checkpoint
@@ -85,7 +84,9 @@ class DsMetadata(Metadata):
             self._indices.model.output.full,
             self._indices.data.output.full,
         )
-        return frozendict({k: self.high_res_output_variables[v] for k, v in mapping.items()})
+        return frozendict(
+            {k: self.high_res_output_variables[v] for k, v in mapping.items()}
+        )
 
     @cached_property
     def number_of_grid_points(self):
@@ -122,9 +123,12 @@ class DsCheckpoint(Checkpoint):
 
     @cached_property
     def _metadata(self):
-        return DsMetadata(load_metadata(self.path))
+        result = DsMetadata(load_metadata(self.path))
+        if self.patch_metadata:
+            result.patch(self.patch_metadata)
+        return result
 
-    #def variables_from_input(self, *, include_forcings):
+    # def variables_from_input(self, *, include_forcings):
     #    # include forcings in initial conditions retrieval
     #    return super().variables_from_input(include_forcings=True)
 
@@ -162,11 +166,11 @@ class DownscalingRunner(DefaultRunner):
         self,
         config: RunConfiguration,
         time_step: int | str | timedelta,
-        ensemble_members: int = 1,
         field_shape: tuple[int, ...] | None = None,
-        hres_zarr: str | None = None, 
+        hres_zarr: str | None = None,
         noise_scheduler_params: dict | None = None,
         sampler_params: dict | None = None,
+        guidance: dict | None = None,
     ):
         super().__init__(config)
 
@@ -174,22 +178,31 @@ class DownscalingRunner(DefaultRunner):
         self.time_step = to_timedelta(time_step)
         self.lead_time = to_timedelta(self.config.lead_time)
         self.write_initial_state = False
+        self.end_date = config.end_date
 
         self._checkpoint = DsCheckpoint(
             self._checkpoint.path,
-            # some parts of the runner call the checkpoint directly so also overwrite it here
-            patch_metadata={"timestep": self.time_step},
+            # Patch config.data.timestep so checkpoint.timestep returns the configured
+            # value. DefaultRunner.execute() reads self.checkpoint.timestep and would
+            # otherwise overwrite self.time_step with the checkpoint's original value.
+            patch_metadata={"config": {"data": {"timestep": self.time_step}}},
         )
 
         # Need to overwrite this attribute
         self.variables = Variables(self)
 
-        # self.samples = getattr(self.extra_config, "n_samples")
-        self.ensemble_members = ensemble_members
-
         # Overrides for predictions
-        self.noise_scheduler_params = noise_scheduler_params if noise_scheduler_params is not None else {}
+        self.noise_scheduler_params = (
+            noise_scheduler_params if noise_scheduler_params is not None else {}
+        )
         self.sampler_params = sampler_params if sampler_params is not None else {}
+
+        # Optional diffusion guidance (autoguidance / classifier-free-style).
+        # See _ensure_guidance() for the expected config keys. The guide model is
+        # loaded lazily and attached to the main model on the first predict step.
+        self.guidance = guidance
+        self._guidance_attached = False
+        self._seeded = False
 
         # TODO: remove eventually
         self.verbosity = 3
@@ -214,92 +227,30 @@ class DownscalingRunner(DefaultRunner):
     def computed_high_res_forcings(self) -> ComputedForcings:
         # TODO: this breaks if the computed forcings are non constant fields, for example `sr`.
         # But we should not use variables that are not available during production
-        computed_forcings = [var for var in self.high_res_input if var not in self.hres_dataset.constant_forcings]
+        computed_forcings = [
+            var
+            for var in self.high_res_input
+            if var not in self.hres_dataset.constant_forcings
+        ]
         return ComputedForcings(self, computed_forcings, [])
 
     @cached_property
     def hres_dataset(self):
-        """ Load the hres Zarr to define the lon/lat points and the forcings."""
+        """Load the hres Zarr to define the lon/lat points and the forcings."""
         if self.hres_zarr:  # If the hres Zarr is provided in the config
             return ZarrDataset(self.hres_zarr, forcings=self.high_res_input)
-     
-        elif "grib" in self.config.output or "netcdf" in self.config.output:  # read from the checkpoint file
+
+        elif (
+            "grib" in self.config.output or "netcdf" in self.config.output
+        ):  # read from the checkpoint file
             hw = self._checkpoint._metadata._config.hardware
             path = os.path.join(hw.paths.data, hw.files.dataset_y)
             return ZarrDataset(path, forcings=self.high_res_input)
-        
+
         else:
-            raise Exception("Only grib and netcdf ouputs are available with runner type downscaling.")
-
-    def execute(self) -> None:
-        """Execute the runner. Specific to DownscalingRunner as time_step can be different from CKPT."""
-
-        if self.config.description is not None:
-            LOG.info("%s", self.config.description)
-
-        output = self.create_output()
-
-        # In case the constant forcings are from another input, combine them here
-        # So that they are in considered in the `write_initial_state`
-
-        # FIXME: something in here breaks and an empty input state is created
-        prognostic_input = self.create_prognostics_input()
-        LOG.info(f"📥 Prognostic input: {prognostic_input}")
-        prognostic_state = prognostic_input.create_input_state(date=self.config.date)
-        self._check_state(prognostic_state, "prognostics")
-
-        constants_input = self.create_constant_coupled_forcings_input()
-        LOG.info(f"📥 Constant forcings input: {constants_input}")
-        constants_state = constants_input.create_input_state(date=self.config.date)
-        self._check_state(constants_state, "constant_forcings")
-
-        forcings_input = self.create_dynamic_forcings_input()
-        LOG.info(f"📥 Dynamic forcings input: {forcings_input}")
-        forcings_state = forcings_input.create_input_state(date=self.config.date)
-        self._check_state(forcings_state, "dynamic_forcings")
-
-        input_state = self._combine_states(
-            prognostic_state,
-            constants_state,
-            forcings_state,
-        )
-
-        # This hook is needed for the coupled runner
-        self.input_state_hook(constants_state)
-
-        # For step-zero only
-        initial_state = Output.reduce(
-            self._initial_state(
-                prognostic_state,
-                constants_state,
-                forcings_state,
+            raise Exception(
+                "Only grib and netcdf ouputs are available with runner type downscaling."
             )
-        )
-        initial_state["date"] = self.config.date
-
-        # Top-level post-processors on the other hand are applied on State and are executed here.
-        LOG.info("Top-level post-processors: %s", self.post_processors)
-
-        for processor in self.post_processors:
-            initial_state = processor.process(initial_state)
-
-        netcdf_cfg = getattr(self.config.output, "netcdf", None)
-        if netcdf_cfg is not None:
-            template_path = getattr(self.config.output.netcdf, "template_path", None)
-            output.open(initial_state, template_path)
-        else:
-            output.open(initial_state)
-
-        LOG.info("write_initial_state: %s", output)
-        output.write_initial_state(initial_state)
-
-        for state in self.run(input_state=input_state, lead_time=self.lead_time):
-            # Apply top-level post-processors
-            for processor in self.post_processors:
-                state = processor.process(state)
-            output.write_state(state)
-
-        output.close()
 
     def patch_data_request(self, request):
         # patch initial condition request to include all steps
@@ -315,13 +266,13 @@ class DownscalingRunner(DefaultRunner):
         # the full input tensor is retrieved from the input at each step (as dynamic forcings)
         return input_tensor_torch
 
-    def forecast_stepper(self, start_date, lead_time):
-        # for downscaling we do a prediction for each step of the input
-        steps = (lead_time // self.time_step) + 1  # include step 0
+    def forecast_stepper(self, start_date, lead_time: timedelta):
+        steps = (self.end_date - start_date) // self.time_step
 
         LOG.info(
-            "Lead time: %s, time stepping: %s Forecasting %s steps",
-            lead_time,
+            "Start time: %s, end time: %s, time stepping: %s. Forecasting %s steps",
+            start_date,
+            self.end_date,
             self.time_step,
             steps,
         )
@@ -333,27 +284,37 @@ class DownscalingRunner(DefaultRunner):
             is_last_step = s == steps - 1
             yield step, valid_date, next_date, is_last_step
 
-    def forecast(self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State):
+    def forecast(
+        self, lead_time: str, input_tensor_numpy: FloatArray, input_state: State
+    ):
         for state in super().forecast(lead_time, input_tensor_numpy, input_state):
             state = state.copy()
             state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
             if "grib" in self.config.output:
-                state["_grib_templates_for_output"] = {name: self.hres_dataset for name in state["fields"].keys()}
+                state["_grib_templates_for_output"] = {
+                    name: self.hres_dataset for name in state["fields"].keys()
+                }
 
             yield state
 
-    def predict_step(self, model, input_tensor_torch, **kwargs):
+    def predict_step(self, model, input_tensor_torch, **kwargs) -> torch.Tensor:
         date = kwargs["date"]
         step = kwargs["step"]
-    
+
+        # Attach the guide model on the first step (model is loaded by now), then
+        # seed once (after all model loading) for reproducible/comparable noise.
+        self._ensure_guidance(model)
+        self._maybe_seed()
+
         input_date = date - step
         low_res_tensor = input_tensor_torch
         high_res_tensor = self._prepare_high_res_input_tensor(input_date)
 
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
-        #TODO: remove?
+
+        # TODO: remove?
         print("self.noise_scheduler_params", self.noise_scheduler_params)
         print("self.sampler_params", self.sampler_params)
 
@@ -362,23 +323,108 @@ class DownscalingRunner(DefaultRunner):
             high_res_tensor,
             noise_scheduler_params=self.noise_scheduler_params,
             sampler_params=self.sampler_params,
-            **kwargs
+            **kwargs,
         )
 
         return output_tensor
+
+    def _maybe_seed(self) -> None:
+        """Seed torch RNG once from ``ANEMOI_BASE_SEED`` (if set) for reproducibility.
+
+        Single-GPU downscaling runs otherwise draw the diffusion init noise (and
+        any sampler churn) from an unseeded global RNG, so two runs are not
+        comparable sample-by-sample. With ``ANEMOI_BASE_SEED`` set, the noise is
+        reproducible and *identical across runs that share the seed* -- required
+        to compare a main run against guided runs (e.g. the autoguidance-minus-main
+        difference field). Called after model/guide loading so that loading
+        checkpoints cannot perturb the RNG state, and only once per runner.
+        """
+        if self._seeded:
+            return
+        self._seeded = True
+        env_var = "ANEMOI_BASE_SEED"
+        if env_var not in os.environ:
+            return
+        seed = int(os.environ[env_var])
+        torch.manual_seed(seed)
+        LOG.info("Seeded torch RNG for reproducible sampling: %s=%s", env_var, seed)
+
+    def _ensure_guidance(self, model) -> None:
+        """Load and attach the guide model for diffusion guidance, once.
+
+        Idempotent: does nothing if guidance is not configured or already
+        attached. Expected ``guidance`` config keys (under
+        ``runner.downscaling.guidance``):
+
+        * ``checkpoint`` (str, required) -- path to the guide model ``D0``
+          (e.g. an earlier-epoch checkpoint of the same run for autoguidance).
+        * ``weight`` (float, default ``1.0``) -- guidance weight ``w``;
+          ``1.0`` disables guidance.
+        * ``sigma_min`` (float, default ``0.0``) -- guidance-interval lower
+          bound. Left inactive by default (autoguidance wants no gating).
+        * ``sigma_max`` (float, default ``inf``) -- guidance-interval upper
+          bound. Left inactive by default.
+        """
+        if self._guidance_attached or not self.guidance:
+            return
+
+        inner_model = getattr(model, "model", None)
+        if inner_model is None or not hasattr(inner_model, "set_guidance"):
+            raise TypeError(
+                "Guidance is configured but the loaded model does not support it "
+                "(missing set_guidance); is this a diffusion downscaling checkpoint?"
+            )
+
+        if "checkpoint" not in self.guidance:
+            raise ValueError("runner.downscaling.guidance requires a 'checkpoint' path.")
+
+        weight = float(self.guidance.get("weight", 1.0))
+        sigma_min = float(self.guidance.get("sigma_min", 0.0))
+        sigma_max = float(self.guidance.get("sigma_max", float("inf")))
+        if weight == 1.0:
+            LOG.warning("Guidance weight is 1.0: guidance is configured but will be a no-op.")
+
+        guide_inner_model = self._load_guidance_model(self.guidance["checkpoint"])
+        inner_model.set_guidance(
+            guide_inner_model,
+            weight=weight,
+            sigma_min=sigma_min,
+            sigma_max=sigma_max,
+        )
+        self._guidance_attached = True
+
+    def _load_guidance_model(self, path: str):
+        """Load the guide checkpoint and return its inner diffusion model (``D0``).
+
+        Mirrors the main-model loading in ``Runner.model`` (full pickled model
+        interface via ``torch.load``), then returns the inner ``nn.Module`` in
+        eval mode. The guide's own samplers / pre-/post-processors are never
+        used: only its ``fwd_with_preconditioning`` is consulted during sampling.
+        """
+        LOG.info("Loading guidance (guide) model from %s", path)
+        guide_interface = torch.load(
+            path, map_location=self.device, weights_only=False
+        ).to(self.device)
+        guide_inner_model = guide_interface.model
+        guide_inner_model.eval()
+        return guide_inner_model
 
     # TODO: make sure this is actually right
     def _prepare_high_res_input_tensor(self, input_date):
         state = {}
         state["latitudes"], state["longitudes"] = self.hres_dataset.grid_points()
 
-        computed_high_res_forcings = self.computed_high_res_forcings.load_forcings_array(input_date, state)
+        computed_high_res_forcings = (
+            self.computed_high_res_forcings.load_forcings_array(input_date, state)
+        )
 
         # Drop the dates dimension
         computed_high_res_forcings = np.squeeze(computed_high_res_forcings, axis=1)
 
         # Swap last two dimensions so we get shape: (1, 1, values, variables)
-        computed_high_res_forcings = np.swapaxes(computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1)
+        computed_high_res_forcings = np.swapaxes(
+            computed_high_res_forcings[np.newaxis, np.newaxis, ...], -2, -1
+        )
 
         # Merge high res computed and constant forcings so that
         # they are ordered according to high_res_input
@@ -399,7 +445,9 @@ class DownscalingRunner(DefaultRunner):
         assert set(forcings_dict.keys()) == set(self.high_res_input)
 
         # Stack the forcings in order, shape: (1, 1, values, variables)
-        high_res_numpy = np.stack([forcings_dict[name] for name in self.high_res_input], axis=-1)
+        high_res_numpy = np.stack(
+            [forcings_dict[name] for name in self.high_res_input], axis=-1
+        )
 
         # print expects shape (step, variables, values)
         self._print_tensor(
@@ -445,7 +493,9 @@ def _match_tensor_channels(input_name_to_index, output_names):
     return channel_indices
 
 
-def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input_name_to_index, output_names):
+def _prepare_high_res_output_tensor(
+    model, low_res_in, high_res_residuals, input_name_to_index, output_names
+):
     # interpolate the low res input tensor to high res,
     # and add the residuals to get the final high res output
 
@@ -455,25 +505,29 @@ def _prepare_high_res_output_tensor(model, low_res_in, high_res_residuals, input
 
     print("low_res_in", low_res_in.shape)  # [1, 40320, 68]
 
-    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[:, None, None, ...][
-        ..., matching_channel_indices
-    ]
+    interp_high_res_in = model.interpolate_down(low_res_in, grad_checkpoint=False)[
+        :, None, None, ...
+    ][..., matching_channel_indices]
     print("interp_high_res_in", interp_high_res_in.shape)
 
     high_res_out = interp_high_res_in + high_res_residuals
     print(
         "interp_high_res_in is denormalised",
-        interp_high_res_in[..., 0].mean(),  
+        interp_high_res_in[..., 0].mean(),
         interp_high_res_in[..., 0].std(),
     )
 
     print(
         "high_res_residuals is denormalised",
-        high_res_residuals[..., 0].mean(),  
-        high_res_residuals[..., 0].std(), 
+        high_res_residuals[..., 0].mean(),
+        high_res_residuals[..., 0].std(),
     )
 
-    print("high_res_out", high_res_out.shape) 
-    print("high_res_out is denormalised", high_res_out[..., 0].mean(), high_res_out[..., 0].std())
+    print("high_res_out", high_res_out.shape)
+    print(
+        "high_res_out is denormalised",
+        high_res_out[..., 0].mean(),
+        high_res_out[..., 0].std(),
+    )
 
     return high_res_out
