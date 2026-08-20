@@ -145,6 +145,30 @@ class RunConfiguration(Configuration):
     preload_buffer_size: int = 32 * 1024 * 1024
     """Size of the buffer to use when preloading the checkpoint file, in bytes. Default is 32 MB."""
 
+    da_cycling: dict[str, Any] | None = None
+    """Configuration for the DA cycling runner.
+
+    Expected keys:
+    - ``da_cycles``: int, number of DA cycles to run before the forecast. Defaults to the
+      value the model was trained with (``config.task.da_cycles`` in the checkpoint);
+      an explicit 0 disables DA cycling.
+    - ``observation_sources``: dict[str, dict] keyed by dataset name, each entry an input
+      configuration for that dataset's observation source. For single-dataset
+      checkpoints, ``observation_source`` (singular) is also accepted.
+    """
+
+    da_ens_cycling: dict[str, Any] | None = None
+    """Configuration for the ensemble DA cycling runner (one member per invocation).
+
+    Expected keys (in addition to ``da_cycling``):
+    - ``member``: int, this run's ensemble member number (default 0; loop externally).
+    - ``base_seed``: int | null, seed shared by all member runs for the DA phase
+      (shared analysis); a member-specific seed is applied for the forecast phase.
+      null disables seeding (non-reproducible members).
+    - ``independent_da``: bool, seed the DA phase per member instead (ensemble of
+      DAs; deviates from training semantics). Default false.
+    """
+
     @field_validator("patch_metadata", mode="after")
     @classmethod
     def as_dict(cls, patch_metadata: dict | FilePath) -> dict:
