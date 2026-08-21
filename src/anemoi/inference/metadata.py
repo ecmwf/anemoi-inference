@@ -1242,17 +1242,27 @@ class Metadata(LegacyMixin):
             if v.is_computed_forcing:
                 result[name].add("computed")
 
+        uncategorised: list[str] = []
         for name in self.variables:
             if name not in result:
                 # Variables the model consumes/produces that don't fall into a standard
-                # category (e.g. observation channels and decoder-only forcings in
-                # obs-forecaster checkpoints). Treat them as diagnostics so they are
+                # category (e.g. observation channels, correctors and decoder-only
+                # forcings in DA checkpoints). Treat them as diagnostics so they are
                 # excluded from input/prognostic retrieval and from autoregressive
-                # cycling; runners that handle them (e.g. obs_da_cycling) do so explicitly.
-                warnings.warn(f"Variable {name} has no standard category; treating it as 'diagnostic'.")
+                # cycling; runners that handle them (e.g. da_cycling) do so explicitly.
+                uncategorised.append(name)
                 result[name].add("diagnostic")
 
             result[name] = sorted(result[name])
+
+        if uncategorised:
+            # One message rather than one per variable: DA checkpoints reach this for
+            # every corrector, which is expected and would otherwise flood the log.
+            LOG.debug(
+                "%d variable(s) have no standard category and are treated as 'diagnostic': %s",
+                len(uncategorised),
+                ", ".join(uncategorised),
+            )
 
         self._variables_categories = frozendict(result)
         return self._variables_categories
@@ -1618,17 +1628,27 @@ class MultiDatasetMetadata(Metadata):
             if v.is_computed_forcing:
                 result[name].add("computed")
 
+        uncategorised: list[str] = []
         for name in self.variables:
             if name not in result:
                 # Variables the model consumes/produces that don't fall into a standard
-                # category (e.g. observation channels and decoder-only forcings in
-                # obs-forecaster checkpoints). Treat them as diagnostics so they are
+                # category (e.g. observation channels, correctors and decoder-only
+                # forcings in DA checkpoints). Treat them as diagnostics so they are
                 # excluded from input/prognostic retrieval and from autoregressive
-                # cycling; runners that handle them (e.g. obs_da_cycling) do so explicitly.
-                warnings.warn(f"Variable {name} has no standard category; treating it as 'diagnostic'.")
+                # cycling; runners that handle them (e.g. da_cycling) do so explicitly.
+                uncategorised.append(name)
                 result[name].add("diagnostic")
 
             result[name] = sorted(result[name])
+
+        if uncategorised:
+            # One message rather than one per variable: DA checkpoints reach this for
+            # every corrector, which is expected and would otherwise flood the log.
+            LOG.debug(
+                "%d variable(s) have no standard category and are treated as 'diagnostic': %s",
+                len(uncategorised),
+                ", ".join(uncategorised),
+            )
 
         self._variables_categories = frozendict(result)
         return self._variables_categories
