@@ -823,9 +823,6 @@ class Runner(Context):
                             self.checkpoint.output_tensor_index_to_variable[i]
                         ] = output[..., i]
 
-                if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                    self._print_output_tensor("Output tensor", output)
-
                 if self.trace:
                     self.trace.write_output_tensor(
                         date,
@@ -1299,6 +1296,52 @@ class Runner(Context):
             title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds
         )
 
+    def _print_output_state(self, fields: dict[str, np.ndarray]):
+        """Print the informations about the fields in the output state.
+
+        Parameters
+        ----------
+        fields
+            Dictionary that maps field names to field data
+        """
+
+        from rich.console import Console
+        from rich.table import Table
+
+        table = Table(title="Output state")
+        console = Console(file=sys.stderr)
+        table.add_column("Index", justify="right")
+        table.add_column("Variable", justify="left")
+        table.add_column("Min", justify="right")
+        table.add_column("Max", justify="right")
+        table.add_column("NaNs", justify="center")
+        table.add_column("Kind", justify="left")
+
+        for i, (name, data) in enumerate(fields.items()):
+            nans = "-"
+
+            if np.isnan(data).any():
+                nan_count = np.isnan(data).sum()
+
+                ratio = nan_count / data.size
+                nans = f"{ratio:.0%}"
+
+            if np.isinf(data).any():
+                nans = "∞"
+
+            table.add_row(
+                str(i),
+                name,
+                f"{np.nanmin(data):g}",
+                f"{np.nanmax(data):g}",
+                nans,
+                str(self._output_kinds.get(name, Kind())),
+            )
+
+        console.print()
+        console.print(table)
+        console.print()
+
     def patch_data_request(self, request: Any) -> Any:
         """Patch the data request.
 
@@ -1326,19 +1369,15 @@ class Runner(Context):
         This method is called by the parallel runner on initialisation.
         Derived classes can implement this method to modify itself for parallel operation.
         """
-        pass
 
     def input_state_hook(self, input_state: State) -> None:
         """Hook used by coupled runners to send the input state."""
-        pass
 
     def output_state_hook(self, state: State) -> None:
         """Hook used by coupled runners to send the input state."""
-        pass
 
     def complete_forecast_hook(self) -> None:
         """Hook called at the end of the forecast."""
-        pass
 
     def has_split_input(self) -> bool:
         # To be overridden by a subclass if the we use different inputs

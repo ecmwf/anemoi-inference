@@ -13,7 +13,6 @@ import os
 from datetime import timedelta
 from functools import cached_property
 from types import MappingProxyType as frozendict
-from typing import Optional
 
 import numpy as np
 import torch
@@ -24,9 +23,7 @@ from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
 from anemoi.inference.runner import Kind
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import DataRequest, FloatArray, State
 from anemoi.inference.variables import Variables
 
 from ..checkpoint import Checkpoint
@@ -119,13 +116,13 @@ class DsMetadata(Metadata):
         self._print_indices(
             "Data indices",
             self._indices.data,
-            dict(input=v, output=v),
+            naming={"input": v, "output": v},
             skip=["output", "input_0", "input_1"],
         )
         self._print_indices(
             "Model indices",
             self._indices.model,
-            dict(input=r, output=s),
+            naming={"input": r, "output": s},
             skip=["output.full", "input_0", "input_1"],
         )
 
@@ -143,7 +140,7 @@ class DsCheckpoint(Checkpoint):
 
 
 class ZarrDataset:
-    def __init__(self, zarr_path: str, forcings: Optional[list[str]] = None):
+    def __init__(self, zarr_path: str, forcings: list[str] | None = None):
         if forcings is None:
             forcings = []
 
@@ -374,13 +371,17 @@ class DownscalingRunner(DefaultRunner):
             )
 
         if "checkpoint" not in self.guidance:
-            raise ValueError("runner.downscaling.guidance requires a 'checkpoint' path.")
+            raise ValueError(
+                "runner.downscaling.guidance requires a 'checkpoint' path."
+            )
 
         weight = float(self.guidance.get("weight", 1.0))
         sigma_min = float(self.guidance.get("sigma_min", 0.0))
         sigma_max = float(self.guidance.get("sigma_max", float("inf")))
         if weight == 1.0:
-            LOG.warning("Guidance weight is 1.0: guidance is configured but will be a no-op.")
+            LOG.warning(
+                "Guidance weight is 1.0: guidance is configured but will be a no-op."
+            )
 
         guide_inner_model = self._load_guidance_model(self.guidance["checkpoint"])
         inner_model.set_guidance(
