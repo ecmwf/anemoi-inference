@@ -464,11 +464,18 @@ class DACyclingRunner(DefaultRunner):
                     ", ".join(str(d) for d in da_target_dates),
                 )
 
-                # Build per-dataset states at the cycle end date (used by forcings providers)
+                # Build per-dataset states at the cycle end date (used by forcings providers).
+                #
+                # `step` is the elapsed lead time since the run's own start, the same
+                # convention the base forecast loop uses, so that `date - step` recovers
+                # the base date the input was loaded at. Dataset inputs rely on that to
+                # resolve relative dates (e.g. when opened with use_trajectories).
                 da_states: dict[str, State] = {}
                 for ds in self.dataset_names:
                     s = input_states[ds].copy()
                     s["date"] = cycle_end_date
+                    s["previous_step"] = s.get("step")
+                    s["step"] = cycle_end_date - start_date
                     da_states[ds] = s
 
                 # Load decoder-forcings for the predicted dates (per dataset)
