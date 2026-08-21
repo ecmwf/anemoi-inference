@@ -89,6 +89,12 @@ def forecast_runner_factory():
             prognostic_input_mask=np.array([1]),
             prognostic_output_mask=np.array([0]),
             output_mask=np.array([True, False]),
+            # This fixture has no correctors and no decoder-forcings, so the
+            # DA-specific paths are no-ops here, but the attributes are part of
+            # the metadata interface the forecast loop reads.
+            corrector_input_mask=np.array([], dtype=np.int64),
+            decoder_forcing_variables=[],
+            variable_categories=lambda: {"force": ["forcing"], "prog": ["prognostic"]},
         )
 
         class TrivialModel(SimpleNamespace):
