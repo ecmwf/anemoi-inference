@@ -245,7 +245,7 @@ class Metadata(LegacyMixin):
 
     @cached_property
     def advance_map(self) -> Any:
-        """Index mapping to advance input and output into the next input"""
+        """Index mapping for rollout: advance input and output into the next input"""
         n = self.multi_step_input
         m = self.multi_step_output
         advance_map = {}
@@ -1541,7 +1541,7 @@ class MultiDatasetMetadata(Metadata):
 
     @cached_property
     def advance_map(self) -> Any:
-        """Index mapping to advance input and output into the next input"""
+        """Index mapping for rollout: advance input and output into the next input"""
         advance_map = self._inference.timesteps.get("advance_map")
         return advance_map or super().advance_map
 
