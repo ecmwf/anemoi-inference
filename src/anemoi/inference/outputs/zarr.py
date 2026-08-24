@@ -204,11 +204,11 @@ class ZarrOutput(Output):
                 "When setting up the ZarrOutput, the `lead_time` was not yet set on the context, therefore unable to construct the arrays."
             )
 
-        steps = math.ceil(lead_time / self.context.checkpoint.rollout_shift)
+        steps = math.ceil(lead_time / self.metadata.rollout_shift)
 
-        time = (steps - 1) * self.context.checkpoint.multi_step_output
-        for offset in self.context.checkpoint.output_offsets:
-            if offset + (steps - 1) * self.context.checkpoint.rollout_shift <= lead_time:
+        time = (steps - 1) * self.metadata.multi_step_output
+        for offset in self.metadata.output_offsets:
+            if offset + (steps - 1) * self.metadata.rollout_shift <= lead_time:
                 time += 1
         time += int(self.write_step_zero)
 
@@ -216,7 +216,7 @@ class ZarrOutput(Output):
             self.reference_date = reference_date
 
         if not self.write_step_zero:
-            self.reference_date -= self.context.checkpoint.output_offsets[0]
+            self.reference_date -= self.metadata.output_offsets[0]
 
         self.time_size = time
         self.time_array = create_zarr_array(
