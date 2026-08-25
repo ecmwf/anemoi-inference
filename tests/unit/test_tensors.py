@@ -114,11 +114,20 @@ def test_copy_prognostic_fields_advances_window(
 @pytest.mark.parametrize(
     ("multi_step_input", "multi_step_output", "advance_map", "expected_prog"),
     [
-        # Irregular grids that a regular time-shift cannot represent: the tail input slot
-        # is filled from a non-adjacent prediction (skipping earlier output steps).
-        pytest.param(2, 2, {"inin": [(1, 0)], "outin": [(1, 1)]}, [2.0, 4.0], id="skip-out0"),
+        # Irregular grids that a regular time-shift cannot represent (see anemoi-core ADR-003).
+        # The new input window is gathered from a non-uniform mix of previous inputs and
+        # predictions, and some previous-input slots may be dropped and never reused.
+        # ADR "different input/output frequencies" example ([-6H,0H]->[3H,6H], S=6H).
+        pytest.param(2, 2, {"inin": [(1, 0)], "outin": [(1, 1)]}, [2.0, 4.0], id="mixed-frequency"),
+        # Tail input slot filled from a non-adjacent, later prediction ([-3H,0H]->[1H,2H,3H], S=3H).
         pytest.param(2, 3, {"inin": [(1, 0)], "outin": [(2, 1)]}, [2.0, 5.0], id="skip-to-out2"),
+        # Two previous inputs reused, one prediction fed back ([-4H,-2H,0H]->[1H,2H], S=2H).
         pytest.param(3, 2, {"inin": [(1, 0), (2, 1)], "outin": [(1, 2)]}, [2.0, 3.0, 5.0], id="two-reused-one-pred"),
+        # Most irregular case: multiple inin *and* multiple outin, with previous-input
+        # slots 0 and 2 dropped ([-4H,-2H,-1H,0H]->[1H,2H], S=2H) — a plain roll() cannot express this.
+        pytest.param(
+            4, 2, {"inin": [(1, 0), (3, 1)], "outin": [(0, 2), (1, 3)]}, [2.0, 4.0, 5.0, 6.0], id="irregular-offsets"
+        ),
     ],
 )
 def test_copy_prognostic_fields_irregular_advance_map(
