@@ -40,7 +40,7 @@ def _gather_grid_tensor_to_master(
     max_shard_size = max(shard_sizes)
     padded_shape = list(tensor.shape)
     padded_shape[0] = max_shard_size
-    padded = torch.empty(padded_shape, dtype=tensor.dtype, device=tensor.device)
+    padded = torch.zeros(padded_shape, dtype=tensor.dtype, device=tensor.device)
     padded[: tensor.shape[0]].copy_(tensor)
 
     gathered = [torch.empty_like(padded) for _ in shard_sizes] if is_master else None
