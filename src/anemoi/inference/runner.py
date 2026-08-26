@@ -274,6 +274,20 @@ class Runner(Context):
                             state[name]["fields"][field_name] = field.cpu().numpy()
             yield state
 
+    def prepare_forecast_input_tensors(
+        self, input_tensors_torch: dict[str, "torch.Tensor"]
+    ) -> dict[str, "torch.Tensor"]:
+        """Prepare device tensors before entering the autoregressive loop."""
+        return input_tensors_torch
+
+    def prepare_forecast_output_state(self, state: dict[str, State]) -> dict[str, State]:
+        """Prepare a forecast state for yielding without changing rollout state."""
+        return state
+
+    def grid_shard_slice(self, dataset: str) -> slice:
+        """Return the local interval along the grid dimension."""
+        return slice(None)
+
     @cached_property
     def autocast(self) -> Union["torch.dtype", str]:
         """The autocast precision."""
@@ -443,6 +457,7 @@ class Runner(Context):
                 dataset: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
                 for dataset, input_tensor_numpy in input_tensors_numpy.items()
             }
+            input_tensors_torch = self.prepare_forecast_input_tensors(input_tensors_torch)
 
             lead_time = to_timedelta(lead_time)
 
@@ -547,7 +562,7 @@ class Runner(Context):
 
                     # we only need to check the first dataset's step as they should all be the same
                     if next(iter(new_states.values()))["step"] <= lead_time:
-                        yield new_states
+                        yield self.prepare_forecast_output_state(new_states)
 
                 # No need to prepare next input tensor if we are at the last autoregressive step
                 if is_last_step:
@@ -696,13 +711,16 @@ class Runner(Context):
 
         for states in self.run(input_states=input_states, lead_time=lead_time):
             for dataset, state in states.items():
-                # Apply top-level post-processors
-                for processor in self.post_processors[dataset]:
-                    state = processor.process(state)
-                self.outputs[dataset].write_state(state)
+                self.write_output_state(dataset, state)
 
         for output in self.outputs.values():
             output.close()
+
+    def write_output_state(self, dataset: str, state: State) -> None:
+        """Apply top-level post-processors and write one forecast state."""
+        for processor in self.post_processors[dataset]:
+            state = processor.process(state)
+        self.outputs[dataset].write_state(state)
 
     #########################################################################################################
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:

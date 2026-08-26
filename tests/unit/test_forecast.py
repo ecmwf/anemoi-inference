@@ -77,6 +77,7 @@ def forecast_runner_factory():
         runner = Runner.__new__(Runner)
 
         metadata = SimpleNamespace(
+            dataset_name="data",
             timestep=timedelta(hours=1),
             multi_step_input=multi_step_input,
             multi_step_output=multi_step_output,
