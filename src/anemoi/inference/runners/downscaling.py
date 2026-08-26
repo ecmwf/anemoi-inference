@@ -271,8 +271,11 @@ class DownscalingRunner(DefaultRunner):
         return input_tensor_torch
 
     def forecast_stepper(self, start_date, lead_time: timedelta):
-        steps = lead_time // self.time_step
         end_date = start_date + lead_time
+
+        # Predict all steps before but not including end_date
+        steps, remainder = divmod(lead_time, self.time_step)
+        steps += bool(remainder)
 
         LOG.info(
             "Start time: %s, end time: %s, time stepping: %s. Forecasting %s steps",
