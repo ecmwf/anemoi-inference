@@ -55,7 +55,9 @@ class RunCmd(Command):
             args.overrides,
             defaults=args.defaults,
         )
-
+        print("here you go")
+        for k, v in dict(config).items():
+            print(f"{k}: {v}")
         runner = create_runner(config)
         runner.execute()
 

@@ -542,3 +542,4 @@ class DefaultRunner(Runner):
             # date can be None for an empty input
             if not isinstance(date, datetime.datetime):
                 raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
+                

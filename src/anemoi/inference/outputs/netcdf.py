@@ -19,7 +19,7 @@ import pyproj
 from netCDF4 import Dataset, Variable
 
 from anemoi.inference.context import Context
-from anemoi.inference.runners.downscaling import DownscalingRunner, ZarrDataset
+from anemoi.inference.runners.downscaling import ZarrDataset
 from anemoi.inference.types import ProcessorConfig, State
 
 from ..decorators import ensure_path, main_argument
@@ -91,10 +91,12 @@ class NetCDFOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-        # If we are downscaling, we need to pull (lats, lons, field_shape) from a separate dataset
+        # If we are downscaling, we need to pull (lats, lons, field_shape) from a separate dataset.
+        # Duck-typed on `hres_dataset` rather than `isinstance(context, DownscalingRunner)` so that
+        # sibling runners (e.g. FalckDownscalingRunner, which does not subclass DownscalingRunner)
+        # are also recognised.
         self.hres_dataset: ZarrDataset | None = None
-        # TODO: to fix this error we would need to change the Register.register function in anemoi-utils
-        if isinstance(context, DownscalingRunner):
+        if hasattr(context, "hres_dataset"):
             self.hres_dataset = context.hres_dataset
             self.field_shape = (
                 field_shape
