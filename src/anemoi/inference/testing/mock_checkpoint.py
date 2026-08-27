@@ -12,6 +12,7 @@ from copy import deepcopy
 from typing import Any
 
 import yaml
+from anemoi.metadata import Metadata as PkgMetadata
 
 from anemoi.inference.testing import files_for_tests
 
@@ -60,7 +61,37 @@ SIMPLE_METADATA = {
 }
 
 
-def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> tuple[dict[str, Any], dict[str, Any]]:
+def _load_mock_metadata_dict(path: str | None) -> dict[str, Any]:
+    """Load raw metadata dict from a mock YAML/JSON checkpoint.
+
+    Parameters
+    ----------
+    path : str | None
+        Path to the checkpoint file, or None for SIMPLE_METADATA.
+
+    Returns
+    -------
+    dict[str, Any]
+        The raw metadata dictionary.
+    """
+    if path is None:
+        return SIMPLE_METADATA
+
+    if not os.path.isabs(path):
+        path = files_for_tests(path)
+    name, _ = os.path.splitext(path)
+    for ext in (".yaml", ".json"):
+        path = f"{name}{ext}"
+        if os.path.exists(path):
+            break
+
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+def mock_load_metadata(
+    path: str | None, *, supporting_arrays: bool = True, migrate: bool = True
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load metadata from a YAML file.
 
     Parameters
@@ -69,27 +100,18 @@ def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> t
         The path to the checkpoint file.
     supporting_arrays : bool, optional
         Whether to include supporting arrays, by default True.
+    migrate : bool, optional
+        Accepted for API compatibility, ignored in mock.
 
     Returns
     -------
-    dict
-        The loaded metadata.
+    MetadataContract or tuple[MetadataContract, dict]
+        The loaded metadata (validated pydantic model), optionally with supporting arrays.
     """
+    from anemoi.metadata import MetadataRegistry
 
-    if path is None:
-        metadata = SIMPLE_METADATA
-    else:
-        if not os.path.isabs(path):
-            path = files_for_tests(path)
-        name, _ = os.path.splitext(path)
-        for ext in (".yaml", ".json"):
-            path = f"{name}{ext}"
-            if os.path.exists(path):
-                break
-
-        with open(path) as f:
-            metadata = yaml.safe_load(f)
-
+    raw_dict = _load_mock_metadata_dict(path)
+    metadata = MetadataRegistry.load(raw_dict, migrate=migrate)
     arrays: dict[str, Any] = {}
 
     if supporting_arrays:
@@ -151,6 +173,45 @@ def minimum_mock_checkpoint(metadata: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
+def mock_pkg_metadata(path: str, *, migrate: bool = True) -> PkgMetadata:
+    """Build a PkgMetadata instance from mock YAML/JSON test data.
+
+    Replacement for ``PkgMetadata.from_checkpoint`` in tests -- reads
+    YAML/JSON instead of a real ZIP checkpoint.
+
+    Parameters
+    ----------
+    path : str
+        The path to the checkpoint file (resolved to YAML/JSON).
+    migrate : bool, optional
+        Whether to migrate the metadata, by default True.
+
+    Returns
+    -------
+    PkgMetadata
+        A PkgMetadata instance created from the mock data.
+    """
+    metadata_dict = _load_mock_metadata_dict(path)
+    return PkgMetadata.from_dict(metadata_dict, migrate=migrate)
+
+
+def mock_supporting_arrays(path: str) -> dict:
+    """Load mock supporting arrays for a test checkpoint.
+
+    Parameters
+    ----------
+    path : str
+        The path to the checkpoint file.
+
+    Returns
+    -------
+    dict
+        The supporting arrays (empty for mock checkpoints).
+    """
+    _, arrays = mock_load_metadata(path, supporting_arrays=True)
+    return arrays
+
+
 def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     """Load a mock torch model for testing purposes.
 
@@ -172,9 +233,9 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
 
     assert weights_only is False, "Not implemented"
 
-    metadata, arrays = mock_load_metadata(path)
+    metadata = _load_mock_metadata_dict(path)
 
-    return LegacyMockModel(metadata, arrays)
+    return LegacyMockModel(metadata, {})
 
 
 class MockRunConfiguration:

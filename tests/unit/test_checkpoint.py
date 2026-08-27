@@ -33,7 +33,7 @@ def test_patch_metadata_warns_on_new_keys(caplog) -> None:
 
     # the new key is warned about but still applied (adding missing keys can be deliberate)
     patched = next(iter(metadata.values()))
-    assert patched._metadata["dataset"]["variable_metadata"] == {"2t": "patched"}
+    assert patched._metadata.to_dict()["dataset"]["variable_metadata"] == {"2t": "patched"}
 
 
 @fake_checkpoints
