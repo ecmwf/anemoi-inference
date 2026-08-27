@@ -58,7 +58,8 @@ def test_copy_prognostic_fields_to_input_tensor():
         [
             [
                 [[2.0, 20.0], [2.0, 21.0]],
-                [[1.0, 30.0], [1.0, 31.0]],
+                # Non-prognostic tail values remain at the latest timestep until forcings are updated.
+                [[2.0, 30.0], [2.0, 31.0]],
             ]
         ]
     )

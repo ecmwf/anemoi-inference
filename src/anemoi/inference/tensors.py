@@ -408,8 +408,11 @@ class TensorHandler:
         # or int (index) tensors
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+        # roll the input tensor in place to make room for the new prognostic fields
         keep_steps = min(self.metadata.multi_step_output, self.metadata.multi_step_input)
-        input_tensor_torch = input_tensor_torch.roll(-keep_steps, dims=1)
+        for i in range(input_tensor_torch.shape[1] - keep_steps):
+            input_tensor_torch[:, i].copy_(input_tensor_torch[:, i + keep_steps])
 
         for i in range(keep_steps):
             input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
