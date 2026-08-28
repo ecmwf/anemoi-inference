@@ -116,6 +116,17 @@ class DACyclingRunner(DefaultRunner):
             self.da_cycles = int(configured_cycles or 0)
             cycles_source = "run configuration"
 
+        # Likewise for the flow-dependent residual base: default to what the model was
+        # trained with, since a mismatch degrades the analysis silently rather than
+        # raising. The config key is an override, not the primary switch.
+        configured_skip = da_config.get("da_flow_dependent_skip")
+        if configured_skip is None:
+            self.da_flow_dependent_skip: bool = bool(self.checkpoint.da_flow_dependent_skip)
+            skip_source = "checkpoint metadata (config.task.da_flow_dependent_skip)"
+        else:
+            self.da_flow_dependent_skip = bool(configured_skip)
+            skip_source = "run configuration"
+
         self._obs_source_configs: dict[str, Any] = self._resolve_observation_sources(da_config)
 
         if self.da_cycles > 0:
@@ -125,10 +136,18 @@ class DACyclingRunner(DefaultRunner):
                 cycles_source,
                 list(self._obs_source_configs.keys()),
             )
+            LOG.info(
+                "DA Cycling Runner: flow-dependent skip base %s, from %s",
+                "enabled" if self.da_flow_dependent_skip else "disabled",
+                skip_source,
+            )
         else:
             LOG.info("DA Cycling Runner: da_cycles=0 from %s, running as a plain forecast", cycles_source)
 
         self._obs_inputs: dict[str, Input] | None = None
+
+        # Residual base for the next model call, consumed one-shot by predict_step.
+        self._pending_skip_input: dict[str, "torch.Tensor | None"] | None = None
 
     # ── Observation source configuration ──────────────────────────────
 
@@ -359,6 +378,97 @@ class DACyclingRunner(DefaultRunner):
             out[ds] = input_tensor_torch
         return out
 
+    # ── Flow-dependent skip base ───────────────────────────────────────
+
+    def _build_skip_input(
+        self,
+        input_tensors_torch: dict[str, "torch.Tensor"],
+        y_preds: dict[str, "torch.Tensor"],
+    ) -> dict[str, "torch.Tensor"]:
+        """Build the residual base for the next model call: the pure model background.
+
+        Mirrors ``DAForecaster.build_skip_input``. The blended state in
+        ``input_tensors_torch`` carries the observation wherever one exists; this
+        returns the same state with every prognostic position of the freshly written
+        slots reset to the raw prediction, undoing the observation copy. The encoder
+        still sees the blended state, so observations reach the output only through
+        the encoder rather than through an additive identity path.
+
+        Forcing and corrector columns keep their blended values: only the prognostic
+        columns of the base are consumed downstream.
+
+        Parameters
+        ----------
+        input_tensors_torch : dict[str, torch.Tensor]
+            Per-dataset blended input tensors, each shape
+            ``(1, multi_step_input, grid, variables)``, as returned by
+            :meth:`_da_blend`.
+        y_preds : dict[str, torch.Tensor]
+            Per-dataset raw model predictions from the call that produced them.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            One residual base per dataset in ``input_tensors_torch``.
+        """
+        skip_input: dict[str, "torch.Tensor"] = {}
+        for ds, input_tensor_torch in input_tensors_torch.items():
+            metadata = self.tensor_handlers[ds].metadata
+
+            pmask_in = torch.as_tensor(
+                metadata.prognostic_input_mask,
+                device=input_tensor_torch.device,
+                dtype=torch.long,
+            )
+            prognostic_fields = DACyclingRunner._prognostic_fields(y_preds[ds], metadata)
+
+            n_time = prognostic_fields.shape[1]
+            keep_steps = min(n_time, input_tensor_torch.shape[1])
+
+            background = input_tensor_torch.clone()
+            for i in range(keep_steps):
+                slot = -(keep_steps - i)
+                t_pred = n_time - keep_steps + i
+                background[:, slot, :, pmask_in] = prognostic_fields[:, t_pred]
+
+            skip_input[ds] = background
+        return skip_input
+
+    def predict_step(
+        self, model: "torch.nn.Module", input_tensors_torch: dict[str, "torch.Tensor"], **kwargs: Any
+    ) -> dict[str, "torch.Tensor"]:
+        """Predict the next step, injecting a pending residual base if one is set.
+
+        The base is consumed one-shot rather than passed at the call sites because
+        the first forecast step's model call happens inside ``Runner.forecast``,
+        after :meth:`forecast` has handed off, and is not reachable from here. This
+        follows the ``_fcstep_offset`` precedent for a subclass injecting state into
+        the base forecast loop.
+
+        Note that ``Runner.predict_step`` unwraps ``input_tensors_torch`` for
+        non-multi-dataset checkpoints but would leave ``skip_input`` a dict. That is
+        not reachable for DA checkpoints, which are multi-dataset.
+
+        Parameters
+        ----------
+        model : torch.nn.Module
+            The model.
+        input_tensors_torch : dict[str, torch.Tensor]
+            The input tensors for each dataset.
+        **kwargs : Any
+            Additional keyword arguments passed to the model's predict_step.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            The predicted step.
+        """
+        if self._pending_skip_input is not None:
+            kwargs["skip_input"] = self._pending_skip_input
+            self._pending_skip_input = None  # one-shot: this call only
+
+        return super().predict_step(model, input_tensors_torch, **kwargs)
+
     # ── Date shifting ────────────────────────────────────────────────
 
     def execute(self) -> None:
@@ -431,6 +541,11 @@ class DACyclingRunner(DefaultRunner):
             Per-dataset input tensors, each with shape (multi_step_input, variables, values).
         input_states : dict[str, State]
             Per-dataset input states.
+
+        Yields
+        ------
+        dict[str, State]
+            Per-dataset forecast states, one set per output step.
         """
         if self.da_cycles == 0:
             yield from super().forecast(lead_time, input_tensors_numpy, input_states)
@@ -455,6 +570,13 @@ class DACyclingRunner(DefaultRunner):
                 timestep,
                 self.dataset_names,
             )
+
+            # Cycle 0 has no background yet. A None base becomes zeros *after*
+            # normalization in the model's predict_step, which is the "nothing known
+            # here" sentinel that makes a climatology residual return pure climatology
+            # rather than a climatology/observation mosaic.
+            if self.da_flow_dependent_skip:
+                self._pending_skip_input = {ds: None for ds in self.dataset_names}
 
             # Pre-compute per-dataset typed-variable masks for the
             # `check` array consumed by add_dynamic_forcings_to_input_tensor.
@@ -559,6 +681,14 @@ class DACyclingRunner(DefaultRunner):
                             f"[{ds}] Missing variables in input tensor after DA cycle "
                             f"{cycle + 1}/{self.da_cycles}: {sorted(missing)}"
                         )
+
+                # Residual base for the next model call: the blended state with the
+                # observation copy undone. Built after the forcings refresh so it
+                # derives from the fully advanced state, as training does. The base
+                # left set by the final cycle is what the first forecast step
+                # consumes, which is why this is not gated on `cycle`.
+                if self.da_flow_dependent_skip:
+                    self._pending_skip_input = self._build_skip_input(input_tensors_torch, y_preds)
 
                 del y_preds
 
