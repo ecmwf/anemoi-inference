@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -213,6 +213,40 @@ class DACyclingRunner(DefaultRunner):
 
     # ── DA blend ───────────────────────────────────────────────────────
 
+    @staticmethod
+    def _prognostic_fields(y_pred: "torch.Tensor", metadata: Any) -> "torch.Tensor":
+        """Extract the prognostic columns of a prediction as ``(batch, time, grid, vars)``.
+
+        Parameters
+        ----------
+        y_pred : torch.Tensor
+            Model output for one dataset, shape
+            ``(batch, [time], [ensemble], grid, n_out_vars)``.
+        metadata : Any
+            The dataset's tensor-handler metadata, read for
+            ``prognostic_output_mask``.
+
+        Returns
+        -------
+        torch.Tensor
+            Prognostic fields, shape ``(batch, time, grid, n_prognostic)``.
+        """
+        pmask_out = torch.as_tensor(
+            metadata.prognostic_output_mask,
+            device=y_pred.device,
+            dtype=torch.long,
+        )
+        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+        # Normalize to (batch, time, grid, vars)
+        if prognostic_fields.ndim == 4:  # pre-multistep models: (batch, ensemble, grid, vars)
+            prognostic_fields = prognostic_fields.unsqueeze(1)
+        # Drop any remaining ensemble dim: (batch, time, ensemble, grid, vars)
+        while prognostic_fields.ndim > 4:
+            prognostic_fields = prognostic_fields.squeeze(2)
+
+        return prognostic_fields
+
     def _da_blend(
         self,
         input_tensors_torch: dict[str, "torch.Tensor"],
@@ -262,19 +296,9 @@ class DACyclingRunner(DefaultRunner):
                 device=input_tensor_torch.device,
                 dtype=torch.long,
             )
-            pmask_out = torch.as_tensor(
-                metadata.prognostic_output_mask,
-                device=y_pred.device,
-                dtype=torch.long,
-            )
-            prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
-
-            # Normalize to (batch, time, grid, vars)
-            if prognostic_fields.ndim == 4:  # pre-multistep models: (batch, ensemble, grid, vars)
-                prognostic_fields = prognostic_fields.unsqueeze(1)
-            # Drop any remaining ensemble dim: (batch, time, ensemble, grid, vars)
-            while prognostic_fields.ndim > 4:
-                prognostic_fields = prognostic_fields.squeeze(2)
+            # Called on the class, not self: _da_blend is driven unbound against a
+            # lightweight stub by the training/inference parity harness.
+            prognostic_fields = DACyclingRunner._prognostic_fields(y_pred, metadata)
 
             multi_step_input = input_tensor_torch.shape[1]
             n_time = prognostic_fields.shape[1]
@@ -553,8 +577,7 @@ class DACyclingRunner(DefaultRunner):
 
             # Convert back to numpy shape (multi_step, features, grid) for the parent's forecast()
             analysis_tensors_numpy: dict[str, FloatArray] = {
-                ds: np.swapaxes(input_tensors_torch[ds][0].cpu().numpy(), -2, -1)
-                for ds in self.dataset_names
+                ds: np.swapaxes(input_tensors_torch[ds][0].cpu().numpy(), -2, -1) for ds in self.dataset_names
             }
 
         # Hook for subclasses at the DA -> forecast transition (e.g. the ensemble
