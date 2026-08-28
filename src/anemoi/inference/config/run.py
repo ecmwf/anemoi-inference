@@ -155,6 +155,10 @@ class RunConfiguration(Configuration):
     - ``observation_sources``: dict[str, dict] keyed by dataset name, each entry an input
       configuration for that dataset's observation source. For single-dataset
       checkpoints, ``observation_source`` (singular) is also accepted.
+    - ``da_flow_dependent_skip``: bool, feed the additive skip connection the pure model
+      background rather than the observation-blended state. Defaults to the value the
+      model was trained with (``config.task.da_flow_dependent_skip`` in the checkpoint);
+      set it only to override that, since a mismatch degrades the analysis silently.
     """
 
     da_ens_cycling: dict[str, Any] | None = None

@@ -94,6 +94,7 @@ def forecast_runner_factory():
             # the metadata interface the forecast loop reads.
             corrector_input_mask=np.array([], dtype=np.int64),
             decoder_forcing_variables=[],
+            da_flow_dependent_skip=False,
             variable_categories=lambda: {"force": ["forcing"], "prog": ["prognostic"]},
         )
 

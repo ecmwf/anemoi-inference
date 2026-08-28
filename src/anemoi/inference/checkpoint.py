@@ -237,6 +237,11 @@ class Checkpoint:
         return self._metadata.da_cycles
 
     @property
+    def da_flow_dependent_skip(self) -> bool:
+        """Get whether the model was trained with a flow-dependent residual base."""
+        return self._metadata.da_flow_dependent_skip
+
+    @property
     def input_explicit_times(self) -> Any:
         """Get the input explicit times from metadata."""
         return self._metadata.input_explicit_times

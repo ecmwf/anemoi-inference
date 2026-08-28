@@ -192,3 +192,28 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
     assert kwargs.get("dataset") == "test_dataset_multi"
     assert kwargs.get("start") == 2022
     assert kwargs.get("end") == 2022
+
+
+@pytest.mark.parametrize(
+    "config, expected_cycles, expected_skip",
+    [
+        # Trained before either option existed: no task block at all.
+        ({}, 0, False),
+        ({"task": {}}, 0, False),
+        ({"task": {"da_cycles": 4}}, 4, False),
+        ({"task": {"da_cycles": 4, "da_flow_dependent_skip": True}}, 4, True),
+        ({"task": {"da_cycles": 4, "da_flow_dependent_skip": False}}, 4, False),
+        # None is how an unset Hydra key survives into the checkpoint.
+        ({"task": {"da_cycles": None, "da_flow_dependent_skip": None}}, 0, False),
+    ],
+)
+def test_da_task_options(config, expected_cycles, expected_skip):
+    """The training task config is the only surviving source for both options.
+
+    A checkpoint predating them must read as disabled rather than raise, so that
+    pre-change models keep running unchanged.
+    """
+    metadata = MetadataFactory({"config": config})
+
+    assert metadata.da_cycles == expected_cycles
+    assert metadata.da_flow_dependent_skip is expected_skip

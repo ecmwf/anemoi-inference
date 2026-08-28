@@ -367,6 +367,20 @@ class Metadata(LegacyMixin):
         return int(getattr(self._config_task, "da_cycles", 0) or 0)
 
     @cached_property
+    def da_flow_dependent_skip(self) -> bool:
+        """Whether the model was trained with a flow-dependent residual base.
+
+        When enabled, the additive skip connection reads the pure model background
+        instead of the observation-blended state the encoder sees, so observations
+        reach the output only through the encoder. The runner has to supply that
+        separate base during DA cycling, or the model silently gets the wrong one.
+
+        Read from the training task configuration; False for models trained before
+        the option existed.
+        """
+        return bool(getattr(self._config_task, "da_flow_dependent_skip", False) or False)
+
+    @cached_property
     def decoder_forcing_variables(self) -> list[str]:
         """Variables marked as decoder-forcings in the training config.
 
