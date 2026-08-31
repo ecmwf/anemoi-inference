@@ -242,30 +242,6 @@ class Checkpoint:
         return self._metadata.target_explicit_times
 
     @property
-    def advance_map(self) -> Any:
-        """Get the advance map."""
-        advance_map = self._metadata.advance_map
-
-        n = self.multi_step_input
-        m = self.multi_step_output
-        inin = advance_map["inin"]
-        outin = advance_map["outin"]
-
-        msg = "Invalid advance_map."
-        assert all(0 <= dst < src < n for src, dst in inin), f"{msg} Inconsistent inin pair(s): {inin}"
-        assert all(0 <= src < m and 0 <= dst < n for src, dst in outin), f"{msg} Inconsistent outin pair(s): {outin}"
-
-        inin_dst = [dst for _, dst in inin]
-        assert inin_dst == sorted(inin_dst), f"{msg} inin not ordered by destination: {inin_dst}"
-
-        outin_dst = [dst for _, dst in outin]
-        assert sorted(inin_dst + outin_dst) == list(
-            range(n)
-        ), f"{msg} Inconsistent destinations missing. {advance_map}."
-
-        return advance_map
-
-    @property
     def output_offsets(self) -> list[datetime.timedelta]:
         """Return the list output offsets, i.e. the relative output times of a single forward."""
         return self._metadata.output_offsets
