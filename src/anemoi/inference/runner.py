@@ -395,15 +395,16 @@ class Runner(Context):
         """
         steps = math.ceil(lead_time / self.checkpoint.rollout_shift)
 
-        LOG.info(
-            "Lead_time=%s, step_shift=%s, output_offsets=%s, Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
-            lead_time,
-            self.checkpoint.rollout_shift,
-            self.checkpoint.output_offsets,
-            self.checkpoint.multi_step_output * steps,
-            steps,
-            self.checkpoint.multi_step_output,
-        )
+        if self.verbosity > 0:
+            LOG.info(
+                "Lead_time=%s, step_shift=%s, output_offsets=%s, Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
+                lead_time,
+                self.checkpoint.rollout_shift,
+                self.checkpoint.output_offsets,
+                self.checkpoint.multi_step_output * steps,
+                steps,
+                self.checkpoint.multi_step_output,
+            )
 
         for s in range(steps):
             step = (s + 1) * self.checkpoint.rollout_shift
@@ -474,7 +475,9 @@ class Runner(Context):
                 for d in dates:
                     dates_str += f"{d}, "
                 dates_str = f"{dates_str[:-2]})"
-                title = f"Forecasting, model call {s+1}: horizon {step}, {dates_str}"
+                title = f"Forecasting {dates_str}"
+                if self.verbosity > 0:
+                    title += f" through model call {s+1} with horizon {step}"
 
                 for dataset, handler in self.tensor_handlers.items():
                     if handler.trace:
