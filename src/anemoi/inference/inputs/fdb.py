@@ -93,7 +93,7 @@ class FDBInput(GribInput):
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         if self.forcings_from_forecast:
-            LOG.debug("FDBInput: Loading forcings from forecast for dates: %s", dates)
+            LOG.debug("%s: Loading forcings from forecast for dates: %s", self.__class__.__name__, dates)
             date, steps = convert_dates_to_base_and_step(dates)
             ds = self.retrieve(self.variables, [date], step=steps)
         else:

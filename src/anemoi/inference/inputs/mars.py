@@ -339,7 +339,7 @@ class MarsInput(GribInput):
             The loaded forcings state.
         """
         if self.forcings_from_forecast:
-            LOG.debug("MarsInput: Loading forcings from forecast for dates: %s", dates)
+            LOG.debug("%s: Loading forcings from forecast for dates: %s", self.__class__.__name__, dates)
             date, steps = convert_dates_to_base_and_step(dates)
             retrieved_state = self.retrieve(self.variables, [date], step=steps)
         else:
