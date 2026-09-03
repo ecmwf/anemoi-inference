@@ -183,10 +183,8 @@ class Cutout(Input):
 
         for i, source in enumerate(self.sources.keys()):
             source_mask = self.masks[source]
-            
-            source_state = self.sources[source].create_input_state(
-                date=date, **kwargs
-            )
+
+            source_state = self.sources[source].create_input_state(date=date, **kwargs)
 
             # Create the mask front padded with zeros
             # to match the length of the combined state
