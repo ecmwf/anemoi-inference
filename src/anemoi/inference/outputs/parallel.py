@@ -13,9 +13,16 @@ import math
 import multiprocessing as mp
 import os
 import traceback
+from collections.abc import Callable
+from collections.abc import Generator
 from enum import Enum
+from functools import cache
 from time import sleep
 from typing import Any
+from typing import Literal
+from typing import get_args
+
+from anemoi.transform.variables import Variable
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -168,25 +175,102 @@ def _restore_grib_templates(state: State) -> State:
     return state
 
 
-def _get_state_chunk(state: State, num_chunks: int, index: int) -> State:
-    """Get a specific chunk of a state along the fields dimension."""
-    if "fields" not in state:
-        raise ValueError("State dictionary must contain 'fields' key")
-    assert 0 <= index < num_chunks, f"Index {index} out of range for {num_chunks} chunks"
-    if num_chunks <= 1:
-        return state
+CHUNK_STRATEGIES = Literal["by_worker", "by_metadata", "by_size"]
+VALID_CHUNK_STRATEGIES = get_args(CHUNK_STRATEGIES)
 
-    # determine the subset of fields for this chunk
-    fields = state["fields"]
-    fields_per_chunk = math.ceil(len(fields) / num_chunks)
-    start = index * fields_per_chunk
-    stop = start + fields_per_chunk
 
-    # copy the subset of the fields into a new state dict
-    fields_subset = itertools.islice(fields.items(), start, stop)
-    chunk = state.copy()
-    chunk["fields"] = dict(fields_subset)
-    return chunk
+class Chunker:
+    """Chunking strategies for dividing the state into smaller parts for parallel outputting."""
+
+    def __init__(self, typed_variables: dict[str, Variable], num_writers: int):
+        """Chunker
+
+        Parameters
+        ----------
+        typed_variables : dict[str, Variable]
+            Dictionary of field name to its corresponding Variable metadata.
+        """
+        self.typed_variables = typed_variables
+        self.num_writers = num_writers
+
+    @cache
+    def _grouped_fields_by_metadata(self, keys: tuple[str], max_groups: int = -1) -> list[str]:
+        grouped_fields = {}
+        for field_name, meta in self.typed_variables.items():
+            key_tuple = tuple(getattr(meta, key, None) for key in keys)
+            grouped_fields.setdefault(key_tuple, []).append(field_name)
+        if len(grouped_fields) == 1:
+            LOG.warning(
+                "All fields have the same metadata for keys %s. Consider using different keys for chunking.", keys
+            )
+        else:
+            LOG.info(
+                "Fields have been grouped into %d distinct metadata combinations for keys %s.",
+                len(grouped_fields),
+                keys,
+            )
+
+        grouped_fields_list = list(grouped_fields.values())
+
+        if max_groups > 0 and len(grouped_fields) > max_groups:
+            new_grouped_fields = {}
+            for i, fields in enumerate(grouped_fields_list):
+                new_key = i % max_groups
+                new_grouped_fields.setdefault(new_key, []).extend(fields)
+            grouped_fields_list = list(new_grouped_fields.values())
+
+        return grouped_fields_list
+
+    def by_metadata(self, keys: list[str], max_groups: int = -1) -> Callable[[State], Generator[State, None, None]]:
+        """Chunk the state into smaller parts based on the specified metadata keys,
+        ensuring that variables with the same key=value pair are kept together in the same chunk.
+        """
+
+        def chunker(state: State) -> Generator[State, None, None]:
+            fields = state["fields"]
+            grouped_fields = self._grouped_fields_by_metadata(tuple(keys), max_groups=max_groups)
+
+            for group_keys in grouped_fields:
+                chunk = state.copy()
+                chunk["fields"] = {k: fields[k] for k in group_keys if k in fields}
+                yield chunk
+
+        return chunker
+
+    def by_size(self, fields_per_chunk: int) -> Callable[[State], Generator[State, None, None]]:
+        """Chunk the state into smaller parts, each containing a specified number of fields."""
+
+        def chunker(state: State) -> Generator[State, None, None]:
+            fields = state["fields"]
+            num_fields = len(fields)
+            for start in range(0, num_fields, fields_per_chunk):
+                stop = start + fields_per_chunk
+                chunk = state.copy()
+                fields_subset = itertools.islice(fields.items(), start, stop)
+                chunk["fields"] = dict(fields_subset)
+                yield chunk
+
+        return chunker
+
+    def by_worker(self) -> Callable[[State], Generator[State, None, None]]:
+        """Chunk the state into smaller parts, one for each worker."""
+
+        def chunker(state: State) -> Generator[State, None, None]:
+            fields = state["fields"]
+            fields_per_chunk = math.ceil(len(fields) / self.num_writers)
+
+            for i in range(self.num_writers):
+                chunk = state.copy()
+
+                start = i * fields_per_chunk
+                stop = start + fields_per_chunk
+
+                # copy the subset of the fields into a new state dict
+                fields_subset = itertools.islice(fields.items(), start, stop)
+                chunk["fields"] = dict(fields_subset)
+                yield chunk
+
+        return chunker
 
 
 class MessageType(str, Enum):
@@ -232,6 +316,7 @@ class ParallelOutput(Output):
         *,
         output: Output | Any | None = None,
         num_writers: int = 1,
+        chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
         **kwargs: Any,
     ):
         """Initialise the ParallelOutput.
@@ -249,6 +334,14 @@ class ParallelOutput(Output):
             Number of writer processes to spawn.
             Must be >= 1.
             Defaults to 1 (single output file, asynchronous writes).
+        chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
+            The strategy for chunking the output among writer processes.
+            Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
+            with a single key being the strategy name and the value being a dictionary of
+            keyword arguments for that strategy.
+            - `by_worker`, no additional arguments are needed.
+            - `by_size`, requires an additional argument `fields_per_chunk` specifying the number of fields per chunk.
+            - `by_metadata`, requires an additional argument `keys` specifying a list of metadata keys to keep in a chunk.
         **kwargs : Any
             Forwarded to the inner output.
         """
@@ -281,6 +374,32 @@ class ParallelOutput(Output):
         # (or once per rollout step, when the input pipeline reuses the same dict).
         self._grib_templates_bytes_cache_key: int | None = None
         self._grib_templates_bytes_cache_value: dict[str, bytes] | None = None
+
+        # Chunking strategy for dividing work among writer processes.
+        if not isinstance(chunk_strategy, (str, dict)):
+            raise ValueError("chunk_strategy must be a string or a dictionary")
+        if isinstance(chunk_strategy, dict) and len(chunk_strategy) != 1:
+            raise ValueError("chunk_strategy dictionary must have exactly one key")
+
+        chunk_strategy_name = chunk_strategy if isinstance(chunk_strategy, str) else next(iter(chunk_strategy.keys()))
+        chunk_strategy_init = next(iter(chunk_strategy.values())) if isinstance(chunk_strategy, dict) else {}
+        chunker = Chunker(self.metadata.typed_variables, self.num_writers)
+
+        match chunk_strategy_name:
+            case "by_size":
+                assert isinstance(chunk_strategy, dict)
+                chunking_func = chunker.by_size(**chunk_strategy_init)
+            case "by_metadata":
+                assert isinstance(chunk_strategy, dict)
+                chunking_func = chunker.by_metadata(**chunk_strategy_init)
+            case "by_worker":
+                chunking_func = chunker.by_worker()
+            case _:
+                raise ValueError(
+                    f"Invalid chunk_strategy: {chunk_strategy_name}. Must be one of {VALID_CHUNK_STRATEGIES}"
+                )
+
+        self.chunking_func = chunking_func
 
     def open(self, state: State) -> None:
         """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context.
@@ -319,10 +438,11 @@ class ParallelOutput(Output):
         Takes an optional 'message' argument to indicate the type of message being sent, which is used for control flow in the writer loop.
         """
         grib_templates_bytes = self._get_or_serialise_grib_templates(state)
-        for i in range(self.num_writers):
-            self._check_writer_alive(i)
-            chunk = _get_state_chunk(state, self.num_writers, i)
-            self._queues[i].put((_sanitise_state(chunk, grib_templates_bytes), message))
+
+        for i, chunk in enumerate(self.chunking_func(state)):
+            worker_id = i % self.num_writers
+            self._check_writer_alive(worker_id)
+            self._queues[worker_id].put((_sanitise_state(chunk, grib_templates_bytes), message))
 
     def _get_or_serialise_grib_templates(self, state: State) -> dict[str, bytes] | None:
         """Return the serialised GRIB templates bytes-map, serialising it on the first call.

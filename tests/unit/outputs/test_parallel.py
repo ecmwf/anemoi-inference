@@ -10,16 +10,18 @@
 import datetime
 import re
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
 from anemoi.inference.decorators import supports_parallel_output
+from anemoi.inference.outputs.parallel import VALID_CHUNK_STRATEGIES
+from anemoi.inference.outputs.parallel import Chunker
 from anemoi.inference.outputs.parallel import MessageType
 from anemoi.inference.outputs.parallel import ParallelOutput
 from anemoi.inference.outputs.parallel import _detach_tensors
-from anemoi.inference.outputs.parallel import _get_state_chunk
 from anemoi.inference.outputs.parallel import _sanitise_state
 from anemoi.inference.outputs.printer import PrinterOutput
 
@@ -27,13 +29,31 @@ from anemoi.inference.outputs.printer import PrinterOutput
 
 
 def _make_state(n_fields, extra=None):
-    state = {"fields": {f"field_{i}": np.array([float(i)]) for i in range(n_fields)}, "date": "2020-01-01"}
+    state = {
+        "fields": {f"field_{i}": np.array([float(i)]) for i in range(n_fields)},
+        "date": "2020-01-01",
+    }
     if extra:
         state.update(extra)
     return state
 
 
-def _make_context_and_metadata():
+def _make_typed_variables(n_fields, **attrs):
+    """Build a ``{name: Variable-like}`` mapping matching ``_make_state`` field names.
+
+    The chunker only ever reads attributes off the variable objects via
+    ``getattr(meta, key, None)``, so a lightweight ``SimpleNamespace`` is a faithful
+    stand-in for :class:`anemoi.transform.variables.Variable` here. Per-field
+    attribute values can be supplied as ``attr=[v0, v1, ...]`` lists.
+    """
+    typed = {}
+    for i in range(n_fields):
+        kwargs = {k: v[i] for k, v in attrs.items()}
+        typed[f"field_{i}"] = SimpleNamespace(**kwargs)
+    return typed
+
+
+def _make_context_and_metadata(typed_variables=None):
     context = MagicMock()
     context.reference_date = "2020-01-01"
     context.typed_variables = {}
@@ -42,7 +62,7 @@ def _make_context_and_metadata():
 
     metadata = MagicMock()
     metadata.dataset_name = "test"
-    metadata.typed_variables = {}
+    metadata.typed_variables = typed_variables if typed_variables is not None else {}
     return context, metadata
 
 
@@ -89,10 +109,13 @@ def _run_sequential(context, metadata, path, states):
     return _parse_printer_output(path)
 
 
-def _run_parallel(context, metadata, path, states, num_writers):
+def _run_parallel(context, metadata, path, states, num_writers, chunk_strategy=None):
     """Write states through ParallelOutput wrapping PrinterOutput."""
     config = {"printer": {"path": str(path), "max_lines": 0}}
-    po = ParallelOutput(context, metadata, output=config, num_writers=num_writers)
+    kwargs = {}
+    if chunk_strategy is not None:
+        kwargs["chunk_strategy"] = chunk_strategy
+    po = ParallelOutput(context, metadata, output=config, num_writers=num_writers, **kwargs)
     po.open(states[0])
     for state in states:
         po.write_state(state)
@@ -192,6 +215,39 @@ class TestParallelOutputCorrectness:
             p = base.with_stem(base.stem + f"_w{i}")
             assert p.exists(), f"Writer {i} did not produce a file at {p}"
 
+    def test_by_size_strategy_matches_sequential(self, tmp_path):
+        context, metadata = _make_context_and_metadata()
+        states = [_make_state(7, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
+
+        seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
+        par = _run_parallel(
+            context,
+            metadata,
+            tmp_path / "par.txt",
+            states,
+            num_writers=2,
+            chunk_strategy={"by_size": {"fields_per_chunk": 2}},
+        )
+
+        assert _records_equal(seq, par), "by_size strategy differs from sequential"
+
+    def test_by_metadata_strategy_matches_sequential(self, tmp_path):
+        typed = _make_typed_variables(6, levtype=["sfc", "pl", "sfc", "pl", "sfc", "pl"])
+        context, metadata = _make_context_and_metadata(typed)
+        states = [_make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
+
+        seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
+        par = _run_parallel(
+            context,
+            metadata,
+            tmp_path / "par.txt",
+            states,
+            num_writers=2,
+            chunk_strategy={"by_metadata": {"keys": ["levtype"]}},
+        )
+
+        assert _records_equal(seq, par), "by_metadata strategy differs from sequential"
+
 
 # ── _detach_tensors ───────────────────────────────────────────────────────────
 
@@ -264,89 +320,200 @@ class TestSanitiseState:
         assert "fields" in result
 
 
-# ── _get_state_chunk ──────────────────────────────────────────────────────────
+# ── Chunker.by_worker ─────────────────────────────────────────────────────────
 
 
-class TestGetStateChunk:
-    def test_single_chunk_returns_full_state(self):
-        state = _make_state(6)
-        chunk = _get_state_chunk(state, num_chunks=1, index=0)
-        assert chunk is state
+def _chunk_field_sets(chunker_fn, state):
+    """Return the list of field-name sets produced by a chunking function."""
+    return [set(chunk["fields"].keys()) for chunk in chunker_fn(state)]
 
-    def test_two_chunks_split_evenly(self):
-        state = _make_state(6)
-        c0 = _get_state_chunk(state, 2, 0)
-        c1 = _get_state_chunk(state, 2, 1)
+
+class TestChunkerByWorker:
+    def test_single_worker_yields_one_full_chunk(self):
+        chunker = Chunker({}, num_writers=1)
+        chunks = list(chunker.by_worker()(_make_state(6)))
+        assert len(chunks) == 1
+        assert list(chunks[0]["fields"].keys()) == [f"field_{i}" for i in range(6)]
+
+    def test_yields_one_chunk_per_worker(self):
+        chunker = Chunker({}, num_writers=3)
+        chunks = list(chunker.by_worker()(_make_state(6)))
+        assert len(chunks) == 3
+
+    def test_two_workers_split_evenly(self):
+        chunker = Chunker({}, num_writers=2)
+        c0, c1 = list(chunker.by_worker()(_make_state(6)))
         assert list(c0["fields"].keys()) == ["field_0", "field_1", "field_2"]
         assert list(c1["fields"].keys()) == ["field_3", "field_4", "field_5"]
 
     def test_chunks_cover_all_fields(self):
         state = _make_state(10)
-        all_fields = set()
-        for i in range(4):
-            chunk = _get_state_chunk(state, 4, i)
-            all_fields.update(chunk["fields"].keys())
-        assert all_fields == set(state["fields"].keys())
+        sets = _chunk_field_sets(Chunker({}, num_writers=4).by_worker(), state)
+        assert set().union(*sets) == set(state["fields"].keys())
 
     def test_chunks_are_disjoint(self):
         state = _make_state(12)
-        chunks = [_get_state_chunk(state, 4, i) for i in range(4)]
-        seen = []
-        for chunk in chunks:
-            for k in chunk["fields"]:
-                assert k not in seen, f"{k} appears in more than one chunk"
-                seen.append(k)
+        sets = _chunk_field_sets(Chunker({}, num_writers=4).by_worker(), state)
+        seen = set()
+        for s in sets:
+            assert seen.isdisjoint(s)
+            seen |= s
 
     def test_uneven_split(self):
         state = _make_state(7)
-        sizes = [len(_get_state_chunk(state, 3, i)["fields"]) for i in range(3)]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=3).by_worker(), state)]
         assert sum(sizes) == 7
         assert sizes == [3, 3, 1]
 
-    def test_single_field(self):
-        state = _make_state(1)
-        c0 = _get_state_chunk(state, 2, 0)
-        c1 = _get_state_chunk(state, 2, 1)
-        assert len(c0["fields"]) == 1
-        assert len(c1["fields"]) == 0
-
-    def test_more_writers_than_fields(self):
+    def test_more_workers_than_fields_gives_empty_chunks(self):
         state = _make_state(2)
-        sizes = [len(_get_state_chunk(state, 4, i)["fields"]) for i in range(4)]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=4).by_worker(), state)]
         assert sum(sizes) == 2
+        # 4 chunks are always yielded, one per worker, some empty
+        assert len(sizes) == 4
+        assert sizes.count(0) == 2
 
     def test_non_field_keys_preserved_in_all_chunks(self):
         state = _make_state(6, {"step": 12, "date": "2020-01-01"})
-        for i in range(3):
-            chunk = _get_state_chunk(state, 3, i)
+        for chunk in Chunker({}, num_writers=3).by_worker()(state):
             assert chunk["step"] == 12
             assert chunk["date"] == "2020-01-01"
 
     def test_chunk_is_shallow_copy_of_state(self):
         state = _make_state(4)
-        chunk = _get_state_chunk(state, 2, 0)
+        chunk = next(Chunker({}, num_writers=2).by_worker()(state))
         assert chunk is not state
         assert chunk["fields"] is not state["fields"]
 
-    def test_missing_fields_raises(self):
-        with pytest.raises(ValueError, match="fields"):
-            _get_state_chunk({"date": "2020-01-01"}, 2, 0)
 
-    def test_index_out_of_range_raises(self):
-        state = _make_state(4)
-        with pytest.raises(AssertionError):
-            _get_state_chunk(state, 2, 5)
+# ── Chunker.by_size ───────────────────────────────────────────────────────────
 
-    def test_negative_index_raises(self):
+
+class TestChunkerBySize:
+    def test_exact_multiple(self):
+        state = _make_state(6)
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(2), state)]
+        assert sizes == [2, 2, 2]
+
+    def test_remainder_in_last_chunk(self):
+        state = _make_state(7)
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(3), state)]
+        assert sizes == [3, 3, 1]
+
+    def test_chunk_larger_than_num_fields(self):
         state = _make_state(4)
-        with pytest.raises(AssertionError):
-            _get_state_chunk(state, 2, -1)
+        chunks = list(Chunker({}, num_writers=2).by_size(10)(state))
+        assert len(chunks) == 1
+        assert len(chunks[0]["fields"]) == 4
+
+    def test_size_one(self):
+        state = _make_state(3)
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(1), state)]
+        assert sizes == [1, 1, 1]
+
+    def test_chunks_cover_all_fields_in_order(self):
+        state = _make_state(5)
+        names = []
+        for chunk in Chunker({}, num_writers=2).by_size(2)(state):
+            names.extend(chunk["fields"].keys())
+        assert names == [f"field_{i}" for i in range(5)]
+
+    def test_non_field_keys_preserved(self):
+        state = _make_state(4, {"step": 12})
+        for chunk in Chunker({}, num_writers=2).by_size(2)(state):
+            assert chunk["step"] == 12
+
+
+# ── Chunker.by_metadata ───────────────────────────────────────────────────────
+
+
+class TestChunkerByMetadata:
+    def test_groups_by_single_key(self):
+        # levtype: sfc, sfc, pl, pl -> two groups
+        typed = _make_typed_variables(4, levtype=["sfc", "sfc", "pl", "pl"])
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype"]), _make_state(4))
+        assert {frozenset(s) for s in sets} == {
+            frozenset({"field_0", "field_1"}),
+            frozenset({"field_2", "field_3"}),
+        }
+
+    def test_groups_by_multiple_keys(self):
+        typed = _make_typed_variables(
+            4,
+            levtype=["pl", "pl", "pl", "pl"],
+            level=[500, 500, 850, 850],
+        )
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype", "level"]), _make_state(4))
+        assert {frozenset(s) for s in sets} == {
+            frozenset({"field_0", "field_1"}),
+            frozenset({"field_2", "field_3"}),
+        }
+
+    def test_all_same_metadata_single_group(self):
+        typed = _make_typed_variables(4, levtype=["sfc", "sfc", "sfc", "sfc"])
+        chunker = Chunker(typed, num_writers=2)
+        chunks = list(chunker.by_metadata(["levtype"])(_make_state(4)))
+        assert len(chunks) == 1
+        assert len(chunks[0]["fields"]) == 4
+
+    def test_all_distinct_metadata_one_group_each(self):
+        typed = _make_typed_variables(3, level=[100, 200, 300])
+        chunker = Chunker(typed, num_writers=2)
+        sizes = [len(s) for s in _chunk_field_sets(chunker.by_metadata(["level"]), _make_state(3))]
+        assert sizes == [1, 1, 1]
+
+    def test_covers_all_fields(self):
+        typed = _make_typed_variables(4, levtype=["sfc", "pl", "sfc", "pl"])
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype"]), _make_state(4))
+        assert set().union(*sets) == {f"field_{i}" for i in range(4)}
+
+    def test_max_groups_caps_number_of_chunks(self):
+        # 4 distinct levels -> 4 groups, capped to 2
+        typed = _make_typed_variables(4, level=[100, 200, 300, 400])
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["level"], max_groups=2), _make_state(4))
+        assert len(sets) == 2
+        # every field still present exactly once
+        assert set().union(*sets) == {f"field_{i}" for i in range(4)}
+        seen = set()
+        for s in sets:
+            assert seen.isdisjoint(s)
+            seen |= s
+
+    def test_max_groups_larger_than_groups_is_noop(self):
+        typed = _make_typed_variables(4, levtype=["sfc", "sfc", "pl", "pl"])
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype"], max_groups=10), _make_state(4))
+        assert len(sets) == 2
+
+    def test_missing_attribute_treated_as_none(self):
+        # field_0 has no 'level' attribute -> grouped under None; field_1 has level 500
+        typed = {
+            "field_0": SimpleNamespace(),
+            "field_1": SimpleNamespace(level=500),
+        }
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["level"]), _make_state(2))
+        assert {frozenset(s) for s in sets} == {
+            frozenset({"field_0"}),
+            frozenset({"field_1"}),
+        }
+
+    def test_result_is_cached(self):
+        typed = _make_typed_variables(2, levtype=["sfc", "pl"])
+        chunker = Chunker(typed, num_writers=2)
+        first = chunker._grouped_fields_by_metadata(("levtype",))
+        second = chunker._grouped_fields_by_metadata(("levtype",))
+        assert first is second
 
 
 # ── ParallelOutput (unit, no subprocesses) ────────────────────────────────────
 
 
-def _make_parallel_output(num_writers=2):
+def _make_parallel_output(num_writers=2, chunking_func=None):
     context, metadata = _make_context_and_metadata()
     po = ParallelOutput.__new__(ParallelOutput)
     po.context = context
@@ -362,6 +529,10 @@ def _make_parallel_output(num_writers=2):
     po.typed_variables = {}
     po.dataset_name = "test"
     po.reference_date = "2020-01-01"
+    po._grib_templates_bytes_cache_key = None
+    po._grib_templates_bytes_cache_value = None
+    # default to one-chunk-per-worker, matching the "by_worker" strategy
+    po.chunking_func = chunking_func or Chunker({}, num_writers).by_worker()
     return po
 
 
@@ -417,6 +588,49 @@ class TestParallelOutputDispatch:
         args, _ = po._queues[0].put.call_args
         _, msg_type = args[0]
         assert msg_type == MessageType.INITIAL_STATE
+
+    def test_more_chunks_than_writers_round_robins(self):
+        """When the strategy yields more chunks than writers, chunks are
+        distributed round-robin (chunk i -> writer i % num_writers).
+        """
+        # by_size(1) on 5 fields with 2 writers => 5 chunks: w0,w1,w0,w1,w0
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        state = _make_state(5)
+        po.dispatch_state_to_writers(state, message=MessageType.STATE)
+
+        assert po._queues[0].put.call_count == 3
+        assert po._queues[1].put.call_count == 2
+
+        received = set()
+        for q in po._queues:
+            for call in q.put.call_args_list:
+                payload, _ = call.args[0]
+                received |= set(payload["fields"].keys())
+        assert received == set(state["fields"].keys())
+
+    def test_all_fields_dispatched_exactly_once(self):
+        po = _make_parallel_output(num_writers=3)
+        po._queues, po._processes = self._make_queues_and_processes(3)
+        state = _make_state(7)
+        po.dispatch_state_to_writers(state, message=MessageType.STATE)
+
+        from collections import Counter
+
+        counts = Counter()
+        for q in po._queues:
+            for call in q.put.call_args_list:
+                payload, _ = call.args[0]
+                counts.update(payload["fields"].keys())
+        assert set(counts) == set(state["fields"].keys())
+        assert all(c == 1 for c in counts.values())
+
+    def test_dead_writer_short_circuits_dispatch(self):
+        po = _make_parallel_output(num_writers=2)
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        po._processes[0].is_alive.return_value = False
+        with pytest.raises(RuntimeError, match="Writer 0 is dead"):
+            po.dispatch_state_to_writers(_make_state(4), message=MessageType.STATE)
 
 
 class TestParallelOutputWriterAliveCheck:
@@ -476,6 +690,62 @@ class TestParallelOutputInit:
         po = self._make(num_writers=2, output={"recording": {"path": "out.json"}})
         assert "ParallelOutput" in repr(po)
         assert "num_writers=2" in repr(po)
+
+
+class TestParallelOutputChunkStrategy:
+    def _make(self, **kwargs):
+        context, metadata = _make_context_and_metadata(kwargs.pop("typed_variables", None))
+        kwargs.setdefault("output", {"recording": {"path": "out.json"}})
+        return ParallelOutput(context, metadata, **kwargs)
+
+    def test_default_strategy_is_by_worker(self):
+        po = self._make(num_writers=2)
+        # by_worker yields exactly one chunk per writer
+        chunks = list(po.chunking_func(_make_state(6)))
+        assert len(chunks) == po.num_writers
+
+    def test_valid_strategies_constant(self):
+        assert set(VALID_CHUNK_STRATEGIES) == {"by_worker", "by_metadata", "by_size"}
+
+    def test_by_worker_string(self):
+        po = self._make(num_writers=3, chunk_strategy="by_worker")
+        assert len(list(po.chunking_func(_make_state(6)))) == 3
+
+    def test_by_size_dict(self):
+        po = self._make(num_writers=2, chunk_strategy={"by_size": {"fields_per_chunk": 2}})
+        sizes = [len(c["fields"]) for c in po.chunking_func(_make_state(6))]
+        assert sizes == [2, 2, 2]
+
+    def test_by_metadata_dict(self):
+        typed = _make_typed_variables(4, levtype=["sfc", "sfc", "pl", "pl"])
+        po = self._make(
+            num_writers=2,
+            typed_variables=typed,
+            chunk_strategy={"by_metadata": {"keys": ["levtype"]}},
+        )
+        sizes = sorted(len(c["fields"]) for c in po.chunking_func(_make_state(4)))
+        assert sizes == [2, 2]
+
+    def test_invalid_strategy_name_string_raises(self):
+        with pytest.raises(ValueError, match="Invalid chunk_strategy"):
+            self._make(chunk_strategy="by_nonsense")
+
+    def test_invalid_strategy_name_dict_raises(self):
+        with pytest.raises(ValueError, match="Invalid chunk_strategy"):
+            self._make(chunk_strategy={"by_nonsense": {}})
+
+    def test_wrong_type_raises(self):
+        with pytest.raises(ValueError, match="must be a string or a dictionary"):
+            self._make(chunk_strategy=123)
+
+    def test_dict_with_multiple_keys_raises(self):
+        with pytest.raises(ValueError, match="exactly one key"):
+            self._make(chunk_strategy={"by_size": {"fields_per_chunk": 2}, "by_worker": {}})
+
+    def test_by_size_missing_param_raises(self):
+        # by_size requires 'fields_per_chunk'
+        with pytest.raises(TypeError):
+            self._make(chunk_strategy={"by_size": {}})
 
 
 # ── supports_parallel_output ──────────────────────────────────────────────────
@@ -564,14 +834,17 @@ class TestSupportsParallelOutputDecorator:
 
     def test_multiple_args_applied(self):
         obj = self._make_cls("path", "archive_requests.path")(
-            path="out.grib", archive_requests={"path": "out.json"}, **{"_parallel-output-suffix": "_w0"}
+            path="out.grib",
+            archive_requests={"path": "out.json"},
+            **{"_parallel-output-suffix": "_w0"},
         )
         assert obj.path == "out_w0.grib"
         assert obj.archive_requests["path"] == "out_w0.json"
 
     def test_deep_nested_suffix_applied(self):
         obj = self._make_cls("archive_requests.sub.path")(
-            archive_requests={"sub": {"path": "out.json"}}, **{"_parallel-output-suffix": "_w0"}
+            archive_requests={"sub": {"path": "out.json"}},
+            **{"_parallel-output-suffix": "_w0"},
         )
         assert obj.archive_requests["sub"]["path"] == "out_w0.json"
 
