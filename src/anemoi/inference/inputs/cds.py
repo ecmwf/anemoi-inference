@@ -196,7 +196,7 @@ class CDSInput(GribInput):
         requests = self.metadata.mars_requests(
             variables=variables,
             dates=dates,
-            use_grib_paramid=self.context.use_grib_paramid,
+            convert_grib_paramid=self.context.convert_grib_paramid,
             patch_request=self.patch_data_request,
         )
 

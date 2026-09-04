@@ -51,7 +51,7 @@ class RequestCmd(Command):
         for r in checkpoint_to_requests(
             c,
             date=-1,
-            use_grib_paramid=args.use_grib_paramid,
+            convert_grib_paramid=args.use_grib_paramid,
             dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
         ):
             if args.mars:

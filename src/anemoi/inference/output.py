@@ -70,7 +70,6 @@ class Output(ABC):
                 self.variables = [self.variables]
 
         self.typed_variables = self.metadata.typed_variables.copy()
-        self.typed_variables.update(self.context.typed_variables)
 
     def skip_variable(self, variable: str) -> bool:
         """Check if a variable should be skipped.

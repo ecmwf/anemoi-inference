@@ -9,6 +9,32 @@
 
 from anemoi.transform.variables import Variable
 
+lsm_with_paramid = Variable.from_dict(
+    "lsm",
+    {
+        "grib": {
+            "shortName": "lsm",
+            "paramId": 172,
+        },
+        "mars": {
+            "param": "lsm",
+            "levtype": "sfc",
+        },
+        "constant_in_time": True,
+    },
+)
+
+lsm_without_paramid = Variable.from_dict(
+    "lsm",
+    {
+        "mars": {
+            "param": "lsm",
+            "levtype": "sfc",
+        },
+        "constant_in_time": True,
+    },
+)
+
 tp = Variable.from_dict(
     "tp",
     {

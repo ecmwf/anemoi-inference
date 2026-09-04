@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Hashable
+from typing import Literal
 
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_timedelta
@@ -48,34 +49,12 @@ ORDERING = {k: i for i, k in enumerate(ORDERING)}
 
 
 def _ordering(item: tuple) -> int:
-    """Get the ordering index for a given item.
-
-    Parameters
-    ----------
-    item : tuple
-        The item to get the ordering index for.
-
-    Returns
-    -------
-    int
-        The ordering index.
-    """
+    """Get the ordering index for a given item."""
     return ORDERING.get(item[0], 999)
 
 
-def _param(param: Any) -> str:
-    """Determine the parameter type based on its value.
-
-    Parameters
-    ----------
-    param : str
-        The parameter value.
-
-    Returns
-    -------
-    str
-        The parameter type.
-    """
+def _param(param: int | float | str) -> Literal["paramId", "param", "shortName"]:
+    """Determine the parameter type based on its value."""
     try:
         int(param)
         return "paramId"
@@ -88,18 +67,7 @@ def _param(param: Any) -> str:
 
 
 def _step_in_hours(step: timedelta) -> int:
-    """Convert a step to hours.
-
-    Parameters
-    ----------
-    step : timedelta
-        The step to convert.
-
-    Returns
-    -------
-    int
-        The step in hours.
-    """
+    """Convert a step to hours."""
     step = step.total_seconds() / 3600
     assert int(step) == step
     return int(step)
@@ -112,6 +80,21 @@ STEP_TYPE = {
     "minimum": "min",
     "instantaneous": None,
 }
+
+
+def shortname_to_paramid(param: str | int | float) -> int | float:
+    """Convert a shortName to a paramId using the `shortname_to_paramid` function from `anemoi.utils.grib`.
+    If the param is already an integer or float, it is returned unchanged.
+    """
+
+    try:
+        float(param)
+    except (TypeError, ValueError):
+        from anemoi.utils.grib import shortname_to_paramid as _shortname_to_paramid
+
+        param = _shortname_to_paramid(param)
+
+    return param
 
 
 def encode_time_processing(
@@ -210,7 +193,6 @@ def grib_keys(
     template: ekd.Field,
     variable: "Variable",
     ensemble: bool,
-    param: int | float | str | None,
     date: datetime,
     step: timedelta,
     previous_step: timedelta | None,
@@ -218,6 +200,7 @@ def grib_keys(
     keys: dict[str, Any],
     grib1_keys: dict[int | float | str, dict[str, Any]] = {},
     grib2_keys: dict[int | float | str, dict[str, Any]] = {},
+    convert_grib_paramid: bool = False,
 ) -> dict[str, Any]:
     """Generate GRIB keys for encoding.
 
@@ -231,8 +214,6 @@ def grib_keys(
         The variable containing GRIB keys.
     ensemble : bool
         Whether the data is part of an ensemble.
-    param : int | float | str | None
-        The parameter value.
     date : datetime
         The date and time.
     step : Any
@@ -247,6 +228,8 @@ def grib_keys(
         Additional GRIB1 keys.
     grib2_keys : dict[int | float | str, dict[str, Any]], optional
         Additional GRIB2 keys.
+    convert_grib_paramid : bool, optional
+        Whether to convert shortName to paramId if paramId is missing from the variable metadata, by default False.
 
     Returns
     -------
@@ -272,14 +255,24 @@ def grib_keys(
 
     result["edition"] = edition
 
-    if param is not None:
-        result.setdefault(_param(param), param)
+    if paramId := variable.data.get("grib", {}).get("paramId"):
+        # use the paramId if it's available, as it's more reliable than param/shortName for GRIB encoding
+        param = paramId
+    else:
+        # fall back to param/shortName
+        param = variable.param
 
-        if edition == 1:
-            result.update(grib1_keys.get(param, {}))
+        # When `convert_grib_paramid` is set, convert shortName back to paramId.
+        if convert_grib_paramid:
+            param = shortname_to_paramid(param)
 
-        if edition == 2:
-            result.update(grib2_keys.get(param, {}))
+    result.setdefault(_param(param), param)
+
+    if edition == 1:
+        result.update(grib1_keys.get(param, {}))
+
+    if edition == 2:
+        result.update(grib2_keys.get(param, {}))
 
     result.setdefault("type", "fc")
 
