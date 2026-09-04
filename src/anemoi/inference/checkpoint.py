@@ -242,6 +242,16 @@ class Checkpoint:
         return self._metadata.target_explicit_times
 
     @property
+    def output_offsets(self) -> list[datetime.timedelta]:
+        """Return the list output offsets, i.e. the relative output times of a single forward."""
+        return self._metadata.output_offsets
+
+    @property
+    def rollout_shift(self) -> datetime.timedelta:
+        """Get the rollout shift."""
+        return self._metadata.rollout_shift
+
+    @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
         return self._metadata.data_frequency

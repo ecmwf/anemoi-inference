@@ -409,13 +409,11 @@ class TensorHandler:
 
         prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
 
-        # roll the input tensor in place to make room for the new prognostic fields
-        keep_steps = min(self.metadata.multi_step_output, self.metadata.multi_step_input)
-        for i in range(input_tensor_torch.shape[1] - keep_steps):
-            input_tensor_torch[:, i].copy_(input_tensor_torch[:, i + keep_steps])
+        for old_idx, new_idx in self.metadata.advance_map["inin"]:
+            input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
 
-        for i in range(keep_steps):
-            input_tensor_torch[:, -(i + 1), :, pmask_in] = prognostic_fields[:, -(i + 1), ...]
+        for out_idx, new_idx in self.metadata.advance_map["outin"]:
+            input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
@@ -465,9 +463,9 @@ class TensorHandler:
             forcings = forcings[..., self.context.grid_shard_slice(self.dataset_name), :]
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
-                input_tensor_torch[:, -(i + 1), :, source.mask] = forcings[
-                    :, -(i + 1), ...
+            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+                input_tensor_torch[:, new_idx, :, source.mask] = forcings[
+                    :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             assert not check[source.mask].any()  # Make sure we are not overwriting some values
@@ -510,10 +508,10 @@ class TensorHandler:
             forcings = forcings[..., boundary_offset : boundary_offset + local_boundary_count, :]
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for i in range(min(self.metadata.multi_step_output, self.metadata.multi_step_input)):
-                total_mask = np.ix_([0], [-(i + 1)], local_spatial_mask, source.variables_mask)
+            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+                total_mask = np.ix_([0], [new_idx], local_spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
-                    :, -(i + 1), ...
+                    :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
