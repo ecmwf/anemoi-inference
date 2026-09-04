@@ -22,6 +22,7 @@ from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
+from .utils import convert_dates_to_base_and_step
 
 LOG = logging.getLogger(__name__)
 
@@ -282,15 +283,17 @@ class MarsInput(GribInput):
             **kwargs,
         )
 
-    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
+    def retrieve(self, variables: list[str], dates: list[Date], **kwargs) -> Any:
         """Retrieve data for the given variables and dates.
 
         Parameters
         ----------
         variables : List[str]
             The list of variables to retrieve.
-        dates : List[Any]
+        dates : List[Date]
             The list of dates for which to retrieve the data.
+        **kwargs : Any
+            Additional keyword arguments to pass to the retrieval function.
 
         Returns
         -------
@@ -307,16 +310,17 @@ class MarsInput(GribInput):
         if not requests:
             raise ValueError(f"No requests for {variables} ({dates})")
 
-        kwargs = self.kwargs.copy()
-        kwargs.setdefault("expver", "0001")
-        kwargs.setdefault("grid", self.metadata.grid)
-        kwargs.setdefault("area", self.metadata.area)
+        retrieval_kwargs = self.kwargs.copy()
+        retrieval_kwargs.update(kwargs)
+        retrieval_kwargs.setdefault("expver", "0001")
+        retrieval_kwargs.setdefault("grid", self.metadata.grid)
+        retrieval_kwargs.setdefault("area", self.metadata.area)
 
         return retrieve(
             requests,
             patch=self.patch,
             log=self.log,
-            **kwargs,
+            **retrieval_kwargs,
         )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -334,8 +338,15 @@ class MarsInput(GribInput):
         Any
             The loaded forcings state.
         """
+        if self.forcings_from_forecast:
+            LOG.debug("%s: Loading forcings from forecast for dates: %s", self.__class__.__name__, dates)
+            date, steps = convert_dates_to_base_and_step(dates)
+            retrieved_state = self.retrieve(self.variables, [date], step=steps)
+        else:
+            retrieved_state = self.retrieve(self.variables, dates)
+
         return self._load_forcings_state(
-            self.retrieve(self.variables, dates),
+            retrieved_state,
             dates=dates,
             current_state=current_state,
         )
