@@ -9,10 +9,15 @@
 
 import pytest
 
+from anemoi.inference.metadata import Metadata
 from anemoi.inference.metadata import MetadataFactory
 from anemoi.inference.metadata import MultiDatasetMetadata
 from anemoi.inference.metadata import SingleDatasetMetadata
 from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
+from anemoi.inference.testing.variables import w_100
+from anemoi.inference.testing.variables import z
+from anemoi.inference.testing.variables import z_100_renamed
+from anemoi.inference.testing.variables import z_renamed
 
 
 @pytest.mark.parametrize(
@@ -192,3 +197,46 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
     assert kwargs.get("dataset") == "test_dataset_multi"
     assert kwargs.get("start") == 2022
     assert kwargs.get("end") == 2022
+
+
+@pytest.mark.parametrize(
+    "typed_variables, field_metadata, expected_name",
+    [
+        # regular case: the GRIB `param` already matches the checkpoint variable name
+        pytest.param(
+            {"z": z},
+            {"param": "z", "levelist": None, "levtype": "sfc"},
+            "z",
+            id="regular-surface",
+        ),
+        pytest.param(
+            {"w_100": w_100},
+            {"param": "w", "levelist": 100, "levtype": "pl"},
+            "w_100",
+            id="regular-pressure",
+        ),
+        # renamed case: the GRIB `param` differs from the checkpoint variable name
+        pytest.param(
+            {"z": z_renamed},
+            {"param": "FIS", "levelist": None, "levtype": "sfc"},
+            "z",
+            id="renamed-surface",
+        ),
+        pytest.param(
+            {"z_100": z_100_renamed},
+            {"param": "FI", "levelist": 100, "levtype": "pl"},
+            "z_100",
+            id="renamed-pressure",
+        ),
+    ],
+)
+def test_default_namer(typed_variables, field_metadata, expected_name):
+    # Bypass Metadata.__init__ (which expects a real checkpoint) and set
+    # `typed_variables` directly: it's a cached_property, so assigning it on
+    # the instance overrides the cache.
+    metadata = Metadata.__new__(Metadata)
+    metadata.typed_variables = typed_variables
+
+    namer = metadata.default_namer()
+
+    assert namer(None, field_metadata) == expected_name
