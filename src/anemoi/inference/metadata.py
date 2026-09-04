@@ -602,10 +602,6 @@ class Metadata(LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
-        # Reverse lookup from the checkpoint's own (param, levelist) to variable
-        # name, using each variable's mars metadata. This lets us recover names
-        # like `z_100` even when the input's GRIB `param` doesn't match the
-        # checkpoint's variable name (e.g. `FI` vs `z`).
         param_levelist_to_name = {
             (variable.param, variable.level): name for name, variable in self.typed_variables.items()
         }
