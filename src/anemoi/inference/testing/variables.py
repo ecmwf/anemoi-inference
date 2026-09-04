@@ -41,3 +41,24 @@ w_100 = Variable.from_dict(
         }
     },
 )
+
+z_renamed = Variable.from_dict(
+    "z",
+    {
+        "mars": {
+            "param": "FIS",
+            "levtype": "sfc",
+        }
+    },
+)
+
+z_100_renamed = Variable.from_dict(
+    "z_100",
+    {
+        "mars": {
+            "param": "FI",
+            "levtype": "pl",
+            "levelist": 100,
+        }
+    },
+)

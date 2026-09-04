@@ -602,9 +602,11 @@ class Metadata(LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
+        param_levelist_to_name = {
+            (variable.param, variable.level): name for name, variable in self.typed_variables.items()
+        }
+
         def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
-            # TODO: Return the `namer` used when building the dataset
-            warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
                 metadata.get("param"),
                 metadata.get("levelist"),
@@ -614,6 +616,10 @@ class Metadata(LegacyMixin):
             # Bug in eccodes that returns levelist for single level fields in GRIB2
             if levtype in ("sfc", "o2d"):
                 levelist = None
+
+            name = param_levelist_to_name.get((param, levelist))
+            if name is not None:
+                return name
 
             if levelist is None:
                 return param
