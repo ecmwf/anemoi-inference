@@ -452,6 +452,22 @@ class ParallelOutput(Output):
         """
         grib_templates_bytes = self._get_or_serialise_grib_templates(state)
 
+        if message == MessageType.OPEN:
+            # Merge all chunked states per worker to create an initial OPEN message for each writer with the combined state.
+            merged_states = {}
+            for i, chunk in enumerate(self.chunking_func(state)):
+                worker_id = i % self.num_writers
+                if worker_id not in merged_states:
+                    merged_states[worker_id] = chunk
+                else:
+                    merged_states[worker_id]["fields"].update(chunk["fields"])
+
+            for worker_id, merged_state in merged_states.items():
+                if merged_state is not None:
+                    self._check_writer_alive(worker_id)
+                    self._queues[worker_id].put((_sanitise_state(merged_state, grib_templates_bytes), message))
+            return
+
         for i, chunk in enumerate(self.chunking_func(state)):
             worker_id = i % self.num_writers
             self._check_writer_alive(worker_id)
