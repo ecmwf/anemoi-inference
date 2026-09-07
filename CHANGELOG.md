@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.12.0](https://github.com/ecmwf/anemoi-inference/compare/0.11.2...0.12.0) (2026-09-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **netcdf output:** Produce netCDF-files that follow CF conventions ([#549](https://github.com/ecmwf/anemoi-inference/issues/549))
+
+### Features
+
+* **netcdf output:** Produce netCDF-files that follow CF conventions ([#549](https://github.com/ecmwf/anemoi-inference/issues/549)) ([29dc717](https://github.com/ecmwf/anemoi-inference/commit/29dc717d8c513d22f658fb911123fa6e171af586))
+* Support flexible timestepping ([#560](https://github.com/ecmwf/anemoi-inference/issues/560)) ([52b1483](https://github.com/ecmwf/anemoi-inference/commit/52b1483bfd135a9dcaeaa32469b96c9e6d38f3ba))
+
+
+### Bug Fixes
+
+* **retrieve:** Ensure we flush/close file we write requests to ([#564](https://github.com/ecmwf/anemoi-inference/issues/564)) ([ec88a85](https://github.com/ecmwf/anemoi-inference/commit/ec88a8540383fa2eedcbe05d9040a5b156b05514))
+
+
+### Performance Improvements
+
+* **rollout:** Roll prognostics in place ([#566](https://github.com/ecmwf/anemoi-inference/issues/566)) ([d92aaf7](https://github.com/ecmwf/anemoi-inference/commit/d92aaf72f847738c03070ad42215f8f81e51c139))
+
 ## [0.11.2](https://github.com/ecmwf/anemoi-inference/compare/0.11.1...0.11.2) (2026-07-30)
 
 
