@@ -9,8 +9,7 @@
 
 
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from datetime import timedelta
 from typing import Any
 
@@ -24,8 +23,7 @@ from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
-from .earthkit_state import unwrap_state
-from .earthkit_state import wrap_state
+from .earthkit_state import unwrap_state, wrap_state
 
 LOG = logging.getLogger(__name__)
 

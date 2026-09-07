@@ -12,8 +12,7 @@ import argparse
 import json
 import logging
 import sys
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from typing import Any
 
@@ -22,8 +21,7 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.metadata import VARIABLE_CATEGORIES
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
+from anemoi.inference.types import DataRequest, Date
 from anemoi.inference.variables import Variables
 
 from ..config.run import RunConfiguration

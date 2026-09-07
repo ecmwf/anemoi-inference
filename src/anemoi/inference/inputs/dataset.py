@@ -19,10 +19,7 @@ import numpy as np
 from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, FloatArray, ProcessorConfig, State
 
 from ..input import Input
 from . import input_registry

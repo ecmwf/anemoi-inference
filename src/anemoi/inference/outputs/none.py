@@ -29,4 +29,3 @@ class NoneOutput(Output):
         state : State
             The state dictionary.
         """
-        pass

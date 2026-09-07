@@ -9,9 +9,7 @@
 
 import pytest
 
-from anemoi.inference.metadata import MetadataFactory
-from anemoi.inference.metadata import MultiDatasetMetadata
-from anemoi.inference.metadata import SingleDatasetMetadata
+from anemoi.inference.metadata import MetadataFactory, MultiDatasetMetadata, SingleDatasetMetadata
 from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
 
 

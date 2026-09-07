@@ -14,8 +14,7 @@ import pickle
 import struct
 from typing import Any
 
-from anemoi.utils.logs import enable_logging_name
-from anemoi.utils.logs import set_logging_name
+from anemoi.utils.logs import enable_logging_name, set_logging_name
 
 from anemoi.inference.task import Task
 from anemoi.inference.types import State

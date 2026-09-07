@@ -7,8 +7,7 @@
 # nor does it submit to any jurisdiction.
 #
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any
 
 from anemoi.utils.logs import enable_logging_name
@@ -160,7 +159,6 @@ class Transport(ABC):
         tag : int
             The tag for the operation.
         """
-        pass
 
     @abstractmethod
     def receive(self, receiver: Task, source: Task, tag: int) -> State:
@@ -180,7 +178,6 @@ class Transport(ABC):
         State
             The received state dictionary.
         """
-        pass
 
     def __repr__(self) -> str:
         """Return a string representation of the transport.
