@@ -194,14 +194,19 @@ class Chunker:
         self.num_writers = num_writers
 
     @cache
-    def _grouped_fields_by_metadata(self, keys: tuple[str], max_groups: int = -1) -> list[str]:
+    def _grouped_fields_by_metadata(
+        self, field_names: tuple[str, ...], keys: tuple[str, ...], max_groups: int = -1
+    ) -> list[list[str]]:
+        """Group the given field names by their metadata values for ``keys``."""
         grouped_fields = {}
-        for field_name, meta in self.typed_variables.items():
+        for field_name in field_names:
+            meta = self.typed_variables.get(field_name)
             key_tuple = tuple(getattr(meta, key, None) for key in keys)
             grouped_fields.setdefault(key_tuple, []).append(field_name)
         if len(grouped_fields) == 1:
             LOG.warning(
-                "All fields have the same metadata for keys %s. Consider using different keys for chunking.", keys
+                "All fields have the same metadata for keys %s. Consider using different keys for chunking.",
+                keys,
             )
         else:
             LOG.info(
@@ -228,17 +233,25 @@ class Chunker:
 
         def chunker(state: State) -> Generator[State, None, None]:
             fields = state["fields"]
-            grouped_fields = self._grouped_fields_by_metadata(tuple(keys), max_groups=max_groups)
+            grouped_fields = self._grouped_fields_by_metadata(tuple(fields.keys()), tuple(keys), max_groups=max_groups)
 
             for group_keys in grouped_fields:
+                chunk_fields = {k: fields[k] for k in group_keys if k in fields}
+                if not chunk_fields:
+                    # never yield an empty chunk
+                    continue
                 chunk = state.copy()
-                chunk["fields"] = {k: fields[k] for k in group_keys if k in fields}
+                chunk["fields"] = chunk_fields
                 yield chunk
 
         return chunker
 
     def by_size(self, fields_per_chunk: int) -> Callable[[State], Generator[State, None, None]]:
         """Chunk the state into smaller parts, each containing a specified number of fields."""
+        if not isinstance(fields_per_chunk, int) or isinstance(fields_per_chunk, bool):
+            raise TypeError("fields_per_chunk must be an integer.")
+        if fields_per_chunk <= 0:
+            raise ValueError("fields_per_chunk must be a positive integer.")
 
         def chunker(state: State) -> Generator[State, None, None]:
             fields = state["fields"]
@@ -383,7 +396,7 @@ class ParallelOutput(Output):
 
         chunk_strategy_name = chunk_strategy if isinstance(chunk_strategy, str) else next(iter(chunk_strategy.keys()))
         chunk_strategy_init = next(iter(chunk_strategy.values())) if isinstance(chunk_strategy, dict) else {}
-        chunker = Chunker(self.metadata.typed_variables, self.num_writers)
+        chunker = Chunker(self.typed_variables, self.num_writers)
 
         match chunk_strategy_name:
             case "by_size":

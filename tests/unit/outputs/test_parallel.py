@@ -505,8 +505,9 @@ class TestChunkerByMetadata:
     def test_result_is_cached(self):
         typed = _make_typed_variables(2, levtype=["sfc", "pl"])
         chunker = Chunker(typed, num_writers=2)
-        first = chunker._grouped_fields_by_metadata(("levtype",))
-        second = chunker._grouped_fields_by_metadata(("levtype",))
+        field_names = ("field_0", "field_1")
+        first = chunker._grouped_fields_by_metadata(field_names, ("levtype",))
+        second = chunker._grouped_fields_by_metadata(field_names, ("levtype",))
         assert first is second
 
 
