@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 import math
 import shutil
@@ -215,7 +216,12 @@ class ZarrOutput(Output):
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
+        # Date of the first written step, which maps to time index 0. This is
+        # the forecast start (step zero) when write_step_zero is set, otherwise
+        # the first forecast step.
+        self.time_index_reference = self.reference_date
         if not self.write_step_zero:
+            self.time_index_reference = self.reference_date + self.metadata.output_offsets[0]
             self.reference_date -= self.metadata.output_offsets[0]
 
         self.time_size = time
@@ -257,9 +263,19 @@ class ZarrOutput(Output):
             fill_value=self.missing_value,
         )
 
-        self.n = 0
+        # Time index is computed from the date, not incremented, so a forecast
+        # step delivered over several write_step calls maps to the same index.
+        self.time_step_seconds = min(offset.total_seconds() for offset in self.metadata.output_offsets)
         self.latitude_var[:] = latitudes
         self.longitude_var[:] = longitudes
+
+    def _time_index(self, date: "datetime.datetime") -> int:
+        """Return the time-dimension index for a given date.
+
+        The index is computed from a fixed reference (the first written step)
+        so that repeated calls for the same forecast step target the same index.
+        """
+        return int(round((date - self.time_index_reference).total_seconds() / self.time_step_seconds))
 
     def _variable_array(self, name: str, values_size: int) -> Any:
         """Get the variable array by name.
@@ -310,16 +326,17 @@ class ZarrOutput(Output):
             The state dictionary.
         """
         step = state["date"] - self.reference_date
-        self.time_array[self.n] = step.total_seconds()
+
+        n = self._time_index(state["date"])
+
+        self.time_array[n] = step.total_seconds()
 
         values = len(state["latitudes"])
 
         for name, value in state["fields"].items():
             if self.skip_variable(name):
                 continue
-            self._variable_array(name, values)[self.n] = value
-
-        self.n += 1
+            self._variable_array(name, values)[n] = value
 
     def close(self) -> None:
         """Close the Zarr file."""
