@@ -23,12 +23,9 @@ from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
-from anemoi.inference.decorators import format_dataset_name
-from anemoi.inference.decorators import main_argument
+from anemoi.inference.decorators import format_dataset_name, main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, FloatArray, State
 
 from ..checks import check_data
 from ..input import Input

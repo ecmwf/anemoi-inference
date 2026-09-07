@@ -16,8 +16,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import State
+from anemoi.inference.types import BoolArray, State
 
 from ..processor import Processor
 from . import post_processor_registry

@@ -14,8 +14,7 @@ from typing import Any
 import torch
 from anemoi.utils.config import DotDict
 
-from anemoi.inference.checkpoint import Checkpoint
-from anemoi.inference.checkpoint import get_multi_dataset_metadata
+from anemoi.inference.checkpoint import Checkpoint, get_multi_dataset_metadata
 from anemoi.inference.config import LOG
 from anemoi.inference.metadata import MetadataFactory
 from anemoi.inference.testing import float_hash

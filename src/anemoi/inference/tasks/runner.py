@@ -12,19 +12,13 @@ import logging
 from typing import Any
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.forcings import CoupledForcings
-from anemoi.inference.forcings import Forcings
-from anemoi.inference.runner import Runner
-from anemoi.inference.runner import RunnerClasses
+from anemoi.inference.forcings import CoupledForcings, Forcings
+from anemoi.inference.runner import Runner, RunnerClasses
 from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.state import reduce_state
 from anemoi.inference.tensors import TensorHandler
-from anemoi.inference.transport import Coupling
-from anemoi.inference.transport import Transport
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.transport import Coupling, Transport
+from anemoi.inference.types import Date, FloatArray, IntArray, State
 
 from ..task import Task
 from . import task_registry

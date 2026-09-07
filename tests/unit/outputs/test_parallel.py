@@ -16,11 +16,13 @@ import numpy as np
 import pytest
 
 from anemoi.inference.decorators import supports_parallel_output
-from anemoi.inference.outputs.parallel import MessageType
-from anemoi.inference.outputs.parallel import ParallelOutput
-from anemoi.inference.outputs.parallel import _detach_tensors
-from anemoi.inference.outputs.parallel import _get_state_chunk
-from anemoi.inference.outputs.parallel import _sanitise_state
+from anemoi.inference.outputs.parallel import (
+    MessageType,
+    ParallelOutput,
+    _detach_tensors,
+    _get_state_chunk,
+    _sanitise_state,
+)
 from anemoi.inference.outputs.printer import PrinterOutput
 
 # ── helpers ───────────────────────────────────────────────────────────────────

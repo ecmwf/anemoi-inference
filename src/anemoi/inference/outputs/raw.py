@@ -17,9 +17,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
 
-from ..decorators import ensure_dir
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
+from ..decorators import ensure_dir, format_dataset_name, main_argument
 from ..output import Output
 from . import output_registry
 

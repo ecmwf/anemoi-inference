@@ -12,8 +12,7 @@ import os
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.client import ComputeClientFactory
-from anemoi.inference.clusters.spawner import SPAWN_FUNCTION
-from anemoi.inference.clusters.spawner import ComputeSpawner
+from anemoi.inference.clusters.spawner import SPAWN_FUNCTION, ComputeSpawner
 from anemoi.inference.config import Configuration
 
 LOG = logging.getLogger(__name__)

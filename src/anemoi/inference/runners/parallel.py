@@ -15,8 +15,7 @@ from typing import Any
 from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.clusters import create_cluster
-from anemoi.inference.clusters.client import ComputeClient
-from anemoi.inference.clusters.client import ComputeClientFactory
+from anemoi.inference.clusters.client import ComputeClient, ComputeClientFactory
 from anemoi.inference.clusters.spawner import ComputeSpawner
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch

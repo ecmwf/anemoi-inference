@@ -10,21 +10,16 @@
 import logging
 import os
 import threading
-from datetime import datetime
-from datetime import timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import ProcessorConfig, State
 
-from ..decorators import ensure_path
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
+from ..decorators import ensure_path, format_dataset_name, main_argument, supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -35,7 +30,7 @@ LOG = logging.getLogger(__name__)
 LOCK = threading.RLock()
 
 CALENDAR = "standard"
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 @output_registry.register("netcdf")
@@ -263,6 +258,6 @@ class NetCDFOutput(Output):
 def _to_epoch_seconds(dt: datetime) -> int:
     """Exact integer seconds since epoch, from a plain python datetime."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)  # assume naive datetimes are UTC
+        dt = dt.replace(tzinfo=UTC)  # assume naive datetimes are UTC
     delta = dt - EPOCH
     return delta.days * 86400 + delta.seconds
