@@ -31,7 +31,6 @@
                 "std": [
                   "tp"
                 ],
-                "min-max": null,
                 "max": [
                   "z"
                 ],
@@ -53,7 +52,7 @@
         }
       },
       "num_features": {
-        "data": 38
+        "data": 37
       }
     },
     "training": {
@@ -88,19 +87,21 @@
               "_target_": "anemoi.training.losses.scalers.NaNMaskScaler"
             },
             "stdev_tendency": {
-              "_target_": "anemoi.training.losses.scalers.StdevTendencyScaler",
-              "timestep": "6h"
+              "_target_": "anemoi.training.losses.scalers.StdevTendencyScaler"
             },
             "var_tendency": {
-              "_target_": "anemoi.training.losses.scalers.VarTendencyScaler",
-              "timestep": "6h"
+              "_target_": "anemoi.training.losses.scalers.VarTendencyScaler"
             },
             "node_weights": {
               "_target_": "anemoi.training.losses.scalers.ReweightedGraphNodeAttributeScaler",
               "nodes_attribute_name": "area_weight",
+              "norm": "unit-sum",
               "scaling_mask_attribute_name": "cutout_mask",
-              "weight_frac_of_total": 0.05,
-              "norm": "unit-sum"
+              "weight_frac_of_total": 0.05
+            },
+            "time_steps": {
+              "_target_": "anemoi.training.losses.scalers.UniformTimeStepScaler",
+              "multistep_output": 1
             },
             "lam_node_weights": {
               "_target_": "anemoi.training.losses.scalers.GraphNodeAttributeScaler",
@@ -116,15 +117,11 @@
               "_target_": "anemoi.training.losses.scalers.GraphNodeAttributeScaler",
               "nodes_attribute_name": "boundary_mask",
               "norm": null
-            },
-            "time_steps": {
-              "_target_": "anemoi.training.losses.scalers.UniformTimeStepScaler",
-              "multistep_output": 1
             }
           }
         }
       },
-      "run_id": "464353c1-daf0-4c18-8437-a4b7f1ae444f",
+      "run_id": "97410f28-9b81-413c-af39-54899d120232",
       "fork_run_id": null,
       "transfer_learning": false,
       "load_weights_only": false,
@@ -139,8 +136,8 @@
       "accum_grad_batches": 1,
       "num_sanity_val_steps": 1,
       "gradient_clip": {
-        "val": 1.0,
-        "algorithm": "norm"
+        "val": 32.0,
+        "algorithm": "value"
       },
       "swa": {
         "enabled": false,
@@ -185,14 +182,6 @@
               ],
               "ignore_nans": true
             },
-            "mse_inside_lam": {
-              "_target_": "anemoi.training.losses.MSELoss",
-              "scalers": [
-                "lam_node_weights",
-                "time_steps"
-              ],
-              "ignore_nans": true
-            },
             "mse_inside_lam_contribution": {
               "_target_": "anemoi.training.losses.MSELoss",
               "scalers": [
@@ -207,6 +196,14 @@
               "scalers": [
                 "outside_lam_mask",
                 "node_weights",
+                "time_steps"
+              ],
+              "ignore_nans": true
+            },
+            "mse_inside_lam": {
+              "_target_": "anemoi.training.losses.MSELoss",
+              "scalers": [
+                "lam_node_weights",
                 "time_steps"
               ],
               "ignore_nans": true
@@ -247,7 +244,6 @@
         "max": 1
       },
       "max_epochs": null,
-      "max_steps": 20,
       "lr": {
         "warmup": 5,
         "rate": 1e-05,
@@ -256,232 +252,12 @@
       },
       "submodules_to_freeze": [],
       "recompile_limit": 32,
-      "preferred_blas_backend": "cublas"
+      "max_steps": 20
     },
     "dataloader": {
       "prefetch_factor": 2,
       "pin_memory": true,
       "read_group_size": 1,
-      "num_workers": {
-        "training": 5,
-        "validation": 5,
-        "test": 5
-      },
-      "batch_size": {
-        "training": 1,
-        "validation": 1,
-        "test": 4
-      },
-      "limit_batches": {
-        "training": 20,
-        "validation": 2,
-        "test": 20
-      },
-      "dataset": {
-        "cutout": [
-          {
-            "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
-          },
-          {
-            "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
-          }
-        ],
-        "adjust": "all"
-      },
-      "model_run_info": null,
-      "training": {
-        "datasets": {
-          "data": {
-            "dataset_config": {
-              "dataset": {
-                "cutout": [
-                  {
-                    "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
-                  },
-                  {
-                    "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
-                  }
-                ],
-                "adjust": "all"
-              },
-              "frequency": "6h",
-              "drop": [],
-              "select": [
-                "10u",
-                "10v",
-                "2d",
-                "2t",
-                "cos_julian_day",
-                "cos_latitude",
-                "cos_local_time",
-                "cos_longitude",
-                "insolation",
-                "lsm",
-                "q_1000",
-                "q_250",
-                "q_500",
-                "q_850",
-                "sin_julian_day",
-                "sin_latitude",
-                "sin_local_time",
-                "sin_longitude",
-                "skt",
-                "sp",
-                "t_1000",
-                "t_250",
-                "t_500",
-                "t_850",
-                "tp",
-                "u_1000",
-                "u_250",
-                "u_500",
-                "u_850",
-                "v_1000",
-                "v_250",
-                "v_500",
-                "v_850",
-                "z",
-                "z_1000",
-                "z_250",
-                "z_500",
-                "z_850"
-              ]
-            },
-            "start": null,
-            "end": "2020-03-24",
-            "trajectory": null
-          }
-        }
-      },
-      "validation_rollout": 1,
-      "validation": {
-        "datasets": {
-          "data": {
-            "dataset_config": {
-              "dataset": {
-                "cutout": [
-                  {
-                    "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
-                  },
-                  {
-                    "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
-                  }
-                ],
-                "adjust": "all"
-              },
-              "frequency": "6h",
-              "drop": [],
-              "select": [
-                "10u",
-                "10v",
-                "2d",
-                "2t",
-                "cos_julian_day",
-                "cos_latitude",
-                "cos_local_time",
-                "cos_longitude",
-                "insolation",
-                "lsm",
-                "q_1000",
-                "q_250",
-                "q_500",
-                "q_850",
-                "sin_julian_day",
-                "sin_latitude",
-                "sin_local_time",
-                "sin_longitude",
-                "skt",
-                "sp",
-                "t_1000",
-                "t_250",
-                "t_500",
-                "t_850",
-                "tp",
-                "u_1000",
-                "u_250",
-                "u_500",
-                "u_850",
-                "v_1000",
-                "v_250",
-                "v_500",
-                "v_850",
-                "z",
-                "z_1000",
-                "z_250",
-                "z_500",
-                "z_850"
-              ]
-            },
-            "start": "2020-03-25",
-            "end": null,
-            "trajectory": null
-          }
-        }
-      },
-      "test": {
-        "datasets": {
-          "data": {
-            "dataset_config": {
-              "dataset": {
-                "cutout": [
-                  {
-                    "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
-                  },
-                  {
-                    "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
-                  }
-                ],
-                "adjust": "all"
-              },
-              "frequency": "6h",
-              "drop": [],
-              "select": [
-                "10u",
-                "10v",
-                "2d",
-                "2t",
-                "cos_julian_day",
-                "cos_latitude",
-                "cos_local_time",
-                "cos_longitude",
-                "insolation",
-                "lsm",
-                "q_1000",
-                "q_250",
-                "q_500",
-                "q_850",
-                "sin_julian_day",
-                "sin_latitude",
-                "sin_local_time",
-                "sin_longitude",
-                "skt",
-                "sp",
-                "t_1000",
-                "t_250",
-                "t_500",
-                "t_850",
-                "tp",
-                "u_1000",
-                "u_250",
-                "u_500",
-                "u_850",
-                "v_1000",
-                "v_250",
-                "v_500",
-                "v_850",
-                "z",
-                "z_1000",
-                "z_250",
-                "z_500",
-                "z_850"
-              ]
-            },
-            "start": "2020-03-25",
-            "end": null,
-            "trajectory": null
-          }
-        }
-      },
       "selected_vars": [
         "10u",
         "10v",
@@ -501,7 +277,6 @@
         "sin_latitude",
         "sin_local_time",
         "sin_longitude",
-        "skt",
         "sp",
         "t_1000",
         "t_250",
@@ -521,14 +296,228 @@
         "z_250",
         "z_500",
         "z_850"
-      ]
+      ],
+      "num_workers": {
+        "training": 8,
+        "validation": 8,
+        "test": 8
+      },
+      "batch_size": {
+        "training": 1,
+        "validation": 1,
+        "test": 4
+      },
+      "limit_batches": {
+        "training": 20,
+        "validation": 2,
+        "test": 20
+      },
+      "model_run_info": null,
+      "validation_rollout": 1,
+      "training": {
+        "datasets": {
+          "data": {
+            "dataset_config": {
+              "dataset": {
+                "cutout": [
+                  {
+                    "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
+                  },
+                  {
+                    "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
+                  }
+                ],
+                "adjust": "all"
+              },
+              "select": [
+                "10u",
+                "10v",
+                "2d",
+                "2t",
+                "cos_julian_day",
+                "cos_latitude",
+                "cos_local_time",
+                "cos_longitude",
+                "insolation",
+                "lsm",
+                "q_1000",
+                "q_250",
+                "q_500",
+                "q_850",
+                "sin_julian_day",
+                "sin_latitude",
+                "sin_local_time",
+                "sin_longitude",
+                "sp",
+                "t_1000",
+                "t_250",
+                "t_500",
+                "t_850",
+                "tp",
+                "u_1000",
+                "u_250",
+                "u_500",
+                "u_850",
+                "v_1000",
+                "v_250",
+                "v_500",
+                "v_850",
+                "z",
+                "z_1000",
+                "z_250",
+                "z_500",
+                "z_850"
+              ],
+              "frequency": "6h",
+              "drop": []
+            },
+            "start": null,
+            "end": "2020-03-24"
+          }
+        }
+      },
+      "validation": {
+        "datasets": {
+          "data": {
+            "dataset_config": {
+              "dataset": {
+                "cutout": [
+                  {
+                    "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
+                  },
+                  {
+                    "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
+                  }
+                ],
+                "adjust": "all"
+              },
+              "select": [
+                "10u",
+                "10v",
+                "2d",
+                "2t",
+                "cos_julian_day",
+                "cos_latitude",
+                "cos_local_time",
+                "cos_longitude",
+                "insolation",
+                "lsm",
+                "q_1000",
+                "q_250",
+                "q_500",
+                "q_850",
+                "sin_julian_day",
+                "sin_latitude",
+                "sin_local_time",
+                "sin_longitude",
+                "sp",
+                "t_1000",
+                "t_250",
+                "t_500",
+                "t_850",
+                "tp",
+                "u_1000",
+                "u_250",
+                "u_500",
+                "u_850",
+                "v_1000",
+                "v_250",
+                "v_500",
+                "v_850",
+                "z",
+                "z_1000",
+                "z_250",
+                "z_500",
+                "z_850"
+              ],
+              "frequency": "6h",
+              "drop": []
+            },
+            "start": "2020-03-25",
+            "end": null
+          }
+        }
+      },
+      "test": {
+        "datasets": {
+          "data": {
+            "dataset_config": {
+              "dataset": {
+                "cutout": [
+                  {
+                    "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
+                  },
+                  {
+                    "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
+                  }
+                ],
+                "adjust": "all"
+              },
+              "select": [
+                "10u",
+                "10v",
+                "2d",
+                "2t",
+                "cos_julian_day",
+                "cos_latitude",
+                "cos_local_time",
+                "cos_longitude",
+                "insolation",
+                "lsm",
+                "q_1000",
+                "q_250",
+                "q_500",
+                "q_850",
+                "sin_julian_day",
+                "sin_latitude",
+                "sin_local_time",
+                "sin_longitude",
+                "sp",
+                "t_1000",
+                "t_250",
+                "t_500",
+                "t_850",
+                "tp",
+                "u_1000",
+                "u_250",
+                "u_500",
+                "u_850",
+                "v_1000",
+                "v_250",
+                "v_500",
+                "v_850",
+                "z",
+                "z_1000",
+                "z_250",
+                "z_500",
+                "z_850"
+              ],
+              "frequency": "6h",
+              "drop": []
+            },
+            "start": "2020-03-25",
+            "end": null
+          }
+        }
+      },
+      "dataset": {
+        "cutout": [
+          {
+            "dataset": "/.../varda-kenda-ch1-2km-2020-2020-1h-v1.0-pl13-test-ifsnames.zarr"
+          },
+          {
+            "dataset": "/.../aifs-ea-an-oper-0001-mars-o48-2020-2021-6h-v1.zarr"
+          }
+        ],
+        "adjust": "all"
+      }
     }
   },
   "seed": 42000,
-  "run_id": "464353c1-daf0-4c18-8437-a4b7f1ae444f",
+  "run_id": "97410f28-9b81-413c-af39-54899d120232",
   "dataset": {
     "data": {
-      "version": "0.5.41.dev5+gf997ea3ff",
+      "version": "0.5.35.dev1+g00396bb40",
       "arguments": {
         "args": [
           {
@@ -543,8 +532,6 @@
               ],
               "adjust": "all"
             },
-            "frequency": "6h",
-            "drop": [],
             "select": [
               "10u",
               "10v",
@@ -564,7 +551,6 @@
               "sin_latitude",
               "sin_local_time",
               "sin_longitude",
-              "skt",
               "sp",
               "t_1000",
               "t_250",
@@ -584,7 +570,9 @@
               "z_250",
               "z_500",
               "z_850"
-            ]
+            ],
+            "frequency": "6h",
+            "drop": []
           }
         ],
         "kwargs": {
@@ -613,7 +601,6 @@
           "sin_latitude",
           "sin_local_time",
           "sin_longitude",
-          "skt",
           "sp",
           "t_1000",
           "t_250",
@@ -636,13 +623,13 @@
         ],
         "shape": [
           96,
-          38,
+          37,
           1,
           41609
         ],
         "frequency": "6h",
         "start_date": "2020-03-01T00:00:00",
-        "end_date": "2020-03-30T23:00:00",
+        "end_date": "2020-03-24T18:00:00",
         "forward": {
           "action": "select",
           "variables": [
@@ -664,7 +651,6 @@
             "sin_latitude",
             "sin_local_time",
             "sin_longitude",
-            "skt",
             "sp",
             "t_1000",
             "t_250",
@@ -687,13 +673,13 @@
           ],
           "shape": [
             120,
-            38,
+            37,
             1,
             41609
           ],
           "frequency": "6h",
           "start_date": "2020-03-01T00:00:00",
-          "end_date": "2020-03-30T23:00:00",
+          "end_date": "2020-03-30T18:00:00",
           "forward": {
             "action": "subset",
             "variables": [
@@ -744,7 +730,7 @@
             ],
             "frequency": "6h",
             "start_date": "2020-03-01T00:00:00",
-            "end_date": "2020-03-30T23:00:00",
+            "end_date": "2020-03-30T18:00:00",
             "forward": {
               "action": "cutout",
               "variables": [
@@ -795,7 +781,7 @@
               ],
               "frequency": "6h",
               "start_date": "2020-03-01T00:00:00",
-              "end_date": "2020-03-30T23:00:00",
+              "end_date": "2020-03-30T18:00:00",
               "datasets": [
                 {
                   "action": "select",
@@ -847,7 +833,7 @@
                   ],
                   "frequency": "6h",
                   "start_date": "2020-03-01T00:00:00",
-                  "end_date": "2020-03-30T23:00:00",
+                  "end_date": "2020-03-30T18:00:00",
                   "forward": {
                     "action": "subset",
                     "variables": [
@@ -974,9 +960,9 @@
                     ],
                     "frequency": "6h",
                     "start_date": "2020-03-01T00:00:00",
-                    "end_date": "2020-03-30T23:00:00",
+                    "end_date": "2020-03-30T18:00:00",
                     "forward": {
-                      "action": "griddedzarr",
+                      "action": "zarr",
                       "variables": [
                         "CAPE_ML",
                         "CAPE_MU",
@@ -4939,8 +4925,8 @@
                     10944
                   ],
                   "frequency": "6h",
-                  "start_date": "2020-01-01T00:00:00",
-                  "end_date": "2021-12-31T18:00:00",
+                  "start_date": "2020-03-01T00:00:00",
+                  "end_date": "2020-03-30T18:00:00",
                   "forward": {
                     "action": "subset",
                     "variables": [
@@ -4995,10 +4981,10 @@
                       10944
                     ],
                     "frequency": "6h",
-                    "start_date": "2020-01-01T00:00:00",
-                    "end_date": "2021-12-31T18:00:00",
+                    "start_date": "2020-03-01T00:00:00",
+                    "end_date": "2020-03-30T18:00:00",
                     "forward": {
-                      "action": "griddedzarr",
+                      "action": "zarr",
                       "variables": [
                         "10u",
                         "10v",
@@ -6354,7 +6340,6 @@
               "sin_latitude",
               "sin_local_time",
               "sin_longitude",
-              "skt",
               "sp",
               "t_1000",
               "t_250",
@@ -6395,7 +6380,6 @@
             15,
             16,
             17,
-            18,
             19,
             20,
             21,
@@ -6441,7 +6425,6 @@
         "sin_latitude",
         "sin_local_time",
         "sin_longitude",
-        "skt",
         "sp",
         "t_1000",
         "t_250",
@@ -6569,15 +6552,6 @@
             "levelist": 850,
             "levtype": "pl",
             "param": "QV",
-            "step": "0m",
-            "time": 0
-          }
-        },
-        "skt": {
-          "mars": {
-            "date": 20200301,
-            "levtype": "sfc",
-            "param": "SKT",
             "step": "0m",
             "time": 0
           }
@@ -6791,13 +6765,13 @@
       },
       "shape": [
         96,
-        38,
+        37,
         1,
         41609
       ],
       "dtype": "float32",
       "start_date": "2020-03-01T00:00:00",
-      "end_date": "2020-03-30T23:00:00",
+      "end_date": "2020-03-24T18:00:00",
       "name": null,
       "sources": [
         {
@@ -6851,7 +6825,7 @@
             ],
             "frequency": "6h",
             "start_date": "2020-03-01T00:00:00",
-            "end_date": "2020-03-30T23:00:00",
+            "end_date": "2020-03-30T18:00:00",
             "forward": {
               "action": "subset",
               "variables": [
@@ -6978,9 +6952,9 @@
               ],
               "frequency": "6h",
               "start_date": "2020-03-01T00:00:00",
-              "end_date": "2020-03-30T23:00:00",
+              "end_date": "2020-03-30T18:00:00",
               "forward": {
-                "action": "griddedzarr",
+                "action": "zarr",
                 "variables": [
                   "CAPE_ML",
                   "CAPE_MU",
@@ -11270,7 +11244,7 @@
           ],
           "dtype": "float32",
           "start_date": "2020-03-01T00:00:00",
-          "end_date": "2020-03-30T23:00:00",
+          "end_date": "2020-03-30T18:00:00",
           "name": null,
           "supporting_arrays": [
             "source0/latitudes",
@@ -11327,8 +11301,8 @@
               10944
             ],
             "frequency": "6h",
-            "start_date": "2020-01-01T00:00:00",
-            "end_date": "2021-12-31T18:00:00",
+            "start_date": "2020-03-01T00:00:00",
+            "end_date": "2020-03-30T18:00:00",
             "forward": {
               "action": "subset",
               "variables": [
@@ -11383,10 +11357,10 @@
                 10944
               ],
               "frequency": "6h",
-              "start_date": "2020-01-01T00:00:00",
-              "end_date": "2021-12-31T18:00:00",
+              "start_date": "2020-03-01T00:00:00",
+              "end_date": "2020-03-30T18:00:00",
               "forward": {
-                "action": "griddedzarr",
+                "action": "zarr",
                 "variables": [
                   "10u",
                   "10v",
@@ -13233,8 +13207,8 @@
             10944
           ],
           "dtype": "float32",
-          "start_date": "2020-01-01T00:00:00",
-          "end_date": "2021-12-31T18:00:00",
+          "start_date": "2020-03-01T00:00:00",
+          "end_date": "2020-03-30T18:00:00",
           "name": null,
           "supporting_arrays": [
             "source1/latitudes",
@@ -13268,251 +13242,6 @@
             20,
             21,
             22,
-            23,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            34,
-            35,
-            36,
-            37
-          ],
-          "diagnostic": [
-            24
-          ],
-          "forcing": [
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            14,
-            15,
-            16,
-            17,
-            33
-          ],
-          "target": [],
-          "full": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-            35,
-            36,
-            37
-          ],
-          "name_to_index": {
-            "10u": 0,
-            "10v": 1,
-            "2d": 2,
-            "2t": 3,
-            "cos_julian_day": 4,
-            "cos_latitude": 5,
-            "cos_local_time": 6,
-            "cos_longitude": 7,
-            "insolation": 8,
-            "lsm": 9,
-            "q_1000": 10,
-            "q_250": 11,
-            "q_500": 12,
-            "q_850": 13,
-            "sin_julian_day": 14,
-            "sin_latitude": 15,
-            "sin_local_time": 16,
-            "sin_longitude": 17,
-            "skt": 18,
-            "sp": 19,
-            "t_1000": 20,
-            "t_250": 21,
-            "t_500": 22,
-            "t_850": 23,
-            "tp": 24,
-            "u_1000": 25,
-            "u_250": 26,
-            "u_500": 27,
-            "u_850": 28,
-            "v_1000": 29,
-            "v_250": 30,
-            "v_500": 31,
-            "v_850": 32,
-            "z": 33,
-            "z_1000": 34,
-            "z_250": 35,
-            "z_500": 36,
-            "z_850": 37
-          }
-        },
-        "output": {
-          "prognostic": [
-            0,
-            1,
-            2,
-            3,
-            10,
-            11,
-            12,
-            13,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            34,
-            35,
-            36,
-            37
-          ],
-          "diagnostic": [
-            24
-          ],
-          "forcing": [
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            14,
-            15,
-            16,
-            17,
-            33
-          ],
-          "target": [],
-          "full": [
-            0,
-            1,
-            2,
-            3,
-            10,
-            11,
-            12,
-            13,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            34,
-            35,
-            36,
-            37
-          ],
-          "name_to_index": {
-            "10u": 0,
-            "10v": 1,
-            "2d": 2,
-            "2t": 3,
-            "cos_julian_day": 4,
-            "cos_latitude": 5,
-            "cos_local_time": 6,
-            "cos_longitude": 7,
-            "insolation": 8,
-            "lsm": 9,
-            "q_1000": 10,
-            "q_250": 11,
-            "q_500": 12,
-            "q_850": 13,
-            "sin_julian_day": 14,
-            "sin_latitude": 15,
-            "sin_local_time": 16,
-            "sin_longitude": 17,
-            "skt": 18,
-            "sp": 19,
-            "t_1000": 20,
-            "t_250": 21,
-            "t_500": 22,
-            "t_850": 23,
-            "tp": 24,
-            "u_1000": 25,
-            "u_250": 26,
-            "u_500": 27,
-            "u_850": 28,
-            "v_1000": 29,
-            "v_250": 30,
-            "v_500": 31,
-            "v_850": 32,
-            "z": 33,
-            "z_1000": 34,
-            "z_250": 35,
-            "z_500": 36,
-            "z_850": 37
-          }
-        }
-      },
-      "model": {
-        "input": {
-          "prognostic": [
-            0,
-            1,
-            2,
-            3,
-            10,
-            11,
-            12,
-            13,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
             24,
             25,
             26,
@@ -13526,7 +13255,9 @@
             35,
             36
           ],
-          "diagnostic": [],
+          "diagnostic": [
+            23
+          ],
           "forcing": [
             4,
             5,
@@ -13565,7 +13296,6 @@
             20,
             21,
             22,
-            23,
             24,
             25,
             26,
@@ -13599,12 +13329,12 @@
             "sin_latitude": 15,
             "sin_local_time": 16,
             "sin_longitude": 17,
-            "skt": 18,
-            "sp": 19,
-            "t_1000": 20,
-            "t_250": 21,
-            "t_500": 22,
-            "t_850": 23,
+            "sp": 18,
+            "t_1000": 19,
+            "t_250": 20,
+            "t_500": 21,
+            "t_850": 22,
+            "tp": 23,
             "u_1000": 24,
             "u_250": 25,
             "u_500": 26,
@@ -13626,6 +13356,163 @@
             1,
             2,
             3,
+            10,
+            11,
+            12,
+            13,
+            18,
+            19,
+            20,
+            21,
+            22,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            33,
+            34,
+            35,
+            36
+          ],
+          "diagnostic": [
+            23
+          ],
+          "forcing": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            14,
+            15,
+            16,
+            17,
+            32
+          ],
+          "target": [],
+          "full": [
+            0,
+            1,
+            2,
+            3,
+            10,
+            11,
+            12,
+            13,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            33,
+            34,
+            35,
+            36
+          ],
+          "name_to_index": {
+            "10u": 0,
+            "10v": 1,
+            "2d": 2,
+            "2t": 3,
+            "cos_julian_day": 4,
+            "cos_latitude": 5,
+            "cos_local_time": 6,
+            "cos_longitude": 7,
+            "insolation": 8,
+            "lsm": 9,
+            "q_1000": 10,
+            "q_250": 11,
+            "q_500": 12,
+            "q_850": 13,
+            "sin_julian_day": 14,
+            "sin_latitude": 15,
+            "sin_local_time": 16,
+            "sin_longitude": 17,
+            "sp": 18,
+            "t_1000": 19,
+            "t_250": 20,
+            "t_500": 21,
+            "t_850": 22,
+            "tp": 23,
+            "u_1000": 24,
+            "u_250": 25,
+            "u_500": 26,
+            "u_850": 27,
+            "v_1000": 28,
+            "v_250": 29,
+            "v_500": 30,
+            "v_850": 31,
+            "z": 32,
+            "z_1000": 33,
+            "z_250": 34,
+            "z_500": 35,
+            "z_850": 36
+          }
+        }
+      },
+      "model": {
+        "input": {
+          "prognostic": [
+            0,
+            1,
+            2,
+            3,
+            10,
+            11,
+            12,
+            13,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35
+          ],
+          "diagnostic": [],
+          "forcing": [
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            14,
+            15,
+            16,
+            17,
+            31
+          ],
+          "target": [],
+          "full": [
+            0,
+            1,
+            2,
+            3,
             4,
             5,
             6,
@@ -13636,6 +13523,7 @@
             11,
             12,
             13,
+            14,
             15,
             16,
             17,
@@ -13647,10 +13535,86 @@
             23,
             24,
             25,
-            26
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35
+          ],
+          "name_to_index": {
+            "10u": 0,
+            "10v": 1,
+            "2d": 2,
+            "2t": 3,
+            "cos_julian_day": 4,
+            "cos_latitude": 5,
+            "cos_local_time": 6,
+            "cos_longitude": 7,
+            "insolation": 8,
+            "lsm": 9,
+            "q_1000": 10,
+            "q_250": 11,
+            "q_500": 12,
+            "q_850": 13,
+            "sin_julian_day": 14,
+            "sin_latitude": 15,
+            "sin_local_time": 16,
+            "sin_longitude": 17,
+            "sp": 18,
+            "t_1000": 19,
+            "t_250": 20,
+            "t_500": 21,
+            "t_850": 22,
+            "u_1000": 23,
+            "u_250": 24,
+            "u_500": 25,
+            "u_850": 26,
+            "v_1000": 27,
+            "v_250": 28,
+            "v_500": 29,
+            "v_850": 30,
+            "z": 31,
+            "z_1000": 32,
+            "z_250": 33,
+            "z_500": 34,
+            "z_850": 35
+          }
+        },
+        "output": {
+          "prognostic": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25
           ],
           "diagnostic": [
-            14
+            13
           ],
           "forcing": [],
           "target": [],
@@ -13680,8 +13644,7 @@
             22,
             23,
             24,
-            25,
-            26
+            25
           ],
           "name_to_index": {
             "10u": 0,
@@ -13692,54 +13655,53 @@
             "q_250": 5,
             "q_500": 6,
             "q_850": 7,
-            "skt": 8,
-            "sp": 9,
-            "t_1000": 10,
-            "t_250": 11,
-            "t_500": 12,
-            "t_850": 13,
-            "tp": 14,
-            "u_1000": 15,
-            "u_250": 16,
-            "u_500": 17,
-            "u_850": 18,
-            "v_1000": 19,
-            "v_250": 20,
-            "v_500": 21,
-            "v_850": 22,
-            "z_1000": 23,
-            "z_250": 24,
-            "z_500": 25,
-            "z_850": 26
+            "sp": 8,
+            "t_1000": 9,
+            "t_250": 10,
+            "t_500": 11,
+            "t_850": 12,
+            "tp": 13,
+            "u_1000": 14,
+            "u_250": 15,
+            "u_500": 16,
+            "u_850": 17,
+            "v_1000": 18,
+            "v_250": 19,
+            "v_500": 20,
+            "v_850": 21,
+            "z_1000": 22,
+            "z_250": 23,
+            "z_500": 24,
+            "z_850": 25
           }
         }
       }
     }
   },
   "provenance_training": {
-    "time": "2026-08-17T13:29:31.084520",
+    "time": "2026-09-04T12:47:44.650629",
     "python": "3.12.12",
     "module_versions": {
       "anemoi.datasets": {
-        "version": "0.5.41.dev5+gf997ea3ff",
+        "version": "0.5.35.dev1+g00396bb40",
         "source": {
           "url": "file:///users/fzanetta/projects/devml/varda-forecaster-det-sgm/packages/anemoi-datasets"
         }
       },
       "anemoi.graphs": {
-        "version": "0.9.4.post66",
+        "version": "0.9.1.post3",
         "source": {
           "url": "file:///users/fzanetta/projects/devml/varda-forecaster-det-sgm/packages/anemoi-core/graphs"
         }
       },
       "anemoi.models": {
-        "version": "0.16.0.post38",
+        "version": "0.13.1.post3",
         "source": {
           "url": "file:///users/fzanetta/projects/devml/varda-forecaster-det-sgm/packages/anemoi-core/models"
         }
       },
       "anemoi.training": {
-        "version": "0.14.0.post38",
+        "version": "0.11.0.post3",
         "source": {
           "url": "file:///users/fzanetta/projects/devml/varda-forecaster-det-sgm/packages/anemoi-core/training"
         }
@@ -13748,13 +13710,13 @@
         "version": "0.4.3"
       },
       "anemoi.utils": {
-        "version": "0.5.9"
+        "version": "0.5.12"
       },
       "aniso8601": {
         "version": "10.0.1"
       },
       "annotated_types": {
-        "version": "0.7.0"
+        "version": "0.8.0"
       },
       "anyio": {
         "version": "4.14.2"
@@ -13796,7 +13758,7 @@
         "version": "4.63.0"
       },
       "fsspec": {
-        "version": "2026.6.0"
+        "version": "2026.7.0"
       },
       "h11": {
         "version": "0.16.0"
@@ -13808,7 +13770,7 @@
         "version": "0.28.1"
       },
       "huggingface_hub": {
-        "version": "1.24.0"
+        "version": "1.25.1"
       },
       "hydra.core": {
         "version": "1.3.4"
@@ -13904,7 +13866,7 @@
         "version": "2.4.0"
       },
       "pytz": {
-        "version": "2026.2"
+        "version": "2026.3.post1"
       },
       "requests": {
         "version": "2.34.2"
@@ -13952,7 +13914,7 @@
         "version": "0.20.1+cu124"
       },
       "tqdm": {
-        "version": "4.69.0"
+        "version": "4.70.0"
       },
       "trimesh": {
         "version": "4.12.2"
@@ -13961,7 +13923,7 @@
         "version": "3.1.0"
       },
       "typeguard": {
-        "version": "4.5.2"
+        "version": "4.6.0"
       },
       "typing_extensions": {
         "version": "4.16.0"
@@ -13973,7 +13935,7 @@
         "version": "2.7.0"
       },
       "wrapt": {
-        "version": "2.2.2"
+        "version": "2.3.0"
       },
       "xxhash": {
         "version": "3.8.1"
@@ -13998,40 +13960,586 @@
       "typing_inspection": "typing-inspection"
     },
     "git_versions": {
-      "anemoi.graphs": {
+      "asciitree": {
         "git": {
-          "sha1": "a5bae27dc0ed1ef94b73193694901b8667690650",
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "numpy": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "threadpoolctl": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "kiwisolver": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pyparsing": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pandas": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "jaraco.context": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "netCDF4": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "torchvision": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "earthkit.meteo": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "triton": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "torch": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "aniso8601": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pydantic": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "lightning_utilities": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "certifi": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "einops": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "psutil": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "rich": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "urllib3": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "filelock": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "networkx": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "markupsafe": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "deprecated": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "torch_geometric": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "idna": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "numcodecs": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "trimesh": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "typing_extensions": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "torchmetrics": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pytz": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "packaging": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "llvmlite": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "torch_cluster": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "more_itertools": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "cftime": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "matplotlib": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "setuptools": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "charset_normalizer": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "cycler": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "typing_inspection": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "jaraco.text": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "httpcore": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "huggingface_hub": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "narwhals": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "anemoi.transform": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
           "modified_files": 0,
           "untracked_files": 0
         }
       },
       "anemoi.training": {
         "git": {
-          "sha1": "a5bae27dc0ed1ef94b73193694901b8667690650",
+          "sha1": "3fe7fccecdd8b87ef279d0adb326c3ba31d1f7bc",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "httpx": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "mpmath": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
           "modified_files": 0,
           "untracked_files": 0
         }
       },
       "anemoi.models": {
         "git": {
-          "sha1": "a5bae27dc0ed1ef94b73193694901b8667690650",
+          "sha1": "3fe7fccecdd8b87ef279d0adb326c3ba31d1f7bc",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "fsspec": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "tqdm": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "requests": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "anyio": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "h11": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pygments": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
           "modified_files": 0,
           "untracked_files": 0
         }
       },
       "anemoi.datasets": {
         "git": {
-          "sha1": "f997ea3ffa07d05064b35c49f1feee071b701adf",
+          "sha1": "00396bb40f003389c6827490539abe88e61867b6",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "fontTools": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "numba": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pytorch_lightning": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "joblib": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "sympy": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "jinja2": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "xxhash": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "deprecation": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "typeguard": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pydantic_core": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "torchinfo": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "omegaconf": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "wrapt": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "safetensors": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "six": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "hydra.core": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "pydantic_settings": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "zarr": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "jaraco.functools": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "anemoi.graphs": {
+        "git": {
+          "sha1": "3fe7fccecdd8b87ef279d0adb326c3ba31d1f7bc",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "annotated_types": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "anemoi.utils": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "timm": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "click": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
+          "modified_files": 0,
+          "untracked_files": 0
+        }
+      },
+      "scipy": {
+        "git": {
+          "sha1": "5c62e2c3a535f9be0571eee918b6690bbd0c7afa",
           "modified_files": 0,
           "untracked_files": 0
         }
       }
     }
   },
-  "timestamp": "2026-08-17T13:29:31.875755+00:00",
+  "timestamp": "2026-09-04T12:47:53.469486+00:00",
   "metadata_inference": {
     "seed": 42000,
-    "run_id": "464353c1-daf0-4c18-8437-a4b7f1ae444f",
+    "run_id": "97410f28-9b81-413c-af39-54899d120232",
     "dataset_names": [
       "data"
     ],
@@ -14072,25 +14580,24 @@
           "sin_latitude": 15,
           "sin_local_time": 16,
           "sin_longitude": 17,
-          "skt": 18,
-          "sp": 19,
-          "t_1000": 20,
-          "t_250": 21,
-          "t_500": 22,
-          "t_850": 23,
-          "u_1000": 24,
-          "u_250": 25,
-          "u_500": 26,
-          "u_850": 27,
-          "v_1000": 28,
-          "v_250": 29,
-          "v_500": 30,
-          "v_850": 31,
-          "z": 32,
-          "z_1000": 33,
-          "z_250": 34,
-          "z_500": 35,
-          "z_850": 36
+          "sp": 18,
+          "t_1000": 19,
+          "t_250": 20,
+          "t_500": 21,
+          "t_850": 22,
+          "u_1000": 23,
+          "u_250": 24,
+          "u_500": 25,
+          "u_850": 26,
+          "v_1000": 27,
+          "v_250": 28,
+          "v_500": 29,
+          "v_850": 30,
+          "z": 31,
+          "z_1000": 32,
+          "z_250": 33,
+          "z_500": 34,
+          "z_850": 35
         },
         "output": {
           "10u": 0,
@@ -14101,25 +14608,24 @@
           "q_250": 5,
           "q_500": 6,
           "q_850": 7,
-          "skt": 8,
-          "sp": 9,
-          "t_1000": 10,
-          "t_250": 11,
-          "t_500": 12,
-          "t_850": 13,
-          "tp": 14,
-          "u_1000": 15,
-          "u_250": 16,
-          "u_500": 17,
-          "u_850": 18,
-          "v_1000": 19,
-          "v_250": 20,
-          "v_500": 21,
-          "v_850": 22,
-          "z_1000": 23,
-          "z_250": 24,
-          "z_500": 25,
-          "z_850": 26
+          "sp": 8,
+          "t_1000": 9,
+          "t_250": 10,
+          "t_500": 11,
+          "t_850": 12,
+          "tp": 13,
+          "u_1000": 14,
+          "u_250": 15,
+          "u_500": 16,
+          "u_850": 17,
+          "v_1000": 18,
+          "v_250": 19,
+          "v_500": 20,
+          "v_850": 21,
+          "z_1000": 22,
+          "z_250": 23,
+          "z_500": 24,
+          "z_850": 25
         }
       },
       "variable_types": {
@@ -14146,7 +14652,6 @@
           "q_250",
           "q_500",
           "q_850",
-          "skt",
           "sp",
           "t_1000",
           "t_250",
@@ -14170,14 +14675,14 @@
         ]
       },
       "shapes": {
-        "variables": 78,
+        "variables": 76,
         "input_timesteps": 2,
         "ensemble": 1,
         "grid": null
       }
     }
   },
-  "uuid": "77b959ef-8f5e-4b66-944b-64c0ad1eac4b",
+  "uuid": "0e777b5e-35b5-46ca-a858-4f55c09d6222",
   "supporting_arrays_paths": {
     "data": {
       "latitudes": {
