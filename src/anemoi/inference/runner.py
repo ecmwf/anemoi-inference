@@ -393,23 +393,23 @@ class Runner(Context):
         is_last_step : bool
             True if it's the last step of the forecast.
         """
-        output_horizon = self.checkpoint.timestep * self.checkpoint.multi_step_output
-        steps = math.ceil(lead_time / output_horizon)
+        steps = math.ceil(lead_time / self.checkpoint.rollout_shift)
 
-        LOG.info(
-            "Lead time: %s, time stepping: %s, Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
-            lead_time,
-            self.checkpoint.timestep,
-            self.checkpoint.multi_step_output * steps,
-            steps,
-            self.checkpoint.multi_step_output,
-        )
+        if self.verbosity > 0:
+            LOG.info(
+                "Lead_time=%s, step_shift=%s, output_offsets=%s, Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
+                lead_time,
+                self.checkpoint.rollout_shift,
+                self.checkpoint.output_offsets,
+                self.checkpoint.multi_step_output * steps,
+                steps,
+                self.checkpoint.multi_step_output,
+            )
 
         for s in range(steps):
-            step = (s + 1) * output_horizon
+            step = (s + 1) * self.checkpoint.rollout_shift
             valid_dates = [
-                start_date + s * output_horizon + self.checkpoint.timestep * (i + 1)
-                for i in range(self.checkpoint.multi_step_output)
+                start_date + s * self.checkpoint.rollout_shift + offset for offset in self.checkpoint.output_offsets
             ]
             next_dates = valid_dates
             is_last_step = s == steps - 1
@@ -475,7 +475,9 @@ class Runner(Context):
                 for d in dates:
                     dates_str += f"{d}, "
                 dates_str = f"{dates_str[:-2]})"
-                title = f"Forecasting, model call {s+1}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
+                title = f"Forecasting {dates_str}"
+                if self.verbosity > 0:
+                    title += f" through model call {s+1} with horizon {step}"
 
                 for dataset, handler in self.tensor_handlers.items():
                     if handler.trace:
@@ -514,7 +516,7 @@ class Runner(Context):
                             new_states[dataset]["date"] = dates[i]
                             new_states[dataset]["previous_step"] = new_states[dataset].get("step")
                             new_states[dataset]["step"] = (
-                                step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
+                                step - self.checkpoint.rollout_shift + self.checkpoint.output_offsets[i]
                             )
 
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
