@@ -510,6 +510,52 @@ class TestChunkerByMetadata:
         second = chunker._grouped_fields_by_metadata(field_names, ("levtype",))
         assert first is second
 
+    def test_field_absent_from_typed_variables_is_not_dropped(self):
+        # Only field_0 has metadata; field_1 is context-defined (absent from typed variables). It must still be chunked, grouped under None.
+        typed = {"field_0": SimpleNamespace(levtype="pl")}
+        chunker = Chunker(typed, num_writers=2)
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype"]), _make_state(2))
+        assert set().union(*sets) == {"field_0", "field_1"}
+        assert {frozenset(s) for s in sets} == {
+            frozenset({"field_0"}),
+            frozenset({"field_1"}),
+        }
+
+    def test_all_fields_covered_when_none_have_metadata(self):
+        # No field has metadata at all -> single None group with every field.
+        chunker = Chunker({}, num_writers=2)
+        state = _make_state(4)
+        chunks = list(chunker.by_metadata(["levtype"])(state))
+        assert len(chunks) == 1
+        assert set(chunks[0]["fields"].keys()) == set(state["fields"].keys())
+
+    def test_no_empty_chunks_when_typed_variables_has_extra_fields(self):
+        # The typed variables references fields not present in the state; those metadata-only groups must not produce empty chunks.
+        typed = _make_typed_variables(6, levtype=["sfc", "sfc", "pl", "pl", "ml", "ml"])
+        chunker = Chunker(typed, num_writers=2)
+        # state only contains the first two fields (both "sfc")
+        state = _make_state(2)
+        chunks = list(chunker.by_metadata(["levtype"])(state))
+        assert all(len(c["fields"]) > 0 for c in chunks)
+        assert len(chunks) == 1
+        assert set(chunks[0]["fields"].keys()) == {"field_0", "field_1"}
+
+    def test_grouping_driven_by_state_fields(self):
+        # A field's group is determined by looking up its metadata for the
+        # fields actually in the state, not by iterating typed_variables.
+        typed = _make_typed_variables(4, levtype=["sfc", "pl", "sfc", "pl"])
+        chunker = Chunker(typed, num_writers=2)
+        # only field_1 (pl) and field_2 (sfc) are in the state
+        state = {
+            "fields": {"field_1": np.array([1.0]), "field_2": np.array([2.0])},
+            "date": "2020-01-01",
+        }
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype"]), state)
+        assert {frozenset(s) for s in sets} == {
+            frozenset({"field_1"}),
+            frozenset({"field_2"}),
+        }
+
 
 # ── ParallelOutput (unit, no subprocesses) ────────────────────────────────────
 
@@ -632,6 +678,94 @@ class TestParallelOutputDispatch:
         po._processes[0].is_alive.return_value = False
         with pytest.raises(RuntimeError, match="Writer 0 is dead"):
             po.dispatch_state_to_writers(_make_state(4), message=MessageType.STATE)
+
+
+class TestParallelOutputOpenMerge:
+    """The OPEN message must arrive exactly once per writer, with that writer's
+    chunks merged, so stateful backends see a single logical open() per step.
+    """
+
+    def _make_queues_and_processes(self, num_writers, alive=True):
+        queues = [MagicMock() for _ in range(num_writers)]
+        processes = [MagicMock() for _ in range(num_writers)]
+        for p in processes:
+            p.is_alive.return_value = alive
+        return queues, processes
+
+    def _received_per_writer(self, po):
+        """Return list of (message_type, field-name set) per put call, per writer."""
+        result = []
+        for q in po._queues:
+            calls = []
+            for call in q.put.call_args_list:
+                payload, msg_type = call.args[0]
+                calls.append((msg_type, set(payload["fields"].keys())))
+            result.append(calls)
+        return result
+
+    def test_open_sends_one_message_per_writer_even_with_more_chunks(self):
+        # by_size(1) on 5 fields, 2 writers -> 5 chunks round-robin, but OPEN
+        # must be merged into a single message per writer.
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        po.dispatch_state_to_writers(_make_state(5), message=MessageType.OPEN)
+
+        assert po._queues[0].put.call_count == 1
+        assert po._queues[1].put.call_count == 1
+
+    def test_open_merges_worker_chunks(self):
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        state = _make_state(5)
+        po.dispatch_state_to_writers(state, message=MessageType.OPEN)
+
+        per_writer = self._received_per_writer(po)
+        # chunks 0,2,4 -> writer 0 ; chunks 1,3 -> writer 1
+        assert per_writer[0] == [(MessageType.OPEN, {"field_0", "field_2", "field_4"})]
+        assert per_writer[1] == [(MessageType.OPEN, {"field_1", "field_3"})]
+
+    def test_open_covers_all_fields_exactly_once(self):
+        po = _make_parallel_output(num_writers=3, chunking_func=Chunker({}, 3).by_size(1))
+        po._queues, po._processes = self._make_queues_and_processes(3)
+        state = _make_state(7)
+        po.dispatch_state_to_writers(state, message=MessageType.OPEN)
+
+        from collections import Counter
+
+        counts = Counter()
+        for q in po._queues:
+            assert q.put.call_count == 1  # one merged OPEN per writer
+            payload, msg_type = q.put.call_args.args[0]
+            assert msg_type == MessageType.OPEN
+            counts.update(payload["fields"].keys())
+        assert set(counts) == set(state["fields"].keys())
+        assert all(c == 1 for c in counts.values())
+
+    def test_open_by_worker_one_message_per_writer(self):
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_worker())
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        po.dispatch_state_to_writers(_make_state(4), message=MessageType.OPEN)
+        for q in po._queues:
+            assert q.put.call_count == 1
+            _, msg_type = q.put.call_args.args[0]
+            assert msg_type == MessageType.OPEN
+
+    def test_open_checks_writer_alive(self):
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        po._processes[1].is_alive.return_value = False
+        with pytest.raises(RuntimeError, match="Writer 1 is dead"):
+            po.dispatch_state_to_writers(_make_state(4), message=MessageType.OPEN)
+
+    def test_open_method_dispatches_open_message(self):
+        po = _make_parallel_output(num_writers=2)
+        po._queues, po._processes = self._make_queues_and_processes(2)
+        po._writers_running = True
+        po.open(_make_state(4))
+        for q in po._queues:
+            assert q.put.call_count == 1
+            _, msg_type = q.put.call_args.args[0]
+            assert msg_type == MessageType.OPEN
 
 
 class TestParallelOutputWriterAliveCheck:
