@@ -216,12 +216,7 @@ class ZarrOutput(Output):
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
-        # Date of the first written step, which maps to time index 0. This is
-        # the forecast start (step zero) when write_step_zero is set, otherwise
-        # the first forecast step.
-        self.time_index_reference = self.reference_date
         if not self.write_step_zero:
-            self.time_index_reference = self.reference_date + self.metadata.output_offsets[0]
             self.reference_date -= self.metadata.output_offsets[0]
 
         self.time_size = time
@@ -263,19 +258,28 @@ class ZarrOutput(Output):
             fill_value=self.missing_value,
         )
 
-        # Time index is computed from the date, not incremented, so a forecast
-        # step delivered over several write_step calls maps to the same index.
-        self.time_step_seconds = min(offset.total_seconds() for offset in self.metadata.output_offsets)
+        # Map each distinct output date to a time index. The index is derived
+        # from the date (not a per-call counter) so that a forecast step
+        # delivered over several write_step calls - e.g. one chunk per call
+        # under a parallel output - always maps to the same index. Dates are
+        # assigned indices in first-seen order, which matches the sequential
+        # write order and makes no assumption about the output cadence.
+        self.time_indices: dict[datetime.datetime, int] = {}
         self.latitude_var[:] = latitudes
         self.longitude_var[:] = longitudes
 
     def _time_index(self, date: "datetime.datetime") -> int:
         """Return the time-dimension index for a given date.
 
-        The index is computed from a fixed reference (the first written step)
-        so that repeated calls for the same forecast step target the same index.
+        Each distinct date is assigned an index in first-seen order; a date
+        that has already been written returns its existing index, so repeated
+        calls for the same forecast step target the same index.
         """
-        return int(round((date - self.time_index_reference).total_seconds() / self.time_step_seconds))
+        index = self.time_indices.get(date)
+        if index is None:
+            index = len(self.time_indices)
+            self.time_indices[date] = index
+        return index
 
     def _variable_array(self, name: str, values_size: int) -> Any:
         """Get the variable array by name.

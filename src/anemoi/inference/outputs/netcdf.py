@@ -181,15 +181,13 @@ class NetCDFOutput(Output):
             self.lon_var.units = "degrees_east"
             self.lon_var[:] = longitudes
 
-        # Time index is computed from the date, not incremented, so a forecast
-        # step delivered over several write_step calls maps to the same index.
-        # Index 0 is the first written step: the open() state (step zero) when
-        # write_step_zero is set, otherwise the first forecast step.
-        self.time_step_seconds = _output_timestep_seconds(self.metadata)
-        first_written = np.int64(_to_epoch_seconds(state["date"]))
-        if not self.write_step_zero:
-            first_written += np.int64(self.metadata.output_offsets[0].total_seconds())
-        self.time_index_reference = first_written
+        # Map each distinct output date to a time index. The index is derived
+        # from the date so that a forecast step
+        # delivered over several write_step calls - e.g. one chunk per call
+        # under a parallel output - always maps to the same index. Dates are
+        # assigned indices in first-seen order, which matches the sequential
+        # write order and makes no assumption about the output cadence.
+        self.time_indices: dict[datetime, int] = {}
         self.vars = {}
 
     def ensure_variables(self, state: State) -> None:
@@ -247,7 +245,7 @@ class NetCDFOutput(Output):
         date = np.int64(_to_epoch_seconds(state["date"]))
         step = date - self.reference_date
 
-        n = self._time_index(date)
+        n = self._time_index(state["date"])
 
         # update time coordinates
         self.period_var[n] = step
@@ -260,13 +258,19 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.vars[name][n] = value
 
-    def _time_index(self, date: "np.int64") -> int:
+    def _time_index(self, date: datetime) -> int:
         """Return the time-dimension index for a given date (epoch seconds).
 
-        The index is computed from a fixed reference (the first written step)
-        so that repeated calls for the same forecast step target the same index.
+        Each distinct date is assigned an index in first-seen order; a date
+        that has already been written returns its existing index, so repeated
+        calls for the same forecast step target the same index.
         """
-        return int(round((date - self.time_index_reference) / self.time_step_seconds))
+        key = _to_epoch_seconds(date)
+        index = self.time_indices.get(key)
+        if index is None:
+            index = len(self.time_indices)
+            self.time_indices[key] = index
+        return index
 
     def close(self) -> None:
         """Close the NetCDF file."""
@@ -274,15 +278,6 @@ class NetCDFOutput(Output):
             with LOCK:
                 self.ncfile.close()
             self.ncfile = None
-
-
-def _output_timestep_seconds(metadata: Metadata) -> float:
-    """Return the spacing (in seconds) between consecutive output steps.
-
-    Output dates are uniformly spaced by the smallest output offset, which is
-    the model's effective output time step.
-    """
-    return min(offset.total_seconds() for offset in metadata.output_offsets)
 
 
 def _to_epoch_seconds(dt: datetime) -> int:

@@ -239,6 +239,45 @@ class TestNetCDFTimeIndex:
         finally:
             ds.close()
 
+    def test_irregular_cadence(self, tmp_path):
+        """Output dates need not be spaced by output_offsets[0] (e.g. the
+        temporal downscaler emits sub-window steps). The time index must track
+        distinct dates in order regardless of the metadata cadence.
+        """
+        out = self._make_output(tmp_path / "out.nc")
+        step0 = _make_state(0)
+        # irregular, non-uniform spacing that does not match TIMESTEP
+        dates = [
+            START + datetime.timedelta(hours=1),
+            START + datetime.timedelta(hours=1, minutes=37),
+            START + datetime.timedelta(hours=5),
+            START + datetime.timedelta(days=3),
+        ]
+        forecast = []
+        for d in dates:
+            s = _make_state(0)
+            s["date"] = d
+            s["step"] = d - START
+            forecast.append(s)
+
+        out.open(step0)
+        for s in forecast:
+            for chunk in _split_fields(s, 3):
+                out.write_step(chunk)
+        out.close()
+
+        ds = self._read(tmp_path / "out.nc")
+        try:
+            # one dense, gap-free index per distinct date
+            assert ds.dimensions["time"].size == len(forecast)
+            periods = ds.variables["forecast_period"][:]
+            assert list(periods) == [int(s["step"].total_seconds()) for s in forecast]
+            for i, s in enumerate(forecast):
+                for name in ALL_FIELDS:
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
+        finally:
+            ds.close()
+
 
 # ── Zarr ──────────────────────────────────────────────────────────────────────
 
