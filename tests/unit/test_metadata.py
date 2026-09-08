@@ -228,6 +228,15 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
             "z_100",
             id="renamed-pressure",
         ),
+        # ambiguous case: two different variable names share the same (param, level)
+        # key, so the override map must drop that key and fall back to the plain
+        # param name instead of arbitrarily picking one of the ambiguous names
+        pytest.param(
+            {"z": z, "z_alias": z},
+            {"param": "z", "levelist": None, "levtype": "sfc"},
+            "z",
+            id="ambiguous-collision-falls-back-to-param",
+        ),
     ],
 )
 def test_default_namer(typed_variables, field_metadata, expected_name):

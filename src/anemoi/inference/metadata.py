@@ -602,9 +602,16 @@ class Metadata(LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
-        param_levelist_to_name = {
-            (variable.param, variable.level): name for name, variable in self.typed_variables.items()
-        }
+        param_levelist_to_name: dict[tuple[Any, Any], str] = {}
+        ambiguous_keys: set[tuple[Any, Any]] = set()
+        for name, variable in self.typed_variables.items():
+            key = (variable.param, variable.level)
+            if key in param_levelist_to_name and param_levelist_to_name[key] != name:
+                ambiguous_keys.add(key)
+            else:
+                param_levelist_to_name[key] = name
+        for key in ambiguous_keys:
+            del param_levelist_to_name[key]
 
         def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
             param, levelist, levtype = (
