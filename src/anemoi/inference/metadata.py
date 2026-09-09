@@ -611,7 +611,7 @@ class Metadata(LegacyMixin):
             else:
                 param_levelist_to_name[key] = name
         for key in ambiguous_keys:
-            del param_levelist_to_name[key]
+            param_levelist_to_name.pop(key, None)
 
         def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
             param, levelist, levtype = (
