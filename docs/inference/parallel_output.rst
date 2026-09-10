@@ -25,10 +25,11 @@ The ``parallel`` output wraps any other output type (e.g. ``grib``,
 ``zarr``, ``netcdf``) and:
 
 1. Spawns ``num_writers`` writer processes (using ``fork``).
-2. At each forecast step, splits the output fields evenly across the
-   writers.
-3. Each writer receives its chunk via a multiprocessing queue and writes
-   it using its own instance of the wrapped output.
+2. At each forecast step, splits the output fields into chunks according
+   to the configured :ref:`chunking strategy <parallel-output-chunking>`.
+3. Each chunk is dispatched to a writer process (round-robin when there
+   are more chunks than writers) via a multiprocessing queue, and written
+   using that writer's own instance of the wrapped output.
 4. On shutdown, all writers are gracefully terminated with a signal via
    their queues.
 
@@ -72,6 +73,94 @@ Parameters
 ==========
 
 .. automethod:: anemoi.inference.outputs.parallel.ParallelOutput.__init__
+
+.. _parallel-output-chunking:
+
+********************
+ Chunking Strategies
+********************
+
+At each forecast step, the output fields are divided into chunks that are
+distributed to the writer processes. The ``chunk_strategy`` parameter
+controls how this split is performed. If there are more chunks than
+writers, chunks are assigned to writers round-robin
+(chunk ``i`` goes to writer ``i % num_writers``).
+
+``by_worker`` (default)
+=======================
+
+Splits the fields into exactly ``num_writers`` contiguous chunks of
+roughly equal size, one per writer. This is the simplest strategy and a
+good default: each writer receives a comparable amount of work.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy: by_worker
+       output:
+         grib:
+           path: forecast.grib
+
+``by_size``
+===========
+
+Splits the fields into chunks of a fixed size, given by
+``fields_per_chunk``. The number of chunks depends on the number of
+output fields, and chunks are dispatched to writers round-robin. Use this
+when you want to control the amount of work per queue message (e.g. to
+bound memory usage), independently of ``num_writers``.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy:
+         by_size:
+           fields_per_chunk: 10
+       output:
+         grib:
+           path: forecast.grib
+
+``by_metadata``
+===============
+
+Groups fields into chunks by their metadata, so that all fields sharing
+the same value for the given ``keys`` are written by the same writer. The
+``keys`` are read from each variable's typed metadata (e.g. ``levtype``,
+``param``, ``level``). This is useful when the output backend benefits
+from co-locating related fields in the same file.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy:
+         by_metadata:
+           keys: [levtype]
+       output:
+         grib:
+           path: forecast.grib
+
+An optional ``max_groups`` argument caps the number of chunks produced;
+if more distinct metadata groups exist than ``max_groups``, groups are
+merged round-robin so that no more than ``max_groups`` chunks are created:
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy:
+         by_metadata:
+           keys: [param]
+           max_groups: 8
+       output:
+         grib:
+           path: forecast.grib
 
 Examples
 ========
