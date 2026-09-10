@@ -460,6 +460,7 @@ class TensorHandler:
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
             )  # shape: (1, dates, 1, values, variables)
 
+            forcings = forcings[..., self.context.grid_shard_slice(self.dataset_name), :]
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
             for out_idx, new_idx in self.metadata.advance_map["outin"]:
@@ -497,10 +498,18 @@ class TensorHandler:
             forcings = np.swapaxes(
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
             )  # shape: (1, dates, 1, values, variables)
+
+            grid_slice = self.context.grid_shard_slice(self.dataset_name)
+            local_spatial_mask = source.spatial_mask[grid_slice]
+            grid_start = 0 if grid_slice.start is None else grid_slice.start
+            # forcings contain only boundary points: translate the full-grid shard into this compressed axis
+            boundary_offset = np.count_nonzero(source.spatial_mask[:grid_start])
+            local_boundary_count = np.count_nonzero(local_spatial_mask)
+            forcings = forcings[..., boundary_offset : boundary_offset + local_boundary_count, :]
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
             for out_idx, new_idx in self.metadata.advance_map["outin"]:
-                total_mask = np.ix_([0], [new_idx], source.spatial_mask, source.variables_mask)
+                total_mask = np.ix_([0], [new_idx], local_spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
                     :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row

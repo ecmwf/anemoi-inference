@@ -30,6 +30,28 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
+def _gather_grid_tensor_to_master(
+    tensor: "torch.Tensor",
+    shard_sizes: list[int],
+    process_group: "torch.distributed.ProcessGroup",
+    is_master: bool,
+) -> "torch.Tensor | None":
+    """Gather uneven grid shards on rank 0 without materialising the full tensor elsewhere."""
+    max_shard_size = max(shard_sizes)
+    padded_shape = list(tensor.shape)
+    padded_shape[0] = max_shard_size
+    padded = torch.zeros(padded_shape, dtype=tensor.dtype, device=tensor.device)
+    padded[: tensor.shape[0]].copy_(tensor)
+
+    gathered = [torch.empty_like(padded) for _ in shard_sizes] if is_master else None
+    torch.distributed.gather(padded, gather_list=gathered, dst=0, group=process_group)
+
+    if not is_master:
+        return None
+
+    return torch.cat([shard[:size] for shard, size in zip(gathered, shard_sizes)], dim=0)
+
+
 def create_parallel_runner(config: Configuration, client_factory: ComputeClientFactory) -> None:
     """Creates and runs a parallel runner.
 
@@ -136,6 +158,7 @@ class ParallelRunnerMixin(Runner):
 
         self.compute_client = compute_client
         self.is_master = compute_client.is_master
+        self.grid_shard_sizes: dict[str, list[int]] = {}
 
         super().__init__(config, **kwargs)
 
@@ -179,6 +202,103 @@ class ParallelRunnerMixin(Runner):
 
         torch.manual_seed(seed)
 
+    def prepare_forecast_input_tensors(
+        self, input_tensors_torch: dict[str, "torch.Tensor"]
+    ) -> dict[str, "torch.Tensor"]:
+        """Shard full-grid input tensors once before autoregressive inference."""
+        process_group = self.compute_client.process_group
+        if process_group is None:
+            return input_tensors_torch
+
+        from anemoi.models.distributed.graph import shard_tensor
+        from anemoi.models.distributed.shapes import get_shard_sizes
+
+        for dataset, tensor in input_tensors_torch.items():
+            shard_sizes = get_shard_sizes(tensor, -2, model_comm_group=process_group)
+            assert shard_sizes is not None
+            self.grid_shard_sizes[dataset] = shard_sizes
+            input_tensors_torch[dataset] = shard_tensor(tensor, -2, shard_sizes, process_group)
+
+        return input_tensors_torch
+
+    def grid_shard_slice(self, dataset: str) -> slice:
+        """Return this rank's interval in the full grid."""
+        shard_sizes = self.grid_shard_sizes.get(dataset)
+        if shard_sizes is None:
+            return slice(None)
+
+        process_group = self.compute_client.process_group
+        assert process_group is not None
+        rank = process_group.rank()
+        start = sum(shard_sizes[:rank])
+        return slice(start, start + shard_sizes[rank])
+
+    def prepare_forecast_output_state(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Gather all forecast fields together on rank 0 while keeping rollout state sharded."""
+        process_group = self.compute_client.process_group
+        if process_group is None:
+            return state
+
+        result = {}
+        for dataset, dataset_state in state.items():
+            output_state = dataset_state.copy()
+            output_state["fields"] = {}
+            shard_sizes = self.grid_shard_sizes[dataset]
+            fields = dataset_state["fields"]
+            if not fields:
+                result[dataset] = output_state
+                continue
+
+            field_names = list(fields)
+            field_tensors = list(fields.values())
+            grid_sizes = {field.shape[0] for field in field_tensors}
+            full_grid_size = sum(shard_sizes)
+            rank = process_group.rank()
+
+            if grid_sizes == {full_grid_size}:
+                if self.is_master:
+                    output_state["fields"] = fields.copy()
+                result[dataset] = output_state
+                continue
+
+            if grid_sizes != {shard_sizes[rank]}:
+                raise ValueError(
+                    f"[{dataset}] fields have grid sizes {sorted(grid_sizes)}, expected "
+                    f"local shard size {shard_sizes[rank]} or full grid size {full_grid_size}"
+                )
+
+            if any(field.ndim != 1 for field in field_tensors):
+                shapes = {name: tuple(field.shape) for name, field in fields.items()}
+                raise ValueError(f"[{dataset}] fields must be one-dimensional grid tensors, got {shapes}")
+
+            dtypes = {field.dtype for field in field_tensors}
+            devices = {field.device for field in field_tensors}
+            if len(dtypes) != 1 or len(devices) != 1:
+                raise ValueError(
+                    f"[{dataset}] fields must share one dtype and device for a packed gather, "
+                    f"got dtypes={dtypes}, devices={devices}"
+                )
+
+            packed_fields = torch.stack(field_tensors, dim=1)
+            LOG.debug(
+                "Rank %d gathering %d [%s] fields with packed local shape %s",
+                rank,
+                len(field_names),
+                dataset,
+                tuple(packed_fields.shape),
+            )
+            gathered = _gather_grid_tensor_to_master(packed_fields, shard_sizes, process_group, self.is_master)
+            if self.is_master:
+                output_state["fields"] = {name: gathered[:, index] for index, name in enumerate(field_names)}
+            result[dataset] = output_state
+
+        return result
+
+    def write_output_state(self, dataset: str, state: dict[str, Any]) -> None:
+        """Only rank 0 owns full-grid forecast output."""
+        if self.is_master:
+            super().write_output_state(dataset, state)
+
     def predict_step(self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any) -> "torch.Tensor":
         """Performs a prediction step.
 
@@ -203,8 +323,14 @@ class ParallelRunnerMixin(Runner):
             return super().predict_step(model, input_tensor_torch, **kwargs)
         else:
             try:
+                if self.grid_shard_sizes:
+                    kwargs["grid_shard_sizes"] = self.grid_shard_sizes
+                    kwargs["gather_out"] = False
                 return super().predict_step(
-                    model, input_tensor_torch, model_comm_group=self.compute_client.process_group, **kwargs
+                    model,
+                    input_tensor_torch,
+                    model_comm_group=self.compute_client.process_group,
+                    **kwargs,
                 )
             except TypeError as err:
                 LOG.error(

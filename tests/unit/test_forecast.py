@@ -104,6 +104,7 @@ def forecast_runner_factory():
     def make_forecast_runner(multi_step_input=1, multi_step_output=1):
         timestep = timedelta(hours=1)
         metadata = SimpleNamespace(
+            dataset_name="data",
             timestep=timestep,
             multi_step_input=multi_step_input,
             multi_step_output=multi_step_output,
