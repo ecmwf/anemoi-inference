@@ -97,7 +97,7 @@ class Runner(Context):
         # override the default values set in `Context`
         self.verbosity = config.verbosity
         self.allow_nans = config.allow_nans
-        self.use_grib_paramid = config.use_grib_paramid
+        self.convert_grib_paramid = config.convert_grib_paramid
         self.development_hacks = config.development_hacks
         self.hacks = bool(config.development_hacks)
         self.output_frequency = config.output_frequency
@@ -129,6 +129,8 @@ class Runner(Context):
         self.dataset_names = list(multi_metadata.keys())
 
         for dataset, metadata in multi_metadata.items():
+            metadata.typed_variables.update(self.typed_variables)
+
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
             self.mid_processors[dataset] = self.create_mid_processors(dataset, metadata)
