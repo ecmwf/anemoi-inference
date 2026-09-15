@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.12.1](https://github.com/ecmwf/anemoi-inference/compare/0.12.0...0.12.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **inputs/cutout:** Restore fallback to checkpoint metadata ([#579](https://github.com/ecmwf/anemoi-inference/issues/579)) ([b1209af](https://github.com/ecmwf/anemoi-inference/commit/b1209af32c3188e12de9a938e617f0f1fa9a6386))
+* **metadata:** Correctly resolve checkpoint variable names in default_namer ([#573](https://github.com/ecmwf/anemoi-inference/issues/573)) ([88c1ec1](https://github.com/ecmwf/anemoi-inference/commit/88c1ec13632c570f246cc2580ce324e45f36a03b))
+
 ## [0.12.0](https://github.com/ecmwf/anemoi-inference/compare/0.11.2...0.12.0) (2026-09-04)
 
 
