@@ -12,24 +12,24 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.types import Date
 
 
-def convert_dates_to_base_and_step(dates: list[Date]) -> tuple[Date, list[int]]:
+def convert_dates_to_base_and_step(dates: list[Date], base_date: Date) -> list[int]:
     """Convert a list of dates to base and step.
 
     Parameters
     ----------
     dates : list[Date]
         List of dates to convert.
+    base_date : Date
+        The base date to which the steps are calculated.
 
     Returns
     -------
-    tuple[Date, list[int]]
-        The base date and the list of steps in hours.
+    list[int]
+        The list of steps in hours.
     """
     if not dates:
         raise ValueError("The list of dates is empty.")
     datetimes = [to_datetime(date) for date in dates]
+    steps = [int((dt - to_datetime(base_date)).total_seconds() // 3600) for dt in datetimes]
 
-    base_date = min(datetimes)
-    steps = [(dt - to_datetime(base_date)).total_seconds() // 3600 for dt in datetimes]
-
-    return base_date, steps
+    return steps

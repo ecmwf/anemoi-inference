@@ -246,8 +246,9 @@ class CDSInput(GribInput):
         """
         if self.forcings_from_forecast:
             LOG.debug("%s: Loading forcings from forecast for dates: %s", self.__class__.__name__, dates)
-            date, steps = convert_dates_to_base_and_step(dates)
-            retrieved_state = self.retrieve(self.variables, [date], step=steps)
+            base_date = current_state["date"] - current_state["step"]
+            steps = convert_dates_to_base_and_step(dates, base_date=base_date)
+            retrieved_state = self.retrieve(self.variables, [base_date], step=steps)
         else:
             retrieved_state = self.retrieve(self.variables, dates)
 
