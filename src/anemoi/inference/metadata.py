@@ -232,6 +232,28 @@ class Metadata(LegacyMixin):
         return sorted(result)
 
     @cached_property
+    def output_offsets(self) -> list[datetime.timedelta]:
+        """Return the list output offsets, i.e. the relative output times of a single forward."""
+        result = list(range(0, self.multi_step_output))
+
+        result = [(s + 1) * self.timestep for s in result]
+        return sorted(result)
+
+    @cached_property
+    def rollout_shift(self) -> datetime.timedelta:
+        return self.output_offsets[-1]
+
+    @cached_property
+    def advance_map(self) -> dict[str, list[tuple[int, int]]]:
+        """Index mapping for rollout: advance input and output into the next input"""
+        n = self.multi_step_input
+        m = self.multi_step_output
+        advance_map = {}
+        advance_map["outin"] = [(m - i - 1, n - i - 1) for i in range(min(n, m))]
+        advance_map["inin"] = [(i, i - m) for i in range(m, n)]
+        return advance_map
+
+    @cached_property
     def timestep(self) -> datetime.timedelta:
         """Model time stepping timestep."""
         timestep = to_timedelta(self._config.data.timestep)
@@ -580,9 +602,18 @@ class Metadata(LegacyMixin):
         assert len(args) == 0, args
         assert len(kwargs) == 0, kwargs
 
+        param_levelist_to_name: dict[tuple[Any, Any], str] = {}
+        ambiguous_keys: set[tuple[Any, Any]] = set()
+        for name, variable in self.typed_variables.items():
+            key = (variable.param, variable.level)
+            if key in param_levelist_to_name and param_levelist_to_name[key] != name:
+                ambiguous_keys.add(key)
+            else:
+                param_levelist_to_name[key] = name
+        for key in ambiguous_keys:
+            param_levelist_to_name.pop(key, None)
+
         def namer(field: ekd.Field, metadata: dict[str, Any]) -> str:
-            # TODO: Return the `namer` used when building the dataset
-            warnings.warn("🚧  TEMPORARY CODE 🚧: Use the remapping in the metadata")
             param, levelist, levtype = (
                 metadata.get("param"),
                 metadata.get("levelist"),
@@ -592,6 +623,10 @@ class Metadata(LegacyMixin):
             # Bug in eccodes that returns levelist for single level fields in GRIB2
             if levtype in ("sfc", "o2d"):
                 levelist = None
+
+            name = param_levelist_to_name.get((param, levelist))
+            if name is not None:
+                return name
 
             if levelist is None:
                 return param
@@ -1489,6 +1524,39 @@ class MultiDatasetMetadata(Metadata):
     def target_explicit_times(self) -> Any:
         """Explicit times of the target steps used for the temporal downscaler."""
         return self._inference.timesteps.output_relative_date_indices
+
+    @cached_property
+    def lagged(self) -> list[datetime.timedelta]:
+        """Input offsets."""
+        input_offsets = self._inference.timesteps.get("input_offsets")
+        if input_offsets:
+            return [to_timedelta(offset) for offset in input_offsets]
+
+        return super().lagged
+
+    @cached_property
+    def output_offsets(self) -> list[datetime.timedelta]:
+        """Output offsets."""
+        output_offsets = self._inference.timesteps.get("output_offsets")
+        if output_offsets:
+            return [to_timedelta(offset) for offset in output_offsets]
+
+        return super().output_offsets
+
+    @cached_property
+    def rollout_shift(self) -> datetime.timedelta:
+        """Rollout shift."""
+        rollout_shift = self._inference.timesteps.get("rollout_shift")
+        if rollout_shift:
+            return to_timedelta(rollout_shift)
+
+        return super().rollout_shift
+
+    @cached_property
+    def advance_map(self) -> dict[str, list[tuple[int, int]]]:
+        """Index mapping for rollout: advance input and output into the next input"""
+        advance_map = self._inference.timesteps.get("advance_map")
+        return advance_map or super().advance_map
 
     @cached_property
     def output_shape(

@@ -297,8 +297,9 @@ class EkdInput(Input):
                 )
             except Exception as e:
                 LOG.info(
-                    "%s: could not get `latitudes` and `longitudes` from the input fields.",
+                    "%s: could not get `latitudes` and `longitudes` from the input fields.\n%s",
                     self.__class__.__name__,
+                    e,
                 )
                 latitudes = self.metadata.latitudes
                 longitudes = self.metadata.longitudes
