@@ -190,11 +190,13 @@ class Cutout(Input):
 
             # In the case of a mismatch between latitudes and field points, attempt to load coordinates from supporting arrays
             # Detect if the number of latitudes does not match the number of field points
-            if source_state["latitudes"].shape[-1] != field_shape:
+            # This can occur when `ekd.py` fails over to read the coords from the metadata, which at times is wrong,
+            # so we attempt to load the correct coordinates from the supporting arrays.
+            if "latitudes" not in source_state or source_state["latitudes"].shape[-1] != field_shape:
                 LOG.warning(
                     "Mismatch between latitudes and field points for source %s: %s vs %s",
                     source,
-                    source_state["latitudes"].shape[-1],
+                    source_state["latitudes"].shape[-1] if "latitudes" in source_state else None,
                     field_shape,
                 )
                 LOG.warning(
