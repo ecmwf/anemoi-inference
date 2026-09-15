@@ -186,6 +186,36 @@ class Cutout(Input):
 
             source_state = self.sources[source].create_input_state(date=date, **kwargs)
 
+            field_shape = next(iter(source_state["fields"].values())).shape[-1]
+
+            # In the case of a mismatch between latitudes and field points, attempt to load coordinates from supporting arrays
+            # Detect if the number of latitudes does not match the number of field points
+            if source_state["latitudes"].shape[-1] != field_shape:
+                LOG.warning(
+                    "Mismatch between latitudes and field points for source %s: %s vs %s",
+                    source,
+                    source_state["latitudes"].shape[-1],
+                    field_shape,
+                )
+                LOG.warning(
+                    "Loading coordinates from supporting arrays  %s and %s",
+                    f"source{i}/latitudes",
+                    f"source{i}/longitudes",
+                )
+                latitudes = self.metadata.load_supporting_array(f"source{i}/latitudes")
+                longitudes = self.metadata.load_supporting_array(f"source{i}/longitudes")
+
+                source_state["latitudes"] = latitudes
+                source_state["longitudes"] = longitudes
+
+                # this fallback for getting coordinates is index-based and therefore sensitive to
+                # the order of the sources in the configuration
+                assert field_shape == latitudes.shape[-1], (
+                    "Expected source mask shape to match coordinates shape. "
+                    f"Got mask of shape {field_shape} and latitudes of shape {latitudes.shape[-1]}. "
+                    "Check that the cutout sources are in the correct order."
+                )
+
             # Create the mask front padded with zeros
             # to match the length of the combined state
             _realised_mask = _realise_mask(source_mask, source_state)
