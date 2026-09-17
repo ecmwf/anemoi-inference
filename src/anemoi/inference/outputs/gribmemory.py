@@ -16,6 +16,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import ProcessorConfig
 
+from ..types import OutputVariableConfigUnion
 from .gribfile import GribIoOutput
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class GribMemoryOutput(GribIoOutput):
         grib1_keys: dict[str, Any] | None = None,
         grib2_keys: dict[str, Any] | None = None,
         modifiers: list[str] | None = None,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
     ) -> None:
@@ -72,8 +73,8 @@ class GribMemoryOutput(GribIoOutput):
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
-        variables : list, optional
-            The list of variables, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         """
         super().__init__(
             context,
