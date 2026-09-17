@@ -120,7 +120,6 @@ class PlotOutput(Output):
 
         self.dir = dir
         self.format = format
-        self.variables = variables
         self.template = template
         self.domain = domain
         self.mode = mode
@@ -147,10 +146,12 @@ class PlotOutput(Output):
         basetime = date - state["step"]
 
         plotting_fields = []
+        plotted_vars = []
 
         for name, values in state["fields"].items():
             if self.skip_variable(name):
                 continue
+            plotted_vars.append(name)
 
             variable = self.typed_variables[name]
             param = variable.param
@@ -182,7 +183,7 @@ class PlotOutput(Output):
                 "basetime": basetime,
                 "domain": self.domain,
                 "format": self.format,
-                "variables": "_".join(self.variables or []),
+                "variables": "_".join(plotted_vars),
             },
         )
         fname = self.dir / fname

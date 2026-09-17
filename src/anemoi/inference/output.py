@@ -34,7 +34,7 @@ class Output(ABC):
         context: "Context",
         metadata: "Metadata",
         *,
-        variables: list[str] | None = None,
+        variables: list[str] | str | dict[str, list] | None = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -47,6 +47,11 @@ class Output(ABC):
             The context in which the output operates.
         metadata : Metadata
             Metadata corresponding to the dataset this output is handling.
+        variables : list[str] | str | dict[str, list] | None
+            Either a list of variables that should be included (with the rest excluded),
+            or a dictionary with key "select" OR "drop" which correspond to variables to include
+            or exclude. If "select" is used, only the variables in the list will be included.
+            If "drop" is used, all variables except those in the list will be included. Only one (or neither) of "select" or "drop" should be provided.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the output
         output_frequency : Optional[int], optional
@@ -64,13 +69,32 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
 
-        self.variables = variables
-        if self.variables is not None:
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
-
+        self.variables = self._validate_variables(variables) if variables is not None else None
         self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
+
+    def _validate_variables(self, variables: list[str] | str | dict[str, list]) -> dict:
+        """Validate input variables and normalize into a dictionary.
+
+        Parameters
+        ----------
+        variables : list[str] | str | dict[str, list]
+            Input variables.
+
+        Returns
+        -------
+        dict
+            A dictionary with one key, 'select' or 'drop', pointing to a list of variables:
+            {'select': [var1, var2...]}
+        """
+        # preserve existing functionality by defaulting to keeping the variables
+        output_dict = {"select": variables} if not isinstance(variables, dict) else variables
+
+        if len(output_dict) > 1 and list(output_dict.keys())[0] not in ("select", "drop"):
+            raise ValueError(
+                f"Variables cannot include values other than a list, single value, or a one of `select` or `drop`. Found {output_dict.keys()}"
+            )
+        return {key: [val] if isinstance(val, str) else val for key, val in output_dict.items()}
 
     def skip_variable(self, variable: str) -> bool:
         """Check if a variable should be skipped.
@@ -78,14 +102,21 @@ class Output(ABC):
         Parameters
         ----------
         variable : str
-            The variable to check.
+            The variable to check for skipping.
 
         Returns
         -------
         bool
             True if the variable should be skipped, False otherwise.
         """
-        return self.variables is not None and variable not in self.variables
+
+        if self.variables is None:
+            return False
+
+        skip_variable_select = "select" in self.variables.keys() and variable not in self.variables["select"]
+        skip_variable_drop = "drop" in self.variables.keys() and variable in self.variables["drop"]
+
+        return skip_variable_select or skip_variable_drop
 
     @cached_property
     def post_processors(self) -> list[Processor]:

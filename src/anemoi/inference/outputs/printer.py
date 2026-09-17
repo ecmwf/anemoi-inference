@@ -38,6 +38,7 @@ def print_state(
     print: Callable[..., None] = print,
     max_lines: int = 4,
     variables: ListOrAll | None = None,
+    drop_variables: list | None = None,
 ) -> None:
     """Print the state.
 
@@ -51,6 +52,8 @@ def print_state(
         The maximum number of lines to print, by default 4.
     variables : list, optional
         The list of variables to print, by default None.
+    drop_variables : list, optional
+        The list of variables to exclude from printing, by default None.
     """
     print("😀", end=" ")
     for key, value in state.items():
@@ -77,8 +80,8 @@ def print_state(
     if variables is None:
         variables = names
 
-    if not isinstance(variables, (list, tuple, set)):
-        variables = [variables]
+    if drop_variables is not None:
+        variables = [var for var in variables if var not in drop_variables]
 
     variables = set(variables)
 
@@ -134,17 +137,17 @@ class PrinterOutput(Output):
             The path to save the printed output, by default None.
             If the parent directory does not exist, it will be created.
         variables : list, optional
-            The list of variables to print, by default None.
+            The list of variables to print, by default None. Can be also be the string "all".
         max_lines : int, optional
             The maximum number of lines to print, by default 4.
             If set to 0, all variables will be printed.
         **kwargs : Any
             Additional keyword arguments.
         """
-
+        if variables == "all":
+            variables = None
         super().__init__(context, metadata, variables=variables, **kwargs)
         self.print = print
-        self.variables = variables
         self.max_lines = max_lines
 
         self.f = None
@@ -164,7 +167,11 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
+        keep_variables = self.variables.get("select") if self.variables is not None else None
+        drop_variables = self.variables.get("drop") if self.variables is not None else None
+        print_state(
+            state, print=self.print, variables=keep_variables, drop_variables=drop_variables, max_lines=self.max_lines
+        )
 
     def close(self) -> None:
         if self.f is not None:

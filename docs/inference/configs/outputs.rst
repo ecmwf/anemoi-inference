@@ -18,12 +18,19 @@ The ``variables`` parameter allows you to subset the output to only include
 specific variables. This is useful when you only need a subset of the model
 output, reducing output file size and processing time.
 
+You can either provide a list or single variable to include, or specify that you want to `select` or `drop` variables.
+Only one of "select" or "drop" should be provided.
+
+For `select`, only the variables provided in the list will be included in the output. For `drop`, only the
+variables NOT in the list will be included in the output.
+
 .. literalinclude:: yaml/outputs_variables.yaml
    :language: yaml
 
 The variable names should match the names as they appear in the checkpoint.
 For variables with pressure levels, use the format ``{param}_{level}``, for
 example ``t_850`` for temperature at 850 hPa.
+
 
 post_processors
 ===============
