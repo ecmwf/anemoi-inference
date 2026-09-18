@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-ALL_VARIABLES = ("z_500", "cp", "tp")
+ALL_VARIABLES = ("z_500", "cp", "2t")
 
 
 @pytest.fixture

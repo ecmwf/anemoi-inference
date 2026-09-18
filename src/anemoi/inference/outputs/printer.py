@@ -19,12 +19,14 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.output import VARIABLE_CONFIG_TYPES
 from anemoi.inference.types import State
 
 from ..decorators import ensure_path
 from ..decorators import main_argument
 from ..decorators import supports_parallel_output
 from ..output import Output
+from ..output import OutputVariableConfig
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -45,7 +47,7 @@ class PrinterOutput(Output):
         metadata: Metadata,
         *,
         path: Path | None = None,
-        variables: ListOrAll | None = None,
+        variables: ListOrAll | VARIABLE_CONFIG_TYPES = OutputVariableConfig(),
         max_lines: int = 4,
         **kwargs: Any,
     ) -> None:
@@ -64,7 +66,7 @@ class PrinterOutput(Output):
             The list of variables to print, by default None (max_lines will be printed). Can be also be the string "all", in which case all variables will be printed (regardless of max_lines).
         max_lines : int, optional
             The maximum number of lines to print, by default 4.
-            If set to 0, all variables will be printed. If any value is provided in `variables`, this argument is ignored -- it is only used if `variables == None`.
+            If set to -1, all variables will be printed. If any value is provided in `variables`, this argument is ignored -- it is only used if `variables == None`.
         **kwargs : Any
             Additional keyword arguments.
         """
@@ -74,7 +76,7 @@ class PrinterOutput(Output):
 
         super().__init__(context, metadata, variables=(None if all_variables else variables), **kwargs)
 
-        self.max_lines = 0 if all_variables else max_lines
+        self.max_lines = -1 if all_variables else max_lines
 
         self.print = print
         self.f = None
@@ -116,6 +118,12 @@ class PrinterOutput(Output):
                 print(f"{key}={value.shape}", end=" ")
 
         fields = state.get("fields", {})
+        variables_not_set = self.variables.select is None and self.variables.drop is None
+
+        if variables_not_set and self.max_lines == 0:
+            print("Skipping printing fields")
+            print()
+            return
 
         print(f"fields={len(fields)}")
         print()
@@ -124,7 +132,7 @@ class PrinterOutput(Output):
         selected = names
 
         if self.max_lines > 0:
-            if self.variables is None:
+            if variables_not_set:
                 selected = names[: self.max_lines]
             else:
                 LOG.debug(

@@ -10,21 +10,22 @@
 
 import pytest
 
+from anemoi.inference.output import OutputVariableConfig
 from anemoi.inference.outputs.raw import RawOutput
 
 
 @pytest.mark.parametrize(
     "input_variables, expected_written",
     [
-        pytest.param(None, ["cp", "tp", "z_500"], id="none_input"),
+        pytest.param(None, ["2t", "cp", "z_500"], id="none_input"),
         pytest.param(["cp"], ["cp"], id="single_list_input"),
         pytest.param(["z_500", "cp"], ["cp", "z_500"], id="list_input"),
         pytest.param("cp", ["cp"], id="single_string_input"),
         pytest.param({"select": "cp"}, ["cp"], id="select_string"),
         pytest.param({"select": ["z_500", "cp"]}, ["cp", "z_500"], id="select_list"),
-        pytest.param({"drop": ["z", "cp"]}, ["tp", "z_500"], id="drop_list"),
-        pytest.param({"drop": "cp"}, ["tp", "z_500"], id="drop_string"),
-        pytest.param({"drop": []}, ["cp", "tp", "z_500"], id="drop_empty_list"),
+        pytest.param({"drop": ["z", "cp"]}, ["2t", "z_500"], id="drop_list"),
+        pytest.param({"drop": "cp"}, ["2t", "z_500"], id="drop_string"),
+        pytest.param({"drop": []}, ["2t", "cp", "z_500"], id="drop_empty_list"),
         pytest.param({"select": []}, [], id="select_empty_list"),
     ],
 )
@@ -47,7 +48,8 @@ def test_output_variables(
         pytest.param({"select": ["cp"], "drop": ["z_500"]}, id="select_and_drop"),
     ],
 )
-def test_output_variables_failure(input_variables, tmp_path, mocker, basic_context, basic_metadata, basic_state):
+def test_output_variables_failure(input_variables, tmp_path, basic_context, basic_metadata, basic_state):
     with pytest.raises(ValueError):
-        output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables)
+        variable_config = OutputVariableConfig(variables=input_variables)
+        output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=variable_config)
         output.write_step(basic_state)

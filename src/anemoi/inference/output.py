@@ -15,6 +15,11 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import field_validator
+from pydantic import model_validator
+
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import ProcessorConfig
@@ -27,6 +32,54 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
+class OutputVariableConfig(BaseModel):
+    """Type for output variable configuration settings.
+
+    Only one of `select` or `drop` have values, with the other being []. `select` indicates that only the variables provided
+    should be written to the output. `drop` indicates that all variables EXCEPT those provided should be written to the output.
+
+    To convert from the allowed types for configuration (str | list[str] | dict) to this type, use OutputVariableConfig.model_validate(variables).
+
+    Attributes
+    ----------
+    select : list[str]
+        Variables to include in the output. Defaults to [].
+    drop : list[str]
+        Variables to remove from the output. Defaults to [].
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    select: list[str] | None = None
+    drop: list[str] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_config(cls, variables: Any) -> Any:
+        if variables is None:
+            return {}
+        if isinstance(variables, str):
+            return {"select": [variables]}
+        if isinstance(variables, list):
+            return {"select": variables}
+        return variables
+
+    @field_validator("select", "drop", mode="before")
+    @classmethod
+    def ensure_list(cls, value: Any) -> Any:
+        if not isinstance(value, list):
+            return [value]
+        else:
+            return value
+
+    @property
+    def not_set(self) -> bool:
+        return self.select is None and self.drop is None
+
+
+VARIABLE_CONFIG_TYPES = OutputVariableConfig | str | list[str] | dict[Literal["select", "drop"], str]
+
+
 class Output(ABC):
     """Abstract base class for output mechanisms."""
 
@@ -35,7 +88,7 @@ class Output(ABC):
         context: "Context",
         metadata: "Metadata",
         *,
-        variables: list[str] | str | dict[Literal["select", "drop"], list] | None = None,
+        variables: VARIABLE_CONFIG_TYPES = OutputVariableConfig(),
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -48,11 +101,8 @@ class Output(ABC):
             The context in which the output operates.
         metadata : Metadata
             Metadata corresponding to the dataset this output is handling.
-        variables : list[str] | str | dict[("select" | "drop"), list] | None
-            Either a list of variables that should be included (with the rest excluded),
-            or a dictionary with key "select" OR "drop" which correspond to variables to include
-            or exclude. If "select" is used, only the variables in the list will be included.
-            If "drop" is used, all variables except those in the list will be included. Only one (or neither) of "select" or "drop" should be provided.
+        variables : VARIABLE_CONFIG_TYPES
+            Variable settings for inclusion/exclusion.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the output
         output_frequency : Optional[int], optional
@@ -70,35 +120,11 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
 
-        self.variables = self._validate_variables(variables)
+        self.variables = (
+            variables if isinstance(variables, OutputVariableConfig) else OutputVariableConfig.model_validate(variables)
+        )
         self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
-
-    def _validate_variables(self, variables: list[str] | str | dict[str, list] | None) -> dict:
-        """Validate input variables and normalize into a dictionary.
-
-        Parameters
-        ----------
-        variables : list[str] | str | dict[str, list]
-            Input variables.
-
-        Returns
-        -------
-        dict
-            A dictionary with one key, 'select' or 'drop', pointing to a list of variables:
-            {'select': [var1, var2...]}
-        """
-        if variables is None or not variables:
-            return None
-
-        output_dict = {"select": variables} if not isinstance(variables, dict) else variables
-
-        if len(set(output_dict.keys()).intersection({"select", "drop"})) != 1:
-            raise ValueError(
-                f"Variables cannot include values other than a list, single value, or a one of `select` or `drop`. Found {output_dict.keys()}"
-            )
-
-        return {key: [val] if isinstance(val, str) else val for key, val in output_dict.items()}
 
     def skip_variable(self, variable: str) -> bool:
         """Check if a variable should be skipped.
@@ -117,8 +143,8 @@ class Output(ABC):
         if self.variables is None:
             return False
 
-        skip_variable_select = "select" in self.variables and variable not in self.variables["select"]
-        skip_variable_drop = "drop" in self.variables.keys() and variable in self.variables["drop"]
+        skip_variable_select = self.variables.select is not None and variable not in self.variables.select
+        skip_variable_drop = self.variables.drop is not None and variable in self.variables.drop
 
         return skip_variable_select or skip_variable_drop
 
