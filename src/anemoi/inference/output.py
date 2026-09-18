@@ -13,6 +13,12 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import field_validator
+from pydantic import model_validator
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
@@ -26,6 +32,54 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 
 
+class OutputVariableConfig(BaseModel):
+    """Type for output variable configuration settings.
+
+    Only one of `select` or `drop` have values, with the other being []. `select` indicates that only the variables provided
+    should be written to the output. `drop` indicates that all variables EXCEPT those provided should be written to the output.
+
+    To convert from the allowed types for configuration (str | list[str] | dict) to this type, use OutputVariableConfig.model_validate(variables).
+
+    Attributes
+    ----------
+    select : list[str]
+        Variables to include in the output. Defaults to [].
+    drop : list[str]
+        Variables to remove from the output. Defaults to [].
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    select: list[str] | None = None
+    drop: list[str] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_config(cls, variables: Any) -> Any:
+        if variables is None:
+            return {}
+        if isinstance(variables, str):
+            return {"select": [variables]}
+        if isinstance(variables, list):
+            return {"select": variables}
+        return variables
+
+    @field_validator("select", "drop", mode="before")
+    @classmethod
+    def ensure_list(cls, value: Any) -> Any:
+        if not isinstance(value, list):
+            return [value]
+        else:
+            return value
+
+    @property
+    def not_set(self) -> bool:
+        return self.select is None and self.drop is None
+
+
+VARIABLE_CONFIG_TYPES = OutputVariableConfig | str | list[str] | dict[Literal["select", "drop"], str]
+
+
 class Output(ABC):
     """Abstract base class for output mechanisms."""
 
@@ -34,7 +88,7 @@ class Output(ABC):
         context: "Context",
         metadata: "Metadata",
         *,
-        variables: list[str] | None = None,
+        variables: VARIABLE_CONFIG_TYPES = OutputVariableConfig(),
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -47,6 +101,8 @@ class Output(ABC):
             The context in which the output operates.
         metadata : Metadata
             Metadata corresponding to the dataset this output is handling.
+        variables : VARIABLE_CONFIG_TYPES
+            Variable settings for inclusion/exclusion.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the output
         output_frequency : Optional[int], optional
@@ -64,11 +120,9 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
 
-        self.variables = variables
-        if self.variables is not None:
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
-
+        self.variables = (
+            variables if isinstance(variables, OutputVariableConfig) else OutputVariableConfig.model_validate(variables)
+        )
         self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
 
@@ -78,14 +132,21 @@ class Output(ABC):
         Parameters
         ----------
         variable : str
-            The variable to check.
+            The variable to check for skipping.
 
         Returns
         -------
         bool
             True if the variable should be skipped, False otherwise.
         """
-        return self.variables is not None and variable not in self.variables
+
+        if self.variables is None:
+            return False
+
+        skip_variable_select = self.variables.select is not None and variable not in self.variables.select
+        skip_variable_drop = self.variables.drop is not None and variable in self.variables.drop
+
+        return skip_variable_select or skip_variable_drop
 
     @cached_property
     def post_processors(self) -> list[Processor]:

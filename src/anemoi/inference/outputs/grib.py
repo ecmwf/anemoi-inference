@@ -228,7 +228,6 @@ class BaseGribOutput(Output):
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
 
         self.modifiers = modifier_factory(modifiers)
-        self.variables = variables
         assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
         self.negative_step_mode = negative_step_mode
 

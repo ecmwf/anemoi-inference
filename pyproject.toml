@@ -44,7 +44,7 @@ dependencies = [
   "numpy",
   "omegaconf>=2.2,<2.4",
   "packaging",
-  "pydantic",
+  "pydantic>2",
   "pyyaml",
   "rich",
   "semantic-version",
