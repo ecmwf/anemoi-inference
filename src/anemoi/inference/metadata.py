@@ -45,6 +45,10 @@ USE_LEGACY = True
 
 LOG = logging.getLogger(__name__)
 
+#: Role of a dataset whose checkpoint does not record one. Models that read and
+#: write different datasets have only been trainable since roles were recorded.
+DEFAULT_DATASET_ROLE = "input_output"
+
 
 VARIABLE_CATEGORIES = {
     "computed",
@@ -258,6 +262,14 @@ class Metadata(LegacyMixin):
         """Model time stepping timestep."""
         timestep = to_timedelta(self._config.data.timestep)
         return timestep
+
+    @cached_property
+    def role(self) -> str:
+        """What the model uses this dataset for: ``input``, ``output`` or ``input_output``.
+
+        A single-dataset model always reads and writes its one dataset.
+        """
+        return DEFAULT_DATASET_ROLE
 
     @cached_property
     def precision(self) -> str | int:
@@ -1504,6 +1516,16 @@ class MultiDatasetMetadata(Metadata):
     @cached_property
     def timestep(self) -> datetime.timedelta:
         return to_timedelta(self._inference.timesteps.timestep)
+
+    @cached_property
+    def role(self) -> str:
+        """What the model uses this dataset for: ``input``, ``output`` or ``input_output``.
+
+        Written by training since the spatial downscaler was added. Checkpoints
+        from before that do not distinguish the two sides of a model, so they
+        fall back to a dataset that is both.
+        """
+        return self._inference.get("role", DEFAULT_DATASET_ROLE)
 
     @cached_property
     def multi_step_input(self) -> int:

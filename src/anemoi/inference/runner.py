@@ -180,6 +180,30 @@ class Runner(Context):
         """
         return self._checkpoint
 
+    def _datasets_with_role(self, *roles: str) -> list[str]:
+        """Dataset names whose recorded role is one of ``roles``, in checkpoint order."""
+        multi_metadata = self.checkpoint.multi_dataset_metadata
+        return [name for name in self.dataset_names if multi_metadata[name].role in roles]
+
+    @property
+    def input_dataset_names(self) -> list[str]:
+        """Names of the datasets that are fed to the model as an input tensor.
+
+        Taken from the role each dataset is recorded with in the checkpoint.
+        Checkpoints that record no role — anything trained before roles were
+        added — give every dataset, as before.
+        """
+        return self._datasets_with_role("input", "input_output")
+
+    @property
+    def output_dataset_names(self) -> list[str]:
+        """Names of the datasets the model produces output for.
+
+        Taken from the role each dataset is recorded with in the checkpoint;
+        see :attr:`input_dataset_names`.
+        """
+        return self._datasets_with_role("output", "input_output")
+
     @property
     def device(self) -> "torch.device":
         if self._device is None:
@@ -231,8 +255,8 @@ class Runner(Context):
         with ProfilingRunner(self.use_profiler):
             with ProfilingLabel("Prepare input tensor", self.use_profiler):
                 input_tensors = {
-                    dataset: handler.prepare_input_tensor(input_states[dataset])
-                    for dataset, handler in self.tensor_handlers.items()
+                    dataset: self.tensor_handlers[dataset].prepare_input_tensor(input_states[dataset])
+                    for dataset in self.input_dataset_names
                 }
 
             try:
@@ -708,7 +732,9 @@ class Runner(Context):
 
     #########################################################################################################
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
-        config = multi_datasets_config(self.config.output, dataset_name, self.dataset_names)
+        # Keyed by the datasets the model writes: a per-dataset `output` block need
+        # not mention datasets the model only reads.
+        config = multi_datasets_config(self.config.output, dataset_name, self.output_dataset_names)
         output = create_output(self, config, metadata)
         LOG.info(f"[{dataset_name}] Output: {output}")
         return output
@@ -740,7 +766,9 @@ class Runner(Context):
             case _:
                 raise ValueError(f"Unknown input type: {input_type}")
 
-        config = multi_datasets_config(config, dataset_name, self.dataset_names)
+        # Keyed by the datasets the model reads: a per-dataset `input` block need
+        # not mention datasets the model only writes.
+        config = multi_datasets_config(config, dataset_name, self.input_dataset_names)
         input = create_input(self, config, metadata, variables=variables, purpose=input_type)
 
         LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
