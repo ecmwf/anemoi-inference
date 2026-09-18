@@ -29,6 +29,15 @@ jobs:
     runs-on: arc-runner-very-large
     container:
       image: eccr.ecmwf.int/public-ci-images/ubuntu24.04-base:latest
+    env:
+      # torch pulls the whole CUDA stack (~2.9GB of nvidia-* wheels) by default;
+      # none of it can run on a CPU runner, and the cluster's link to PyPI is
+      # slow enough that downloading it dominated the job.
+      UV_TORCH_BACKEND: cpu
+      # ARC overlays the workspace per job, so uv's default cache lands on a
+      # different filesystem than .venv and every file gets copied instead of
+      # hardlinked. Keeping both on the same mount restores hardlinking.
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
