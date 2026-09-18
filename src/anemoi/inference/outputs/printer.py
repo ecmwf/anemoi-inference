@@ -9,7 +9,6 @@
 
 import datetime
 import logging
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -31,81 +30,6 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 ListOrAll = Union[list[str], Literal["all"]]
-
-
-def print_state(
-    state: State,
-    print: Callable[..., None] = print,
-    max_lines: int = 4,
-    variables: ListOrAll | None = None,
-    drop_variables: list | None = None,
-) -> None:
-    """Print the state.
-
-    Parameters
-    ----------
-    state : State
-        The state dictionary.
-    print : function, optional
-        The print function to use, by default print.
-    max_lines : int, optional
-        The maximum number of lines to print, by default 4.
-    variables : list, optional
-        The list of variables to print, by default None.
-    drop_variables : list, optional
-        The list of variables to exclude from printing, by default None.
-    """
-    print("😀", end=" ")
-    for key, value in state.items():
-        if isinstance(value, datetime.datetime):
-            print(f"{key}={value.isoformat()}", end=" ")
-
-        if isinstance(value, (str, float, int, bool, type(None))):
-            print(f"{key}={value}", end=" ")
-
-        if isinstance(value, np.ndarray):
-            print(f"{key}={value.shape}", end=" ")
-
-    fields = state.get("fields", {})
-
-    print(f"fields={len(fields)}")
-    print()
-
-    names = list(fields.keys())
-
-    if variables == "all":
-        variables = names
-        max_lines = 0
-
-    if variables is None:
-        variables = names
-
-    if drop_variables is not None:
-        variables = [var for var in variables if var not in drop_variables]
-
-    variables = set(variables)
-
-    n = max_lines
-
-    if max_lines == 0 or max_lines >= len(names):
-        idx = list(range(len(names)))
-    else:
-        idx = list(range(0, len(names), len(names) // n))
-        idx.append(len(names) - 1)
-        idx = sorted(set(idx))
-
-    length = max(len(name) for name in names)
-
-    for i in idx:
-        name = names[i]
-        if name not in variables:
-            continue
-        field = fields[name]
-        min_value = f"min={np.nanmin(field):g}"
-        max_value = f"max={np.nanmax(field):g}"
-        print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
-
-    print()
 
 
 @output_registry.register("printer")
@@ -137,19 +61,22 @@ class PrinterOutput(Output):
             The path to save the printed output, by default None.
             If the parent directory does not exist, it will be created.
         variables : list, optional
-            The list of variables to print, by default None. Can be also be the string "all".
+            The list of variables to print, by default None (max_lines will be printed). Can be also be the string "all", in which case all variables will be printed (regardless of max_lines).
         max_lines : int, optional
             The maximum number of lines to print, by default 4.
-            If set to 0, all variables will be printed.
+            If set to 0, all variables will be printed. If any value is provided in `variables`, this argument is ignored -- it is only used if `variables == None`.
         **kwargs : Any
             Additional keyword arguments.
         """
-        if variables == "all":
-            variables = None
-        super().__init__(context, metadata, variables=variables, **kwargs)
-        self.print = print
-        self.max_lines = max_lines
+        # If "all" variables are included, self.variables should be None and max_lines should be 0, meaning
+        # all variables are printed out.
+        all_variables = variables == "all"
 
+        super().__init__(context, metadata, variables=(None if all_variables else variables), **kwargs)
+
+        self.max_lines = 0 if all_variables else max_lines
+
+        self.print = print
         self.f = None
 
         if path is not None:
@@ -167,11 +94,54 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        keep_variables = self.variables.get("select") if self.variables is not None else None
-        drop_variables = self.variables.get("drop") if self.variables is not None else None
-        print_state(
-            state, print=self.print, variables=keep_variables, drop_variables=drop_variables, max_lines=self.max_lines
-        )
+        self.print_state(state)
+
+    def print_state(self, state: State) -> None:
+        """Print the state.
+
+        Parameters
+        ----------
+        state : State
+            The state dictionary.
+        """
+        print("😀", end=" ")
+        for key, value in state.items():
+            if isinstance(value, datetime.datetime):
+                print(f"{key}={value.isoformat()}", end=" ")
+
+            if isinstance(value, (str, float, int, bool, type(None))):
+                print(f"{key}={value}", end=" ")
+
+            if isinstance(value, np.ndarray):
+                print(f"{key}={value.shape}", end=" ")
+
+        fields = state.get("fields", {})
+
+        print(f"fields={len(fields)}")
+        print()
+
+        names = list(fields.keys())
+        selected = names
+
+        if self.max_lines > 0:
+            if self.variables is None:
+                selected = names[: self.max_lines]
+            else:
+                LOG.debug(
+                    f"Printer output settings contain a list of selected variables and a max_lines of {self.max_lines}. Ignoring the max_lines setting."
+                )
+
+        length = max((len(name) for name in names), default=0)
+
+        for name in selected:
+            if self.skip_variable(name):
+                continue
+            field = fields[name]
+            min_value = f"min={np.nanmin(field):g}"
+            max_value = f"max={np.nanmax(field):g}"
+            print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
+
+        print()
 
     def close(self) -> None:
         if self.f is not None:

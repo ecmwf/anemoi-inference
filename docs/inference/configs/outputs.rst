@@ -24,8 +24,16 @@ Only one of "select" or "drop" should be provided.
 For `select`, only the variables provided in the list will be included in the output. For `drop`, only the
 variables NOT in the list will be included in the output.
 
+**select**
+
 .. literalinclude:: yaml/outputs_variables.yaml
    :language: yaml
+
+**drop**
+
+.. literalinclude:: yaml/outputs_variables_drop.yaml
+   :language: yaml
+
 
 The variable names should match the names as they appear in the checkpoint.
 For variables with pressure levels, use the format ``{param}_{level}``, for
@@ -79,7 +87,7 @@ Several post-processors are available for extracting subsets of the data:
      :language: yaml
 
   For more information on using ``extract_from_state`` with the ``Cutout``
-  input, see :ref:`inference-inputs`.
+  input, see :ref:`inputs`.
 
 **assign_mask**
   Assigns the state to a larger array using a mask. This is the opposite of
