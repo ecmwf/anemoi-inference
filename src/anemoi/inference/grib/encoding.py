@@ -334,6 +334,11 @@ def grib_keys(
                 if v is None:
                     continue
                 k = "typeOfLevel"
+
+            if k == "levelist":
+                # `levelist` is a mars-namespace key that non-ECMWF definitions
+                # (e.g. the COSMO/ICON ones) may not define; `level` is universal.
+                k = "level"
             result.setdefault(k, v)
 
     result = {k: v for k, v in sorted(result.items(), key=_ordering) if v is not None}
