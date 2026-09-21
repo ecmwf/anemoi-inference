@@ -401,6 +401,19 @@ class Metadata(LegacyMixin):
         return list(getattr(self._config_data, "corrector", None) or [])
 
     @cached_property
+    def target_variables(self) -> list[str]:
+        """Variables used only as loss-side supervision during training.
+
+        They are carved out of the input and output tensors (they appear in
+        `data_indices.*.target` but not in `*.full`), so the model neither
+        reads nor produces them. Inference must not try to retrieve them: the
+        dataset it runs against may well not have them, since they can come
+        from a dataset that was only joined in at training time. Returns an
+        empty list when the dataset has none.
+        """
+        return list(getattr(self._config_data, "target", None) or [])
+
+    @cached_property
     def corrector_input_mask(self) -> IntArray:
         """Input-tensor indices of the corrector variables."""
         variable_to_index = self.variable_to_input_tensor_index
@@ -1156,6 +1169,43 @@ class Metadata(LegacyMixin):
         with temporary_config(dict(datasets=dict(use_search_path_not_found=True))):
             return open_dataset(*args, **kwargs)
 
+    def _drop_target_variables(self, kwargs: Any, from_dataloader: str) -> Any:
+        """Remove loss-only target variables from a replayed dataloader `select`.
+
+        A training partition's recorded `select` lists every column the
+        dataloader read, including the loss-only targets. Those are not in the
+        model's input or output tensors, and they may only exist in a dataset
+        that was joined in at training time, so selecting them at inference
+        fails with `select: unknown variable: ...`. Drop them instead.
+
+        Only the dataloader path goes through here: a `select` the user wrote
+        by hand in the inference config is left exactly as given.
+        """
+        targets = set(self.target_variables)
+        if not targets:
+            return kwargs
+
+        select = kwargs.get("select")
+        if not select:
+            return kwargs
+
+        dropped = [v for v in select if v in targets]
+        if not dropped:
+            return kwargs
+
+        kwargs = dict(kwargs)
+        kwargs["select"] = [v for v in select if v not in targets]
+        LOG.warning(
+            "[%s] Dropped %d loss-only target variable(s) from the `%s` dataloader "
+            "select list: %s. They are not part of the model's input or output "
+            "tensors and are not needed for inference.",
+            self.dataset_name,
+            len(dropped),
+            from_dataloader,
+            ", ".join(sorted(dropped)),
+        )
+        return kwargs
+
     def open_dataset_args_kwargs(
         self, *, use_original_paths: bool, from_dataloader: str | None = None
     ) -> tuple[Any, Any]:
@@ -1197,6 +1247,7 @@ class Metadata(LegacyMixin):
 
         if from_dataloader is not None:
             args, kwargs = [], self._dataloader_dataset(from_dataloader)
+            kwargs = self._drop_target_variables(kwargs, from_dataloader)
         else:
             args, kwargs = self._dataset.arguments.args, self._dataset.arguments.kwargs
 
@@ -1612,6 +1663,15 @@ class MultiDatasetMetadata(Metadata):
         so the names match the actual tensor variable names (post-rename).
         """
         return list(self._inference.variable_types.get("corrector", []))
+
+    @cached_property
+    def target_variables(self) -> list[str]:
+        """Loss-only target variables, from the checkpoint's variable_types.
+
+        Uses `metadata_inference.variable_types` rather than the training config
+        so the names match the actual tensor variable names (post-rename).
+        """
+        return list(self._inference.variable_types.get("target", []))
 
     def variable_categories(self) -> dict[str, set[str]]:
         if self._variables_categories is not None:

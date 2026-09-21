@@ -217,3 +217,75 @@ def test_da_task_options(config, expected_cycles, expected_skip):
 
     assert metadata.da_cycles == expected_cycles
     assert metadata.da_flow_dependent_skip is expected_skip
+
+
+@pytest.mark.parametrize(
+    "config, expected",
+    [
+        # Trained before the option existed, or with it unset.
+        ({"data": {}}, []),
+        ({"data": {"target": None}}, []),
+        ({"data": {"target": ["gpt_50", "gpz_50"]}}, ["gpt_50", "gpz_50"]),
+    ],
+)
+def test_target_variables_single_dataset(config, expected):
+    """Loss-only target variables come from `config.data.target`.
+
+    A checkpoint predating the option must read as empty rather than raise.
+    """
+    metadata = MetadataFactory({"config": config})
+
+    assert metadata.target_variables == expected
+
+
+def _multi_dataset_metadata(*, target, select):
+    """Build a minimal multi-dataset checkpoint with a `test` dataloader."""
+    return {
+        "metadata_inference": {
+            "dataset_names": ["data"],
+            "data": {"variable_types": {"target": target} if target is not None else {}},
+        },
+        "config": {
+            "dataloader": {
+                # `open_dataset_args_kwargs` resolves full paths via the training partition.
+                "training": {"datasets": {"data": {"dataset_config": {"dataset": "d.zarr"}}}},
+                "test": {"datasets": {"data": {"dataset_config": {"dataset": "d.zarr", "select": select}}}},
+            },
+        },
+    }
+
+
+def test_target_variables_multi_dataset():
+    """Multi-dataset checkpoints read the post-rename names from `variable_types`."""
+    metadata = MetadataFactory(_multi_dataset_metadata(target=["gpt_50", "gpz_50"], select=[]), dataset_name="data")
+
+    assert isinstance(metadata, MultiDatasetMetadata)
+    assert metadata.target_variables == ["gpt_50", "gpz_50"]
+
+
+def test_dataloader_select_drops_target_variables():
+    """A replayed dataloader `select` must not ask for loss-only targets.
+
+    They are absent from the model's tensors and may only exist in a dataset
+    that was joined in at training time, so selecting them fails at inference.
+    """
+    metadata = MetadataFactory(
+        _multi_dataset_metadata(target=["gpt_50", "gpz_50"], select=["2t", "gpt_50", "msl", "gpz_50"]),
+        dataset_name="data",
+    )
+
+    _, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="test")
+
+    assert kwargs["select"] == ["2t", "msl"]
+
+
+def test_dataloader_select_unchanged_without_target_variables():
+    """Checkpoints with no targets keep their `select` exactly as recorded."""
+    metadata = MetadataFactory(
+        _multi_dataset_metadata(target=None, select=["2t", "msl"]),
+        dataset_name="data",
+    )
+
+    _, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="test")
+
+    assert kwargs["select"] == ["2t", "msl"]
