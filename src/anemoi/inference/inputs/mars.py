@@ -11,8 +11,6 @@
 import logging
 from typing import Any
 
-from earthkit.data.utils.dates import to_datetime
-
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
@@ -246,13 +244,13 @@ class MarsInput(GribInput):
         self.patches = patches or []
         self.log = log
 
-    def create_input_state(self, *, date: Date | None, ref_date_index=-1, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The list of dates for which to create the input state.
         ref_date_index: int = -1
             If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
@@ -263,21 +261,14 @@ class MarsInput(GribInput):
         State
             The created input state.
         """
-        if date is None:
-            date = to_datetime(-1)
-            LOG.warning("MarsInput: `date` parameter not provided, using yesterday's date: %s", date)
-
-        retrieve_date = date
-        if kwargs.get("select_reference_date"):
-            retrieve_date = self.reference_date
 
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [retrieve_date + h for h in self.metadata.lagged],
+                dates=dates,
             ),
             variables=self.variables,
-            date=date,
+            dates=dates,
             ref_date_index=ref_date_index,
             **kwargs,
         )

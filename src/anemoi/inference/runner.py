@@ -655,15 +655,20 @@ class Runner(Context):
         input_states: dict[str, State] = {}
         input_constants_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
+
         for dataset in self.tensor_handlers:
-            prognostic_state = self.prognostics_inputs[dataset].create_input_state(date=self.config.date)
+
+            multi_dataset_metadata = self.checkpoint.multi_dataset_metadata[dataset]
+            dates = [self.config.date + h for h in multi_dataset_metadata.lagged]
+
+            prognostic_state = self.prognostics_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, prognostic_state, "prognostics")
 
-            constants_state = self.constant_forcings_inputs[dataset].create_input_state(date=self.config.date)
+            constants_state = self.constant_forcings_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, constants_state, "constant_forcings")
             input_constants_states[dataset] = constants_state
 
-            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(date=self.config.date)
+            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, forcings_state, "dynamic_forcings")
 
             input_states[dataset] = self._combine_states(

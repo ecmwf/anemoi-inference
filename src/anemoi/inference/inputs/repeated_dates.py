@@ -15,6 +15,7 @@ from anemoi.utils.dates import as_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.state import concat_states
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -51,13 +52,13 @@ class RepeatedDatesInput(Input):
         super().__init__(context, metadata, **kwargs)
         self.source = create_input(context, source, self.metadata, variables=self.variables, purpose=self.purpose)
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
         ----------
-        date : Date or None
-            The date for the input state.
+        dates : list of Date
+            The dates for the input state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -67,10 +68,22 @@ class RepeatedDatesInput(Input):
             The created input state.
         """
 
-        # TODO: Consider caching the result
-        state = self.source.create_input_state(date=self.date, **kwargs)
+        state = None
+
+        for date in dates:
+            s = self.source.create_input_state(dates=[self.date], **kwargs)
+
+            s["_input"] = self
+            s["date"] = date
+
+            if state is None:
+                state = s
+            else:
+                state = concat_states([state, s])
+
         state["_input"] = self
-        state["date"] = date
+        state["date"] = dates[-1]
+
         return state
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -90,17 +103,21 @@ class RepeatedDatesInput(Input):
         """
         assert len(dates) > 0, "dates must not be empty for repeated dates input"
 
-        state = self.source.load_forcings_state(
-            dates=[self.date],
-            current_state=current_state,
-        )
+        state = None
 
-        fields = state["fields"]
+        for date in dates:
 
-        for name, data in fields.items():
-            assert len(data.shape) == 2, data.shape
-            assert data.shape[0] == 1, data.shape
-            fields[name] = data.repeat(len(dates), axis=0)
+            s = self.source.load_forcings_state(
+                dates=[self.date],
+                current_state=current_state,
+            )
+            s["_input"] = self
+            s["date"] = date
+
+            if state is None:
+                state = s
+            else:
+                state = concat_states([state, s])
 
         state["date"] = dates[-1]
 

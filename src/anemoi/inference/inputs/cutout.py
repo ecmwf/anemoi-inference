@@ -44,7 +44,7 @@ def _mask_and_combine_states(
     mask : np.ndarray
         The mask to apply to new_state.
     fields: Iterable[str]
-        The fields to combine in the states
+        The fields to combine in the states.
 
     Returns
     -------
@@ -158,13 +158,13 @@ class Cutout(Input):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         **kwargs : dict
             Additional keyword arguments for the source input state creation.
 
@@ -184,7 +184,7 @@ class Cutout(Input):
         for i, source in enumerate(self.sources.keys()):
             source_mask = self.masks[source]
 
-            source_state = self.sources[source].create_input_state(date=date, **kwargs)
+            source_state = self.sources[source].create_input_state(dates=dates, **kwargs)
 
             field_shape = next(iter(source_state["fields"].values())).shape[-1]
 

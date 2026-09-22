@@ -46,13 +46,13 @@ class EmptyInput(Input):
         """
         super().__init__(context, metadata, **kwargs)
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create an empty input state.
 
         Parameters
         ----------
-        date : Date or None
-            The date for the input state.
+        dates : list of Date
+            The dates for the input state.
         **kwargs : Any
             Additional keyword arguments.
 
