@@ -136,7 +136,6 @@ class PlotOutput(Output):
         """
         import earthkit.data as ekd
         import earthkit.plots as ekp
-        from earthkit.data.core.field import Field
 
         if self.schema:
             ekp.schema.use(self.schema)
@@ -156,7 +155,7 @@ class PlotOutput(Output):
             param = variable.param
 
             plotting_fields.append(
-                Field.from_components(
+                ekd.Field.from_components(
                     values=values,
                     parameter={"variable": param, "units": units(param)},
                     time={"valid_datetime": date, "base_datetime": basetime},
