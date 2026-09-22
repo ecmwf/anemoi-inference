@@ -11,6 +11,8 @@
 import logging
 from typing import Any
 
+from anemoi.utils.dates import as_timedelta
+
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
@@ -288,6 +290,17 @@ class MarsInput(GribInput):
         Any
             The retrieved data.
         """
+
+        if "step" in self.kwargs:
+            step = self.kwargs["step"]
+            # For now a few assertions to relax later
+            assert isinstance(step, int), self.kwargs
+            assert self.kwargs["type"] in ("fc", "pf", "cf", "4v")
+
+            step = as_timedelta(step)
+
+            dates = [d - step for d in dates]
+
         requests = self.metadata.mars_requests(
             variables=variables,
             dates=dates,

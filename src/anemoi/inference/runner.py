@@ -728,17 +728,21 @@ class Runner(Context):
         match input_type:
             case "prognostics":
                 variables = variables.retrieved_prognostic_variables()
-                config = input_types_config(self.config, "prognostic_input", "input") if variables else "empty"
+                config = input_types_config(self.config, "input") if variables else "empty"
             case "constant_forcings":
                 variables = variables.retrieved_constant_forcings_variables()
-                config = input_types_config(self.config, input_type, "forcings", "input") if variables else "empty"
+                config = (
+                    input_types_config(self.config, "constant_forcings", "forcings", "input") if variables else "empty"
+                )
             case "dynamic_forcings":
                 variables = variables.retrieved_dynamic_forcings_variables()
-                config = input_types_config(self.config, input_type, "-forcings", "input") if variables else "empty"
+                config = (
+                    input_types_config(self.config, "dynamic_forcings", "-forcings", "input") if variables else "empty"
+                )
             case "boundary_forcings":
                 variables = variables.retrieved_prognostic_variables()
                 config = (
-                    input_types_config(self.config, input_type, "-boundary", "forcings", "input")
+                    input_types_config(self.config, "boundary_forcings", "-boundary", "forcings", "input")
                     if variables
                     else "empty"
                 )
