@@ -10,7 +10,7 @@
 
 import numpy as np
 import pytest
-from earthkit.data.readers.grib.codes import GribCodesHandle
+from earthkit.data.readers.grib.handle import GribCodesHandle
 from earthkit.data.utils.dates import to_datetime
 from earthkit.data.utils.dates import to_timedelta
 

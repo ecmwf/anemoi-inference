@@ -19,13 +19,13 @@ from typing import Any
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.variables import Variable
-from earthkit.data import create_fieldlist
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.fields import name_fields
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
@@ -36,75 +36,9 @@ from ..input import Input
 
 LOG = logging.getLogger(__name__)
 
-
-def _get_metadata_dict(field: Any) -> dict[str, Any]:
-    """Build a metadata dictionary from a field for use with namer functions.
-
-    Extracts common metadata keys using the new component-based API,
-    falling back to raw metadata access for GRIB fields.
-
-    Parameters
-    ----------
-    field : Any
-        The field to extract metadata from.
-
-    Returns
-    -------
-    dict
-        A dictionary of metadata key-value pairs.
-    """
-    result = {}
-
-    # Try raw metadata first for GRIB-specific keys (param, levelist, levtype)
-    # These are preferred over component access because component access may
-    # return different values (e.g., parameter.variable() returns shortName
-    # which can differ from the GRIB param key)
-    for key in ("param", "levelist", "levtype", "shortName", "dataDate", "dataTime"):
-        try:
-            result[key] = field.metadata(key)
-        except (KeyError, TypeError, AttributeError):
-            pass
-
-    # Try component-based access for keys not yet found
-    for key, accessor in [
-        ("param", lambda f: f.parameter.variable()),
-        ("levelist", lambda f: f.vertical.level()),
-        ("levtype", lambda f: f.vertical.level_type()),
-        ("valid_datetime", lambda f: f.time.valid_datetime()),
-        ("base_datetime", lambda f: f.time.base_datetime()),
-        ("step", lambda f: f.time.step()),
-        ("number", lambda f: f.ensemble.member()),
-    ]:
-        if key not in result:
-            try:
-                result[key] = accessor(field)
-            except (AttributeError, KeyError, TypeError, NotImplementedError):
-                pass
-
-    return result
-
-
-def _name_fields(data: Any, namer: callable) -> Any:
-    """Apply a namer function to all fields and set labels.name.
-
-    Parameters
-    ----------
-    data : Any
-        The fieldlist to name.
-    namer : callable
-        The namer function: (field, metadata_dict) -> str.
-
-    Returns
-    -------
-    Any
-        A new fieldlist with labels.name set on each field.
-    """
-    named = []
-    for f in data:
-        md = _get_metadata_dict(f)
-        name = namer(f, md)
-        named.append(f.set(**{"labels.name": name}))
-    return create_fieldlist(named)
+# ecCodes `gridType` for GRIB fields whose grid cannot be described in MARS terms.
+# earthkit-data uses the same value internally (see `GribGeographyBuilder`).
+UNSTRUCTURED_GRID_TYPE = "unstructured_grid"
 
 
 def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
@@ -126,7 +60,7 @@ def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
     ekd.FieldList
         The selected variable (FieldList subset).
     """
-    data = _name_fields(data, namer)
+    data = name_fields(data, namer)
     return data.sel(**{"labels.name": name}, **kwargs)
 
 
@@ -258,7 +192,7 @@ class EkdInput(Input):
             The filtered and sorted data.
         """
 
-        data = _name_fields(data, self._namer)
+        data = name_fields(data, self._namer)
 
         valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
@@ -544,10 +478,16 @@ class EkdInput(Input):
         """Set private attributes to the state.
 
         Provides geography information if available retrieved from the fields.
+
+        Only the information that the checkpoint metadata cannot already provide is
+        reported here, so that a single, always-available earthkit-data accessor backs
+        each key. In particular the grid is only described for unstructured grids: any
+        grid that can be named in MARS terms is taken from the checkpoint metadata
+        downstream (see `TemplateManager.load_template`).
         """
         geography_information = {}
 
-        def get_geography_info(key: str) -> str | None:
+        def get_geography_info(key: str) -> Any | None:
             try:
                 combo = list(getattr(f.geography, key, lambda: None)() for f in fields)
             except NotImplementedError:  # Issue with earthkit.data throwing error here
@@ -556,10 +496,17 @@ class EkdInput(Input):
                 return combo[0]
             return None
 
-        if area := get_geography_info("area"):
-            geography_information["area"] = area
-        if grid := get_geography_info("grid"):
-            geography_information["grid"] = grid
+        if get_geography_info("grid_type") == UNSTRUCTURED_GRID_TYPE:
+            # earthkit-data 0.x reported `mars_grid == "undefined"` for these. The grid
+            # cannot be named in MARS terms, so describe it by its points instead, and do
+            # not advertise an area (it would be meaningless).
+            geography_information["grid"] = {
+                "latitudes": list(state["latitudes"]),
+                "longitudes": list(state["longitudes"]),
+            }
+        elif area := get_geography_info("area"):
+            # `area()` returns a tuple; the rest of the code expects a MARS-style list.
+            geography_information["area"] = list(area)
 
         if geography_information:
             state["_geography"] = geography_information

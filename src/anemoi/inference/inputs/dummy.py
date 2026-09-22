@@ -19,6 +19,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.fields import field_from_grib_keys
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
@@ -110,19 +111,15 @@ class DummyInput(EkdInput):
             for date in dates:
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
-                from earthkit.data.core.field import Field
-
-                field = Field.from_components(
-                    values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
+                field = field_from_grib_keys(
+                    np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
+                    keys,
+                    name=variable,
+                    valid_datetime=date,
                     geography={
                         "latitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
                         "longitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
                     },
-                    time={
-                        "valid_datetime": date.isoformat(),
-                    },
-                    parameter={"variable": variable},
-                    labels={"name": variable, **keys},
                 )
                 result.append(field)
 

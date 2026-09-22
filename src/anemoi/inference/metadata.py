@@ -542,12 +542,12 @@ class Metadata(LegacyMixin):
         FieldList
             The named fields.
         """
-        from anemoi.inference.inputs.ekd import _name_fields
+        from anemoi.inference.fields import name_fields
 
         if namer is None:
             namer = self.default_namer()
 
-        return _name_fields(fields, namer)
+        return name_fields(fields, namer)
 
     def sort_by_name(
         self,

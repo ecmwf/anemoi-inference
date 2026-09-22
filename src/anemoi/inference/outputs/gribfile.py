@@ -29,6 +29,7 @@ from ..decorators import ensure_path
 from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..decorators import supports_parallel_output
+from ..grib import grib_handle
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
@@ -233,8 +234,7 @@ class GribIoOutput(BaseGribOutput):
             class Dummy:
                 def __init__(self, template: ekd.Field) -> None:
                     self.template = template
-                    grib = template._get_grib(strict=True)
-                    self.handle = grib.handle if grib is not None else None
+                    self.handle = grib_handle(template)
 
                 def __repr__(self) -> str:
                     return f"Dummy({self.template})"
