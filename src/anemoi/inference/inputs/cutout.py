@@ -1,4 +1,4 @@
-# (C) Copyright 2025 Anemoi contributors.
+# (C) Copyright 2025-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -182,13 +182,23 @@ class Cutout(Input):
         combined_state = {}
 
         for i, source in enumerate(self.sources.keys()):
-
             source_mask = self.masks[source]
 
-            try:
-                latitudes, longitudes = self.sources[source]._fieldlist[0].grid_points()
-            except Exception as e:
-                LOG.warning("Failed to get coordinates from source %s: %s", source, e)
+            source_state = self.sources[source].create_input_state(date=date, **kwargs)
+
+            field_shape = next(iter(source_state["fields"].values())).shape[-1]
+
+            # In the case of a mismatch between latitudes and field points, attempt to load coordinates from supporting arrays
+            # Detect if the number of latitudes does not match the number of field points
+            # This can occur when `ekd.py` fails over to read the coords from the metadata, which at times is wrong,
+            # so we attempt to load the correct coordinates from the supporting arrays.
+            if "latitudes" not in source_state or source_state["latitudes"].shape[-1] != field_shape:
+                LOG.warning(
+                    "Mismatch between latitudes and field points for source %s: %s vs %s",
+                    source,
+                    source_state["latitudes"].shape[-1] if "latitudes" in source_state else None,
+                    field_shape,
+                )
                 LOG.warning(
                     "Loading coordinates from supporting arrays  %s and %s",
                     f"source{i}/latitudes",
@@ -197,18 +207,16 @@ class Cutout(Input):
                 latitudes = self.metadata.load_supporting_array(f"source{i}/latitudes")
                 longitudes = self.metadata.load_supporting_array(f"source{i}/longitudes")
 
+                source_state["latitudes"] = latitudes
+                source_state["longitudes"] = longitudes
+
                 # this fallback for getting coordinates is index-based and therefore sensitive to
                 # the order of the sources in the configuration
-                if isinstance(source_mask, np.ndarray):
-                    assert source_mask.shape == latitudes.shape, (
-                        "Expected source mask shape to match coordinates shape. "
-                        f"Got mask of shape {source_mask.shape} and latitudes of shape {latitudes.shape}. "
-                        "Check that the cutout sources are in the correct order."
-                    )
-
-            source_state = self.sources[source].create_input_state(
-                date=date, latitudes=latitudes, longitudes=longitudes, **kwargs
-            )
+                assert field_shape == latitudes.shape[-1], (
+                    "Expected source mask shape to match coordinates shape. "
+                    f"Got mask of shape {field_shape} and latitudes of shape {latitudes.shape[-1]}. "
+                    "Check that the cutout sources are in the correct order."
+                )
 
             # Create the mask front padded with zeros
             # to match the length of the combined state

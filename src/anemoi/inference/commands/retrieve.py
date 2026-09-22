@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -300,15 +300,16 @@ class RetrieveCmd(Command):
             requests[0]["target"] = args.target
 
         if args.output and args.output != "-":
-            f = open(args.output, "w")
+            with open(args.output, "w") as f:
+                self._write_requests(requests, f, args)
         else:
-            f = sys.stdout
+            self._write_requests(requests, sys.stdout, args)
 
+    def _write_requests(self, requests, f, args):
         if args.mars:
             # Write requests in MARS format
-            for i, request in enumerate(requests):
+            for request in requests:
                 print_request(args.verb, request, file=f)
-
         else:
             json.dump(requests, f, indent=4)
 

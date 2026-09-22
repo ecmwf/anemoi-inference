@@ -1,4 +1,4 @@
-# (C) Copyright 2025 Anemoi contributors.
+# (C) Copyright 2025-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -36,6 +36,27 @@ w_100 = Variable.from_dict(
     {
         "mars": {
             "param": "w",
+            "levtype": "pl",
+            "levelist": 100,
+        }
+    },
+)
+
+z_renamed = Variable.from_dict(
+    "z",
+    {
+        "mars": {
+            "param": "FIS",
+            "levtype": "sfc",
+        }
+    },
+)
+
+z_100_renamed = Variable.from_dict(
+    "z_100",
+    {
+        "mars": {
+            "param": "FI",
             "levtype": "pl",
             "levelist": 100,
         }

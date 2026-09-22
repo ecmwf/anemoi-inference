@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -56,6 +56,7 @@ class RunConfiguration(Configuration):
     output: str | dict[str, Any] = "printer"
 
     pre_processors: list[ProcessorConfig] = []
+    mid_processors: list[ProcessorConfig] = []
     post_processors: list[ProcessorConfig] = []
 
     dynamic_forcings: str | dict[str, Any] | None = None

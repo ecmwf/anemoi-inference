@@ -1,4 +1,4 @@
-# (C) Copyright 2024-2025 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -38,6 +38,7 @@ from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.mid_processors import create_mid_processor
 from anemoi.inference.output import Output
 from anemoi.inference.outputs import create_output
 from anemoi.inference.post_processors import create_post_processor
@@ -111,8 +112,11 @@ class Runner(Context):
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
+        self.quiet: set[str] = set()  # So we don't repeat the same warning multiple times
+
         # processors, I/O and tensor handlers for each dataset in the checkpoint
         self.pre_processors: dict[str, list[Processor]] = {}
+        self.mid_processors: dict[str, list[Processor]] = {}
         self.post_processors: dict[str, list[Processor]] = {}
         self.tensor_handlers: dict[str, TensorHandler] = {}
         self.prognostics_inputs: dict[str, Input] = {}
@@ -127,6 +131,7 @@ class Runner(Context):
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
             self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
+            self.mid_processors[dataset] = self.create_mid_processors(dataset, metadata)
             self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)
             self.constant_forcings_inputs[dataset] = self.create_input("constant_forcings", dataset, metadata)
             self.dynamic_forcings_inputs[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
@@ -165,8 +170,6 @@ class Runner(Context):
                     table.add_row(variable, str(units), ", ".join(categories))
 
                 console.print(table)
-
-        self.quiet = set()  # So we don't repeat the same warning multiple times
 
     @property
     def checkpoint(self) -> Checkpoint:
@@ -390,23 +393,23 @@ class Runner(Context):
         is_last_step : bool
             True if it's the last step of the forecast.
         """
-        output_horizon = self.checkpoint.timestep * self.checkpoint.multi_step_output
-        steps = math.ceil(lead_time / output_horizon)
+        steps = math.ceil(lead_time / self.checkpoint.rollout_shift)
 
-        LOG.info(
-            "Lead time: %s, time stepping: %s, Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
-            lead_time,
-            self.checkpoint.timestep,
-            self.checkpoint.multi_step_output * steps,
-            steps,
-            self.checkpoint.multi_step_output,
-        )
+        if self.verbosity > 0:
+            LOG.info(
+                "Lead_time=%s, step_shift=%s, output_offsets=%s, Forecasting %s steps through %s autoregressive steps of %s prediction(s) each.",
+                lead_time,
+                self.checkpoint.rollout_shift,
+                self.checkpoint.output_offsets,
+                self.checkpoint.multi_step_output * steps,
+                steps,
+                self.checkpoint.multi_step_output,
+            )
 
         for s in range(steps):
-            step = (s + 1) * output_horizon
+            step = (s + 1) * self.checkpoint.rollout_shift
             valid_dates = [
-                start_date + s * output_horizon + self.checkpoint.timestep * (i + 1)
-                for i in range(self.checkpoint.multi_step_output)
+                start_date + s * self.checkpoint.rollout_shift + offset for offset in self.checkpoint.output_offsets
             ]
             next_dates = valid_dates
             is_last_step = s == steps - 1
@@ -472,7 +475,9 @@ class Runner(Context):
                 for d in dates:
                     dates_str += f"{d}, "
                 dates_str = f"{dates_str[:-2]})"
-                title = f"Forecasting, model call {s+1}: horizon {step}, freq. {self.checkpoint.timestep} {dates_str}"
+                title = f"Forecasting {dates_str}"
+                if self.verbosity > 0:
+                    title += f" through model call {s+1} with horizon {step}"
 
                 for dataset, handler in self.tensor_handlers.items():
                     if handler.trace:
@@ -511,7 +516,7 @@ class Runner(Context):
                             new_states[dataset]["date"] = dates[i]
                             new_states[dataset]["previous_step"] = new_states[dataset].get("step")
                             new_states[dataset]["step"] = (
-                                step + (1 + i - self.checkpoint.multi_step_output) * self.checkpoint.timestep
+                                step - self.checkpoint.rollout_shift + self.checkpoint.output_offsets[i]
                             )
 
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
@@ -520,6 +525,15 @@ class Runner(Context):
                                 new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[j]] = (
                                     output[:, j]
                                 )
+
+                            new_states[dataset], applied = self._apply_mid_processors(new_states[dataset], dataset)
+                            if applied:
+                                for name, field in new_states[dataset]["fields"].items():
+                                    if name not in handler.metadata.variable_to_output_tensor_index:
+                                        continue
+                                    y_pred[dataset][
+                                        0, i, ..., handler.metadata.variable_to_output_tensor_index[name]
+                                    ] = field
 
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
@@ -543,7 +557,7 @@ class Runner(Context):
 
                 self.output_states_hook(new_states)
 
-                # Update  tensor for next iteration
+                # Update tensor for next iteration
                 with ProfilingLabel("Update tensor for next step", self.use_profiler):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
@@ -741,6 +755,15 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
 
+    def create_mid_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
+        result = []
+        config = multi_datasets_config(self.config.mid_processors, dataset_name, self.dataset_names)
+        for processor in config:
+            result.append(create_mid_processor(self, processor, metadata))
+
+        LOG.info(f"[{dataset_name}] Mid processors: {result}")
+        return result
+
     def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
         config = multi_datasets_config(self.config.post_processors, dataset_name, self.dataset_names)
@@ -749,6 +772,14 @@ class Runner(Context):
 
         LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result
+
+    def _apply_mid_processors(self, state: dict[str, Any], dataset_name: str) -> tuple[dict[str, Any], bool]:
+        """Apply mid-processors to the state."""
+        applied = False
+        for processor in self.mid_processors[dataset_name]:
+            state = processor.process(state)
+            applied = True
+        return state, applied
 
     def _combine_states(self, *states: dict[str, Any]) -> dict[str, Any]:
         """Combine multiple states into one."""
@@ -908,7 +939,9 @@ class Runner(Context):
         checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}
         state_variables = {k: v for k, v in state_variables.items() if k in common}
 
-        config = multi_datasets_config(self.config.check_variables_compatibility, dataset, self.dataset_names)
+        config = multi_datasets_config(
+            self.config.check_variables_compatibility, dataset, self.dataset_names, strict=False
+        )
         if config is None:
             config = {}
 
@@ -918,4 +951,5 @@ class Runner(Context):
         """Log a warning message only once."""
         if message not in self.quiet:
             LOG.warning(message)
+            warnings.warn(message, UserWarning, stacklevel=2)
             self.quiet.add(message)

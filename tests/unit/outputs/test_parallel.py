@@ -514,20 +514,21 @@ class TestAddSuffixToPath:
 
 
 class TestSupportsParallelOutputDecorator:
-    def _make_cls(self):
-        @supports_parallel_output("path")
+    def _make_cls(self, *args):
+        @supports_parallel_output(*args)
         class _Output:
-            def __init__(self, context, metadata, *, path=None, **kwargs):
+            def __init__(self, *, path=None, archive_requests=None, **kwargs):
                 self.path = path
+                self.archive_requests = archive_requests
 
         return _Output
 
     def test_suffix_applied(self):
-        obj = self._make_cls()("ctx", "meta", path="out.grib", **{"_parallel-output-suffix": "_w0"})
+        obj = self._make_cls("path")(path="out.grib", **{"_parallel-output-suffix": "_w0"})
         assert obj.path == "out_w0.grib"
 
     def test_no_suffix_unchanged(self):
-        obj = self._make_cls()("ctx", "meta", path="out.grib")
+        obj = self._make_cls("path")(path="out.grib")
         assert obj.path == "out.grib"
 
     def test_suffix_consumed_not_forwarded(self):
@@ -540,12 +541,12 @@ class TestSupportsParallelOutputDecorator:
         assert "_parallel-output-suffix" not in obj.kw
 
     def test_none_path_not_modified(self):
-        obj = self._make_cls()("ctx", "meta", path=None, **{"_parallel-output-suffix": "_w0"})
+        obj = self._make_cls("path")(path=None, **{"_parallel-output-suffix": "_w0"})
         assert obj.path is None
 
     def test_invalid_suffix_type_raises(self):
         with pytest.raises(ValueError, match="_parallel-output-suffix"):
-            self._make_cls()("ctx", "meta", path="out.grib", **{"_parallel-output-suffix": 42})
+            self._make_cls("path")(path="out.grib", **{"_parallel-output-suffix": 42})
 
     def test_marks_class_attribute(self):
         @supports_parallel_output("path")
@@ -554,3 +555,48 @@ class TestSupportsParallelOutputDecorator:
                 pass
 
         assert getattr(_O, "_supports_parallel_output", False)
+
+    def test_nested_suffix_applied(self):
+        obj = self._make_cls("archive_requests.path")(
+            archive_requests={"path": "out.json"}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests["path"] == "out_w0.json"
+
+    def test_multiple_args_applied(self):
+        obj = self._make_cls("path", "archive_requests.path")(
+            path="out.grib", archive_requests={"path": "out.json"}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.path == "out_w0.grib"
+        assert obj.archive_requests["path"] == "out_w0.json"
+
+    def test_deep_nested_suffix_applied(self):
+        obj = self._make_cls("archive_requests.sub.path")(
+            archive_requests={"sub": {"path": "out.json"}}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests["sub"]["path"] == "out_w0.json"
+
+    def test_nested_no_suffix_unchanged(self):
+        obj = self._make_cls("archive_requests.path")(archive_requests={"path": "out.json"})
+        assert obj.archive_requests["path"] == "out.json"
+
+    def test_nested_missing_leaf_key_ignored(self):
+        obj = self._make_cls("archive_requests.path")(
+            archive_requests={"other": "value"}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests == {"other": "value"}
+
+    def test_nested_missing_parent_key_ignored(self):
+        obj = self._make_cls("archive_requests.path")(**{"_parallel-output-suffix": "_w0"})
+        assert obj.archive_requests is None
+
+    def test_nested_parent_not_dict_ignored(self):
+        obj = self._make_cls("archive_requests.path")(
+            archive_requests="not-a-dict", **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests == "not-a-dict"
+
+    def test_nested_leaf_none_not_modified(self):
+        obj = self._make_cls("archive_requests.path")(
+            archive_requests={"path": None}, **{"_parallel-output-suffix": "_w0"}
+        )
+        assert obj.archive_requests["path"] is None

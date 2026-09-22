@@ -1,5 +1,9 @@
 .. _inference-processors:
 
+############
+ Processors
+############
+
 ################
  Pre-processors
 ################
@@ -78,6 +82,48 @@ grib, mars and cds) also accept a ``pre_processors`` argument
          grib:
            path: /path/to/global.grib
 
+################
+ Mid-processors
+################
+
+Mid-processors are applied during the rollout loop, after each inference
+step and before the next step's input is prepared. At this point the
+state still contains ``torch.Tensor`` values on the GPU, so
+mid-processors can perform efficient in-place modifications without
+costly device transfers.
+
+This makes them suitable for operations that must happen between model
+steps, such as clipping, renormalising, or applying physical constraints
+to the predicted fields before they are fed back into the model.
+
+Mid-processors use the same registry mechanism as pre- and
+post-processors. Any ``Processor`` registered with the
+``mid_processor_registry`` can be referenced by name in the
+configuration.
+
+**************************
+ Configuring mid-processors
+**************************
+
+List mid-processors under the ``mid_processors`` key:
+
+.. code:: yaml
+
+   mid_processors:
+     - my_mid_processor
+     - another_mid_processor:
+         arg1: value1
+
+Mid-processors are applied in the order they are listed.
+
+For multi-dataset runs, per-dataset mid-processors can be specified in
+the same way as pre- and post-processors:
+
+.. code:: yaml
+   mid_processors:
+     dataset_0:
+       - my_mid_processor
+
 #################
  Post-processors
 #################
@@ -120,22 +166,24 @@ backward_transform_filter
 
 Applies a backward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
 
+.. code:: yaml
+
+   post_processors:
+     - backward_transform_filter:
+         ANY_TRANSFORM_FILTER:
+            **ARGUMENTS
+
 forward_transform_filter
 =========================
 
-Applies a backward transform on the reversed filter from
-:ref:`anemoi-transform <anemoi-transform:list-of-filters>` or applies the forward
-transform if `use_forward: true` is given.
-
-For example to use regrid as a post-processor:
+Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
 
 .. code:: yaml
 
    post_processors:
      - forward_transform_filter:
-         regrid:
-           use_forward: true
-           # other options for the filter
+         ANY_TRANSFORM_FILTER:
+            **ARGUMENTS
 
 Extractors and Masking
 ======================

@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -229,6 +229,9 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
         expected_variables = [
             Variable.from_dict(var, {"param": var}) for var in expected_variables_config
         ] or checkpoint_output_variables[dataset_name]
+
+        if not isinstance(file, Path):
+            file = Path(file)
 
         testing_registry.create(
             check,

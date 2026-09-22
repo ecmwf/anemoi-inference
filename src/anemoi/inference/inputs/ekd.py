@@ -1,4 +1,4 @@
-# (C) Copyright 2024 Anemoi contributors.
+# (C) Copyright 2024-2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -357,8 +357,9 @@ class EkdInput(Input):
                 )
             except Exception as e:
                 LOG.info(
-                    "%s: could not get `latitudes` and `longitudes` from the input fields.",
+                    "%s: could not get `latitudes` and `longitudes` from the input fields.\n%s",
                     self.__class__.__name__,
+                    e,
                 )
                 latitudes = self.metadata.latitudes
                 longitudes = self.metadata.longitudes

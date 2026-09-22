@@ -98,7 +98,7 @@ def float_hash(s: str, date: datetime.datetime, accuracy: int = 1_000_000) -> fl
     date : datetime.datetime
         The date to be hashed.
     accuracy : int, optional
-        The accuracy of the hash, by default 1_000_000
+        The accuracy of the hash, by default 1_000_000.
 
     Returns
     -------
@@ -133,7 +133,11 @@ def files_for_tests(name: str) -> str:
     import anemoi.inference
 
     bits = os.path.normpath(anemoi.inference.__file__).split(os.path.sep)
-    while len(bits) > 3 and (bits[-3], bits[-2], bits[-1]) != ("src", "anemoi", "inference"):
+    while len(bits) > 3 and (bits[-3], bits[-2], bits[-1]) != (
+        "src",
+        "anemoi",
+        "inference",
+    ):
         bits.pop()
 
     for i in range(3):

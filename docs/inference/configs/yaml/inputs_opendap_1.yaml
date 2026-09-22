@@ -1,0 +1,2 @@
+input:
+  opendap: https://thredds.example.com/thredds/dodsC/det_sfc.nc
