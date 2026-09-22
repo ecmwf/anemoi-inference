@@ -127,6 +127,8 @@ Get more information in the :ref:`installing <installing>` section.
 
    dev/contributing
    dev/integration-tests
+   dev/dev-guide
+   dev/add-new-configuration-option
 
 .. toctree::
    :maxdepth: 1
