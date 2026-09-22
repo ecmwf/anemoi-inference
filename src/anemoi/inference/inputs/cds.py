@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 import earthkit.data as ekd
+from earthkit.data import concat
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
