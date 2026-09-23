@@ -261,8 +261,8 @@ class BaseGribOutput(Output):
 
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
-        
-        state = self.post_process(state) # Ensure post processed
+
+        state = self.post_process(state)  # Ensure post processed
 
         for name in state["fields"].keys():
             if self.skip_variable(name):
