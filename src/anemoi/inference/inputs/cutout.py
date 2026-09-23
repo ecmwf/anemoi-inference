@@ -11,6 +11,7 @@
 import logging
 from collections import defaultdict
 from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 
@@ -99,6 +100,17 @@ def _extract_and_add_private_attributes(
     return private_attributes
 
 
+class BlockedContext:
+    def __init__(self, context: "Context", blocked_attributes: set[str]):
+        self.context = context
+        self.blocked_attributes = blocked_attributes
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self.blocked_attributes:
+            raise AttributeError(f"Access to attribute '{name}' is blocked.")
+        return getattr(self.context, name)
+
+
 @input_registry.register("cutout")
 class Cutout(Input):
     """Combines one or more LAMs into a global source using cutouts."""
@@ -136,6 +148,8 @@ class Cutout(Input):
         self.sources: dict[str, Input] = {}
         self.masks: dict[str, np.ndarray | slice] = {}
 
+        input_context = BlockedContext(context, blocked_attributes={"pre_processors"})
+
         for inp in sources:
             if not isinstance(inp, dict) or len(inp) != 1:
                 raise ValueError("Each source in cutout inputs must be a dict with a single key-value pair.")
@@ -148,7 +162,7 @@ class Cutout(Input):
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
             self.sources[src] = create_input(
-                context, cfg, self.metadata, variables=self.variables, purpose=self.purpose
+                input_context, cfg, self.metadata, variables=self.variables, purpose=self.purpose  # type: ignore[reportArgumentType]
             )
 
             if isinstance(mask, str):
@@ -160,10 +174,10 @@ class Cutout(Input):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
 
-    def pre_process(self, state: State) -> State:
+    def pre_process(self, x: State) -> State:
         """Pre-process the input state after combined"""
 
-        field_state = state.copy()
+        field_state = x.copy()
         field_state["fields"] = wrap_state(field_state, self.metadata.typed_variables)
 
         processed_state = super().pre_process(field_state)
