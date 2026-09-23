@@ -13,133 +13,16 @@
 import datetime
 import logging
 from collections.abc import Callable
-from functools import cached_property
-from typing import Any
 
 import earthkit.data as ekd
-import numpy as np
 from anemoi.transform.variables import Variable
-from earthkit.data.core.metadata import RawMetadata
-from earthkit.data.indexing.fieldlist import SimpleFieldList
 
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import Shape
+from anemoi.inference.fields import LABEL_TYPES
+from anemoi.inference.fields import field_from_grib_keys
+from anemoi.inference.fields import get_metadata_dict
 from anemoi.inference.types import State
 
 LOG = logging.getLogger(__name__)
-
-
-class StateFieldGeography:
-    """Geographical information of a state field.
-
-    Parameters
-    ----------
-    field : Any
-        The field containing geographical data.
-    """
-
-    def __init__(self, field: Any) -> None:
-        self._field = field
-
-    @property
-    def shape(self) -> Shape:
-        """Tuple: Shape of the geographical field."""
-        return self._field.shape
-
-
-class StateFieldMetadata(RawMetadata):
-    """Metadata for a state field.
-
-    Parameters
-    ----------
-    field : Any
-        The field containing metadata.
-    """
-
-    def __init__(self, field: Any) -> None:
-        metadata = dict(field._raw_metadata.get("mars", field._raw_metadata))
-        metadata.update(
-            name=field.name,
-            **{
-                k: v
-                for k, v in field.state.items()
-                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
-            },
-        )
-        super().__init__(**metadata)
-        self._field = field
-
-    def as_namespace(self, ns: str) -> dict[str, Any]:
-        """Convert metadata to a specific namespace.
-
-        Parameters
-        ----------
-        ns : str
-            The namespace to convert the metadata to.
-
-        Returns
-        -------
-        Dict[str, Any]
-            The metadata in the specified namespace.
-        """
-        assert ns == "mars"
-        return {k: v for k, v in self.items() if k != "name"}
-
-    @property
-    def geography(self) -> StateFieldGeography:
-        """StateFieldGeography: Geographical information of the field."""
-        return StateFieldGeography(self._field)
-
-
-class StateField(ekd.Field):
-    """State field containing name, values, and state information.
-
-    Parameters
-    ----------
-    name : str
-        The name of the field.
-    values : FloatArray
-        The values of the field.
-    state : Dict[str, Any]
-        The state information associated with the field.
-    metadata : Dict[str, Any]
-        Metadata for the field.
-    """
-
-    def __init__(self, name: str, values: FloatArray, state: State, metadata: dict[str, Any]) -> None:
-        self.name = name
-        self.__values = values
-        self.state = state
-        self._raw_metadata = metadata
-
-    def _values(self, dtype: np.dtype) -> FloatArray:
-        """Get the values of the field with a specific data type.
-
-        Parameters
-        ----------
-        dtype : np.dtype
-            The data type to convert the values to.
-
-        Returns
-        -------
-        FloatArray
-            The values of the field in the specified data type.
-        """
-        return np.asarray(self.__values, dtype=dtype)
-
-    @property
-    def shape(self) -> Shape:
-        """Tuple: Shape of the field."""
-        return self.__values.shape
-
-    @cached_property
-    def _metadata(self) -> StateFieldMetadata:
-        """StateFieldMetadata: Metadata of the field."""
-        return StateFieldMetadata(self)
-
-    def __repr__(self) -> str:
-        """Str: String representation of the StateField."""
-        return f"{self.__class__.__name__ }({self._metadata})"
 
 
 def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldList:
@@ -158,20 +41,22 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
         The transformed field list.
     """
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
-    fields = []
-    for f in state["fields"]:
-        variable = typed_variables[f]
-        metadata = variable.grib_keys.copy()
-        metadata.update(
-            name=f,
-            **{
-                k: v
-                for k, v in state.items()
-                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
-            },
+
+    # Scalar state entries travel with every field, as they did when the state was
+    # wrapped in a flat metadata dictionary.
+    state_labels = {k: v for k, v in state.items() if isinstance(v, LABEL_TYPES)}
+
+    fields = [
+        field_from_grib_keys(
+            values,
+            typed_variables[name].grib_keys,
+            name=name,
+            valid_datetime=state["date"],
+            labels=state_labels,
         )
-        fields.append(StateField(f, state["fields"][f], state, metadata))
-    return SimpleFieldList(fields)
+        for name, values in state["fields"].items()
+    ]
+    return ekd.create_fieldlist(fields)
 
 
 def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
@@ -196,16 +81,8 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
     # namer(field: ekd.Field, metadata: Dict[str, Any]) -> str:
 
     for n in fields:
-        name = namer(n, n.metadata())
-        if isinstance(n, StateField):
-            # StateField values are already flat 1D numpy arrays.
-            # Use to_numpy() without flatten=True to avoid the always-copy
-            # behavior of ndarray.flatten(). Combined with np.asarray in
-            # _values(), this avoids unnecessary copies for pass-through
-            # fields that were not transformed.
-            new_fields[name] = n.to_numpy()
-        else:
-            new_fields[name] = n.to_numpy(flatten=True)
+        name = namer(n, get_metadata_dict(n))
+        new_fields[name] = n.to_numpy(flatten=True)
 
     state = state.copy()
     state["fields"] = new_fields

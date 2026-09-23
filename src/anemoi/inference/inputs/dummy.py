@@ -19,6 +19,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.fields import field_from_grib_keys
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
@@ -110,18 +111,19 @@ class DummyInput(EkdInput):
             for date in dates:
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
-                handle = dict(
-                    values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
-                    latitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    longitudes=np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                    date=date.strftime("%Y%m%d"),
-                    time=date.strftime("%H%M"),
+                field = field_from_grib_keys(
+                    np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
+                    keys,
                     name=variable,
-                    **keys,
+                    valid_datetime=date,
+                    geography={
+                        "latitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                        "longitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                    },
                 )
-                result.append(handle)
+                result.append(field)
 
-        return ekd.from_source("list-of-dicts", result)
+        return ekd.create_fieldlist(result)
 
     def template_lookup(self, name: str) -> dict:
         """Lookup a template by name.

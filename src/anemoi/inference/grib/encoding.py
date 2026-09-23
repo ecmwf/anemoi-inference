@@ -21,6 +21,7 @@ from typing import Hashable
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_timedelta
 
+from anemoi.inference.grib import grib_handle
 from anemoi.inference.types import FloatArray
 from anemoi.inference.utils.templating import render_template
 
@@ -304,7 +305,7 @@ def grib_keys(
 
     # 1 if local definition is present, like for ECMWF GRIBs
     if template is not None:
-        local_use_present = template.metadata("localUsePresent", default=0)
+        local_use_present = template.get("metadata.localUsePresent", default=0)
     else:
         local_use_present = 0
 
@@ -403,11 +404,9 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
     if mismatches:
 
         if first:
-            import eccodes
-            from earthkit.data.readers.grib.codes import GribCodesHandle
-
-            handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
-            return check_encoding(handle, keys, first=False)
+            # Some keys are only recomputed by eccodes once the message has been
+            # cloned, so retry once against a clone before reporting a mismatch.
+            return check_encoding(handle.clone(), keys, first=False)
 
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
 
@@ -441,7 +440,7 @@ def encode_message(
         The encoded GRIB handle.
     """
     metadata = metadata.copy()  # avoid modifying the original metadata
-    handle = template.handle.clone()
+    handle = grib_handle(template).clone()
 
     if check_nans and values is not None:
         import numpy as np

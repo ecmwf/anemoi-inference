@@ -38,6 +38,6 @@ class GribInput(EkdInput):
         # By sorting, we will have the most recent field last
         # no we can also use that list to write step 0
         super().set_private_attributes(state, fields)
-        input_fields = fields.order_by("valid_datetime")
+        input_fields = fields.order_by("time.valid_datetime")
 
-        state["_grib_templates_for_output"] = {field.metadata("name"): field for field in input_fields}
+        state["_grib_templates_for_output"] = {field.get("labels.name"): field for field in input_fields}

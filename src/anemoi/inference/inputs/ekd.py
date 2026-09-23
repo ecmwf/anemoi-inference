@@ -25,6 +25,7 @@ from numpy.typing import DTypeLike
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
+from anemoi.inference.fields import name_fields
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
@@ -34,6 +35,10 @@ from ..checks import check_data
 from ..input import Input
 
 LOG = logging.getLogger(__name__)
+
+# ecCodes `gridType` for GRIB fields whose grid cannot be described in MARS terms.
+# earthkit-data uses the same value internally (see `GribGeographyBuilder`).
+UNSTRUCTURED_GRID_TYPE = "unstructured_grid"
 
 
 def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
@@ -55,12 +60,8 @@ def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
     ekd.FieldList
         The selected variable (FieldList subset).
     """
-
-    def _name(field: Any, _: Any, original_metadata: dict[str, Any]) -> str:
-        return namer(field, original_metadata)
-
-    data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
-    return data.sel(name=name, **kwargs)
+    data = name_fields(data, namer)
+    return data.sel(**{"labels.name": name}, **kwargs)
 
 
 class RulesNamer:
@@ -191,25 +192,26 @@ class EkdInput(Input):
             The filtered and sorted data.
         """
 
-        def _name(field: ekd.Field, _: Any, original_metadata: dict[str, Any]) -> str:
-            return self._namer(field, original_metadata)
+        data = name_fields(data, self._namer)
 
-        valid_datetime = [date.isoformat() for date in dates]
-        datetime_selection = dict(valid_datetime=valid_datetime)
-
-        if select_reference_date:
-            datetime_selection.update(
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
-            )
-
-        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
+        valid_datetime = [_.isoformat() for _ in dates]
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 
-        data = data.sel(name=self.variables).order_by(
-            name=self.variables,
-            valid_datetime="ascending",
-        )
+        if select_reference_date:
+            data = data.sel(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": valid_datetime},
+                **{"metadata.dataDate": int(self.reference_date.strftime("%Y%m%d"))},
+                **{"metadata.dataTime": int(self.reference_date.strftime("%H%M"))},
+            ).order_by(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": "ascending"},
+            )
+        else:
+            data = data.sel(**{"labels.name": self.variables, "time.valid_datetime": valid_datetime}).order_by(
+                **{"labels.name": self.variables},
+                **{"time.valid_datetime": "ascending"},
+            )
 
         check_data(title, data, self.variables, dates, self.metadata)
 
@@ -282,7 +284,7 @@ class EkdInput(Input):
         """
         if latitudes is None and longitudes is None:
             try:
-                latitudes, longitudes = fields[0].grid_points()
+                latitudes, longitudes = fields[0].geography.latlons(flatten=True)
                 LOG.info(
                     "%s: using `latitudes` and `longitudes` from the first input field",
                     self.__class__.__name__,
@@ -328,7 +330,7 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
+            name, valid_datetime = field.get("labels.name"), field.get("time.valid_datetime")
             if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), n_points),
@@ -336,7 +338,7 @@ class EkdInput(Input):
                     dtype=dtype,
                 )
 
-            date_idx = date_to_index[valid_datetime]
+            date_idx = date_to_index[to_datetime(valid_datetime).isoformat()]
 
             try:
                 state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
@@ -425,7 +427,7 @@ class EkdInput(Input):
             The created input state.
         """
         if date is None:
-            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+            date = input_fields.order_by(**{"time.valid_datetime": "ascending"})[-1].time.valid_datetime()
             LOG.info(
                 "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
             )
@@ -476,29 +478,35 @@ class EkdInput(Input):
         """Set private attributes to the state.
 
         Provides geography information if available retrieved from the fields.
+
+        Only the information that the checkpoint metadata cannot already provide is
+        reported here, so that a single, always-available earthkit-data accessor backs
+        each key. In particular the grid is only described for unstructured grids: any
+        grid that can be named in MARS terms is taken from the checkpoint metadata
+        downstream (see `TemplateManager.load_template`).
         """
         geography_information = {}
 
-        def get_geography_info(key: str) -> str | None:
+        def get_geography_info(key: str) -> Any | None:
             try:
-                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+                combo = list(getattr(f.geography, key, lambda: None)() for f in fields)
             except NotImplementedError:  # Issue with earthkit.data throwing error here
                 return None
             if len(set(map(str, combo))) == 1 and combo[0] != "None":
                 return combo[0]
             return None
 
-        grid = get_geography_info("mars_grid")
-        if grid == "undefined":
-            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
-            geography_information["grid"] = grid
-
-        else:  # If grid is undefined we don't want to add the area
-            if grid:
-                geography_information["grid"] = grid
-
-            if area := get_geography_info("mars_area"):
-                geography_information["area"] = area
+        if get_geography_info("grid_type") == UNSTRUCTURED_GRID_TYPE:
+            # earthkit-data 0.x reported `mars_grid == "undefined"` for these. The grid
+            # cannot be named in MARS terms, so describe it by its points instead, and do
+            # not advertise an area (it would be meaningless).
+            geography_information["grid"] = {
+                "latitudes": list(state["latitudes"]),
+                "longitudes": list(state["longitudes"]),
+            }
+        elif area := get_geography_info("area"):
+            # `area()` returns a tuple; the rest of the code expects a MARS-style list.
+            geography_information["area"] = list(area)
 
         if geography_information:
             state["_geography"] = geography_information
@@ -589,8 +597,8 @@ class FieldlistInput(EkdInput):
             files = [p for p in matches if os.path.isfile(p)]
             if not files:
                 LOG.warning("No files matched pattern %r", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", sorted(files))  # type: ignore[reportReturnType]
+                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+            return ekd.from_source("file", sorted(files)).to_fieldlist()  # type: ignore[reportReturnType]
 
         # Case 2: directory path -> search for files recursively
         if os.path.isdir(path):
@@ -600,16 +608,16 @@ class FieldlistInput(EkdInput):
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
                 LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
-            return ekd.from_source("file", files)  # type: ignore[reportReturnType]
+                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
+            return ekd.from_source("file", files).to_fieldlist()  # type: ignore[reportReturnType]
 
         # Case 3: single file path
         try:
             if os.path.getsize(path) == 0:
                 LOG.warning("File %r is empty", path)
-                return ekd.from_source("empty")  # type: ignore[reportReturnType]
+                return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
         except FileNotFoundError:
             LOG.warning("Path %r not found", path)
-            return ekd.from_source("empty")  # type: ignore[reportReturnType]
+            return ekd.from_source("empty").to_fieldlist()  # type: ignore[reportReturnType]
 
-        return ekd.from_source("file", path)  # type: ignore[reportReturnType]
+        return ekd.from_source("file", path).to_fieldlist()  # type: ignore[reportReturnType]

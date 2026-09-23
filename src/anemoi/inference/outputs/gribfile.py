@@ -29,6 +29,7 @@ from ..decorators import ensure_path
 from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..decorators import supports_parallel_output
+from ..grib import grib_handle
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
 from . import output_registry
@@ -228,12 +229,12 @@ class GribIoOutput(BaseGribOutput):
             Additional keys for the message.
         """
         # Make sure `name` is not in the keys, otherwise grib_encoding will fail
-        if template is not None and template.metadata("name", default=None) is not None:
+        if template is not None and template.get("labels.name", default=None) is not None:
             # We cannot clear the metadata...
             class Dummy:
                 def __init__(self, template: ekd.Field) -> None:
                     self.template = template
-                    self.handle = template.handle
+                    self.handle = grib_handle(template)
 
                 def __repr__(self) -> str:
                     return f"Dummy({self.template})"

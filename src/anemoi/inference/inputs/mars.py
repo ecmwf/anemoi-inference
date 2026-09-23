@@ -159,6 +159,7 @@ def retrieve(
         The retrieved data.
     """
     import earthkit.data as ekd
+    from earthkit.data import concat
 
     def _(r: DataRequest) -> str:
         mars = r.copy()
@@ -172,7 +173,7 @@ def retrieve(
 
     pproc = postproc(grid, area)
 
-    result = ekd.from_source("empty")
+    result = ekd.from_source("empty").to_fieldlist()
     for r in requests:
         if r.get("class") in ("rd", "ea"):
             r["class"] = "od"
@@ -190,7 +191,7 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("mars", r, log="default" if log else None)
+        result = concat(result, ekd.from_source("mars", r, log="default" if log else None).to_fieldlist())
 
     return result
 

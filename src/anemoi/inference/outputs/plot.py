@@ -11,7 +11,6 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from anemoi.utils.grib import shortname_to_paramid
 from anemoi.utils.grib import units
 
 from anemoi.inference.context import Context
@@ -156,25 +155,14 @@ class PlotOutput(Output):
             param = variable.param
 
             plotting_fields.append(
-                ekd.ArrayField(
-                    values,
-                    {
-                        "param": param,
-                        "paramId": shortname_to_paramid(param),
-                        "shortName": param,
-                        "variable_name": param,
-                        "step": state["step"],
-                        "base_datetime": basetime,
-                        "valid_time": date,
-                        "latitudes": latitudes,
-                        "longitudes": longitudes,
-                        "units": units(param),
-                    },
+                ekd.Field.from_components(
+                    values=values,
+                    parameter={"variable": param, "units": units(param)},
+                    time={"valid_datetime": date, "base_datetime": basetime},
+                    geography={"latitudes": latitudes, "longitudes": longitudes},
                 )
             )
-        fig = ekp.quickplot(
-            ekd.FieldList.from_fields(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs
-        )
+        fig = ekp.quickplot(ekd.create_fieldlist(plotting_fields), mode=self.mode, domain=self.domain, **self.kwargs)
         fname = render_template(
             self.template,
             {

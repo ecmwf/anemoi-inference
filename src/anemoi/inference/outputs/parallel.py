@@ -21,6 +21,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
+from ..grib import grib_handle
 from ..output import Output
 from . import create_output
 from . import output_registry
@@ -68,7 +69,7 @@ def _template_message_bytes(field: Any) -> bytes:
     import numpy as np
 
     try:
-        handle = field.handle.clone()
+        handle = grib_handle(field).clone()
         bpv = handle.get("bitsPerValue")
         n = int(handle.get("numberOfDataPoints"))
         handle.set_values(np.zeros(n))
@@ -122,7 +123,7 @@ def _deserialise_grib_templates(bytes_templates: dict[str, bytes]) -> dict[str, 
     result: dict[str, Any] = {}
     for name, msg in bytes_templates.items():
         try:
-            result[name] = ekd.from_source("memory", msg)[0]
+            result[name] = ekd.from_source("memory", msg).to_fieldlist()[0]
         except Exception as e:
             LOG.warning("Could not reconstruct GRIB template for '%s' from bytes: %s", name, e)
     return result
