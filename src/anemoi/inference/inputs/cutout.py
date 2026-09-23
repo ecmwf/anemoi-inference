@@ -169,7 +169,7 @@ class Cutout(Input):
         processed_state = super().pre_process(field_state)
 
         processed_state["fields"] = unwrap_state(
-            processed_state["fields"], processed_state, namer=self.metadata.default_namer(), flatten = False
+            processed_state["fields"], processed_state, namer=self.metadata.default_namer(), flatten=False
         )["fields"]
 
         return processed_state
