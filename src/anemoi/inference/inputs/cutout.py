@@ -163,14 +163,15 @@ class Cutout(Input):
     def pre_process(self, state: State) -> State:
         """Pre-process the input state after combined"""
 
-        state = state.copy()
-        state["fields"] = wrap_state(state, self.metadata.typed_variables)
+        field_state = state.copy()
+        field_state["fields"] = wrap_state(field_state, self.metadata.typed_variables)
 
-        processed_state = super().pre_process(state)
+        processed_state = super().pre_process(field_state)
 
         processed_state["fields"] = unwrap_state(
-            processed_state["fields"], processed_state, namer=self.metadata.default_namer()
+            processed_state["fields"], processed_state, namer=self.metadata.default_namer(), flatten = False
         )["fields"]
+
         return processed_state
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:

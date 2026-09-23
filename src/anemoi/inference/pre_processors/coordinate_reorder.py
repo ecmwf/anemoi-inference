@@ -285,7 +285,7 @@ class CoordinateReorder(Processor):
         state = state.copy()
         result = []
         for field in state["fields"]:
-            data = field.to_numpy().flatten()[perm]
+            data = field.to_numpy()[..., perm]
             # Rebuild as an earthkit array field: set the reordered data, then the
             # reordered geography so the field's grid points stay consistent with
             # its values (e.g. for downstream ``grid_points()``/``to_latlon()``).
