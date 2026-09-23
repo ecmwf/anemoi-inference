@@ -12,6 +12,7 @@ on:
 env:
   UV_SYSTEM_PYTHON: 1
   PYTHONFAULTHANDLER: 1
+  PYTHONPATH: .
 
 jobs:
   debug:
@@ -38,60 +39,95 @@ jobs:
       - name: Record environment
         run: |
           python -VV
-          uv --version
           uname -a
           echo "::group::pip freeze"
           uv pip freeze | sort
           echo "::endgroup::"
 
-      - name: Probe native libraries
-        continue-on-error: true
+      - name: Write diagnostic scripts
         run: |
-          python - <<'PY'
-          import faulthandler
-          faulthandler.enable()
+          cat > ne_probe.py <<'PY'
+          """Load one Natural Earth layer and report its size and record count."""
 
-          import torch  # noqa: F401
-          import earthkit.data  # noqa: F401
-          import earthkit.plots  # noqa: F401
+          import hashlib
+          import sys
+          from pathlib import Path
+
           import cartopy.io.shapereader as shapereader
 
-          print("Reader:", shapereader.Reader)
+          resolution, category, name = sys.argv[1:4]
+          path = Path(shapereader.natural_earth(resolution=resolution, category=category, name=name))
+          sizes = {
+              suffix: path.with_suffix(suffix).stat().st_size
+              for suffix in (".shp", ".dbf", ".shx")
+              if path.with_suffix(suffix).exists()
+          }
+          print(f"  sha256(shp)={hashlib.sha256(path.read_bytes()).hexdigest()[:16]} sizes={sizes}", flush=True)
+          print(f"  reader={shapereader.Reader.__name__}", flush=True)
+          print(f"  records={len(list(shapereader.Reader(path).records()))}", flush=True)
+          PY
+          cat > ne_trace.py <<'PY'
+          """Pytest plugin logging the shapefile requested immediately before a crash."""
 
-          keys = ("geos", "proj", "gdal", "stdc++", "gomp", "sqlite", "tiff")
-          seen = []
-          for line in open("/proc/self/maps"):
-              if ".so" not in line:
-                  continue
-              path = line.split()[-1]
-              if any(k in path.lower() for k in keys) and path not in seen:
-                  seen.append(path)
-          print("::group::native libraries")
-          print("\n".join(seen))
-          print("::endgroup::")
+          import cartopy.io.shapereader as shapereader
 
-          path = shapereader.natural_earth(resolution="50m", category="physical", name="coastline")
-          print("shapefile:", path)
-          print("records:", len(list(shapereader.Reader(path).records())))
+          _natural_earth = shapereader.natural_earth
+          _Reader = shapereader.Reader
+
+
+          def natural_earth(*args, **kwargs):
+              path = _natural_earth(*args, **kwargs)
+              print(f"[ne_trace] natural_earth({args}, {kwargs}) -> {path}", flush=True)
+              return path
+
+
+          def Reader(filename, *args, **kwargs):
+              print(f"[ne_trace] Reader({filename}) via {_Reader.__name__}", flush=True)
+              return _Reader(filename, *args, **kwargs)
+
+
+          shapereader.natural_earth = natural_earth
+          shapereader.Reader = Reader
           PY
 
-      - name: Plot case in isolation
+      # Each layer is loaded in its own process, so one segfault does not abort
+      # the sweep. Known-good local baseline for physical/coastline:
+      # 110m=134, 50m=1428, 10m=4133 records.
+      - name: Sweep Natural Earth layers
         continue-on-error: true
         run: |
-          pytest -vv -s \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-plots-out]"
+          failed=""
+          for resolution in 110m 50m 10m; do
+            for layer in physical/coastline physical/land physical/ocean \
+                         cultural/admin_0_boundary_lines_land cultural/admin_0_countries; do
+              echo "::group::${resolution} ${layer}"
+              if python ne_probe.py "${resolution}" "${layer%%/*}" "${layer##*/}"; then
+                echo "  exit=0"
+              else
+                rc=$?
+                echo "  exit=${rc} <-- FAILED"
+                failed="${failed}${resolution} ${layer} (exit ${rc})"$'\n'
+              fi
+              echo "::endgroup::"
+            done
+          done
+          echo "=== layers that did not load cleanly ==="
+          echo "${failed:-none}"
 
-      - name: Plot case after preceding cases
+      - name: Plot case in isolation (control)
         continue-on-error: true
         run: |
-          pytest -vv -s \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-grib-out]" \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-grib-parallel-out]" \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-grib-out-limit-vars]" \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-netcdf-out]" \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-zarr-out]" \
+          pytest -vv -s -p ne_trace \
             "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-plots-out]"
 
-      - name: Full suite
+      # cartopy uses FionaReader only when fiona is importable, and otherwise
+      # falls back to BasicReader (pyshp). earthkit-plots imports fiona lazily
+      # and only for GISCO layers, so Natural Earth plotting still works.
+      # If this passes, the fault is in fiona/GDAL rather than in the test.
+      - name: Plot case without fiona
         continue-on-error: true
-        run: pytest -vv
+        run: |
+          uv pip uninstall fiona
+          python -c "import cartopy.io.shapereader as s; print('Reader is', s.Reader.__name__)"
+          pytest -vv -s -p ne_trace \
+            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-plots-out]"
