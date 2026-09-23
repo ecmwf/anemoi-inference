@@ -19,6 +19,8 @@ from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.post_processors.earthkit_state import unwrap_state
+from anemoi.inference.post_processors.earthkit_state import wrap_state
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -157,6 +159,19 @@ class Cutout(Input):
     def __repr__(self):
         """Return a string representation of the Cutout object."""
         return f"Cutout({self.sources})"
+
+    def pre_process(self, state: State) -> State:
+        """Pre-process the input state after combined"""
+
+        state = state.copy()
+        state["fields"] = wrap_state(state, self.metadata.typed_variables)
+
+        processed_state = super().pre_process(state)
+
+        processed_state["fields"] = unwrap_state(
+            processed_state["fields"], processed_state, namer=self.metadata.default_namer()
+        )["fields"]
+        return processed_state
 
     def create_input_state(self, *, date: Date | None, **kwargs) -> State:
         """Create the input state for the given date.
