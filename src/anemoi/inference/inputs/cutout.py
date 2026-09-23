@@ -125,7 +125,7 @@ class Cutout(Input):
                 "Cutout input has changed to set the sub-inputs as a list, if using the config, prefix each input with `-` to update."
             )
 
-        super().__init__(context, metadata, pre_processors=None, **kwargs)
+        super().__init__(context, metadata, **kwargs)
 
         if not sources:
             sources = []
@@ -250,6 +250,7 @@ class Cutout(Input):
             mask = _mask_private_attributes[sub_mask]
             _mask_private_attributes[sub_mask] = np.pad(mask, (0, total_length - len(mask)), constant_values=False)
 
+        combined_state = self.pre_process(combined_state)
         _private_attributes["_mask"] = _mask_private_attributes
 
         combined_state.update(_private_attributes)
@@ -283,6 +284,8 @@ class Cutout(Input):
             combined_fields = _mask_and_combine_states(combined_fields, source_state, source_mask, source_state.keys())
 
         current_state["fields"] |= combined_fields
+        current_state = self.pre_process(current_state)
+
         current_state["_input"] = self
 
         return current_state
