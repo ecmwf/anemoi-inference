@@ -7,11 +7,14 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import logging
 
 from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
+
+LOG = logging.getLogger(__name__)
 
 
 @post_processor_registry.register("coordinate_reorder")
@@ -42,9 +45,10 @@ class CoordinateReorder(Processor):
         perm = coord_reorder.get("permutation")
 
         if perm is None:
-            raise TypeError(
+            LOG.warning(
                 "Missing coordinate reorder permutation in state, did you use `coordinate_reorder` in the pre-processor."
             )
+            return state
 
         for key, field in state["fields"].items():
             data = field[..., perm]
