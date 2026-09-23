@@ -49,6 +49,39 @@ extract_slice & extract_mask
 ==============================
 Extracts a subset of points using a slice or a boolean mask.
 
+coordinate_reorder
+==================
+
+Reorders the input state onto the model grid point ordering.
+
+Some inputs store the *same* physical grid as the model but in a
+different point order -- for example longitude rows rolled to start at a
+different meridian, or the prime meridian labelled ``360.0`` instead of
+``0.0``. Fed as-is, such a state is misaligned with the model grid. This
+pre-processor matches the input's ``(latitudes, longitudes)`` against the
+model grid (from the checkpoint metadata, treating ``360.0`` as ``0.0``)
+and permutes the coordinates and every field so they are consistent with
+the model ordering.
+
+The mapping is resolved by matching coordinates, so it handles any
+permutation (not just a simple roll). If the two grids are already in the
+same order the state is returned unchanged. If they do not describe the
+same set of points a ``ValueError`` is raised.
+
+.. code:: yaml
+
+   pre_processors:
+     - coordinate_reorder
+
+An optional ``decimals`` argument controls the rounding used when
+matching source and target coordinates (default ``4``):
+
+.. code:: yaml
+
+   pre_processors:
+     - coordinate_reorder:
+         decimals: 5
+
 **************************
  Top-level pre-processors
 **************************
