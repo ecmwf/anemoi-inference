@@ -183,15 +183,43 @@ def test_reorder_process_fixes_fields_and_coords(mocker: MockerFixture):
 
     new_state = processor.process(state)
 
-    # After: coordinates match the model grid, field carries correct per-point values.
+    # After: the state adopts the *target* (model) coordinates exactly -- not the
+    # reordered source values -- so it byte-matches the model grid (this collapses
+    # the 360.0 vs 0.0 seam). Field carries correct per-point values.
     np.testing.assert_array_equal(new_state["latitudes"], target_lat)
-    circular = np.abs(((new_state["longitudes"] - target_lon + 180.0) % 360.0) - 180.0)
-    assert np.all(circular < 1e-6)
+    np.testing.assert_array_equal(new_state["longitudes"], target_lon)
     field = new_state["fields"][0]
     np.testing.assert_array_equal(field.to_numpy().flatten(), target_signal)
     # The rebuilt earthkit field's geography is consistent with its values.
-    grid_lat, _ = field.grid_points()
+    grid_lat, grid_lon = field.grid_points()
     np.testing.assert_array_equal(grid_lat, target_lat)
+    np.testing.assert_array_equal(grid_lon, target_lon)
+
+
+def test_reorder_process_collapses_360_vs_0_seam(mocker: MockerFixture):
+    """The reordered longitudes use the target's 0.0, never the source's 360.0.
+
+    A strict downstream check (e.g. ``np.allclose(state['longitudes'],
+    metadata.longitudes)``) would otherwise fail by ~360 at the seam.
+    """
+    target_lat, target_lon, source_lat, source_lon, _, source_signal = _source_and_target_grids()
+    # The source labels the prime meridian 360.0; the target uses 0.0.
+    assert np.any(source_lon == 360.0)
+    assert not np.any(target_lon == 360.0)
+
+    processor = _make_reorder(mocker, target_lat, target_lon)
+    state = {
+        "latitudes": source_lat.copy(),
+        "longitudes": source_lon.copy(),
+        "fields": _fieldlist(source_signal, source_lat, source_lon),
+    }
+    new_state = processor.process(state)
+
+    # No spurious 360.0 remains, and a strict positional allclose against the
+    # model grid passes (the tensors.py safety-net check).
+    assert not np.any(new_state["longitudes"] == 360.0)
+    assert np.allclose(new_state["longitudes"], target_lon)
+    assert np.allclose(new_state["latitudes"], target_lat)
 
 
 def test_reorder_process_noop_when_already_aligned(mocker: MockerFixture):

@@ -273,8 +273,14 @@ class CoordinateReorder(Processor):
             perm.size,
         )
 
-        new_lat = np.asarray(src_lat).ravel()[perm]
-        new_lon = np.asarray(src_lon).ravel()[perm]
+        # The permutation aligns the source points to exactly the target grid
+        # points (``build_grid_reordering`` guarantees a bijection, matching mod
+        # 360). Adopt the *target* (model) coordinates so the result is canonical
+        # and byte-matches ``metadata`` -- in particular this collapses the
+        # ``360.0`` vs ``0.0`` seam that reordering the source values would leave
+        # behind (a 360 deg discrepancy no tolerance could reconcile downstream).
+        new_lat = np.asarray(tgt_lat).ravel()
+        new_lon = np.asarray(tgt_lon).ravel()
 
         state = state.copy()
         result = []
