@@ -120,9 +120,17 @@ class TensorHandler:
         """Prepare the input tensor from the input state."""
         if "latitudes" not in input_state:
             input_state["latitudes"] = self.metadata.latitudes
+        elif not np.allclose(input_state["latitudes"], self.metadata.latitudes):
+            raise ValueError(
+                "Latitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
+            )
 
         if "longitudes" not in input_state:
             input_state["longitudes"] = self.metadata.longitudes
+        elif not np.allclose(input_state["longitudes"], self.metadata.longitudes):
+            raise ValueError(
+                "Longitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
+            )
 
         if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
