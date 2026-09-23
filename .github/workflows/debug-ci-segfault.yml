@@ -12,7 +12,7 @@ on:
 env:
   UV_SYSTEM_PYTHON: 1
   PYTHONFAULTHANDLER: 1
-  PYTHONPATH: .
+  PLOT_TEST: "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-plots-out]"
 
 jobs:
   debug:
@@ -44,90 +44,49 @@ jobs:
           uv pip freeze | sort
           echo "::endgroup::"
 
-      - name: Write diagnostic scripts
+      # Which PROJ / SQLite / GEOS builds each wheel ships, and which ones
+      # libgdal is linked against.
+      - name: Native library inventory
         run: |
-          cat > ne_probe.py <<'PY'
-          """Load one Natural Earth layer and report its size and record count."""
-
-          import hashlib
-          import sys
-          from pathlib import Path
-
-          import cartopy.io.shapereader as shapereader
-
-          resolution, category, name = sys.argv[1:4]
-          path = Path(shapereader.natural_earth(resolution=resolution, category=category, name=name))
-          sizes = {
-              suffix: path.with_suffix(suffix).stat().st_size
-              for suffix in (".shp", ".dbf", ".shx")
-              if path.with_suffix(suffix).exists()
-          }
-          print(f"  sha256(shp)={hashlib.sha256(path.read_bytes()).hexdigest()[:16]} sizes={sizes}", flush=True)
-          print(f"  reader={shapereader.Reader.__name__}", flush=True)
-          print(f"  records={len(list(shapereader.Reader(path).records()))}", flush=True)
-          PY
-          cat > ne_trace.py <<'PY'
-          """Pytest plugin logging the shapefile requested immediately before a crash."""
-
-          import cartopy.io.shapereader as shapereader
-
-          _natural_earth = shapereader.natural_earth
-          _Reader = shapereader.Reader
-
-
-          def natural_earth(*args, **kwargs):
-              path = _natural_earth(*args, **kwargs)
-              print(f"[ne_trace] natural_earth({args}, {kwargs}) -> {path}", flush=True)
-              return path
-
-
-          def Reader(filename, *args, **kwargs):
-              print(f"[ne_trace] Reader({filename}) via {_Reader.__name__}", flush=True)
-              return _Reader(filename, *args, **kwargs)
-
-
-          shapereader.natural_earth = natural_earth
-          shapereader.Reader = Reader
-          PY
-
-      # Each layer is loaded in its own process, so one segfault does not abort
-      # the sweep. Known-good local baseline for physical/coastline:
-      # 110m=134, 50m=1428, 10m=4133 records.
-      - name: Sweep Natural Earth layers
-        continue-on-error: true
-        run: |
-          failed=""
-          for resolution in 110m 50m 10m; do
-            for layer in physical/coastline physical/land physical/ocean \
-                         cultural/admin_0_boundary_lines_land cultural/admin_0_countries; do
-              echo "::group::${resolution} ${layer}"
-              if python ne_probe.py "${resolution}" "${layer%%/*}" "${layer##*/}"; then
-                echo "  exit=0"
-              else
-                rc=$?
-                echo "  exit=${rc} <-- FAILED"
-                failed="${failed}${resolution} ${layer} (exit ${rc})"$'\n'
-              fi
-              echo "::endgroup::"
-            done
+          SP=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
+          for libs in fiona.libs shapely.libs pyproj.libs eckitlib.libs; do
+            echo "::group::${libs}"
+            ls -1 "${SP}/${libs}" 2>/dev/null | grep -iE "proj|sqlite|geos|gdal|tiff|curl|stdc" || echo "(none matching)"
+            echo "::endgroup::"
           done
-          echo "=== layers that did not load cleanly ==="
-          echo "${failed:-none}"
+          echo "::group::libgdal NEEDED"
+          for so in "${SP}"/fiona.libs/libgdal*; do
+            [ -f "${so}" ] || { echo "(no libgdal in fiona.libs)"; break; }
+            readelf -d "${so}" | grep NEEDED | sed -E 's/.*\[(.*)\]/\1/'
+          done
+          echo "::endgroup::"
 
-      - name: Plot case in isolation (control)
+      - name: Install gdb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gdb
+
+      # Exact invocation from the failing job. On SIGSEGV, gdb prints the
+      # native frames and every shared object mapped into the process.
+      - name: Plot case under gdb (baseline)
         continue-on-error: true
         run: |
-          pytest -vv -s -p ne_trace \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-plots-out]"
+          gdb -q -batch \
+            -ex "set pagination off" \
+            -ex "set print thread-events off" \
+            -ex "run" \
+            -ex "echo \n::group::native backtrace\n" \
+            -ex "bt 40" \
+            -ex "echo ::endgroup::\n" \
+            -ex "echo ::group::info sharedlibrary\n" \
+            -ex "info sharedlibrary" \
+            -ex "echo ::endgroup::\n" \
+            --args python -m pytest -x -p no:cacheprovider "${PLOT_TEST}"
 
-      # cartopy uses FionaReader only when fiona is importable, and otherwise
-      # falls back to BasicReader (pyshp). earthkit-plots imports fiona lazily
-      # and only for GISCO layers, so Natural Earth plotting still works.
-      # If this passes, the fault is in fiona/GDAL rather than in the test.
-      - name: Plot case without fiona
+      # eccodeslib and odclib pin eckitlib to an exact build, so all three
+      # move together. 2.2.0.27 is the last eckitlib without a bundled
+      # libproj/libsqlite3, and the last set in a green run.
+      - name: Plot case with the .27 ECMWF library set
         continue-on-error: true
         run: |
-          uv pip uninstall fiona
-          python -c "import cartopy.io.shapereader as s; print('Reader is', s.Reader.__name__)"
-          pytest -vv -s -p ne_trace \
-            "tests/integration/test_integration.py::test_integration[single-o48-1.1/grib-in-plots-out]"
+          uv pip install "eccodeslib==2.48.2.27" "eckitlib==2.2.0.27" "odclib==1.6.3.27"
+          uv pip freeze | grep -iE "^(eccodeslib|eckitlib|odclib)=="
+          pytest -vv "${PLOT_TEST}"
