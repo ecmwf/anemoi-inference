@@ -296,5 +296,10 @@ class CoordinateReorder(Processor):
         state["fields"] = new_fieldlist_from_list(result)
         state["latitudes"] = new_lat
         state["longitudes"] = new_lon
-        state["_coordinate_reorder_permutation"] = perm
+
+        state["_coordinate_reorder"] = {
+            "permutation": self.inverse_permutation(),
+            "latitudes": src_lat,
+            "longitudes": src_lon,
+        }
         return state
