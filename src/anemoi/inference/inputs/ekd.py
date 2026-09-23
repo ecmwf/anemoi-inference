@@ -89,6 +89,16 @@ def _get_metadata_dict(field: Any) -> dict[str, Any]:
 def _name_fields(data: Any, namer: callable) -> Any:
     """Apply a namer function to all fields and set labels.name.
 
+    Fields that already carry an explicit ``labels.name`` (for example,
+    fields synthesised by a transform filter via
+    :meth:`anemoi.transform.Field.with_name`) are left untouched: the namer
+    derives legacy (GRIB-vocabulary) keys such as ``levtype``, which fall
+    back to the component vocabulary for a field whose raw metadata is no
+    longer accessible after a filter overrides one of its components, and
+    that fallback is not guaranteed to match the vocabulary the namer
+    expects (e.g. ``mean_sea`` instead of ``sfc``), so re-deriving the name
+    can silently produce the wrong one.
+
     Parameters
     ----------
     data : Any
@@ -103,6 +113,9 @@ def _name_fields(data: Any, namer: callable) -> Any:
     """
     named = []
     for f in data:
+        if f.get("labels.name", default=None) is not None:
+            named.append(f)
+            continue
         md = _get_metadata_dict(f)
         name = namer(f, md)
         named.append(f.set(**{"labels.name": name}))
