@@ -120,17 +120,9 @@ class TensorHandler:
         """Prepare the input tensor from the input state."""
         if "latitudes" not in input_state:
             input_state["latitudes"] = self.metadata.latitudes
-        elif not np.allclose(input_state["latitudes"], self.metadata.latitudes):
-            raise ValueError(
-                "Latitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
-            )
 
         if "longitudes" not in input_state:
             input_state["longitudes"] = self.metadata.longitudes
-        elif not np.allclose(input_state["longitudes"], self.metadata.longitudes):
-            raise ValueError(
-                "Longitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
-            )
 
         if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
@@ -214,6 +206,26 @@ class TensorHandler:
 
         if nlat != number_of_grid_points:
             raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
+
+        if self.metadata.longitudes is not None:
+            if nlon != len(self.metadata.longitudes):
+                raise ValueError(
+                    f"Size mismatch longitudes={nlon}, number_of_longitudes_in_metadata={len(self.metadata.longitudes)}"
+                )
+            if not np.allclose(input_state["longitudes"], self.metadata.longitudes):
+                raise ValueError(
+                    "Longitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
+                )
+
+        if self.metadata.latitudes is not None:
+            if nlat != len(self.metadata.latitudes):
+                raise ValueError(
+                    f"Size mismatch latitudes={nlat}, number_of_latitudes_in_metadata={len(self.metadata.latitudes)}"
+                )
+            if not np.allclose(input_state["latitudes"], self.metadata.latitudes):
+                raise ValueError(
+                    "Latitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
+                )
 
         multi_step = self.metadata.multi_step_input
 
