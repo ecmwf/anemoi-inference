@@ -16,61 +16,56 @@ these components does not require extensive code-base changes.
 *********************************
 
 If your feature is only needed for one specific configuration setting,
-for example one of the :ref:`inputs <inputs>`, the only code that needs
-to be updated is the single affected class matching the input.
+for example one of the :ref:`outputs <outputs>`, the only code that
+needs to be updated is the single affected class matching the output.
 
-So, if you wanted to add a new option to the repeated-dates input, it
-only requires updates to :class:`RepeatedDatesInput
-<anemoi.inference.inputs.repeated_dates.RepeatedDatesInput>`.
+So, if you wanted to add a new option to the NetCDF output, it only
+requires updates to :class:`NetCDFOutput
+<anemoi.inference.outputs.netcdf.NetCDFOutput>`.
 
 Adding a new option
 ===================
 
-Let's look at a more specific example with the repeated-dates input.
-Let's say the current input can only accept its own existing options,
-plus the default configuration options (as defined in the abstract base
-class :class:`Input <anemoi.inference.input.Input>`).
+Let's look at a more specific example with the NetCDF output. Let's say
+the current output can only accept its own existing options, plus the
+default configuration options (as defined in the abstract base class
+:class:`Output <anemoi.inference.output.Output>`).
 
 .. code:: yaml
 
-   input:
-     repeated-dates:
-       source: mars
-       date: 2024-01-01
+   output:
+     netcdf:
+       path: output.nc
+       float_size: f4
 
-When the ``RepeatedDatesInput`` class receives this configuration, it
-matches with the keyword argument on the class:
+When the ``NetCDFOutput`` class receives this configuration, it matches
+with the keyword argument on the class:
 
 .. code:: python
 
-   input = RepeatedDatesInput(source='mars', date='2024-01-01')
+   output = NetCDFOutput(path='output.nc', float_size='f4')
 
 Note: due to the registry pattern, this is not written anywhere in the
-code, but instead built using ``inputs/__init__.py::create_input()``
-(see :ref:`modules-inputs`).
+code, but instead built using ``outputs/__init__.py::create_output()``
+(see :ref:`modules-outputs`).
 
 In order to add a new configuration option, simply add a new keyword
 argument to the class:
 
 .. code:: python
 
-   @input_registry.register("repeated-dates")
-   class RepeatedDatesInput(Input):
-       """This class is identical to the one used to in anemoi-datasets/create
-       It uses a source of constants (e.g. a source containing the bathymetry)
-       available only for a given date and returns its content whever date
-       is requested by the runner
-       """
-
-       trace_name = "repeated dates"
+   @output_registry.register("netcdf")
+   class NetCDFOutput(Output):
+       """NetCDF output class."""
 
        def __init__(
            self,
            context: Context,
            metadata: Metadata,
            *,
-           source: str,
-           mode: str = "constant",
+           path: Path,
+           float_size: str = "f4",
+           missing_value: float | None = np.nan,
            new_variable: str | None = None,
            **kwargs: Any,
        ) -> None:
@@ -80,31 +75,31 @@ argument to the class:
            )
            self.new_variable = new_variable
 
-Notice the type-hint, which follows our :ref:`style guide
-<style-guide>`. As this is user-inputted, make sure to validate the
+Notice the type-hint, which follows our :ref:`contributing guide
+<dev-contributing>`. As this is user-inputted, make sure to validate the
 input and throw an error if it isn't what you're expecting. Add the new
 variable to the docstring of the class and user documentation.
 
 .. code:: yaml
 
-   input:
-     repeated-dates:
-       source: mars
-       date: 2024-01-01
+   output:
+     netcdf:
+       path: output.nc
+       float_size: f4
        new_variable: "hello world"
-
 
 ******************************
  Updating every sub-component
 ******************************
 
-Similarly, if this is shared behavior, you can instead update the shared
-superclass (in this case, :class:`Input <anemoi.inference.input.Input>`)
+Similarly, if this is shared behaviour, you can instead update the
+shared superclass (in this case, :class:`Output
+<anemoi.inference.output.Output>`)
 
 .. code:: python
 
-   class Input(ABC):
-       """Abstract base class for input handling."""
+   class Output(ABC):
+       """Abstract base class for output handling."""
 
        def __init__(
            self,
@@ -112,8 +107,9 @@ superclass (in this case, :class:`Input <anemoi.inference.input.Input>`)
            metadata: "Metadata",
            *,
            variables: list[str] | None = None,
-           pre_processors: list[ProcessorConfig] | None = None,
-           purpose: str | None = None,
+           post_processors: list[ProcessorConfig] | None = None,
+           output_frequency: int | None = None,
+           write_initial_state: bool | None = None,
            new_variable: str | None = None,
        ) -> None:
            self.new_variable = new_variable
@@ -124,14 +120,14 @@ variable up:
 
 .. code:: python
 
-   class RepeatedDatesInput(Input):
+   class NetCDFOutput(Output):
        def __init__(
            self,
            context: Context,
            metadata: Metadata,
            *,
-           source: str,
-           mode: str = "constant",
+           path: Path,
+           float_size: str = "f4",
            new_variable: str | None = None,
            **kwargs: Any,
        ) -> None:
@@ -142,7 +138,7 @@ variable up:
            )
 
 If a subclass has specific handling you want to implement to override
-the default behavior, you can also update that in specific subclasses.
+the default behaviour, you can also update that in specific subclasses.
 Try to reduce repetition in code using shared methods in the superclass
 when you can.
 
@@ -150,15 +146,22 @@ when you can.
  Adding a new sub-component
 ****************************
 
+If you would like to add a new sub-component, start with `plugins
+<https://anemoi.readthedocs.io/projects/plugins/en/latest/guide/introduction.html>`_.
+New sub-components should only be added to anemoi-inference if they are
+useful for a wide variety of users. If it is for a specific application,
+then creating a plugin (which can then be shared in a new repo if
+needed) allows for flexibility around your requirements.
+
 A new sub-component should: inherit from an existing base class, include
 all existing variables on the base class, and include a registry entry
 corresponding to the name.
 
 .. code:: python
 
-   @input_registry.register("new-input")
-   class NewInput(Input):
-       """This is an example new input."""
+   @output_registry.register("new-output")
+   class NewOutput(Output):
+       """This is an example new output."""
 
        def __init__(
            self,
@@ -166,8 +169,9 @@ corresponding to the name.
            metadata: "Metadata",
            *,
            variables: list[str] | None = None,
-           pre_processors: list[ProcessorConfig] | None = None,
-           purpose: str | None = None,
+           post_processors: list[ProcessorConfig] | None = None,
+           output_frequency: int | None = None,
+           write_initial_state: bool | None = None,
        ) -> None:
            super().__init__(
                context=context,

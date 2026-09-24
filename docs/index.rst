@@ -126,7 +126,6 @@ Get more information in the :ref:`installing <installing>` section.
    :caption: Contributing
 
    dev/contributing
-   dev/style-guide
    dev/dev-guide
 
 .. toctree::

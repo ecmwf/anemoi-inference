@@ -9,9 +9,9 @@ technical contributor, rather than a user, to anemoi-inference.
 
 If you are interested in extending anemoi-inference or contributing back
 into the package, welcome! Start with our :ref:`contributor's guide
-<dev-contributing>`, and our :ref:`anemoi-inference style guide
-<style-guide>`. For conventions that apply across the whole framework,
-see the :ref:`general Anemoi style guide <anemoi-docs:code-style>`.
+<dev-contributing>`. For conventions that apply across the whole
+framework, see the :ref:`general Anemoi style guide
+<anemoi-docs:code-style>`.
 
 .. toctree::
    :maxdepth: 1
