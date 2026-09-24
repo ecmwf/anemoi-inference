@@ -26,6 +26,7 @@ from anemoi.inference.types import State
 from ..grib.encoding import grib_keys
 from ..grib.templates.manager import TemplateManager
 from ..output import Output
+from ..types import OutputVariableConfigUnion
 
 LOG = logging.getLogger(__name__)
 
@@ -173,7 +174,7 @@ class BaseGribOutput(Output):
         grib1_keys: dict[str, Any] | None = None,
         grib2_keys: dict[str, Any] | None = None,
         modifiers: list[str] | None = None,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
@@ -202,8 +203,8 @@ class BaseGribOutput(Output):
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
-        variables : list, optional
-            The list of variables, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         negative_step_mode : Literal["error", "write", "skip"], optional
             What to do when writing a variable that has a base time before the forecast base time.
             This can happen when the initial conditions contain an accumulated variable, or a variable period is longer than the model step time.
@@ -228,7 +229,6 @@ class BaseGribOutput(Output):
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
 
         self.modifiers = modifier_factory(modifiers)
-        self.variables = variables
         assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
         self.negative_step_mode = negative_step_mode
 

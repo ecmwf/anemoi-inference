@@ -29,6 +29,7 @@ from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..decorators import supports_parallel_output
 from ..output import Output
+from ..types import OutputVariableConfigUnion
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ class ZarrOutput(Output):
         metadata: Metadata,
         *,
         store: "StoreLike",
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -109,8 +110,8 @@ class ZarrOutput(Output):
             Can be a file path or a Zarr store.
             If an existing store is provided, it is assumed to
             be a writable store and empty.
-        variables : list, optional
-            The list of variables to write, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional

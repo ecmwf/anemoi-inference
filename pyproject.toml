@@ -44,7 +44,7 @@ dependencies = [
   "numpy",
   "omegaconf>=2.2,<2.4",
   "packaging",
-  "pydantic",
+  "pydantic>=2",
   "pyyaml",
   "rich",
   "semantic-version",
@@ -74,7 +74,8 @@ optional-dependencies.huggingface = [ "huggingface-hub" ]
 optional-dependencies.netcdf = [ "earthkit-data>=0.19,<1" ]
 optional-dependencies.plot = [
   "earthkit-plots<1",
-  "matplotlib<3.11",  # TODO: remove when we start using ekp 1.0
+  "eckitlib<2.3.0.28", # TODO: remove when eckitlib no longer bundles libproj/libsqlite3 (segfaults fiona's GDAL)
+  "matplotlib<3.11",   # TODO: remove when we start using ekp 1.0
 ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
