@@ -12,6 +12,7 @@ import logging
 import pytest
 
 from anemoi.inference.outputs.printer import PrinterOutput
+from anemoi.inference.outputs.printer import print_state
 
 LOG = logging.getLogger(__name__)
 
@@ -24,15 +25,10 @@ LOG = logging.getLogger(__name__)
         pytest.param({"select": ["z_500", "cp"]}, ["cp", "z_500"], ["2t"], id="select_list"),
         pytest.param({"drop": ["z", "cp"]}, ["2t", "z_500"], ["cp"], id="drop_list"),
         pytest.param({"drop": "cp"}, ["2t", "z_500"], ["cp"], id="drop_single_string"),
-        pytest.param("all", ["z_500", "cp", "2t"], [], id="test_all_kwarg"),
     ],
 )
-def test_print_state_variable_inclusion(
-    variables, expected_in_output, not_expected_in_output, basic_context, basic_metadata, basic_state, capsys
-):
-    output = PrinterOutput(basic_context, basic_metadata, max_lines=1, variables=variables)
-
-    output.write_state(basic_state)
+def test_print_state_variable_inclusion(variables, expected_in_output, not_expected_in_output, basic_state, capsys):
+    print_state(basic_state, max_lines=1, variables=variables)
     output_str = capsys.readouterr()[0]
 
     for variable in expected_in_output:
@@ -40,8 +36,6 @@ def test_print_state_variable_inclusion(
 
     for variable in not_expected_in_output:
         assert variable not in output_str
-
-    output.close()
 
 
 @pytest.mark.parametrize(

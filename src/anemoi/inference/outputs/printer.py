@@ -12,6 +12,7 @@ import logging
 from functools import partial
 from pathlib import Path
 from typing import Any
+from typing import Callable
 from typing import Literal
 from typing import Union
 
@@ -19,6 +20,7 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.schemas import OutputVariableConfig
 from anemoi.inference.types import OutputVariableConfigUnion
 from anemoi.inference.types import State
 
@@ -31,6 +33,72 @@ from . import output_registry
 LOG = logging.getLogger(__name__)
 
 ListOrAll = Union[list[str], Literal["all"]]
+
+
+def print_state(
+    state: State,
+    print: Callable[..., None] = print,
+    max_lines: int = 4,
+    variables: OutputVariableConfigUnion = None,
+) -> None:
+    """Print the state.
+
+    Parameters
+    ----------
+    state : State
+        The state dictionary.
+    print : function, optional
+        The print function to use, by default print.
+    max_lines : int, optional
+        The maximum number of lines to print, by default 4. If `variables` is provided, this option is ignored.
+    variables : list, optional
+        The list of variables to print, by default None. This should match the structure described in OutputVariableConfig.
+    """
+    variables = OutputVariableConfig.model_validate(variables)
+
+    print("😀", end=" ")
+    for key, value in state.items():
+        if isinstance(value, datetime.datetime):
+            print(f"{key}={value.isoformat()}", end=" ")
+
+        if isinstance(value, (str, float, int, bool, type(None))):
+            print(f"{key}={value}", end=" ")
+
+        if isinstance(value, np.ndarray):
+            print(f"{key}={value.shape}", end=" ")
+
+    fields = state.get("fields", {})
+
+    if variables.not_set and max_lines == 0:
+        print("Skipping printing fields")
+        print()
+        return
+
+    print(f"fields={len(fields)}")
+    print()
+
+    names = list(fields.keys())
+    selected = names
+
+    if max_lines > 0:
+        if variables.not_set:
+            selected = names[:max_lines]
+        else:
+            LOG.debug(
+                f"Printer output settings contain a list of selected variables and a max_lines of {max_lines}. Ignoring the max_lines setting."
+            )
+
+    length = max((len(name) for name in names), default=0)
+
+    for name in selected:
+        if variables.skip(name):
+            continue
+        field = fields[name]
+        min_value = f"min={np.nanmin(field):g}"
+        max_value = f"max={np.nanmax(field):g}"
+        print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
+
+    print()
 
 
 @output_registry.register("printer")
@@ -95,59 +163,7 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        self.print_state(state)
-
-    def print_state(self, state: State) -> None:
-        """Print the state.
-
-        Parameters
-        ----------
-        state : State
-            The state dictionary.
-        """
-        print("😀", end=" ")
-        for key, value in state.items():
-            if isinstance(value, datetime.datetime):
-                print(f"{key}={value.isoformat()}", end=" ")
-
-            if isinstance(value, (str, float, int, bool, type(None))):
-                print(f"{key}={value}", end=" ")
-
-            if isinstance(value, np.ndarray):
-                print(f"{key}={value.shape}", end=" ")
-
-        fields = state.get("fields", {})
-
-        if self.variables.not_set and self.max_lines == 0:
-            print("Skipping printing fields")
-            print()
-            return
-
-        print(f"fields={len(fields)}")
-        print()
-
-        names = list(fields.keys())
-        selected = names
-
-        if self.max_lines > 0:
-            if self.variables.not_set:
-                selected = names[: self.max_lines]
-            else:
-                LOG.debug(
-                    f"Printer output settings contain a list of selected variables and a max_lines of {self.max_lines}. Ignoring the max_lines setting."
-                )
-
-        length = max((len(name) for name in names), default=0)
-
-        for name in selected:
-            if self.skip_variable(name):
-                continue
-            field = fields[name]
-            min_value = f"min={np.nanmin(field):g}"
-            max_value = f"max={np.nanmax(field):g}"
-            print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
-
-        print()
+        print_state(state, max_lines=self.max_lines, variables=self.variables)
 
     def close(self) -> None:
         if self.f is not None:
