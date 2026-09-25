@@ -49,6 +49,46 @@ extract_slice & extract_mask
 ==============================
 Extracts a subset of points using a slice or a boolean mask.
 
+coordinate_reorder
+==================
+
+Reorders the input state onto the model grid point ordering.
+
+Some inputs store the *same* physical grid as the model but in a
+different point order -- for example longitude rows rolled to start at a
+different meridian, or the prime meridian labelled ``360.0`` instead of
+``0.0``. Fed as-is, such a state is misaligned with the model grid. This
+pre-processor matches the input's ``(latitudes, longitudes)`` against the
+model grid (from the checkpoint metadata, treating ``360.0`` as ``0.0``)
+and permutes the coordinates and every field so they are consistent with
+the model ordering.
+
+The mapping is resolved by matching coordinates, so it handles any
+permutation (not just a simple roll). If the two grids are already in the
+same order the state is returned unchanged. If they do not describe the
+same set of points a ``ValueError`` is raised.
+
+.. code:: yaml
+
+   pre_processors:
+     - coordinate_reorder
+
+An optional ``decimals`` argument controls the rounding used when
+matching source and target coordinates (default ``4``):
+
+.. code:: yaml
+
+   pre_processors:
+     - coordinate_reorder:
+         decimals: 5
+
+.. note::
+   Consider using the ``coordinate_reorder`` post-processor alongside
+   this pre-processor to ensure that the input state is correctly aligned
+   with the model grid before output.
+
+
+
 **************************
  Top-level pre-processors
 **************************
@@ -243,6 +283,17 @@ with a specified value (NaN by default).
      - assign_mask:
          mask: source0/trimedge_mask
          fill_value: .nan
+
+coordinate_reorder
+==================
+
+Is the inverse of the ``coordinate_reorder`` pre-processor, which reorders the coordinates of the input state to match the model grid.
+This restores the original coordinate order of the state.
+
+.. code:: yaml
+
+   post_processors:
+     - coordinate_reorder
 
 ***************************
  Top-level post-processors

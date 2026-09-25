@@ -19,6 +19,8 @@
               - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o48-2020-6h.zarr.zip
                 area: [70, -55, 10, 70]
               - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o32-2020-6h.zarr.zip
+            min_distance_km: 0
+            adjust: all
     - check_with_xarray:
         file: ${output:0}
         check_accum: tp
@@ -33,6 +35,8 @@
             - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o48-2020-6h.zarr.zip
               area: [70, -55, 10, 70]
             - dataset: ${s3:}/aifs-ea-an-oper-0001-mars-o32-2020-6h.zarr.zip
+          min_distance_km: 0
+          adjust: all
     output:
       tee:
       - netcdf:
