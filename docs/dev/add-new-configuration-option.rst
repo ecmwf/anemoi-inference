@@ -23,6 +23,53 @@ So, if you wanted to add a new option to the NetCDF output, it only
 requires updates to :class:`NetCDFOutput
 <anemoi.inference.outputs.netcdf.NetCDFOutput>`.
 
+Class overview
+==============
+
+Each of the classes has a couple of key features you will need to be
+aware of.
+
+.. code:: python
+
+   @output_registry.register("netcdf")
+   class NetCDFOutput(Output):
+       """NetCDF output class."""
+
+       def __init__(
+           self,
+           context: Context,
+           metadata: Metadata,
+           *,
+           path: Path,
+           **kwargs: Any,
+       ) -> None:
+           super().__init__(
+               context=context,
+               metadata=metadata,
+               path=path,
+           )
+
+#. `@output_registry.register("netcdf")` -> this line registers the
+   subclass into the registry, under the name "netcdf".
+
+#. `class NetCDFOutput(Output):` -> The class inherits from the `Output`
+   base class.
+
+#. `context` and `metadata` variables -> These are handled by the runner
+   class, and automatically included. They do not originate directly
+   from the config.
+
+#. `*` -> This is a piece of Python syntax, indicating that variables
+   should always be defined with their full names (ie
+   `NetCDFOutput(path='path')` rather than `NetCDFOutput('path')`)
+
+#. `path: Path` -> these are arguments which come directly from the
+   configuration. If it is optional, it should be a keyword with a
+   useful default or `None`.
+
+#. `super().__init__(...)` -> this line passes up these variables to the
+   `__init__` function of the `Output` base class.
+
 Adding a new option
 ===================
 

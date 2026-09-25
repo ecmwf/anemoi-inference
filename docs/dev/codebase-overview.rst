@@ -57,8 +57,8 @@ These are all the registry-backed components that follow this pattern:
    with mid-, pre-, and post- processors having their own registries but
    a shared base class.
 
-For more information on how to add a new option to an existing registry,
-or update an existing option, check out
+For more information on how these classes work, adding a new option to an existing registry,
+or updating an existing option, check out
 :ref:`dev-add-new-configuration-option`.
 
 ******************
