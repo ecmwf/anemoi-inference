@@ -16,6 +16,8 @@ from typing import Any
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
+from anemoi.inference.types import OutputVariableConfig
+from anemoi.inference.types import OutputVariableConfigUnion
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
 
@@ -34,7 +36,7 @@ class Output(ABC):
         context: "Context",
         metadata: "Metadata",
         *,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -47,6 +49,8 @@ class Output(ABC):
             The context in which the output operates.
         metadata : Metadata
             Metadata corresponding to the dataset this output is handling.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the output
         output_frequency : Optional[int], optional
@@ -64,10 +68,7 @@ class Output(ABC):
         self._write_step_zero = write_initial_state
         self._output_frequency = output_frequency
 
-        self.variables = variables
-        if self.variables is not None:
-            if not isinstance(self.variables, (list, tuple)):
-                self.variables = [self.variables]
+        self.variables = OutputVariableConfig.model_validate(variables)
 
         self.typed_variables = self.metadata.typed_variables.copy()
         self.typed_variables.update(self.context.typed_variables)
@@ -78,14 +79,14 @@ class Output(ABC):
         Parameters
         ----------
         variable : str
-            The variable to check.
+            The variable to check for skipping.
 
         Returns
         -------
         bool
             True if the variable should be skipped, False otherwise.
         """
-        return self.variables is not None and variable not in self.variables
+        return self.variables.skip(variable)
 
     @cached_property
     def post_processors(self) -> list[Processor]:
@@ -253,7 +254,7 @@ class ForwardOutput(Output):
         context: "Context",
         metadata: "Metadata",
         output: Output | Any,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -266,8 +267,8 @@ class ForwardOutput(Output):
             The context in which the output operates.
         output : Output | Any
             The output configuration dictionary or an Output instance.
-        variables : list, optional
-            The list of variables, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : Optional[int], optional
