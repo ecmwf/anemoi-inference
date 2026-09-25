@@ -226,7 +226,7 @@ Limited Area Model (LAM) domains from nested grid forecasts.
    post_processors:
      - extract_from_state: lam_0
 
-See :ref:`inference-inputs` for more information on using ``extract_from_state``
+See :ref:`inputs` for more information on using ``extract_from_state``
 with the ``Cutout`` input.
 
 assign_mask
