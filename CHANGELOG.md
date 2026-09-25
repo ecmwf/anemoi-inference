@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.12.1](https://github.com/ecmwf/anemoi-inference/compare/0.12.0...0.12.1) (2026-09-25)
+
+
+### Features
+
+* **outputs:** Add exclusion option for variables in output  ([#580](https://github.com/ecmwf/anemoi-inference/issues/580)) ([f4de538](https://github.com/ecmwf/anemoi-inference/commit/f4de5384921103aa85b02850bd8a2e2dbd9f00e5))
+
+
+### Bug Fixes
+
+* **grib output:** Ensure initial state is post processed before template lookup ([#587](https://github.com/ecmwf/anemoi-inference/issues/587)) ([59549b9](https://github.com/ecmwf/anemoi-inference/commit/59549b9f4ca778a7132584fa4b6df7d3631a053b))
+* **inputs/cutout:** Restore fallback to checkpoint metadata ([#579](https://github.com/ecmwf/anemoi-inference/issues/579)) ([b1209af](https://github.com/ecmwf/anemoi-inference/commit/b1209af32c3188e12de9a938e617f0f1fa9a6386))
+* **metadata:** Correctly resolve checkpoint variable names in default_namer ([#573](https://github.com/ecmwf/anemoi-inference/issues/573)) ([88c1ec1](https://github.com/ecmwf/anemoi-inference/commit/88c1ec13632c570f246cc2580ce324e45f36a03b))
+
+
+### Documentation
+
+* Add Developer docs ([#584](https://github.com/ecmwf/anemoi-inference/issues/584)) ([c8f12d7](https://github.com/ecmwf/anemoi-inference/commit/c8f12d774012f34e9e8b7c41987b0fa2ab429619))
+
 ## [0.12.0](https://github.com/ecmwf/anemoi-inference/compare/0.11.2...0.12.0) (2026-09-04)
 
 
