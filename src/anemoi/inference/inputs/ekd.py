@@ -385,13 +385,12 @@ class EkdInput(Input):
         self,
         input_fields: ekd.FieldList,
         *,
-        date: Date | None = None,
+        dates: list[Date],
         variables: list[str] | None = None,
         latitudes: FloatArray | None = None,
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        constant: bool = False,
         ref_date_index: int = -1,
         **kwargs,
     ) -> State:
@@ -401,8 +400,8 @@ class EkdInput(Input):
         ----------
         input_fields : ekd.FieldList
             The input fields.
-        date : Date
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         variables : Optional[List[str]]
             List of variables.
         latitudes : Optional[FloatArray]
@@ -413,8 +412,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        constant: bool
-            Whether the field is constant or dynamic.
         ref_date_index: int = -1
             If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
@@ -424,16 +421,6 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        if date is None:
-            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
-            LOG.info(
-                "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
-            )
-
-        if constant:
-            dates = [date]
-        else:
-            dates = [date + h for h in self.metadata.lagged]
 
         return self._create_state(
             input_fields,
@@ -537,13 +524,13 @@ class FieldlistInput(EkdInput):
         super().__init__(context, metadata, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         ref_date_index : int = -1
             If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
@@ -554,7 +541,7 @@ class FieldlistInput(EkdInput):
         State
             The created input state.
         """
-        return self._create_input_state(self._fieldlist, date=date, ref_date_index=ref_date_index, **kwargs)
+        return self._create_input_state(self._fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.

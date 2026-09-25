@@ -148,15 +148,13 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
-    def create_input_state(self, *, date: Date | None = None, constant: bool = False, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Any]
-            The date for which to create the input state.
-        constant: bool
-            Whether the field is constant or dynamic
+        dates : list[Date]
+            The dates for which to create the input state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -165,14 +163,12 @@ class DatasetInput(Input):
         Dict[str, Any]
             The created input state.
         """
-        if date is None:
-            raise ValueError("`date` must be provided")
 
         latitudes = self.ds.latitudes
         longitudes = self.ds.longitudes
 
         input_state = dict(
-            date=date,
+            date=dates[-1],
             latitudes=latitudes[self.grid_indices],
             longitudes=longitudes[self.grid_indices],
             fields=dict(),
@@ -180,14 +176,7 @@ class DatasetInput(Input):
 
         fields = input_state["fields"]
 
-        date = np.datetime64(date)
-
-        if constant:
-            dates = [date]
-        else:
-            dates = [date + np.timedelta64(h) for h in self.metadata.lagged]
-
-        data = self._load_dates(dates, base_date=date)
+        data = self._load_dates(dates, base_date=dates[-1])
 
         if data.shape[2] != 1:
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
