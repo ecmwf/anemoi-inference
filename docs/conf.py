@@ -24,7 +24,7 @@ master_doc = "index"
 pygments_style = "sphinx"
 html_theme_options = {"logo_only": True}
 html_logo = "_static/logo.png"
-
+autoclass_content = "both"
 
 # -- Project information -----------------------------------------------------
 
