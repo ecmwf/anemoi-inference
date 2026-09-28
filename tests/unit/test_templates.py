@@ -14,9 +14,9 @@ from pathlib import Path
 import pytest
 import yaml
 from anemoi.transform import Field
-from anemoi.utils.testing import GetTestData
 from anemoi.transform import FieldList
 from anemoi.transform.grib import grib_handle
+from anemoi.utils.testing import GetTestData
 from earthkit.data.readers.grib.handle import GribCodesHandle
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
