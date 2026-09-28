@@ -657,14 +657,14 @@ class Runner(Context):
         initial_states: dict[str, State] = {}
 
         if self.reference_date is None:
-            _input = self.prognostics_inputs[next(iter(self.prognostics_inputs))]
+            _dataset, _input = next(iter(self.prognostics_inputs.items()))
             self.reference_date = _input.default_initial_date()
+
             LOG.info(
-                f"`date` not provided in the config, using the default initial date from `{_input}`: {self.reference_date.isoformat()}"
+                f"`date` not provided in the config, using the default initial date from [{_dataset}] {_input}]: {self.reference_date.isoformat()}"
             )
 
         for dataset in self.tensor_handlers:
-
             multi_dataset_metadata = self.checkpoint.multi_dataset_metadata[dataset]
             dates = [self.reference_date + h for h in multi_dataset_metadata.lagged]
 
