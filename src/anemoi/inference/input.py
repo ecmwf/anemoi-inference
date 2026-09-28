@@ -208,5 +208,5 @@ class Input(ABC):
         """
 
         raise NotImplementedError(
-            f"{self.__class__.__name__} cannot automatically detect the initial date. You must set the initialisation date explicitly in the config or CLI."
+            f"{self.__class__.__name__} can't automatically set the initial date. You must set the initialisation date explicitly in the config or CLI."
         )
