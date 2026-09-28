@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,6 +29,7 @@ from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..decorators import supports_parallel_output
 from ..output import Output
+from ..types import OutputVariableConfigUnion
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -89,7 +91,7 @@ class ZarrOutput(Output):
         metadata: Metadata,
         *,
         store: "StoreLike",
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -108,8 +110,8 @@ class ZarrOutput(Output):
             Can be a file path or a Zarr store.
             If an existing store is provided, it is assumed to
             be a writable store and empty.
-        variables : list, optional
-            The list of variables to write, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional
@@ -197,21 +199,25 @@ class ZarrOutput(Output):
         self.reference_date = state["date"]
 
         lead_time = getattr(self.context, "lead_time", None)
-        time_step = self.context.checkpoint.timestep
 
         if lead_time is None:
             raise RuntimeError(
                 "When setting up the ZarrOutput, the `lead_time` was not yet set on the context, therefore unable to construct the arrays."
             )
 
-        time = lead_time // time_step
+        steps = math.ceil(lead_time / self.metadata.rollout_shift)
+
+        time = (steps - 1) * self.metadata.multi_step_output
+        for offset in self.metadata.output_offsets:
+            if offset + (steps - 1) * self.metadata.rollout_shift <= lead_time:
+                time += 1
         time += int(self.write_step_zero)
 
         if reference_date := getattr(self.context, "reference_date", None):
             self.reference_date = reference_date
 
-        if not self.write_step_zero and time_step is not None:
-            self.reference_date -= time_step
+        if not self.write_step_zero:
+            self.reference_date -= self.metadata.output_offsets[0]
 
         self.time_size = time
         self.time_array = create_zarr_array(

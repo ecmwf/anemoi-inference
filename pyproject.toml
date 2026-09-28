@@ -45,7 +45,7 @@ dependencies = [
   "numpy",
   "omegaconf>=2.2,<2.4",
   "packaging",
-  "pydantic",
+  "pydantic>=2",
   "pyyaml",
   "rich",
   "semantic-version",
@@ -57,8 +57,8 @@ optional-dependencies.all = [
   "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.cosmo = [
-  "eccodes<=2.39.1",
-  "eccodes-cosmo-resources-python",
+  "eccodes>=2.47,<2.48",
+  "eccodes-cosmo-resources-python==2.47.0.1",
 ]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,tests]" ]
 optional-dependencies.docs = [
@@ -70,9 +70,13 @@ optional-dependencies.docs = [
   "sphinx-argparse<0.5",
   "sphinx-rtd-theme",
 ]
+optional-dependencies.fdb = [ "earthkit-data[fdb]", "fdb5lib" ]
 optional-dependencies.huggingface = [ "huggingface-hub" ]
 optional-dependencies.netcdf = [ "earthkit-data>=1" ]
-optional-dependencies.plot = [ "earthkit-plots>=1" ]
+optional-dependencies.plot = [
+  "earthkit-plots>=1",
+  "eckitlib<2.3.0.28", # TODO: remove when eckitlib no longer bundles libproj/libsqlite3 (segfaults fiona's GDAL)
+]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
   "anemoi-inference[all]",
@@ -89,6 +93,7 @@ scripts.anemoi-inference = "anemoi.inference.__main__:main"
 
 [tool.setuptools]
 packages.find.where = [ "src" ]
+package-data."anemoi.inference" = [ "py.typed" ]
 package-data."anemoi.inference.grib.templates" = [ "*.yaml" ]
 
 [tool.setuptools_scm]

@@ -321,7 +321,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
                     # Detach tensor and squeeze (should we detach here?)
                     with ProfilingLabel("Sending output to cpu", self.use_profiler):
-                        output = np.squeeze(y_pred[dataset].cpu().numpy())  # shape: (values, variables)
+                        # squeeze batch and ensemble dims of tensor with shape: (batch, steps, ensemble, values, variables)
+                        output = np.squeeze(
+                            y_pred[dataset].cpu().numpy(), axis=(0, 2)
+                        )  # shape: (steps, values, variables)
 
                     if handler.trace:
                         handler.trace.write_output_tensor(

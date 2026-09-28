@@ -230,6 +230,9 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
             Variable.from_dict(var, {"param": var}) for var in expected_variables_config
         ] or checkpoint_output_variables[dataset_name]
 
+        if not isinstance(file, Path):
+            file = Path(file)
+
         testing_registry.create(
             check,
             file=file,

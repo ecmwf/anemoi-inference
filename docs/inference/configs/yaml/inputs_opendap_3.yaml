@@ -1,0 +1,5 @@
+input:
+  opendap:
+    url:
+      - https://thredds.example.com/thredds/dodsC/{date:%Y}/{date:%m}/{date:%d}/det_sfc_{date:%Y%m%d}T{date:%H}Z.nc
+      - https://thredds.example.com/thredds/dodsC/{date:%Y}/{date:%m}/{date:%d}/det_pl_{date:%Y%m%d}T{date:%H}Z.nc

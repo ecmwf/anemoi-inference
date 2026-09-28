@@ -101,10 +101,13 @@ class supports_parallel_output:
     When ParallelOutput spawns writers it passes ``_parallel-output-suffix="_w0"`` etc.
     This decorator turns ``path="out.grib"`` into ``path="out_w0.grib"``.
     If no ``_parallel-output-suffix`` is present in kwargs, the class is instantiated unchanged.
+
+    The path arg can also be a dot-notation string to support nested dictionaries, e.g. ``"archive_requests.path"``,
+    and multiple path args can be specified.
     """
 
-    def __init__(self, arg: str):
-        self.arg = arg
+    def __init__(self, *args: str):
+        self.args = args
 
     @staticmethod
     def add_suffix_to_path(val: Any, suffix: str) -> Any:
@@ -133,8 +136,8 @@ class supports_parallel_output:
             return val
 
     def __call__(self, cls: F) -> F:
-        # if not isinstance(cls, type):
-        #    raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
+        if not isinstance(cls, type):
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
 
         class WrappedClass(cls):
             _supports_parallel_output = True
@@ -146,10 +149,21 @@ class supports_parallel_output:
                         f"Expected '_parallel-output-suffix' to be a string, got {type(parallel_output_suffix)}."
                     )
 
-                if parallel_output_suffix and self.arg in kwargs and kwargs[self.arg] is not None:
-                    kwargs[self.arg] = supports_parallel_output.add_suffix_to_path(
-                        kwargs[self.arg], parallel_output_suffix
-                    )
+                if parallel_output_suffix:
+                    for arg in self.args:
+                        # traverse the (possibly nested) path, bailing out silently if a level is missing
+                        container = kwargs
+                        *parents, leaf = arg.split(".")
+                        for key in parents:
+                            if not isinstance(container, dict) or key not in container:
+                                container = None
+                                break
+                            container = container[key]
+
+                        if isinstance(container, dict) and container.get(leaf) is not None:
+                            container[leaf] = supports_parallel_output.add_suffix_to_path(
+                                container[leaf], parallel_output_suffix
+                            )
 
                 super().__init__(*args, **kwargs)
 

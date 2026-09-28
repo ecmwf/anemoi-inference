@@ -26,6 +26,43 @@ config.
          repo_id: "ecmwf/aifs-single"
          filename: "aifs_single_v0.2.1.ckpt"
 
+runner:
+=======
+
+The ``runner`` option selects the inference runner. The default is
+``default``.
+
+.. code:: yaml
+
+   runner: default
+
+Available runners:
+
+default
+-------
+
+Runs the checkpoint model as-is. This is the standard runner for
+production forecasts.
+
+no-model
+--------
+
+Replaces the checkpoint model with a dummy that returns all-ones. This
+is intended for testing pipelines (processors, inputs, outputs) without
+running a real model.
+
+external-graph
+--------------
+
+Runs inference using an external graph. See
+:ref:`external-graph` for full documentation.
+
+parallel
+--------
+
+Distributes the model across multiple devices. See
+:ref:`parallel-inference` for full documentation.
+
 device:
 =======
 

@@ -31,6 +31,7 @@ from ..decorators import main_argument
 from ..decorators import supports_parallel_output
 from ..grib.encoding import GribWriter
 from ..grib.encoding import check_encoding
+from ..types import OutputVariableConfigUnion
 from . import output_registry
 from .grib import BaseGribOutput
 
@@ -134,7 +135,7 @@ class GribIoOutput(BaseGribOutput):
         grib1_keys: dict[str, Any] | None = None,
         grib2_keys: dict[str, Any] | None = None,
         modifiers: list[str] | None = None,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         split_output: bool = True,
@@ -176,8 +177,8 @@ class GribIoOutput(BaseGribOutput):
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
-        variables : list, optional
-            The list of variables, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         split_output : bool, optional
             Whether to split the output, by default True.
             Cannot be `True` if `out` is a file-like object.
@@ -325,7 +326,7 @@ class GribIoOutput(BaseGribOutput):
 @output_registry.register("grib")
 @main_argument("path")
 @format_dataset_name("path")
-@supports_parallel_output("path")
+@supports_parallel_output("path", "archive_requests.path")
 @ensure_path("path")
 class GribFileOutput(GribIoOutput):
     """Handles grib files."""
@@ -344,7 +345,7 @@ class GribFileOutput(GribIoOutput):
         grib1_keys: dict[str, Any] | None = None,
         grib2_keys: dict[str, Any] | None = None,
         modifiers: list[str] | None = None,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
         split_output: bool = True,
@@ -382,8 +383,8 @@ class GribFileOutput(GribIoOutput):
             The frequency of output, by default None.
         write_initial_state : bool, optional
             Whether to write the initial state, by default None.
-        variables : list, optional
-            The list of variables, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         split_output : bool, optional
             Whether to split the output, by default True.
         negative_step_mode : Literal["error", "write", "skip"], optional

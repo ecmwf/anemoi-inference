@@ -9,10 +9,10 @@
 
 import datetime
 import logging
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 from typing import Any
+from typing import Callable
 from typing import Literal
 from typing import Union
 
@@ -20,6 +20,8 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.schemas import OutputVariableConfig
+from anemoi.inference.types import OutputVariableConfigUnion
 from anemoi.inference.types import State
 
 from ..decorators import ensure_path
@@ -37,7 +39,7 @@ def print_state(
     state: State,
     print: Callable[..., None] = print,
     max_lines: int = 4,
-    variables: ListOrAll | None = None,
+    variables: OutputVariableConfigUnion = None,
 ) -> None:
     """Print the state.
 
@@ -48,10 +50,12 @@ def print_state(
     print : function, optional
         The print function to use, by default print.
     max_lines : int, optional
-        The maximum number of lines to print, by default 4.
+        The maximum number of lines to print, by default 4. If `variables` is provided, this option is ignored.
     variables : list, optional
-        The list of variables to print, by default None.
+        The list of variables to print, by default None. This should match the structure described in OutputVariableConfig.
     """
+    variables = OutputVariableConfig.model_validate(variables)
+
     print("😀", end=" ")
     for key, value in state.items():
         if isinstance(value, datetime.datetime):
@@ -65,37 +69,29 @@ def print_state(
 
     fields = state.get("fields", {})
 
+    if variables.not_set and max_lines == 0:
+        print("Skipping printing fields")
+        print()
+        return
+
     print(f"fields={len(fields)}")
     print()
 
     names = list(fields.keys())
+    selected = names
 
-    if variables == "all":
-        variables = names
-        max_lines = 0
+    if max_lines > 0:
+        if variables.not_set:
+            selected = names[:max_lines]
+        else:
+            LOG.debug(
+                f"Printer output settings contain a list of selected variables and a max_lines of {max_lines}. Ignoring the max_lines setting."
+            )
 
-    if variables is None:
-        variables = names
+    length = max((len(name) for name in names), default=0)
 
-    if not isinstance(variables, (list, tuple, set)):
-        variables = [variables]
-
-    variables = set(variables)
-
-    n = max_lines
-
-    if max_lines == 0 or max_lines >= len(names):
-        idx = list(range(len(names)))
-    else:
-        idx = list(range(0, len(names), len(names) // n))
-        idx.append(len(names) - 1)
-        idx = sorted(set(idx))
-
-    length = max(len(name) for name in names)
-
-    for i in idx:
-        name = names[i]
-        if name not in variables:
+    for name in selected:
+        if variables.skip(name):
             continue
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
@@ -118,7 +114,7 @@ class PrinterOutput(Output):
         metadata: Metadata,
         *,
         path: Path | None = None,
-        variables: ListOrAll | None = None,
+        variables: ListOrAll | OutputVariableConfigUnion = None,
         max_lines: int = 4,
         **kwargs: Any,
     ) -> None:
@@ -133,20 +129,23 @@ class PrinterOutput(Output):
         path : Path, optional
             The path to save the printed output, by default None.
             If the parent directory does not exist, it will be created.
-        variables : list, optional
-            The list of variables to print, by default None.
+        variables : ListOrAll | OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None (max_lines will be printed). Can also be the string "all", in which case all variables will be printed (regardless of max_lines).
         max_lines : int, optional
             The maximum number of lines to print, by default 4.
-            If set to 0, all variables will be printed.
+            If set to -1, all variables will be printed. If any value is provided in `variables`, this argument is ignored -- it is only used if `variables == None`.
         **kwargs : Any
             Additional keyword arguments.
         """
+        # If "all" variables are included, self.variables should be None and max_lines should be 0, meaning
+        # all variables are printed out.
+        all_variables = variables == "all"
 
-        super().__init__(context, metadata, variables=variables, **kwargs)
+        super().__init__(context, metadata, variables=(None if all_variables else variables), **kwargs)
+
+        self.max_lines = -1 if all_variables else max_lines
+
         self.print = print
-        self.variables = variables
-        self.max_lines = max_lines
-
         self.f = None
 
         if path is not None:
@@ -164,7 +163,7 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        print_state(state, print=self.print, variables=self.variables, max_lines=self.max_lines)
+        print_state(state, max_lines=self.max_lines, variables=self.variables)
 
     def close(self) -> None:
         if self.f is not None:

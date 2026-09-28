@@ -16,6 +16,7 @@ from collections.abc import Callable
 
 from anemoi.transform import Field
 from anemoi.transform import FieldList
+from anemoi.transform.variables import Variable
 
 from anemoi.inference.inputs.ekd import _get_metadata_dict
 from anemoi.inference.types import FloatArray
@@ -24,7 +25,7 @@ from anemoi.inference.types import State
 LOG = logging.getLogger(__name__)
 
 
-def _create_state_field(name: str, values: FloatArray, state: State) -> Field:
+def _create_state_field(name: str, values: FloatArray, state: State, variable: Variable) -> Field:
     """Create an earthkit Field from a state field.
 
     Parameters
@@ -35,6 +36,8 @@ def _create_state_field(name: str, values: FloatArray, state: State) -> Field:
         The values of the field.
     state : State
         The state information associated with the field.
+    variable : Variable
+        The checkpoint variable, whose GRIB keys describe the field.
 
     Returns
     -------
@@ -44,14 +47,23 @@ def _create_state_field(name: str, values: FloatArray, state: State) -> Field:
     labels = {"name": name}
     # Add serialisable state entries as labels
     for k, v in state.items():
-        if isinstance(v, (str, int, float, bool)):
+        if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta)):
             labels[k] = v
 
-    return Field.from_components(
-        values=values,
-        parameter={"variable": name},
-        labels=labels,
-    )
+    # Carry the variable's GRIB keys so that filters can select on them
+    # and the namer can map the fields back to the checkpoint names.
+    grib_keys = variable.grib_keys
+    vertical = {}
+    if grib_keys.get("levelist") is not None:
+        vertical["level"] = grib_keys["levelist"]
+    if grib_keys.get("levtype") is not None:
+        vertical["level_type"] = grib_keys["levtype"]
+
+    components = dict(values=values, parameter={"variable": grib_keys.get("param", name)}, labels=labels)
+    if vertical:
+        components["vertical"] = vertical
+
+    return Field.from_components(**components)
 
 
 # Keep StateField as a marker so unwrap_state can detect pass-through fields
@@ -61,13 +73,15 @@ class _StateFieldMarker:
     pass
 
 
-def wrap_state(state: State) -> FieldList:
+def wrap_state(state: State, typed_variables: dict[str, Variable]) -> FieldList:
     """Transform a state dictionary into an earthkit.data field list.
 
     Parameters
     ----------
     state : Dict[str, Any]
         The state dictionary to be transformed.
+    typed_variables : dict[str, Variable]
+        Metadata for the variables in the state.
 
     Returns
     -------
@@ -77,7 +91,7 @@ def wrap_state(state: State) -> FieldList:
     assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
     fields = []
     for k, v in state["fields"].items():
-        f = _create_state_field(k, v, state)
+        f = _create_state_field(k, v, state, typed_variables[k])
         # Tag the field so unwrap_state can detect it
         f._state_field_marker = True
         fields.append(f)
