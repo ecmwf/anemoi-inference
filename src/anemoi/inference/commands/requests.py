@@ -46,7 +46,7 @@ class RequestCmd(Command):
             The arguments passed to the command.
         """
         from anemoi.utils.grib import shortname_to_paramid
-        
+
         c = Checkpoint(args.path)
         for r in checkpoint_to_requests(
             c,
