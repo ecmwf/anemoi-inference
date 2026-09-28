@@ -106,7 +106,8 @@ good default: each writer receives a comparable amount of work.
 ``by_size``
 ===========
 
-Splits the fields into chunks of a fixed size, given by
+Splits the fields into chunks of a fixed size, where "size" is the number
+of fields in the state (not the number of bytes), given by
 ``fields_per_chunk``. The number of chunks depends on the number of
 output fields, and chunks are dispatched to writers round-robin. Use this
 when you want to control the amount of work per queue message (e.g. to
@@ -145,9 +146,29 @@ from co-locating related fields in the same file.
          grib:
            path: forecast.grib
 
-An optional ``max_groups`` argument caps the number of chunks produced;
-if more distinct metadata groups exist than ``max_groups``, groups are
-merged round-robin so that no more than ``max_groups`` chunks are created:
+.. note::
+
+   ``by_metadata`` optimises for co-location, not for balanced load. The
+   resulting chunks can be uneven in size: fields whose metadata does not
+   define the requested ``keys`` are grouped together under a single
+   ``None`` group, so if many fields lack that metadata they all end up in
+   one large chunk on one writer. If balanced work across writers matters
+   more than co-location, prefer ``by_worker`` (equal-sized chunks, one per
+   writer) or ``by_size`` (fixed number of fields per chunk).
+
+Limiting the number of groups with ``max_groups``
+-------------------------------------------------
+
+An optional ``max_groups`` argument (specific to ``by_metadata``; it is
+not available for ``by_worker`` or ``by_size``) caps the number of chunks
+produced. Each metadata group becomes one chunk, and chunks are dispatched
+to writers round-robin (chunk ``i`` goes to writer ``i % num_writers``), so
+a group is not tied one-to-one to a writer: one writer may receive several
+groups, and with ``max_groups`` set, several groups may be merged into a
+single chunk. If more distinct metadata groups exist than ``max_groups``,
+groups are merged round-robin so that no more than ``max_groups`` chunks are
+created. This is useful to avoid overwhelming the writers with many small
+chunks:
 
 .. code:: yaml
 

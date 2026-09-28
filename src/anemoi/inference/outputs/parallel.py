@@ -34,6 +34,9 @@ from . import output_registry
 
 LOG = logging.getLogger(__name__)
 
+CHUNK_STRATEGIES = Literal["by_worker", "by_metadata", "by_size"]
+VALID_CHUNK_STRATEGIES = get_args(CHUNK_STRATEGIES)
+
 
 # ── helpers ─────────────────────────────────────────────────────────────
 def _detach_tensors(obj: Any) -> Any:
@@ -175,10 +178,6 @@ def _restore_grib_templates(state: State) -> State:
     return state
 
 
-CHUNK_STRATEGIES = Literal["by_worker", "by_metadata", "by_size"]
-VALID_CHUNK_STRATEGIES = get_args(CHUNK_STRATEGIES)
-
-
 class Chunker:
     """Chunking strategies for dividing the state into smaller parts for parallel outputting."""
 
@@ -285,6 +284,43 @@ class Chunker:
 
         return chunker
 
+    def from_config(
+        self, chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]]
+    ) -> Callable[[State], Generator[State, None, None]]:
+        """Build a chunking function from a ``chunk_strategy`` configuration.
+
+        Parameters
+        ----------
+        chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]]
+            Either a strategy name (one of ``VALID_CHUNK_STRATEGIES``) or a
+            dictionary with a single key being the strategy name and the value
+            being a dictionary of keyword arguments for that strategy.
+
+        Returns
+        -------
+        Callable[[State], Generator[State, None, None]]
+            The chunking function that splits a state into chunks.
+        """
+        if not isinstance(chunk_strategy, (str, dict)):
+            raise ValueError("chunk_strategy must be a string or a dictionary")
+        if isinstance(chunk_strategy, dict) and len(chunk_strategy) != 1:
+            raise ValueError("chunk_strategy dictionary must have exactly one key")
+
+        if isinstance(chunk_strategy, str):
+            name, init_kwargs = chunk_strategy, {}
+        else:
+            name, init_kwargs = next(iter(chunk_strategy.items()))
+
+        match name:
+            case "by_size":
+                return self.by_size(**init_kwargs)
+            case "by_metadata":
+                return self.by_metadata(**init_kwargs)
+            case "by_worker":
+                return self.by_worker(**init_kwargs)
+            case _:
+                raise ValueError(f"Invalid chunk_strategy: {name}. Must be one of {VALID_CHUNK_STRATEGIES}")
+
 
 class MessageType(str, Enum):
     """Types of messages sent from the main process to the writer processes. Used for logging and control flow in the writer loop."""
@@ -352,7 +388,8 @@ class ParallelOutput(Output):
             Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
             with a single key being the strategy name and the value being a dictionary of
             keyword arguments for that strategy.
-            - `by_worker`, no additional arguments are needed.
+            - `by_worker` (default), splits the fields into exactly `num_writers` contiguous
+              chunks of roughly equal size, one per writer. No additional arguments are needed.
             - `by_size`, requires an additional argument `fields_per_chunk` specifying the number of fields per chunk.
             - `by_metadata`, requires an additional argument `keys` specifying a list of metadata keys to keep in a chunk.
         **kwargs : Any
@@ -389,30 +426,7 @@ class ParallelOutput(Output):
         self._grib_templates_bytes_cache_value: dict[str, bytes] | None = None
 
         # Chunking strategy for dividing work among writer processes.
-        if not isinstance(chunk_strategy, (str, dict)):
-            raise ValueError("chunk_strategy must be a string or a dictionary")
-        if isinstance(chunk_strategy, dict) and len(chunk_strategy) != 1:
-            raise ValueError("chunk_strategy dictionary must have exactly one key")
-
-        chunk_strategy_name = chunk_strategy if isinstance(chunk_strategy, str) else next(iter(chunk_strategy.keys()))
-        chunk_strategy_init = next(iter(chunk_strategy.values())) if isinstance(chunk_strategy, dict) else {}
-        chunker = Chunker(self.typed_variables, self.num_writers)
-
-        match chunk_strategy_name:
-            case "by_size":
-                assert isinstance(chunk_strategy, dict)
-                chunking_func = chunker.by_size(**chunk_strategy_init)
-            case "by_metadata":
-                assert isinstance(chunk_strategy, dict)
-                chunking_func = chunker.by_metadata(**chunk_strategy_init)
-            case "by_worker":
-                chunking_func = chunker.by_worker()
-            case _:
-                raise ValueError(
-                    f"Invalid chunk_strategy: {chunk_strategy_name}. Must be one of {VALID_CHUNK_STRATEGIES}"
-                )
-
-        self.chunking_func = chunking_func
+        self.chunking_func = Chunker(self.typed_variables, self.num_writers).from_config(chunk_strategy)
 
     def open(self, state: State) -> None:
         """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context.
