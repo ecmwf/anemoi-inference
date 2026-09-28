@@ -262,6 +262,8 @@ class BaseGribOutput(Output):
         self.reference_date = state["date"]
         state.setdefault("step", datetime.timedelta(0))
 
+        state = self.post_process(state)  # Ensure post processed
+
         for name in state["fields"].keys():
             if self.skip_variable(name):
                 continue
@@ -278,7 +280,7 @@ class BaseGribOutput(Output):
                     f"No grib template found for initial state param `{name}`. Try setting `write_initial_state` to `false`."
                 )
 
-        return self.write_step(self.post_process(state))
+        return self.write_step(state)
 
     def write_step(self, state: State) -> None:
         """Write a step of the state.
