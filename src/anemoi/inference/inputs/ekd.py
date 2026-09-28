@@ -272,7 +272,7 @@ class EkdInput(Input):
         flatten : bool
             Whether to flatten the data.
         ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional arguments for selecting the variable.
 
@@ -413,8 +413,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
+        ref_date_index : int = -1
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional arguments for selecting the variable.
         Returns
@@ -533,7 +533,7 @@ class FieldlistInput(EkdInput):
         dates : list[Date]
             The dates for which to create the input state.
         ref_date_index : int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional keyword arguments.
 

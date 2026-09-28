@@ -148,13 +148,15 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
-    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         dates : list[Date]
             The dates for which to create the input state.
+        ref_date_index : int = -1
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -168,7 +170,7 @@ class DatasetInput(Input):
         longitudes = self.ds.longitudes
 
         input_state = dict(
-            date=dates[-1],
+            date=dates[ref_date_index],
             latitudes=latitudes[self.grid_indices],
             longitudes=longitudes[self.grid_indices],
             fields=dict(),
@@ -176,7 +178,7 @@ class DatasetInput(Input):
 
         fields = input_state["fields"]
 
-        data = self._load_dates(dates, base_date=dates[-1])
+        data = self._load_dates(dates, base_date=dates[ref_date_index])
 
         if data.shape[2] != 1:
             raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
