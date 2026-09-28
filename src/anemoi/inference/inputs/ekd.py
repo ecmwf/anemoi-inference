@@ -13,6 +13,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import datetime
 from functools import cached_property
 from typing import Any
 
@@ -564,6 +565,10 @@ class FieldlistInput(EkdInput):
             dates=dates,
             current_state=current_state,
         )
+
+    def default_initial_date(self) -> datetime:
+        # most recent valid datetime from the fieldlist
+        return self._fieldlist.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
 
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:

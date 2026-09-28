@@ -14,6 +14,9 @@ These values are then tested in the mock model.
 """
 
 import logging
+from datetime import datetime
+from datetime import time
+from datetime import timezone
 
 import earthkit.data as ekd
 import numpy as np
@@ -135,3 +138,7 @@ class DummyInput(EkdInput):
         """
         # Unused, but required by the TemplateManager
         return {}
+
+    def default_initial_date(self) -> datetime:
+        # midnight of the current date in UTC
+        return datetime.combine(datetime.now(timezone.utc).date(), time())

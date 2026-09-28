@@ -9,9 +9,11 @@
 
 
 import logging
+from datetime import datetime
 from typing import Any
 
 import earthkit.data as ekd
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -223,3 +225,7 @@ class CDSInput(GribInput):
             dates=dates,
             current_state=current_state,
         )
+
+    def default_initial_date(self) -> datetime:
+        # yesterday midnight
+        return to_datetime(-1)

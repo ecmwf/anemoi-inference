@@ -9,9 +9,11 @@
 
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from anemoi.utils.dates import as_timedelta
+from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -362,3 +364,7 @@ class MarsInput(GribInput):
                 request.update(keys)
 
         return request
+
+    def default_initial_date(self) -> datetime:
+        # yesterday midnight
+        return to_datetime(-1)
