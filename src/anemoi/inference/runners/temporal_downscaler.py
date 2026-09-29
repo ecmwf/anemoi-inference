@@ -50,6 +50,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
         - The output states are between these two states and are set by "frequency" in the config
     """
 
+    ref_date_index: int = 0
+    """For indexing upon a list of dates, the temporal downscaler works from the start (t)."""
+
     def __init__(self, config: RunConfiguration):
         super().__init__(
             config,
@@ -144,12 +147,14 @@ class TemporalDownscalerMultiOutRunner(Runner):
             input_states: dict[str, State] = {}
             for dataset in self.tensor_handlers:
                 prognostic_state = self.prognostics_inputs[dataset].create_input_state(
-                    dates=[window_start_date, window_end_date], select_reference_date=True, ref_date_index=0
+                    dates=[window_start_date, window_end_date],
+                    select_reference_date=True,
                 )
                 self._check_state(dataset, prognostic_state, "prognostics")
 
                 forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
-                    dates=[window_start_date, window_end_date], select_reference_date=True, ref_date_index=0
+                    dates=[window_start_date, window_end_date],
+                    select_reference_date=True,
                 )
                 self._check_state(dataset, forcings_state, "dynamic_forcings")
 

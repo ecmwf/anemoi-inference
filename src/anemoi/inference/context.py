@@ -34,6 +34,7 @@ class Context(ABC):
     # but may remain as None
 
     reference_date = None
+    ref_date_index: int
     time_step = None
     lead_time = None
     output_frequency: int | None = None

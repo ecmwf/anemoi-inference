@@ -244,7 +244,6 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        ref_date_index: int = -1,
         **kwargs,
     ) -> State:
         """Create a state from an ekd.FieldList.
@@ -270,8 +269,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional arguments for selecting the variable.
 
@@ -307,7 +304,7 @@ class EkdInput(Input):
                     )
                     raise e
 
-        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = dict(date=dates[self.context.ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
 
         # allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
@@ -391,7 +388,6 @@ class EkdInput(Input):
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        ref_date_index: int = -1,
         **kwargs,
     ) -> State:
         """Create the input state.
@@ -412,8 +408,6 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional arguments for selecting the variable.
         Returns
@@ -429,7 +423,6 @@ class EkdInput(Input):
             longitudes=longitudes,
             dtype=dtype,
             flatten=flatten,
-            ref_date_index=ref_date_index,
             **kwargs,
         )
 
@@ -524,15 +517,13 @@ class FieldlistInput(EkdInput):
         super().__init__(context, metadata, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         dates : list[Date]
             The dates for which to create the input state.
-        ref_date_index : int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -541,7 +532,7 @@ class FieldlistInput(EkdInput):
         State
             The created input state.
         """
-        return self._create_input_state(self._fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs)
+        return self._create_input_state(self._fieldlist, dates=dates, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -567,7 +558,9 @@ class FieldlistInput(EkdInput):
 
     def default_initial_date(self) -> datetime:
         # most recent valid datetime from the fieldlist
-        return self._fieldlist.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+        return self._fieldlist.order_by(valid_datetime="ascending")[self.context.ref_date_index].datetime()[
+            "valid_time"
+        ]
 
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:

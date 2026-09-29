@@ -78,15 +78,13 @@ class OpenDAPInput(EkdInput):
             combined_fieldlist = combined_fieldlist.isel(valid_datetime=0)
         return combined_fieldlist  # type: ignore[reportReturnType]
 
-    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
         dates : list[Date]
             The list of dates for which to create the input state.
-        ref_date_index : int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -105,7 +103,7 @@ class OpenDAPInput(EkdInput):
             fieldlists.append(self._retrieve_from_opendap(resolved_url))
 
         fieldlist = ekd.FieldList.from_fields([f for fl in fieldlists for f in fl])
-        return self._create_input_state(fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs)
+        return self._create_input_state(fieldlist, dates=dates, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.

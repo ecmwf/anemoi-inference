@@ -78,6 +78,9 @@ class Runner(Context):
     This class provides the default forecaster implementation with rollout.
     """
 
+    ref_date_index: int = -1
+    """For indexing upon a list of dates, the default is the last date."""
+
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
         LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}")
