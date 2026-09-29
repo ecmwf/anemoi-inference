@@ -200,10 +200,9 @@ class EkdInput(Input):
 
         if select_reference_date:
             datetime_selection.update(
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
+                dataDate=int(self.context.reference_date.strftime("%Y%m%d")),
+                dataTime=int(self.context.reference_date.strftime("%H%M")),
             )
-
         data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
         LOG.info("Selecting fields %s %s", len(data), valid_datetime)
 

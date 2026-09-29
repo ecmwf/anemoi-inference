@@ -110,7 +110,6 @@ class Runner(Context):
         self.preload_checkpoint = config.preload_checkpoint
         self.preload_buffer_size = config.preload_buffer_size
         self.precision = config.precision
-        self.reference_date = config.date if hasattr(config, "date") else None
 
         self.quiet: set[str] = set()  # So we don't repeat the same warning multiple times
 
@@ -222,9 +221,6 @@ class Runner(Context):
             LOG.info("-" * 80)
             LOG.info(f"[{dataset}] Input state:")
             LOG.info(f"  {list(input_states[dataset]['fields'].keys())}")
-
-        if self.reference_date is None:
-            self.reference_date = next(iter(input_states.values()))["date"]
 
         lead_time = to_timedelta(lead_time)
 
@@ -635,6 +631,18 @@ class Runner(Context):
             "for initial conditions, constants and dynamic forcings."
         )
 
+    @cached_property
+    def reference_date(self) -> datetime.datetime:
+        if config_date := getattr(self.config, "date", None):
+            return config_date
+        _dataset, _input = next(iter(self.prognostics_inputs.items()))
+        reference_date = _input.default_initial_date()
+
+        LOG.info(
+            f"`date` not provided in the config, using the default initial date from [{_dataset}] {_input}]: {reference_date.isoformat()}"
+        )
+        return reference_date
+
     ###########################################################################################################
     def execute(self) -> None:
         """Execute the runner."""
@@ -655,14 +663,6 @@ class Runner(Context):
         input_states: dict[str, State] = {}
         input_constants_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
-
-        if self.reference_date is None:
-            _dataset, _input = next(iter(self.prognostics_inputs.items()))
-            self.reference_date = _input.default_initial_date()
-
-            LOG.info(
-                f"`date` not provided in the config, using the default initial date from [{_dataset}] {_input}]: {self.reference_date.isoformat()}"
-            )
 
         for dataset in self.tensor_handlers:
             multi_dataset_metadata = self.checkpoint.multi_dataset_metadata[dataset]
