@@ -26,6 +26,7 @@ from ..decorators import format_dataset_name
 from ..decorators import main_argument
 from ..decorators import supports_parallel_output
 from ..output import Output
+from ..types import OutputVariableConfigUnion
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class NetCDFOutput(Output):
         metadata: Metadata,
         *,
         path: Path,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
         write_initial_state: bool | None = None,
@@ -68,8 +69,8 @@ class NetCDFOutput(Output):
         path : Path
             The path to save the NetCDF file to.
             If the parent directory does not exist, it will be created.
-        variables : list, optional
-            The list of variables to write, by default None.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default None.
         post_processors : Optional[List[ProcessorConfig]], default None
             Post-processors to apply to the input
         output_frequency : int, optional

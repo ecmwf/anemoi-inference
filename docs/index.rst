@@ -126,7 +126,7 @@ Get more information in the :ref:`installing <installing>` section.
    :caption: Contributing
 
    dev/contributing
-   dev/integration-tests
+   dev/dev-guide
 
 .. toctree::
    :maxdepth: 1
