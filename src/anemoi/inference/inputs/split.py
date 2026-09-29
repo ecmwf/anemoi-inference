@@ -131,7 +131,7 @@ class SplitInput(Input):
             state = combine_states(*states)
 
         state["_input"] = self
-        state["date"] = dates[-1]
+        state["date"] = dates[kwargs.get("ref_date_index", -1)]
 
         return state
 

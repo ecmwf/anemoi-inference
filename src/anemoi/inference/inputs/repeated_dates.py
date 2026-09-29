@@ -82,7 +82,7 @@ class RepeatedDatesInput(Input):
                 state = concat_states([state, s])
 
         state["_input"] = self
-        state["date"] = dates[-1]
+        state["date"] = dates[kwargs.get("ref_date_index", -1)]
 
         return state
 
@@ -120,7 +120,6 @@ class RepeatedDatesInput(Input):
                 state = concat_states([state, s])
 
         state["date"] = dates[-1]
-
         state["_input"] = self
 
         return state
