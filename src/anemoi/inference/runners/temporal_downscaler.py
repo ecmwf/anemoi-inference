@@ -85,9 +85,12 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
-        req = request.copy()
 
-        req = super().patch_data_request(req, dataset_name)
+        req = super().patch_data_request(request, dataset_name)
+
+        # If step present, we assume the user / inputs have explicitly set it and we don't modify it.
+        if "step" in req:
+            return req
 
         # by default the `time` will be two initialisation times, e.g. 0000 and 0600
         # instead, we want one initialisation time and use `step` to get the input forecast based on the lead time.
@@ -121,7 +124,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         self.constants_states: dict[str, State] = {}
         for dataset in self.tensor_handlers:
             self.constants_states[dataset] = self.constant_forcings_inputs[dataset].create_input_state(
-                dates=[self.reference_date], constant=True, ref_date_index=0
+                dates=[self.reference_date], ref_date_index=0
             )
             for key in self.constants_states[dataset]["fields"].keys():
                 self.constants_states[dataset]["fields"][key] = np.concatenate(
