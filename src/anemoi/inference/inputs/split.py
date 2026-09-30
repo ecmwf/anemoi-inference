@@ -41,8 +41,6 @@ class SplitInput(Input):
         seen = set()
 
         for s in splits:
-
-            # LOG.info(f"Processing split:\n{json.dumps(s, indent=2)}")
             assert isinstance(s, dict), "each split must be a dictionary"
 
             if "default" in s:
@@ -111,7 +109,7 @@ class SplitInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The dates for the input state.
         ref_date_index : int = -1
             The index in `dates` to use as reference date for the state.
@@ -142,7 +140,7 @@ class SplitInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The list of dates for which to repeat the fields.
         current_state : State
             The current state to use for loading.

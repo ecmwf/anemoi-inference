@@ -57,7 +57,7 @@ class RepeatedDatesInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The dates for the input state.
         ref_date_index : int = -1
             The index in `dates` to use as reference date for the state.
@@ -93,7 +93,7 @@ class RepeatedDatesInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The list of dates for which to repeat the fields.
         current_state : State
             The current state to use for loading.

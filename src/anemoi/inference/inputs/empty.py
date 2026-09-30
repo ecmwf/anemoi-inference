@@ -51,7 +51,7 @@ class EmptyInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The dates for the input state.
         **kwargs : Any
             Additional keyword arguments.
@@ -68,7 +68,7 @@ class EmptyInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The list of dates for the forcings state.
         current_state : State
             The current state (unused).
