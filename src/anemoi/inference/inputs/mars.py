@@ -24,7 +24,6 @@ from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
-from .utils import convert_dates_to_base_and_step
 
 LOG = logging.getLogger(__name__)
 
@@ -250,7 +249,7 @@ class MarsInput(GribInput):
             pre_processors=pre_processors,
             purpose=purpose,
             namer=namer,
-            forcings_from_forecast=forcings_from_forecast,
+            forcings_from_forecast=forcings_from_forecast or kwargs.get("type", None) == "fc",
         )
 
         self.kwargs = kwargs
@@ -278,7 +277,7 @@ class MarsInput(GribInput):
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                dates=dates,
+                **self._parse_dates(dates),
             ),
             variables=self.variables,
             dates=dates,
@@ -352,13 +351,8 @@ class MarsInput(GribInput):
         Any
             The loaded forcings state.
         """
-        if self.forcings_from_forecast:
-            LOG.debug("%s: Loading forcings from forecast for dates: %s", self.__class__.__name__, dates)
-            base_date = current_state["date"] - current_state["step"]
-            steps = convert_dates_to_base_and_step(dates, base_date=base_date)
-            retrieved_state = self.retrieve(self.variables, [base_date], step=steps, type="fc")
-        else:
-            retrieved_state = self.retrieve(self.variables, dates)
+
+        retrieved_state = self.retrieve(self.variables, **self._parse_dates(dates))
 
         return self._load_forcings_state(
             retrieved_state,

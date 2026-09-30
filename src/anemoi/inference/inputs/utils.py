@@ -12,8 +12,8 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.types import Date
 
 
-def convert_dates_to_base_and_step(dates: list[Date], base_date: Date) -> list[int]:
-    """Convert a list of dates to base and step.
+def convert_dates_to_steps(dates: list[Date], base_date: Date) -> list[int]:
+    """Convert a list of dates to steps.
 
     Parameters
     ----------

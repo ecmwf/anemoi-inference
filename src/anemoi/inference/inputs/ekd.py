@@ -33,6 +33,7 @@ from anemoi.inference.types import State
 
 from ..checks import check_data
 from ..input import Input
+from .utils import convert_dates_to_steps
 
 LOG = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ class EkdInput(Input):
         metadata: Metadata,
         *,
         namer: Any | None = None,
-        forcings_from_forecast: bool = False,
+        from_forecast: bool = False,
         **kwargs,
     ) -> None:
         """Initialize the EkdInput.
@@ -150,11 +151,11 @@ class EkdInput(Input):
             Metadata corresponding to the dataset this input is handling.
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
-        forcings_from_forecast: bool
-            Whether to get forcings from a forecast, i.e. selecting from step, rather than basedate.
+        from_forecast: bool
+            Whether to get data from a forecast, i.e. selecting from step, rather than base date.
         """
         super().__init__(context, metadata, **kwargs)
-        self.forcings_from_forecast = forcings_from_forecast
+        self.from_forecast = from_forecast
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -219,6 +220,16 @@ class EkdInput(Input):
         check_data(title, data, self.variables, dates, self.metadata)
 
         return data
+
+    def _parse_dates(self, dates: list[Date]) -> dict[str, list[Any]]:
+        """Parse a list of dates into a dictionary of dates and steps if `from_forecast` is True."""
+        if not self.from_forecast:
+            return {"dates": dates}
+        base_date = self.reference_date
+        if base_date is None:
+            raise ValueError("Reference date is not set but 'from_forecast' is True.")
+        steps = convert_dates_to_steps(dates, base_date=base_date)
+        return {"dates": [base_date], "step": steps}
 
     def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
         """Find a variable in the earthkit FieldList selection.
@@ -469,7 +480,7 @@ class EkdInput(Input):
             longitudes=current_state.get("longitudes", None),
             dtype=np.float32,
             flatten=True,
-            select_reference_date=self.forcings_from_forecast,
+            select_reference_date=self.from_forecast,
         )
 
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
@@ -580,7 +591,11 @@ class FieldlistInput(EkdInput):
 
     def default_initial_date(self) -> datetime:
         # most recent valid datetime from the fieldlist
-        return self._fieldlist.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+        if self.from_forecast:
+            order = {"base_time": "descending"}
+        else:
+            order = {"valid_time": "descending"}
+        return self._fieldlist.order_by(order)[-1].datetime()[next(iter(order))]
 
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:

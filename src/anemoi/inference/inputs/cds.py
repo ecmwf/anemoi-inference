@@ -25,7 +25,6 @@ from anemoi.inference.types import State
 from . import input_registry
 from .grib import GribInput
 from .mars import postproc
-from .utils import convert_dates_to_base_and_step
 
 LOG = logging.getLogger(__name__)
 
@@ -122,7 +121,7 @@ class CDSInput(GribInput):
         dataset: str | dict[str, Any],
         namer: Any | None = None,
         purpose: str | None = None,
-        forcings_from_forecast: bool = False,
+        from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the CDSInput.
@@ -143,8 +142,8 @@ class CDSInput(GribInput):
             Optional namer for the input.
         purpose : Optional[str]
             The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
-        forcings_from_forecast : bool
-            Whether to get forcings from a forecast, i.e. selecting from step, rather than basedate.
+        from_forecast: bool
+            Whether to get data from a forecast, i.e. selecting from step, rather than base date.
         **kwargs : Any
             Additional keyword arguments.
         """
@@ -155,7 +154,7 @@ class CDSInput(GribInput):
             pre_processors=pre_processors,
             namer=namer,
             purpose=purpose,
-            forcings_from_forecast=forcings_from_forecast,
+            from_forecast=from_forecast,
         )
 
         self.dataset = dataset
@@ -180,7 +179,7 @@ class CDSInput(GribInput):
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                dates=dates,
+                **self._parse_dates(dates),
             ),
             variables=self.variables,
             dates=dates,
@@ -239,16 +238,10 @@ class CDSInput(GribInput):
 
         Returns
         -------
-        Any
+        State
             The loaded forcings state.
         """
-        if self.forcings_from_forecast:
-            LOG.debug("%s: Loading forcings from forecast for dates: %s", self.__class__.__name__, dates)
-            base_date = current_state["date"] - current_state["step"]
-            steps = convert_dates_to_base_and_step(dates, base_date=base_date)
-            retrieved_state = self.retrieve(self.variables, [base_date], step=steps)
-        else:
-            retrieved_state = self.retrieve(self.variables, dates)
+        retrieved_state = self.retrieve(self.variables, **self._parse_dates(dates))
 
         return self._load_forcings_state(
             retrieved_state,
