@@ -17,6 +17,7 @@ LOG = logging.getLogger(__name__)
 
 
 @runner_registry.register("default")
+@runner_registry.register("forecaster")
 class DefaultRunner(Runner):
     """The default runner is a forecaster."""
 
