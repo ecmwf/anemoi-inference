@@ -52,13 +52,15 @@ class RepeatedDatesInput(Input):
         super().__init__(context, metadata, **kwargs)
         self.source = create_input(context, source, self.metadata, variables=self.variables, purpose=self.purpose)
 
-    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
         ----------
         dates : list of Date
             The dates for the input state.
+        ref_date_index : int = -1
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -82,7 +84,7 @@ class RepeatedDatesInput(Input):
                 state = concat_states([state, s])
 
         state["_input"] = self
-        state["date"] = dates[kwargs.get("ref_date_index", -1)]
+        state["date"] = dates[ref_date_index]
 
         return state
 
