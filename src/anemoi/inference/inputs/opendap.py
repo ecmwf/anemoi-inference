@@ -37,6 +37,7 @@ class OpenDAPInput(EkdInput):
         metadata: Metadata,
         *,
         url: str | list[str],
+        from_forecast: bool = False,  # TODO: Make work
         **kwargs,
     ) -> None:
         """Initialise the OpenDAPInput.
@@ -53,8 +54,12 @@ class OpenDAPInput(EkdInput):
             It is expected that a user formats any variable correctly for the OpenDAP server, e.g. using strftime format codes for dates.
             i.e.: .../thredds/{date:%Y}/{date:%m}/{date:%d}/det_sfc_{date:%Y%m%d}T{date:%H}Z.nc
             for dates, if no format string is provided, the default format is isoformat, e.g. 2023-01-01 00:00:00.
+        from_forecast : bool, optional
+            Whether to get data from a forecast, i.e. selecting from step, rather than base date.
         """
-        super().__init__(context, metadata, **kwargs)
+        if from_forecast:
+            raise NotImplementedError("from_forecast=True is not yet supported for OpenDAPInput.")
+        super().__init__(context, metadata, from_forecast=from_forecast, **kwargs)
         self.url = url if isinstance(url, list) else [url]
 
     def _resolve_url(self, date: Date | None) -> list[str]:
