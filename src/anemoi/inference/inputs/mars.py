@@ -214,7 +214,7 @@ class MarsInput(GribInput):
         pre_processors: list[ProcessorConfig] | None = None,
         namer: Any | None = None,
         purpose: str | None = None,
-        forcings_from_forecast: bool = False,
+        from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the MarsInput.
@@ -237,8 +237,8 @@ class MarsInput(GribInput):
             List of pre-processors to apply to the input. If None, no pre-processing is performed.
         purpose : str or None, optional
             The purpose of the input (e.g., 'forcings', 'constants'). Used for debugging and logging.
-        forcings_from_forecast : bool
-            Whether to get forcings from a forecast, i.e. selecting from step, rather than basedate.
+        from_forecast : bool
+            Whether to get data from a forecast, i.e. selecting from step, rather than basedate.
         **kwargs : Any
             Additional keyword to pass to the request to MARS.
         """
@@ -249,7 +249,7 @@ class MarsInput(GribInput):
             pre_processors=pre_processors,
             purpose=purpose,
             namer=namer,
-            forcings_from_forecast=forcings_from_forecast or kwargs.get("type", None) == "fc",
+            from_forecast=from_forecast or kwargs.get("type", None) == "fc",
         )
 
         self.kwargs = kwargs
