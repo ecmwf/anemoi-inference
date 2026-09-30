@@ -45,7 +45,7 @@ class CoordinateReorder(Processor):
         perm = coord_reorder.get("permutation")
 
         if perm is None:
-            LOG.warning(
+            LOG.debug(
                 "Missing coordinate reorder permutation in state, did you use `coordinate_reorder` in the pre-processor."
             )
             return state
