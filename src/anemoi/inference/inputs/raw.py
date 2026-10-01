@@ -9,25 +9,18 @@
 
 """Raw input.
 
-Reads the ``.npz`` files produced by :class:`anemoi.inference.outputs.raw.RawOutput`.
+Reads the ``.npz`` files produced by :class:`anemoi.inference.outputs.raw.RawOutput`,
+so that the output of a first model can be fed as the initial conditions of a second.
 
-This is the counterpart of the ``raw`` output and makes it possible to
-*stack* two models: the raw output of a first model can be fed as the raw
-input (initial conditions) of a second model.
-
-Each file written by ``RawOutput`` contains a single date and holds:
-
-- ``field_<name>``: the values for variable ``<name>`` (shape ``(n_points,)``)
-- ``date``: the valid date of the fields (ISO-ish string)
-- ``latitudes`` / ``longitudes``: the grid coordinates
-
-Given the list of dates requested by the runner (typically the ``lagged``
-dates of the model, e.g. ``t-6h`` and ``t=0``), this input loads the matching
-files and stacks the fields along the date dimension to build the input state.
+A ``manifest.json`` is required, and is the single source of truth for the filename
+convention, the variables and the reference date. Coordinates come from ``grid.npz``
+when the output wrote one, and from the step files otherwise.
 """
 
 import datetime
+import json
 import logging
+from dataclasses import fields
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -38,6 +31,7 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.provenance import OutputManifest
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -51,8 +45,6 @@ from . import input_registry
 
 LOG = logging.getLogger(__name__)
 
-FIELD_PREFIX = "field_"
-
 
 @input_registry.register("raw")
 @main_argument("dir")
@@ -61,11 +53,17 @@ FIELD_PREFIX = "field_"
 class RawInput(Input):
     """Reads the ``.npz`` files produced by :class:`RawOutput`.
 
-    The naming convention (``template`` and ``strftime``) must match the one
-    used by the ``raw`` output that produced the files.
+    Everything describing the files is taken from their manifest, either read from the
+    directory or supplied directly, so nothing about them is inferred or configurable.
     """
 
     trace_name = "raw"
+
+    FIELD_PREFIX = "field_"
+    MANIFEST_NAME = "manifest.json"
+    GRID_NAME = "grid.npz"
+    SUPPORTED_FORMAT = "anemoi-raw"
+    SUPPORTED_VERSION = 1
 
     def __init__(
         self,
@@ -73,8 +71,7 @@ class RawInput(Input):
         metadata: Metadata,
         *,
         dir: Path,
-        template: str = "{date}.npz",
-        strftime: str = "%Y%m%d%H%M%S",
+        manifest: OutputManifest | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialise the RawInput.
@@ -87,25 +84,85 @@ class RawInput(Input):
             Metadata corresponding to the dataset this input is handling.
         dir : Path
             The directory containing the raw ``.npz`` files.
-        template : str, optional
-            The template for filenames, by default ``"{date}.npz"``.
-            Must match the template used by the ``raw`` output that wrote
-            the files. Variables available are ``date``, ``basetime`` and
-            ``step``.
-        strftime : str, optional
-            The date format string, by default ``"%Y%m%d%H%M%S"``.
-            Must match the one used by the ``raw`` output.
+        manifest : OutputManifest, optional
+            The manifest describing the files. Read from the directory when not given.
         **kwargs : Any
             Additional keyword arguments passed to :class:`Input`.
+
+        Raises
+        ------
+        ValueError
+            If `variables` conflicts with the variables named in the manifest.
         """
+        requested = kwargs.get("variables")
         super().__init__(context, metadata, **kwargs)
         self.dir = Path(dir)
-        self.template = template
-        self.strftime = strftime
+        self.manifest = manifest if manifest is not None else self._read_manifest()
+
+        self._check_manifest()
+        if requested is not None:
+            conflicting = sorted(set(requested) - set(self.manifest.variables))
+            if conflicting:
+                raise ValueError(
+                    f"{self.__class__.__name__}: configured variables {conflicting} are not in the manifest. "
+                    f"The files hold {sorted(self.manifest.variables)}."
+                )
 
     def __repr__(self) -> str:
         """Return a string representation of the RawInput object."""
         return f"RawInput({self.dir})"
+
+    def _read_manifest(self) -> OutputManifest:
+        """Read the manifest from the raw directory.
+
+        Returns
+        -------
+        OutputManifest
+            The manifest describing the files.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the directory holds no manifest.
+        ValueError
+            If the manifest cannot be read.
+        """
+        path = self.dir / self.MANIFEST_NAME
+        if not path.exists():
+            raise FileNotFoundError(
+                f"{self.__class__.__name__}: no {self.MANIFEST_NAME} in {self.dir}. "
+                f"Write the files with `output_manifest: true`, or pass a manifest explicitly."
+            )
+
+        known = {field.name for field in fields(OutputManifest)}
+        contents = json.loads(path.read_text())
+        try:
+            return OutputManifest(**{key: value for key, value in contents.items() if key in known})
+        except TypeError as e:
+            raise ValueError(f"{self.__class__.__name__}: cannot read {path}: {e}") from e
+
+    def _check_manifest(self) -> None:
+        """Warn about any mismatch between the manifest and the current run."""
+        if self.manifest.format != self.SUPPORTED_FORMAT:
+            LOG.warning("%s: manifest describes '%s', not '%s'.", self, self.manifest.format, self.SUPPORTED_FORMAT)
+
+        if self.manifest.version > self.SUPPORTED_VERSION:
+            LOG.warning(
+                "%s: manifest is version %d, newer than %d.", self, self.manifest.version, self.SUPPORTED_VERSION
+            )
+
+        if self.manifest.dataset_name != self.dataset_name:
+            LOG.warning(
+                "%s: files were written for dataset '%s', reading as '%s'.",
+                self,
+                self.manifest.dataset_name,
+                self.dataset_name,
+            )
+
+        written_with = self.manifest.checkpoint.get("path")
+        current = str(self.context.checkpoint.path)
+        if written_with is not None and written_with != current:
+            LOG.warning("%s: files were written with checkpoint '%s', running with '%s'.", self, written_with, current)
 
     def _filename(self, date: datetime.datetime, base_date: datetime.datetime | None = None) -> str:
         """Render the file name for a given date.
@@ -115,26 +172,26 @@ class RawInput(Input):
         date : datetime.datetime
             The valid date of the fields.
         base_date : datetime.datetime, optional
-            The base (reference) date used to compute the step. If None, the
-            reference date of the context is used.
+            The base (reference) date used to compute the step. If None, the reference
+            date recorded in the manifest is used.
 
         Returns
         -------
         str
             The rendered file name (without directory).
         """
-        base_date = base_date if base_date is not None else to_datetime(self.reference_date)
-        step = date - base_date
+        if base_date is None:
+            base_date = to_datetime(self.manifest.reference_date)
 
         format_info = {
-            "date": date.strftime(self.strftime),
-            "basetime": base_date.strftime(self.strftime),
-            "step": step,
+            "date": date.strftime(self.manifest.strftime),
+            "basetime": base_date.strftime(self.manifest.strftime),
+            "step": date - base_date,
         }
-        return render_template(self.template, format_info)
+        return render_template(self.manifest.template, format_info)
 
-    def _load_file(self, date: datetime.datetime, base_date: datetime.datetime | None = None) -> dict[str, Any]:
-        """Load a single ``.npz`` file for the given date.
+    def _load_file(self, date: datetime.datetime, base_date: datetime.datetime | None = None) -> dict[str, FloatArray]:
+        """Load the fields of a single ``.npz`` file.
 
         Parameters
         ----------
@@ -145,27 +202,27 @@ class RawInput(Input):
 
         Returns
         -------
-        dict[str, Any]
-            A dictionary with keys ``fields`` (mapping variable name to a 1D
-            array), ``latitudes``, ``longitudes`` and ``date``.
+        dict[str, FloatArray]
+            Mapping of variable name to a 1D array of values.
+
+        Raises
+        ------
+        FileNotFoundError
+            If no file exists for the given date.
         """
         path = self.dir / self._filename(date, base_date=base_date)
         if not path.exists():
             raise FileNotFoundError(
-                f"{self.__class__.__name__}: no raw file found for date {date.isoformat()} at {path}. "
-                "Check that `template` and `strftime` match the `raw` output that produced the files."
+                f"{self.__class__.__name__}: no raw file found for date {date.isoformat()} at {path}."
             )
 
         LOG.info("%s: loading %s", self.__class__.__name__, path)
         with np.load(path, allow_pickle=False) as data:
-            fields = {
-                key[len(FIELD_PREFIX) :]: np.asarray(data[key]) for key in data.files if key.startswith(FIELD_PREFIX)
+            return {
+                key[len(self.FIELD_PREFIX) :]: np.asarray(data[key])
+                for key in data.files
+                if key.startswith(self.FIELD_PREFIX)
             }
-            latitudes = np.asarray(data["latitudes"]) if "latitudes" in data.files else None
-            longitudes = np.asarray(data["longitudes"]) if "longitudes" in data.files else None
-            file_date = str(data["date"]) if "date" in data.files else None
-
-        return dict(fields=fields, latitudes=latitudes, longitudes=longitudes, date=file_date)
 
     def _build_state(self, dates: list[Date], *, base_date: datetime.datetime | None = None) -> State:
         """Build a state by stacking the fields of the requested dates.
@@ -182,28 +239,24 @@ class RawInput(Input):
         State
             The state with ``fields`` as ``dict[str, np.ndarray]`` of shape
             ``(len(dates), n_points)``.
+
+        Raises
+        ------
+        ValueError
+            If no dates are given, or a required variable is not in the manifest.
         """
         if not dates:
             raise ValueError(f"{self.__class__.__name__}: no dates provided")
 
-        dates = sorted(to_datetime(d) for d in dates)
-
-        loaded = [self._load_file(date, base_date=base_date) for date in dates]
-
-        latitudes = loaded[0]["latitudes"]
-        longitudes = loaded[0]["longitudes"]
-
-        requested = set(self.variables)
-
-        # Determine the set of variables to expose (intersection of requested
-        # variables and what is available in the files).
-        available = set(loaded[0]["fields"].keys())
-        missing = requested - available
+        missing = sorted(set(self.variables) - set(self.manifest.variables))
         if missing:
             raise ValueError(
-                f"{self.__class__.__name__}: variables {sorted(missing)} not found in raw files. "
-                f"Available variables: {sorted(available)}"
+                f"{self.__class__.__name__}: variables {missing} not found in raw files. "
+                f"Available variables: {sorted(self.manifest.variables)}"
             )
+
+        dates = sorted(to_datetime(d) for d in dates)
+        loaded = [self._load_file(date, base_date=base_date) for date in dates]
 
         typed_variables = self.metadata.typed_variables
 
@@ -211,24 +264,21 @@ class RawInput(Input):
         state_variables: dict[str, Variable] = {}
 
         for name in self.variables:
-            stacked = np.stack([entry["fields"][name] for entry in loaded], axis=0)
-            fields[name] = stacked
+            fields[name] = np.stack([entry[name] for entry in loaded], axis=0)
             if name in typed_variables:
                 state_variables[name] = typed_variables[name]
 
             if trace := self.context.tensor_handlers[self.dataset_name].trace:
                 trace.from_input(name, self)
 
-        state: State = dict(
+        return dict(
             date=dates[-1],
-            latitudes=latitudes,
-            longitudes=longitudes,
+            latitudes=self.latitudes,
+            longitudes=self.longitudes,
             fields=fields,
             _input=self,
             _variables=state_variables,
         )
-
-        return state
 
     def create_input_state(self, *, dates: list[Date], **kwargs: Any) -> State:
         """Create the input state for the given dates.
@@ -283,11 +333,15 @@ class RawInput(Input):
 
     @cached_property
     def _reference_coords(self) -> tuple[FloatArray | None, FloatArray | None]:
-        """Return the grid coordinates from the first available raw file."""
-        files = sorted(self.dir.glob("*.npz"))
-        if not files:
-            return None, None
-        with np.load(files[0], allow_pickle=False) as data:
+        """Return the coordinates, from ``grid.npz`` if present, else from a step file."""
+        path = self.dir / self.GRID_NAME
+        if not path.exists():
+            candidates = sorted(p for p in self.dir.glob("*.npz") if p.name != self.GRID_NAME)
+            if not candidates:
+                return None, None
+            path = candidates[0]
+
+        with np.load(path, allow_pickle=False) as data:
             latitudes = np.asarray(data["latitudes"]) if "latitudes" in data.files else None
             longitudes = np.asarray(data["longitudes"]) if "longitudes" in data.files else None
         return latitudes, longitudes

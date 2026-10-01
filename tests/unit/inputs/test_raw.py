@@ -28,6 +28,14 @@ ALL_VARIABLES = ("z_500", "cp", "2t")
 
 LAGGED_DATES = [datetime(2019, 12, 31, 18), datetime(2020, 1, 1, 0)]
 
+GRID = np.array([0.0, 1.0, 2.0, 3.0])
+
+
+@pytest.fixture(autouse=True)
+def fast_provenance(monkeypatch):
+    """Stub the environment scan, which otherwise dominates the runtime of these tests."""
+    monkeypatch.setattr("anemoi.inference.outputs.raw.gather_provenance_info", lambda: {})
+
 
 @pytest.fixture
 def context():
@@ -47,27 +55,24 @@ def metadata():
     meta.dataset_name = "test"
     meta.typed_variables = {name: MagicMock() for name in ALL_VARIABLES}
     meta.multi_dataset = False
+    meta.grid = "o48"
     return meta
 
 
-def _write_raw_files(context, metadata, directory):
+def _write_raw_files(context, metadata, directory, *, with_grid=True, **kwargs):
     """Write raw files (one per lagged date) mimicking a first model's output."""
-    output = RawOutput(context, metadata, dir=str(directory))
+    output = RawOutput(context, metadata, dir=str(directory), output_manifest=True, **kwargs)
+
+    grid = {"latitudes": GRID, "longitudes": GRID}
+    output.open({"date": LAGGED_DATES[0], **(grid if with_grid else {})})
+
     expected = {}
     for date in LAGGED_DATES:
         fields = {name: np.arange(4, dtype=np.float32) + i for i, name in enumerate(ALL_VARIABLES)}
         # make each date's values distinct so stacking order can be checked
         fields = {name: values + date.hour for name, values in fields.items()}
         expected[date] = fields
-        output.write_step(
-            {
-                "date": date,
-                "step": date - LAGGED_DATES[0],
-                "fields": fields,
-                "latitudes": np.array([0.0, 1.0, 2.0, 3.0]),
-                "longitudes": np.array([0.0, 1.0, 2.0, 3.0]),
-            }
-        )
+        output.write_step({"date": date, "step": date - LAGGED_DATES[0], "fields": fields, **grid})
     return expected
 
 
@@ -88,8 +93,8 @@ def test_raw_roundtrip_stacking(tmp_path, context, metadata):
         for i, date in enumerate(sorted(LAGGED_DATES)):
             np.testing.assert_array_equal(values[i], expected[date][name])
 
-    np.testing.assert_array_equal(state["latitudes"], np.array([0.0, 1.0, 2.0, 3.0]))
-    np.testing.assert_array_equal(state["longitudes"], np.array([0.0, 1.0, 2.0, 3.0]))
+    np.testing.assert_array_equal(state["latitudes"], GRID)
+    np.testing.assert_array_equal(state["longitudes"], GRID)
     assert sorted(state["_variables"]) == sorted(ALL_VARIABLES)
     assert state["_input"] is input_
 
@@ -104,13 +109,18 @@ def test_raw_variable_selection(tmp_path, context, metadata):
     assert sorted(state["fields"]) == ["cp"]
 
 
-def test_raw_missing_variable_raises(tmp_path, context, metadata):
-    """RawInput raises if a requested variable is not present in the files."""
+def test_raw_conflicting_variable_raises(tmp_path, context, metadata):
+    """RawInput raises if the configured variables are not in the manifest."""
     _write_raw_files(context, metadata, tmp_path)
 
-    input_ = RawInput(context, metadata, dir=str(tmp_path), variables=["does_not_exist"])
-    with pytest.raises(ValueError, match="not found in raw files"):
-        input_.create_input_state(dates=LAGGED_DATES)
+    with pytest.raises(ValueError, match="not in the manifest"):
+        RawInput(context, metadata, dir=str(tmp_path), variables=["does_not_exist"])
+
+
+def test_raw_missing_manifest_raises(tmp_path, context, metadata):
+    """RawInput raises when the directory holds no manifest."""
+    with pytest.raises(FileNotFoundError, match="no manifest.json"):
+        RawInput(context, metadata, dir=str(tmp_path), variables=list(ALL_VARIABLES))
 
 
 def test_raw_missing_file_raises(tmp_path, context, metadata):
@@ -165,53 +175,26 @@ def test_raw_single_date(tmp_path, context, metadata):
         np.testing.assert_array_equal(values[0], expected[date][name])
 
 
-def test_raw_custom_template_and_strftime(tmp_path, context, metadata):
-    """RawInput and RawOutput agree when a custom template/strftime is used."""
-    template = "state_{date}.npz"
-    strftime = "%Y-%m-%dT%H"
+def test_raw_custom_template_from_manifest(tmp_path, context, metadata):
+    """A custom filename convention is recovered from the manifest, not configured."""
+    _write_raw_files(context, metadata, tmp_path, template="state_{date}.npz", strftime="%Y-%m-%dT%H")
 
-    output = RawOutput(context, metadata, dir=str(tmp_path), template=template, strftime=strftime)
-    for date in LAGGED_DATES:
-        output.write_step(
-            {
-                "date": date,
-                "step": date - LAGGED_DATES[0],
-                "fields": {name: np.arange(4, dtype=np.float32) for name in ALL_VARIABLES},
-                "latitudes": np.array([0.0, 1.0, 2.0, 3.0]),
-                "longitudes": np.array([0.0, 1.0, 2.0, 3.0]),
-            }
-        )
+    assert (tmp_path / "state_2020-01-01T00.npz").exists()
 
-    # A default input (wrong template) cannot find the files ...
-    default_input = RawInput(context, metadata, dir=str(tmp_path), variables=list(ALL_VARIABLES))
-    with pytest.raises(FileNotFoundError):
-        default_input.create_input_state(dates=LAGGED_DATES)
-
-    # ... but one configured with the matching template can.
-    input_ = RawInput(
-        context,
-        metadata,
-        dir=str(tmp_path),
-        template=template,
-        strftime=strftime,
-        variables=list(ALL_VARIABLES),
-    )
+    input_ = RawInput(context, metadata, dir=str(tmp_path), variables=list(ALL_VARIABLES))
     state = input_.create_input_state(dates=LAGGED_DATES)
+
     for name in ALL_VARIABLES:
         assert state["fields"][name].shape == (len(LAGGED_DATES), 4)
 
 
-def test_raw_reference_coordinates(tmp_path, context, metadata):
-    """The latitudes/longitudes properties read from the first available file."""
-    _write_raw_files(context, metadata, tmp_path)
+@pytest.mark.parametrize("with_grid", [True, False], ids=["from_grid_npz", "from_step_file"])
+def test_raw_reference_coordinates(with_grid, tmp_path, context, metadata):
+    """Coordinates come from grid.npz when written, and from a step file otherwise."""
+    _write_raw_files(context, metadata, tmp_path, with_grid=with_grid)
+
+    assert (tmp_path / "grid.npz").exists() is with_grid
 
     input_ = RawInput(context, metadata, dir=str(tmp_path), variables=list(ALL_VARIABLES))
-    np.testing.assert_array_equal(input_.latitudes, np.array([0.0, 1.0, 2.0, 3.0]))
-    np.testing.assert_array_equal(input_.longitudes, np.array([0.0, 1.0, 2.0, 3.0]))
-
-
-def test_raw_reference_coordinates_empty_dir(tmp_path, context, metadata):
-    """The coordinate properties return None when no files are present."""
-    input_ = RawInput(context, metadata, dir=str(tmp_path), variables=list(ALL_VARIABLES))
-    assert input_.latitudes is None
-    assert input_.longitudes is None
+    np.testing.assert_array_equal(input_.latitudes, GRID)
+    np.testing.assert_array_equal(input_.longitudes, GRID)
