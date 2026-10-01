@@ -34,4 +34,11 @@ class AutoRunnerFactory(Runner):
         runner_name = checkpoint.task
         if runner_name == "auto":
             raise ValueError("Task defined in configuration cannot be 'auto'.")
+
+        if runner_registry.lookup(runner_name, return_none=True) is None:
+            raise ValueError(
+                f"Runner '{runner_name}' from the metadata `task` field is not registered. "
+                f"Registered runners: {runner_registry.registered}"
+            )
+
         return runner_registry.from_config(runner_name, config, **kwargs)

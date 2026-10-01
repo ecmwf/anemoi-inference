@@ -16,8 +16,7 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-@runner_registry.register("default")
-@runner_registry.register("forecaster")
+@runner_registry.register("forecaster", aliases=["default"])
 class DefaultRunner(Runner):
     """The default runner is a forecaster."""
 
