@@ -11,8 +11,8 @@
 import logging
 import tempfile
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.types import State
@@ -52,7 +52,7 @@ class MaskValues(Processor):
         elif mask.endswith(".npy"):
             mask_array = np.load(mask)
         elif mask.endswith(".grib") or mask.endswith(".nc"):
-            mask_array = ekd.from_source("file", mask)[0].to_numpy(flatten=True)  # type: ignore
+            mask_array = FieldList.from_source("file", mask)[0].to_numpy(flatten=True)  # type: ignore
         else:
             raise ValueError(
                 f"Mask '{mask}' not found in supporting arrays nor does it appear to be a file, available arrays: {list(self.checkpoint.supporting_arrays.keys())}."

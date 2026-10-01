@@ -76,9 +76,10 @@ def _template_message_bytes(field: Any) -> bytes:
     Falls back to :meth:`field.message` if the shrink cannot be applied.
     """
     import numpy as np
+    from anemoi.transform.grib import grib_handle
 
     try:
-        handle = field.handle.clone()
+        handle = grib_handle(field).clone()
         bpv = handle.get("bitsPerValue")
         n = int(handle.get("numberOfDataPoints"))
         handle.set_values(np.zeros(n))
@@ -121,18 +122,18 @@ def _serialise_grib_templates(templates: dict) -> dict[str, bytes]:
 def _deserialise_grib_templates(bytes_templates: dict[str, bytes]) -> dict[str, Any]:
     """Reconstruct earthkit GRIB fields from raw bytes.
 
-    Uses ``earthkit.data.from_source("memory", ...)`` so the writer processes see
+    Uses ``FieldList.from_source("memory", ...)`` so the writer processes see
     the exact same field type they would see in the non-parallel path (i.e. the
     field the input pipeline stored under ``_grib_templates_for_output``).
     Failed reconstructions are skipped with a warning so a single bad template
     does not abort the whole state.
     """
-    import earthkit.data as ekd
+    from anemoi.transform import FieldList
 
     result: dict[str, Any] = {}
     for name, msg in bytes_templates.items():
         try:
-            result[name] = ekd.from_source("memory", msg)[0]
+            result[name] = FieldList.from_source("memory", msg)[0]
         except Exception as e:
             LOG.warning("Could not reconstruct GRIB template for '%s' from bytes: %s", name, e)
     return result

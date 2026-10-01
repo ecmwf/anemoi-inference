@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Hashable
 
-import earthkit.data as ekd
+from anemoi.transform import Field
+from anemoi.transform.grib import grib_handle
 from earthkit.data.utils.dates import to_timedelta
 
 from anemoi.inference.types import FloatArray
@@ -117,7 +118,7 @@ STEP_TYPE = {
 def encode_time_processing(
     *,
     result: dict[str, Any],
-    template: ekd.Field,
+    template: Field,
     variable: "Variable",
     date: datetime,
     step: timedelta,
@@ -132,7 +133,7 @@ def encode_time_processing(
     ----------
     result : dict[str, Any]
         The result dictionary to update.
-    template : ekd.Field
+    template : Field
         The template field.
     variable : Variable
         The variable containing time processing information.
@@ -207,7 +208,7 @@ LEVTYPES = {
 def grib_keys(
     *,
     values: FloatArray,
-    template: ekd.Field,
+    template: Field,
     variable: "Variable",
     ensemble: bool,
     param: int | float | str | None,
@@ -225,7 +226,7 @@ def grib_keys(
     ----------
     values : FloatArray
         The values to encode.
-    template : ekd.Field
+    template : Field
         The template to use.
     variable : Variable
         The variable containing GRIB keys.
@@ -304,7 +305,7 @@ def grib_keys(
 
     # 1 if local definition is present, like for ECMWF GRIBs
     if template is not None:
-        local_use_present = template.metadata("localUsePresent", default=0)
+        local_use_present = template.get("metadata.localUsePresent", default=0)
     else:
         local_use_present = 0
 
@@ -403,11 +404,9 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
     if mismatches:
 
         if first:
-            import eccodes
-            from earthkit.data.readers.grib.codes import GribCodesHandle
-
-            handle = GribCodesHandle(eccodes.codes_clone(handle._handle), None, None)
-            return check_encoding(handle, keys, first=False)
+            # Some keys are only recomputed by eccodes on a fresh handle;
+            # retry the comparison on a clone before declaring a mismatch.
+            return check_encoding(handle.clone(), keys, first=False)
 
         raise ValueError(f"GRIB field could not be encoded. Mismatches={mismatches}")
 
@@ -415,7 +414,7 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
 def encode_message(
     *,
     values: Any | None,
-    template: Any,
+    template: Field,
     metadata: dict[str, Any],
     check_nans: bool = False,
     missing_value: int | float = -9999,
@@ -426,8 +425,9 @@ def encode_message(
     ----------
     values : Optional[Any]
         The values to encode.
-    template : Any
-        The template to use.
+    template : Field
+        The template field; must be backed by a GRIB message (its handle
+        is cloned and the metadata keys are set on the clone).
     metadata : Dict[str, Any]
         The metadata for the GRIB message.
     check_nans : bool, optional
@@ -441,7 +441,7 @@ def encode_message(
         The encoded GRIB handle.
     """
     metadata = metadata.copy()  # avoid modifying the original metadata
-    handle = template.handle.clone()
+    handle = grib_handle(template).clone()
 
     if check_nans and values is not None:
         import numpy as np
@@ -544,7 +544,7 @@ class GribWriter:
         self,
         *,
         values: Any | None,
-        template: Any,
+        template: Field,
         metadata: dict[str, Any],
         check_nans: bool = False,
         missing_value: int | float = -9999,
@@ -555,8 +555,8 @@ class GribWriter:
         ----------
         values : Optional[Any]
             The values to encode.
-        template : Any
-            The template to use.
+        template : Field
+            The template field; must be backed by a GRIB message.
         metadata : Dict[str, Any]
             The metadata for the GRIB message.
         check_nans : bool, optional

@@ -35,6 +35,12 @@
         netcdf: ${cerra.output:}
     post_processors:
       - accumulate_from_start_of_forecast
+    # The cerra input GRIB carries sf accumulated from the start of the
+    # forecast (6h window at T-6, 12h at T0) while the training dataset
+    # used fixed 6h windows. Variable periods are now recovered from the
+    # raw GRIB step range, so the compatibility check sees the mismatch.
+    check_variables_compatibility:
+      ignore_processing_period: sf
     write_initial_state: false
 
 - name: grib/dataset-in-netcdf-out

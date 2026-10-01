@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 from typing import Literal
 
-import earthkit.data as ekd
 import numpy as np
+from anemoi.transform import Field
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -216,32 +216,18 @@ class GribIoOutput(BaseGribOutput):
         """Return a string representation of the GribIOOutput object."""
         return f"{type(self).__name__ }({self.out})"
 
-    def write_message(self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]) -> None:
+    def write_message(self, message: FloatArray, template: Field, **keys: dict[str, Any]) -> None:
         """Write a message to the grib file.
 
         Parameters
         ----------
         message : FloatArray
             The message array.
-        template : ekd.Field
-            A ekd.Field use as a template for GRIB encoding.
+        template : Field
+            A Field use as a template for GRIB encoding.
         **keys : Dict[str, Any]
             Additional keys for the message.
         """
-        # Make sure `name` is not in the keys, otherwise grib_encoding will fail
-        if template is not None and template.metadata("name", default=None) is not None:
-            # We cannot clear the metadata...
-            class Dummy:
-                def __init__(self, template: ekd.Field) -> None:
-                    self.template = template
-                    self.handle = template.handle
-
-                def __repr__(self) -> str:
-                    return f"Dummy({self.template})"
-
-            template = Dummy(template)
-
-        # LOG.info("Writing message to %s %s", template, keys)
         try:
             self.collect_archive_requests(
                 self.output.write(
@@ -251,7 +237,6 @@ class GribIoOutput(BaseGribOutput):
                     check_nans=self.context.allow_nans,
                     missing_value=self.missing_value,
                 ),
-                template,
                 **keys,
             )
         except Exception as e:
@@ -265,15 +250,13 @@ class GribIoOutput(BaseGribOutput):
                 LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
-    def collect_archive_requests(self, written: tuple, template: object, **keys: Any) -> None:
+    def collect_archive_requests(self, written: tuple, **keys: Any) -> None:
         """Collect archive requests.
 
         Parameters
         ----------
         written : tuple
             The written tuple.
-        template : object
-            The template object.
         **keys : Any
             Additional keys for the archive requests.
         """

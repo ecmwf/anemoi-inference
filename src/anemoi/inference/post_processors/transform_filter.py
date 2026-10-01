@@ -14,8 +14,8 @@ from abc import abstractmethod
 from datetime import timedelta
 from typing import Any
 
+from anemoi.transform import FieldList
 from anemoi.transform.filters import filter_registry
-from earthkit.data import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument

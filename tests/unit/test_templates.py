@@ -13,9 +13,11 @@ from pathlib import Path
 
 import pytest
 import yaml
+from anemoi.transform import Field
+from anemoi.transform import FieldList
+from anemoi.transform.grib import grib_handle
 from anemoi.utils.testing import GetTestData
-from earthkit.data.readers.grib.codes import GribCodesHandle
-from earthkit.data.readers.grib.codes import GribField
+from earthkit.data.readers.grib.handle import GribCodesHandle
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
@@ -81,17 +83,17 @@ def test_builtin(manager, variable, expected_param):
     manager = manager()
     template = manager.template(variable, state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == expected_param
 
 
 @pytest.mark.parametrize(
     "file_config, variable, expected_param, expected_type",
     [
-        pytest.param({}, "2t", "10u", GribField, id="first"),
-        pytest.param({"mode": "last"}, "2t", "v", GribField, id="last"),
-        pytest.param({"mode": "auto"}, "2t", "2t", GribField, id="auto-sfc"),
-        pytest.param({"mode": "auto"}, "w_100", "w", GribField, id="auto-pl"),
+        pytest.param({}, "2t", "10u", Field, id="first"),
+        pytest.param({"mode": "last"}, "2t", "v", Field, id="last"),
+        pytest.param({"mode": "auto"}, "2t", "2t", Field, id="auto-sfc"),
+        pytest.param({"mode": "auto"}, "w_100", "w", Field, id="auto-pl"),
         pytest.param({"mode": "auto"}, "unknown", None, type(None), id="auto unknown"),
         pytest.param({"variables": "10u"}, "2t", None, type(None), id="skip variable"),
     ],
@@ -119,7 +121,7 @@ def test_samples_index_path(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -130,7 +132,7 @@ def test_samples_index_path_str(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -141,7 +143,7 @@ def test_samples_direct_index(manager, template_index):
     manager = manager(config)
     template = manager.template("2t", state={}, typed_variables=manager.typed_variables)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("param") == "10u"  # first field in the file
 
 
@@ -275,7 +277,7 @@ def test_sanitise_state_bytes_are_picklable():
 
 
 def test_restore_grib_templates_reconstructs_wrapper(mocker: MockerFixture):
-    """_restore_grib_templates turns serialised bytes back into a real GribField,
+    """_restore_grib_templates turns serialised bytes back into a real GRIB-backed Field,
     which InputTemplates can then serve without any bytes-awareness of its own.
     """
     field = _make_grib_field_mock("2t", bits_per_value=16)
@@ -292,7 +294,7 @@ def test_restore_grib_templates_reconstructs_wrapper(mocker: MockerFixture):
 
     template = provider.template("2t", {}, state=restored)
 
-    assert isinstance(template, GribField)
+    assert isinstance(template, Field)
     assert template.metadata("shortName") == "2t"
     assert template.metadata("bitsPerValue") == 16
 
@@ -367,22 +369,20 @@ def test_restore_grib_templates_handle_is_cloneable():
     restored = _restore_grib_templates(_sanitise_with_templates(state))
 
     template = restored["_grib_templates_for_output"]["2t"]
-    cloned = template.handle.clone()
+    cloned = grib_handle(template).clone()
 
     assert isinstance(cloned, GribCodesHandle)
     assert cloned.get("bitsPerValue") == 16
 
 
 def _make_ekd_field(short_name: str, bits_per_value: int, param_id: int | None = None):
-    """Build a real ekd GribField (same type ParallelOutput sees at runtime)."""
-    import earthkit.data as ekd
-
+    """Build a real GRIB-backed Field (same type ParallelOutput sees at runtime)."""
     handle = GribCodesHandle.from_sample("regular_ll_sfc_grib2")
     handle.set("shortName", short_name)
     handle.set("bitsPerValue", bits_per_value)
     if param_id is not None:
         handle.set("paramId", param_id)
-    return ekd.from_source("memory", handle.get_buffer())[0]
+    return FieldList.from_source("memory", handle.get_buffer())[0]
 
 
 def _encode_with_template(field, values) -> bytes:
@@ -395,7 +395,7 @@ def _encode_with_template(field, values) -> bytes:
     """
     import numpy as np
 
-    handle = field.handle.clone()
+    handle = grib_handle(field).clone()
     handle.set_values(np.asarray(values, dtype=float))
     return handle.get_buffer()
 
@@ -433,7 +433,7 @@ def test_parallel_and_normal_paths_encode_identically_with_templates(bpv):
     # template must preserve ``bitsPerValue`` — if it doesn't, eccodes falls
     # back to a default and every message the writer produces will be packed
     # differently from the reference.
-    n = int(field_a.handle.get("numberOfDataPoints"))
+    n = int(grib_handle(field_a).get("numberOfDataPoints"))
     values = np.linspace(240.0, 310.0, n)
     assert _encode_with_template(field_a, values) == _encode_with_template(field_b_restored, values)
 
@@ -470,7 +470,6 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
     """
     import pickle
 
-    import earthkit.data as ekd
     import numpy as np
 
     from anemoi.inference.outputs.parallel import _serialise_grib_templates
@@ -479,11 +478,11 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
     rng = np.random.default_rng(0)
     n = int(GribCodesHandle.from_sample("regular_ll_sfc_grib2").get("numberOfDataPoints"))
 
-    def make_template(short_name: str) -> ekd.Field:
+    def make_template(short_name: str) -> Field:
         h = GribCodesHandle.from_sample("regular_ll_sfc_grib2")
         h.set("shortName", short_name)
         h.set("bitsPerValue", 16)
-        return ekd.from_source("memory", h.get_buffer())[0]
+        return FieldList.from_source("memory", h.get_buffer())[0]
 
     # Build a "raw open-data" state with gh fields (and optional templates).
     state: dict = {
@@ -499,9 +498,9 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
         state["fields"][f"z_{lvl}"] = state["fields"].pop(f"gh_{lvl}") * g
         if with_templates:
             tmpl = state["_grib_templates_for_output"].pop(f"gh_{lvl}")
-            h = tmpl.handle.clone()
+            h = grib_handle(tmpl).clone()
             h.set("shortName", "z")
-            state["_grib_templates_for_output"][f"z_{lvl}"] = ekd.from_source("memory", h.get_buffer())[0]
+            state["_grib_templates_for_output"][f"z_{lvl}"] = FieldList.from_source("memory", h.get_buffer())[0]
 
     # Push through the exact machinery ParallelOutput.dispatch_state_to_writers uses.
     templates = state.get("_grib_templates_for_output")

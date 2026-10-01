@@ -12,8 +12,8 @@ import logging
 from typing import Any
 
 import tqdm
-from anemoi.transform.fields import new_field_from_numpy
-from anemoi.transform.fields import new_fieldlist_from_list
+from anemoi.transform import Field
+from anemoi.transform import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -66,7 +66,7 @@ class NoMissingValues(Processor):
             mean_value = np.nanmean(data)
 
             data = np.where(np.isnan(data), mean_value, data)
-            result.append(new_field_from_numpy(data, template=field))
+            result.append(Field.from_numpy(data, template=field))
 
-        state["fields"] = new_fieldlist_from_list(result)
+        state["fields"] = FieldList.from_fields(result)
         return state

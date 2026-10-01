@@ -13,7 +13,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 
-import earthkit.data as ekd
+from anemoi.transform import Field
 
 from anemoi.inference.output import Output
 from anemoi.inference.types import State
@@ -77,7 +77,7 @@ class TemplateManager:
             for provider, variables in to_log.items():
                 LOG.info(f"  - {provider}: {', '.join(sorted(variables))}")
 
-    def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
+    def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> Field | None:
         """Get the template for a given name and state.
 
         Parameters
@@ -91,7 +91,7 @@ class TemplateManager:
 
         Returns
         -------
-        Optional[ekd.Field]
+        Optional[Field]
             The template field if found, otherwise None.
         """
         assert name is not None, name
@@ -101,7 +101,7 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
+    def load_template(self, name: str, state: State, typed_variables: dict[str, Any]) -> Field | None:
         """Load the template for a given name and state.
 
         Parameters
@@ -115,7 +115,7 @@ class TemplateManager:
 
         Returns
         -------
-        Optional[ekd.Field]
+        Optional[Field]
             The template field if found, otherwise None.
         """
 

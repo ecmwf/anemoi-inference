@@ -11,6 +11,7 @@
 import logging
 from typing import Any
 
+from anemoi.transform import FieldList
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
@@ -158,7 +159,6 @@ def retrieve(
     Any
         The retrieved data.
     """
-    import earthkit.data as ekd
 
     def _(r: DataRequest) -> str:
         mars = r.copy()
@@ -172,7 +172,7 @@ def retrieve(
 
     pproc = postproc(grid, area)
 
-    result = ekd.from_source("empty")
+    result = FieldList()
     for r in requests:
         if r.get("class") in ("rd", "ea"):
             r["class"] = "od"
@@ -190,7 +190,14 @@ def retrieve(
 
         LOG.debug("%s", _(r))
 
-        result += ekd.from_source("mars", r, log="default" if log else None)
+        result = FieldList.concat(
+            result,
+            FieldList.from_source(
+                "mars",
+                r,
+                log="default" if log else None,
+            ),
+        )
 
     return result
 

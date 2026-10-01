@@ -9,9 +9,9 @@
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 import numpy as np
+from anemoi.transform import FieldList
 
 from ..context import Context
 from ..decorators import main_argument
@@ -22,9 +22,6 @@ from . import input_registry
 from .ekd import EkdInput
 
 LOG = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    import earthkit.data as ekd
 
 
 @input_registry.register("opendap")
@@ -68,18 +65,17 @@ class OpenDAPInput(EkdInput):
             return self.url
         return [u.format(date=date) for u in self.url]
 
-    def _retrieve_from_opendap(self, resolved_url: list[str]) -> "ekd.FieldList":
+    def _retrieve_from_opendap(self, resolved_url: list[str]) -> FieldList:
         """Retrieve the data from the OpenDAP server, filtering to the first valid_datetime if multiple present."""
-        import earthkit.data as ekd
-
-        retrieved_data = [ekd.from_source("opendap", url) for url in resolved_url]
-        combined_fieldlist = ekd.FieldList.from_fields([f for fl in retrieved_data for f in fl])  # type: ignore[reportGeneralTypeIssues]
-        if len(combined_fieldlist.unique_values("valid_datetime")["valid_datetime"]) > 1:
+        retrieved_data = [FieldList.from_source("opendap", url) for url in resolved_url]
+        fields = [f for fl in retrieved_data for f in fl]
+        valid_datetimes = list(dict.fromkeys(f.get("time.valid_datetime") for f in fields))
+        if len(valid_datetimes) > 1:
             LOG.warning(
-                f"Retrieved data from OpenDAP server has multiple valid_datetimes: {combined_fieldlist.unique_values('valid_datetime')}. Using the first one."
+                f"Retrieved data from OpenDAP server has multiple valid_datetimes: {valid_datetimes}. Using the first one."
             )
-            combined_fieldlist = combined_fieldlist.isel(valid_datetime=0)
-        return combined_fieldlist  # type: ignore[reportReturnType]
+            fields = [f for f in fields if f.get("time.valid_datetime") == valid_datetimes[0]]
+        return FieldList.from_fields(fields)
 
     def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
@@ -98,8 +94,6 @@ class OpenDAPInput(EkdInput):
         State
             The created input state.
         """
-        import earthkit.data as ekd
-
         date = np.datetime64(date).astype(datetime)
         dates = [date + h for h in self.metadata.lagged]
 
@@ -110,7 +104,7 @@ class OpenDAPInput(EkdInput):
             LOG.info(f"Retrieving data for input_state from OpenDAP server: {resolved_url}")
             fieldlists.append(self._retrieve_from_opendap(resolved_url))
 
-        fieldlist = ekd.FieldList.from_fields([f for fl in fieldlists for f in fl])
+        fieldlist = FieldList.from_fields([f for fl in fieldlists for f in fl])
         return self._create_input_state(fieldlist, date=date, ref_date_index=ref_date_index, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -135,5 +129,5 @@ class OpenDAPInput(EkdInput):
             LOG.info(f"Retrieving data for forcings from OpenDAP server: {resolved_url}")
             fieldlists.append(self._retrieve_from_opendap(resolved_url))
 
-        fieldlist = ekd.FieldList.from_fields([f for fl in fieldlists for f in fl])
+        fieldlist = FieldList.from_fields([f for fl in fieldlists for f in fl])
         return self._load_forcings_state(fieldlist, dates=dates, current_state=current_state)

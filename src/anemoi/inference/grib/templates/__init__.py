@@ -12,8 +12,8 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Any
 
-import earthkit.data as ekd
 import yaml
+from anemoi.transform import Field
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration
@@ -62,7 +62,7 @@ class TemplateProvider:
     def __repr__(self):
         return f"{self.__class__.__name__}"
 
-    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
+    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> Field | None:
         """Get the template for the given variable and lookup.
 
         Parameters
@@ -76,7 +76,7 @@ class TemplateProvider:
 
         Returns
         -------
-        ekd.Field | None
+        Field | None
             The template field.
         """
         raise NotImplementedError()
@@ -123,7 +123,7 @@ class IndexTemplateProvider(TemplateProvider):
             if not isinstance(grib, str):
                 raise ValueError(f"Invalid grib in index element, must be a string: {grib}")
 
-    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> ekd.Field | None:
+    def template(self, variable: str, lookup: dict[str, Any], **kwargs) -> Field | None:
         def _as_list(value: Any) -> list[Any]:
             if not isinstance(value, list):
                 return [value]
@@ -139,7 +139,7 @@ class IndexTemplateProvider(TemplateProvider):
 
         return None
 
-    def load_template(self, grib: str, lookup: dict[str, Any]) -> ekd.Field | None:
+    def load_template(self, grib: str, lookup: dict[str, Any]) -> Field | None:
         """Load the template for the given GRIB and lookup.
 
         Parameters
@@ -151,7 +151,7 @@ class IndexTemplateProvider(TemplateProvider):
 
         Returns
         -------
-        Optional[ekd.Field]
+        Optional[Field]
             The loaded template field if found, otherwise None.
         """
         raise NotImplementedError()

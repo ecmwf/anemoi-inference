@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import pytest
+from anemoi.utils.config import DotDict
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.metadata import MetadataFactory
@@ -245,6 +246,8 @@ def test_default_namer(typed_variables, field_metadata, expected_name):
     # the instance overrides the cache.
     metadata = Metadata.__new__(Metadata)
     metadata.typed_variables = typed_variables
+    # No `variable_naming`/`remapping` in the dataset: exercise the legacy fallback namer
+    metadata._metadata = DotDict({"dataset": {}})
 
     namer = metadata.default_namer()
 
