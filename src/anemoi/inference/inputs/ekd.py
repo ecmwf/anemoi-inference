@@ -191,8 +191,9 @@ class EkdInput(Input):
                 dataTime=int(self.reference_date.strftime("%H%M")),
             )
         LOG.info("Selecting fields %s by %s", len(data), datetime_selection)
-
-        return data.sel(**datetime_selection)
+        subset_data = data.sel(**datetime_selection)
+        LOG.info("Selection by dates resulted in %s fields.", len(subset_data))
+        return subset_data
 
     def _filter_and_sort_by_variable(self, data: ekd.FieldList) -> ekd.FieldList:
         """Filter and sort by variables.
