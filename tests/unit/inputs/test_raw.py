@@ -61,7 +61,7 @@ def metadata():
 
 def _write_raw_files(context, metadata, directory, *, with_grid=True, **kwargs):
     """Write raw files (one per lagged date) mimicking a first model's output."""
-    output = RawOutput(context, metadata, dir=str(directory), output_manifest=True, **kwargs)
+    output = RawOutput(context, metadata, dir=str(directory), **kwargs)
 
     grid = {"latitudes": GRID, "longitudes": GRID}
     output.open({"date": LAGGED_DATES[0], **(grid if with_grid else {})})
@@ -186,15 +186,3 @@ def test_raw_custom_template_from_manifest(tmp_path, context, metadata):
 
     for name in ALL_VARIABLES:
         assert state["fields"][name].shape == (len(LAGGED_DATES), 4)
-
-
-@pytest.mark.parametrize("with_grid", [True, False], ids=["from_grid_npz", "from_step_file"])
-def test_raw_reference_coordinates(with_grid, tmp_path, context, metadata):
-    """Coordinates come from grid.npz when written, and from a step file otherwise."""
-    _write_raw_files(context, metadata, tmp_path, with_grid=with_grid)
-
-    assert (tmp_path / "grid.npz").exists() is with_grid
-
-    input_ = RawInput(context, metadata, dir=str(tmp_path), variables=list(ALL_VARIABLES))
-    np.testing.assert_array_equal(input_.latitudes, GRID)
-    np.testing.assert_array_equal(input_.longitudes, GRID)

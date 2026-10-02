@@ -59,7 +59,6 @@ class RawInput(Input):
 
     trace_name = "raw"
 
-    FIELD_PREFIX = "field_"
     MANIFEST_NAME = "manifest.json"
     GRID_NAME = "grid.npz"
     SUPPORTED_FORMAT = "anemoi-raw"
@@ -159,11 +158,6 @@ class RawInput(Input):
                 self.dataset_name,
             )
 
-        written_with = self.manifest.checkpoint.get("path")
-        current = str(self.context.checkpoint.path)
-        if written_with is not None and written_with != current:
-            LOG.warning("%s: files were written with checkpoint '%s', running with '%s'.", self, written_with, current)
-
     def _filename(self, date: datetime.datetime, base_date: datetime.datetime | None = None) -> str:
         """Render the file name for a given date.
 
@@ -219,9 +213,9 @@ class RawInput(Input):
         LOG.info("%s: loading %s", self.__class__.__name__, path)
         with np.load(path, allow_pickle=False) as data:
             return {
-                key.replace(self.FIELD_PREFIX, ""): np.asarray(data[key])
+                key.replace(self.manifest.field_prefix, ""): np.asarray(data[key])
                 for key in data.files
-                if key.startswith(self.FIELD_PREFIX)
+                if key.startswith(self.manifest.field_prefix)
             }
 
     def _build_state(self, dates: list[Date], *, base_date: datetime.datetime | None = None) -> State:
@@ -247,13 +241,6 @@ class RawInput(Input):
         """
         if not dates:
             raise ValueError(f"{self.__class__.__name__}: no dates provided")
-
-        missing = sorted(set(self.variables) - set(self.manifest.variables))
-        if missing:
-            raise ValueError(
-                f"{self.__class__.__name__}: variables {missing} not found in raw files. "
-                f"Available variables: {sorted(self.manifest.variables)}"
-            )
 
         dates = list(to_datetime(d) for d in dates)
         loaded = [self._load_file(date, base_date=base_date) for date in dates]

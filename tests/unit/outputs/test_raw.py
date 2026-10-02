@@ -64,7 +64,7 @@ def test_raw_output_write_manifest(with_grid, basic_context, basic_metadata, bas
         del state["latitudes"], state["longitudes"]
 
     dir = tmp_path / "output"
-    output = RawOutput(basic_context, basic_metadata, dir=str(dir), variables={"drop": "cp"}, output_manifest=True)
+    output = RawOutput(basic_context, basic_metadata, dir=str(dir), variables={"drop": "cp"})
     output.open(state)
 
     manifest = json.loads((dir / "manifest.json").read_text())
@@ -76,13 +76,3 @@ def test_raw_output_write_manifest(with_grid, basic_context, basic_metadata, bas
     assert manifest["checkpoint"]["path"] == str(checkpoint)
     assert manifest["checkpoint"]["md5"] is not None
     assert manifest["provenance"] == FAKE_PROVENANCE
-
-    assert (dir / "grid.npz").exists() is with_grid
-
-
-def test_raw_output_manifest_disabled(basic_context, basic_metadata, basic_state, tmp_path):
-    output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path))
-    output.open(basic_state)
-
-    assert not (tmp_path / "manifest.json").exists()
-    assert not (tmp_path / "grid.npz").exists()

@@ -72,15 +72,11 @@ class RawOutput(Output):
             Variables available are `date`, `basetime` `step`.
         strftime : str, optional
             The date format string, by default "%Y%m%d%H%M%S".
-        output_manifest : bool, optional
-            Whether to output a manifest file and grid files (for round-trip inference.) The manifest file is per-dir, and will not be
-            overwritten if one already exists.
         """
         super().__init__(context, metadata, **kwargs)
         self.dir = dir
         self.template = template
         self.strftime = strftime
-        self.output_manifest = output_manifest
 
         # Both manifest and grid cover all files in dir/.
         self.manifest_path = Path(self.dir) / "manifest.json"
@@ -107,7 +103,7 @@ class RawOutput(Output):
         date = state["date"]
         basetime = date - state["step"]
 
-        if self.output_manifest and ("{basetime" in self.template or "{step" in self.template):
+        if "{basetime" in self.template or "{step" in self.template:
             # The manifest records the reference date, so a reader can only rebuild
             # these filenames if it is the basetime the steps were written against.
             assert basetime == to_datetime(self.reference_date), (
@@ -142,7 +138,7 @@ class RawOutput(Output):
         state : State
             The initial state.
         """
-        if self.output_manifest and not self.manifest_path.exists():
+        if not self.manifest_path.exists():
             self.write_manifest(state)
 
     def write_manifest(self, state: State) -> None:
