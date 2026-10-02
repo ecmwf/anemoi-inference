@@ -54,7 +54,6 @@ class RawOutput(Output):
         dir: Path,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
-        output_manifest: bool = False,
         **kwargs,
     ) -> None:
         """Initialise the RawOutput class.

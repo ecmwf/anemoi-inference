@@ -1,4 +1,4 @@
-# (C) Copyright 2024-2026 Anemoi contributors.
+# (C) Copyright 2026 Anemoi contributors.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -219,7 +219,7 @@ class RawInput(Input):
         LOG.info("%s: loading %s", self.__class__.__name__, path)
         with np.load(path, allow_pickle=False) as data:
             return {
-                key[len(self.FIELD_PREFIX) :]: np.asarray(data[key])
+                key.replace(self.FIELD_PREFIX, ''): np.asarray(data[key])
                 for key in data.files
                 if key.startswith(self.FIELD_PREFIX)
             }
@@ -255,7 +255,7 @@ class RawInput(Input):
                 f"Available variables: {sorted(self.manifest.variables)}"
             )
 
-        dates = sorted(to_datetime(d) for d in dates)
+        dates = list(to_datetime(d) for d in dates)
         loaded = [self._load_file(date, base_date=base_date) for date in dates]
 
         typed_variables = self.metadata.typed_variables
@@ -313,9 +313,7 @@ class RawInput(Input):
         State
             The loaded forcings state.
         """
-        base_date = None
-        if current_state.get("date") is not None:
-            base_date = to_datetime(current_state["date"]) - current_state.get("step", datetime.timedelta())
+        base_date = self.reference_date
 
         state = self._build_state(dates, base_date=base_date)
         state["dates"] = sorted(to_datetime(d) for d in dates)
