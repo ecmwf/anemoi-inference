@@ -139,7 +139,7 @@ class StateField(ekd.Field):
 
     def __repr__(self) -> str:
         """Str: String representation of the StateField."""
-        return f"{self.__class__.__name__ }({self._metadata})"
+        return f"{self.__class__.__name__}({self._metadata})"
 
 
 def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldList:
@@ -174,7 +174,7 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
     return SimpleFieldList(fields)
 
 
-def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
+def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable, flatten: str | bool = "auto") -> State:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters
@@ -185,6 +185,9 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
         The original state dictionary.
     namer : Callable
         A function to generate new field names.
+    flatten : str or bool, optional
+        Whether to flatten the field values. If ``"auto"`` (the default), fields
+        are flattened unless they are already flat ``StateField`` values.
 
     Returns
     -------
@@ -197,15 +200,14 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
 
     for n in fields:
         name = namer(n, n.metadata())
-        if isinstance(n, StateField):
+        if flatten == "auto":
+            flatten = isinstance(n, StateField)
             # StateField values are already flat 1D numpy arrays.
             # Use to_numpy() without flatten=True to avoid the always-copy
             # behavior of ndarray.flatten(). Combined with np.asarray in
             # _values(), this avoids unnecessary copies for pass-through
             # fields that were not transformed.
-            new_fields[name] = n.to_numpy()
-        else:
-            new_fields[name] = n.to_numpy(flatten=True)
+        new_fields[name] = n.to_numpy(flatten=flatten)
 
     state = state.copy()
     state["fields"] = new_fields

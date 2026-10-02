@@ -1270,14 +1270,27 @@ class Metadata(LegacyMixin):
         return self._supporting_arrays
 
     @property
+    def _grid_indices(self) -> FloatArray | None:
+        """Return the grid indices."""
+        return self._supporting_arrays.get("grid_indices")
+
+    @property
     def latitudes(self) -> FloatArray | None:
         """Return the latitudes."""
-        return self._supporting_arrays.get("latitudes")
+        if (latitudes := self._supporting_arrays.get("latitudes")) is not None and (
+            _grid_indices := self._grid_indices
+        ) is not None:
+            latitudes = latitudes[_grid_indices]
+        return latitudes
 
     @property
     def longitudes(self) -> FloatArray | None:
         """Return the longitudes."""
-        return self._supporting_arrays.get("longitudes")
+        if (longitudes := self._supporting_arrays.get("longitudes")) is not None and (
+            _grid_indices := self._grid_indices
+        ) is not None:
+            longitudes = longitudes[_grid_indices]
+        return longitudes
 
     @property
     def grid_points_mask(self) -> FloatArray | None:
