@@ -288,7 +288,7 @@ class RetrieveCmd(Command):
             forecast_dates=args.forecast_dates,
             use_grib_paramid=config.use_grib_paramid or args.use_grib_paramid,
             dont_fail_for_missing_paramid=args.dont_fail_for_missing_paramid,
-            patch_request=lambda r: runner.patch_data_request(r, args.dataset_name),
+            patch_request=lambda r: runner.prognostics_inputs[args.dataset_name].patch_data_request(r),
             use_scda=args.use_scda,
             include=args.include if args.include else None,
             exclude=args.exclude if args.exclude else None,
