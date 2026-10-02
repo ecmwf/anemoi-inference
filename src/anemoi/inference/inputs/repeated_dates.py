@@ -16,6 +16,7 @@ from anemoi.utils.dates import as_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import concat_states
+from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -125,3 +126,18 @@ class RepeatedDatesInput(Input):
         state["_input"] = self
 
         return state
+
+    def patch_data_request(self, request: DataRequest) -> DataRequest:
+        """Patch the data request for the repeated-dates input.
+
+        Parameters
+        ----------
+        request : DataRequest
+            The data request to patch.
+
+        Returns
+        -------
+        DataRequest
+            The patched data request.
+        """
+        return self.source.patch_data_request(request)

@@ -14,18 +14,49 @@ import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
 
 from . import input_registry
+from .ekd import RequestInput
 from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
 
 
+def retrieve(
+    requests: list[dict[str, Any]],
+    configs: dict | None = None,
+    **kwargs: Any,
+) -> Any:
+    """Retrieve data from MARS.
+
+    Parameters
+    ----------
+    requests : List[dict[str, Any]]
+        The list of requests to be retrieved.
+    configs : dict, optional
+        The FDB configs to use.
+    **kwargs : Any
+        Additional keyword arguments.
+
+    Returns
+    -------
+    Any
+        The retrieved data.
+    """
+
+    sources: list = []
+    for r in requests:
+        r.update(kwargs)
+        LOG.debug("%s", r)
+        sources.append(ekd.from_source("fdb", r, **configs or {}))
+    return ekd.from_source("multi", sources)
+
+
 @input_registry.register("fdb")
-class FDBInput(GribInput):
+class FDBInput(GribInput, RequestInput):
     """Get input fields from FDB."""
 
     trace_name = "fdb"
@@ -41,6 +72,7 @@ class FDBInput(GribInput):
         pre_processors: list[ProcessorConfig] | None = None,
         namer: Any | None = None,
         purpose: str | None = None,
+        from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialise the FDB input.
@@ -63,6 +95,8 @@ class FDBInput(GribInput):
             Optional namer for the input.
         purpose : str, optional
             The purpose of the input.
+        from_forecast: bool
+            Whether to get data from a forecast, i.e. selecting from step, rather than base date.
         kwargs : dict, optional
             Additional keyword arguments for the request to FDB.
         """
@@ -73,34 +107,62 @@ class FDBInput(GribInput):
             pre_processors=pre_processors,
             purpose=purpose,
             namer=namer,
+            from_forecast=from_forecast or kwargs.get("type", None) == "fc",
         )
         self.kwargs = kwargs
-        self.configs = {"config": fdb_config, "userconfig": fdb_userconfig}
+        self.configs = {
+            "config": fdb_config,
+            "userconfig": fdb_userconfig,
+            "stream": False,
+        }
         # NOTE: this is a temporary workaround for #191 thus not documented
         self.param_id_map = kwargs.pop("param_id_map", {})
 
-    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
-        ds = self.retrieve(variables=self.variables, dates=dates)
-        res = self._create_input_state(ds, variables=None, dates=dates, **kwargs)
-        return res
+    def build_requests(self, variables: list[str], dates: list[Date]) -> list[DataRequest]:
+        """Build the FDB requests, remapping param ids if configured.
 
-    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
-        ds = self.retrieve(variables=self.variables, dates=dates)
-        return self._load_forcings_state(ds, dates=dates, current_state=current_state)
+        Parameters
+        ----------
+        variables : List[str]
+            The list of variables to retrieve.
+        dates : List[Date]
+            The list of dates for which to retrieve the data.
 
-    def retrieve(self, variables: list[str], dates: list[Date]) -> Any:
-        requests = self.metadata.mars_requests(
-            variables=variables,
-            dates=dates,
-            use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.patch_data_request,
-        )
-        requests = [self.kwargs | r for r in requests]
+        Returns
+        -------
+        list[DataRequest]
+            The list of requests.
+        """
+        requests = super().build_requests(variables, dates)
+
         # NOTE: this is a temporary workaround for #191
         for request in requests:
             request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
 
+        return requests
+
+    def _retrieve(self, requests: list[DataRequest], **kwargs: Any) -> Any:
+        """Retrieve data from FDB for the given requests.
+
+        Parameters
+        ----------
+        requests : list[DataRequest]
+            The list of requests to retrieve.
+        **kwargs : Any
+            Additional keyword arguments to pass to the retrieval function.
+
+        Returns
+        -------
+        Any
+            The retrieved data.
+        """
+        retrieval_kwargs = self.kwargs.copy()
+        retrieval_kwargs.update(kwargs)
+
         LOG.debug("FDB requests: %s", requests)
-        sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
-        ds = ekd.from_source("multi", sources)
-        return ds
+
+        return retrieve(
+            requests=requests,
+            configs=self.configs,
+            **retrieval_kwargs,
+        )

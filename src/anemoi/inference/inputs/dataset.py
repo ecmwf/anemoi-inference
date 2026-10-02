@@ -41,7 +41,7 @@ class DatasetInput(Input):
         open_dataset_args: tuple[Any, ...],
         open_dataset_kwargs: dict[str, Any],
         grid_indices: Any = None,
-        use_trajectories: bool = False,
+        from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInput.
@@ -58,8 +58,8 @@ class DatasetInput(Input):
             Keyword arguments for the dataset.
         grid_indices : Optional[Any]
             Indices to reduce the input grid. If None, the full grid is used.
-        use_trajectories : bool
-            Whether to expect dataset as a trajectory (i.e. with a `step / forecast` dimension),
+        from_forecast : bool
+            Whether to expect dataset as a forecast dataset / trajectory (i.e. with a `step / forecast` dimension),
             and to get multiple dates from within a single trajectory.
         **kwargs : Any
             Additional keyword arguments.
@@ -86,7 +86,7 @@ class DatasetInput(Input):
                     the input grid will be reduced accordingly.")
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
-        self.use_trajectories = use_trajectories
+        self.from_forecast = from_forecast
 
         has_pre_processors = bool(self._pre_processor_confs) or (
             hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
@@ -117,11 +117,11 @@ class DatasetInput(Input):
         if self.variables is not None:
             dataset = open_dataset(dataset, select=self.variables)
 
-        if not len(dataset.shape) == 5 and self.use_trajectories:
+        if not len(dataset.shape) == 5 and self.from_forecast:
             raise ValueError(
                 f"Expected dataset with 5 dimensions (base_dates, variables, ensembles, steps, cells) as a trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
             )
-        elif len(dataset.shape) == 5 and not self.use_trajectories:
+        elif len(dataset.shape) == 5 and not self.from_forecast:
             raise ValueError(
                 f"Expected dataset with 4 dimensions (base_dates, variables, ensembles, cells) as a non-trajectory dataset, got {len(self.ds.shape)} dimensions. Is this a trajectory dataset?"
             )
@@ -347,7 +347,7 @@ class DatasetInput(Input):
         Any
             The loaded data.
         """
-        if not self.use_trajectories:
+        if not self.from_forecast:
             return self._load_basedates(dates)
         return self._load_trajectories(dates, base_date=base_date)
 
@@ -368,7 +368,7 @@ class DatasetInputArgsKwargs(DatasetInput):
         pre_processors: list[ProcessorConfig] | None = None,
         grid_indices=None,
         purpose: str | None = None,
-        use_trajectories: bool = False,
+        from_forecast: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize the DatasetInputArgsKwargs.
@@ -381,9 +381,9 @@ class DatasetInputArgsKwargs(DatasetInput):
             Metadata corresponding to the dataset this input is handling.
         use_original_paths : bool
             Whether to use original paths.
-        use_trajectories : bool
-            Whether to expect dataset as a trajectory (i.e. with a `step / forecast` dimension),
-            and to get multiple dates from within a single trajectory.
+        from_forecast : bool
+            Whether to expect dataset as a forecast dataset (i.e. with a `step / forecast` dimension),
+            and to get multiple dates from within a single forecast.
         """
 
         check_variables_compatibility = multi_datasets_config(
@@ -418,12 +418,14 @@ class DatasetInputArgsKwargs(DatasetInput):
             open_dataset_args=args,
             open_dataset_kwargs=kwargs,
             purpose=purpose,
-            use_trajectories=use_trajectories,
+            from_forecast=from_forecast,
         )
 
 
 class DataloaderInput(DatasetInput):
     """Handles `anemoi-datasets` dataset as input."""
+
+    name: str
 
     def __init__(
         self,
