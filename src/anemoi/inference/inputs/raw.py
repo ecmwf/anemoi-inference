@@ -219,7 +219,7 @@ class RawInput(Input):
         LOG.info("%s: loading %s", self.__class__.__name__, path)
         with np.load(path, allow_pickle=False) as data:
             return {
-                key.replace(self.FIELD_PREFIX, ''): np.asarray(data[key])
+                key.replace(self.FIELD_PREFIX, ""): np.asarray(data[key])
                 for key in data.files
                 if key.startswith(self.FIELD_PREFIX)
             }
