@@ -10,7 +10,7 @@
 
 import pytest
 
-from anemoi.inference.inputs.utils import convert_dates_to_base_and_step
+from anemoi.inference.inputs.utils import convert_dates_to_steps
 
 
 @pytest.mark.parametrize(
@@ -18,7 +18,8 @@ from anemoi.inference.inputs.utils import convert_dates_to_base_and_step
     [
         pytest.param(["2024-06-01T00", "2024-06-01T06"], "2024-06-01T00", [0, 6], id="base date with set"),
         (["2024-06-01T12:00:00", "2024-06-01T18:00:00"], "2024-06-01T06:00:00", [6, 12]),
+        (["2024-06-01T12:00:00", "2024-06-02T18:00:00"], "2024-06-01T06:00:00", [6, 36]),
     ],
 )
-def test_convert_dates_to_base_and_step(dates, base, steps):
-    assert convert_dates_to_base_and_step(dates, base) == steps
+def test_convert_dates_to_steps(dates, base, steps):
+    assert convert_dates_to_steps(dates, base) == steps
