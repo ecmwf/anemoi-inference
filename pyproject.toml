@@ -44,7 +44,7 @@ dependencies = [
   "numpy",
   "omegaconf>=2.2,<2.4",
   "packaging",
-  "pydantic",
+  "pydantic>=2",
   "pyyaml",
   "rich",
   "semantic-version",
@@ -56,8 +56,8 @@ optional-dependencies.all = [
   "anemoi-utils[all]>=0.4.32",
 ]
 optional-dependencies.cosmo = [
-  "eccodes<=2.39.1",
-  "eccodes-cosmo-resources-python",
+  "eccodes>=2.47,<2.48",
+  "eccodes-cosmo-resources-python==2.47.0.1",
 ]
 optional-dependencies.dev = [ "anemoi-inference[all,docs,tests]" ]
 optional-dependencies.docs = [
@@ -74,7 +74,8 @@ optional-dependencies.huggingface = [ "huggingface-hub" ]
 optional-dependencies.netcdf = [ "earthkit-data>=0.19,<1" ]
 optional-dependencies.plot = [
   "earthkit-plots<1",
-  "matplotlib<3.11",  # TODO: remove when we start using ekp 1.0
+  "eckitlib<2.3.0.28", # TODO: remove when eckitlib no longer bundles libproj/libsqlite3 (segfaults fiona's GDAL)
+  "matplotlib<3.11",   # TODO: remove when we start using ekp 1.0
 ]
 optional-dependencies.tests = [
   "anemoi-datasets[all]",
@@ -83,7 +84,10 @@ optional-dependencies.tests = [
   "pytest",
   "pytest-mock",
 ]
-optional-dependencies.zarr = [ "zarr" ]
+optional-dependencies.zarr = [
+  "xarray<2026.9", # last version to support zarr2, TODO: remove when the rest of anemoi supports zarr3
+  "zarr",
+]
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
 urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"

@@ -25,6 +25,7 @@ from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
 
 from ..output import Output
+from ..types import OutputVariableConfigUnion
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class PlotOutput(Output):
         metadata: Metadata,
         *,
         dir: Path,
-        variables: list[str] | None = None,
+        variables: OutputVariableConfigUnion = None,
         mode: str = "subplots",
         domain: str | list[str] | None = None,
         schema: str | None = None,
@@ -81,8 +82,8 @@ class PlotOutput(Output):
         dir : Path
             The directory to save the plots.
             If the directory does not exist, it will be created.
-        variables : list, optional
-            The list of variables to plot, by default all.
+        variables : OutputVariableConfigUnion
+            Variable settings for inclusion/exclusion, by default all variables are plotted.
         mode : str, optional
             The plotting mode, can be "subplots" or "overlay", by default "subplots".
         domain : str | list[str] | None, optional
@@ -120,7 +121,6 @@ class PlotOutput(Output):
 
         self.dir = dir
         self.format = format
-        self.variables = variables
         self.template = template
         self.domain = domain
         self.mode = mode
@@ -147,10 +147,12 @@ class PlotOutput(Output):
         basetime = date - state["step"]
 
         plotting_fields = []
+        plotted_vars = []
 
         for name, values in state["fields"].items():
             if self.skip_variable(name):
                 continue
+            plotted_vars.append(name)
 
             variable = self.typed_variables[name]
             param = variable.param
@@ -182,7 +184,7 @@ class PlotOutput(Output):
                 "basetime": basetime,
                 "domain": self.domain,
                 "format": self.format,
-                "variables": "_".join(self.variables or []),
+                "variables": "_".join(plotted_vars),
             },
         )
         fname = self.dir / fname

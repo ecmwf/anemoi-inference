@@ -9,9 +9,12 @@
 
 import datetime
 from typing import Any
+from typing import Literal
 from typing import Union
 
 from numpy.typing import NDArray
+
+from anemoi.inference.schemas import OutputVariableConfig
 
 """A collection of types used in the inference module.
 Some of these type could be moved to anemoi.utils.types or anemoi.transform.types.
@@ -40,3 +43,6 @@ Shape = tuple[int, ...]
 
 ProcessorConfig = Union[str, dict[str, Any]]
 """A str or dict of str representing a pre/mid/post -processor configuration."""
+
+OutputVariableConfigUnion = Union[OutputVariableConfig, str, list[str], dict[Literal["select", "drop"], str], None]
+"""The accepted configuration forms for output variable selection, coerced to an OutputVariableConfig."""
