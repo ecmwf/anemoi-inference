@@ -35,7 +35,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
-  "anemoi-utils[provenance,text]>=0.4.32",
+  "anemoi-utils[provenance,text]>=0.5.13",
   "aniso8601",
   "anytree",
   "deprecation",
@@ -53,7 +53,7 @@ dependencies = [
 optional-dependencies.all = [
   "anemoi-datasets",
   "anemoi-inference[huggingface,netcdf,plot,tests,zarr]",
-  "anemoi-utils[all]>=0.4.32",
+  "anemoi-utils[all]>=0.5.13",
 ]
 optional-dependencies.cosmo = [
   "eccodes>=2.47,<2.48",

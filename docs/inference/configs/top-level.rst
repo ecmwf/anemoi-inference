@@ -30,16 +30,22 @@ runner:
 =======
 
 The ``runner`` option selects the inference runner. The default is
-``default``.
+``auto``.
 
 .. code:: yaml
 
-   runner: default
+   runner: auto
 
 Available runners:
 
-default
--------
+auto
+----
+
+Automatically selects the runner from the ``task`` entry in the
+checkpoint metadata. This is the default runner.
+
+forecaster
+----------
 
 Runs the checkpoint model as-is. This is the standard runner for
 production forecasts.
@@ -62,6 +68,11 @@ parallel
 
 Distributes the model across multiple devices. See
 :ref:`parallel-inference` for full documentation.
+
+temporal-downscaler
+-------------------
+
+Runs a specific trained temporal downscaler model.
 
 device:
 =======
