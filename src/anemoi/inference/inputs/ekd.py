@@ -161,30 +161,48 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.metadata.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(
-        self,
-        data: ekd.FieldList,
-        *,
-        dates: list[Date],
-        title: str,
-        select_reference_date: bool = False,
-        **kwargs,
+    def _filter_by_time(
+        self, data: ekd.FieldList, *, dates: list[datetime], select_reference_date: bool = False
     ) -> ekd.FieldList:
-        """Filter and sort the earthkit FieldList.
+        """Filter by dates,
+        Selects upon the valid_datetime field in the data by dates, optionally including the reference date.
 
         Parameters
         ----------
         data : ekd.FieldList
-            The data to filter and sort.
-        dates : List[Date]
-            The list of dates to select.
-        title : str
-            The title for logging.
-        select_reference_date: bool, optional
-            Also include the reference date when selecting data from the FieldList.
-            If False (default), only the valid date is considered.
-        **kwargs : Any
-            Additional arguments for selecting the variable.
+            The data to filter by time.
+        dates : list[datetime]
+            The list of valid dates to filter by.
+        select_reference_date : bool, optional
+            Whether to also include the reference date when filtering, by default False
+
+        Returns
+        -------
+        ekd.FieldList
+            The filtered data.
+        """
+        valid_datetime = [date.isoformat() for date in dates]
+        datetime_selection: dict = dict(valid_datetime=valid_datetime)
+
+        if select_reference_date:
+            assert self.reference_date is not None, "Reference date must be set when selecting reference date."
+            datetime_selection.update(
+                dataDate=int(self.reference_date.strftime("%Y%m%d")),
+                dataTime=int(self.reference_date.strftime("%H%M")),
+            )
+        LOG.info("Selecting fields %s by %s", len(data), datetime_selection)
+        subset_data = data.sel(**datetime_selection)
+        LOG.info("Selection by dates resulted in %s fields.", len(subset_data))
+        return subset_data
+
+    def _filter_and_sort_by_variable(self, data: ekd.FieldList) -> ekd.FieldList:
+        """Filter and sort by variables.
+        Applies the namer configured to convert ids.
+
+        Parameters
+        ----------
+        data : ekd.FieldList
+            Data to filter and sort
 
         Returns
         -------
@@ -195,25 +213,12 @@ class EkdInput(Input):
         def _name(field: ekd.Field, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
-        valid_datetime = [date.isoformat() for date in dates]
-        datetime_selection = dict(valid_datetime=valid_datetime)
-
-        if select_reference_date:
-            datetime_selection.update(
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
-            )
-
-        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
-        LOG.info("Selecting fields %s %s", len(data), valid_datetime)
+        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
 
         data = data.sel(name=self.variables).order_by(
             name=self.variables,
             valid_datetime="ascending",
         )
-
-        check_data(title, data, self.variables, dates, self.metadata)
-
         return data
 
     def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
@@ -310,19 +315,23 @@ class EkdInput(Input):
 
         state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
 
-        # allow hooks to operate on the FieldList before conversion to numpy
+        dates = sorted([to_datetime(d) for d in dates])
+        state["fields"] = self._filter_by_time(
+            state["fields"], dates=dates, select_reference_date=kwargs.get("select_reference_date", False)
+        )
+
+        # allow hooks to operate on the FieldList before conversion to numpy, but after subsetting by time
         state = self.pre_process(state)
 
-        fields = state["fields"]
         state_fields = {}
 
-        if len(fields) == 0:
+        if len(state["fields"]) == 0:
             raise ValueError("No input fields provided")
 
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        fields = self._filter_and_sort_by_variable(state["fields"])
+        check_data("Create input state", fields, self.variables, dates, self.metadata)
 
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
+        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         check = defaultdict(set)
         state_variables = {}
