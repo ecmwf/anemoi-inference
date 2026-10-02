@@ -20,6 +20,8 @@ from typing import Any
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.variables import Variable
+from anemoi.utils.humanize import dict_to_human
+from anemoi.utils.timer import Timer
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
@@ -190,9 +192,9 @@ class EkdInput(Input):
                 dataDate=int(self.reference_date.strftime("%Y%m%d")),
                 dataTime=int(self.reference_date.strftime("%H%M")),
             )
-        LOG.info("Selecting fields %s by %s", len(data), datetime_selection)
-        subset_data = data.sel(**datetime_selection)
-        LOG.info("Selection by dates resulted in %s fields.", len(subset_data))
+        with Timer("") as timer:
+            subset_data = data.sel(**datetime_selection)
+            timer.title = f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human(datetime_selection)}"
         return subset_data
 
     def _filter_and_sort_by_variable(self, data: ekd.FieldList) -> ekd.FieldList:
