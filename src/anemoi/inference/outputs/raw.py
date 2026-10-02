@@ -123,10 +123,8 @@ class RawOutput(Output):
         for key in ["date"]:
             restate[key] = np.array(state[key], dtype=str)
 
-        # If the lat/lon are not already saved, save them here
-        if not self.grid_path.exists():
-            for key in ["latitudes", "longitudes"]:
-                restate[key] = np.array(state[key])
+        for key in ["latitudes", "longitudes"]:
+            restate[key] = np.array(state[key])
 
         np.savez_compressed(fn_state, **restate)
 
@@ -180,10 +178,3 @@ class RawOutput(Output):
         with open(self.manifest_path, "w") as f:
             json.dump(asdict(manifest), f, indent=2, default=str)
         LOG.info("%s: wrote %s", self, self.manifest_path)
-
-        latitudes, longitudes = state.get("latitudes"), state.get("longitudes")
-        if latitudes is None or longitudes is None:
-            LOG.warning("%s: no grid in state, '%s' not written.", self, self.grid_path)
-            return
-
-        np.savez_compressed(self.grid_path, latitudes=latitudes, longitudes=longitudes)

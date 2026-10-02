@@ -13,8 +13,7 @@ Reads the ``.npz`` files produced by :class:`anemoi.inference.outputs.raw.RawOut
 so that the output of a first model can be fed as the initial conditions of a second.
 
 A ``manifest.json`` is required, and is the single source of truth for the filename
-convention, the variables and the reference date. Coordinates come from ``grid.npz``
-when the output wrote one, and from the step files otherwise.
+convention, the variables and the reference date.
 """
 
 import datetime
@@ -60,7 +59,6 @@ class RawInput(Input):
     trace_name = "raw"
 
     MANIFEST_NAME = "manifest.json"
-    GRID_NAME = "grid.npz"
     SUPPORTED_FORMAT = "anemoi-raw"
     SUPPORTED_VERSION = 1
 
@@ -318,15 +316,11 @@ class RawInput(Input):
 
     @cached_property
     def _reference_coords(self) -> tuple[FloatArray | None, FloatArray | None]:
-        """Return the coordinates, from ``grid.npz`` if present, else from a step file."""
-        path = self.dir / self.GRID_NAME
-        if not path.exists():
-            candidates = sorted(p for p in self.dir.glob("*.npz") if p.name != self.GRID_NAME)
-            if not candidates:
-                return None, None
-            path = candidates[0]
-
-        with np.load(path, allow_pickle=False) as data:
+        """Return the grid coordinates from the first available raw file."""
+        files = sorted(self.dir.glob("*.npz"))
+        if not files:
+            return None, None
+        with np.load(files[0], allow_pickle=False) as data:
             latitudes = np.asarray(data["latitudes"]) if "latitudes" in data.files else None
             longitudes = np.asarray(data["longitudes"]) if "longitudes" in data.files else None
         return latitudes, longitudes
