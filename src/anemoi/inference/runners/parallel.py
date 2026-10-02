@@ -204,7 +204,10 @@ class ParallelRunnerMixin(Runner):
         else:
             try:
                 return super().predict_step(
-                    model, input_tensor_torch, model_comm_group=self.compute_client.process_group, **kwargs
+                    model,
+                    input_tensor_torch,
+                    model_comm_group=self.compute_client.process_group,
+                    **kwargs,
                 )
             except TypeError as err:
                 LOG.error(
@@ -212,10 +215,26 @@ class ParallelRunnerMixin(Runner):
                 )
                 raise err
 
+    def execute(self, *args, **kwargs) -> None:
+        """Execute the runner and tear down the process group once afterwards.
+
+        The base ``execute`` may call ``run`` multiple times (e.g. once per temporal downscaling
+        window), so the process group is torn down here rather than per ``run``.
+        """
+        try:
+            super().execute(*args, **kwargs)
+        finally:
+            self._destroy_process_group()
+
     def complete_forecast_hook(self) -> None:
-        """Hook called at the end of the forecast."""
+        """Hook called at the end of each forecast."""
         super().complete_forecast_hook()
-        torch.distributed.destroy_process_group()
+
+    @staticmethod
+    def _destroy_process_group() -> None:
+        """Destroy the default process group if it is initialised."""
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
 
     def create_output(self, *args, **kwargs) -> Output:
         """Creates the real output on rank 0 and a `none` on the others."""
