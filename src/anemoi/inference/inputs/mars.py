@@ -20,9 +20,9 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
 
 from . import input_registry
+from .ekd import RequestInput
 from .grib import GribInput
 
 LOG = logging.getLogger(__name__)
@@ -198,7 +198,7 @@ def retrieve(
 
 
 @input_registry.register("mars")
-class MarsInput(GribInput):
+class MarsInput(GribInput, RequestInput):
     """Get input fields from MARS."""
 
     trace_name = "mars"
@@ -256,37 +256,8 @@ class MarsInput(GribInput):
         self.patches = patches or []
         self.log = log
 
-    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
-        """Create the input state for the given date.
-
-        Parameters
-        ----------
-        dates : list[Date]
-            The list of dates for which to create the input state.
-        ref_date_index : int = -1
-            The index in `dates` to use as reference date for the state.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
-
-        return self._create_input_state(
-            self.retrieve(
-                self.variables,
-                **self._parse_dates(dates),
-            ),
-            variables=self.variables,
-            dates=dates,
-            ref_date_index=ref_date_index,
-            **kwargs,
-        )
-
-    def retrieve(self, variables: list[str], dates: list[Date], **kwargs) -> Any:
-        """Retrieve data for the given variables and dates.
+    def build_requests(self, variables: list[str], dates: list[Date]) -> list[DataRequest]:
+        """Build the MARS requests, shifting dates by ``step`` if configured.
 
         Parameters
         ----------
@@ -294,15 +265,12 @@ class MarsInput(GribInput):
             The list of variables to retrieve.
         dates : List[Date]
             The list of dates for which to retrieve the data.
-        **kwargs : Any
-            Additional keyword arguments to pass to the retrieval function.
 
         Returns
         -------
-        Any
-            The retrieved data.
+        list[DataRequest]
+            The list of requests.
         """
-
         if "step" in self.kwargs:
             step = self.kwargs["step"]
             # For now a few assertions to relax later
@@ -313,16 +281,23 @@ class MarsInput(GribInput):
 
             dates = [d - step for d in dates]
 
-        requests = self.metadata.mars_requests(
-            variables=variables,
-            dates=dates,
-            use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.patch_data_request,
-        )
+        return super().build_requests(variables, dates)
 
-        if not requests:
-            raise ValueError(f"No requests for {variables} ({dates})")
+    def _retrieve(self, requests: list[DataRequest], **kwargs: Any) -> Any:
+        """Retrieve data from MARS for the given requests.
 
+        Parameters
+        ----------
+        requests : list[DataRequest]
+            The list of requests to retrieve.
+        **kwargs : Any
+            Additional keyword arguments to pass to the retrieval function.
+
+        Returns
+        -------
+        Any
+            The retrieved data.
+        """
         retrieval_kwargs = self.kwargs.copy()
         retrieval_kwargs.update(kwargs)
         retrieval_kwargs.setdefault("expver", "0001")
@@ -334,30 +309,6 @@ class MarsInput(GribInput):
             patch=self.patch,
             log=self.log,
             **retrieval_kwargs,
-        )
-
-    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
-        """Load the forcings state for the given variables and dates.
-
-        Parameters
-        ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings state.
-        current_state : State
-            The current state to be updated with the loaded forcings state.
-
-        Returns
-        -------
-        Any
-            The loaded forcings state.
-        """
-
-        retrieved_state = self.retrieve(self.variables, **self._parse_dates(dates))
-
-        return self._load_forcings_state(
-            retrieved_state,
-            dates=dates,
-            current_state=current_state,
         )
 
     def patch(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -376,7 +327,6 @@ class MarsInput(GribInput):
         for match, keys in self.patches:
             if all(request.get(k) == v for k, v in match.items()):
                 request.update(keys)
-
         return request
 
     def default_initial_date(self) -> datetime:

@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import glob
+import itertools
 import logging
 import os
 import re
@@ -138,7 +139,6 @@ class EkdInput(Input):
         metadata: Metadata,
         *,
         namer: Any | None = None,
-        from_forecast: bool = False,
         **kwargs,
     ) -> None:
         """Initialize the EkdInput.
@@ -151,11 +151,8 @@ class EkdInput(Input):
             Metadata corresponding to the dataset this input is handling.
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
-        from_forecast: bool
-            Whether to get data from a forecast, i.e. selecting from step, rather than base date.
         """
         super().__init__(context, metadata, **kwargs)
-        self.from_forecast = from_forecast
 
         if isinstance(namer, dict):
             # TODO: a factory for namers
@@ -220,16 +217,6 @@ class EkdInput(Input):
         check_data(title, data, self.variables, dates, self.metadata)
 
         return data
-
-    def _parse_dates(self, dates: list[Date]) -> dict[str, list[Any]]:
-        """Parse a list of dates into a dictionary of dates and steps if `from_forecast` is True."""
-        if not self.from_forecast:
-            return {"dates": dates}
-        base_date = self.reference_date
-        if base_date is None:
-            raise ValueError("Reference date is not set but 'from_forecast' is True.")
-        steps = convert_dates_to_steps(dates, base_date=base_date)
-        return {"dates": [base_date], "step": steps}
 
     def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
         """Find a variable in the earthkit FieldList selection.
@@ -328,7 +315,12 @@ class EkdInput(Input):
                     )
                     raise e
 
-        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = dict(
+            date=dates[ref_date_index],
+            latitudes=latitudes,
+            longitudes=longitudes,
+            fields=fields,
+        )
 
         # allow hooks to operate on the FieldList before conversion to numpy
         state = self.pre_process(state)
@@ -343,7 +335,11 @@ class EkdInput(Input):
         date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         fields = self._filter_and_sort(
-            fields, dates=dates, title="Create input state", select_reference_date=select_reference_date, **kwargs
+            fields,
+            dates=dates,
+            title="Create input state",
+            select_reference_date=select_reference_date,
+            **kwargs,
         )
 
         check = defaultdict(set)
@@ -351,7 +347,10 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
+            name, valid_datetime = (
+                field.metadata("name"),
+                field.metadata("valid_datetime"),
+            )
             if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), n_points),
@@ -365,7 +364,10 @@ class EkdInput(Input):
                 state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
             except ValueError:
                 LOG.error(
-                    "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
+                    "Error with field %s: expected shape=%s, got shape=%s",
+                    name,
+                    state_fields[name].shape,
+                    field.shape,
                 )
                 LOG.error("dates %s", dates)
                 LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
@@ -456,7 +458,14 @@ class EkdInput(Input):
             **kwargs,
         )
 
-    def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
+    def _load_forcings_state(
+        self,
+        fields: ekd.FieldList,
+        *,
+        dates: list[Date],
+        current_state: State,
+        **kwargs,
+    ) -> State:
         """Load the forcings state.
 
         Parameters
@@ -467,6 +476,8 @@ class EkdInput(Input):
             The list of dates to load.
         current_state : Dict[str, Any]
             The current state.
+        **kwargs : Any
+            Additional keyword arguments for loading the forcings state.
 
         Returns
         -------
@@ -480,7 +491,7 @@ class EkdInput(Input):
             longitudes=current_state.get("longitudes", None),
             dtype=np.float32,
             flatten=True,
-            select_reference_date=self.from_forecast,
+            **kwargs,
         )
 
     def set_private_attributes(self, state: State, fields: ekd.FieldList) -> None:  # type: ignore
@@ -501,7 +512,10 @@ class EkdInput(Input):
 
         grid = get_geography_info("mars_grid")
         if grid == "undefined":
-            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
+            grid = {
+                "latitudes": list(state["latitudes"]),
+                "longitudes": list(state["longitudes"]),
+            }
             geography_information["grid"] = grid
 
         else:  # If grid is undefined we don't want to add the area
@@ -618,7 +632,11 @@ class FieldlistInput(EkdInput):
                 files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
-                LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
+                LOG.warning(
+                    "Directory %r contains no files which match patterns %r",
+                    path,
+                    self.patterns,
+                )
                 return ekd.from_source("empty")  # type: ignore[reportReturnType]
             return ekd.from_source("file", files)  # type: ignore[reportReturnType]
 
@@ -632,3 +650,218 @@ class FieldlistInput(EkdInput):
             return ekd.from_source("empty")  # type: ignore[reportReturnType]
 
         return ekd.from_source("file", path)  # type: ignore[reportReturnType]
+
+
+class RequestInput(EkdInput):
+    """An earthkit input that retrieves fields from a request-based source.
+
+    This class unifies the shared behaviour of the MARS, CDS and FDB inputs.
+    It implements :meth:`create_input_state` and :meth:`load_forcings_state`,
+    builds the list of requests from the checkpoint metadata (applying
+    ``patch_data_request``), and delegates the actual data retrieval to the
+    :meth:`_retrieve` hook, which each subclass must implement.
+
+    It also handles the conversion of request dates and times into forecast
+    steps when ``from_forecast`` is True.
+    """
+
+    def __init__(self, *args: Any, from_forecast: bool = False, **kwargs: Any) -> None:
+        """Initialise the RequestInput.
+
+        Parameters
+        ----------
+        from_forecast : bool
+            Whether to get data from a forecast, i.e. selecting from step,
+            rather than from the base date.
+        *args : Any
+            Positional arguments forwarded to :class:`EkdInput`.
+        **kwargs : Any
+            Keyword arguments forwarded to :class:`EkdInput`.
+        """
+        self.from_forecast = from_forecast
+        super().__init__(*args, **kwargs)
+
+    def patch_data_request(self, request: Any) -> Any:
+        """Patch a data request, optionally converting dates to forecast steps.
+
+        Parameters
+        ----------
+        request : Any
+            The data request to patch.
+
+        Returns
+        -------
+        Any
+            The patched data request.
+        """
+        request = super().patch_data_request(request)
+
+        if not self.from_forecast:
+            return request
+
+        dates = [to_datetime(f"{d}T{t}") for d, t in itertools.product(request["date"], request["time"])]
+        base_date = self.reference_date
+        if base_date is None:
+            raise ValueError(
+                "Reference date is not set but 'from_forecast' is True, cannot convert dates to forecast steps."
+            )
+
+        steps = convert_dates_to_steps(dates, base_date=base_date)
+        request["step"] = steps
+        request["date"] = [base_date.strftime("%Y-%m-%d")]
+        request["time"] = [base_date.strftime("%H%M")]
+        return request
+
+    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs: Any) -> State:
+        """Create the input state for the given dates.
+
+        Parameters
+        ----------
+        dates : list[Date]
+            The list of dates for which to create the input state.
+        ref_date_index : int, optional
+            The index in `dates` to use as reference date for the state.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        State
+            The created input state.
+        """
+        return self._create_input_state(
+            self.retrieve(self.variables, dates=dates),
+            variables=self.variables,
+            dates=dates,
+            ref_date_index=ref_date_index,
+            **kwargs,
+        )
+
+    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
+        """Load the forcings state for the given dates.
+
+        Parameters
+        ----------
+        dates : list[Date]
+            The list of dates for which to load the forcings state.
+        current_state : State
+            The current state to be updated with the loaded forcings state.
+
+        Returns
+        -------
+        State
+            The loaded forcings state.
+        """
+        return self._load_forcings_state(
+            self.retrieve(self.variables, dates=dates),
+            dates=dates,
+            current_state=current_state,
+        )
+
+    def retrieve(self, variables: list[str], dates: list[Date], **kwargs: Any) -> ekd.FieldList:
+        """Retrieve data for the given variables and dates.
+
+        Builds the requests from the checkpoint metadata (applying
+        ``patch_data_request``) and delegates the actual retrieval to the
+        subclass-specific :meth:`_retrieve`.
+
+        Parameters
+        ----------
+        variables : list[str]
+            The list of variables to retrieve.
+        dates : list[Date]
+            The list of dates for which to retrieve the data.
+        **kwargs : Any
+            Additional keyword arguments forwarded to :meth:`_retrieve`.
+
+        Returns
+        -------
+        ekd.FieldList
+            The retrieved data.
+        """
+        requests = self.build_requests(variables, dates)
+
+        if not requests:
+            raise ValueError(f"No requests for {variables} ({dates})")
+
+        return self._retrieve(requests, **kwargs)
+
+    def build_requests(self, variables: list[str], dates: list[Date]) -> list[Any]:
+        """Build the list of retrieval requests from the checkpoint metadata.
+
+        Parameters
+        ----------
+        variables : list[str]
+            The list of variables to retrieve.
+        dates : list[Date]
+            The list of dates for which to retrieve the data.
+
+        Returns
+        -------
+        list[Any]
+            The list of requests.
+        """
+        return self.metadata.mars_requests(
+            variables=variables,
+            dates=dates,
+            use_grib_paramid=self.context.use_grib_paramid,
+            patch_request=self.patch_data_request,
+        )
+
+    def _retrieve(self, requests: list[Any], **kwargs: Any) -> ekd.FieldList:
+        """Retrieve fields for the given requests.
+
+        Subclasses must implement this to perform the actual data retrieval
+        (e.g. from MARS, CDS or FDB).
+
+        Parameters
+        ----------
+        requests : list[Any]
+            The list of requests to retrieve.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        ekd.FieldList
+            The retrieved data.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} must implement `_retrieve`")
+
+    def _load_forcings_state(
+        self,
+        fields: ekd.FieldList,
+        *,
+        dates: list[Date],
+        current_state: State,
+        **kwargs,
+    ) -> State:
+        """Load the forcings state.
+
+        Parameters
+        ----------
+        fields : ekd.FieldList
+            The fields to load.
+        dates : List[Any]
+            The list of dates to load.
+        current_state : Dict[str, Any]
+            The current state.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        Returns
+        -------
+        State
+            The loaded forcings state.
+        """
+        kwargs.setdefault("select_reference_date", self.from_forecast)
+
+        return self._create_state(
+            fields,
+            dates=dates,
+            latitudes=current_state.get("latitudes", None),
+            longitudes=current_state.get("longitudes", None),
+            dtype=np.float32,
+            flatten=True,
+            **kwargs,
+        )

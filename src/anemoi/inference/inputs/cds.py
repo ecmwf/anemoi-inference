@@ -18,11 +18,10 @@ from earthkit.data.utils.dates import to_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
 
 from . import input_registry
+from .ekd import RequestInput
 from .grib import GribInput
 from .mars import postproc
 
@@ -106,7 +105,7 @@ def retrieve(
 
 
 @input_registry.register("cds")
-class CDSInput(GribInput):
+class CDSInput(GribInput, RequestInput):
     """Get input fields from CDS."""
 
     trace_name = "cds"
@@ -160,41 +159,13 @@ class CDSInput(GribInput):
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
-        """Create the input state for the given date.
+    def _retrieve(self, requests: list[DataRequest], **kwargs: Any) -> Any:
+        """Retrieve data from CDS for the given requests.
 
         Parameters
         ----------
-        dates : list[Date]
-            The dates for which to create the input state.
-        **kwargs : Any
-            Additional keyword arguments.
-
-        Returns
-        -------
-        State
-            The created input state.
-        """
-
-        return self._create_input_state(
-            self.retrieve(
-                self.variables,
-                **self._parse_dates(dates),
-            ),
-            variables=self.variables,
-            dates=dates,
-            **kwargs,
-        )
-
-    def retrieve(self, variables: list[str], dates: list[Date], **kwargs) -> Any:
-        """Retrieve data for the given variables and dates.
-
-        Parameters
-        ----------
-        variables : List[str]
-            List of variables to retrieve.
-        dates : List[Date]
-            List of dates for which to retrieve data.
+        requests : list[DataRequest]
+            The list of requests to retrieve.
         **kwargs : Any
             Additional keyword arguments to pass to the retrieval function.
 
@@ -203,17 +174,6 @@ class CDSInput(GribInput):
         Any
             Retrieved data.
         """
-
-        requests = self.metadata.mars_requests(
-            variables=variables,
-            dates=dates,
-            use_grib_paramid=self.context.use_grib_paramid,
-            patch_request=self.patch_data_request,
-        )
-
-        if not requests:
-            raise ValueError(f"No requests for {variables} ({dates})")
-
         retrieval_kwargs = self.kwargs.copy()
         retrieval_kwargs.update(kwargs)
 
@@ -224,29 +184,6 @@ class CDSInput(GribInput):
             dataset=self.dataset,
             expver="0001",
             **retrieval_kwargs,
-        )
-
-    def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
-        """Load the forcings state for the given variables and dates.
-
-        Parameters
-        ----------
-        dates : List[Date]
-            The list of dates for which to load the forcings state.
-        current_state : State
-            The current state to be updated with the loaded forcings state.
-
-        Returns
-        -------
-        State
-            The loaded forcings state.
-        """
-        retrieved_state = self.retrieve(self.variables, **self._parse_dates(dates))
-
-        return self._load_forcings_state(
-            retrieved_state,
-            dates=dates,
-            current_state=current_state,
         )
 
     def default_initial_date(self) -> datetime:
