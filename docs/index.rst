@@ -143,6 +143,7 @@ Get more information in the :ref:`installing <installing>` section.
    cli/patch
    cli/sanitise
    cli/requests
+   cli/nexus-record
 
 .. toctree::
    :maxdepth: 1
