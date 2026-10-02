@@ -212,6 +212,11 @@ class Checkpoint:
     # We assume that all attributes here are shared across datasets for multi-dataset checkpoints.
     ###########################################################################
     @property
+    def task(self) -> str:
+        """Return task, which describes the Runner."""
+        return self._metadata.task
+
+    @property
     def timestep(self) -> Any:
         """Get the timestep."""
         return self._metadata.timestep
