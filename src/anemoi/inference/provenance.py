@@ -9,8 +9,10 @@
 
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
+from typing import TypedDict
 from typing import overload
 
 from anemoi.utils.provenance import gather_provenance_info
@@ -219,3 +221,54 @@ def validate_environment(
 
     LOG.info("Environment validation passed")
     return True
+
+
+class CheckpointIdentity(TypedDict):
+    path: str
+    md5: str | None
+
+
+@dataclass(kw_only=True)
+class OutputManifest:
+    """Describes a set of output files well enough to read them back.
+
+    Serialised alongside the outputs it describes, typically as ``manifest.json``.
+
+    Attributes
+    ----------
+    format : str
+        Identifier of the output format, for example ``"anemoi-raw"``.
+    checkpoint : CheckpointIdentity
+        Identity of the checkpoint used, as a path and a content hash.
+    dataset_name : str
+        Name of the dataset this output was written for.
+    variables : list[str]
+        Variables actually written, after any filtering.
+    template : str
+        Filename template the output files were named with.
+    strftime : str
+        Date format string used when rendering `template`.
+    grid : str
+        Identifier of the grid the fields are on.
+    provenance : dict
+        Environment the output was written in.
+    reference_date : str, optional
+        Reference date of the run, by default None.
+    output_frequency : int, optional
+        Frequency at which states were written, by default None.
+    version : int, optional
+        Version of this manifest's schema, by default 1.
+    """
+
+    format: str
+    checkpoint: CheckpointIdentity
+    dataset_name: str
+    variables: list[str]
+    template: str
+    strftime: str
+    grid: str
+    provenance: dict
+    reference_date: str | None = None
+    output_frequency: int | None = None
+    field_prefix: str = "field_"
+    version: int = 1
