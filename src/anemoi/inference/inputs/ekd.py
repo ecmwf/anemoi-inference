@@ -13,12 +13,15 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import datetime
 from functools import cached_property
 from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
 from anemoi.transform.variables import Variable
+from anemoi.utils.humanize import dict_to_human
+from anemoi.utils.timer import Timer
 from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
@@ -160,30 +163,48 @@ class EkdInput(Input):
         self._namer = namer if namer is not None else self.metadata.default_namer()
         assert callable(self._namer), type(self._namer)
 
-    def _filter_and_sort(
-        self,
-        data: ekd.FieldList,
-        *,
-        dates: list[Date],
-        title: str,
-        select_reference_date: bool = False,
-        **kwargs,
+    def _filter_by_time(
+        self, data: ekd.FieldList, *, dates: list[datetime], select_reference_date: bool = False
     ) -> ekd.FieldList:
-        """Filter and sort the earthkit FieldList.
+        """Filter by dates,
+        Selects upon the valid_datetime field in the data by dates, optionally including the reference date.
 
         Parameters
         ----------
         data : ekd.FieldList
-            The data to filter and sort.
-        dates : List[Date]
-            The list of dates to select.
-        title : str
-            The title for logging.
-        select_reference_date: bool, optional
-            Also include the reference date when selecting data from the FieldList.
-            If False (default), only the valid date is considered.
-        **kwargs : Any
-            Additional arguments for selecting the variable.
+            The data to filter by time.
+        dates : list[datetime]
+            The list of valid dates to filter by.
+        select_reference_date : bool, optional
+            Whether to also include the reference date when filtering, by default False
+
+        Returns
+        -------
+        ekd.FieldList
+            The filtered data.
+        """
+        valid_datetime = [date.isoformat() for date in dates]
+        datetime_selection: dict = dict(valid_datetime=valid_datetime)
+
+        if select_reference_date:
+            assert self.reference_date is not None, "Reference date must be set when selecting reference date."
+            datetime_selection.update(
+                dataDate=int(self.reference_date.strftime("%Y%m%d")),
+                dataTime=int(self.reference_date.strftime("%H%M")),
+            )
+        with Timer("") as timer:
+            subset_data = data.sel(**datetime_selection)
+            timer.title = f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human(datetime_selection)}"
+        return subset_data
+
+    def _filter_and_sort_by_variable(self, data: ekd.FieldList) -> ekd.FieldList:
+        """Filter and sort by variables.
+        Applies the namer configured to convert ids.
+
+        Parameters
+        ----------
+        data : ekd.FieldList
+            Data to filter and sort
 
         Returns
         -------
@@ -194,25 +215,12 @@ class EkdInput(Input):
         def _name(field: ekd.Field, _: Any, original_metadata: dict[str, Any]) -> str:
             return self._namer(field, original_metadata)
 
-        valid_datetime = [date.isoformat() for date in dates]
-        datetime_selection = dict(valid_datetime=valid_datetime)
-
-        if select_reference_date:
-            datetime_selection.update(
-                dataDate=int(self.reference_date.strftime("%Y%m%d")),
-                dataTime=int(self.reference_date.strftime("%H%M")),
-            )
-
-        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data.sel(**datetime_selection)])
-        LOG.info("Selecting fields %s %s", len(data), valid_datetime)
+        data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
 
         data = data.sel(name=self.variables).order_by(
             name=self.variables,
             valid_datetime="ascending",
         )
-
-        check_data(title, data, self.variables, dates, self.metadata)
-
         return data
 
     def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
@@ -271,7 +279,7 @@ class EkdInput(Input):
         flatten : bool
             Whether to flatten the data.
         ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional arguments for selecting the variable.
 
@@ -309,19 +317,23 @@ class EkdInput(Input):
 
         state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
 
-        # allow hooks to operate on the FieldList before conversion to numpy
+        dates = sorted([to_datetime(d) for d in dates])
+        state["fields"] = self._filter_by_time(
+            state["fields"], dates=dates, select_reference_date=kwargs.get("select_reference_date", False)
+        )
+
+        # allow hooks to operate on the FieldList before conversion to numpy, but after subsetting by time
         state = self.pre_process(state)
 
-        fields = state["fields"]
         state_fields = {}
 
-        if len(fields) == 0:
+        if len(state["fields"]) == 0:
             raise ValueError("No input fields provided")
 
-        dates = sorted([to_datetime(d) for d in dates])
-        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
+        fields = self._filter_and_sort_by_variable(state["fields"])
+        check_data("Create input state", fields, self.variables, dates, self.metadata)
 
-        fields = self._filter_and_sort(fields, dates=dates, title="Create input state", **kwargs)
+        date_to_index = {d.isoformat(): i for i, d in enumerate(dates)}
 
         check = defaultdict(set)
         state_variables = {}
@@ -385,13 +397,12 @@ class EkdInput(Input):
         self,
         input_fields: ekd.FieldList,
         *,
-        date: Date | None = None,
+        dates: list[Date],
         variables: list[str] | None = None,
         latitudes: FloatArray | None = None,
         longitudes: FloatArray | None = None,
         dtype: DTypeLike = np.float32,
         flatten: bool = True,
-        constant: bool = False,
         ref_date_index: int = -1,
         **kwargs,
     ) -> State:
@@ -401,8 +412,8 @@ class EkdInput(Input):
         ----------
         input_fields : ekd.FieldList
             The input fields.
-        date : Date
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         variables : Optional[List[str]]
             List of variables.
         latitudes : Optional[FloatArray]
@@ -413,10 +424,8 @@ class EkdInput(Input):
             The data type.
         flatten : bool
             Whether to flatten the data.
-        constant: bool
-            Whether the field is constant or dynamic.
-        ref_date_index: int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
+        ref_date_index : int = -1
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional arguments for selecting the variable.
         Returns
@@ -424,16 +433,6 @@ class EkdInput(Input):
         State
             The created input state.
         """
-        if date is None:
-            date = input_fields.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
-            LOG.info(
-                "%s: `date` not provided, using the most recent date: %s", self.__class__.__name__, date.isoformat()
-            )
-
-        if constant:
-            dates = [date]
-        else:
-            dates = [date + h for h in self.metadata.lagged]
 
         return self._create_state(
             input_fields,
@@ -537,15 +536,15 @@ class FieldlistInput(EkdInput):
         super().__init__(context, metadata, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, date: Date | None, ref_date_index: int = -1, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         ref_date_index : int = -1
-            If 0 takes the first date, if -1 takes the last date in sequence.
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -554,7 +553,7 @@ class FieldlistInput(EkdInput):
         State
             The created input state.
         """
-        return self._create_input_state(self._fieldlist, date=date, ref_date_index=ref_date_index, **kwargs)
+        return self._create_input_state(self._fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -577,6 +576,10 @@ class FieldlistInput(EkdInput):
             dates=dates,
             current_state=current_state,
         )
+
+    def default_initial_date(self) -> datetime:
+        # most recent valid datetime from the fieldlist
+        return self._fieldlist.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
 
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:
