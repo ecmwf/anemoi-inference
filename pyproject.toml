@@ -85,7 +85,7 @@ optional-dependencies.tests = [
   "pytest-mock",
 ]
 optional-dependencies.zarr = [
-  "xarray<2026.9", # last version to support zarr2, TODO: remove when the rest of anemoi supports zarr3
+  "xarray<2026.10", # last version to support zarr2, TODO: remove when the rest of anemoi supports zarr3
   "zarr",
 ]
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
