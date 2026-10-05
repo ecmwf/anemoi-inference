@@ -240,7 +240,7 @@ class RawInput(Input):
         if not dates:
             raise ValueError(f"{self.__class__.__name__}: no dates provided")
 
-        dates = list(to_datetime(d) for d in dates)
+        dates = sorted(to_datetime(d) for d in dates)
         loaded = [self._load_file(date, base_date=base_date) for date in dates]
 
         typed_variables = self.metadata.typed_variables
