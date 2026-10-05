@@ -104,13 +104,15 @@ class SplitInput(Input):
 
         super().__init__(context, metadata, **kwargs)
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
         ----------
-        date : Date or None
-            The date for the input state.
+        dates : list[Date]
+            The dates for the input state.
+        ref_date_index : int = -1
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -121,7 +123,7 @@ class SplitInput(Input):
         """
 
         # TODO: Consider caching the result
-        states = [split.create_input_state(date=date, **kwargs) for split in self.splits]
+        states = [split.create_input_state(dates=dates, **kwargs) for split in self.splits]
 
         if len(states) == 1:
             state = states[0]
@@ -129,7 +131,7 @@ class SplitInput(Input):
             state = combine_states(*states)
 
         state["_input"] = self
-        state["date"] = date
+        state["date"] = dates[ref_date_index]
 
         return state
 
@@ -138,7 +140,7 @@ class SplitInput(Input):
 
         Parameters
         ----------
-        dates : list of Date
+        dates : list[Date]
             The list of dates for which to repeat the fields.
         current_state : State
             The current state to use for loading.

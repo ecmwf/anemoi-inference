@@ -79,7 +79,7 @@ def test_cutout_no_mask(runner: tuple[Runner, Metadata]):
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
     with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
+        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == number_of_grid_points * 2
@@ -106,7 +106,7 @@ def test_cutout_with_slice(runner: tuple[Runner, Metadata]):
     assert list(cutout_input.sources.keys()) == ["lam", "global"]
     number_of_grid_points = metadata.number_of_grid_points
     with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
+        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == 25
@@ -137,7 +137,7 @@ def test_cutout_with_array(runner: tuple[Runner, Metadata]):
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
     with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(date=datetime.datetime.fromisoformat("2020-01-01T00:00"))
+        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == 25
