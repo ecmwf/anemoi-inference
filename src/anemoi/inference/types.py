@@ -8,9 +8,7 @@
 #
 
 import datetime
-from typing import Any
-from typing import Literal
-from typing import Union
+from typing import Any, Literal, Union
 
 from numpy.typing import NDArray
 

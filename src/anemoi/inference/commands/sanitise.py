@@ -9,8 +9,7 @@
 
 
 import logging
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
 from . import Command
@@ -39,8 +38,7 @@ class SanitiseCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
-        from anemoi.utils.checkpoints import load_metadata
-        from anemoi.utils.checkpoints import replace_metadata
+        from anemoi.utils.checkpoints import load_metadata, replace_metadata
         from anemoi.utils.sanitise import sanitise
 
         original_metadata, supporting_arrays = load_metadata(args.path, supporting_arrays=True)

@@ -9,8 +9,7 @@
 
 import pytest
 
-from anemoi.inference.decorators import format_dataset_name
-from anemoi.inference.decorators import main_argument
+from anemoi.inference.decorators import format_dataset_name, main_argument
 
 
 def test_main_argument():

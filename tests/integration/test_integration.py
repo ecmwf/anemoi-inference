@@ -18,16 +18,12 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 from anemoi.transform.variables import Variable
-from anemoi.utils.testing import TEST_DATA_URL
-from anemoi.utils.testing import GetTestData
-from omegaconf import DictConfig
-from omegaconf import ListConfig
-from omegaconf import OmegaConf
+from anemoi.utils.testing import TEST_DATA_URL, GetTestData
+from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import save_fake_checkpoint
-from anemoi.inference.testing import testing_registry
+from anemoi.inference.testing import save_fake_checkpoint, testing_registry
 
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)
@@ -169,7 +165,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     def _make_resolver(data, dataset_name):
         return lambda i=0: str(data[dataset_name][i])
 
-    for dataset in input_data.keys():
+    for dataset in input_data:
         OmegaConf.register_new_resolver(f"{dataset}.input", _make_resolver(input_data, dataset), replace=True)
     for dataset in output.keys():
         OmegaConf.register_new_resolver(f"{dataset}.output", _make_resolver(output, dataset), replace=True)

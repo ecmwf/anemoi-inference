@@ -22,9 +22,7 @@ from anemoi.transform.variables import Variable
 from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
 
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import Shape
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, Shape, State
 
 LOG = logging.getLogger(__name__)
 

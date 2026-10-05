@@ -14,21 +14,16 @@ from pathlib import Path
 import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
-from earthkit.data.readers.grib.codes import GribCodesHandle
-from earthkit.data.readers.grib.codes import GribField
+from earthkit.data.readers.grib.codes import GribCodesHandle, GribField
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
 
-from anemoi.inference.grib.encoding import GribWriter
-from anemoi.inference.grib.encoding import check_encoding
-from anemoi.inference.grib.encoding import grib_keys
+from anemoi.inference.grib.encoding import GribWriter, check_encoding, grib_keys
 from anemoi.inference.grib.templates.input import InputTemplates
 from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.outputs.parallel import _restore_grib_templates
-from anemoi.inference.outputs.parallel import _sanitise_state
-from anemoi.inference.outputs.parallel import _serialise_grib_templates
+from anemoi.inference.outputs.parallel import _restore_grib_templates, _sanitise_state, _serialise_grib_templates
 from anemoi.inference.testing import files_for_tests
 
 

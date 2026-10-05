@@ -32,7 +32,7 @@ class BaseRunnerStub(Runner):
     skips ``Runner.__init__`` (which requires a checkpoint and config).
     """
 
-    def __init__(self):  # noqa: D107 - deliberately bypass heavy base init
+    def __init__(self):
         pass
 
 

@@ -38,12 +38,9 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        from unittest.mock import MagicMock
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
 
-        from .mock_checkpoint import MockRunConfiguration
-        from .mock_checkpoint import mock_load_metadata
-        from .mock_checkpoint import mock_torch_load
+        from .mock_checkpoint import MockRunConfiguration, mock_load_metadata, mock_torch_load
 
         with (
             patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata),
@@ -151,4 +148,3 @@ def files_for_tests(name: str) -> str:
 class TestingContext:
     """A context for testing plugins."""
 
-    pass
