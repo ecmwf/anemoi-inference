@@ -56,7 +56,13 @@ class MarkerMetadata(Metadata):
 )
 @fake_checkpoints
 def test_select_runner(patch: dict, expected_class: type) -> None:
-    config = RunConfiguration(checkpoint=MULTI_DATASET_CHECKPOINT, device="cpu", input="dummy", patch_metadata=patch)
+    config = RunConfiguration(
+        checkpoint=MULTI_DATASET_CHECKPOINT,
+        date=-1,
+        device="cpu",
+        input="dummy",
+        patch_metadata=patch,
+    )
     assert isinstance(AutoRunnerFactory(config), expected_class)
 
 

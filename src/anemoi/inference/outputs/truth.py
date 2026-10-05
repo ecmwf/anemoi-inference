@@ -76,14 +76,15 @@ class TruthOutput(ForwardOutput):
 
     def modify_state(self, state: State) -> State:
         """Modify state by overriding it with the truth state."""
+        date = state["date"]
 
         states = [
-            self._prog_input.create_input_state(date=state["date"]),
-            self._constant_forc_input.create_input_state(date=state["date"]),
-            self._dynamic_forc_input.create_input_state(date=state["date"]),
+            self._prog_input.create_input_state(dates=[date]),
+            self._constant_forc_input.create_input_state(dates=[date]),
+            self._dynamic_forc_input.create_input_state(dates=[date]),
         ]
         if self._diag_input:
-            states.append(self._diag_input.create_input_state(date=state["date"]))
+            states.append(self._diag_input.create_input_state(dates=[date]))
 
         truth_state = self.context._combine_states(*states)  # type: ignore
         truth_state = self.reduce(truth_state)
