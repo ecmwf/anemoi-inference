@@ -35,6 +35,10 @@ class AutoRunnerFactory(Runner):
         if runner_name == "auto":
             raise ValueError("Task defined in configuration cannot be 'auto'.")
 
+        if runner_name is None:
+            LOG.warning("Runner name is not defined in the checkpoint, falling back to forecaster runner.")
+            return runner_registry.from_config("forecaster", config, **kwargs)
+
         if runner_registry.lookup(runner_name, return_none=True) is None:
             raise ValueError(
                 f"Runner '{runner_name}' from the metadata `task` field is not registered. "
