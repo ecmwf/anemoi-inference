@@ -362,13 +362,76 @@ class Runner(Context):
                 )
                 continue
             kwargs[key] = value
+            print(f"[predict_kwargs] injected {key}={value}", flush=True)
+
+        # Mirror the training behaviour of `training.decoder_dropout_p == 1.0`:
+        # at fcstep=0 the decoder output for these datasets is NaN-masked (encoder
+        # still runs — obs act as forcings); at fcstep>0 the datasets are fully
+        # dropped so the fusion gate is forced to 0, matching how the model was
+        # trained.
+        fcstep = kwargs.get("fcstep")
+        if self._step0_only_datasets and fcstep is not None:
+            step0 = list(self._step0_only_datasets)
+            if fcstep == 0:
+                if "decoder_dropped_dataset_names" not in kwargs:
+                    kwargs["decoder_dropped_dataset_names"] = step0
+                    print(
+                        f"[step0-only] fcstep=0: decoder_dropped_dataset_names={step0} "
+                        f"(encoder used, decoder output → NaN)",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"[step0-only] fcstep=0: user-supplied decoder_dropped_dataset_names="
+                        f"{kwargs['decoder_dropped_dataset_names']}, not injecting {step0}",
+                        flush=True,
+                    )
+            elif "dropped_dataset_names" not in kwargs:
+                kwargs["dropped_dataset_names"] = step0
+                print(
+                    f"[step0-only] fcstep={fcstep}: dropped_dataset_names={step0} "
+                    f"(fully dropped, fusion gate = 0, decoder output → NaN)",
+                    flush=True,
+                )
+            else:
+                print(
+                    f"[step0-only] fcstep={fcstep}: user-supplied dropped_dataset_names="
+                    f"{kwargs['dropped_dataset_names']}, not injecting {step0}",
+                    flush=True,
+                )
 
         if not self.checkpoint.multi_dataset:
             assert len(input_tensors_torch) == 1, "Expected only one dataset in input tensors"
             name, tensor = next(iter(input_tensors_torch.items()))
             return {name: model.predict_step(tensor, **kwargs)}
 
+        print(
+            f"[predict_step] fcstep={fcstep} "
+            f"dropped_dataset_names={kwargs.get('dropped_dataset_names')} "
+            f"decoder_dropped_dataset_names={kwargs.get('decoder_dropped_dataset_names')}",
+            flush=True,
+        )
         return model.predict_step(input_tensors_torch, **kwargs)
+
+    @cached_property
+    def _step0_only_datasets(self) -> list[str]:
+        """Datasets that act as forcings only at the first rollout step (fcstep=0).
+
+        At `fcstep > 0` the runner adds them to `dropped_dataset_names` so the model's
+        fusion gate is forced to 0, matching training where the encoder is never trained
+        on non-zero contributions from these datasets after the first step.
+
+        Configured explicitly via the inference config field `step0_only_datasets`.
+        Defaults to an empty list (no injection).
+        """
+        override = getattr(self.config, "step0_only_datasets", None)
+        if not override:
+            print("[step0-only] no step0_only_datasets configured — no per-step drops injected", flush=True)
+            return []
+        result = list(override)
+        print(f"[step0-only] configured step0_only_datasets={result}", flush=True)
+        LOG.info("Step-0-only forcing datasets: %s", result)
+        return result
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta

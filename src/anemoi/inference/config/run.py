@@ -95,6 +95,18 @@ class RunConfiguration(Configuration):
     predict_kwargs: dict[str, Any] = Field(default_factory=dict)
     """Extra keyword arguments to pass to the model's predict_step method. Will ignore kwargs that are already passed by the runner."""
 
+    step0_only_datasets: list[str] | None = None
+    """List of datasets that act as forcings only at the first rollout step (fcstep=0).
+    At fcstep>0 the runner adds them to `dropped_dataset_names` so the model's fusion
+    gate is forced to 0.
+
+    Use this when the corresponding datasets were trained with
+    `training.decoder_dropout_p == 1.0`, so the fusion gate for those datasets was
+    hard-zeroed at rollout step > 0 during training and behaves consistently at inference.
+
+    Defaults to ``None`` / empty (no drops injected).
+    """
+
     typed_variables: dict[str, dict] = Field(default_factory=dict)
     """A list of typed variables to support the encoding of outputs."""
 
