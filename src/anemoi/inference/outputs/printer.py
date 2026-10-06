@@ -163,7 +163,7 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        print_state(state, max_lines=self.max_lines, variables=self.variables)
+        print_state(state, print=self.print, max_lines=self.max_lines, variables=self.variables)
 
     def close(self) -> None:
         if self.f is not None:

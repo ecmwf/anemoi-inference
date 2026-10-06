@@ -39,6 +39,17 @@ The variable names should match the names as they appear in the checkpoint.
 For variables with pressure levels, use the format ``{param}_{level}``, for
 example ``t_850`` for temperature at 850 hPa.
 
+Entries may also be shell-style glob patterns using ``*``, ``?`` and
+``[...]``, matched against the variable name. Use quotes around patterns that start with ``*`` so YAML does not
+read them as an alias.
+
+Generally, if configured variables don't match anything in the checkpoint, they will skip silently.
+
+**glob patterns**
+
+.. literalinclude:: yaml/outputs_variables_glob.yaml
+   :language: yaml
+
 
 post_processors
 ===============

@@ -27,6 +27,13 @@ from anemoi.inference.schemas import OutputVariableConfig
         pytest.param({"drop": "cp"}, ["2t", "z_500"], id="drop_string"),
         pytest.param({"drop": []}, ["2t", "cp", "z_500"], id="drop_empty_list"),
         pytest.param({"select": []}, [], id="select_empty_list"),
+        pytest.param(["z_*"], ["z_500"], id="glob_prefix"),
+        pytest.param("*_500", ["z_500"], id="glob_suffix"),
+        pytest.param({"select": ["?t"]}, ["2t"], id="glob_single_char"),
+        pytest.param({"select": ["cp", "z_*"]}, ["cp", "z_500"], id="glob_mixed_with_literal"),
+        pytest.param({"drop": ["z_*"]}, ["2t", "cp"], id="glob_drop"),
+        pytest.param({"select": ["t_*"]}, [], id="glob_no_match_select"),
+        pytest.param({"drop": ["t_*"]}, ["2t", "cp", "z_500"], id="glob_no_match_drop"),
     ],
 )
 def test_output_variables(
