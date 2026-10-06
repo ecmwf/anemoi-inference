@@ -337,7 +337,11 @@ class Runner(Context):
             return model
 
     def predict_step(
-        self, model: "torch.nn.Module", input_tensors_torch: dict[str, "torch.Tensor"], **kwargs: Any
+        self,
+        model: "torch.nn.Module",
+        input_tensors_torch: dict[str, "torch.Tensor"],
+        input_states: dict[str, "State"] = {},
+        **kwargs: Any,
     ) -> dict[str, "torch.Tensor"]:
         """Predict the next step.
 
@@ -347,13 +351,15 @@ class Runner(Context):
             The model.
         input_tensors_torch : dict[str, torch.Tensor]
             The input tensors for each dataset.
+        input_states : dict[str, State]
+            The original input states for each dataset.
         **kwargs : Any
             Additional keyword arguments that will be passed to the model's predict_step method.
 
         Returns
         -------
-        torch.Tensor
-            The predicted step.
+        dict[str, torch.Tensor]
+            The predicted step for each dataset.
         """
         for key, value in self.config.predict_kwargs.items():
             if key in kwargs:
@@ -446,7 +452,9 @@ class Runner(Context):
 
             lead_time = to_timedelta(lead_time)
 
-            new_states = input_states.copy()  # We should not modify the input state
+            new_states = {}
+            for dataset, state in input_states.items():
+                new_states[dataset] = state.copy()  # We should not modify the input state
 
             # The variable `check` is used to keep track of which variables have been updated
             # In the input tensor. `reset` is used to reset `check` to False except
@@ -492,7 +500,14 @@ class Runner(Context):
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=s, step=step, date=dates[-1])
+                    y_pred = self.predict_step(
+                        self.model,
+                        input_tensors_torch,
+                        fcstep=s,
+                        step=step,
+                        date=dates[-1],
+                        input_states=input_states,
+                    )
 
                 # y_pred (batch, [time], ensemble, values, variables) -> outputs (time, values, variables)
                 outputs: dict[str, torch.Tensor] = {}
