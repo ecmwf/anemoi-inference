@@ -34,6 +34,12 @@ from anemoi.inference.schemas import OutputVariableConfig
         pytest.param({"drop": ["z_*"]}, ["2t", "cp"], id="glob_drop"),
         pytest.param({"select": ["t_*"]}, [], id="glob_no_match_select"),
         pytest.param({"drop": ["t_*"]}, ["2t", "cp", "z_500"], id="glob_no_match_drop"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": 500}]}, ["z_500"], id="mars_and_keys"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": 850}]}, [], id="mars_and_keys_no_match"),
+        pytest.param({"select": [{"param": "c*"}]}, ["cp"], id="mars_glob_value"),
+        pytest.param({"select": [{"nokey": "x"}]}, [], id="mars_missing_key"),
+        pytest.param({"select": ["2t", {"levtype": "pl"}]}, ["2t", "z_500"], id="mars_mixed_with_name"),
+        pytest.param({"drop": [{"levtype": "sfc"}]}, ["z_500"], id="mars_drop"),
     ],
 )
 def test_output_variables(
@@ -53,6 +59,7 @@ def test_output_variables(
         pytest.param({"": ["cp"]}, id="empty_dict_key"),
         pytest.param({"rop": ["cp"]}, id="typo"),
         pytest.param({"select": ["cp"], "drop": ["z_500"]}, id="select_and_drop"),
+        pytest.param({"levtype": "pl"}, id="mars_dict_without_select"),
     ],
 )
 def test_output_variables_failure(input_variables, tmp_path, basic_context, basic_metadata, basic_state):

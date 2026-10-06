@@ -17,6 +17,7 @@ from typing import Literal
 from typing import Union
 
 import numpy as np
+from anemoi.transform.variables import Variable
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -40,6 +41,7 @@ def print_state(
     print: Callable[..., None] = print,
     max_lines: int = 4,
     variables: OutputVariableConfigUnion = None,
+    typed_variables: dict[str, Variable] | None = None,
 ) -> None:
     """Print the state.
 
@@ -53,6 +55,8 @@ def print_state(
         The maximum number of lines to print, by default 4. If `variables` is provided, this option is ignored.
     variables : list, optional
         The list of variables to print, by default None. This should match the structure described in OutputVariableConfig.
+    typed_variables : dict[str, Variable], optional
+        Variable metadata by name, by default None. Needed only for `variables` entries that select on MARS keys.
     """
     variables = OutputVariableConfig.model_validate(variables)
 
@@ -90,8 +94,9 @@ def print_state(
 
     length = max((len(name) for name in names), default=0)
 
+    typed_variables = typed_variables or {}
     for name in selected:
-        if variables.skip(name):
+        if variables.skip(name, typed_variables.get(name)):
             continue
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
@@ -163,7 +168,13 @@ class PrinterOutput(Output):
         self.print()
         if self.metadata.multi_dataset:
             self.print(f"[{self.dataset_name}]", end=" ")
-        print_state(state, print=self.print, max_lines=self.max_lines, variables=self.variables)
+        print_state(
+            state,
+            print=self.print,
+            max_lines=self.max_lines,
+            variables=self.variables,
+            typed_variables=self.typed_variables,
+        )
 
     def close(self) -> None:
         if self.f is not None:
