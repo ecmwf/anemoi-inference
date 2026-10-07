@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import fnmatch
+import logging
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -19,8 +20,10 @@ from pydantic import model_validator
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
 
-"""A glob pattern on the variable name, or a mapping of MARS keys that must all match."""
+LOG = logging.getLogger(__name__)
+
 NameOrMarsMap = str | dict[str, Any]
+"""A glob pattern on the variable name, or a mapping of MARS keys that must all match."""
 
 
 class OutputVariableConfig(BaseModel):
@@ -71,6 +74,15 @@ class OutputVariableConfig(BaseModel):
             return [value]
         else:
             return value
+
+    @field_validator("select", "drop", mode="after")
+    @classmethod
+    def drop_empty_mappings(cls, value: list[NameOrMarsMap] | None) -> list[NameOrMarsMap] | None:
+        if value is None:
+            return value
+        if any(entry == {} for entry in value):
+            LOG.warning("Ignoring empty mapping in output `variables`; it would match every variable.")
+        return [entry for entry in value if entry != {}]
 
     @property
     def not_set(self) -> bool:

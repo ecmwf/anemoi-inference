@@ -40,6 +40,9 @@ from anemoi.inference.schemas import OutputVariableConfig
         pytest.param({"select": [{"nokey": "x"}]}, [], id="mars_missing_key"),
         pytest.param({"select": ["2t", {"levtype": "pl"}]}, ["2t", "z_500"], id="mars_mixed_with_name"),
         pytest.param({"drop": [{"levtype": "sfc"}]}, ["z_500"], id="mars_drop"),
+        pytest.param({"select": [{}, "cp"]}, ["cp"], id="mars_empty_mapping_ignored"),
+        pytest.param({"select": [{}]}, [], id="mars_empty_mapping_only_select"),
+        pytest.param({"drop": [{}]}, ["2t", "cp", "z_500"], id="mars_empty_mapping_only_drop"),
     ],
 )
 def test_output_variables(
