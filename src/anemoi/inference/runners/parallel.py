@@ -8,7 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
 import warnings
 from typing import Any
 
@@ -159,17 +158,8 @@ class ParallelRunnerMixin(Runner):
 
     def seed(self, comm_group: "torch.distributed.ProcessGroup | None") -> None:
         """Seed all processes in the cluster to ensure reproducibility."""
-        seed = None
-        seed_threshold = 1000
-        env_var = "ANEMOI_BASE_SEED"
-
-        if env_var in os.environ:
-            seed = int(os.environ[env_var])
-            if seed < seed_threshold:
-                seed *= seed_threshold  # Ensure seed is sufficiently large
-
         if self.is_master:
-            seed = seed or torch.initial_seed()
+            seed = self.config.seed or torch.initial_seed()
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
         else:
