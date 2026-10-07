@@ -390,7 +390,7 @@ class TensorHandler:
         return dynamic_forcings_providers
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor | None", check: BoolArray
     ) -> "torch.Tensor":
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
@@ -399,6 +399,13 @@ class TensorHandler:
             device=input_tensor_torch.device,
             dtype=torch.long,
         )
+
+        if y_pred is None:
+            # Input-only dataset (no decoder): prognostic inputs keep their last values
+            for old_idx, new_idx in self.metadata.advance_map["inin"]:
+                input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
+            check[pmask_in.detach().cpu().numpy()] = True
+            return input_tensor_torch
 
         pmask_out = torch.as_tensor(
             self.metadata.prognostic_output_mask,
