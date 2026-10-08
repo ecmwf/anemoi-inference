@@ -84,7 +84,7 @@ class Runner(Context):
         if config.seed is not None:
             torch.manual_seed(config.seed)
 
-        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={config.seed}")
+        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={torch.initial_seed()}")
 
         classes = classes or RunnerClasses()
         self.classes = classes
