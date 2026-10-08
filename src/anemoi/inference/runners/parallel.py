@@ -159,7 +159,7 @@ class ParallelRunnerMixin(Runner):
     def seed(self, comm_group: "torch.distributed.ProcessGroup | None") -> None:
         """Seed all processes in the cluster to ensure reproducibility."""
         if self.is_master:
-            seed = self.config.seed or torch.initial_seed()
+            seed = self.config.seed if self.config.seed is not None else torch.initial_seed()
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
         else:
