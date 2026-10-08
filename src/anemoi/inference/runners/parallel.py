@@ -162,7 +162,7 @@ class ParallelRunnerMixin(Runner):
         """
 
         if self.is_master:
-            seed = torch.initial_seed()
+            seed = torch.initial_seed()  # will pick up the manual_seed set by the base `Runner`
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
         else:
