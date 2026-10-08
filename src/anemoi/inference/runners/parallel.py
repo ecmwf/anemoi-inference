@@ -157,12 +157,13 @@ class ParallelRunnerMixin(Runner):
             warnings.filterwarnings("ignore")
 
     def seed(self, comm_group: "torch.distributed.ProcessGroup | None") -> None:
-        """Broadcast the same initial seed to all processes in the cluster.
+        """Broadcast the initial seed to all processes in the cluster.
+        Ensures the same random seed is broadcast to all ranks when the user doesn't manually set the seed.
         Manual seeding is performed earlier in the base `Runner` constructor.
         """
 
         if self.is_master:
-            seed = torch.initial_seed()  # will pick up the manual_seed set by the base `Runner`
+            seed = torch.initial_seed()  # will pick up the seed set by the base `Runner`
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
         else:
