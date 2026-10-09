@@ -4,9 +4,9 @@
  Runner overview
 #################
 
-The main entry point for the inference processors are the Runners. These
-are the primary managers of inputs, outputs, processing, etc, and should
-be used to handle all inference. This page will define the overall
+The main entry point for inference is the Runner. This is the
+primary manager of inputs, outputs, processing, etc, and runs the end-to-end prediction loop. 
+This page will define the overall
 architecture of the Runner, including advanced usage.
 
 Runners follow the standard factory pattern of the repository (see
@@ -89,11 +89,12 @@ handlers, and checkpoints. This class is defined in ``runner.py``:
        checkpoint: type[Checkpoint] = Checkpoint
        metadata: type[Metadata] = Metadata
 
-``RunnerClasses`` is the main way of configuring *how* the runner
-actually runs. It consists of a set of classes which are used to define
+``RunnerClasses`` allows you to swap out some of the key internal classes used by the runner (also known as a *trait*). It consists of a set of classes which are used to initialise
 the :class:`TensorHandler <anemoi.inference.tensors.TensorHandler>`,
 :class:`Checkpoint <anemoi.inference.checkpoint.Checkpoint>`, and
-:class:`Metadata <anemoi.inference.metadata.Metadata>` management.
+:class:`Metadata <anemoi.inference.metadata.Metadata>`.
+
+This facility is there to support extending the base runner to perform tasks other than forecasting, without having to rewrite or overload large parts of the runner.
 
 By default, when creating metadata, runner passes into the ``Metadata``
 class, which defines the kind of "standard" Metadata processing.
