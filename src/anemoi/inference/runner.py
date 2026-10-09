@@ -523,6 +523,10 @@ class Runner(Context):
                                 step - self.checkpoint.rollout_shift + self.checkpoint.output_offsets[i]
                             )
 
+                            if dataset not in outputs:
+                                # Input-only dataset (no decoder)
+                                continue
+
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
                             for j in range(output.shape[1]):
@@ -568,11 +572,10 @@ class Runner(Context):
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
+                        # None for input-only datasets
                         input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
-                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
+                            input_tensors_torch[dataset], y_pred.pop(dataset, None), check[dataset]
                         )
-
-                        del y_pred[dataset]  # Recover memory
 
                         # some forcings use the new_state(s)
                         # ComputedForcings only uses it to get latlons

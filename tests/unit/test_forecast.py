@@ -351,3 +351,67 @@ def test_forecast_offset(
     for key, t in expected.items():
         assert results_prog[key] == pytest.approx(np.float32(t), abs=1e-4), f"prog at t={t}"
         assert results_diag[key] == pytest.approx(np.float32(-t), abs=1e-4), f"diag at t={t}"
+
+
+# ── Input-only dataset (encoder but no decoder) ───────────────────────────────────
+
+
+def _add_input_only_dataset(runner, name="obs"):
+    data_metadata = runner.tensor_handlers["data"].metadata
+    metadata = SimpleNamespace(
+        dataset_name=name,
+        multi_step_input=data_metadata.multi_step_input,
+        multi_step_output=data_metadata.multi_step_output,
+        advance_map=data_metadata.advance_map,
+        variable_to_input_tensor_index={name: 0},
+        output_tensor_index_to_variable=[],
+        typed_variables={name: SimpleNamespace(is_constant_in_time=False)},
+        prognostic_input_mask=np.array([0]),
+        prognostic_output_mask=np.array([], dtype=int),
+    )
+    handler = TensorHandler.__new__(TensorHandler)
+    handler.context = runner
+    handler.metadata = metadata
+    handler.trace = False
+    handler._input_kinds = {}
+    handler._input_tensor_by_name = [name]
+    handler.dynamic_forcings_providers = []
+    handler.boundary_forcings_providers = []
+    runner.tensor_handlers[name] = handler
+
+
+def test_forecast_with_input_only_dataset(monkeypatch: pytest.MonkeyPatch, forecast_runner_factory):
+    multi_step_input, lead_time_hours = 2, 3
+    runner = forecast_runner_factory(multi_step_input, 1)
+    _add_input_only_dataset(runner)
+
+    def predict_step(model, input_tensors, **kwargs):
+        assert set(input_tensors) == {"data", "obs"}
+        assert torch.isfinite(input_tensors["obs"]).all(), "input-only dataset must keep finite values"
+        return basic_predict_step(model, input_tensors, **kwargs)  # predicts `data` only
+
+    monkeypatch.setattr(runner, "predict_step", predict_step)
+    monkeypatch.setattr(runner, "output_states_hook", lambda x: None)
+    monkeypatch.setattr(runner, "mid_processors", defaultdict(list), raising=False)
+
+    input_steps = np.arange(1 - multi_step_input, 1, dtype=np.float32)
+    test_input = np.stack(
+        [
+            np.broadcast_to((0.5**input_steps)[:, np.newaxis], (multi_step_input, 2)),
+            np.broadcast_to(input_steps[:, np.newaxis], (multi_step_input, 2)),
+        ],
+        axis=1,
+    )
+    obs_input = np.ones((multi_step_input, 1, 2), dtype=np.float32)
+
+    prog, obs_fields = [], []
+    for state in runner.forecast(
+        lead_time=to_timedelta(f"{lead_time_hours}h"),
+        input_tensors_numpy=dict(data=test_input, obs=obs_input),
+        input_states=dict(data={"date": datetime(2020, 1, 1)}, obs={"date": datetime(2020, 1, 1)}),
+    ):
+        prog.append(state["data"]["fields"]["prog"][0].item())
+        obs_fields.append(dict(state["obs"]["fields"]))
+
+    assert prog == pytest.approx([1.0, 2.0, 3.0], abs=1e-4)
+    assert obs_fields == [{}] * lead_time_hours

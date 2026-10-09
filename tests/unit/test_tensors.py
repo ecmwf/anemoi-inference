@@ -182,3 +182,15 @@ def test_copy_prognostic_fields_raises_on_conflicting_slot() -> None:
 
     with pytest.raises(AssertionError, match="overwrite existing prognostic input slots"):
         handler.copy_prognostic_fields_to_input_tensor(input_tensor, y_pred, check)
+
+
+def test_copy_prognostic_fields_input_only_dataset() -> None:
+    """Input-only dataset (no prediction): the window advances, the last step keeps its values."""
+    handler = _make_handler(2, 1, _regular_advance_map(2, 1))
+    input_tensor, _ = _build_tensors(2, 1)
+    check = np.zeros(2, dtype=bool)
+
+    result = handler.copy_prognostic_fields_to_input_tensor(input_tensor, None, check)
+
+    assert result[0, :, :, 1].tolist() == [[2.0, 2.0], [2.0, 2.0]]
+    assert check.tolist() == [False, True]
