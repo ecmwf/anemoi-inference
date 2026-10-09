@@ -1,0 +1,8 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    variables:
+      select:
+        - levtype: pl
+          levelist: 500
+        - levtype: sfc
