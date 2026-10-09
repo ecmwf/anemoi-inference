@@ -65,7 +65,6 @@ class RicherBatchRunner(Runner):
         input_states: dict[str, "State"],
         **kwargs: Any,
     ) -> dict[str, "torch.Tensor"]:
-
         for key, value in self.config.predict_kwargs.items():
             if key in kwargs:
                 warnings.warn(
@@ -82,14 +81,15 @@ class RicherBatchRunner(Runner):
             target_template[dataset] = {}
 
             rich_batch[dataset]["data"] = data
+            rich_batch[dataset]["data_type"] = "gridded"
             rich_batch[dataset]["variables"] = list(
                 self.tensor_handlers[dataset].metadata.variable_to_input_tensor_index.keys()
             )
             rich_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
             rich_batch[dataset]["longitudes"] = input_states[dataset]["longitudes"]
-            rich_batch[dataset]["layout"] = ("batch", "time", "ensemble", "grid", "variables")
+            rich_batch[dataset]["layout"] = ("time", "ensemble", "grid", "variables")
 
-            for key in ("latitudes", "longitudes", "layout"):
+            for key in ("latitudes", "longitudes", "layout", "data_type"):
                 target_template[dataset][key] = rich_batch[dataset][key]
             target_template[dataset]["variables"] = list(
                 self.tensor_handlers[dataset].metadata.variable_to_output_tensor_index.keys()
