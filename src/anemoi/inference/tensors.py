@@ -403,8 +403,7 @@ class TensorHandler:
         for old_idx, new_idx in self.metadata.advance_map["inin"]:
             input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
 
-        # y_pred is None when the model returned no output for this dataset (e.g. an input-only
-        # dataset without a decoder): its prognostic inputs then keep their last values
+        # y_pred is None when the model returned no output for this dataset 
         if y_pred is not None:
             pmask_out = torch.as_tensor(
                 self.metadata.prognostic_output_mask,
