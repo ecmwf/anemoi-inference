@@ -5,7 +5,7 @@
 #################
 
 The main entry point for inference is the Runner. This is the
-primary manager of inputs, outputs, processing, etc, and runs the end-to-end prediction loop. 
+primary manager of inputs, outputs, processing, etc, and runs the end-to-end prediction loop.
 This page will define the overall
 architecture of the Runner, including advanced usage.
 
@@ -15,12 +15,7 @@ called :class:`DefaultRunner
 <anemoi.inference.runners.default.DefaultRunner>`. Forecasting
 functionality is primarily defined in the superclass :class:`Runner
 <anemoi.inference.runner.Runner>`, which is found in
-``src/anemoi/inference/runner.py``. Other runners are
-:class:`AutoRunnerFactory <anemoi.inference.runners.auto.AutoRunnerFactory>`,
-which automatically processes checkpoints to return the correct Runner
-class, and :class:`TemporalDownscalerMultiOutRunner
-<anemoi.inference.runners.temporal_downscaler.TemporalDownscalerMultiOutRunner>`,
-which is used for temporal downscaling.
+``src/anemoi/inference/runner.py``. Further information on runners can be found in the configuration file documentation, see :ref:`runner <top-level-runner>`.
 
 *******************************
  Using and configuring Runners
@@ -76,18 +71,9 @@ All the defaults for each configuration are found in
 ``RunnerClasses`` provide options for reading in metadata, tensor
 handlers, and checkpoints. This class is defined in ``runner.py``:
 
-.. code:: python
-
-   class RunnerClasses(BaseModel):
-       """Configurable class types used by the Runner.
-       Child runners can override these with different classes.
-       """
-
-       model_config = ConfigDict(arbitrary_types_allowed=True)
-
-       tensor_handler: type[TensorHandler] = TensorHandler
-       checkpoint: type[Checkpoint] = Checkpoint
-       metadata: type[Metadata] = Metadata
+.. literalinclude:: ../../src/anemoi/inference/runner.py
+   :pyobject: RunnerClasses
+   :language: python
 
 ``RunnerClasses`` allows you to swap out some of the key internal classes used by the runner (also known as a *trait*). It consists of a set of classes which are used to initialise
 the :class:`TensorHandler <anemoi.inference.tensors.TensorHandler>`,
