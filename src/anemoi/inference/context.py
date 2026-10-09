@@ -10,10 +10,8 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
 
@@ -45,4 +43,3 @@ class Context(ABC):
     @abstractmethod
     def checkpoint(self) -> Checkpoint:
         """Returns the checkpoint used for the inference."""
-        pass

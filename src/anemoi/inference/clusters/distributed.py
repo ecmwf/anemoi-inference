@@ -9,8 +9,7 @@
 
 
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters.mapping import EnvMapping
-from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.mapping import EnvMapping, MappingCluster
 
 DISTRIBUTED_MAPPING = EnvMapping(
     local_rank="LOCAL_RANK",

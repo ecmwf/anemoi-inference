@@ -7,10 +7,9 @@
 # nor does it submit to any jurisdiction.
 #
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import TYPE_CHECKING
-from typing import Callable
 
 if TYPE_CHECKING:
     from anemoi.inference.clusters.client import ComputeClientFactory

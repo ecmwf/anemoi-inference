@@ -15,8 +15,7 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, State
 
 from ..processor import Processor
 from . import post_processor_registry

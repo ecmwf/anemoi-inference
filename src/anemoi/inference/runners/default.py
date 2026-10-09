@@ -20,4 +20,3 @@ LOG = logging.getLogger(__name__)
 class DefaultRunner(Runner):
     """The default runner is a forecaster."""
 
-    pass

@@ -11,15 +11,10 @@
 import numpy as np
 import pytest
 from earthkit.data.readers.grib.codes import GribCodesHandle
-from earthkit.data.utils.dates import to_datetime
-from earthkit.data.utils.dates import to_timedelta
+from earthkit.data.utils.dates import to_datetime, to_timedelta
 
-from anemoi.inference.grib.encoding import encode_message
-from anemoi.inference.grib.encoding import grib_keys
-from anemoi.inference.grib.encoding import render_template
-from anemoi.inference.testing.variables import tp
-from anemoi.inference.testing.variables import w_100
-from anemoi.inference.testing.variables import z
+from anemoi.inference.grib.encoding import encode_message, grib_keys, render_template
+from anemoi.inference.testing.variables import tp, w_100, z
 
 
 def _make_template(missing_value=9999):

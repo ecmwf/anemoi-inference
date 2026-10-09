@@ -13,8 +13,7 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.inputs.dummy import DummyInput
 from anemoi.inference.processor import Processor
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing import files_for_tests
+from anemoi.inference.testing import fake_checkpoints, files_for_tests
 
 
 class DummyProcessor(Processor):
