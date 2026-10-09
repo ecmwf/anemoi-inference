@@ -400,27 +400,23 @@ class TensorHandler:
             dtype=torch.long,
         )
 
-        if y_pred is None:
-            # Input-only dataset (no decoder): prognostic inputs keep their last values
-            for old_idx, new_idx in self.metadata.advance_map["inin"]:
-                input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
-            check[pmask_in.detach().cpu().numpy()] = True
-            return input_tensor_torch
-
-        pmask_out = torch.as_tensor(
-            self.metadata.prognostic_output_mask,
-            device=y_pred.device,
-            dtype=torch.long,
-        )  # index_select requires long dtype, can be bool (mask)
-        # or int (index) tensors
-
-        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
-
         for old_idx, new_idx in self.metadata.advance_map["inin"]:
             input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
 
-        for out_idx, new_idx in self.metadata.advance_map["outin"]:
-            input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
+        # y_pred is None when the model returned no output for this dataset (e.g. an input-only
+        # dataset without a decoder): its prognostic inputs then keep their last values
+        if y_pred is not None:
+            pmask_out = torch.as_tensor(
+                self.metadata.prognostic_output_mask,
+                device=y_pred.device,
+                dtype=torch.long,
+            )  # index_select requires long dtype, can be bool (mask)
+            # or int (index) tensors
+
+            prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+                input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
