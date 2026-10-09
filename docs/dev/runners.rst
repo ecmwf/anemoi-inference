@@ -5,7 +5,7 @@
 #################
 
 The main entry point for inference is the Runner. This is the
-primary manager of inputs, outputs, processing, etc, and runs the end-to-end prediction loop. 
+primary manager of inputs, outputs, processing, etc, and runs the end-to-end prediction loop.
 This page will define the overall
 architecture of the Runner, including advanced usage.
 
