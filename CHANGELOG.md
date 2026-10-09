@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.13.0](https://github.com/ecmwf/anemoi-inference/compare/0.12.0...0.13.0) (2026-10-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **inputs:** Change date handling for initial conditions ([#583](https://github.com/ecmwf/anemoi-inference/issues/583))
+
+### Features
+
+* **config:** Add option to set torch seed ([#606](https://github.com/ecmwf/anemoi-inference/issues/606)) ([fc96042](https://github.com/ecmwf/anemoi-inference/commit/fc960428e33fb4349acea37343f616e60f8083cd))
+* **config:** Dynamic runner selection using a new AutoFactory  ([#592](https://github.com/ecmwf/anemoi-inference/issues/592)) ([f31c21b](https://github.com/ecmwf/anemoi-inference/commit/f31c21b19bbd5df1f217c47b290edeb7f53e5d3c))
+* **inputs:** Change date handling for initial conditions ([#583](https://github.com/ecmwf/anemoi-inference/issues/583)) ([c4bc903](https://github.com/ecmwf/anemoi-inference/commit/c4bc903f83229b18ddfffebcabc0de73b8cb2437))
+* **outputs/parallel:** Configurable chunking strategies ([#574](https://github.com/ecmwf/anemoi-inference/issues/574)) ([68d45cd](https://github.com/ecmwf/anemoi-inference/commit/68d45cd70275be19671b77a3bcd8aa8da826f65f))
+* **outputs:** Add exclusion option for variables in output  ([#580](https://github.com/ecmwf/anemoi-inference/issues/580)) ([f4de538](https://github.com/ecmwf/anemoi-inference/commit/f4de5384921103aa85b02850bd8a2e2dbd9f00e5))
+
+
+### Bug Fixes
+
+* **deps:** Pin xarray to last version with zarr2 support ([#594](https://github.com/ecmwf/anemoi-inference/issues/594)) ([b530bcc](https://github.com/ecmwf/anemoi-inference/commit/b530bcc56b0cb097d2a277a5583092cb715cb5bb))
+* **inputs/cutout:** Restore fallback to checkpoint metadata ([#579](https://github.com/ecmwf/anemoi-inference/issues/579)) ([b1209af](https://github.com/ecmwf/anemoi-inference/commit/b1209af32c3188e12de9a938e617f0f1fa9a6386))
+* **metadata:** Correctly resolve checkpoint variable names in default_namer ([#573](https://github.com/ecmwf/anemoi-inference/issues/573)) ([88c1ec1](https://github.com/ecmwf/anemoi-inference/commit/88c1ec13632c570f246cc2580ce324e45f36a03b))
+* **outputs/grib:** Ensure initial state is post processed before template lookup ([#587](https://github.com/ecmwf/anemoi-inference/issues/587)) ([59549b9](https://github.com/ecmwf/anemoi-inference/commit/59549b9f4ca778a7132584fa4b6df7d3631a053b))
+* **requests:** Lazy import of grib utils ([#590](https://github.com/ecmwf/anemoi-inference/issues/590)) ([46a226f](https://github.com/ecmwf/anemoi-inference/commit/46a226f78564315911cb88e31c85654ec609cd33))
+* **runners/auto:** Fallback to forecaster if task is None ([#603](https://github.com/ecmwf/anemoi-inference/issues/603)) ([9505dd0](https://github.com/ecmwf/anemoi-inference/commit/9505dd0926ec3c5dea9308813cc7859bfdad755a))
+* **runners/parallel:** Destroy process group once after execution ([#593](https://github.com/ecmwf/anemoi-inference/issues/593)) ([0c0a989](https://github.com/ecmwf/anemoi-inference/commit/0c0a989d4794eded4b4269044774ad19e2114e74))
+
+
+### Performance Improvements
+
+* **inputs/ekd:** Filter by date before pre-processing fieldlist ([#583](https://github.com/ecmwf/anemoi-inference/issues/583)) ([c4bc903](https://github.com/ecmwf/anemoi-inference/commit/c4bc903f83229b18ddfffebcabc0de73b8cb2437))
+
+
+### Documentation
+
+* Add Developer docs ([#584](https://github.com/ecmwf/anemoi-inference/issues/584)) ([c8f12d7](https://github.com/ecmwf/anemoi-inference/commit/c8f12d774012f34e9e8b7c41987b0fa2ab429619))
+* Document runner class configurations, including overrides and custom runner classes. ([#600](https://github.com/ecmwf/anemoi-inference/issues/600)) ([1b27b92](https://github.com/ecmwf/anemoi-inference/commit/1b27b92835024403a57913d4b4f2bce56b2b0e65))
+
 ## [0.12.0](https://github.com/ecmwf/anemoi-inference/compare/0.11.2...0.12.0) (2026-09-04)
 
 
