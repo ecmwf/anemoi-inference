@@ -199,7 +199,8 @@ class Input(ABC):
         pass
 
     def default_initial_date(self) -> "datetime":
-        """Return the initial date to use when none is given in the config.
+        """Return the initial date to use when none is given in the config
+        (assuming a forecasting context).
 
         The runner calls this when `date` isn't set in the config or on the CLI.
         Each input decides how to pick the date: some read it from the data

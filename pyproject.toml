@@ -35,7 +35,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
-  "anemoi-utils[provenance,text]>=0.4.32",
+  "anemoi-utils[provenance,text]>=0.5.13",
   "aniso8601",
   "anytree",
   "deprecation",
@@ -53,7 +53,7 @@ dependencies = [
 optional-dependencies.all = [
   "anemoi-datasets",
   "anemoi-inference[huggingface,netcdf,plot,tests,zarr]",
-  "anemoi-utils[all]>=0.4.32",
+  "anemoi-utils[all]>=0.5.13",
 ]
 optional-dependencies.cosmo = [
   "eccodes>=2.47,<2.48",
@@ -84,7 +84,10 @@ optional-dependencies.tests = [
   "pytest",
   "pytest-mock",
 ]
-optional-dependencies.zarr = [ "zarr" ]
+optional-dependencies.zarr = [
+  "xarray<2026.9", # last version to support zarr2, TODO: remove when the rest of anemoi supports zarr3
+  "zarr",
+]
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/anemoi-inference/"
 urls.Issues = "https://github.com/ecmwf/anemoi-inference/issues"

@@ -80,7 +80,11 @@ class Runner(Context):
 
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
-        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}")
+
+        seed = config.seed if config.seed is not None else torch.initial_seed()
+        torch.manual_seed(seed)
+
+        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={seed}")
 
         classes = classes or RunnerClasses()
         self.classes = classes
