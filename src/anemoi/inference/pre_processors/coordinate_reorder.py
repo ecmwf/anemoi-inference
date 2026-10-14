@@ -9,6 +9,8 @@
 
 
 import logging
+from collections import defaultdict
+from collections import deque
 
 import numpy as np
 from anemoi.transform.fields import new_field_from_latitudes_longitudes
@@ -91,9 +93,6 @@ def build_grid_reordering(
     if np.array_equal(s_lat, t_lat) and np.array_equal(s_lon, t_lon):
         return None
 
-    from collections import defaultdict
-    from collections import deque
-
     src_index: dict[tuple[float, float], "deque[int]"] = defaultdict(deque)
     for i in range(src_lat.size):
         src_index[(s_lat[i], s_lon[i])].append(i)
@@ -126,49 +125,49 @@ def build_grid_reordering(
     return perm
 
 
-def invert_reordering(perm: IntArray | None) -> IntArray | None:
+def backward_mapping(forward_mapping: IntArray | None) -> IntArray | None:
     """Return the inverse of a reordering permutation.
 
-    If ``perm`` maps a source array onto a target ordering via
-    ``target = source[perm]``, then the returned ``inverse`` maps back via
-    ``source = target[inverse]`` (equivalently ``inverse[perm] == arange``). This
+    If ``forward_mapping`` maps a source array onto a target ordering via
+    ``target = source[forward_mapping]``, then the returned ``inverse`` maps back via
+    ``source = target[inverse]`` (equivalently ``inverse[forward_mapping] == arange``). This
     is useful to map a model-ordered result back onto the original input ordering.
 
     Parameters
     ----------
-    perm : IntArray | None
+    forward_mapping : IntArray | None
         A permutation index array (as returned by :func:`build_grid_reordering`),
         or ``None`` for the identity mapping.
 
     Returns
     -------
     IntArray | None
-        ``None`` if ``perm`` is ``None`` (identity is its own inverse). Otherwise
-        the inverse permutation, with the same length and dtype as ``perm``.
+        ``None`` if ``forward_mapping`` is ``None`` (identity is its own inverse). Otherwise
+        the inverse permutation, with the same length and dtype as ``forward_mapping``.
 
     Raises
     ------
     ValueError
-        If ``perm`` is not a valid permutation of ``range(len(perm))`` (contains
+        If ``forward_mapping`` is not a valid permutation of ``range(len(forward_mapping))`` (contains
         negative/out-of-range indices or duplicates), which would make it
         non-invertible.
     """
-    if perm is None:
+    if forward_mapping is None:
         return None
 
-    perm = np.asarray(perm)
-    n = perm.size
+    forward_mapping = np.asarray(forward_mapping)
+    n = forward_mapping.size
 
-    if perm.ndim != 1:
-        raise ValueError(f"Permutation must be 1-D, got shape {perm.shape}")
-    if n and (perm.min() < 0 or perm.max() >= n):
+    if forward_mapping.ndim != 1:
+        raise ValueError(f"Permutation must be 1-D, got shape {forward_mapping.shape}")
+    if n and (forward_mapping.min() < 0 or forward_mapping.max() >= n):
         raise ValueError("Permutation contains out-of-range indices; it is not invertible")
 
-    inverse = np.empty(n, dtype=perm.dtype)
-    inverse[perm] = np.arange(n, dtype=perm.dtype)
+    inverse = np.empty(n, dtype=forward_mapping.dtype)
+    inverse[forward_mapping] = np.arange(n, dtype=forward_mapping.dtype)
 
     # Validate it really was a bijection (no duplicate targets left a gap).
-    if not np.array_equal(inverse[perm], np.arange(n, dtype=perm.dtype)):
+    if not np.array_equal(inverse[forward_mapping], np.arange(n, dtype=forward_mapping.dtype)):
         raise ValueError("Permutation is not a bijection; it is not invertible")
 
     return inverse
@@ -193,9 +192,9 @@ class CoordinateReorder(Processor):
     raised.
     """
 
-    # The permutation applied by the last ``process`` call (``None`` if the
+    # The mapping applied by the last ``process`` call (``None`` if the
     # state was already aligned and no reordering was needed).
-    _perm: IntArray | None = None
+    _forward_mapping: IntArray | None = None
 
     def __init__(self, context: Context, metadata: Metadata, *, decimals: int = 4) -> None:
         """Initialize the CoordinateReorder processor.
@@ -216,22 +215,23 @@ class CoordinateReorder(Processor):
         return f"CoordinateReorder(decimals={self.decimals})"
 
     @property
-    def permutation(self) -> IntArray | None:
-        """The permutation applied by the last :meth:`process` call.
+    def forward_mapping(self) -> IntArray | None:
+        """The forward_mapping applied by the last :meth:`process` call.
 
-        ``target = source[permutation]``. ``None`` means no reordering was needed
+        ``target = source[forward_mapping]``. ``None`` means no reordering was needed
         (identity), or :meth:`process` has not been called yet.
         """
-        return self._perm
+        return self._forward_mapping
 
-    def inverse_permutation(self) -> IntArray | None:
-        """Return the inverse of the permutation applied by :meth:`process`.
+    @property
+    def backward_mapping(self) -> IntArray | None:
+        """Return the inverse of the forward_mapping applied by :meth:`process`.
 
         Maps a model-ordered array back onto the original input ordering via
         ``source = target[inverse]``. Returns ``None`` if no reordering was
         applied (identity is its own inverse).
         """
-        return invert_reordering(self.permutation)
+        return backward_mapping(self._forward_mapping)
 
     def process(self, state: State) -> State:
         """Reorder the state onto the model grid ordering.
@@ -262,7 +262,7 @@ class CoordinateReorder(Processor):
             return state
 
         perm = build_grid_reordering(src_lat, src_lon, tgt_lat, tgt_lon, decimals=self.decimals)
-        self._perm = perm
+        self._forward_mapping = perm
         if perm is None:
             # Already in the correct order.
             return state
@@ -298,7 +298,7 @@ class CoordinateReorder(Processor):
         state["longitudes"] = new_lon
 
         state["_coordinate_reorder"] = {
-            "permutation": self.inverse_permutation(),
+            "permutation": self.backward_mapping,
             "latitudes": src_lat,
             "longitudes": src_lon,
         }

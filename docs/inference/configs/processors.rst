@@ -288,6 +288,7 @@ coordinate_reorder
 ==================
 
 Is the inverse of the ``coordinate_reorder`` pre-processor, which reorders the coordinates of the input state to match the model grid.
+This should only be used if the coordinates of the input state have been reordered by the corresponding pre-processor.
 This restores the original coordinate order of the state.
 
 .. code:: yaml

@@ -17,8 +17,8 @@ from . import post_processor_registry
 LOG = logging.getLogger(__name__)
 
 
-@post_processor_registry.register("coordinate_reorder")
-class CoordinateReorder(Processor):
+@post_processor_registry.register("undo_coordinate_reorder")
+class UndoCoordinateReorder(Processor):
     """Reverse the operation done to reorder the coordinates of the state arrays, done
     in the `coordinate_reorder` pre-processor.
 
@@ -59,4 +59,4 @@ class CoordinateReorder(Processor):
         return state
 
     def __repr__(self) -> str:
-        return "CoordinateReorder()"
+        return "UndoCoordinateReorder()"

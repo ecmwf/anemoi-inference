@@ -26,8 +26,8 @@ from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
+from anemoi.inference.pre_processors.coordinate_reorder import backward_mapping
 from anemoi.inference.pre_processors.coordinate_reorder import build_grid_reordering
-from anemoi.inference.pre_processors.coordinate_reorder import invert_reordering
 
 
 # --------------------------------------------------------------------------- #
@@ -144,7 +144,7 @@ def test_invert_reordering_round_trips():
     """The inverse permutation maps target order back to source order."""
     target_lat, target_lon, source_lat, source_lon, *_ = _source_and_target_grids()
     perm = build_grid_reordering(source_lat, source_lon, target_lat, target_lon)
-    inverse = invert_reordering(perm)
+    inverse = backward_mapping(perm)
 
     assert inverse is not None
     np.testing.assert_array_equal(inverse[perm], np.arange(perm.size))
@@ -156,13 +156,13 @@ def test_invert_reordering_round_trips():
 
 def test_invert_reordering_identity_is_none():
     """The identity mapping (None) is its own inverse."""
-    assert invert_reordering(None) is None
+    assert backward_mapping(None) is None
 
 
 def test_invert_reordering_raises_on_non_bijection():
     """A non-permutation index array cannot be inverted."""
     with pytest.raises(ValueError, match="not a bijection|out-of-range"):
-        invert_reordering(np.array([0, 0, 1]))
+        backward_mapping(np.array([0, 0, 1]))
 
 
 # --------------------------------------------------------------------------- #
@@ -234,7 +234,7 @@ def test_reorder_process_noop_when_already_aligned(mocker: MockerFixture):
     }
     new_state = processor.process(state)
 
-    assert processor.permutation is None
+    assert processor.forward_mapping is None
     np.testing.assert_array_equal(new_state["latitudes"], target_lat)
     np.testing.assert_array_equal(new_state["fields"][0].to_numpy().flatten(), target_signal)
 
@@ -251,8 +251,8 @@ def test_reorder_process_exposes_permutation_and_inverse(mocker: MockerFixture):
     }
     new_state = processor.process(state)
 
-    perm = processor.permutation
-    inverse = processor.inverse_permutation()
+    perm = processor.forward_mapping
+    inverse = processor.backward_mapping
     assert perm is not None and inverse is not None
 
     # The inverse maps the model-ordered field back to the original input order.

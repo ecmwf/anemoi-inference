@@ -175,7 +175,24 @@ class Cutout(Input):
         return f"Cutout({self.sources})"
 
     def pre_process(self, x: State) -> State:
-        """Pre-process the input state after combined"""
+        """Pre-process the input state after it has been combined from the sources.
+
+        Exists as an override to the `pre_process` method of the parent `Input` class,
+        as this class operates on the state objects aggregated from multiple sources,
+        which need to be wrapped and unwrapped appropriately to maintain the structure expected by the parent class.
+
+        In order for coordinates to be correct, this must be called after the state has been combined from the sources.
+
+        Parameters
+        ----------
+        x : State
+            The input state to be pre-processed.
+
+        Returns
+        -------
+        State
+            The pre-processed input state.
+        """
 
         field_state = x.copy()
         field_state["fields"] = wrap_state(field_state, self.metadata.typed_variables)
