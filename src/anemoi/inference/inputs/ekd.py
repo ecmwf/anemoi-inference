@@ -216,12 +216,13 @@ class EkdInput(Input):
             return self._namer(field, original_metadata)
 
         data = ekd.SimpleFieldList([f.clone(name=_name) for f in data])
-
-        data = data.sel(name=self.variables).order_by(
-            name=self.variables,
-            valid_datetime="ascending",
-        )
-        return data
+        with Timer("") as timer:
+            subset_data = data.sel(name=self.variables).order_by(
+                name=self.variables,
+                valid_datetime="ascending",
+            )
+            timer.title = f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human({'name': self.variables})}"
+        return subset_data
 
     def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
         """Find a variable in the earthkit FieldList selection.
