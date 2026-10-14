@@ -221,7 +221,9 @@ class EkdInput(Input):
                 name=self.variables,
                 valid_datetime="ascending",
             )
-            timer.title = f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human({'name': self.variables})}"
+            timer.title = (
+                f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human({'name': self.variables})}"
+            )
         return subset_data
 
     def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
