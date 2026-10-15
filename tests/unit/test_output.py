@@ -8,7 +8,9 @@
 # nor does it submit to any jurisdiction.
 
 
+import numpy as np
 import pytest
+from anemoi.transform.variables import Variable
 
 from anemoi.inference.outputs.raw import RawOutput
 from anemoi.inference.schemas import OutputVariableConfig
@@ -54,6 +56,40 @@ def test_output_variables(
     written = writer.call_args.kwargs
 
     assert sorted(key.removeprefix("field_") for key in written if key.startswith("field_")) == expected_written
+
+
+@pytest.mark.parametrize(
+    "input_variables",
+    [
+        pytest.param({"select": [{"levelist": 500}, {"levelist": 600}]}, id="separate_mappings"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": "[56]00"}]}, id="glob_value"),
+        pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": 850}]}, id="drop_mappings"),
+    ],
+)
+def test_output_variables_multiple_levels(
+    input_variables, tmp_path, mocker, basic_context, basic_metadata, basic_state
+):
+    levels = {
+        f"{param}_{level}": Variable.from_dict(
+            f"{param}_{level}", {"mars": {"param": param, "levtype": "pl", "levelist": level}}
+        )
+        for param in ("t", "z")
+        for level in (500, 600, 850)
+    }
+    basic_metadata.typed_variables.update(levels)
+    basic_state["fields"].update({name: np.array([1.0]) for name in levels})
+
+    writer = mocker.patch("anemoi.inference.outputs.raw.np.savez_compressed")
+    output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables)
+    output.write_step(basic_state)
+    written = writer.call_args.kwargs
+
+    assert sorted(key.removeprefix("field_") for key in written if key.startswith("field_")) == [
+        "t_500",
+        "t_600",
+        "z_500",
+        "z_600",
+    ]
 
 
 @pytest.mark.parametrize(
