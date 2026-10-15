@@ -10,6 +10,8 @@
 import datetime
 import itertools
 
+import numpy as np
+
 from anemoi.inference.types import State
 
 
@@ -55,7 +57,7 @@ def check_state(state: State, title: str = "<state>") -> None:
 
 
 def combine_states(*states: State) -> State:
-    """Combine multiple states into one.
+    """Combine multiple states into one along the fields dimension.
 
     Parameters
     ----------
@@ -157,3 +159,39 @@ def reduce_state(state: State) -> State:
         else:
             reduced_state["fields"][field] = values
     return reduced_state
+
+
+def concat_states(states: list[State]) -> State:
+    """Concatenate a list of states along the date dimension.
+
+    Parameters
+    ----------
+    states : list of State
+        The list of states to concatenate.
+
+    Returns
+    -------
+    State
+        The concatenated state
+    """
+
+    if not states:
+        raise ValueError("No states to concatenate.")
+
+    # Check if all states have the same fields
+    fields = states[0]["fields"].keys()
+    for s in states:
+        if s["fields"].keys() != fields:
+            raise ValueError("All states must have the same fields to concatenate.")
+
+    # Sort states by date to ensure correct concatenation order
+    states = sorted(states, key=lambda s: s["date"])
+
+    concatenated_state = states[0].copy()
+    for key in concatenated_state["fields"]:
+        concatenated_state["fields"][key] = np.concatenate([s["fields"][key] for s in states], axis=0)
+
+    concatenated_state["date"] = states[-1]["date"]
+    concatenated_state["_input"] = states[-1].get("_input", None)
+
+    return concatenated_state

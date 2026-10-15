@@ -8,7 +8,6 @@
 # nor does it submit to any jurisdiction.
 
 import logging
-import os
 import warnings
 from typing import Any
 
@@ -158,18 +157,13 @@ class ParallelRunnerMixin(Runner):
             warnings.filterwarnings("ignore")
 
     def seed(self, comm_group: "torch.distributed.ProcessGroup | None") -> None:
-        """Seed all processes in the cluster to ensure reproducibility."""
-        seed = None
-        seed_threshold = 1000
-        env_var = "ANEMOI_BASE_SEED"
-
-        if env_var in os.environ:
-            seed = int(os.environ[env_var])
-            if seed < seed_threshold:
-                seed *= seed_threshold  # Ensure seed is sufficiently large
+        """Broadcast the initial seed to all processes in the cluster.
+        Ensures the same random seed is broadcast to all ranks when the user doesn't manually set the seed.
+        Manual seeding is performed earlier in the base `Runner` constructor.
+        """
 
         if self.is_master:
-            seed = seed or torch.initial_seed()
+            seed = torch.initial_seed()  # will pick up the seed set by the base `Runner`
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
         else:
@@ -204,7 +198,10 @@ class ParallelRunnerMixin(Runner):
         else:
             try:
                 return super().predict_step(
-                    model, input_tensor_torch, model_comm_group=self.compute_client.process_group, **kwargs
+                    model,
+                    input_tensor_torch,
+                    model_comm_group=self.compute_client.process_group,
+                    **kwargs,
                 )
             except TypeError as err:
                 LOG.error(
@@ -212,10 +209,26 @@ class ParallelRunnerMixin(Runner):
                 )
                 raise err
 
+    def execute(self, *args, **kwargs) -> None:
+        """Execute the runner and tear down the process group once afterwards.
+
+        The base ``execute`` may call ``run`` multiple times (e.g. once per temporal downscaling
+        window), so the process group is torn down here rather than per ``run``.
+        """
+        try:
+            super().execute(*args, **kwargs)
+        finally:
+            self._destroy_process_group()
+
     def complete_forecast_hook(self) -> None:
-        """Hook called at the end of the forecast."""
+        """Hook called at the end of each forecast."""
         super().complete_forecast_hook()
-        torch.distributed.destroy_process_group()
+
+    @staticmethod
+    def _destroy_process_group() -> None:
+        """Destroy the default process group if it is initialised."""
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
 
     def create_output(self, *args, **kwargs) -> Output:
         """Creates the real output on rank 0 and a `none` on the others."""

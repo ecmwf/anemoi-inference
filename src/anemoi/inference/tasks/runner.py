@@ -89,6 +89,9 @@ class CoupledRunner(Runner):
             classes=RunnerClasses(tensor_handler=CoupledTensorHandler),
         )
 
+        if self.checkpoint.task not in ("default", "forecaster"):
+            raise ValueError(f"Coupled runs only support forecaster checkpoints, got task '{self.checkpoint.task}'.")
+
         if len(self.checkpoint.multi_dataset_metadata) > 1:
             LOG.warning(
                 "Coupling models with multiple datasets is not yet fully supported and may lead to unexpected behaviour."
@@ -215,7 +218,7 @@ class RunnerTask(Task):
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
 
-        assert self.config.runner in ("default", "no-model"), self.config.runner
+        assert self.config.runner in ("auto", "default", "no-model", "forecaster"), self.config.runner
 
         coupler = CoupledInput(self, transport, couplings)
 

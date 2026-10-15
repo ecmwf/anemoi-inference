@@ -14,6 +14,9 @@ These values are then tested in the mock model.
 """
 
 import logging
+from datetime import datetime
+from datetime import time
+from datetime import timezone
 
 import earthkit.data as ekd
 import numpy as np
@@ -40,13 +43,13 @@ class DummyInput(EkdInput):
     def __init__(self, context: Context, metadata: Metadata, **kwargs) -> None:
         super().__init__(context, metadata, **kwargs)
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -55,17 +58,14 @@ class DummyInput(EkdInput):
         State
             The created input state.
         """
-        assert date is not None, "date must be provided for dummy input"
-
-        dates = [date + h for h in self.metadata.lagged]
-        return self._create_input_state(self._fields(dates, self.variables), variables=None, date=date, **kwargs)
+        return self._create_input_state(self._fields(dates, self.variables), variables=None, dates=dates, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
 
         Parameters
         ----------
-        dates : List[Date]
+        dates : list[Date]
             List of dates for which to load the forcings.
         current_state : State
             The current state of the input.
@@ -138,3 +138,7 @@ class DummyInput(EkdInput):
         """
         # Unused, but required by the TemplateManager
         return {}
+
+    def default_initial_date(self) -> datetime:
+        # midnight of the current date in UTC
+        return datetime.combine(datetime.now(timezone.utc).date(), time())

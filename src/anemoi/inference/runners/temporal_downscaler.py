@@ -58,6 +58,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
             ),
         )
 
+        if self.reference_date is None:
+            raise ValueError("Temporal downscaler runner requires a date set in the config or CLI.")
+
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Temporal downscaler runner requires exactly two input explicit times (t and t+temporal_downscaling_window), "
             f"but got {self.checkpoint.input_explicit_times}"
@@ -118,7 +121,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         self.constants_states: dict[str, State] = {}
         for dataset in self.tensor_handlers:
             self.constants_states[dataset] = self.constant_forcings_inputs[dataset].create_input_state(
-                date=self.config.date, constant=True, ref_date_index=0
+                dates=[self.reference_date], constant=True, ref_date_index=0
             )
             for key in self.constants_states[dataset]["fields"].keys():
                 self.constants_states[dataset]["fields"][key] = np.concatenate(
@@ -134,7 +137,8 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
         # Process each temporal downscaling window
         for window_idx in range(num_windows):
-            window_start_date = self.config.date + window_idx * self.temporal_downscaling_window
+            window_start_date = self.reference_date + window_idx * self.temporal_downscaling_window
+            window_end_date = window_start_date + self.temporal_downscaling_window
 
             LOG.info(
                 f"Processing temporal downscaling window {window_idx + 1}/{num_windows} starting at {window_start_date}"
@@ -143,12 +147,12 @@ class TemporalDownscalerMultiOutRunner(Runner):
             input_states: dict[str, State] = {}
             for dataset in self.tensor_handlers:
                 prognostic_state = self.prognostics_inputs[dataset].create_input_state(
-                    date=window_start_date, select_reference_date=True, ref_date_index=0
+                    dates=[window_start_date, window_end_date], select_reference_date=True, ref_date_index=0
                 )
                 self._check_state(dataset, prognostic_state, "prognostics")
 
                 forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
-                    date=window_start_date, select_reference_date=True, ref_date_index=0
+                    dates=[window_start_date, window_end_date], select_reference_date=True, ref_date_index=0
                 )
                 self._check_state(dataset, forcings_state, "dynamic_forcings")
 

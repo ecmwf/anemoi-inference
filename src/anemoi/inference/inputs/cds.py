@@ -9,6 +9,7 @@
 
 
 import logging
+from datetime import datetime
 from typing import Any
 
 import earthkit.data as ekd
@@ -148,13 +149,13 @@ class CDSInput(GribInput):
         self.dataset = dataset
         self.kwargs = kwargs
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The dates for which to create the input state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -163,17 +164,14 @@ class CDSInput(GribInput):
         State
             The created input state.
         """
-        if date is None:
-            date = to_datetime(-1)
-            LOG.warning("CDSInput: `date` parameter not provided, using yesterday's date: %s", date)
 
         return self._create_input_state(
             self.retrieve(
                 self.variables,
-                [date + h for h in self.metadata.lagged],
+                dates=dates,
             ),
             variables=self.variables,
-            date=date,
+            dates=dates,
             **kwargs,
         )
 
@@ -227,3 +225,7 @@ class CDSInput(GribInput):
             dates=dates,
             current_state=current_state,
         )
+
+    def default_initial_date(self) -> datetime:
+        # yesterday midnight
+        return to_datetime(-1)

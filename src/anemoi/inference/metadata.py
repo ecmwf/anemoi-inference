@@ -1298,6 +1298,11 @@ class Metadata(LegacyMixin):
         # TODO
         return None
 
+    @property
+    def task(self) -> str:
+        """Return the default task model."""
+        return "forecaster"
+
     def provenance_training(self) -> dict[str, Any]:
         """Get the environmental configuration when trained.
 
@@ -1512,7 +1517,7 @@ class MultiDatasetMetadata(Metadata):
 
     @cached_property
     def task(self) -> str:
-        return self._metadata_inference.task
+        return self._metadata_inference.get("task", "forecaster")
 
     @cached_property
     def timestep(self) -> datetime.timedelta:

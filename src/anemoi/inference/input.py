@@ -21,6 +21,8 @@ from anemoi.inference.types import State
 from anemoi.inference.variables import Variables
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from anemoi.inference.context import Context
     from anemoi.inference.metadata import Metadata
 
@@ -117,13 +119,13 @@ class Input(ABC):
             return f"{self.__class__.__name__}({self.purpose})"
 
     @abstractmethod
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         """Create the input state dictionary.
 
         Parameters
         ----------
-        date : Optional[Date]
-            The date for which to create the input state.
+        dates : list[Date]
+            The list of dates for which to create the input state.
         **kwargs : Any
             Additional keyword arguments.
 
@@ -195,3 +197,17 @@ class Input(ABC):
             The value to set.
         """
         pass
+
+    def default_initial_date(self) -> "datetime":
+        """Return the initial date to use when none is given in the config
+        (assuming a forecasting context).
+
+        The runner calls this when `date` isn't set in the config or on the CLI.
+        Each input decides how to pick the date: some read it from the data
+        (e.g. the latest valid time in a file), others use a fixed rule
+        (e.g. yesterday at 00:00), and some don't implement this method at all.
+        """
+
+        raise NotImplementedError(
+            f"{self.__class__.__name__} can't automatically set the initial date. You must set the initialisation date explicitly in the config or CLI."
+        )

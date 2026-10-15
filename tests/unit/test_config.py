@@ -177,3 +177,18 @@ def test_multi_datasets_config_errors(config: Any, dataset_name: str, datasets: 
     """Test that multi_datasets_config raises AssertionError for invalid inputs."""
     with pytest.raises(AssertionError):
         multi_datasets_config(config, dataset_name, datasets, strict=strict)
+
+
+def test_seed(monkeypatch: MonkeyPatch) -> None:
+    file = files_for_tests("unit/configs/simple.yaml")
+
+    config = RunConfiguration.load(file)
+    assert config.seed is None
+
+    monkeypatch.setenv("ANEMOI_BASE_SEED", "67")
+    config = RunConfiguration.load(file)
+    assert config.seed == 67
+
+    # config takes priority over env var
+    config = RunConfiguration.load(file, {"seed": 42})
+    assert config.seed == 42
