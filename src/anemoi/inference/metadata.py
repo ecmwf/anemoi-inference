@@ -1641,12 +1641,12 @@ class MetadataFactory:
             assert (
                 dataset_name in datasets
             ), f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
-            LOG.info(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
+            LOG.debug(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
             return type("MultiDatasetMetadata", (MultiDatasetMetadata, base_class), {})(
                 metadata, supporting_arrays, dataset_name=dataset_name
             )
 
-        LOG.info(f"Loading legacy single-dataset metadata{suffix}")
+        LOG.debug(f"Loading legacy single-dataset metadata{suffix}")
         return type("SingleDatasetMetadata", (SingleDatasetMetadata, base_class), {})(metadata, supporting_arrays)
 
 
