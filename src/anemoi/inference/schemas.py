@@ -31,9 +31,10 @@ class OutputVariableConfig(BaseModel):
 
     Only one of `select` or `drop` have values, with the other being None. `select` indicates that only the variables provided
     should be written to the output. `drop` indicates that all variables EXCEPT those provided should be written to the output.
+
     Entries are either shell-style glob patterns (``*``, ``?``, ``[...]``) matched against the variable name, or mappings
-    of MARS keys (for example ``{"levtype": "pl"}``) matched against the variable metadata. A literal name matches only
-    itself. All keys in a mapping must match; separate entries are alternatives.
+    of MARS keys (for example ``{"levtype": "pl"}`` or ``{"levlist": [500, 600]}``) matched against the variable metadata. A literal name matches only
+    itself.
 
     To convert from the allowed types for configuration (str | list[str] | dict) to this type, use OutputVariableConfig.model_validate(variables).
 
@@ -111,10 +112,15 @@ class OutputVariableConfig(BaseModel):
 
     @staticmethod
     def _matches(selector: NameOrMarsMap, variable: str, typed_variable: "Variable | None") -> bool:
-        """Compare the selector configuration, which is a glob pattern OR a mapping of MARS key: glob pattern, to the input variable or typed_variable."""
+        """Compare the selector configuration, which is a glob pattern OR a mapping of MARS key: glob pattern(s), to the input variable or typed_variable."""
         if isinstance(selector, str):
             return fnmatch.fnmatchcase(variable, selector)
         if typed_variable is None:
             return False
         keys = typed_variable.grib_keys
-        return all(key in keys and fnmatch.fnmatchcase(str(keys[key]), str(value)) for key, value in selector.items())
+
+        def key_matches(key: str, value: Any) -> bool:
+            values = value if isinstance(value, list) else [value]
+            return key in keys and any(fnmatch.fnmatchcase(str(keys[key]), str(v)) for v in values)
+
+        return all(key_matches(key, value) for key, value in selector.items())

@@ -4,5 +4,5 @@ output:
     variables:
       select:
         - levtype: pl
-          levelist: 500
+          levelist: [500, 850]
         - levtype: sfc

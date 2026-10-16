@@ -42,6 +42,8 @@ from anemoi.inference.schemas import OutputVariableConfig
         pytest.param({"select": [{"nokey": "x"}]}, [], id="mars_missing_key"),
         pytest.param({"select": ["2t", {"levtype": "pl"}]}, ["2t", "z_500"], id="mars_mixed_with_name"),
         pytest.param({"drop": [{"levtype": "sfc"}]}, ["z_500"], id="mars_drop"),
+        pytest.param({"select": [{"param": ["2t", "z"], "levtype": "sfc"}]}, ["2t"], id="mars_list_and_keys"),
+        pytest.param({"select": [{"param": []}]}, [], id="mars_empty_list_value"),
         pytest.param({"select": [{}, "cp"]}, ["cp"], id="mars_empty_mapping_ignored"),
         pytest.param({"select": [{}]}, [], id="mars_empty_mapping_only_select"),
         pytest.param({"drop": [{}]}, ["2t", "cp", "z_500"], id="mars_empty_mapping_only_drop"),
@@ -63,6 +65,9 @@ def test_output_variables(
     [
         pytest.param({"select": [{"levelist": 500}, {"levelist": 600}]}, id="separate_mappings"),
         pytest.param({"select": [{"levtype": "pl", "levelist": "[56]00"}]}, id="glob_value"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": [500, 600]}]}, id="list_value"),
+        pytest.param({"select": [{"levelist": [500, "6*"], "param": ["t", "z"]}]}, id="list_values_and_keys"),
+        pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": [850]}]}, id="drop_list_value"),
         pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": 850}]}, id="drop_mappings"),
     ],
 )
