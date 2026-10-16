@@ -17,5 +17,6 @@ framework, see the :ref:`general Anemoi style guide
    :maxdepth: 1
 
    codebase-overview
+   runners
    add-new-configuration-option
    integration-tests

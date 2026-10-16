@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 from pathlib import Path
 from typing import Any
 from typing import Literal
@@ -73,6 +74,13 @@ class RunConfiguration(Configuration):
 
     precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
+
+    seed: int | None = Field(default=None, validate_default=True)
+    """Seed value to pass to `torch.manual_seed()` before running the model.
+    If not provided, will rely on the default random seed behavior of PyTorch.
+    Seed can optionally be passed via environment variable `ANEMOI_BASE_SEED`.
+    The config entry takes precedence over the environment variable.
+    """
 
     allow_nans: bool | None = None
     """
@@ -137,3 +145,23 @@ class RunConfiguration(Configuration):
             with open(patch_metadata, "r") as f:
                 patch_metadata = yaml.safe_load(f)
         return patch_metadata
+
+    @field_validator("seed", mode="after")
+    @classmethod
+    def seed_from_env_var(cls, seed: int | None) -> int | None:
+        """The config entry takes precedence over the environment variable."""
+
+        env_seed = os.getenv("ANEMOI_BASE_SEED")
+
+        if env_seed is None:
+            return seed
+
+        if seed is None:
+            LOG.info(f"Using seed from environment variable ANEMOI_BASE_SEED={env_seed}")
+            return int(env_seed)
+
+        LOG.warning(
+            f"Found config seed={seed} and environment variable ANEMOI_BASE_SEED={env_seed}. Using config seed."
+        )
+
+        return seed

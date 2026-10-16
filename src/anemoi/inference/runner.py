@@ -80,7 +80,11 @@ class Runner(Context):
 
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
-        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}")
+
+        seed = config.seed if config.seed is not None else torch.initial_seed()
+        torch.manual_seed(seed)
+
+        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={seed}")
 
         classes = classes or RunnerClasses()
         self.classes = classes
@@ -127,6 +131,14 @@ class Runner(Context):
 
         multi_metadata = self.checkpoint.multi_dataset_metadata
         self.dataset_names = list(multi_metadata.keys())
+
+        LOG.info(
+            "Dataset(s): %s",
+            ", ".join(
+                f"`{dataset}`{'' if metadata.multi_dataset else ' (legacy metadata)'}"
+                for dataset, metadata in multi_metadata.items()
+            ),
+        )
 
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
