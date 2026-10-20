@@ -9,11 +9,11 @@
 
 import logging
 from functools import cached_property
-from typing import Any
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
-from anemoi.inference.types import FloatArray
+from anemoi.inference.testing.mock_model import SimpleMockModel
+from anemoi.inference.testing.mock_model import VariableOutputSetting
 
 from . import runner_registry
 from .default import DefaultRunner
@@ -28,30 +28,7 @@ class NoModelMixing:
         checkpoint: Checkpoint = self.checkpoint  # type: ignore
         multi_metadata = checkpoint.multi_dataset_metadata
 
-        class NoModel(torch.nn.Module):
-            """Dummy model class for testing purposes."""
-
-            def __init__(self):
-                super().__init__()
-
-            def predict_step(self, input_tensors: dict[str, FloatArray] | FloatArray, **kwargs: Any) -> Any:
-                legacy = not isinstance(input_tensors, dict)
-                if legacy:
-                    input_tensors = {next(iter(multi_metadata.keys())): input_tensors}
-
-                output = {}
-                for name, metadata in multi_metadata.items():
-                    output[name] = torch.ones(
-                        *metadata.output_shape,
-                        dtype=input_tensors[name].dtype,
-                        device=input_tensors[name].device,
-                    )
-
-                if legacy:
-                    return next(iter(output.values()))
-                return output
-
-        return NoModel()
+        return SimpleMockModel(multi_metadata, prognostic_output=VariableOutputSetting.ONES)
 
 
 @runner_registry.register("no-model")
