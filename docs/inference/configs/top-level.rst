@@ -26,6 +26,8 @@ config.
          repo_id: "ecmwf/aifs-single"
          filename: "aifs_single_v0.2.1.ckpt"
 
+.. _top-level-runner:
+
 runner:
 =======
 
