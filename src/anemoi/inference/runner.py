@@ -26,6 +26,7 @@ import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.logs import OnceLogger
 from anemoi.utils.timer import Timer
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
+LOG_ONCE = OnceLogger(LOG)
 
 
 class RunnerClasses(BaseModel):
@@ -717,9 +719,14 @@ class Runner(Context):
 
         for states in self.run(input_states=input_states, lead_time=lead_time):
             for dataset, state in states.items():
-                # Apply top-level post-processors
+                if not state["fields"]:
+                    LOG_ONCE.info(f"[{dataset}] Empty model output: skipping output and post-processors.")
+                    continue
+
+                # top-level post-processors
                 for processor in self.post_processors[dataset]:
                     state = processor.process(state)
+
                 self.outputs[dataset].write_state(state)
 
         for output in self.outputs.values():
