@@ -28,7 +28,7 @@ class NoModelMixing:
         checkpoint: Checkpoint = self.checkpoint  # type: ignore
         multi_metadata = checkpoint.multi_dataset_metadata
 
-        return SimpleMockModel(multi_metadata, prognostic_output=VariableOutputSetting.ONES)
+        return SimpleMockModel(multi_metadata, output_mode=VariableOutputSetting.ONES)
 
 
 @runner_registry.register("no-model")

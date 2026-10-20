@@ -177,7 +177,7 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
 
     metadata, arrays = mock_load_metadata(path)
 
-    return SimpleMockModel(get_multi_dataset_metadata(metadata, arrays), prognostic_output=VariableOutputSetting.HASH)
+    return SimpleMockModel(get_multi_dataset_metadata(metadata, arrays), output_mode=VariableOutputSetting.HASH)
 
 
 class MockRunConfiguration:

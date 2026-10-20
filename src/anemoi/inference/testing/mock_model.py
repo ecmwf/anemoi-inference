@@ -45,13 +45,9 @@ class SimpleMetadata:
     """
 
     output_shape: tuple[int, ...]
-    variable_to_output_tensor_index: dict[str, int]
     output_tensor_index_to_variable: dict[int, str]
-    prognostic_variables: list[str]
-    diagnostic_variables: list[str]
     prognostic_input_indices: list[int]
     prognostic_output_indices: list[int]
-    diagnostic_output_indices: list[int]
 
     @classmethod
     def _from_metadata(cls, metadata: Metadata) -> "SimpleMetadata":
@@ -68,28 +64,24 @@ class SimpleMetadata:
             The reduced metadata.
         """
         prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
-        diagnostic_variables = metadata.select_variables(include=["diagnostic"], has_mars_requests=False)
 
         variable_to_input_tensor_index = dict(metadata.variable_to_input_tensor_index)
         variable_to_output_tensor_index = dict(metadata.variable_to_output_tensor_index)
 
         return cls(
             output_shape=tuple(metadata.output_shape),
-            variable_to_output_tensor_index=variable_to_output_tensor_index,
             output_tensor_index_to_variable=dict(metadata.output_tensor_index_to_variable),
-            prognostic_variables=prognostic_variables,
-            diagnostic_variables=diagnostic_variables,
             prognostic_input_indices=[variable_to_input_tensor_index[v] for v in prognostic_variables],
             prognostic_output_indices=[variable_to_output_tensor_index[v] for v in prognostic_variables],
-            diagnostic_output_indices=[variable_to_output_tensor_index[v] for v in diagnostic_variables],
         )
 
 
 class SimpleMockModel(torch.nn.Module):
     """Simple mock model with configuration options for testing.
 
-    Behaviour is determined by the `prognostic_output` argument: `PASSTHROUGH` copies prognostics from input to output and
-    fills the diagnostics with ones, `ONES` ignores the input, and `HASH` fills every output variable with `float_hash(variable, date)`.
+    Behaviour is determined by the `output_mode` argument: `PASSTHROUGH` copies prognostics from input to output and
+    fills the diagnostics with ones, `ONES` ignores the input, and `HASH` fills every output variable with
+    `float_hash(variable, date)`.
 
     In the case of multi-step input, only the last input step is copied to the output.
     In the case of multi-step output, the same output is repeated for each output step.
@@ -104,11 +96,11 @@ class SimpleMockModel(torch.nn.Module):
         self,
         multi_metadata: Mapping[str, Metadata],
         *,
-        prognostic_output: str = VariableOutputSetting.PASSTHROUGH,
+        output_mode: str = VariableOutputSetting.PASSTHROUGH,
     ) -> None:
         super().__init__()
 
-        self.prognostic_output = VariableOutputSetting(prognostic_output)
+        self.output_mode = VariableOutputSetting(output_mode)
         self.metadata: dict[str, SimpleMetadata] = {
             dataset: SimpleMetadata._from_metadata(metadata) for dataset, metadata in multi_metadata.items()
         }
@@ -144,7 +136,7 @@ class SimpleMockModel(torch.nn.Module):
                 device=input_tensor[dataset].device,
             )
 
-            if self.prognostic_output == VariableOutputSetting.HASH:
+            if self.output_mode == VariableOutputSetting.HASH:
                 if date is None:
                     raise ValueError(
                         f"The {VariableOutputSetting.HASH.value!r} output rule needs a date, none was passed"
@@ -153,7 +145,7 @@ class SimpleMockModel(torch.nn.Module):
                     output_tensor[..., index] = float_hash(variable, date)
 
             # copy prognostic input variables of the last time step to output tensor, leaving diagnostics at one
-            elif self.prognostic_output == VariableOutputSetting.PASSTHROUGH and metadata.prognostic_input_indices:
+            elif self.output_mode == VariableOutputSetting.PASSTHROUGH and metadata.prognostic_input_indices:
                 output_tensor[..., metadata.prognostic_output_indices] = input_tensor[dataset][
                     :, -1:, :, metadata.prognostic_input_indices
                 ]
