@@ -149,6 +149,9 @@ class Cutout(Input):
         self.masks: dict[str, np.ndarray | slice] = {}
 
         input_context = BlockedContext(context, blocked_attributes={"pre_processors"})
+        # Inputs look back at the context to apply it's pre-processors, 
+        # rather than the runner doing it. If they were to do so, the processors would be applied twice
+        # TODO: Fix that interaction and remove this blocked context
 
         for inp in sources:
             if not isinstance(inp, dict) or len(inp) != 1:
