@@ -25,10 +25,15 @@ LOG = logging.getLogger(__name__)
         pytest.param({"select": ["z_500", "cp"]}, ["cp", "z_500"], ["2t"], id="select_list"),
         pytest.param({"drop": ["z", "cp"]}, ["2t", "z_500"], ["cp"], id="drop_list"),
         pytest.param({"drop": "cp"}, ["2t", "z_500"], ["cp"], id="drop_single_string"),
+        pytest.param({"select": "z_*"}, ["z_500"], ["cp", "2t"], id="select_glob"),
+        pytest.param("*", ["z_500", "cp", "2t"], [], id="select_all_glob"),
+        pytest.param({"select": [{"levtype": "sfc"}]}, ["cp", "2t"], ["z_500"], id="select_mars"),
     ],
 )
-def test_print_state_variable_inclusion(variables, expected_in_output, not_expected_in_output, basic_state, capsys):
-    print_state(basic_state, max_lines=1, variables=variables)
+def test_print_state_variable_inclusion(
+    variables, expected_in_output, not_expected_in_output, basic_metadata, basic_state, capsys
+):
+    print_state(basic_state, max_lines=1, variables=variables, typed_variables=basic_metadata.typed_variables)
     output_str = capsys.readouterr()[0]
 
     for variable in expected_in_output:
@@ -45,6 +50,7 @@ def test_print_state_variable_inclusion(variables, expected_in_output, not_expec
         pytest.param(None, ["2t"], 2, id="none_variables_and_maxlines"),
         pytest.param({"select": ["z_500", "cp"]}, ["2t"], 1, id="set_variables_and_maxlines"),
         pytest.param({"drop": ["z_500"]}, ["z_500"], 1, id="drop_variables_and_maxlines"),
+        pytest.param({"select": [{"levtype": "pl"}]}, ["cp", "2t"], 1, id="mars_select"),
     ],
 )
 def test_print_state_max_lines(
@@ -59,3 +65,15 @@ def test_print_state_max_lines(
         assert variable not in output_str
 
     output.close()
+
+
+def test_print_state_path(tmp_path, basic_context, basic_metadata, basic_state, capsys):
+    path = tmp_path / "out.txt"
+    output = PrinterOutput(basic_context, basic_metadata, path=path, variables="all")
+    output.write_state(basic_state)
+    output.close()
+
+    assert capsys.readouterr()[0] == ""
+    written = path.read_text()
+    for variable in ("z_500", "cp", "2t"):
+        assert variable in written
