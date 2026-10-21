@@ -10,6 +10,54 @@ Keep it human-readable, your future self will thank you!
 
 ## [0.13.0](https://github.com/ecmwf/anemoi-inference/compare/0.12.0...0.13.0) (2026-10-21)
 
+### Release Highlights
+#### Easier filtering of output variables
+Output variable filtering has been improved with support for a `select` or `drop` operation. Glob patterns are supported, as well as filtering based on the variable's metadata. For more information, see the [documentation](https://anemoi.readthedocs.io/projects/inference/en/latest/inference/configs/outputs.html#variables).
+
+```yaml
+output:
+  grib:
+    path: /path/to/output.grib
+    variables:
+      select:
+        - 2t
+        - "z_*"
+        - "*_850"
+```
+
+#### New default runner: `auto`
+The `auto` runner automatically selects the runner based on the `task` defined in the checkpoint metadata. This runner is now the default. Manual selection of the runner is still possible by specifying a different runner in the config.
+
+#### Controlling the seed
+The PyTorch seed can now be controlled via the config or CLI, allowing for more reproducible results. If omitted or set to `None`, a random seed will be generated (identical to the old behaviour). The Runner will now also print the seed being used at runtime.
+
+In the config:
+```yaml
+seed: 42
+```
+
+In the CLI:
+```bash
+anemoi-inference run config.yaml seed=42
+```
+
+#### Breaking API change
+The signature of `create_input_state()` on all `Input` objects has changed: instead of a single date, this function now takes a list of dates. Calculation of the input offsets has moved outside the function. Users must now provide the exact datetimes for which to prepare the initial state. For example, for a model with 6h stepping and two input steps:
+
+```python
+from anemoi.inference.inputs.dataset import DatasetInput
+from datetime import datetime, timedelta
+
+initial_date = datetime(2026, 10, 21, 0, 0)
+dates = [initial_date - timedelta(hours=6), initial_date]
+
+input_state = DatasetInput(...).create_input_state(dates=dates)
+```
+
+#### Technical documentation
+Work has started on improving the [technical documentation](https://anemoi.readthedocs.io/projects/inference/en/latest/dev/dev-guide.html) aimed at developers and contributors. Feedback and/or contributions are welcome.
+
+### All Changes
 
 ### ⚠ BREAKING CHANGES
 
