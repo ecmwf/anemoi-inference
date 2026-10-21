@@ -185,8 +185,10 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable, flatten: 
         The original state dictionary.
     namer : Callable
         A function to generate new field names.
-    flatten : str or bool, optional
-        Whether to flatten the field values. Defaults to True.
+    flatten : bool, optional
+        Whether to flatten the field values of non-``StateField`` fields.
+        ``StateField`` values are already flat and are never flattened again,
+        which avoids an unnecessary copy. Defaults to True.
 
     Returns
     -------

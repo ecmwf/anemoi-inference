@@ -83,7 +83,7 @@ matching source and target coordinates (default ``4``):
          decimals: 5
 
 .. note::
-   Consider using the ``coordinate_reorder`` post-processor alongside
+   Consider using the ``undo_coordinate_reorder`` post-processor alongside
    this pre-processor to ensure that the input state is correctly aligned
    with the model grid before output.
 
@@ -284,8 +284,8 @@ with a specified value (NaN by default).
          mask: source0/trimedge_mask
          fill_value: .nan
 
-coordinate_reorder
-==================
+undo_coordinate_reorder
+=======================
 
 Is the inverse of the ``coordinate_reorder`` pre-processor, which reorders the coordinates of the input state to match the model grid.
 This should only be used if the coordinates of the input state have been reordered by the corresponding pre-processor.
@@ -294,7 +294,7 @@ This restores the original coordinate order of the state.
 .. code:: yaml
 
    post_processors:
-     - coordinate_reorder
+     - undo_coordinate_reorder
 
 ***************************
  Top-level post-processors

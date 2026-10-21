@@ -27,7 +27,7 @@ import numpy as np
 from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.post_processors.coordinate_reorder import UndoCoordinateReorder
+from anemoi.inference.post_processors.undo_coordinate_reorder import UndoCoordinateReorder
 from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
 
 
