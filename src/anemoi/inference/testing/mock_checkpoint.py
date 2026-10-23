@@ -168,13 +168,16 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     Any
         The mock torch model.
     """
-    from .mock_model import LegacyMockModel
+    from anemoi.inference.checkpoint import get_multi_dataset_metadata
+
+    from .mock_model import SimpleMockModel
+    from .mock_model import VariableOutputSetting
 
     assert weights_only is False, "Not implemented"
 
     metadata, arrays = mock_load_metadata(path)
 
-    return LegacyMockModel(metadata, arrays)
+    return SimpleMockModel(get_multi_dataset_metadata(metadata, arrays), output_mode=VariableOutputSetting.HASH)
 
 
 class MockRunConfiguration:
