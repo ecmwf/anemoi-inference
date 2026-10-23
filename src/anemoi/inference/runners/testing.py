@@ -9,6 +9,7 @@
 
 import logging
 from functools import cached_property
+from typing import Any
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
@@ -22,13 +23,19 @@ LOG = logging.getLogger(__name__)
 
 
 class NoModelMixing:
+    def __init__(
+        self, *args: Any, output_mode: VariableOutputSetting = VariableOutputSetting.ONES, **kwargs: Any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.output_mode = output_mode
+
     @cached_property
     def model(self) -> "torch.nn.Module":
 
         checkpoint: Checkpoint = self.checkpoint  # type: ignore
         multi_metadata = checkpoint.multi_dataset_metadata
 
-        return SimpleMockModel(multi_metadata, output_mode=VariableOutputSetting.ONES)
+        return SimpleMockModel(multi_metadata, output_mode=self.output_mode)
 
 
 @runner_registry.register("no-model")
