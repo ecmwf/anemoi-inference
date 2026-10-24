@@ -15,11 +15,13 @@ import os
 from pathlib import Path
 from typing import Any
 from typing import Literal
+from typing import Self
 
 import yaml
 from pydantic import Field
 from pydantic import FilePath
 from pydantic import field_validator
+from pydantic import model_validator
 
 from anemoi.inference.types import ProcessorConfig
 
@@ -75,10 +77,11 @@ class RunConfiguration(Configuration):
     precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
 
-    seed: int | None = Field(default=None, validate_default=True)
+    seed: int | None = None
     """Seed value to pass to `torch.manual_seed()` before running the model.
     If not provided, will rely on the default random seed behavior of PyTorch.
-    Seed can optionally be passed via environment variable `ANEMOI_BASE_SEED`.
+    Seed can optionally be passed via environment variable `ANEMOI_BASE_SEED`,
+    including through the `env` section of the configuration.
     The config entry takes precedence over the environment variable.
     """
 
@@ -146,22 +149,29 @@ class RunConfiguration(Configuration):
                 patch_metadata = yaml.safe_load(f)
         return patch_metadata
 
-    @field_validator("seed", mode="after")
-    @classmethod
-    def seed_from_env_var(cls, seed: int | None) -> int | None:
-        """The config entry takes precedence over the environment variable."""
+    @model_validator(mode="after")
+    def seed_from_env_var(self) -> Self:
+        """Resolve the seed from the environment variable `ANEMOI_BASE_SEED`.
 
-        env_seed = os.getenv("ANEMOI_BASE_SEED")
+        The precedence is: config `seed`, then the `env` section of the config, then the shell environment.
+        The `env` section is read from the validated model, as it is only exported to `os.environ`
+        once validation has succeeded.
+        """
+
+        env_seed = self.env.get("ANEMOI_BASE_SEED")
+        if env_seed is None:
+            env_seed = os.getenv("ANEMOI_BASE_SEED")
 
         if env_seed is None:
-            return seed
+            return self
 
-        if seed is None:
+        if self.seed is None:
             LOG.info(f"Using seed from environment variable ANEMOI_BASE_SEED={env_seed}")
-            return int(env_seed)
+            self.seed = int(env_seed)
+            return self
 
         LOG.warning(
-            f"Found config seed={seed} and environment variable ANEMOI_BASE_SEED={env_seed}. Using config seed."
+            f"Found config seed={self.seed} and environment variable ANEMOI_BASE_SEED={env_seed}. Using config seed."
         )
 
-        return seed
+        return self

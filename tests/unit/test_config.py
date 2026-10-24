@@ -7,10 +7,12 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import os
 from typing import Any
 
 import pytest
 import yaml
+from pydantic import ValidationError
 from pytest import MonkeyPatch
 
 from anemoi.inference.config.run import RunConfiguration
@@ -192,3 +194,57 @@ def test_seed(monkeypatch: MonkeyPatch) -> None:
     # config takes priority over env var
     config = RunConfiguration.load(file, {"seed": 42})
     assert config.seed == 42
+
+
+def test_seed_from_env_section(monkeypatch: MonkeyPatch) -> None:
+    """`ANEMOI_BASE_SEED` set in the `env` section of the config must be used as seed."""
+    file = files_for_tests("unit/configs/simple.yaml")
+
+    # Register the variable with monkeypatch so that it is restored (removed)
+    # on teardown, even though `load` sets `os.environ` directly.
+    monkeypatch.setenv("ANEMOI_BASE_SEED", "0")
+    monkeypatch.delenv("ANEMOI_BASE_SEED")
+
+    config = RunConfiguration.load(file, {"env": {"ANEMOI_BASE_SEED": 7}})
+    assert config.seed == 7
+
+    # config seed takes priority over the env section
+    config = RunConfiguration.load(file, {"seed": 42, "env": {"ANEMOI_BASE_SEED": 7}})
+    assert config.seed == 42
+
+    # the env section takes priority over the shell environment variable
+    monkeypatch.setenv("ANEMOI_BASE_SEED", "67")
+    config = RunConfiguration.load(file, {"env": {"ANEMOI_BASE_SEED": 7}})
+    assert config.seed == 7
+
+
+def test_env_section_not_exported_when_validation_fails(monkeypatch: MonkeyPatch) -> None:
+    """A configuration that fails validation must not modify `os.environ`."""
+    file = files_for_tests("unit/configs/simple.yaml")
+
+    for name in ("ANEMOI_BASE_SEED", "ANEMOI_TEST_ENV_LEAK"):
+        monkeypatch.setenv(name, "0")
+        monkeypatch.delenv(name)
+
+    with pytest.raises(ValidationError):
+        RunConfiguration.load(
+            file,
+            {"not_a_valid_key": 1, "env": {"ANEMOI_BASE_SEED": 7, "ANEMOI_TEST_ENV_LEAK": "x"}},
+        )
+
+    assert "ANEMOI_BASE_SEED" not in os.environ
+    assert "ANEMOI_TEST_ENV_LEAK" not in os.environ
+
+
+@pytest.mark.parametrize("value, expected", [(7, 7), (7.0, 7), ("7", 7)])
+def test_seed_from_env_section_coercion(monkeypatch: MonkeyPatch, value: Any, expected: int) -> None:
+    """The seed is resolved from the validated `env` section, consistently with what is exported."""
+    file = files_for_tests("unit/configs/simple.yaml")
+
+    monkeypatch.setenv("ANEMOI_BASE_SEED", "0")
+    monkeypatch.delenv("ANEMOI_BASE_SEED")
+
+    config = RunConfiguration.load(file, {"env": {"ANEMOI_BASE_SEED": value}})
+    assert config.seed == expected
+    # same value as the one exported to the environment once the config is valid
+    assert os.environ["ANEMOI_BASE_SEED"] == str(expected)
