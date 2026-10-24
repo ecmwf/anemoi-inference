@@ -301,9 +301,11 @@ inference:
 
    -  -  ``ANEMOI_BASE_SEED``
 
-      -  Base seed for reproducible inference. Will be broadcast from
-         rank 0 to all ranks. Values < 1000 are automatically multiplied
-         by 1000.
+      -  Seed for reproducible inference, used when ``seed`` is not set
+         in the configuration (the configuration takes precedence). The
+         value is used as is. In parallel runs, the seed of rank 0 is
+         broadcast to all ranks so that they all use the same seed. See
+         :ref:`usage-ensembles`.
 
 *****************
  Troubleshooting

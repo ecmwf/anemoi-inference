@@ -273,7 +273,8 @@ Complete list of environment variables affecting performance:
 
    * - ``ANEMOI_BASE_SEED``
      - Random
-     - Base seed for reproducibility (parallel inference)
+     - Seed for reproducibility, for all runners. Ignored if ``seed`` is
+       set in the configuration. See :ref:`usage-ensembles`.
 
    * - ``CUDA_VISIBLE_DEVICES``
      - All GPUs
