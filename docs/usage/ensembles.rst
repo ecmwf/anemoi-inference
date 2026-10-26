@@ -25,33 +25,28 @@ and what to expect in terms of reproducibility.
 *****************
 
 The seed is passed to ``torch.manual_seed()`` before the model is run.
-It can be set in three ways.
-
-In the configuration file, with the :ref:`seed <top-level-seed>` option:
+It is set with the :ref:`seed <top-level-seed>` option, in the
+configuration file:
 
 .. code:: yaml
 
    checkpoint: /path/to/checkpoint.ckpt
    seed: 42
 
-On the command line, as an override of the configuration:
+or on the command line, as an override of the configuration:
 
 .. code:: bash
 
    anemoi-inference run config.yaml seed=42
 
-With the ``ANEMOI_BASE_SEED`` environment variable:
+The value of the seed is used as is: it is not modified in any way. The
+seed is applied by all runners, not only by the :ref:`parallel runner
+<parallel-inference>`.
 
-.. code:: bash
+.. note::
 
-   export ANEMOI_BASE_SEED=42
-   anemoi-inference run config.yaml
-
-The environment variable is only used if ``seed`` is not set in the
-configuration. If both are set, the configuration value is used and a
-warning is logged. The value of the seed is used as is: it is not
-modified in any way. The seed is applied by all runners, not only by the
-:ref:`parallel runner <parallel-inference>`.
+   The ``ANEMOI_BASE_SEED`` environment variable is no longer read. Use
+   the ``seed`` option instead.
 
 Default behaviour
 =================
@@ -144,8 +139,7 @@ When a model is split over several GPUs with the :ref:`parallel runner
 member. The noise is generated for the whole grid on each rank, and each
 rank then keeps its own part, so all the ranks must use the same seed.
 This is done for you: the seed of rank 0 (the one from the configuration
-or the environment variable if it was set, otherwise a random one) is
-broadcast to all the ranks.
+if it was set, otherwise a random one) is broadcast to all the ranks.
 
 To produce several members with the parallel runner, launch several
 parallel runs with different seeds, as above.

@@ -285,27 +285,14 @@ For environments without a cluster manager, you can use PyTorch's
    (``RANK``, ``LOCAL_RANK``, ``WORLD_SIZE``, etc.) are automatically
    set by torchrun.
 
-***********************
- Environment Variables
-***********************
+*************
+ Random seed
+*************
 
-The following environment variables can be used to customise parallel
-inference:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
-
-   -  -  Environment Variable
-      -  Description
-
-   -  -  ``ANEMOI_BASE_SEED``
-
-      -  Seed for reproducible inference, used when ``seed`` is not set
-         in the configuration (the configuration takes precedence). The
-         value is used as is. In parallel runs, the seed of rank 0 is
-         broadcast to all ranks so that they all use the same seed. See
-         :ref:`usage-ensembles`.
+All ranks of a parallel run must use the same random seed. The seed of
+rank 0, set with the :ref:`seed <top-level-seed>` option or chosen at
+random if it is not set, is broadcast to all the ranks. See
+:ref:`usage-ensembles`.
 
 *****************
  Troubleshooting

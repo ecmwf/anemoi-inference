@@ -271,11 +271,6 @@ Complete list of environment variables affecting performance:
      - 1
      - Number of chunks per timestep for memory management
 
-   * - ``ANEMOI_BASE_SEED``
-     - Random
-     - Seed for reproducibility, for all runners. Ignored if ``seed`` is
-       set in the configuration. See :ref:`usage-ensembles`.
-
    * - ``CUDA_VISIBLE_DEVICES``
      - All GPUs
      - Which GPUs are visible to the process

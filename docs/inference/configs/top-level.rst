@@ -109,11 +109,6 @@ It can also be set on the command line:
 
    anemoi-inference run config.yaml seed=42
 
-If ``seed`` is not set in the configuration, the value of the
-``ANEMOI_BASE_SEED`` environment variable is used, if it is defined. If
-both are set, the configuration value takes precedence and a warning is
-logged.
-
 See :ref:`usage-ensembles` for more details, including how to produce
 several ensemble members.
 
