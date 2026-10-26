@@ -62,7 +62,8 @@ level, as part of the line that reports the runner and device:
    Using DefaultRunner runner, device=cuda, seed=1234567890
 
 If you want to reproduce a run for which you did not set the seed, you
-can set ``seed`` to the value found in its log.
+can set ``seed`` to the value found in its log. For a parallel run, use
+the seed logged by rank 0, as this is the one used by all the ranks.
 
 ***********************************
  Producing several ensemble members
