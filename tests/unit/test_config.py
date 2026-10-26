@@ -204,6 +204,5 @@ def test_seed_ignores_anemoi_base_seed(monkeypatch: MonkeyPatch) -> None:
     config = RunConfiguration.load(file, {"seed": 42})
     assert config.seed == 42
 
-    # `load` exports the `env` section to `os.environ` directly, `monkeypatch` restores the variable on teardown
     config = RunConfiguration.load(file, {"env": {"ANEMOI_BASE_SEED": 7}})
     assert config.seed is None
