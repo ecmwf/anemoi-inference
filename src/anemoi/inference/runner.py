@@ -26,6 +26,7 @@ import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.logs import OnceLogger
 from anemoi.utils.timer import Timer
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
+LOG_ONCE = OnceLogger(LOG)
 
 
 class RunnerClasses(BaseModel):
@@ -131,6 +133,14 @@ class Runner(Context):
 
         multi_metadata = self.checkpoint.multi_dataset_metadata
         self.dataset_names = list(multi_metadata.keys())
+
+        LOG.info(
+            "Dataset(s): %s",
+            ", ".join(
+                f"`{dataset}`{'' if metadata.multi_dataset else ' (legacy metadata)'}"
+                for dataset, metadata in multi_metadata.items()
+            ),
+        )
 
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
@@ -523,6 +533,10 @@ class Runner(Context):
                                 step - self.checkpoint.rollout_shift + self.checkpoint.output_offsets[i]
                             )
 
+                            if dataset not in outputs:
+                                # Input-only dataset (no decoder)
+                                continue
+
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
                             for j in range(output.shape[1]):
@@ -568,11 +582,10 @@ class Runner(Context):
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
+                        # None for input-only datasets
                         input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
-                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
+                            input_tensors_torch[dataset], y_pred.pop(dataset, None), check[dataset]
                         )
-
-                        del y_pred[dataset]  # Recover memory
 
                         # some forcings use the new_state(s)
                         # ComputedForcings only uses it to get latlons
@@ -714,9 +727,14 @@ class Runner(Context):
 
         for states in self.run(input_states=input_states, lead_time=lead_time):
             for dataset, state in states.items():
-                # Apply top-level post-processors
+                if not state["fields"]:
+                    LOG_ONCE.info(f"[{dataset}] Empty model output: skipping output and post-processors.")
+                    continue
+
+                # top-level post-processors
                 for processor in self.post_processors[dataset]:
                     state = processor.process(state)
+
                 self.outputs[dataset].write_state(state)
 
         for output in self.outputs.values():
