@@ -169,6 +169,14 @@ option:
 Any additional options passed to the `parallel` runner will be forwarded
 to the ``base_runner``.
 
+Random seed
+-----------
+
+All ranks of a parallel run must use the same random seed. The seed of
+rank 0, set with the :ref:`seed <top-level-seed>` option or chosen at
+random if it is not set, is broadcast to all the ranks. See
+:ref:`usage-ensembles`.
+
 *******************************
  Running Inference in Parallel
 *******************************
@@ -284,26 +292,6 @@ For environments without a cluster manager, you can use PyTorch's
    When using ``torchrun``, the distributed environment variables
    (``RANK``, ``LOCAL_RANK``, ``WORLD_SIZE``, etc.) are automatically
    set by torchrun.
-
-***********************
- Environment Variables
-***********************
-
-The following environment variables can be used to customise parallel
-inference:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
-
-   -  -  Environment Variable
-      -  Description
-
-   -  -  ``ANEMOI_BASE_SEED``
-
-      -  Base seed for reproducible inference. Will be broadcast from
-         rank 0 to all ranks. Values < 1000 are automatically multiplied
-         by 1000.
 
 *****************
  Troubleshooting
