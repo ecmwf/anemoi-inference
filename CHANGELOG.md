@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.14.0](https://github.com/ecmwf/anemoi-inference/compare/0.13.0...0.14.0) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **config:** stop reading ANEMOI_BASE_SEED ([#617](https://github.com/ecmwf/anemoi-inference/issues/617))
+
+### Features
+
+* **config:** Stop reading ANEMOI_BASE_SEED ([#617](https://github.com/ecmwf/anemoi-inference/issues/617)) ([445130d](https://github.com/ecmwf/anemoi-inference/commit/445130d8da371755a53ee9eb1ff77a216422259e))
+
+
+### Bug Fixes
+
+* **outputs/zarr:** Accept boolean chunks with zarr 3 ([#621](https://github.com/ecmwf/anemoi-inference/issues/621)) ([12ac213](https://github.com/ecmwf/anemoi-inference/commit/12ac2130c941cc0110d3e51841ec3c4bb8d58a4a))
+* **sanitise:** Handle named-dataset metadata layout in the sources check ([#619](https://github.com/ecmwf/anemoi-inference/issues/619)) ([37b5658](https://github.com/ecmwf/anemoi-inference/commit/37b56585c79735322783e66c032684e55ebf2ef0))
+
 ## [0.13.0](https://github.com/ecmwf/anemoi-inference/compare/0.12.0...0.13.0) (2026-10-21)
 
 ### Release Highlights
