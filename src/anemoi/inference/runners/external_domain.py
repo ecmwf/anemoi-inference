@@ -262,9 +262,11 @@ class ExternalDomainRunner(DefaultRunner):
         model_instance.config = self.checkpoint._metadata._config
         model_instance._build_model()
 
-        # Reinstate the weights and normalizer statistics from the checkpoint.
+        # Reinstate the weights, normalizer statistics, bounding and residual from the checkpoint.
         model_instance = update_state_dict(
-            model_instance, renamed_state_dict, keywords=["bias", "weight", "processors.normalizer"]
+            model_instance,
+            renamed_state_dict,
+            keywords=["bias", "weight", "processors.normalizer", "norm_min_val", "theta"],
         )
 
         LOG.info(
