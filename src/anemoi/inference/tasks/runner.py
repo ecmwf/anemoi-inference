@@ -193,8 +193,8 @@ class CoupledInput:
 class NoModelCoupledRunner(NoModelMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
-    def __init__(self, config: RunConfiguration, coupled_input: "CoupledInput") -> None:
-        super().__init__(config, coupled_input)
+    def __init__(self, config: RunConfiguration, coupled_input: "CoupledInput", **kwargs: Any) -> None:
+        super().__init__(config, coupled_input, **kwargs)
 
 
 @task_registry.register("runner")
@@ -217,14 +217,20 @@ class RunnerTask(Task):
 
         LOG.info("Running task %s", self.name)
         couplings = transport.couplings(self)
+        runner_config = self.config.runner
 
-        assert self.config.runner in ("auto", "default", "no-model", "forecaster"), self.config.runner
+        if isinstance(runner_config, str):
+            runner_config = {runner_config: {}}
+        ((runner_name, runner_options),) = runner_config.items()
+
+        allowed_runners = ("auto", "default", "no-model", "forecaster")
+        if runner_name not in allowed_runners:
+            raise ValueError(f"Runner {runner_name!r} is not supported for coupled tasks. Must be in {allowed_runners}")
 
         coupler = CoupledInput(self, transport, couplings)
 
-        # TODO: a factory method would be better here
-        if self.config.runner == "no-model":
-            runner = NoModelCoupledRunner(self.config, coupler)
+        if runner_name == "no-model":
+            runner = NoModelCoupledRunner(self.config, coupler, **runner_options)
         else:
             runner = CoupledRunner(self.config, coupler)
 

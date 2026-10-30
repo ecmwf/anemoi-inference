@@ -20,8 +20,6 @@ from anemoi.inference.tasks.runner import CoupledRunner
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
 from anemoi.inference.testing import float_hash
-from anemoi.inference.testing.mock_model import SimpleMockModel
-from anemoi.inference.testing.mock_model import VariableOutputSetting
 from anemoi.inference.transports import create_transport
 from anemoi.inference.transports.threads import ThreadsTransport
 from anemoi.inference.types import State
@@ -37,7 +35,7 @@ CONSTANTS = {"lsm"}
 @fake_checkpoints
 def test_coupled_runner_execute_no_model() -> None:
     config = CoupleConfiguration.load(files_for_tests("unit/configs/coupled.yaml"))
-    global_config = {"runner": "no-model", "lead_time": LEAD_TIME}
+    global_config = {"runner": {"no-model": {"output_mode": "hash"}}, "lead_time": LEAD_TIME}
 
     tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}
     transport = create_transport(config.transport, config.couplings, tasks)
@@ -72,11 +70,6 @@ def test_coupled_runner_execute_no_model() -> None:
         patch.object(ThreadsTransport, "send", recording_send),
         patch.object(ThreadsTransport, "receive", recording_receive),
         patch.object(CoupledRunner, "predict_step", recording_predict_step),
-        # Fill outputs with float_hash(variable, date), so coupled values can be traced into the other model
-        patch(
-            "anemoi.inference.runners.testing.SimpleMockModel",
-            lambda metadata, **kwargs: SimpleMockModel(metadata, output_mode=VariableOutputSetting.HASH),
-        ),
     ):
         transport.start()
         transport.wait()
