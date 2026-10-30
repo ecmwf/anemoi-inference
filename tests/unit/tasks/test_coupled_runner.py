@@ -8,6 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import datetime
+from typing import Any
 from unittest.mock import patch
 
 import numpy as np
@@ -15,8 +16,12 @@ import numpy as np
 from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.task import Task
 from anemoi.inference.tasks import create_task
+from anemoi.inference.tasks.runner import CoupledRunner
 from anemoi.inference.testing import fake_checkpoints
 from anemoi.inference.testing import files_for_tests
+from anemoi.inference.testing import float_hash
+from anemoi.inference.testing.mock_model import SimpleMockModel
+from anemoi.inference.testing.mock_model import VariableOutputSetting
 from anemoi.inference.transports import create_transport
 from anemoi.inference.transports.threads import ThreadsTransport
 from anemoi.inference.types import State
@@ -25,7 +30,7 @@ from anemoi.inference.types import State
 LEAD_TIME = "72h"
 NUMBER_OF_EXCHANGES = 2
 
-# Constants are sent from the initial state, so they are not filled with ones by the no-model runner.
+# Constants are sent from the initial state, so they are not filled by the no-model runner.
 CONSTANTS = {"lsm"}
 
 
@@ -39,8 +44,10 @@ def test_coupled_runner_execute_no_model() -> None:
 
     sent: dict[tuple[str, str, int], State] = {}
     received: set[tuple[str, str, int]] = set()
+    inputs: dict[tuple[str, int], dict[str, np.ndarray]] = {}
     original_send = ThreadsTransport.send
     original_receive = ThreadsTransport.receive
+    original_predict_step = CoupledRunner.predict_step
 
     # Record what was passed into ThreadsTransport.send and ThreadsTransport.receive so the test can validate
     def recording_send(self: ThreadsTransport, sender: Task, target: Task, state: State, tag: int) -> None:
@@ -52,9 +59,24 @@ def test_coupled_runner_execute_no_model() -> None:
         received.add((source.name, receiver.name, tag))
         return state
 
+    # Record the last input step of each model call, keyed by task and forecast step
+    def recording_predict_step(self: CoupledRunner, model: Any, input_tensors_torch: dict, **kwargs: Any) -> dict:
+        ((dataset, tensor),) = input_tensors_torch.items()
+        index = self.checkpoint.multi_dataset_metadata[dataset].variable_to_input_tensor_index
+        inputs[self.coupled_input.task.name, kwargs["fcstep"]] = {
+            variable: tensor[0, -1, :, i].cpu().numpy().copy() for variable, i in index.items()
+        }
+        return original_predict_step(self, model, input_tensors_torch, **kwargs)
+
     with (
         patch.object(ThreadsTransport, "send", recording_send),
         patch.object(ThreadsTransport, "receive", recording_receive),
+        patch.object(CoupledRunner, "predict_step", recording_predict_step),
+        # Fill outputs with float_hash(variable, date), so coupled values can be traced into the other model
+        patch(
+            "anemoi.inference.runners.testing.SimpleMockModel",
+            lambda metadata, **kwargs: SimpleMockModel(metadata, output_mode=VariableOutputSetting.HASH),
+        ),
     ):
         transport.start()
         transport.wait()
@@ -74,7 +96,9 @@ def test_coupled_runner_execute_no_model() -> None:
         assert set(state["fields"]) == expected_variables[sender, target]
         assert state["date"] == datetime.datetime(2022, 1, 3 + tag)
 
-        for variable, values in state["fields"].items():
-            if variable in CONSTANTS:
-                continue
-            np.testing.assert_array_equal(values, 1.0, err_msg=f"{sender} -> {target}: {variable}")
+        # A state sent at tag n is used as forcing in the input of the target's forecast step n + 1
+        for variable in expected_variables[sender, target] - CONSTANTS:
+            expected = float_hash(variable, state["date"])
+            message = f"{sender} -> {target}: {variable}"
+            np.testing.assert_allclose(state["fields"][variable], expected, rtol=1e-6, err_msg=message)
+            np.testing.assert_allclose(inputs[target, tag + 1][variable], expected, rtol=1e-6, err_msg=message)
