@@ -10,6 +10,7 @@
 
 import logging
 import os
+from datetime import datetime
 from datetime import timedelta
 from functools import cached_property
 from types import MappingProxyType as frozendict
@@ -20,6 +21,7 @@ import torch
 from anemoi.datasets import open_dataset
 from anemoi.utils.checkpoints import load_metadata
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from earthkit.data.sources.forcings import ForcingMaker
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import ComputedForcings
@@ -139,18 +141,24 @@ class ZarrDataset:
             forcings = []
 
         self.constant_forcings: dict[str, FloatArray] = {}
+        # Time-varying fields that earthkit cannot compute (e.g. climatologies such as lai or albedos)
+        self.dynamic_forcings: list[str] = []
 
         ds = open_dataset(zarr_path)
+        self._ds = ds
 
         self.lats = ds.latitudes
         self.lons = ds.longitudes
         self.field_shape = ds.field_shape
 
         var_index_map = {name: ds.name_to_index[name] for name in forcings}
+        self._var_index_map = var_index_map
         for var in forcings:
             idx = var_index_map[var]
 
             if var not in ds.constant_fields:
+                if not hasattr(ForcingMaker, var):
+                    self.dynamic_forcings.append(var)
                 continue
 
             # Only extract the first timestamp since the field is constant
@@ -158,6 +166,47 @@ class ZarrDataset:
 
     def grid_points(self):
         return (self.lats, self.lons)
+
+    def load_dynamic_forcings(self, date: datetime) -> dict[str, FloatArray]:
+        """Read the time-varying, non-computable forcings at ``date`` from the Zarr."""
+        if not self.dynamic_forcings:
+            return {}
+
+        idx = self._date_index(date)
+        return {
+            var: self._ds[idx, self._var_index_map[var], 0, :].flatten()
+            for var in self.dynamic_forcings
+        }
+
+    def _date_index(self, date: datetime) -> int:
+        """Index of ``date`` in the Zarr.
+
+        Dates outside the Zarr period are mapped onto the same month, day and time of a
+        covered year, assuming the dynamic forcings are yearly climatologies.
+        """
+        dates = self._ds.dates.astype("datetime64[s]")
+        date = np.datetime64(date, "s").astype(datetime)
+        first_year, last_year = (d.astype(datetime).year for d in (dates[0], dates[-1]))
+
+        candidates = [date]
+        for year in range(last_year, first_year - 1, -1):
+            try:
+                candidates.append(date.replace(year=year))
+            except ValueError:  # 29/02 in a non-leap year
+                continue
+
+        for candidate in candidates:
+            match = np.flatnonzero(dates == np.datetime64(candidate, "s"))
+            if len(match):
+                if candidate != date:
+                    LOG.debug(
+                        "Dynamic hres forcings for %s are read at %s", date, candidate
+                    )
+                return int(match[0])
+
+        raise ValueError(
+            f"No date matching {date:%m-%d %H:%M} in the hres Zarr to read {self.dynamic_forcings}."
+        )
 
 
 @runner_registry.register("downscaling")
@@ -231,6 +280,7 @@ class DownscalingRunner(DefaultRunner):
             var
             for var in self.high_res_input
             if var not in self.hres_dataset.constant_forcings
+            and var not in self.hres_dataset.dynamic_forcings
         ]
         return ComputedForcings(self, computed_forcings, [])
 
@@ -445,6 +495,11 @@ class DownscalingRunner(DefaultRunner):
         for i, name in enumerate(self.computed_high_res_forcings.variables):
             forcings_dict[name] = computed_high_res_forcings[..., i]
             kinds[name] = Kind(forcing=True, computed=True)
+
+        # Fill in the time-varying forcings read from the Zarr
+        for var, array in self.hres_dataset.load_dynamic_forcings(input_date).items():
+            forcings_dict[var] = array[np.newaxis, np.newaxis, ...]
+            kinds[var] = Kind(forcing=True, dynamic=True)
 
         assert len(forcings_dict) == len(self.high_res_input)
         assert set(forcings_dict.keys()) == set(self.high_res_input)
