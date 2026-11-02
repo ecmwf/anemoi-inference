@@ -1,5 +1,5 @@
 checkpoint: unit/checkpoints/atmos.ckpt
-runner: default
+runner: forecaster
 device: cpu
 
 lead_time: 480
