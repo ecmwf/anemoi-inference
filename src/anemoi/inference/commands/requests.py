@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 
 from ..checkpoint import Checkpoint
 from . import Command

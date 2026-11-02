@@ -7,17 +7,13 @@
 # nor does it submit to any jurisdiction.
 #
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
-from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, ProcessorConfig, State
 from anemoi.inference.variables import Variables
 
 if TYPE_CHECKING:
@@ -134,7 +130,6 @@ class Input(ABC):
         State
             The input state dictionary.
         """
-        pass
 
     @abstractmethod
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
@@ -152,7 +147,6 @@ class Input(ABC):
         State
             The updated state with the loaded forcings.
         """
-        pass
 
     def input_variables(self) -> list[str]:
         """Return the list of input variables.
@@ -196,7 +190,6 @@ class Input(ABC):
         value : Any
             The value to set.
         """
-        pass
 
     def default_initial_date(self) -> "datetime":
         """Return the initial date to use when none is given in the config

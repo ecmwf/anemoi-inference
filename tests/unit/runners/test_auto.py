@@ -14,8 +14,7 @@ import pytest
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.runner import RunnerClasses
-from anemoi.inference.runners import create_runner
-from anemoi.inference.runners import runner_registry
+from anemoi.inference.runners import create_runner, runner_registry
 from anemoi.inference.runners.auto import AutoRunnerFactory
 from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.runners.temporal_downscaler import TemporalDownscalerMultiOutRunner

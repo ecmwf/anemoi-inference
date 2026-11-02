@@ -9,10 +9,8 @@
 
 
 import logging
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 import earthkit.data as ekd
 import numpy as np
@@ -20,10 +18,7 @@ from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
 
 from anemoi.inference.inputs.dataset import DatasetInput
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, FloatArray, IntArray, State
 
 if TYPE_CHECKING:
     from anemoi.inference.input import Input
@@ -65,7 +60,6 @@ class Forcings(ABC):
         FloatArray
             The loaded forcings as a numpy array.
         """
-        pass
 
     def __repr__(self) -> str:
         """Return a string representation of the Forcings object."""

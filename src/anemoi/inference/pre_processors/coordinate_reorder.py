@@ -9,19 +9,14 @@
 
 
 import logging
-from collections import defaultdict
-from collections import deque
+from collections import defaultdict, deque
 
 import numpy as np
-from anemoi.transform.fields import new_field_from_latitudes_longitudes
-from anemoi.transform.fields import new_field_from_numpy
-from anemoi.transform.fields import new_fieldlist_from_list
+from anemoi.transform.fields import new_field_from_latitudes_longitudes, new_field_from_numpy, new_fieldlist_from_list
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, IntArray, State
 
 from ..processor import Processor
 from . import pre_processor_registry
@@ -93,7 +88,7 @@ def build_grid_reordering(
     if np.array_equal(s_lat, t_lat) and np.array_equal(s_lon, t_lon):
         return None
 
-    src_index: dict[tuple[float, float], "deque[int]"] = defaultdict(deque)
+    src_index: dict[tuple[float, float], deque[int]] = defaultdict(deque)
     for i in range(src_lat.size):
         src_index[(s_lat[i], s_lon[i])].append(i)
 

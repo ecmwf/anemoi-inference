@@ -7,16 +7,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-from anemoi.inference.testing.variables import cp
-from anemoi.inference.testing.variables import two_t
-from anemoi.inference.testing.variables import z_500
+from anemoi.inference.testing.variables import cp, two_t, z_500
 
 TYPED_VARIABLES = {v.name: v for v in (z_500, cp, two_t)}
 ALL_VARIABLES = tuple(TYPED_VARIABLES)
