@@ -16,12 +16,10 @@ from anemoi.utils.dates import as_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import concat_states
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, State
 
 from ..input import Input
-from . import create_input
-from . import input_registry
+from . import create_input, input_registry
 
 LOG = logging.getLogger(__name__)
 

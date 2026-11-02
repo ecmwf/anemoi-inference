@@ -8,18 +8,14 @@
 # nor does it submit to any jurisdiction.
 
 import os
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters import create_cluster
+from anemoi.inference.clusters import cluster_registry, create_cluster
 from anemoi.inference.clusters.distributed import DistributedCluster
-from anemoi.inference.clusters.manual import ManualClient
-from anemoi.inference.clusters.manual import ManualSpawner
-from anemoi.inference.clusters.mapping import EnvMapping
-from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.manual import ManualClient, ManualSpawner
+from anemoi.inference.clusters.mapping import EnvMapping, MappingCluster
 from anemoi.inference.clusters.mpi import MPICluster
 from anemoi.inference.clusters.slurm import SlurmCluster
 from anemoi.inference.context import Context
@@ -219,15 +215,14 @@ class TestSlurmCluster:
                 "SLURM_JOBID": "12345",
             },
             clear=True,
-        ):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value.stdout = "node001\nnode002\nnode003\nnode004\n"
+        ), patch("subprocess.run") as mock_run:
+            mock_run.return_value.stdout = "node001\nnode002\nnode003\nnode004\n"
 
-                with patch("socket.gethostbyname", return_value="192.168.1.1"):
-                    cluster = SlurmCluster()
+            with patch("socket.gethostbyname", return_value="192.168.1.1"):
+                cluster = SlurmCluster()
 
-                    assert cluster.master_addr == "192.168.1.1"
-                    mock_run.assert_called_once()
+                assert cluster.master_addr == "192.168.1.1"
+                mock_run.assert_called_once()
 
     def test_slurm_cluster_master_port_from_jobid(self):
         """Test SlurmCluster master_port generation from SLURM_JOBID."""
@@ -241,16 +236,15 @@ class TestSlurmCluster:
                 "SLURM_JOBID": "98765",
             },
             clear=True,
-        ):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value.stdout = "node001\n"
+        ), patch("subprocess.run") as mock_run:
+            mock_run.return_value.stdout = "node001\n"
 
-                with patch("socket.gethostbyname", return_value="192.168.1.1"):
-                    cluster = SlurmCluster()
+            with patch("socket.gethostbyname", return_value="192.168.1.1"):
+                cluster = SlurmCluster()
 
-                    # Port should be 10000 + last 4 digits of job ID
-                    expected_port = 10000 + 8765
-                    assert cluster.master_port == expected_port
+                # Port should be 10000 + last 4 digits of job ID
+                expected_port = 10000 + 8765
+                assert cluster.master_port == expected_port
 
     def test_slurm_cluster_scontrol_failure(self):
         """Test SlurmCluster when scontrol fails."""
@@ -264,11 +258,10 @@ class TestSlurmCluster:
                 "SLURM_JOBID": "12345",
             },
             clear=True,
-        ):
-            with patch("subprocess.run", side_effect=Exception("scontrol failed")):
-                with pytest.raises(Exception, match="scontrol failed"):
-                    cluster = SlurmCluster()
-                    _ = cluster.master_addr
+        ), patch("subprocess.run", side_effect=Exception("scontrol failed")):
+            with pytest.raises(Exception, match="scontrol failed"):
+                cluster = SlurmCluster()
+                _ = cluster.master_addr
 
 
 class TestMPICluster:

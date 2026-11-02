@@ -11,7 +11,7 @@ import pytest
 
 zarr = pytest.importorskip("zarr")
 
-from anemoi.inference.outputs.zarr import create_zarr_array  # noqa: E402
+from anemoi.inference.outputs.zarr import create_zarr_array
 
 
 @pytest.mark.parametrize("chunks", ["auto", True, False, (1, 2)])

@@ -18,8 +18,7 @@ from anemoi.inference.inputs.cutout import _mask_and_combine_states
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.runner import Runner
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing import files_for_tests
+from anemoi.inference.testing import fake_checkpoints, files_for_tests
 
 
 def test_mask_and_combine_states():
