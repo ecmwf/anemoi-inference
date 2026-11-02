@@ -365,6 +365,7 @@ class ParallelOutput(Output):
         *,
         output: Output | Any | None = None,
         num_writers: int = 1,
+        worker_timeout: int = 10,
         chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
         **kwargs: Any,
     ):
@@ -383,6 +384,10 @@ class ParallelOutput(Output):
             Number of writer processes to spawn.
             Must be >= 1.
             Defaults to 1 (single output file, asynchronous writes).
+        worker_timeout: int
+            Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
+            Must be >= -1.
+            Defaults to 10 seconds.
         chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
             The strategy for chunking the output among writer processes.
             Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
@@ -403,6 +408,10 @@ class ParallelOutput(Output):
         self.num_writers = int(num_writers)
         if self.num_writers < 1:
             raise ValueError("num_writers must be at least 1")
+
+        self.worker_timeout = int(worker_timeout)
+        if self.worker_timeout < -1:
+            raise ValueError("worker_timeout must be >= -1")
 
         # store the output config for printing and for creating outputs in the writer processes.
         self.kwargs = {}
@@ -514,7 +523,7 @@ class ParallelOutput(Output):
     def close(self) -> None:
         """Terminate writer processes, then close the wrapped output."""
         if self._writers_running:
-            self._terminate_all_writers()
+            self._terminate_all_writers(self.worker_timeout)
 
     def __repr__(self) -> str:
         return f"ParallelOutput(num_writers={self.num_writers}, output={self.output_config})"
@@ -607,7 +616,7 @@ class ParallelOutput(Output):
 
         LOG.info("Writer %d shutting down", writer_id)
 
-    def _terminate_all_writers(self, timeout_s=10) -> None:
+    def _terminate_all_writers(self, timeout_s=None) -> None:
         """Gracefully shut down all writer processes.
 
         Sends a TERMINATE sentinel to each writer queue. Writers consume all
@@ -631,7 +640,15 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: waiting for writers to finish and exit...")
 
-        sleep(timeout_s)
+        if timeout_s is None:
+            timeout_s = self.worker_timeout
+
+        if timeout_s >= 0:
+            sleep(timeout_s)
+        else:
+            for process in self._processes:
+                if process.is_alive():
+                    process.join()
 
         forcibly_teminated = False
         for i, process in enumerate(self._processes):
