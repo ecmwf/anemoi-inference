@@ -55,9 +55,9 @@ production forecasts.
 no-model
 --------
 
-Replaces the checkpoint model with a dummy that returns all-ones. This
+Replaces the checkpoint model with a dummy, which can be configured to use all-ones, no-modification, or hash-update data predict steps. This
 is intended for testing pipelines (processors, inputs, outputs) without
-running a real model.
+running a real model. It defaults to all-ones.
 
 external-graph
 --------------
