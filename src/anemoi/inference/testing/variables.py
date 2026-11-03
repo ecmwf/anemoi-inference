@@ -62,3 +62,36 @@ z_100_renamed = Variable.from_dict(
         }
     },
 )
+
+two_t = Variable.from_dict(
+    "2t",
+    {
+        "mars": {
+            "param": "2t",
+            "levtype": "sfc",
+        }
+    },
+)
+
+cp = Variable.from_dict(
+    "cp",
+    {
+        "mars": {
+            "param": "cp",
+            "levtype": "sfc",
+        },
+        "process": "accumulation",
+        "period": [0, 6],
+    },
+)
+
+z_500 = Variable.from_dict(
+    "z_500",
+    {
+        "mars": {
+            "param": "z",
+            "levtype": "pl",
+            "levelist": 500,
+        }
+    },
+)

@@ -14,7 +14,12 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-ALL_VARIABLES = ("z_500", "cp", "2t")
+from anemoi.inference.testing.variables import cp
+from anemoi.inference.testing.variables import two_t
+from anemoi.inference.testing.variables import z_500
+
+TYPED_VARIABLES = {v.name: v for v in (z_500, cp, two_t)}
+ALL_VARIABLES = tuple(TYPED_VARIABLES)
 
 
 @pytest.fixture
@@ -33,7 +38,7 @@ def basic_metadata():
     """Fixture to create mock metadata for testing outputs."""
     metadata = MagicMock()
     metadata.dataset_name = "test"
-    metadata.typed_variables = {name: MagicMock() for name in ALL_VARIABLES}
+    metadata.typed_variables = dict(TYPED_VARIABLES)
     metadata.multi_dataset = False
     return metadata
 
