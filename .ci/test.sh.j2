@@ -1,1 +1,6 @@
 {% extends "ci-infrastructure/python-runner.sh.j2" %}
+
+{% block set_environment %}
+# CPU torch: the runners have no GPU, and the default CUDA wheels add ~2.9 GB to every install.
+export UV_TORCH_BACKEND=cpu
+{% endblock %}
