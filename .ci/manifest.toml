@@ -45,7 +45,5 @@ python-version = "3.12"
 [[matrix.test.include]]
 python-version = "3.13"
 
-# A pull request without a downstream-CI label runs every consumer, as with
-# run-downstream-ci:all; a label, also downstream-ci-not-needed, still decides.
 [downstream]
 run-default = "all"
