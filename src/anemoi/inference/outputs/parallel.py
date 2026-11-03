@@ -17,7 +17,6 @@ from collections.abc import Callable
 from collections.abc import Generator
 from enum import Enum
 from functools import cache
-from time import sleep
 from typing import Any
 from typing import Literal
 from typing import get_args
@@ -365,7 +364,7 @@ class ParallelOutput(Output):
         *,
         output: Output | Any | None = None,
         num_writers: int = 1,
-        worker_timeout: int = 10,
+        worker_timeout: int = 60,
         chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
         **kwargs: Any,
     ):
@@ -387,7 +386,7 @@ class ParallelOutput(Output):
         worker_timeout: int
             Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
             Must be >= -1.
-            Defaults to 10 seconds.
+            Defaults to 60 seconds.
         chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
             The strategy for chunking the output among writer processes.
             Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
@@ -616,7 +615,7 @@ class ParallelOutput(Output):
 
         LOG.info("Writer %d shutting down", writer_id)
 
-    def _terminate_all_writers(self, timeout_s=None) -> None:
+    def _terminate_all_writers(self, timeout_s: int) -> None:
         """Gracefully shut down all writer processes.
 
         Sends a TERMINATE sentinel to each writer queue. Writers consume all
@@ -640,30 +639,21 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: waiting for writers to finish and exit...")
 
-        if timeout_s is None:
-            timeout_s = self.worker_timeout
-
-        if timeout_s >= 0:
-            sleep(timeout_s)
-        else:
-            for process in self._processes:
-                if process.is_alive():
-                    process.join()
-
-        forcibly_teminated = False
+        forcibly_terminated = False
         for i, process in enumerate(self._processes):
             if process.is_alive():
+                process.join(timeout_s if timeout_s >= 0 else None)
+            if process.is_alive():
                 LOG.warning(
-                    "Writer %d did not exit within timeout, forcefully terminating - Data yet be written will be lost",
+                    "Writer %d did not exit within timeout, forcefully terminating - Data yet to be written will be lost, and files may be truncated",
                     i,
                 )
                 process.terminate()
                 process.join()
-                forcibly_teminated = True
+                forcibly_terminated = True
 
         LOG.info("ParallelOutput: all writers terminated.")
-        if forcibly_teminated:
+        if forcibly_terminated:
             raise RuntimeError(
-                "One or more writers were forcefully terminated after exceeding the shutdown timeout of %s. This can result in forecast data loss. Please check the logs for more details. Consider increasing the number of writer processes to avoid this.",
-                timeout_s,
+                f"One or more writers were forcefully terminated after exceeding the shutdown timeout of {timeout_s}. This can result in forecast data loss. Please check the logs for more details. Consider increasing the number of writer processes to avoid this."
             )
