@@ -40,8 +40,7 @@ or on the command line, as an override of the configuration:
    anemoi-inference run config.yaml seed=42
 
 The value of the seed is used as is: it is not modified in any way. The
-seed is applied by all runners, not only by the :ref:`parallel runner
-<parallel-inference>`.
+seed is applied by all runners.
 
 .. note::
 
