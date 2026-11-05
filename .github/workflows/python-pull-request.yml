@@ -1,5 +1,5 @@
 # This workflow runs pre-commit checks and pytest tests against multiple platforms and Python versions.
-name: Code Quality and Testing
+name: Test against PyPI
 
 on:
   pull_request:
@@ -16,10 +16,34 @@ jobs:
     with:
       skip-hooks: "no-commit-to-branch"
 
+  # qa-pytest-pyproject.yml inlined, as a reusable workflow does not take the caller's env.
+  # The name is the one the ruleset requires.
   checks:
+    name: checks (${{ matrix.python-version }}) / pytest (ubuntu-latest)
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-    uses: ecmwf/reusable-workflows/.github/workflows/qa-pytest-pyproject.yml@v2
-    with:
-      python-version: ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    env:
+      UV_SYSTEM_PYTHON: 1
+      # CUDA torch only where uv finds a GPU, which the runners lack; as torch-backend in .ci/.
+      UV_TORCH_BACKEND: auto
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+      - name: Install dependencies
+        run: uv pip install ".[all,tests]" pytest pytest-md pytest-emoji
+      - name: Run pytest
+        uses: pavelzw/pytest-action@510c5e90c360a185039bea56ce8b3e7e51a16507 # v2.2.0
+        with:
+          verbose: true
+          emoji: true
+          job-summary: true
+          click-to-expand: true
+          report-title: "Test report (python ${{ matrix.python-version }} on ubuntu-latest)"
