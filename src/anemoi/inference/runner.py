@@ -26,6 +26,7 @@ import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.logs import OnceLogger
 from anemoi.utils.timer import Timer
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from anemoi.inference.runners.parallel import ParallelRunnerMixin
 
 LOG = logging.getLogger(__name__)
+LOG_ONCE = OnceLogger(LOG)
 
 
 class RunnerClasses(BaseModel):
@@ -80,7 +82,11 @@ class Runner(Context):
 
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
-        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}")
+
+        seed = config.seed if config.seed is not None else torch.initial_seed()
+        torch.manual_seed(seed)
+
+        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={seed}")
 
         classes = classes or RunnerClasses()
         self.classes = classes
@@ -127,6 +133,14 @@ class Runner(Context):
 
         multi_metadata = self.checkpoint.multi_dataset_metadata
         self.dataset_names = list(multi_metadata.keys())
+
+        LOG.info(
+            "Dataset(s): %s",
+            ", ".join(
+                f"`{dataset}`{'' if metadata.multi_dataset else ' (legacy metadata)'}"
+                for dataset, metadata in multi_metadata.items()
+            ),
+        )
 
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
@@ -519,6 +533,10 @@ class Runner(Context):
                                 step - self.checkpoint.rollout_shift + self.checkpoint.output_offsets[i]
                             )
 
+                            if dataset not in outputs:
+                                # Input-only dataset (no decoder)
+                                continue
+
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
                             for j in range(output.shape[1]):
@@ -564,11 +582,10 @@ class Runner(Context):
                         if handler.trace:
                             handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
+                        # None for input-only datasets
                         input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
-                            input_tensors_torch[dataset], y_pred[dataset], check[dataset]
+                            input_tensors_torch[dataset], y_pred.pop(dataset, None), check[dataset]
                         )
-
-                        del y_pred[dataset]  # Recover memory
 
                         # some forcings use the new_state(s)
                         # ComputedForcings only uses it to get latlons
@@ -655,15 +672,27 @@ class Runner(Context):
         input_states: dict[str, State] = {}
         input_constants_states: dict[str, State] = {}
         initial_states: dict[str, State] = {}
+
+        if self.reference_date is None:
+            _dataset, _input = next(iter(self.prognostics_inputs.items()))
+            self.reference_date = _input.default_initial_date()
+
+            LOG.info(
+                f"`date` not provided in the config, using the default initial date from [{_dataset}] {_input}]: {self.reference_date.isoformat()}"
+            )
+
         for dataset in self.tensor_handlers:
-            prognostic_state = self.prognostics_inputs[dataset].create_input_state(date=self.config.date)
+            multi_dataset_metadata = self.checkpoint.multi_dataset_metadata[dataset]
+            dates = [self.reference_date + h for h in multi_dataset_metadata.lagged]
+
+            prognostic_state = self.prognostics_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, prognostic_state, "prognostics")
 
-            constants_state = self.constant_forcings_inputs[dataset].create_input_state(date=self.config.date)
+            constants_state = self.constant_forcings_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, constants_state, "constant_forcings")
             input_constants_states[dataset] = constants_state
 
-            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(date=self.config.date)
+            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, forcings_state, "dynamic_forcings")
 
             input_states[dataset] = self._combine_states(
@@ -698,9 +727,14 @@ class Runner(Context):
 
         for states in self.run(input_states=input_states, lead_time=lead_time):
             for dataset, state in states.items():
-                # Apply top-level post-processors
+                if not state["fields"]:
+                    LOG_ONCE.info(f"[{dataset}] Empty model output: skipping output and post-processors.")
+                    continue
+
+                # top-level post-processors
                 for processor in self.post_processors[dataset]:
                     state = processor.process(state)
+
                 self.outputs[dataset].write_state(state)
 
         for output in self.outputs.values():
@@ -723,17 +757,21 @@ class Runner(Context):
         match input_type:
             case "prognostics":
                 variables = variables.retrieved_prognostic_variables()
-                config = input_types_config(self.config, "prognostic_input", "input") if variables else "empty"
+                config = input_types_config(self.config, "input") if variables else "empty"
             case "constant_forcings":
                 variables = variables.retrieved_constant_forcings_variables()
-                config = input_types_config(self.config, input_type, "forcings", "input") if variables else "empty"
+                config = (
+                    input_types_config(self.config, "constant_forcings", "forcings", "input") if variables else "empty"
+                )
             case "dynamic_forcings":
                 variables = variables.retrieved_dynamic_forcings_variables()
-                config = input_types_config(self.config, input_type, "-forcings", "input") if variables else "empty"
+                config = (
+                    input_types_config(self.config, "dynamic_forcings", "-forcings", "input") if variables else "empty"
+                )
             case "boundary_forcings":
                 variables = variables.retrieved_prognostic_variables()
                 config = (
-                    input_types_config(self.config, input_type, "-boundary", "forcings", "input")
+                    input_types_config(self.config, "boundary_forcings", "-boundary", "forcings", "input")
                     if variables
                     else "empty"
                 )

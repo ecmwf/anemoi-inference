@@ -7,12 +7,10 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-import datetime
 import logging
 from typing import Any
 
 import earthkit.data as ekd
-import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -81,11 +79,9 @@ class FDBInput(GribInput):
         # NOTE: this is a temporary workaround for #191 thus not documented
         self.param_id_map = kwargs.pop("param_id_map", {})
 
-    def create_input_state(self, *, date: Date | None, **kwargs) -> State:
-        date = np.datetime64(date).astype(datetime.datetime)
-        dates = [date + h for h in self.metadata.lagged]
+    def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
         ds = self.retrieve(variables=self.variables, dates=dates)
-        res = self._create_input_state(ds, variables=None, date=date, **kwargs)
+        res = self._create_input_state(ds, variables=None, dates=dates, **kwargs)
         return res
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:

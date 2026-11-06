@@ -147,7 +147,7 @@ class TestCreateInputState4D:
         inp = _make_input(ds)
 
         date = _DATES[2]
-        state = inp.create_input_state(date=date)
+        state = inp.create_input_state(dates=[date])
 
         for vi, var in enumerate(VARS):
             # shape: (n_lagged, n_cells) -- single lag of 0, no ensemble dim
@@ -158,27 +158,26 @@ class TestCreateInputState4D:
         """With lagged offsets the correct date slices should be loaded."""
         data = _make_4d_data()
         ds = _MockDataset(data)
-        # lag -6h then 0  =>  date-6h then date (ascending order)
-        lags = [np.timedelta64(-6, "h"), np.timedelta64(0, "h")]
-        inp = _make_input(ds, meta_kwargs=dict(lagged=lags))
+        inp = _make_input(ds)
 
-        date = _DATES[2]  # 2024-01-01T12:00
-        state = inp.create_input_state(date=date)
+        # The runner now resolves the lagged dates and passes them directly.
+        # date-6h then date (ascending order): index 1 (T06) and index 2 (T12)
+        dates = [_DATES[1], _DATES[2]]
+        state = inp.create_input_state(dates=dates)
 
         for vi, var in enumerate(VARS):
             # Two lagged dates: index 1 (T06) and index 2 (T12)
             expected = np.stack([data[1, vi, 0, :], data[2, vi, 0, :]], axis=0)
             np.testing.assert_array_equal(state["fields"][var], expected)
 
-    def test_constant_loads_single_date(self):
-        """constant=True should load only the requested date (no lags)."""
+    def test_single_date_loads_single_date(self):
+        """A single requested date should load only that date."""
         data = _make_4d_data()
         ds = _MockDataset(data)
-        lags = [np.timedelta64(0, "h"), np.timedelta64(-6, "h")]
-        inp = _make_input(ds, meta_kwargs=dict(lagged=lags))
+        inp = _make_input(ds)
 
         date = _DATES[3]
-        state = inp.create_input_state(date=date, constant=True)
+        state = inp.create_input_state(dates=[date])
 
         for vi, var in enumerate(VARS):
             expected = data[3, vi, 0, :].reshape(1, N_CELLS)
@@ -189,7 +188,7 @@ class TestCreateInputState4D:
         ds = _MockDataset(_make_4d_data())
         inp = _make_input(ds)
         with pytest.raises(ValueError, match="not found"):
-            inp.create_input_state(date=np.datetime64("2099-01-01"))
+            inp.create_input_state(dates=[np.datetime64("2099-01-01")])
 
 
 class TestLoadForcingsState4D:
@@ -238,7 +237,7 @@ class TestCreateInputState5D:
         inp = _make_input(ds, use_trajectories=True)
 
         date = _DATES[0]
-        state = inp.create_input_state(date=date)
+        state = inp.create_input_state(dates=[date])
 
         for vi, var in enumerate(VARS):
             expected = data[0, vi, 0, 0, :].reshape(1, N_CELLS)

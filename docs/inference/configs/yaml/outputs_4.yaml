@@ -1,6 +1,6 @@
 output:
   plot:
-    path: /path/to/directory
+    dir: /path/to/directory
     format: png
     domain: Europe
     variables:

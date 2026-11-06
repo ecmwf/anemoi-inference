@@ -18,6 +18,24 @@ from . import Command
 LOG = logging.getLogger(__name__)
 
 
+def _iter_dataset_metadatas(metadata: dict):
+    """Yield ``(dataset_name, dataset_metadata)`` pairs for every dataset in the raw checkpoint metadata.
+
+    Handles both on-disk layouts:
+    - flat (legacy single-dataset): ``metadata["dataset"]`` is the dataset metadata itself.
+    - named (multi-dataset / ``metadata_inference.dataset_names`` set): ``metadata["dataset"]`` maps
+      each dataset name to that dataset's metadata.
+    """
+    dataset = metadata.get("dataset") or {}
+    dataset_names = metadata.get("metadata_inference", {}).get("dataset_names")
+    if dataset_names:
+        for name in dataset_names:
+            if name in dataset:
+                yield name, dataset[name]
+    else:
+        yield "data", dataset
+
+
 class SanitiseCmd(Command):
     """Sanitise a checkpoint file."""
 
@@ -49,7 +67,11 @@ class SanitiseCmd(Command):
 
         if metadata != original_metadata:
             LOG.info("Patching metadata")
-            assert "sources" in metadata["dataset"]
+            for name, dataset_metadata in _iter_dataset_metadatas(metadata):
+                assert "sources" in dataset_metadata, (
+                    f"dataset `{name}` is missing `sources` in its metadata; cannot sanitise "
+                    f"(checkpoint {args.path})"
+                )
             replace_metadata(args.path, metadata, supporting_arrays)
         else:
             LOG.info("Metadata is already sanitised")

@@ -25,12 +25,15 @@ The ``parallel`` output wraps any other output type (e.g. ``grib``,
 ``zarr``, ``netcdf``) and:
 
 1. Spawns ``num_writers`` writer processes (using ``fork``).
-2. At each forecast step, splits the output fields evenly across the
-   writers.
-3. Each writer receives its chunk via a multiprocessing queue and writes
-   it using its own instance of the wrapped output.
-4. On shutdown, all writers are gracefully terminated with a signal via
-   their queues.
+2. At each forecast step, splits the output fields into chunks according
+   to the configured :ref:`chunking strategy <parallel-output-chunking>`.
+3. Each chunk is dispatched to a writer process (round-robin when there
+   are more chunks than writers) via a multiprocessing queue, and written
+   using that writer's own instance of the wrapped output.
+4. On shutdown, each writer is sent a terminate signal via its queue. It
+   finishes writing everything already queued, then exits. The main
+   process waits up to ``worker_timeout`` seconds for each writer (see
+   :ref:`parallel-output-shutdown`).
 
 Each writer appends a suffix ``_w<id>`` to the output file name to
 avoid conflicts (e.g. ``output_w0.grib``, ``output_w1.grib``).
@@ -72,6 +75,115 @@ Parameters
 ==========
 
 .. automethod:: anemoi.inference.outputs.parallel.ParallelOutput.__init__
+
+.. _parallel-output-chunking:
+
+********************
+ Chunking Strategies
+********************
+
+At each forecast step, the output fields are divided into chunks that are
+distributed to the writer processes. The ``chunk_strategy`` parameter
+controls how this split is performed. If there are more chunks than
+writers, chunks are assigned to writers round-robin
+(chunk ``i`` goes to writer ``i % num_writers``).
+
+``by_worker`` (default)
+=======================
+
+Splits the fields into exactly ``num_writers`` contiguous chunks of
+roughly equal size, one per writer. This is the simplest strategy and a
+good default: each writer receives a comparable amount of work.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy: by_worker
+       output:
+         grib:
+           path: forecast.grib
+
+``by_size``
+===========
+
+Splits the fields into chunks of a fixed size, where "size" is the number
+of fields in the state (not the number of bytes), given by
+``fields_per_chunk``. The number of chunks depends on the number of
+output fields, and chunks are dispatched to writers round-robin. Use this
+when you want to control the amount of work per queue message (e.g. to
+bound memory usage), independently of ``num_writers``.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy:
+         by_size:
+           fields_per_chunk: 10
+       output:
+         grib:
+           path: forecast.grib
+
+``by_metadata``
+===============
+
+Groups fields into chunks by their metadata, so that all fields sharing
+the same value for the given ``keys`` are written by the same writer. The
+``keys`` are read from each variable's typed metadata (e.g. ``levtype``,
+``param``, ``level``). This is useful when the output backend benefits
+from co-locating related fields in the same file.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy:
+         by_metadata:
+           keys: [levtype]
+       output:
+         grib:
+           path: forecast.grib
+
+.. note::
+
+   ``by_metadata`` optimises for co-location, not for balanced load. The
+   resulting chunks can be uneven in size: fields whose metadata does not
+   define the requested ``keys`` are grouped together under a single
+   ``None`` group, so if many fields lack that metadata they all end up in
+   one large chunk on one writer. If balanced work across writers matters
+   more than co-location, prefer ``by_worker`` (equal-sized chunks, one per
+   writer) or ``by_size`` (fixed number of fields per chunk).
+
+Limiting the number of groups with ``max_groups``
+-------------------------------------------------
+
+An optional ``max_groups`` argument (specific to ``by_metadata``; it is
+not available for ``by_worker`` or ``by_size``) caps the number of chunks
+produced. Each metadata group becomes one chunk, and chunks are dispatched
+to writers round-robin (chunk ``i`` goes to writer ``i % num_writers``), so
+a group is not tied one-to-one to a writer: one writer may receive several
+groups, and with ``max_groups`` set, several groups may be merged into a
+single chunk. If more distinct metadata groups exist than ``max_groups``,
+groups are merged round-robin so that no more than ``max_groups`` chunks are
+created. This is useful to avoid overwhelming the writers with many small
+chunks:
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       chunk_strategy:
+         by_metadata:
+           keys: [param]
+           max_groups: 8
+       output:
+         grib:
+           path: forecast.grib
 
 Examples
 ========
@@ -145,6 +257,40 @@ For larger output sizes, one can set ``num_writers: 1``. This will produce a sin
 
 If you suspect that writing to disk is a bottleneck, you can experiment with increasing ``num_writers``. 2 or 4 writers is often a good starting point.
 
+.. _parallel-output-shutdown:
+
+*********************************
+ Shutdown and ``worker_timeout``
+*********************************
+
+When inference finishes, writers may still have queued fields to write.
+The main process waits for each writer to finish and exit, up to
+``worker_timeout`` seconds per writer (default ``300``). Set it to
+``-1`` to wait indefinitely. Values below ``-1`` are rejected.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       worker_timeout: 600
+       output:
+         grib:
+           path: /path/to/output.grib
+
+Shutdown returns as soon as all writers have exited, so a large timeout
+only costs time when writers are genuinely still busy.
+
+If a writer is still running when the timeout expires, it is forcefully
+terminated and a RuntimeError is raised, since data may have been lost.
+If this happens:
+
+- If writers are slow because they compete for disk or CPU, increase
+  ``worker_timeout``.
+- If a single writer has too much queued work, change ``num_writers``
+  or the :ref:`chunking strategy <parallel-output-chunking>` to spread
+  the load.
+
 ***********************
  Troubleshooting
 ***********************
@@ -155,3 +301,12 @@ Writer process crashes
 If a writer process crashes (e.g. due to a disk-full error or a bug in
 the output backend), the main process will detect that the writer is
 dead and abort inference with a RuntimeError.
+
+Writers forcefully terminated at shutdown
+=========================================
+
+If a writer is still running after ``worker_timeout`` seconds, it is
+forcefully terminated. Any data it had not yet written is lost, and its
+output file may be truncated. A warning is logged for each such writer,
+and a RuntimeError is raised once all writers have stopped. See
+:ref:`parallel-output-shutdown` for how to avoid this.

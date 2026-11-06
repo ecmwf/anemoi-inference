@@ -26,20 +26,28 @@ config.
          repo_id: "ecmwf/aifs-single"
          filename: "aifs_single_v0.2.1.ckpt"
 
+.. _top-level-runner:
+
 runner:
 =======
 
 The ``runner`` option selects the inference runner. The default is
-``default``.
+``auto``.
 
 .. code:: yaml
 
-   runner: default
+   runner: auto
 
 Available runners:
 
-default
--------
+auto
+----
+
+Automatically selects the runner from the ``task`` entry in the
+checkpoint metadata. This is the default runner.
+
+forecaster
+----------
 
 Runs the checkpoint model as-is. This is the standard runner for
 production forecasts.
@@ -47,9 +55,9 @@ production forecasts.
 no-model
 --------
 
-Replaces the checkpoint model with a dummy that returns all-ones. This
+Replaces the checkpoint model with a dummy, which can be configured to use all-ones, no-modification, or hash-update data predict steps. This
 is intended for testing pipelines (processors, inputs, outputs) without
-running a real model.
+running a real model. It defaults to all-ones.
 
 external-graph
 --------------
@@ -62,6 +70,11 @@ parallel
 
 Distributes the model across multiple devices. See
 :ref:`parallel-inference` for full documentation.
+
+temporal-downscaler
+-------------------
+
+Runs a specific trained temporal downscaler model.
 
 device:
 =======

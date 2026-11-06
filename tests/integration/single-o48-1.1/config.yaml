@@ -264,9 +264,10 @@
       grib:
           path: ${output:}
           variables:
-            - 100u
-            - 2t
-            - q_600
+            select:
+              - 100u
+              - 2t
+              - q_600
 
 - name: netcdf-in-netcdf-out
   input: input.nc

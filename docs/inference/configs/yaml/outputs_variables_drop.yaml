@@ -1,0 +1,8 @@
+output:
+  grib:
+    path: /path/to/output.grib
+    variables:
+      drop:
+        - msl
+        - t_850
+        - z_500

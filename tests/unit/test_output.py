@@ -1,0 +1,113 @@
+# (C) Copyright 2026 Anemoi contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+
+import numpy as np
+import pytest
+from anemoi.transform.variables import Variable
+
+from anemoi.inference.outputs.raw import RawOutput
+from anemoi.inference.schemas import OutputVariableConfig
+
+
+@pytest.mark.parametrize(
+    "input_variables, expected_written",
+    [
+        pytest.param(None, ["2t", "cp", "z_500"], id="none_input"),
+        pytest.param(["cp"], ["cp"], id="single_list_input"),
+        pytest.param(["z_500", "cp"], ["cp", "z_500"], id="list_input"),
+        pytest.param("cp", ["cp"], id="single_string_input"),
+        pytest.param({"select": "cp"}, ["cp"], id="select_string"),
+        pytest.param({"select": ["z_500", "cp"]}, ["cp", "z_500"], id="select_list"),
+        pytest.param({"drop": ["z", "cp"]}, ["2t", "z_500"], id="drop_list"),
+        pytest.param({"drop": "cp"}, ["2t", "z_500"], id="drop_string"),
+        pytest.param({"drop": []}, ["2t", "cp", "z_500"], id="drop_empty_list"),
+        pytest.param({"select": []}, [], id="select_empty_list"),
+        pytest.param(["z_*"], ["z_500"], id="glob_prefix"),
+        pytest.param("*_500", ["z_500"], id="glob_suffix"),
+        pytest.param({"select": ["?t"]}, ["2t"], id="glob_single_char"),
+        pytest.param({"select": ["cp", "z_*"]}, ["cp", "z_500"], id="glob_mixed_with_literal"),
+        pytest.param({"drop": ["z_*"]}, ["2t", "cp"], id="glob_drop"),
+        pytest.param({"select": ["t_*"]}, [], id="glob_no_match_select"),
+        pytest.param({"drop": ["t_*"]}, ["2t", "cp", "z_500"], id="glob_no_match_drop"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": 500}]}, ["z_500"], id="mars_and_keys"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": 850}]}, [], id="mars_and_keys_no_match"),
+        pytest.param({"select": [{"param": "c*"}]}, ["cp"], id="mars_glob_value"),
+        pytest.param({"select": [{"nokey": "x"}]}, [], id="mars_missing_key"),
+        pytest.param({"select": ["2t", {"levtype": "pl"}]}, ["2t", "z_500"], id="mars_mixed_with_name"),
+        pytest.param({"drop": [{"levtype": "sfc"}]}, ["z_500"], id="mars_drop"),
+        pytest.param({"select": [{"param": ["2t", "z"], "levtype": "sfc"}]}, ["2t"], id="mars_list_and_keys"),
+        pytest.param({"select": [{"param": []}]}, [], id="mars_empty_list_value"),
+        pytest.param({"select": [{}, "cp"]}, ["cp"], id="mars_empty_mapping_ignored"),
+        pytest.param({"select": [{}]}, [], id="mars_empty_mapping_only_select"),
+        pytest.param({"drop": [{}]}, ["2t", "cp", "z_500"], id="mars_empty_mapping_only_drop"),
+    ],
+)
+def test_output_variables(
+    input_variables, expected_written, tmp_path, mocker, basic_context, basic_metadata, basic_state
+):
+    writer = mocker.patch("anemoi.inference.outputs.raw.np.savez_compressed")
+    output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables)
+    output.write_step(basic_state)
+    written = writer.call_args.kwargs
+
+    assert sorted(key.removeprefix("field_") for key in written if key.startswith("field_")) == expected_written
+
+
+@pytest.mark.parametrize(
+    "input_variables",
+    [
+        pytest.param({"select": [{"levelist": 500}, {"levelist": 600}]}, id="separate_mappings"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": "[56]00"}]}, id="glob_value"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": [500, 600]}]}, id="list_value"),
+        pytest.param({"select": [{"levelist": [500, "6*"], "param": ["t", "z"]}]}, id="list_values_and_keys"),
+        pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": [850]}]}, id="drop_list_value"),
+        pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": 850}]}, id="drop_mappings"),
+    ],
+)
+def test_output_variables_multiple_levels(
+    input_variables, tmp_path, mocker, basic_context, basic_metadata, basic_state
+):
+    levels = {
+        f"{param}_{level}": Variable.from_dict(
+            f"{param}_{level}", {"mars": {"param": param, "levtype": "pl", "levelist": level}}
+        )
+        for param in ("t", "z")
+        for level in (500, 600, 850)
+    }
+    basic_metadata.typed_variables.update(levels)
+    basic_state["fields"].update({name: np.array([1.0]) for name in levels})
+
+    writer = mocker.patch("anemoi.inference.outputs.raw.np.savez_compressed")
+    output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables)
+    output.write_step(basic_state)
+    written = writer.call_args.kwargs
+
+    assert sorted(key.removeprefix("field_") for key in written if key.startswith("field_")) == [
+        "t_500",
+        "t_600",
+        "z_500",
+        "z_600",
+    ]
+
+
+@pytest.mark.parametrize(
+    "input_variables",
+    [
+        pytest.param({"": ["cp"]}, id="empty_dict_key"),
+        pytest.param({"rop": ["cp"]}, id="typo"),
+        pytest.param({"select": ["cp"], "drop": ["z_500"]}, id="select_and_drop"),
+        pytest.param({"levtype": "pl"}, id="mars_dict_without_select"),
+    ],
+)
+def test_output_variables_failure(input_variables, tmp_path, basic_context, basic_metadata, basic_state):
+    with pytest.raises(ValueError):
+        variable_config = OutputVariableConfig(variables=input_variables)
+        output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=variable_config)
+        output.write_step(basic_state)

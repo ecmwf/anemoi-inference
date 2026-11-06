@@ -1,5 +1,5 @@
 checkpoint: unit/checkpoints/ocean.ckpt
-runner: default
+runner: forecaster
 device: cpu
 
 allow_nans: true

@@ -35,7 +35,7 @@ class RunConfiguration(Configuration):
     checkpoint: str | dict[Literal["huggingface"], dict[str, Any] | str]
     """A path to an Anemoi checkpoint file."""
 
-    runner: str | dict[str, Any] = "default"
+    runner: str | dict[str, Any] = "auto"
     """The runner to use. For runners that take extra options, they can be passed here in dictionary format with the runner name as the top level dictionary key. For example, if using `parallel`, the `cluster` option can be set here."""
 
     lead_time: str | int | datetime.timedelta = "10d"
@@ -73,6 +73,12 @@ class RunConfiguration(Configuration):
 
     precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
+
+    seed: int | None = None
+    """Seed value to pass to `torch.manual_seed()` before running the model.
+    If not provided, PyTorch's default random seed is used.
+    The seed is logged at start-up.
+    """
 
     allow_nans: bool | None = None
     """

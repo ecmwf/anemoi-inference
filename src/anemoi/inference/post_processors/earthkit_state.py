@@ -59,7 +59,7 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
     return ekd.create_fieldlist(fields)
 
 
-def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
+def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable, flatten: bool = True) -> State:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters
@@ -70,6 +70,8 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
         The original state dictionary.
     namer : Callable
         A function to generate new field names.
+    flatten : bool, optional
+        Whether to flatten the field values. Defaults to True.
 
     Returns
     -------
@@ -82,7 +84,7 @@ def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable) -> State:
 
     for n in fields:
         name = namer(n, get_metadata_dict(n))
-        new_fields[name] = n.to_numpy(flatten=True)
+        new_fields[name] = n.to_numpy(flatten=flatten)
 
     state = state.copy()
     state["fields"] = new_fields

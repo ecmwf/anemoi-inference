@@ -11,8 +11,6 @@
 from argparse import ArgumentParser
 from argparse import Namespace
 
-from anemoi.utils.grib import shortname_to_paramid
-
 from ..checkpoint import Checkpoint
 from . import Command
 from .retrieve import checkpoint_to_requests
@@ -47,6 +45,8 @@ class RequestCmd(Command):
         args : Namespace
             The arguments passed to the command.
         """
+        from anemoi.utils.grib import shortname_to_paramid
+
         c = Checkpoint(args.path)
         for r in checkpoint_to_requests(
             c,

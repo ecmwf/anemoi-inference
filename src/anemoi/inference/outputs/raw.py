@@ -41,7 +41,6 @@ class RawOutput(Output):
         dir: Path,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
-        variables: list[str] | None = None,
         **kwargs,
     ) -> None:
         """Initialise the RawOutput class.
@@ -61,7 +60,7 @@ class RawOutput(Output):
         strftime : str, optional
             The date format string, by default "%Y%m%d%H%M%S".
         """
-        super().__init__(context, metadata, variables=variables, **kwargs)
+        super().__init__(context, metadata, **kwargs)
         self.dir = dir
         self.template = template
         self.strftime = strftime

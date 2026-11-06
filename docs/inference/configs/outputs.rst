@@ -18,12 +18,53 @@ The ``variables`` parameter allows you to subset the output to only include
 specific variables. This is useful when you only need a subset of the model
 output, reducing output file size and processing time.
 
+You can either provide a list or single variable to include, or specify that you want to `select` or `drop` variables.
+Only one of "select" or "drop" should be provided.
+
+For `select`, only the variables provided in the list will be included in the output. For `drop`, only the
+variables NOT in the list will be included in the output.
+
+**select**
+
 .. literalinclude:: yaml/outputs_variables.yaml
    :language: yaml
+
+**drop**
+
+.. literalinclude:: yaml/outputs_variables_drop.yaml
+   :language: yaml
+
 
 The variable names should match the names as they appear in the checkpoint.
 For variables with pressure levels, use the format ``{param}_{level}``, for
 example ``t_850`` for temperature at 850 hPa.
+
+Entries may also be shell-style glob patterns using ``*``, ``?`` and
+``[...]``, matched against the variable name. Use quotes around patterns that start with ``*`` so YAML does not
+read them as an alias.
+
+Generally, if configured variables don't match anything in the checkpoint, they will skip silently.
+
+**glob patterns**
+
+.. literalinclude:: yaml/outputs_variables_glob.yaml
+   :language: yaml
+
+**MARS keys**
+
+An entry may also be a mapping of MARS keys (``levtype``, ``levelist``,
+``param``, ...) in the variable metadata stored in the
+checkpoint. A variable is selected (or dropped) if it matches *any* entry in the top level list under `select`.
+For a specific mapping entry, *every* key in the mapping must match for a variable to be selected or dropped (example below). Values are
+compared as strings and may themselves be glob patterns. A value may
+also be a list, in which case the key matches if *any* value in the list
+matches. Mappings must appear inside ``select`` or ``drop``.
+
+.. literalinclude:: yaml/outputs_variables_mars.yaml
+   :language: yaml
+
+In this example, a variable is written if it is a pressure-level variable at
+500 or 850 hPa, or if it is any surface variable.
 
 post_processors
 ===============
@@ -72,7 +113,7 @@ Several post-processors are available for extracting subsets of the data:
      :language: yaml
 
   For more information on using ``extract_from_state`` with the ``Cutout``
-  input, see :ref:`inference-inputs`.
+  input, see :ref:`inputs`.
 
 **assign_mask**
   Assigns the state to a larger array using a mask. This is the opposite of
