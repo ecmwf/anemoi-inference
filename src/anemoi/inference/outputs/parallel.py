@@ -364,7 +364,7 @@ class ParallelOutput(Output):
         *,
         output: Output | Any | None = None,
         num_writers: int = 1,
-        worker_timeout: int = 60,
+        worker_timeout: int = 300,
         chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
         **kwargs: Any,
     ):
