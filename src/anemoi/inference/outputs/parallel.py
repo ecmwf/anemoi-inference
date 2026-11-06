@@ -375,18 +375,18 @@ class ParallelOutput(Output):
         context : Context
             The inference context.
         metadata : Metadata
-            Metadata for the dataset.
-        output : Output | Any | None
-            The inner output (or its config dict) that will be forked into
-            writer processes.
-        num_writers : int
-            Number of writer processes to spawn.
-            Must be >= 1.
-            Defaults to 1 (single output file, asynchronous writes).
+        worker_timeout: int = 300,
+chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
+**kwargs: Any,
+):
+@@ -383,6 +383,10 @@ def __init__(
+           Number of writer processes to spawn.
+           Must be >= 1.
+           Defaults to 1 (single output file, asynchronous writes).
         worker_timeout: int
             Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
             Must be >= -1.
-            Defaults to 60 seconds.
+            Defaults to 300 seconds.
         chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
             The strategy for chunking the output among writer processes.
             Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary

@@ -865,7 +865,7 @@ class TestParallelOutputWorkerTimeout:
         return po
 
     def test_default_worker_timeout(self):
-        assert self._make().worker_timeout == 60
+        assert self._make().worker_timeout == 300
 
     @pytest.mark.parametrize("value", [-1, 0, 5])
     def test_valid_worker_timeout_stored(self, value):
