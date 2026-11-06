@@ -490,13 +490,22 @@ class EkdInput(Input):
         def get_geography_info(key: str) -> Any | None:
             try:
                 combo = list(getattr(f.geography, key, lambda: None)() for f in fields)
-            except NotImplementedError:  # Issue with earthkit.data throwing error here
+            except (NotImplementedError, AttributeError, ValueError):
+                # earthkit-data raises NotImplementedError for some keys, and cannot build the
+                # geography at all of an unstructured GRIB grid it does not know (e.g. ICON
+                # fields without a gridSpec)
                 return None
             if len(set(map(str, combo))) == 1 and combo[0] != "None":
                 return combo[0]
             return None
 
-        if get_geography_info("grid_type") == UNSTRUCTURED_GRID_TYPE:
+        grid_type = get_geography_info("grid_type")
+        if grid_type is None:
+            # When the geography cannot be built, the raw GRIB key still names the grid type
+            grid_types = {f.get("metadata.gridType", default=None) for f in fields}
+            grid_type = grid_types.pop() if len(grid_types) == 1 else None
+
+        if grid_type == UNSTRUCTURED_GRID_TYPE:
             # earthkit-data 0.x reported `mars_grid == "undefined"` for these. The grid
             # cannot be named in MARS terms, so describe it by its points instead, and do
             # not advertise an area (it would be meaningless).
