@@ -645,7 +645,7 @@ class ParallelOutput(Output):
                 process.join(timeout_s if timeout_s >= 0 else None)
             if process.is_alive():
                 LOG.warning(
-                    "Writer %d did not exit within timeout, forcefully terminating - Data yet to be written will be lost, and files may be truncated",
+                    "🚨 Writer %d did not exit within timeout, forcefully terminating - Data yet to be written will be lost, and files may be truncated",
                     i,
                 )
                 process.terminate()
@@ -655,5 +655,5 @@ class ParallelOutput(Output):
         LOG.info("ParallelOutput: all writers terminated.")
         if forcibly_terminated:
             raise RuntimeError(
-                f"One or more writers were forcefully terminated after exceeding the shutdown timeout of {timeout_s}. This can result in forecast data loss. Please check the logs for more details. Consider increasing the number of writer processes to avoid this."
+                f"🚨 One or more writers were forcefully terminated after exceeding the shutdown timeout of {timeout_s}. This can result in forecast data loss. Please check the logs for more details. Consider changing the number of writer processes to avoid this, or increasing the timeout if contention is the issue."
             )
