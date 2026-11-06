@@ -370,34 +370,34 @@ class ParallelOutput(Output):
     ):
         """Initialise the ParallelOutput.
 
-        Parameters
-        ----------
-        context : Context
-            The inference context.
-        metadata : Metadata
-        worker_timeout: int = 300,
-chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
-**kwargs: Any,
-):
-@@ -383,6 +383,10 @@ def __init__(
-           Number of writer processes to spawn.
-           Must be >= 1.
-           Defaults to 1 (single output file, asynchronous writes).
-        worker_timeout: int
-            Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
-            Must be >= -1.
-            Defaults to 300 seconds.
-        chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
-            The strategy for chunking the output among writer processes.
-            Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
-            with a single key being the strategy name and the value being a dictionary of
-            keyword arguments for that strategy.
-            - `by_worker` (default), splits the fields into exactly `num_writers` contiguous
-              chunks of roughly equal size, one per writer. No additional arguments are needed.
-            - `by_size`, requires an additional argument `fields_per_chunk` specifying the number of fields per chunk.
-            - `by_metadata`, requires an additional argument `keys` specifying a list of metadata keys to keep in a chunk.
-        **kwargs : Any
-            Forwarded to the inner output.
+                Parameters
+                ----------
+                context : Context
+                    The inference context.
+                metadata : Metadata
+                worker_timeout: int = 300,
+        chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
+        **kwargs: Any,
+        ):
+        @@ -383,6 +383,10 @@ def __init__(
+                   Number of writer processes to spawn.
+                   Must be >= 1.
+                   Defaults to 1 (single output file, asynchronous writes).
+                worker_timeout: int
+                    Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
+                    Must be >= -1.
+                    Defaults to 300 seconds.
+                chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
+                    The strategy for chunking the output among writer processes.
+                    Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
+                    with a single key being the strategy name and the value being a dictionary of
+                    keyword arguments for that strategy.
+                    - `by_worker` (default), splits the fields into exactly `num_writers` contiguous
+                      chunks of roughly equal size, one per writer. No additional arguments are needed.
+                    - `by_size`, requires an additional argument `fields_per_chunk` specifying the number of fields per chunk.
+                    - `by_metadata`, requires an additional argument `keys` specifying a list of metadata keys to keep in a chunk.
+                **kwargs : Any
+                    Forwarded to the inner output.
         """
         super().__init__(
             context,
