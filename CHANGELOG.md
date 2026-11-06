@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.14.1](https://github.com/ecmwf/anemoi-inference/compare/0.14.0...0.14.1) (2026-11-06)
+
+
+### Features
+
+* **deps:** Remove upper limit on xarray to support zarr3 ([#638](https://github.com/ecmwf/anemoi-inference/issues/638)) ([48c58f9](https://github.com/ecmwf/anemoi-inference/commit/48c58f93bc06ddab489009cdf2b9191a1d01f117))
+
 ## [0.14.0](https://github.com/ecmwf/anemoi-inference/compare/0.13.0...0.14.0) (2026-11-06)
 
 
