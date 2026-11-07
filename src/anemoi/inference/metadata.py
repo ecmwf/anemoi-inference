@@ -542,15 +542,12 @@ class Metadata(LegacyMixin):
         FieldList
             The named fields.
         """
-        from earthkit.data.indexing.fieldlist import FieldArray
+        from anemoi.inference.fields import name_fields
 
         if namer is None:
             namer = self.default_namer()
 
-        def _name(field: ekd.Field, _: str, original_metadata: dict[str, Any]) -> str:
-            return namer(field, original_metadata)
-
-        return FieldArray([f.clone(name=_name) for f in fields])
+        return name_fields(fields, namer)
 
     def sort_by_name(
         self,
@@ -578,7 +575,7 @@ class Metadata(LegacyMixin):
             The sorted fields.
         """
         fields = self.name_fields(fields, namer=namer)
-        return fields.order_by("name", *args, **kwargs)
+        return fields.order_by("labels.name", *args, **kwargs)
 
     ###########################################################################
     # Default namer
