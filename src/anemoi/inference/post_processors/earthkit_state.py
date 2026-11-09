@@ -22,9 +22,7 @@ from anemoi.transform.variables import Variable
 from earthkit.data.core.metadata import RawMetadata
 from earthkit.data.indexing.fieldlist import SimpleFieldList
 
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import Shape
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, Shape, State
 
 LOG = logging.getLogger(__name__)
 
@@ -63,7 +61,9 @@ class StateFieldMetadata(RawMetadata):
             **{
                 k: v
                 for k, v in field.state.items()
-                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
+                if isinstance(
+                    v, (str, int, float, bool, datetime.datetime, datetime.timedelta)
+                )
             },
         )
         super().__init__(**metadata)
@@ -106,7 +106,9 @@ class StateField(ekd.Field):
         Metadata for the field.
     """
 
-    def __init__(self, name: str, values: FloatArray, state: State, metadata: dict[str, Any]) -> None:
+    def __init__(
+        self, name: str, values: FloatArray, state: State, metadata: dict[str, Any]
+    ) -> None:
         self.name = name
         self.__values = values
         self.state = state
@@ -157,7 +159,9 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
     ekd.FieldList
         The transformed field list.
     """
-    assert isinstance(state["date"], datetime.datetime)  # Only works on single dates for now
+    assert isinstance(
+        state["date"], datetime.datetime
+    )  # Only works on single dates for now
     fields = []
     for f in state["fields"]:
         variable = typed_variables[f]
@@ -167,14 +171,18 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
             **{
                 k: v
                 for k, v in state.items()
-                if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
+                if isinstance(
+                    v, (str, int, float, bool, datetime.datetime, datetime.timedelta)
+                )
             },
         )
         fields.append(StateField(f, state["fields"][f], state, metadata))
     return SimpleFieldList(fields)
 
 
-def unwrap_state(fields: ekd.FieldList, state: State, namer: Callable, flatten: bool = True) -> State:
+def unwrap_state(
+    fields: ekd.FieldList, state: State, namer: Callable, flatten: bool = True
+) -> State:
     """Transform a earthkit.data field list into a state dictionary.
 
     Parameters

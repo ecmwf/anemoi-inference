@@ -17,13 +17,10 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.input import Input
-from anemoi.inference.inputs import create_input
-from anemoi.inference.inputs import input_registry
+from anemoi.inference.inputs import create_input, input_registry
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.post_processors.earthkit_state import unwrap_state
-from anemoi.inference.post_processors.earthkit_state import wrap_state
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.post_processors.earthkit_state import unwrap_state, wrap_state
+from anemoi.inference.types import Date, State
 
 LOG = logging.getLogger(__name__)
 
@@ -134,7 +131,9 @@ class Cutout(Input):
         sources : list[dict[str, dict]]
             List of sources / inputs to combine, the order defines the order in which they are combined.
         """
-        if any(x in kwargs for x in ["lam_0", "global"]):  # Capture common update issues
+        if any(
+            x in kwargs for x in ["lam_0", "global"]
+        ):  # Capture common update issues
             raise KeyError(
                 "Cutout input has changed to set the sub-inputs as a list, if using the config, prefix each input with `-` to update."
             )
@@ -155,7 +154,9 @@ class Cutout(Input):
 
         for inp in sources:
             if not isinstance(inp, dict) or len(inp) != 1:
-                raise ValueError("Each source in cutout inputs must be a dict with a single key-value pair.")
+                raise ValueError(
+                    "Each source in cutout inputs must be a dict with a single key-value pair."
+                )
             src, cfg = next(iter(inp.items()))
 
             if isinstance(cfg, str):
@@ -165,7 +166,11 @@ class Cutout(Input):
                 mask = cfg.pop("mask", f"{src}/cutout_mask")
 
             self.sources[src] = create_input(
-                input_context, cfg, self.metadata, variables=self.variables, purpose=self.purpose  # type: ignore[reportArgumentType]
+                input_context,
+                cfg,
+                self.metadata,
+                variables=self.variables,
+                purpose=self.purpose,  # type: ignore[reportArgumentType]
             )
 
             if isinstance(mask, str):
@@ -203,7 +208,10 @@ class Cutout(Input):
         processed_state = super().pre_process(field_state)
 
         processed_state["fields"] = unwrap_state(
-            processed_state["fields"], processed_state, namer=self.metadata.default_namer(), flatten=False
+            processed_state["fields"],
+            processed_state,
+            namer=self.metadata.default_namer(),
+            flatten=False,
         )["fields"]
 
         return processed_state
@@ -234,7 +242,9 @@ class Cutout(Input):
         for i, source in enumerate(self.sources.keys()):
             source_mask = self.masks[source]
 
-            source_state = self.sources[source].create_input_state(dates=dates, **kwargs)
+            source_state = self.sources[source].create_input_state(
+                dates=dates, **kwargs
+            )
 
             field_shape = next(iter(source_state["fields"].values())).shape[-1]
 
@@ -242,11 +252,16 @@ class Cutout(Input):
             # Detect if the number of latitudes does not match the number of field points
             # This can occur when `ekd.py` fails over to read the coords from the metadata, which at times is wrong,
             # so we attempt to load the correct coordinates from the supporting arrays.
-            if "latitudes" not in source_state or source_state["latitudes"].shape[-1] != field_shape:
+            if (
+                "latitudes" not in source_state
+                or source_state["latitudes"].shape[-1] != field_shape
+            ):
                 LOG.warning(
                     "Mismatch between latitudes and field points for source %s: %s vs %s",
                     source,
-                    source_state["latitudes"].shape[-1] if "latitudes" in source_state else None,
+                    source_state["latitudes"].shape[-1]
+                    if "latitudes" in source_state
+                    else None,
                     field_shape,
                 )
                 LOG.warning(
@@ -255,7 +270,9 @@ class Cutout(Input):
                     f"source{i}/longitudes",
                 )
                 latitudes = self.metadata.load_supporting_array(f"source{i}/latitudes")
-                longitudes = self.metadata.load_supporting_array(f"source{i}/longitudes")
+                longitudes = self.metadata.load_supporting_array(
+                    f"source{i}/longitudes"
+                )
 
                 source_state["latitudes"] = latitudes
                 source_state["longitudes"] = longitudes
@@ -281,13 +298,18 @@ class Cutout(Input):
                 axis=-1,
             )
             # Combine the private attributes
-            _private_attributes = _extract_and_add_private_attributes(_private_attributes, source_state, source)
+            _private_attributes = _extract_and_add_private_attributes(
+                _private_attributes, source_state, source
+            )
 
             combined_state = _mask_and_combine_states(
                 combined_state, source_state, source_mask, ["longitudes", "latitudes"]
             )
             combined_state["fields"] = _mask_and_combine_states(
-                combined_state.get("fields", {}), source_state["fields"], source_mask, source_state["fields"].keys()
+                combined_state.get("fields", {}),
+                source_state["fields"],
+                source_mask,
+                source_state["fields"].keys(),
             )
 
             for key in (k for k in source_state.keys() if not k.startswith("_")):
@@ -298,7 +320,9 @@ class Cutout(Input):
         total_length = len(combined_state["latitudes"])
         for sub_mask in _mask_private_attributes:
             mask = _mask_private_attributes[sub_mask]
-            _mask_private_attributes[sub_mask] = np.pad(mask, (0, total_length - len(mask)), constant_values=False)
+            _mask_private_attributes[sub_mask] = np.pad(
+                mask, (0, total_length - len(mask)), constant_values=False
+            )
 
         combined_state = self.pre_process(combined_state)
         _private_attributes["_mask"] = _mask_private_attributes
@@ -328,10 +352,14 @@ class Cutout(Input):
         combined_fields = {}
 
         for source in self.sources.keys():
-            source_state = self.sources[source].load_forcings_state(dates=dates, current_state={})["fields"]
+            source_state = self.sources[source].load_forcings_state(
+                dates=dates, current_state={}
+            )["fields"]
             source_mask = self.masks[source]
 
-            combined_fields = _mask_and_combine_states(combined_fields, source_state, source_mask, source_state.keys())
+            combined_fields = _mask_and_combine_states(
+                combined_fields, source_state, source_mask, source_state.keys()
+            )
 
         current_state["fields"] |= combined_fields
         current_state = self.pre_process(current_state)

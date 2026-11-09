@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import datetime
-from collections.abc import Callable
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import patch
 
@@ -18,8 +17,7 @@ import pytest
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.runners.testing import NoModelRunner
-from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing import float_hash
+from anemoi.inference.testing import fake_checkpoints, float_hash
 from anemoi.inference.testing.mock_model import VariableOutputSetting
 
 
@@ -32,7 +30,8 @@ from anemoi.inference.testing.mock_model import VariableOutputSetting
 )
 @fake_checkpoints
 def test_no_model_runner_execute_outputs(
-    output_mode: VariableOutputSetting, expected: Callable[[str, datetime.datetime], float]
+    output_mode: VariableOutputSetting,
+    expected: Callable[[str, datetime.datetime], float],
 ) -> None:
     config = RunConfiguration(
         checkpoint="unit/checkpoints/simple.ckpt",
@@ -60,7 +59,12 @@ def test_no_model_runner_execute_outputs(
 
     runner.forecast = check_forecast
 
-    with patch("torch.load", side_effect=AssertionError("NoModelRunner must not load the checkpoint's model")):
+    with patch(
+        "torch.load",
+        side_effect=AssertionError(
+            "NoModelRunner must not load the checkpoint's model"
+        ),
+    ):
         runner.execute()
 
     assert steps == 2

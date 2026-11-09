@@ -14,11 +14,12 @@ import pytest
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.runner import RunnerClasses
-from anemoi.inference.runners import create_runner
-from anemoi.inference.runners import runner_registry
+from anemoi.inference.runners import create_runner, runner_registry
 from anemoi.inference.runners.auto import AutoRunnerFactory
 from anemoi.inference.runners.default import DefaultRunner
-from anemoi.inference.runners.temporal_downscaler import TemporalDownscalerMultiOutRunner
+from anemoi.inference.runners.temporal_downscaler import (
+    TemporalDownscalerMultiOutRunner,
+)
 from anemoi.inference.testing import fake_checkpoints
 
 LOG = logging.getLogger(__name__)
@@ -35,9 +36,17 @@ class MarkerMetadata(Metadata):
     "patch, expected_class",
     [
         pytest.param({}, DefaultRunner, id="none"),
-        pytest.param({"metadata_inference": {"task": None}}, DefaultRunner, id="unset-task"),
-        pytest.param({"metadata_inference": {"task": "forecaster"}}, DefaultRunner, id="forecaster"),
-        pytest.param({"metadata_inference": {"task": "default"}}, DefaultRunner, id="default"),
+        pytest.param(
+            {"metadata_inference": {"task": None}}, DefaultRunner, id="unset-task"
+        ),
+        pytest.param(
+            {"metadata_inference": {"task": "forecaster"}},
+            DefaultRunner,
+            id="forecaster",
+        ),
+        pytest.param(
+            {"metadata_inference": {"task": "default"}}, DefaultRunner, id="default"
+        ),
         pytest.param(
             {
                 "metadata_inference": {
@@ -69,7 +78,9 @@ def test_select_runner(patch: dict, expected_class: type) -> None:
 
 @fake_checkpoints
 def test_auto_is_default() -> None:
-    config = RunConfiguration(checkpoint=SINGLE_DATASET_CHECKPOINT, device="cpu", input="dummy")
+    config = RunConfiguration(
+        checkpoint=SINGLE_DATASET_CHECKPOINT, device="cpu", input="dummy"
+    )
 
     assert runner_registry.lookup(config.runner) is AutoRunnerFactory
 

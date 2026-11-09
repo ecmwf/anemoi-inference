@@ -10,13 +10,11 @@
 
 import logging
 import warnings
-from datetime import datetime
-from datetime import timedelta
+from collections.abc import Hashable
+from datetime import datetime, timedelta
 from io import IOBase
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Hashable
+from typing import TYPE_CHECKING, Any
 
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_timedelta
@@ -210,7 +208,7 @@ def grib_keys(
     template: ekd.Field,
     variable: "Variable",
     ensemble: bool,
-    param: int | float | str | None,
+    param: float | str | None,
     date: datetime,
     step: timedelta,
     previous_step: timedelta | None,
@@ -401,7 +399,6 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
             mismatches[k] = f'Expected "{v}" but got "{w}"'
 
     if mismatches:
-
         if first:
             import eccodes
             from earthkit.data.readers.grib.codes import GribCodesHandle
@@ -418,7 +415,7 @@ def encode_message(
     template: Any,
     metadata: dict[str, Any],
     check_nans: bool = False,
-    missing_value: int | float = -9999,
+    missing_value: float = -9999,
 ) -> Any:
     """Encode a GRIB message.
 
@@ -526,7 +523,9 @@ class GribWriter:
         """
         return self
 
-    def __exit__(self, exc_type: type | None, exc_value: BaseException | None, trace: Any | None) -> None:
+    def __exit__(
+        self, exc_type: type | None, exc_value: BaseException | None, trace: Any | None
+    ) -> None:
         """Exit the runtime context related to this object.
 
         Parameters
@@ -547,7 +546,7 @@ class GribWriter:
         template: Any,
         metadata: dict[str, Any],
         check_nans: bool = False,
-        missing_value: int | float = -9999,
+        missing_value: float = -9999,
     ) -> tuple:
         """Write a GRIB message to the target file.
 
@@ -584,7 +583,10 @@ class GribWriter:
                 if metadata.get("edition") == 2:
                     raise
                 # Try again with edition 2
-                LOG.warning("Failed to encode GRIB message with edition 1, retrying with edition 2: %s", e)
+                LOG.warning(
+                    "Failed to encode GRIB message with edition 1, retrying with edition 2: %s",
+                    e,
+                )
                 metadata["edition"] = 2
 
         file, path = self.target(handle)
@@ -606,7 +608,9 @@ class GribWriter:
             The file object and the file path.
         """
         if self.split_output:
-            assert not isinstance(self.out, IOBase), "Cannot split output when `out` is a file-like object."
+            assert not isinstance(self.out, IOBase), (
+                "Cannot split output when `out` is a file-like object."
+            )
             out = render_template(str(self.out), handle)
         else:
             out = self.out

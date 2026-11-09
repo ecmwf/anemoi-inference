@@ -25,15 +25,19 @@ import pytest
 from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
-from anemoi.inference.pre_processors.coordinate_reorder import backward_mapping
-from anemoi.inference.pre_processors.coordinate_reorder import build_grid_reordering
+from anemoi.inference.pre_processors.coordinate_reorder import (
+    CoordinateReorder,
+    backward_mapping,
+    build_grid_reordering,
+)
 
 
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def _source_and_target_grids() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _source_and_target_grids() -> tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+]:
     """Build a small (target, source) grid pair plus per-point signals.
 
     Returns
@@ -57,7 +61,8 @@ def _source_and_target_grids() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.n
     source_signal = np.empty_like(target_signal)
     for i in range(source_lat.size):
         j = np.where(
-            np.isclose(target_lat, source_lat[i]) & np.isclose(np.mod(target_lon, 360.0), np.mod(source_lon[i], 360.0))
+            np.isclose(target_lat, source_lat[i])
+            & np.isclose(np.mod(target_lon, 360.0), np.mod(source_lon[i], 360.0))
         )[0][0]
         source_signal[i] = target_signal[j]
 
@@ -79,7 +84,9 @@ def _fieldlist(values, lat, lon, param="2t"):
     )
 
 
-def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4) -> CoordinateReorder:
+def _make_reorder(
+    mocker: MockerFixture, model_lat, model_lon, decimals: int = 4
+) -> CoordinateReorder:
     """Create a CoordinateReorder pre-processor targeting the given model grid."""
     metadata = cast(Metadata, mocker.MagicMock())
     metadata.dataset_name = "data"
@@ -99,7 +106,9 @@ def test_build_grid_reordering_identity_returns_none():
 
 def test_build_grid_reordering_fixes_rolled_and_360_labelled_grid():
     """Rolled/360-labelled input must be reorderable onto the model grid."""
-    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = _source_and_target_grids()
+    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = (
+        _source_and_target_grids()
+    )
 
     # The bug: source data used positionally is misaligned with the model grid.
     assert not np.array_equal(source_lon, target_lon)
@@ -170,7 +179,9 @@ def test_invert_reordering_raises_on_non_bijection():
 # --------------------------------------------------------------------------- #
 def test_reorder_process_fixes_fields_and_coords(mocker: MockerFixture):
     """An input state on the source grid is reordered onto the model grid."""
-    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = _source_and_target_grids()
+    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = (
+        _source_and_target_grids()
+    )
     processor = _make_reorder(mocker, target_lat, target_lon)
 
     state = {
@@ -202,7 +213,9 @@ def test_reorder_process_collapses_360_vs_0_seam(mocker: MockerFixture):
     A strict downstream check (e.g. ``np.allclose(state['longitudes'],
     metadata.longitudes)``) would otherwise fail by ~360 at the seam.
     """
-    target_lat, target_lon, source_lat, source_lon, _, source_signal = _source_and_target_grids()
+    target_lat, target_lon, source_lat, source_lon, _, source_signal = (
+        _source_and_target_grids()
+    )
     # The source labels the prime meridian 360.0; the target uses 0.0.
     assert np.any(source_lon == 360.0)
     assert not np.any(target_lon == 360.0)
@@ -236,12 +249,16 @@ def test_reorder_process_noop_when_already_aligned(mocker: MockerFixture):
 
     assert processor.forward_mapping is None
     np.testing.assert_array_equal(new_state["latitudes"], target_lat)
-    np.testing.assert_array_equal(new_state["fields"][0].to_numpy().flatten(), target_signal)
+    np.testing.assert_array_equal(
+        new_state["fields"][0].to_numpy().flatten(), target_signal
+    )
 
 
 def test_reorder_process_exposes_permutation_and_inverse(mocker: MockerFixture):
     """After processing, the permutation and its inverse are available."""
-    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = _source_and_target_grids()
+    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = (
+        _source_and_target_grids()
+    )
     processor = _make_reorder(mocker, target_lat, target_lon)
 
     state = {

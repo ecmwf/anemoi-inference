@@ -17,8 +17,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..output import Output
-from . import create_output
-from . import output_registry
+from . import create_output, output_registry
 
 LOG = logging.getLogger(__name__)
 
@@ -61,7 +60,9 @@ class TeeOutput(Output):
         else:
             outputs = [*args, *outputs]
 
-        self.outputs = [create_output(context, output, self.metadata) for output in outputs]
+        self.outputs = [
+            create_output(context, output, self.metadata) for output in outputs
+        ]
 
     # We override write_initial_state and write_state
     # so users can configures each levels independently

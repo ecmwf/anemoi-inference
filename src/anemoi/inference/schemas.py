@@ -9,13 +9,9 @@
 
 import fnmatch
 import logging
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import field_validator
-from pydantic import model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
@@ -78,11 +74,15 @@ class OutputVariableConfig(BaseModel):
 
     @field_validator("select", "drop", mode="after")
     @classmethod
-    def drop_empty_mappings(cls, value: list[NameOrMarsMap] | None) -> list[NameOrMarsMap] | None:
+    def drop_empty_mappings(
+        cls, value: list[NameOrMarsMap] | None
+    ) -> list[NameOrMarsMap] | None:
         if value is None:
             return value
         if any(entry == {} for entry in value):
-            LOG.warning("Ignoring empty mapping in output `variables`; it would match every variable.")
+            LOG.warning(
+                "Ignoring empty mapping in output `variables`; it would match every variable."
+            )
         return [entry for entry in value if entry != {}]
 
     @property
@@ -105,13 +105,17 @@ class OutputVariableConfig(BaseModel):
             True if the variable should be skipped (based on inputs), false if the variable should be included.
         """
         if self.select is not None:
-            return not any(self._matches(s, variable, typed_variable) for s in self.select)
+            return not any(
+                self._matches(s, variable, typed_variable) for s in self.select
+            )
         if self.drop is not None:
             return any(self._matches(s, variable, typed_variable) for s in self.drop)
         return False
 
     @staticmethod
-    def _matches(selector: NameOrMarsMap, variable: str, typed_variable: "Variable | None") -> bool:
+    def _matches(
+        selector: NameOrMarsMap, variable: str, typed_variable: "Variable | None"
+    ) -> bool:
         """Compare the selector configuration, which is a glob pattern OR a mapping of MARS key: glob pattern(s), to the input variable or typed_variable."""
         if isinstance(selector, str):
             return fnmatch.fnmatchcase(variable, selector)
@@ -121,6 +125,8 @@ class OutputVariableConfig(BaseModel):
 
         def key_matches(key: str, value: Any) -> bool:
             values = value if isinstance(value, list) else [value]
-            return key in keys and any(fnmatch.fnmatchcase(str(keys[key]), str(v)) for v in values)
+            return key in keys and any(
+                fnmatch.fnmatchcase(str(keys[key]), str(v)) for v in values
+            )
 
         return all(key_matches(key, value) for key, value in selector.items())

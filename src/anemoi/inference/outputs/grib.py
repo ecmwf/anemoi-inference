@@ -13,15 +13,12 @@ import json
 import logging
 import re
 from abc import abstractmethod
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, ProcessorConfig, State
 
 from ..grib.encoding import grib_keys
 from ..grib.templates.manager import TemplateManager
@@ -45,7 +42,9 @@ class HindcastOutput:
 
         self.reference_year = reference_year
 
-    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(
+        self, variable: Any, values: FloatArray, template: object, keys: dict
+    ) -> tuple:
         """Call the HindcastOutput object.
 
         Parameters
@@ -76,13 +75,14 @@ class HindcastOutput:
 
         keys["localDefinitionNumber"] = 30
         keys["dataDate"] = int(to_datetime(date).strftime("%Y%m%d"))
-        keys["referenceDate"] = int(to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d"))
+        keys["referenceDate"] = int(
+            to_datetime(date).replace(year=self.reference_year).strftime("%Y%m%d")
+        )
 
         return values, template, keys
 
 
 class Matching:
-
     def __init__(self, config):
 
         self.conditions = {}
@@ -114,7 +114,9 @@ class PatchOutput:
             assert key == "variable", patch
         self.patches.append(Matching(patch[key]))
 
-    def __call__(self, variable: Any, values: FloatArray, template: object, keys: dict) -> tuple:
+    def __call__(
+        self, variable: Any, values: FloatArray, template: object, keys: dict
+    ) -> tuple:
         original_keys = keys.copy()
         result = keys.copy()
         for patch in self.patches:
@@ -229,7 +231,9 @@ class BaseGribOutput(Output):
         self.grib2_keys = grib2_keys if grib2_keys is not None else {}
 
         self.modifiers = modifier_factory(modifiers)
-        assert negative_step_mode in ("error", "write", "skip"), f"Invalid `negative_step_mode`: {negative_step_mode}"
+        assert negative_step_mode in ("error", "write", "skip"), (
+            f"Invalid `negative_step_mode`: {negative_step_mode}"
+        )
         self.negative_step_mode = negative_step_mode
 
         self.ensemble = False
@@ -340,10 +344,14 @@ class BaseGribOutput(Output):
                             To write or skip such variables, set `negative_step_mode` to `write` or `skip`.
                             Alternatively, try `write_initial_state=False` if this is the initial time step.""")
                     case "skip":
-                        LOG.warning(f"Skipping variable {name} with base time before forecast base time: {_log}")
+                        LOG.warning(
+                            f"Skipping variable {name} with base time before forecast base time: {_log}"
+                        )
                         continue
                     case "write":
-                        LOG.warning(f"Writing variable {name} with base time before forecast base time: {_log}")
+                        LOG.warning(
+                            f"Writing variable {name} with base time before forecast base time: {_log}"
+                        )
 
             for modifier in self.modifiers:
                 values, template, keys = modifier(variable, values, template, keys)
@@ -375,7 +383,6 @@ class BaseGribOutput(Output):
         **kwargs : Any
             Additional keyword arguments.
         """
-        pass
 
     def template(self, state: State, name: str) -> object:
         """Get the template for a variable.

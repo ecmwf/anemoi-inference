@@ -13,8 +13,7 @@ from argparse import Namespace
 
 import pytest
 
-from anemoi.inference.commands.sanitise import SanitiseCmd
-from anemoi.inference.commands.sanitise import _iter_dataset_metadatas
+from anemoi.inference.commands.sanitise import SanitiseCmd, _iter_dataset_metadatas
 
 # A flat (legacy single-dataset) metadata dict: the dataset dict IS metadata["dataset"].
 # It carries an absolute path so that `sanitise()` changes it, forcing the patch branch.
@@ -44,8 +43,14 @@ NAMED_MULTI_METADATA = {
     "version": "2.0",
     "metadata_inference": {"dataset_names": ["data", "ocean"]},
     "dataset": {
-        "data": {"sources": [{"dataset": "/absolute/path/to/atmos.zarr"}], "variables": ["2t"]},
-        "ocean": {"sources": [{"dataset": "/absolute/path/to/ocean.zarr"}], "variables": ["tos"]},
+        "data": {
+            "sources": [{"dataset": "/absolute/path/to/atmos.zarr"}],
+            "variables": ["2t"],
+        },
+        "ocean": {
+            "sources": [{"dataset": "/absolute/path/to/ocean.zarr"}],
+            "variables": ["tos"],
+        },
     },
 }
 
@@ -65,7 +70,9 @@ def _run_sanitise(metadata, supporting_arrays=None):
         written["metadata"] = new_metadata
         written["supporting_arrays"] = new_supporting_arrays
 
-    with (pytest.MonkeyPatch.context() as mp,):
+    with (
+        pytest.MonkeyPatch.context() as mp,
+    ):
         mp.setattr("anemoi.utils.checkpoints.load_metadata", fake_load_metadata)
         mp.setattr("anemoi.utils.checkpoints.replace_metadata", fake_replace_metadata)
         SanitiseCmd().run(Namespace(path="dummy.ckpt"))
@@ -93,7 +100,9 @@ def test_named_metadata_is_sanitised():
 def test_named_metadata_with_multiple_datasets_is_sanitised():
     """Every named dataset is checked for `sources` and rewritten, not just the first."""
     written = _run_sanitise(NAMED_MULTI_METADATA)
-    assert written, "multi-dataset metadata changed, so replace_metadata must have been called"
+    assert written, (
+        "multi-dataset metadata changed, so replace_metadata must have been called"
+    )
     assert "/absolute/path/to/atmos.zarr" not in str(written["metadata"])
     assert "/absolute/path/to/ocean.zarr" not in str(written["metadata"])
     assert "atmos.zarr" in str(written["metadata"])
@@ -101,7 +110,9 @@ def test_named_metadata_with_multiple_datasets_is_sanitised():
 
 
 def test_iter_dataset_metadatas_flat():
-    assert list(_iter_dataset_metadatas(FLAT_METADATA)) == [("data", FLAT_METADATA["dataset"])]
+    assert list(_iter_dataset_metadatas(FLAT_METADATA)) == [
+        ("data", FLAT_METADATA["dataset"])
+    ]
 
 
 def test_iter_dataset_metadatas_named():
@@ -124,7 +135,9 @@ def test_named_dataset_missing_sources_fails_with_named_error():
     metadata = {
         "version": "2.0",
         "metadata_inference": {"dataset_names": ["data"]},
-        "dataset": {"data": {"variables": ["2t"], "train_path": "/absolute/path/to/train.zarr"}},
+        "dataset": {
+            "data": {"variables": ["2t"], "train_path": "/absolute/path/to/train.zarr"}
+        },
     }
     with pytest.raises(AssertionError, match="dataset `data` is missing `sources`"):
         _run_sanitise(metadata)

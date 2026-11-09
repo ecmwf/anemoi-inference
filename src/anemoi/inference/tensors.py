@@ -10,22 +10,20 @@
 import logging
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import DTypeLike
 
-from anemoi.inference.forcings import BoundaryForcings
-from anemoi.inference.forcings import ComputedForcings
-from anemoi.inference.forcings import ConstantForcings
-from anemoi.inference.forcings import CoupledForcings
-from anemoi.inference.forcings import Forcings
+from anemoi.inference.forcings import (
+    BoundaryForcings,
+    ComputedForcings,
+    ConstantForcings,
+    CoupledForcings,
+    Forcings,
+)
 from anemoi.inference.lazy import torch
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.types import BoolArray, FloatArray, IntArray, State
 
 if TYPE_CHECKING:
     from anemoi.inference.forcings import Forcings
@@ -103,7 +101,9 @@ class TensorHandler:
         if trace_path:
             from .trace import Trace
 
-            trace_path = trace_path.format(dataset=self.dataset_name, dataset_name=self.dataset_name)
+            trace_path = trace_path.format(
+                dataset=self.dataset_name, dataset_name=self.dataset_name
+            )
             self.trace = Trace(path=trace_path)
         else:
             self.trace = None
@@ -116,7 +116,9 @@ class TensorHandler:
         """Name of the dataset associated with the tensor handler."""
         return self.metadata.dataset_name
 
-    def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
+    def prepare_input_tensor(
+        self, input_state: State, dtype: DTypeLike = np.float32
+    ) -> FloatArray:
         """Prepare the input tensor from the input state."""
         if "latitudes" not in input_state:
             input_state["latitudes"] = self.metadata.latitudes
@@ -124,13 +126,18 @@ class TensorHandler:
         if "longitudes" not in input_state:
             input_state["longitudes"] = self.metadata.longitudes
 
-        if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
+        if (
+            input_state.get("latitudes") is None
+            or input_state.get("longitudes") is None
+        ):
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
 
         typed_variables = self.metadata.typed_variables
 
         for name in input_state["fields"]:
-            self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
+            self._input_kinds[name] = Kind(
+                input=True, constant=typed_variables[name].is_constant_in_time
+            )
             self._input_units[name] = typed_variables[name].units
 
         # Add initial forcings to input state if needed
@@ -168,8 +175,12 @@ class TensorHandler:
 
         if len(check) != self.metadata.number_of_input_features:
             missing = set(range(self.metadata.number_of_input_features)) - check
-            mapping = {v: k for k, v in self.metadata.variable_to_input_tensor_index.items()}
-            raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
+            mapping = {
+                v: k for k, v in self.metadata.variable_to_input_tensor_index.items()
+            }
+            raise ValueError(
+                f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}"
+            )
 
         return input_tensor_numpy
 
@@ -179,7 +190,9 @@ class TensorHandler:
         if not isinstance(input_state, dict):
             raise ValueError("Input state must be a dictionnary")
 
-        EXPECT = dict(date=datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict)
+        EXPECT = dict(
+            date=datetime, latitudes=np.ndarray, longitudes=np.ndarray, fields=dict
+        )
 
         for key, klass in EXPECT.items():
             if key not in input_state:
@@ -197,7 +210,9 @@ class TensorHandler:
 
         for latlon in ("latitudes", "longitudes"):
             if len(input_state[latlon].shape) != 1:
-                raise ValueError(f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}")
+                raise ValueError(
+                    f"Input state entry `{latlon}` must be 1D, shape is {input_state[latlon].shape}"
+                )
 
         nlat = len(input_state["latitudes"])
         nlon = len(input_state["longitudes"])
@@ -205,7 +220,9 @@ class TensorHandler:
             raise ValueError(f"Size mismatch latitudes={nlat}, longitudes={nlon}")
 
         if nlat != number_of_grid_points:
-            raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
+            raise ValueError(
+                f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}"
+            )
 
         if self.metadata.longitudes is not None:
             if nlon != len(self.metadata.longitudes):
@@ -242,7 +259,9 @@ class TensorHandler:
                 field = fields[name] = field.reshape(1, field.shape[0])
 
             if field.shape != expected_shape:
-                raise ValueError(f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}")
+                raise ValueError(
+                    f"Field `{name}` has the wrong shape. Expected {expected_shape}, got {field.shape}"
+                )
 
             if np.isinf(field).any():
                 raise ValueError(f"Field `{name}` contains infinities")
@@ -274,8 +293,12 @@ class TensorHandler:
 
         dates = [date + h for h in self.metadata.lagged]
 
-        initial_constant_forcings_providers = self.initial_constant_forcings_providers(self.constant_forcings_providers)
-        initial_dynamic_forcings_providers = self.initial_dynamic_forcings_providers(self.dynamic_forcings_providers)
+        initial_constant_forcings_providers = self.initial_constant_forcings_providers(
+            self.constant_forcings_providers
+        )
+        initial_dynamic_forcings_providers = self.initial_dynamic_forcings_providers(
+            self.dynamic_forcings_providers
+        )
 
         LOG.info("-" * 80)
         LOG.info("Initial forcings providers:")
@@ -290,31 +313,43 @@ class TensorHandler:
 
         for provider in initial_constant_forcings_providers:
             if all(
-                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                name in fields
+                and isinstance(fields[name], np.ndarray)
+                and fields[name].size > 0
                 for name in provider.variables
             ):
-                LOG.info(f"Skipping initial constant forcings {provider}, all variables are present in the input state")
+                LOG.info(
+                    f"Skipping initial constant forcings {provider}, all variables are present in the input state"
+                )
                 continue
             arrays = provider.load_forcings_array(dates, input_state)
             for name, forcing in zip(provider.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=True, **provider.kinds)
+                self._input_kinds[name] = Kind(
+                    forcing=True, constant=True, **provider.kinds
+                )
                 if self.trace:
                     self.trace.from_source(name, provider, "initial constant forcings")
 
         for provider in initial_dynamic_forcings_providers:
             if all(
-                name in fields and isinstance(fields[name], np.ndarray) and fields[name].size > 0
+                name in fields
+                and isinstance(fields[name], np.ndarray)
+                and fields[name].size > 0
                 for name in provider.variables
             ):
-                LOG.info(f"Skipping initial dynamic forcings {provider}, all variables are present in the input state")
+                LOG.info(
+                    f"Skipping initial dynamic forcings {provider}, all variables are present in the input state"
+                )
                 continue
             arrays = provider.load_forcings_array(dates, input_state)
             for name, forcing in zip(provider.variables, arrays):
                 assert isinstance(forcing, np.ndarray), (name, forcing)
                 fields[name] = forcing
-                self._input_kinds[name] = Kind(forcing=True, constant=False, **provider.kinds)
+                self._input_kinds[name] = Kind(
+                    forcing=True, constant=False, **provider.kinds
+                )
                 if self.trace:
                     self.trace.from_source(name, provider, "initial dynamic forcings")
 
@@ -323,8 +358,10 @@ class TensorHandler:
     def create_constant_forcings_providers(self) -> list["Forcings"]:
         result = []
 
-        loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(
-            include=["constant+forcing"], exclude=["computed"]
+        loaded_variables, loaded_variables_mask = (
+            self.metadata.select_variables_and_masks(
+                include=["constant+forcing"], exclude=["computed"]
+            )
         )
 
         if len(loaded_variables_mask) > 0:
@@ -335,8 +372,8 @@ class TensorHandler:
                 )
             )
 
-        computed_variables, computed_variables_mask = self.metadata.select_variables_and_masks(
-            include=["computed+constant"]
+        computed_variables, computed_variables_mask = (
+            self.metadata.select_variables_and_masks(include=["computed+constant"])
         )
 
         if len(computed_variables_mask) > 0:
@@ -352,8 +389,10 @@ class TensorHandler:
     def create_dynamic_forcings_providers(self) -> list["Forcings"]:
         result = []
 
-        loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(
-            include=["forcing"], exclude=["computed", "constant"]
+        loaded_variables, loaded_variables_mask = (
+            self.metadata.select_variables_and_masks(
+                include=["forcing"], exclude=["computed", "constant"]
+            )
         )
 
         if len(loaded_variables_mask) > 0:
@@ -364,9 +403,11 @@ class TensorHandler:
                 )
             )
 
-        computed_variables, computed_variables_mask = self.metadata.select_variables_and_masks(
-            include=["computed"],
-            exclude=["constant"],
+        computed_variables, computed_variables_mask = (
+            self.metadata.select_variables_and_masks(
+                include=["computed"],
+                exclude=["constant"],
+            )
         )
         if len(computed_variables_mask) > 0:
             result.extend(
@@ -382,7 +423,9 @@ class TensorHandler:
             return []
 
         result = []
-        loaded_variables, loaded_variables_mask = self.metadata.select_variables_and_masks(include=["prognostic"])
+        loaded_variables, loaded_variables_mask = (
+            self.metadata.select_variables_and_masks(include=["prognostic"])
+        )
 
         if len(loaded_variables_mask) > 0:
             result.extend(
@@ -394,12 +437,16 @@ class TensorHandler:
 
         return result
 
-    def initial_constant_forcings_providers(self, constant_forcings_providers: list[Forcings]) -> list[Forcings]:
+    def initial_constant_forcings_providers(
+        self, constant_forcings_providers: list[Forcings]
+    ) -> list[Forcings]:
         """Modify the constant forcings providers for the first step."""
         # Give an opportunity to modify the forcings for the first step
         return constant_forcings_providers
 
-    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
+    def initial_dynamic_forcings_providers(
+        self, dynamic_forcings_providers: list[Forcings]
+    ) -> list[Forcings]:
         """Modify the dynamic forcings providers for the initial step of the inference process.
 
         This method provides a hook to adjust the list of dynamic forcings before the first
@@ -410,7 +457,10 @@ class TensorHandler:
         return dynamic_forcings_providers
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor | None", check: BoolArray
+        self,
+        input_tensor_torch: "torch.Tensor",
+        y_pred: "torch.Tensor | None",
+        check: BoolArray,
     ) -> "torch.Tensor":
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
@@ -435,12 +485,16 @@ class TensorHandler:
             prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
 
             for out_idx, new_idx in self.metadata.advance_map["outin"]:
-                input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
+                input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[
+                    :, out_idx, :, :
+                ]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():
             # Report which ones are conflicting
-            conflicting = [self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]]
+            conflicting = [
+                self._input_tensor_by_name[i] for i in pmask_in_np[check[pmask_in_np]]
+            ]
             raise AssertionError(
                 f"[{self.dataset_name}] Attempting to overwrite existing prognostic input slots for variables: {conflicting}"
             )
@@ -474,7 +528,9 @@ class TensorHandler:
         # batch is always 1
 
         for source in self.dynamic_forcings_providers:
-            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(
+                dates, state
+            )  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
@@ -482,22 +538,30 @@ class TensorHandler:
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
             )  # shape: (1, dates, 1, values, variables)
 
-            forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
+            forcings = torch.from_numpy(forcings).to(
+                self.context.device
+            )  # Copy to device
 
             for out_idx, new_idx in self.metadata.advance_map["outin"]:
                 input_tensor_torch[:, new_idx, :, source.mask] = forcings[
                     :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
-            assert not check[source.mask].any()  # Make sure we are not overwriting some values
+            assert not check[
+                source.mask
+            ].any()  # Make sure we are not overwriting some values
             check[source.mask] = True
 
             for n in source.mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(forcing=True, **source.kinds)
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(
+                    forcing=True, **source.kinds
+                )
 
             if self.trace:
                 for n in source.mask:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "dynamic forcings")
+                    self.trace.from_source(
+                        self._input_tensor_by_name[n], source, "dynamic forcings"
+                    )
 
         return input_tensor_torch
 
@@ -512,37 +576,55 @@ class TensorHandler:
         # batch is always 1
         sources = self.boundary_forcings_providers
         for source in sources:
-            forcings = source.load_forcings_array(dates, state)  # shape: (variables, dates, values)
+            forcings = source.load_forcings_array(
+                dates, state
+            )  # shape: (variables, dates, values)
 
             forcings = np.swapaxes(forcings, 0, 1)  # shape: (dates, variable, values)
 
             forcings = np.swapaxes(
                 forcings[np.newaxis, :, np.newaxis, ...], -2, -1
             )  # shape: (1, dates, 1, values, variables)
-            forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
+            forcings = torch.from_numpy(forcings).to(
+                self.context.device
+            )  # Copy to device
 
             for out_idx, new_idx in self.metadata.advance_map["outin"]:
-                total_mask = np.ix_([0], [new_idx], source.spatial_mask, source.variables_mask)
+                total_mask = np.ix_(
+                    [0], [new_idx], source.spatial_mask, source.variables_mask
+                )
                 input_tensor_torch[total_mask] = forcings[
                     :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
 
             for n in source.variables_mask:
-                self._input_kinds[self._input_tensor_by_name[n]] = Kind(boundary=True, forcing=True, **source.kinds)
+                self._input_kinds[self._input_tensor_by_name[n]] = Kind(
+                    boundary=True, forcing=True, **source.kinds
+                )
                 if self.trace:
-                    self.trace.from_source(self._input_tensor_by_name[n], source, "boundary forcings")
+                    self.trace.from_source(
+                        self._input_tensor_by_name[n], source, "boundary forcings"
+                    )
 
         # TO DO: add some consistency checks as above
         return input_tensor_torch
 
-    def _print_input_tensor(self, title: str, input_tensor_torch: dict[str, "torch.Tensor"]) -> None:
-        input_tensor_numpy = input_tensor_torch.cpu().numpy()  # (batch, multi_step_input, values, variables)
+    def _print_input_tensor(
+        self, title: str, input_tensor_torch: dict[str, "torch.Tensor"]
+    ) -> None:
+        input_tensor_numpy = (
+            input_tensor_torch.cpu().numpy()
+        )  # (batch, multi_step_input, values, variables)
 
         assert len(input_tensor_numpy.shape) == 4, input_tensor_numpy.shape
         assert input_tensor_numpy.shape[0] == 1, input_tensor_numpy.shape
 
-        input_tensor_numpy = np.squeeze(input_tensor_numpy, axis=0)  # Drop the batch dimension
-        input_tensor_numpy = np.swapaxes(input_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+        input_tensor_numpy = np.squeeze(
+            input_tensor_numpy, axis=0
+        )  # Drop the batch dimension
+        input_tensor_numpy = np.swapaxes(
+            input_tensor_numpy, -2, -1
+        )  # (multi_step_input, variables, values)
 
         self._print_tensor(
             f"{title} - dataset: `{self.dataset_name}`",
@@ -575,17 +657,27 @@ class TensorHandler:
                 else:
                     self._output_kinds[variable] = Kind(diagnostic=True)
 
-                self._output_units[variable] = self.metadata.typed_variables[variable].units
+                self._output_units[variable] = self.metadata.typed_variables[
+                    variable
+                ].units
 
         # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
 
         if len(output_tensor_numpy.shape) == 2:
-            output_tensor_numpy = output_tensor_numpy[np.newaxis, ...]  # Add multi_step_input
+            output_tensor_numpy = output_tensor_numpy[
+                np.newaxis, ...
+            ]  # Add multi_step_input
 
-        output_tensor_numpy = np.swapaxes(output_tensor_numpy, -2, -1)  # (multi_step_input, variables, values)
+        output_tensor_numpy = np.swapaxes(
+            output_tensor_numpy, -2, -1
+        )  # (multi_step_input, variables, values)
 
         self._print_tensor(
-            title, output_tensor_numpy, self._output_tensor_by_name, self._output_kinds, self._output_units
+            title,
+            output_tensor_numpy,
+            self._output_tensor_by_name,
+            self._output_kinds,
+            self._output_units,
         )
 
     def _print_tensor(
@@ -612,7 +704,9 @@ class TensorHandler:
             The units.
         """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] in (1, self.metadata.multi_step_input), tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self.metadata.multi_step_input), (
+            tensor_numpy.shape
+        )
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
         from rich.console import Console
         from rich.table import Table
@@ -656,22 +750,32 @@ class TensorHandler:
         console.print()
 
     #########################################################################################################
-    def create_constant_computed_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
+    def create_constant_computed_forcings(
+        self, variables: list[str], mask: IntArray
+    ) -> list["Forcings"]:
         result = ComputedForcings(self, variables, mask)
         return [result]
 
-    def create_dynamic_computed_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
+    def create_dynamic_computed_forcings(
+        self, variables: list[str], mask: IntArray
+    ) -> list["Forcings"]:
         result = ComputedForcings(self, variables, mask)
         return [result]
 
-    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
+    def create_constant_coupled_forcings(
+        self, variables: list[str], mask: IntArray
+    ) -> list["Forcings"]:
         result = ConstantForcings(self, self.constant_forcings_input, variables, mask)
         return [result]
 
-    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
+    def create_dynamic_coupled_forcings(
+        self, variables: list[str], mask: IntArray
+    ) -> list["Forcings"]:
         result = CoupledForcings(self, self.dynamic_forcings_input, variables, mask)
         return [result]
 
-    def create_boundary_forcings(self, variables: list[str], mask: IntArray) -> list["Forcings"]:
+    def create_boundary_forcings(
+        self, variables: list[str], mask: IntArray
+    ) -> list["Forcings"]:
         result = BoundaryForcings(self, self.boundary_forcings_input, variables, mask)
         return [result]

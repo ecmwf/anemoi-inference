@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 
 from ..checkpoint import Checkpoint
 from . import Command
@@ -28,8 +27,14 @@ class RequestCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.description = self.__doc__
-        command_parser.add_argument("--mars", action="store_true", help="Print the MARS request.")
-        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
+        command_parser.add_argument(
+            "--mars", action="store_true", help="Print the MARS request."
+        )
+        command_parser.add_argument(
+            "--use-grib-paramid",
+            action="store_true",
+            help="Use paramId instead of param.",
+        )
         command_parser.add_argument(
             "--dont-fail-for-missing-paramid",
             action="store_true",
@@ -57,7 +62,6 @@ class RequestCmd(Command):
             if args.mars:
                 req = ["retrieve,target=data"]
                 for k, v in r.items():
-
                     if args.use_grib_paramid and k == "param":
                         if not isinstance(v, (list, tuple)):
                             v = [v]

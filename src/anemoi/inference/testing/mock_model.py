@@ -63,16 +63,24 @@ class SimpleMetadata:
         SimpleMetadata
             The reduced metadata.
         """
-        prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
+        prognostic_variables = metadata.select_variables(
+            include=["prognostic"], has_mars_requests=False
+        )
 
         variable_to_input_tensor_index = dict(metadata.variable_to_input_tensor_index)
         variable_to_output_tensor_index = dict(metadata.variable_to_output_tensor_index)
 
         return cls(
             output_shape=tuple(metadata.output_shape),
-            output_tensor_index_to_variable=dict(metadata.output_tensor_index_to_variable),
-            prognostic_input_indices=[variable_to_input_tensor_index[v] for v in prognostic_variables],
-            prognostic_output_indices=[variable_to_output_tensor_index[v] for v in prognostic_variables],
+            output_tensor_index_to_variable=dict(
+                metadata.output_tensor_index_to_variable
+            ),
+            prognostic_input_indices=[
+                variable_to_input_tensor_index[v] for v in prognostic_variables
+            ],
+            prognostic_output_indices=[
+                variable_to_output_tensor_index[v] for v in prognostic_variables
+            ],
         )
 
 
@@ -102,7 +110,8 @@ class SimpleMockModel(torch.nn.Module):
 
         self.output_mode = VariableOutputSetting(output_mode)
         self.metadata: dict[str, SimpleMetadata] = {
-            dataset: SimpleMetadata._from_metadata(metadata) for dataset, metadata in multi_metadata.items()
+            dataset: SimpleMetadata._from_metadata(metadata)
+            for dataset, metadata in multi_metadata.items()
         }
 
     def predict_step(
@@ -115,7 +124,9 @@ class SimpleMockModel(torch.nn.Module):
         if not isinstance(input_tensor, dict):
             # legacy model: the runner will pass a single tensor if it detects a legacy checkpoint, we must return a tensor
             # we could hardcode "data" here, but better to rely on the default key set by the metadata factory
-            assert len(self.metadata) == 1, "Expected a single dataset in the metadata for legacy model"
+            assert len(self.metadata) == 1, (
+                "Expected a single dataset in the metadata for legacy model"
+            )
             default_key = next(iter(self.metadata.keys()))
             return self._predict_step({default_key: input_tensor}, date)[default_key]
 
@@ -145,10 +156,13 @@ class SimpleMockModel(torch.nn.Module):
                     output_tensor[..., index] = float_hash(variable, date)
 
             # copy prognostic input variables of the last time step to output tensor, leaving diagnostics at one
-            elif self.output_mode == VariableOutputSetting.PASSTHROUGH and metadata.prognostic_input_indices:
-                output_tensor[..., metadata.prognostic_output_indices] = input_tensor[dataset][
-                    :, -1:, :, metadata.prognostic_input_indices
-                ]
+            elif (
+                self.output_mode == VariableOutputSetting.PASSTHROUGH
+                and metadata.prognostic_input_indices
+            ):
+                output_tensor[..., metadata.prognostic_output_indices] = input_tensor[
+                    dataset
+                ][:, -1:, :, metadata.prognostic_input_indices]
 
             outputs[dataset] = output_tensor
 

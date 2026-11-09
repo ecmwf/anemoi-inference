@@ -15,8 +15,7 @@ from typing import Any
 import numpy as np
 
 from anemoi.inference.decorators import ensure_path
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import FloatArray
+from anemoi.inference.types import BoolArray, FloatArray
 
 LOG = logging.getLogger(__name__)
 
@@ -98,7 +97,10 @@ class Trace:
         from rich.panel import Panel
         from rich.table import Table
 
-        panel = Panel(f"Input tensor to forecast date {date - timestep} => {date} ({input_tensor.shape})", width=WIDTH)
+        panel = Panel(
+            f"Input tensor to forecast date {date - timestep} => {date} ({input_tensor.shape})",
+            width=WIDTH,
+        )
         table = Table()
         console = Console(file=self.file)
 
@@ -118,10 +120,23 @@ class Trace:
                 values = input_tensor[0, s, :, i]
                 if s == 0:
                     lines.append(
-                        [names[i], np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values)]
+                        [
+                            names[i],
+                            np.nanmin(values),
+                            np.nanmax(values),
+                            np.nanmean(values),
+                            np.nanstd(values),
+                        ]
                     )
                 else:
-                    lines[i].extend([np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values)])
+                    lines[i].extend(
+                        [
+                            np.nanmin(values),
+                            np.nanmax(values),
+                            np.nanmean(values),
+                            np.nanstd(values),
+                        ]
+                    )
 
         for i in range(input_tensor.shape[-1]):
             constant = np.all(input_tensor[0, 0:1, :, i] == input_tensor[0, :, :, i])
@@ -133,7 +148,9 @@ class Trace:
             line.append(self.sources.get(line[0], unknown).trace_name)
 
         for line in lines:
-            table.add_row(*[str(x) if not isinstance(x, float) else f"{x:g}" for x in line])
+            table.add_row(
+                *[str(x) if not isinstance(x, float) else f"{x:g}" for x in line]
+            )
 
         console.print(panel)
         console.print(table)
@@ -178,10 +195,20 @@ class Trace:
         lines = []
         for i in range(output_tensor.shape[-1]):
             values = output_tensor[:, i]
-            lines.append([names[i], np.nanmin(values), np.nanmax(values), np.nanmean(values), np.nanstd(values)])
+            lines.append(
+                [
+                    names[i],
+                    np.nanmin(values),
+                    np.nanmax(values),
+                    np.nanmean(values),
+                    np.nanstd(values),
+                ]
+            )
 
         for line in lines:
-            table.add_row(*[str(x) if not isinstance(x, float) else f"{x:g}" for x in line])
+            table.add_row(
+                *[str(x) if not isinstance(x, float) else f"{x:g}" for x in line]
+            )
 
         console.print(panel)
         console.print(table)
@@ -230,7 +257,9 @@ class Trace:
         """
         self.from_source(name, InputSource(input))
 
-    def reset_sources(self, reset: BoolArray, variable_to_input_tensor_index: dict[str, int]) -> None:
+    def reset_sources(
+        self, reset: BoolArray, variable_to_input_tensor_index: dict[str, int]
+    ) -> None:
         """Reset the sources in the trace.
 
         Parameters

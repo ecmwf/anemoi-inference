@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 from collections import defaultdict
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import numpy as np
@@ -52,20 +51,28 @@ def basic_predict_step(model, input_tensors, **kwargs):
     output_mask = model.checkpoint.output_mask
 
     for j in range(1, multi_step_input):
-        assert input_prog[0, j] - input_prog[0, j - 1] == pytest.approx(torch.tensor([1.0, 1.0])), "prog step mismatch"
+        assert input_prog[0, j] - input_prog[0, j - 1] == pytest.approx(
+            torch.tensor([1.0, 1.0])
+        ), "prog step mismatch"
         assert input_force[0, j - 1] / input_force[0, j] == pytest.approx(
             torch.tensor([2.0, 2.0])
         ), "force step mismatch"
-        assert input_force[0, j] == pytest.approx(0.5 ** (input_prog[0, j])), "force out of sync with prog "
+        assert input_force[0, j] == pytest.approx(0.5 ** (input_prog[0, j])), (
+            "force out of sync with prog "
+        )
 
-    output_prog = torch.full((input_tensor.shape[0], multi_step_output, input_tensor.shape[2]), np.nan)
+    output_prog = torch.full(
+        (input_tensor.shape[0], multi_step_output, input_tensor.shape[2]), np.nan
+    )
 
     for i in range(multi_step_output):
         output_prog[:, i, output_mask] = input_prog[:, -1, output_mask] + 1 + i
 
     diag = -output_prog  # (batch, multi_step_output, n_grid)
 
-    output = torch.stack([output_prog, diag], dim=-1)  # (batch, multi_step_output, n_grid, n_vars_out)
+    output = torch.stack(
+        [output_prog, diag], dim=-1
+    )  # (batch, multi_step_output, n_grid, n_vars_out)
 
     return dict(data=output.unsqueeze(2))
 
@@ -114,7 +121,10 @@ def forecast_runner_factory():
                     (multi_step_output - i - 1, multi_step_input - i - 1)
                     for i in range(min(multi_step_output, multi_step_input))
                 ],
-                "inin": [(i, i - multi_step_output) for i in range(multi_step_output, multi_step_input)],
+                "inin": [
+                    (i, i - multi_step_output)
+                    for i in range(multi_step_output, multi_step_input)
+                ],
             },
             variable_to_input_tensor_index={"force": 0, "prog": 1},
             output_tensor_index_to_variable=["prog", "diag"],
@@ -135,10 +145,15 @@ def forecast_runner_factory():
                 actual_step = round(state["step"] / metadata.timestep)
                 n_dates = len(dates)
                 values = np.array(
-                    [np.float32(0.5 ** (actual_step - (n_dates - 1 - i))) for i in range(n_dates)],
+                    [
+                        np.float32(0.5 ** (actual_step - (n_dates - 1 - i)))
+                        for i in range(n_dates)
+                    ],
                     dtype=np.float32,
                 )
-                return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 2)).copy()
+                return np.broadcast_to(
+                    values[np.newaxis, :, np.newaxis], (1, n_dates, 2)
+                ).copy()
 
         class SequentialBoundaryForcer:
             spatial_mask = ~metadata.output_mask
@@ -149,12 +164,19 @@ def forecast_runner_factory():
                 actual_step = round(state["step"] / metadata.timestep)
                 n_dates = len(dates)
                 values = np.array(
-                    [np.float32((actual_step - (n_dates - 1 - i))) for i in range(n_dates)],
+                    [
+                        np.float32(actual_step - (n_dates - 1 - i))
+                        for i in range(n_dates)
+                    ],
                     dtype=np.float32,
                 )
-                return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, n_dates, 1)).copy()
+                return np.broadcast_to(
+                    values[np.newaxis, :, np.newaxis], (1, n_dates, 1)
+                ).copy()
 
-        return _build_runner(metadata, [GeometricDynamicForcer()], [SequentialBoundaryForcer()])
+        return _build_runner(
+            metadata, [GeometricDynamicForcer()], [SequentialBoundaryForcer()]
+        )
 
     return make_forecast_runner
 
@@ -187,9 +209,13 @@ def test_forecast(
 
     lead_time = to_timedelta(f"{lead_time_hours}h")
 
-    input_steps = np.arange(1 - multi_step_input, 1, dtype=np.float32)  # [-msi+1, ..., 0]
+    input_steps = np.arange(
+        1 - multi_step_input, 1, dtype=np.float32
+    )  # [-msi+1, ..., 0]
     test_input_prog = np.broadcast_to(input_steps[:, np.newaxis], (multi_step_input, 2))
-    test_input_force = np.broadcast_to((0.5**input_steps)[:, np.newaxis], (multi_step_input, 2))
+    test_input_force = np.broadcast_to(
+        (0.5**input_steps)[:, np.newaxis], (multi_step_input, 2)
+    )
     # stack in variable dim (force=0, prog=1) → (msi, n_vars=2, n_grid=2)
     test_input = np.stack([test_input_force, test_input_prog], axis=1)
 
@@ -206,8 +232,12 @@ def test_forecast(
         results_prog.append(new_state["data"]["fields"]["prog"][0].numpy())
         results_diag.append(new_state["data"]["fields"]["diag"][0].numpy())
 
-    assert np.array(results_prog) == pytest.approx(expected_prog_output, abs=1e-4), "prog mismatch"
-    assert np.array(results_diag) == pytest.approx(expected_diag_output, abs=1e-4), "diag mismatch"
+    assert np.array(results_prog) == pytest.approx(expected_prog_output, abs=1e-4), (
+        "prog mismatch"
+    )
+    assert np.array(results_diag) == pytest.approx(expected_diag_output, abs=1e-4), (
+        "diag mismatch"
+    )
 
 
 # ── Offset-based rollout ───────────────────────────────────
@@ -229,7 +259,9 @@ class _TimeDynamicForcer:  # force(t) = 0.5**t
 
     def load_forcings_array(self, dates, state):
         values = np.array([np.float32(0.5 ** _t(d)) for d in dates], dtype=np.float32)
-        return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, len(dates), 2)).copy()
+        return np.broadcast_to(
+            values[np.newaxis, :, np.newaxis], (1, len(dates), 2)
+        ).copy()
 
 
 class _TimeBoundaryForcer:  # prog(t) = t on the boundary point
@@ -239,22 +271,32 @@ class _TimeBoundaryForcer:  # prog(t) = t on the boundary point
 
     def load_forcings_array(self, dates, state):
         values = np.array([np.float32(_t(d)) for d in dates], dtype=np.float32)
-        return np.broadcast_to(values[np.newaxis, :, np.newaxis], (1, len(dates), 1)).copy()
+        return np.broadcast_to(
+            values[np.newaxis, :, np.newaxis], (1, len(dates), 1)
+        ).copy()
 
 
 def offset_predict_step(model, input_tensors, **kwargs):
     input_tensor = input_tensors["data"]
     input_force = input_tensor[..., 0]
     input_prog = input_tensor[..., 1]
-    assert torch.allclose(input_force, 0.5**input_prog, atol=1e-4), "force out of sync with prog"
+    assert torch.allclose(input_force, 0.5**input_prog, atol=1e-4), (
+        "force out of sync with prog"
+    )
 
     output_mask = model.checkpoint.output_mask
     steps = [offset / _TIMESTEP for offset in model.checkpoint.output_offsets]
-    output_prog = torch.full((input_tensor.shape[0], len(steps), input_tensor.shape[2]), np.nan)
+    output_prog = torch.full(
+        (input_tensor.shape[0], len(steps), input_tensor.shape[2]), np.nan
+    )
     for i, s in enumerate(steps):
-        output_prog[:, i, output_mask] = input_prog[:, -1, output_mask] + s  # prog at (last input) + offset
+        output_prog[:, i, output_mask] = (
+            input_prog[:, -1, output_mask] + s
+        )  # prog at (last input) + offset
 
-    output = torch.stack([output_prog, -output_prog], dim=-1)  # (batch, mso, n_grid, n_vars_out)
+    output = torch.stack(
+        [output_prog, -output_prog], dim=-1
+    )  # (batch, mso, n_grid, n_vars_out)
     return dict(data=output.unsqueeze(2))
 
 
@@ -279,7 +321,9 @@ def offset_forecast_runner_factory():
             prognostic_output_mask=np.array([0]),
             output_mask=np.array([True, False]),
         )
-        runner = _build_runner(metadata, [_TimeDynamicForcer()], [_TimeBoundaryForcer()])
+        runner = _build_runner(
+            metadata, [_TimeDynamicForcer()], [_TimeBoundaryForcer()]
+        )
         return runner, input_offsets
 
     return make
@@ -289,11 +333,29 @@ def offset_forecast_runner_factory():
     "input_offsets, output_offsets, rollout_shift, advance_map",
     [
         # Different input/output frequencies: 3h output at +3h is emitted but not fed back.
-        pytest.param(["-6h", "0h"], ["3h", "6h"], "6h", {"inin": [(1, 0)], "outin": [(1, 1)]}, id="mixed-frequency"),
+        pytest.param(
+            ["-6h", "0h"],
+            ["3h", "6h"],
+            "6h",
+            {"inin": [(1, 0)], "outin": [(1, 1)]},
+            id="mixed-frequency",
+        ),
         # Multiple valid shifts, default (largest): feedback from +3h, +2h is emit-only, leaves gaps.
-        pytest.param(["0h"], ["2h", "3h"], "3h", {"inin": [], "outin": [(1, 0)]}, id="multi-shift-default"),
+        pytest.param(
+            ["0h"],
+            ["2h", "3h"],
+            "3h",
+            {"inin": [], "outin": [(1, 0)]},
+            id="multi-shift-default",
+        ),
         # Same offsets, explicit smaller shift: feedback from +2h instead.
-        pytest.param(["0h"], ["2h", "3h"], "2h", {"inin": [], "outin": [(0, 0)]}, id="multi-shift-explicit"),
+        pytest.param(
+            ["0h"],
+            ["2h", "3h"],
+            "2h",
+            {"inin": [], "outin": [(0, 0)]},
+            id="multi-shift-explicit",
+        ),
         # Irregular input offsets: the -1h slot is dropped on advance (needs the gather map).
         pytest.param(
             ["-4h", "-2h", "-1h", "0h"],
@@ -313,7 +375,9 @@ def test_forecast_offset(
     advance_map: dict,
 ):
     lead_time_hours = 12
-    runner, input_offsets_td = offset_forecast_runner_factory(input_offsets, output_offsets, rollout_shift, advance_map)
+    runner, input_offsets_td = offset_forecast_runner_factory(
+        input_offsets, output_offsets, rollout_shift, advance_map
+    )
     monkeypatch.setattr(runner, "predict_step", offset_predict_step)
     monkeypatch.setattr(runner, "output_states_hook", lambda x: None)
     monkeypatch.setattr(runner, "mid_processors", defaultdict(list), raising=False)
@@ -321,8 +385,12 @@ def test_forecast_offset(
     # First input tensor: prog(t) = t, force(t) = 0.5**t at each input offset.
     input_steps = np.array([o / _TIMESTEP for o in input_offsets_td], dtype=np.float32)
     test_input_prog = np.broadcast_to(input_steps[:, np.newaxis], (len(input_steps), 2))
-    test_input_force = np.broadcast_to((0.5**input_steps)[:, np.newaxis], (len(input_steps), 2))
-    test_input = np.stack([test_input_force, test_input_prog], axis=1)  # (msi, n_vars=2, n_grid=2)
+    test_input_force = np.broadcast_to(
+        (0.5**input_steps)[:, np.newaxis], (len(input_steps), 2)
+    )
+    test_input = np.stack(
+        [test_input_force, test_input_prog], axis=1
+    )  # (msi, n_vars=2, n_grid=2)
 
     # Expected forecasts: every valid time t = s*shift + offset (t <= lead), prog=t, diag=-t.
     shift_hours = to_timedelta(rollout_shift) / _TIMESTEP
@@ -349,8 +417,12 @@ def test_forecast_offset(
 
     assert sorted(results_prog) == sorted(expected), "forecast valid times mismatch"
     for key, t in expected.items():
-        assert results_prog[key] == pytest.approx(np.float32(t), abs=1e-4), f"prog at t={t}"
-        assert results_diag[key] == pytest.approx(np.float32(-t), abs=1e-4), f"diag at t={t}"
+        assert results_prog[key] == pytest.approx(np.float32(t), abs=1e-4), (
+            f"prog at t={t}"
+        )
+        assert results_diag[key] == pytest.approx(np.float32(-t), abs=1e-4), (
+            f"diag at t={t}"
+        )
 
 
 # ── Input-only dataset (encoder but no decoder) ───────────────────────────────────
@@ -380,15 +452,21 @@ def _add_input_only_dataset(runner, name="obs"):
     runner.tensor_handlers[name] = handler
 
 
-def test_forecast_with_input_only_dataset(monkeypatch: pytest.MonkeyPatch, forecast_runner_factory):
+def test_forecast_with_input_only_dataset(
+    monkeypatch: pytest.MonkeyPatch, forecast_runner_factory
+):
     multi_step_input, lead_time_hours = 2, 3
     runner = forecast_runner_factory(multi_step_input, 1)
     _add_input_only_dataset(runner)
 
     def predict_step(model, input_tensors, **kwargs):
         assert set(input_tensors) == {"data", "obs"}
-        assert torch.isfinite(input_tensors["obs"]).all(), "input-only dataset must keep finite values"
-        return basic_predict_step(model, input_tensors, **kwargs)  # predicts `data` only
+        assert torch.isfinite(input_tensors["obs"]).all(), (
+            "input-only dataset must keep finite values"
+        )
+        return basic_predict_step(
+            model, input_tensors, **kwargs
+        )  # predicts `data` only
 
     monkeypatch.setattr(runner, "predict_step", predict_step)
     monkeypatch.setattr(runner, "output_states_hook", lambda x: None)
@@ -408,7 +486,9 @@ def test_forecast_with_input_only_dataset(monkeypatch: pytest.MonkeyPatch, forec
     for state in runner.forecast(
         lead_time=to_timedelta(f"{lead_time_hours}h"),
         input_tensors_numpy=dict(data=test_input, obs=obs_input),
-        input_states=dict(data={"date": datetime(2020, 1, 1)}, obs={"date": datetime(2020, 1, 1)}),
+        input_states=dict(
+            data={"date": datetime(2020, 1, 1)}, obs={"date": datetime(2020, 1, 1)}
+        ),
     ):
         prog.append(state["data"]["fields"]["prog"][0].item())
         obs_fields.append(dict(state["obs"]["fields"]))

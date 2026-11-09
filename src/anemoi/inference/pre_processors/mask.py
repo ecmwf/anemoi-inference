@@ -28,7 +28,9 @@ LOG = logging.getLogger(__name__)
 class MaskValues(Processor):
     """Replace values in a field with nans from a specified mask in the supporting arrays."""
 
-    def __init__(self, context: Context, *, mask: str, param: str | list[str], **kwargs) -> None:
+    def __init__(
+        self, context: Context, *, mask: str, param: str | list[str], **kwargs
+    ) -> None:
         """Initialize the MaskValues processor.
 
         Parameters

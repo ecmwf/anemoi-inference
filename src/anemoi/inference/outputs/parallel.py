@@ -13,13 +13,10 @@ import math
 import multiprocessing as mp
 import os
 import traceback
-from collections.abc import Callable
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from enum import Enum
 from functools import cache
-from typing import Any
-from typing import Literal
-from typing import get_args
+from typing import Any, Literal, get_args
 
 from anemoi.transform.variables import Variable
 
@@ -28,8 +25,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..output import Output
-from . import create_output
-from . import output_registry
+from . import create_output, output_registry
 
 LOG = logging.getLogger(__name__)
 
@@ -84,7 +80,10 @@ def _template_message_bytes(field: Any) -> bytes:
         handle.set("bitsPerValue", bpv)
         return handle.get_buffer()
     except Exception as e:
-        LOG.debug("Could not strip data section from GRIB template: %s; sending full message.", e)
+        LOG.debug(
+            "Could not strip data section from GRIB template: %s; sending full message.",
+            e,
+        )
         return field.message()
 
 
@@ -133,11 +132,15 @@ def _deserialise_grib_templates(bytes_templates: dict[str, bytes]) -> dict[str, 
         try:
             result[name] = ekd.from_source("memory", msg)[0]
         except Exception as e:
-            LOG.warning("Could not reconstruct GRIB template for '%s' from bytes: %s", name, e)
+            LOG.warning(
+                "Could not reconstruct GRIB template for '%s' from bytes: %s", name, e
+            )
     return result
 
 
-def _sanitise_state(state: State, grib_templates_bytes: dict[str, bytes] | None = None) -> State:
+def _sanitise_state(
+    state: State, grib_templates_bytes: dict[str, bytes] | None = None
+) -> State:
     """Remove private keys and convert tensors so the state is safe to pickle.
 
     ``grib_templates_bytes``, if provided, replaces ``_grib_templates_for_output``
@@ -157,7 +160,10 @@ def _sanitise_state(state: State, grib_templates_bytes: dict[str, bytes] | None 
     for key in unpicklable_keys:
         if state.get(key) is not None:
             state.pop(key)
-            LOG.debug("Removed unpicklable key '%s' from state before sending to writer process", key)
+            LOG.debug(
+                "Removed unpicklable key '%s' from state before sending to writer process",
+                key,
+            )
     return _detach_tensors(state)
 
 
@@ -224,14 +230,18 @@ class Chunker:
 
         return grouped_fields_list
 
-    def by_metadata(self, keys: list[str], max_groups: int = -1) -> Callable[[State], Generator[State, None, None]]:
+    def by_metadata(
+        self, keys: list[str], max_groups: int = -1
+    ) -> Callable[[State], Generator[State, None, None]]:
         """Chunk the state into smaller parts based on the specified metadata keys,
         ensuring that variables with the same key=value pair are kept together in the same chunk.
         """
 
         def chunker(state: State) -> Generator[State, None, None]:
             fields = state["fields"]
-            grouped_fields = self._grouped_fields_by_metadata(tuple(fields.keys()), tuple(keys), max_groups=max_groups)
+            grouped_fields = self._grouped_fields_by_metadata(
+                tuple(fields.keys()), tuple(keys), max_groups=max_groups
+            )
 
             for group_keys in grouped_fields:
                 chunk_fields = {k: fields[k] for k in group_keys if k in fields}
@@ -244,7 +254,9 @@ class Chunker:
 
         return chunker
 
-    def by_size(self, fields_per_chunk: int) -> Callable[[State], Generator[State, None, None]]:
+    def by_size(
+        self, fields_per_chunk: int
+    ) -> Callable[[State], Generator[State, None, None]]:
         """Chunk the state into smaller parts, each containing a specified number of fields."""
         if not isinstance(fields_per_chunk, int) or isinstance(fields_per_chunk, bool):
             raise TypeError("fields_per_chunk must be an integer.")
@@ -318,7 +330,9 @@ class Chunker:
             case "by_worker":
                 return self.by_worker(**init_kwargs)
             case _:
-                raise ValueError(f"Invalid chunk_strategy: {name}. Must be one of {VALID_CHUNK_STRATEGIES}")
+                raise ValueError(
+                    f"Invalid chunk_strategy: {name}. Must be one of {VALID_CHUNK_STRATEGIES}"
+                )
 
 
 class MessageType(str, Enum):
@@ -365,7 +379,8 @@ class ParallelOutput(Output):
         output: Output | Any | None = None,
         num_writers: int = 1,
         worker_timeout: int = 300,
-        chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
+        chunk_strategy: CHUNK_STRATEGIES
+        | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
         **kwargs: Any,
     ):
         """Initialise the ParallelOutput.
@@ -434,7 +449,9 @@ class ParallelOutput(Output):
         self._grib_templates_bytes_cache_value: dict[str, bytes] | None = None
 
         # Chunking strategy for dividing work among writer processes.
-        self.chunking_func = Chunker(self.typed_variables, self.num_writers).from_config(chunk_strategy)
+        self.chunking_func = Chunker(
+            self.typed_variables, self.num_writers
+        ).from_config(chunk_strategy)
 
     def open(self, state: State) -> None:
         """Spawn the writer processes during open() instead of __init__() to ensure they have access to the full context.
@@ -467,7 +484,9 @@ class ParallelOutput(Output):
         """Write the state, dispatching to writer processes when enabled."""
         self.dispatch_state_to_writers(state, message=message)
 
-    def dispatch_state_to_writers(self, state: State, message=MessageType.STATE) -> None:
+    def dispatch_state_to_writers(
+        self, state: State, message=MessageType.STATE
+    ) -> None:
         """Send the state to each writer process via multiprocessing queues.
 
         Takes an optional 'message' argument to indicate the type of message being sent, which is used for control flow in the writer loop.
@@ -487,13 +506,17 @@ class ParallelOutput(Output):
             for worker_id, merged_state in merged_states.items():
                 if merged_state is not None:
                     self._check_writer_alive(worker_id)
-                    self._queues[worker_id].put((_sanitise_state(merged_state, grib_templates_bytes), message))
+                    self._queues[worker_id].put(
+                        (_sanitise_state(merged_state, grib_templates_bytes), message)
+                    )
             return
 
         for i, chunk in enumerate(self.chunking_func(state)):
             worker_id = i % self.num_writers
             self._check_writer_alive(worker_id)
-            self._queues[worker_id].put((_sanitise_state(chunk, grib_templates_bytes), message))
+            self._queues[worker_id].put(
+                (_sanitise_state(chunk, grib_templates_bytes), message)
+            )
 
     def _get_or_serialise_grib_templates(self, state: State) -> dict[str, bytes] | None:
         """Return the serialised GRIB templates bytes-map, serialising it on the first call.
@@ -514,7 +537,9 @@ class ParallelOutput(Output):
         if key == self._grib_templates_bytes_cache_key:
             return self._grib_templates_bytes_cache_value
         bytes_map = _serialise_grib_templates(templates)
-        LOG.debug("Serialised %d GRIB templates to bytes for writer processes", len(bytes_map))
+        LOG.debug(
+            "Serialised %d GRIB templates to bytes for writer processes", len(bytes_map)
+        )
         self._grib_templates_bytes_cache_key = key
         self._grib_templates_bytes_cache_value = bytes_map
         return bytes_map
@@ -569,7 +594,9 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: spawned %d writer processes", self.num_writers)
 
-    def _writer_loop(self, writer_id: int, queue: mp.Queue, context: Context, output_config, **kwargs) -> None:
+    def _writer_loop(
+        self, writer_id: int, queue: mp.Queue, context: Context, output_config, **kwargs
+    ) -> None:
         """Event loop executed inside each forked writer process.
 
         Each writer process runs this loop, which listens for incoming messages on its queue.
@@ -582,7 +609,11 @@ class ParallelOutput(Output):
         LOG.info("Writer %d started", writer_id)
 
         output = create_output(
-            context, output_config, self.metadata, **kwargs, **{"_parallel-output-suffix": f"_w{writer_id}"}
+            context,
+            output_config,
+            self.metadata,
+            **kwargs,
+            **{"_parallel-output-suffix": f"_w{writer_id}"},
         )
 
         while True:
@@ -590,7 +621,12 @@ class ParallelOutput(Output):
             try:
                 message, message_type = queue.get()
             except Exception as e:
-                LOG.error("Writer %d queue error: %s\n%s", writer_id, e, traceback.format_exc())
+                LOG.error(
+                    "Writer %d queue error: %s\n%s",
+                    writer_id,
+                    e,
+                    traceback.format_exc(),
+                )
                 break
 
             try:
@@ -608,9 +644,18 @@ class ParallelOutput(Output):
                     output.write_state(_restore_grib_templates(message))
                     LOG.debug("Writer %d done: %s", writer_id, message.get("date"))
                 else:
-                    LOG.warning("Writer %d received message with unknown type '%s'", writer_id, message_type)
+                    LOG.warning(
+                        "Writer %d received message with unknown type '%s'",
+                        writer_id,
+                        message_type,
+                    )
             except Exception as e:
-                LOG.error("Writer %d write error: %s\n%s", writer_id, e, traceback.format_exc())
+                LOG.error(
+                    "Writer %d write error: %s\n%s",
+                    writer_id,
+                    e,
+                    traceback.format_exc(),
+                )
                 break
 
         LOG.info("Writer %d shutting down", writer_id)
@@ -635,7 +680,9 @@ class ParallelOutput(Output):
                 else:
                     LOG.warning("Writer %d already dead", i)
             except Exception as e:
-                LOG.error("Failed to send '%s' to writer %d: %s", MessageType.TERMINATE, i, e)
+                LOG.error(
+                    "Failed to send '%s' to writer %d: %s", MessageType.TERMINATE, i, e
+                )
 
         LOG.info("ParallelOutput: waiting for writers to finish and exit...")
 

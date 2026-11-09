@@ -14,9 +14,7 @@ import earthkit.data as ekd
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, ProcessorConfig, State
 
 from . import input_registry
 from .grib import GribInput
@@ -101,6 +99,9 @@ class FDBInput(GribInput):
             request["param"] = [self.param_id_map.get(p, p) for p in request["param"]]
 
         LOG.debug("FDB requests: %s", requests)
-        sources = [ekd.from_source("fdb", request, stream=False, **self.configs) for request in requests]
+        sources = [
+            ekd.from_source("fdb", request, stream=False, **self.configs)
+            for request in requests
+        ]
         ds = ekd.from_source("multi", sources)
         return ds

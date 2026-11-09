@@ -11,14 +11,18 @@ import pytest
 
 zarr = pytest.importorskip("zarr")
 
-from anemoi.inference.outputs.zarr import create_zarr_array  # noqa: E402
+from anemoi.inference.outputs.zarr import create_zarr_array
 
 
 @pytest.mark.parametrize("chunks", ["auto", True, False, (1, 2)])
 def test_create_zarr_array_chunks(chunks):
     """Every value allowed by the ``chunks`` option of the zarr output must create an array."""
     # ZarrOutput passes a store to zarr 3 and a group to zarr 2
-    target = zarr.storage.MemoryStore() if zarr.__version__ >= "3" else zarr.open_group({}, mode="w")
+    target = (
+        zarr.storage.MemoryStore()
+        if zarr.__version__ >= "3"
+        else zarr.open_group({}, mode="w")
+    )
 
     array = create_zarr_array(target, "x", (4, 2), "f4", ("a", "b"), chunks)
 

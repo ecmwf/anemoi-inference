@@ -73,7 +73,9 @@ metadata_path = model_path / "metadata.json"
 config_path = model_path / "config.yaml"
 
 if not re.match(r"^[\w\-\.]+$", args.model):
-    print("Model name must be a valid path name (alphanumeric, underscores, hyphens, or dots only).")
+    print(
+        "Model name must be a valid path name (alphanumeric, underscores, hyphens, or dots only)."
+    )
     sys.exit(1)
 
 if not args.checkpoint.exists():
@@ -86,7 +88,9 @@ for file in args.files:
         sys.exit(1)
 
 if model_path.exists() and not args.overwrite:
-    print(f"Model directory `{args.model}` already exists in `{INTEGRATION_ROOT}`. Use --overwrite to replace it.")
+    print(
+        f"Model directory `{args.model}` already exists in `{INTEGRATION_ROOT}`. Use --overwrite to replace it."
+    )
     sys.exit(1)
 
 model_path.mkdir(parents=True, exist_ok=True)
@@ -108,7 +112,9 @@ metadata["config"] = {
 if args.save_fake_checkpoint:
     fake_checkpoint_path = Path(args.checkpoint).parent / f"{args.model}-fake.ckpt"
     print(f"💾 Saving fake checkpoint to {fake_checkpoint_path}")
-    save_fake_checkpoint(metadata, fake_checkpoint_path, supporting_arrays=supporting_arrays)
+    save_fake_checkpoint(
+        metadata, fake_checkpoint_path, supporting_arrays=supporting_arrays
+    )
 
 # save metadata and example config file in the local repo
 with open(metadata_path, "w") as f:
@@ -139,10 +145,17 @@ for file in args.files:
     if file.is_dir():
         for subfile in file.iterdir():
             s3_path = f"{S3_ROOT}/{args.model}/{file}/{subfile.name}"
-            transfer(str(subfile), s3_path, overwrite=args.overwrite, resume=not args.overwrite)
+            transfer(
+                str(subfile),
+                s3_path,
+                overwrite=args.overwrite,
+                resume=not args.overwrite,
+            )
     else:
         s3_path = f"{S3_ROOT}/{args.model}/{file.name}"
-        transfer(str(file), s3_path, overwrite=args.overwrite, resume=not args.overwrite)
+        transfer(
+            str(file), s3_path, overwrite=args.overwrite, resume=not args.overwrite
+        )
 
 with tempfile.TemporaryDirectory() as temp_dir:
     temp_dir_path = Path(temp_dir)
@@ -150,7 +163,9 @@ with tempfile.TemporaryDirectory() as temp_dir:
     # Normalize structure:
     # Old format: {array_name: array}
     # New format: {dataset_name: {array_name: array}}
-    if supporting_arrays and all(isinstance(v, dict) for v in supporting_arrays.values()):
+    if supporting_arrays and all(
+        isinstance(v, dict) for v in supporting_arrays.values()
+    ):
         normalized_supporting_arrays = supporting_arrays
         is_legacy = False
     else:
@@ -159,13 +174,15 @@ with tempfile.TemporaryDirectory() as temp_dir:
 
     for dataset_name, arrays in normalized_supporting_arrays.items():
         for name, array in arrays.items():
-
             if is_legacy:
                 array_path = temp_dir_path / f"{name}.npy"
                 s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/{name}.npy"
             else:
                 array_path = temp_dir_path / dataset_name / f"{name}.npy"
-                s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/" f"{dataset_name}/{name}.npy"
+                s3_path = (
+                    f"{S3_ROOT}/{args.model}/supporting-arrays/"
+                    f"{dataset_name}/{name}.npy"
+                )
 
             array_path.parent.mkdir(parents=True, exist_ok=True)
             np.save(array_path, array)

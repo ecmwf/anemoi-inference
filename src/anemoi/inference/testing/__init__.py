@@ -38,26 +38,31 @@ def fake_checkpoints(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        from unittest.mock import MagicMock
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
 
-        from .mock_checkpoint import MockRunConfiguration
-        from .mock_checkpoint import mock_load_metadata
-        from .mock_checkpoint import mock_torch_load
+        from .mock_checkpoint import (
+            MockRunConfiguration,
+            mock_load_metadata,
+            mock_torch_load,
+        )
 
         with (
             patch("anemoi.inference.checkpoint.load_metadata", mock_load_metadata),
             patch("anemoi.inference.provenance.validate_environment", MagicMock()),
             patch("torch.load", mock_torch_load),
             patch("anemoi.inference.metadata.USE_LEGACY", True),
-            patch("anemoi.inference.tasks.runner.RunConfiguration", MockRunConfiguration),
+            patch(
+                "anemoi.inference.tasks.runner.RunConfiguration", MockRunConfiguration
+            ),
         ):
             return func(*args, **kwargs)
 
     return wrapper
 
 
-def save_fake_checkpoint(metadata: dict | str | Path, save_path: Path, supporting_arrays: dict = {}) -> None:
+def save_fake_checkpoint(
+    metadata: dict | str | Path, save_path: Path, supporting_arrays: dict = {}
+) -> None:
     """Create a fake PyTorch checkpoint.
 
     Parameters
@@ -151,5 +156,3 @@ def files_for_tests(name: str) -> str:
 
 class TestingContext:
     """A context for testing plugins."""
-
-    pass

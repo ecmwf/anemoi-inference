@@ -11,11 +11,9 @@ import json
 import logging
 import sys
 import warnings
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import rich
 import yaml
@@ -53,20 +51,34 @@ class InspectCmd(Command):
         """
         command_parser.add_argument("path", help="Path to the checkpoint.")
         group = command_parser.add_mutually_exclusive_group(required=True)
-        group.add_argument("--variables", action="store_true", help="List the training variables and their categories.")
+        group.add_argument(
+            "--variables",
+            action="store_true",
+            help="List the training variables and their categories.",
+        )
         group.add_argument(
             "--requirements",
             action="store_true",
             help="Print a Python's requirements.txt based on the versions of the packages used during training.",
         )
         group.add_argument(
-            "--datasets", action="store_true", help="Print the arguments passed to anemoi-dataset during training."
+            "--datasets",
+            action="store_true",
+            help="Print the arguments passed to anemoi-dataset during training.",
         )
 
-        group.add_argument("--dump", action="store_true", help="Dump information from the checkpoint.")
+        group.add_argument(
+            "--dump", action="store_true", help="Dump information from the checkpoint."
+        )
 
-        command_parser.add_argument("--json", action="store_true", help="Output in JSON format (with dump option)")
-        command_parser.add_argument("--validate", action="store_true", help="Validate the environment.")
+        command_parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Output in JSON format (with dump option)",
+        )
+        command_parser.add_argument(
+            "--validate", action="store_true", help="Validate the environment."
+        )
 
     def run(self, args: Namespace) -> None:
         """Run the inspect command.
@@ -121,7 +133,6 @@ class InspectCmd(Command):
 
         data = {}
         for name in sorted(dir(metadata)):
-
             if name.startswith("_"):
                 continue
 
@@ -145,7 +156,9 @@ class InspectCmd(Command):
 
     def datasets(self, metadata: "Metadata", args: Namespace) -> None:
         """Print the dataset arguments and keyword arguments for opening datasets."""
-        open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(use_original_paths=False)
+        open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(
+            use_original_paths=False
+        )
 
         print("Open dataset arguments:")
 

@@ -15,8 +15,7 @@ the underlying dataset.
 """
 
 from types import SimpleNamespace
-from unittest.mock import PropertyMock
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import numpy as np
 import pytest
@@ -71,7 +70,9 @@ class _MockDataset:
 
 
 def _make_4d_data():
-    return np.arange(N_DATES * N_VARS * N_ENS * N_CELLS, dtype=float).reshape(N_DATES, N_VARS, N_ENS, N_CELLS)
+    return np.arange(N_DATES * N_VARS * N_ENS * N_CELLS, dtype=float).reshape(
+        N_DATES, N_VARS, N_ENS, N_CELLS
+    )
 
 
 def _make_5d_data():
@@ -124,7 +125,9 @@ def _make_input(mock_ds, **extra_kwargs):
     kwargs = dict(variables=list(VARS), open_dataset_args=(), open_dataset_kwargs={})
     kwargs.update(extra_kwargs)
 
-    with patch.object(DatasetInput, "ds", new_callable=PropertyMock, return_value=mock_ds):
+    with patch.object(
+        DatasetInput, "ds", new_callable=PropertyMock, return_value=mock_ds
+    ):
         inp = DatasetInput(ctx, meta, **kwargs)
     # Inject the mock into the instance dict so the cached_property descriptor
     # is bypassed on subsequent accesses without polluting the class.
@@ -152,7 +155,9 @@ class TestCreateInputState4D:
         for vi, var in enumerate(VARS):
             # shape: (n_lagged, n_cells) -- single lag of 0, no ensemble dim
             expected = data[2, vi, 0, :]
-            np.testing.assert_array_equal(state["fields"][var], expected.reshape(1, N_CELLS))
+            np.testing.assert_array_equal(
+                state["fields"][var], expected.reshape(1, N_CELLS)
+            )
 
     def test_lagged_dates(self):
         """With lagged offsets the correct date slices should be loaded."""
