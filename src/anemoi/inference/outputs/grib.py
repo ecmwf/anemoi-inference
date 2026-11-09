@@ -13,15 +13,12 @@ import json
 import logging
 import re
 from abc import abstractmethod
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, ProcessorConfig, State
 
 from ..grib.encoding import grib_keys
 from ..grib.templates.manager import TemplateManager

@@ -12,13 +12,10 @@ from __future__ import annotations
 import datetime
 import logging
 from pathlib import Path
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
-from pydantic import Field
-from pydantic import FilePath
-from pydantic import field_validator
+from pydantic import Field, FilePath, field_validator
 
 from anemoi.inference.types import ProcessorConfig
 

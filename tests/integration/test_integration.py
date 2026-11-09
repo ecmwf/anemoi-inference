@@ -18,16 +18,12 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 from anemoi.transform.variables import Variable
-from anemoi.utils.testing import TEST_DATA_URL
-from anemoi.utils.testing import GetTestData
-from omegaconf import DictConfig
-from omegaconf import ListConfig
-from omegaconf import OmegaConf
+from anemoi.utils.testing import TEST_DATA_URL, GetTestData
+from omegaconf import DictConfig, ListConfig, OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import save_fake_checkpoint
-from anemoi.inference.testing import testing_registry
+from anemoi.inference.testing import save_fake_checkpoint, testing_registry
 
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)

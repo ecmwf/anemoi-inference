@@ -12,16 +12,11 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import Any
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from earthkit.data.utils.dates import to_datetime
-from omegaconf import DictConfig
-from omegaconf import ListConfig
-from omegaconf import OmegaConf
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import field_validator
+from omegaconf import DictConfig, ListConfig, OmegaConf
+from pydantic import BaseModel, ConfigDict, field_validator
 
 LOG = logging.getLogger(__name__)
 

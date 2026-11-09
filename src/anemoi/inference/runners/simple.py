@@ -13,11 +13,9 @@ from collections.abc import Generator
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.runner import Runner
-from anemoi.inference.runner import RunnerClasses
+from anemoi.inference.runner import Runner, RunnerClasses
 from anemoi.inference.tensors import TensorHandler
-from anemoi.inference.types import IntArray
-from anemoi.inference.types import State
+from anemoi.inference.types import IntArray, State
 
 from . import runner_registry
 

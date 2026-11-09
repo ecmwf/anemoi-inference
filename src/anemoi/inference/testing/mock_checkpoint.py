@@ -170,8 +170,7 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     """
     from anemoi.inference.checkpoint import get_multi_dataset_metadata
 
-    from .mock_model import SimpleMockModel
-    from .mock_model import VariableOutputSetting
+    from .mock_model import SimpleMockModel, VariableOutputSetting
 
     assert weights_only is False, "Not implemented"
 

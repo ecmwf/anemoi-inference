@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING
 from ..context import Context
 from ..decorators import main_argument
 from ..metadata import Metadata
-from ..types import Date
-from ..types import State
+from ..types import Date, State
 from . import input_registry
 from .ekd import EkdInput
 

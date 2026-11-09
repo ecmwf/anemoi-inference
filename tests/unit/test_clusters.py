@@ -8,18 +8,14 @@
 # nor does it submit to any jurisdiction.
 
 import os
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters import create_cluster
+from anemoi.inference.clusters import cluster_registry, create_cluster
 from anemoi.inference.clusters.distributed import DistributedCluster
-from anemoi.inference.clusters.manual import ManualClient
-from anemoi.inference.clusters.manual import ManualSpawner
-from anemoi.inference.clusters.mapping import EnvMapping
-from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.manual import ManualClient, ManualSpawner
+from anemoi.inference.clusters.mapping import EnvMapping, MappingCluster
 from anemoi.inference.clusters.mpi import MPICluster
 from anemoi.inference.clusters.slurm import SlurmCluster
 from anemoi.inference.context import Context

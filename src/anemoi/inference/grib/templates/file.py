@@ -10,8 +10,7 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 import earthkit.data as ekd
 
@@ -19,8 +18,7 @@ from anemoi.inference.decorators import main_argument
 from anemoi.inference.inputs.ekd import find_variable
 from anemoi.inference.types import State
 
-from . import TemplateProvider
-from . import template_provider_registry
+from . import TemplateProvider, template_provider_registry
 from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
