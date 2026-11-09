@@ -187,11 +187,7 @@ class Runner(Context):
 
     @property
     def checkpoint(self) -> Checkpoint:
-        """Returns
-        ----------
-        Checkpoint
-            The checkpoint object.
-        """
+        """The checkpoint object."""
         return self._checkpoint
 
     @property
@@ -304,11 +300,7 @@ class Runner(Context):
 
     @cached_property
     def model(self) -> "torch.nn.Module":
-        """Returns
-        ----------
-        Any
-            The loaded model.
-        """
+        """The loaded model."""
         from anemoi.utils.humanize import bytes_to_human
 
         try:

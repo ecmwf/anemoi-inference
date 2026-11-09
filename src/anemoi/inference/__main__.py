@@ -29,12 +29,7 @@ def create_parser() -> Any:
 
 
 def main() -> None:
-    """Execute the main command-line interface.
-
-    Returns
-    -------
-    None
-    """
+    """Execute the main command-line interface."""
     cli_main(__version__, __doc__, COMMANDS)
 
 
