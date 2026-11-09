@@ -28,9 +28,7 @@ def test_patch_metadata_warns_on_new_keys(caplog) -> None:
         metadata = checkpoint.multi_dataset_metadata
 
     assert any(
-        "did not exist" in record.message
-        and "dataset.variable_metadata" in record.message
-        for record in caplog.records
+        "did not exist" in record.message and "dataset.variable_metadata" in record.message for record in caplog.records
     )
 
     # the new key is warned about but still applied (adding missing keys can be deliberate)

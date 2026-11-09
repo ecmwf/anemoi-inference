@@ -32,89 +32,43 @@ from anemoi.inference.schemas import OutputVariableConfig
         pytest.param(["z_*"], ["z_500"], id="glob_prefix"),
         pytest.param("*_500", ["z_500"], id="glob_suffix"),
         pytest.param({"select": ["?t"]}, ["2t"], id="glob_single_char"),
-        pytest.param(
-            {"select": ["cp", "z_*"]}, ["cp", "z_500"], id="glob_mixed_with_literal"
-        ),
+        pytest.param({"select": ["cp", "z_*"]}, ["cp", "z_500"], id="glob_mixed_with_literal"),
         pytest.param({"drop": ["z_*"]}, ["2t", "cp"], id="glob_drop"),
         pytest.param({"select": ["t_*"]}, [], id="glob_no_match_select"),
         pytest.param({"drop": ["t_*"]}, ["2t", "cp", "z_500"], id="glob_no_match_drop"),
-        pytest.param(
-            {"select": [{"levtype": "pl", "levelist": 500}]},
-            ["z_500"],
-            id="mars_and_keys",
-        ),
-        pytest.param(
-            {"select": [{"levtype": "pl", "levelist": 850}]},
-            [],
-            id="mars_and_keys_no_match",
-        ),
+        pytest.param({"select": [{"levtype": "pl", "levelist": 500}]}, ["z_500"], id="mars_and_keys"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": 850}]}, [], id="mars_and_keys_no_match"),
         pytest.param({"select": [{"param": "c*"}]}, ["cp"], id="mars_glob_value"),
         pytest.param({"select": [{"nokey": "x"}]}, [], id="mars_missing_key"),
-        pytest.param(
-            {"select": ["2t", {"levtype": "pl"}]},
-            ["2t", "z_500"],
-            id="mars_mixed_with_name",
-        ),
+        pytest.param({"select": ["2t", {"levtype": "pl"}]}, ["2t", "z_500"], id="mars_mixed_with_name"),
         pytest.param({"drop": [{"levtype": "sfc"}]}, ["z_500"], id="mars_drop"),
-        pytest.param(
-            {"select": [{"param": ["2t", "z"], "levtype": "sfc"}]},
-            ["2t"],
-            id="mars_list_and_keys",
-        ),
+        pytest.param({"select": [{"param": ["2t", "z"], "levtype": "sfc"}]}, ["2t"], id="mars_list_and_keys"),
         pytest.param({"select": [{"param": []}]}, [], id="mars_empty_list_value"),
         pytest.param({"select": [{}, "cp"]}, ["cp"], id="mars_empty_mapping_ignored"),
         pytest.param({"select": [{}]}, [], id="mars_empty_mapping_only_select"),
-        pytest.param(
-            {"drop": [{}]}, ["2t", "cp", "z_500"], id="mars_empty_mapping_only_drop"
-        ),
+        pytest.param({"drop": [{}]}, ["2t", "cp", "z_500"], id="mars_empty_mapping_only_drop"),
     ],
 )
 def test_output_variables(
-    input_variables,
-    expected_written,
-    tmp_path,
-    mocker,
-    basic_context,
-    basic_metadata,
-    basic_state,
+    input_variables, expected_written, tmp_path, mocker, basic_context, basic_metadata, basic_state
 ):
     writer = mocker.patch("anemoi.inference.outputs.raw.np.savez_compressed")
-    output = RawOutput(
-        basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables
-    )
+    output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables)
     output.write_step(basic_state)
     written = writer.call_args.kwargs
 
-    assert (
-        sorted(
-            key.removeprefix("field_") for key in written if key.startswith("field_")
-        )
-        == expected_written
-    )
+    assert sorted(key.removeprefix("field_") for key in written if key.startswith("field_")) == expected_written
 
 
 @pytest.mark.parametrize(
     "input_variables",
     [
-        pytest.param(
-            {"select": [{"levelist": 500}, {"levelist": 600}]}, id="separate_mappings"
-        ),
-        pytest.param(
-            {"select": [{"levtype": "pl", "levelist": "[56]00"}]}, id="glob_value"
-        ),
-        pytest.param(
-            {"select": [{"levtype": "pl", "levelist": [500, 600]}]}, id="list_value"
-        ),
-        pytest.param(
-            {"select": [{"levelist": [500, "6*"], "param": ["t", "z"]}]},
-            id="list_values_and_keys",
-        ),
-        pytest.param(
-            {"drop": [{"levtype": "sfc"}, {"levelist": [850]}]}, id="drop_list_value"
-        ),
-        pytest.param(
-            {"drop": [{"levtype": "sfc"}, {"levelist": 850}]}, id="drop_mappings"
-        ),
+        pytest.param({"select": [{"levelist": 500}, {"levelist": 600}]}, id="separate_mappings"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": "[56]00"}]}, id="glob_value"),
+        pytest.param({"select": [{"levtype": "pl", "levelist": [500, 600]}]}, id="list_value"),
+        pytest.param({"select": [{"levelist": [500, "6*"], "param": ["t", "z"]}]}, id="list_values_and_keys"),
+        pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": [850]}]}, id="drop_list_value"),
+        pytest.param({"drop": [{"levtype": "sfc"}, {"levelist": 850}]}, id="drop_mappings"),
     ],
 )
 def test_output_variables_multiple_levels(
@@ -122,8 +76,7 @@ def test_output_variables_multiple_levels(
 ):
     levels = {
         f"{param}_{level}": Variable.from_dict(
-            f"{param}_{level}",
-            {"mars": {"param": param, "levtype": "pl", "levelist": level}},
+            f"{param}_{level}", {"mars": {"param": param, "levtype": "pl", "levelist": level}}
         )
         for param in ("t", "z")
         for level in (500, 600, 850)
@@ -132,15 +85,11 @@ def test_output_variables_multiple_levels(
     basic_state["fields"].update({name: np.array([1.0]) for name in levels})
 
     writer = mocker.patch("anemoi.inference.outputs.raw.np.savez_compressed")
-    output = RawOutput(
-        basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables
-    )
+    output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=input_variables)
     output.write_step(basic_state)
     written = writer.call_args.kwargs
 
-    assert sorted(
-        key.removeprefix("field_") for key in written if key.startswith("field_")
-    ) == [
+    assert sorted(key.removeprefix("field_") for key in written if key.startswith("field_")) == [
         "t_500",
         "t_600",
         "z_500",
@@ -157,12 +106,8 @@ def test_output_variables_multiple_levels(
         pytest.param({"levtype": "pl"}, id="mars_dict_without_select"),
     ],
 )
-def test_output_variables_failure(
-    input_variables, tmp_path, basic_context, basic_metadata, basic_state
-):
+def test_output_variables_failure(input_variables, tmp_path, basic_context, basic_metadata, basic_state):
     with pytest.raises(ValueError):
         variable_config = OutputVariableConfig(variables=input_variables)
-        output = RawOutput(
-            basic_context, basic_metadata, dir=str(tmp_path), variables=variable_config
-        )
+        output = RawOutput(basic_context, basic_metadata, dir=str(tmp_path), variables=variable_config)
         output.write_step(basic_state)

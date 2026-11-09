@@ -12,7 +12,8 @@ import os
 
 from anemoi.inference.clusters import cluster_registry
 from anemoi.inference.clusters.client import ComputeClientFactory
-from anemoi.inference.clusters.spawner import SPAWN_FUNCTION, ComputeSpawner
+from anemoi.inference.clusters.spawner import SPAWN_FUNCTION
+from anemoi.inference.clusters.spawner import ComputeSpawner
 from anemoi.inference.config import Configuration
 
 LOG = logging.getLogger(__name__)
@@ -68,11 +69,7 @@ class ManualSpawner(ComputeSpawner):
 
         for pid in range(self._world_size):
             factory = ManualClient(
-                world_size=self._world_size,
-                local_rank=pid,
-                global_rank=pid,
-                master_addr="localhost",
-                master_port=port,
+                world_size=self._world_size, local_rank=pid, global_rank=pid, master_addr="localhost", master_port=port
             )
             process = mp.Process(target=fn, args=(config, factory))
             process.start()
@@ -97,14 +94,7 @@ class ManualSpawner(ComputeSpawner):
 
 
 class ManualClient(ComputeClientFactory):
-    def __init__(
-        self,
-        world_size: int,
-        local_rank: int,
-        global_rank: int,
-        master_addr: str,
-        master_port: int,
-    ) -> None:
+    def __init__(self, world_size: int, local_rank: int, global_rank: int, master_addr: str, master_port: int) -> None:
         """Initialise the ManualClient."""
         self._world_size = world_size
         self._local_rank = local_rank

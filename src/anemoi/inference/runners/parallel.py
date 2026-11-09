@@ -14,7 +14,8 @@ from typing import Any
 from anemoi.utils.logs import enable_logging_name
 
 from anemoi.inference.clusters import create_cluster
-from anemoi.inference.clusters.client import ComputeClient, ComputeClientFactory
+from anemoi.inference.clusters.client import ComputeClient
+from anemoi.inference.clusters.client import ComputeClientFactory
 from anemoi.inference.clusters.spawner import ComputeSpawner
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch
@@ -28,9 +29,7 @@ from . import runner_registry
 LOG = logging.getLogger(__name__)
 
 
-def create_parallel_runner(
-    config: Configuration, client_factory: ComputeClientFactory
-) -> None:
+def create_parallel_runner(config: Configuration, client_factory: ComputeClientFactory) -> None:
     """Creates and runs a parallel runner.
 
     Parameters
@@ -87,13 +86,9 @@ class ParallelRunnerFactory:
         except ValueError:
             raise ValueError(f"Base runner '{base_runner}' not found in the registry.")
 
-        assert issubclass(base_class, Runner), (
-            f"Base runner '{base_runner}' must be a subclass of Runner."
-        )
+        assert issubclass(base_class, Runner), f"Base runner '{base_runner}' must be a subclass of Runner."
 
-        LOG.debug(
-            f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})"
-        )
+        LOG.debug(f"Creating ParallelRunner from base runner: {base_runner} ({base_class.__name__})")
 
         ParallelRunner = cls.get_class(base_class)
         if not isinstance(cluster, (ComputeClient,)):
@@ -106,9 +101,7 @@ class ParallelRunnerFactory:
                 compute.spawn(create_parallel_runner, config)
             return NoOp()
 
-        compute_client = (
-            compute if isinstance(compute, ComputeClient) else compute.create_client()
-        )
+        compute_client = compute if isinstance(compute, ComputeClient) else compute.create_client()
 
         LOG.info(f"Using compute client provider: {compute!r}")
         return ParallelRunner(config, *args, compute_client=compute_client, **kwargs)
@@ -122,9 +115,7 @@ class ParallelRunnerFactory:
 class ParallelRunnerMixin(Runner):
     """Runner which splits a model over multiple devices. Should be mixed in with a base runner class."""
 
-    def __init__(
-        self, config: Any, compute_client: ComputeClient | None = None, **kwargs
-    ) -> None:
+    def __init__(self, config: Any, compute_client: ComputeClient | None = None, **kwargs) -> None:
         """Initialises the ParallelRunner.
 
         Parameters
@@ -135,12 +126,8 @@ class ParallelRunnerMixin(Runner):
             The compute client to use for distributed inference
         """
 
-        compute_client = (
-            compute_client or create_cluster(config.cluster or {}).create_client()
-        )  # type: ignore
-        assert isinstance(compute_client, ComputeClient), (
-            "Compute client must be an instance of ComputeClient."
-        )
+        compute_client = compute_client or create_cluster(config.cluster or {}).create_client()  # type: ignore
+        assert isinstance(compute_client, ComputeClient), "Compute client must be an instance of ComputeClient."
 
         # Set up logging name based on actual cluster rank
         enable_logging_name(f"rank{compute_client.global_rank:02d}")
@@ -176,9 +163,7 @@ class ParallelRunnerMixin(Runner):
         """
 
         if self.is_master:
-            seed = (
-                torch.initial_seed()
-            )  # will pick up the seed set by the base `Runner`
+            seed = torch.initial_seed()  # will pick up the seed set by the base `Runner`
             seed_list = [seed]
             torch.distributed.broadcast_object_list(seed_list, src=0, group=comm_group)
         else:
@@ -188,9 +173,7 @@ class ParallelRunnerMixin(Runner):
 
         torch.manual_seed(seed)
 
-    def predict_step(
-        self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any
-    ) -> "torch.Tensor":
+    def predict_step(self, model: Any, input_tensor_torch: "torch.Tensor", **kwargs: Any) -> "torch.Tensor":
         """Performs a prediction step.
 
         Parameters

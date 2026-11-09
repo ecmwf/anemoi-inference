@@ -37,9 +37,7 @@ ALL_FIELDS = ["a", "b", "c", "d", "e"]
 # ── fixtures / helpers ────────────────────────────────────────────────────────
 
 
-def _make_context_and_metadata(
-    *, lead_time=None, multi_step_output=1, write_initial_state=False
-):
+def _make_context_and_metadata(*, lead_time=None, multi_step_output=1, write_initial_state=False):
     context = MagicMock()
     context.reference_date = START
     context.typed_variables = {}
@@ -69,10 +67,7 @@ def _make_state(step_index, field_names=ALL_FIELDS):
         "step": step_index * TIMESTEP,
         "latitudes": np.arange(N_VALUES, dtype="f4"),
         "longitudes": np.arange(N_VALUES, dtype="f4"),
-        "fields": {
-            name: np.full(N_VALUES, float(v), dtype="f4")
-            for v, name in enumerate(field_names)
-        },
+        "fields": {name: np.full(N_VALUES, float(v), dtype="f4") for v, name in enumerate(field_names)},
     }
 
 
@@ -121,9 +116,7 @@ class TestNetCDFTimeIndex:
             assert list(periods) == [int(s["step"].total_seconds()) for s in forecast]
             for i, s in enumerate(forecast):
                 for name in ALL_FIELDS:
-                    np.testing.assert_array_equal(
-                        ds.variables[name][i], s["fields"][name]
-                    )
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
         finally:
             ds.close()
 
@@ -147,9 +140,7 @@ class TestNetCDFTimeIndex:
             assert list(periods) == [int(s["step"].total_seconds()) for s in forecast]
             for i, s in enumerate(forecast):
                 for name in ALL_FIELDS:
-                    np.testing.assert_array_equal(
-                        ds.variables[name][i], s["fields"][name]
-                    )
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
         finally:
             ds.close()
 
@@ -174,16 +165,10 @@ class TestNetCDFTimeIndex:
         a = self._read(tmp_path / "whole.nc")
         b = self._read(tmp_path / "split.nc")
         try:
-            np.testing.assert_array_equal(
-                a.variables["forecast_period"][:], b.variables["forecast_period"][:]
-            )
-            np.testing.assert_array_equal(
-                a.variables["time"][:], b.variables["time"][:]
-            )
+            np.testing.assert_array_equal(a.variables["forecast_period"][:], b.variables["forecast_period"][:])
+            np.testing.assert_array_equal(a.variables["time"][:], b.variables["time"][:])
             for name in ALL_FIELDS:
-                np.testing.assert_array_equal(
-                    a.variables[name][:], b.variables[name][:]
-                )
+                np.testing.assert_array_equal(a.variables[name][:], b.variables[name][:])
         finally:
             a.close()
             b.close()
@@ -204,9 +189,7 @@ class TestNetCDFTimeIndex:
         try:
             for i, s in enumerate(forecast):
                 for name in ALL_FIELDS:
-                    np.testing.assert_array_equal(
-                        ds.variables[name][i], s["fields"][name]
-                    )
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
         finally:
             ds.close()
 
@@ -224,15 +207,11 @@ class TestNetCDFTimeIndex:
         ds = self._read(tmp_path / "out.nc")
         try:
             periods = ds.variables["forecast_period"][:]
-            assert list(periods) == [0] + [
-                int(s["step"].total_seconds()) for s in forecast
-            ]
+            assert list(periods) == [0] + [int(s["step"].total_seconds()) for s in forecast]
             all_states = [step0] + forecast
             for i, s in enumerate(all_states):
                 for name in ALL_FIELDS:
-                    np.testing.assert_array_equal(
-                        ds.variables[name][i], s["fields"][name]
-                    )
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
         finally:
             ds.close()
 
@@ -256,9 +235,7 @@ class TestNetCDFTimeIndex:
             assert list(periods) == [int(s["step"].total_seconds()) for s in forecast]
             for i, s in enumerate(forecast):
                 for name in ALL_FIELDS:
-                    np.testing.assert_array_equal(
-                        ds.variables[name][i], s["fields"][name]
-                    )
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
         finally:
             ds.close()
 
@@ -297,9 +274,7 @@ class TestNetCDFTimeIndex:
             assert list(periods) == [int(s["step"].total_seconds()) for s in forecast]
             for i, s in enumerate(forecast):
                 for name in ALL_FIELDS:
-                    np.testing.assert_array_equal(
-                        ds.variables[name][i], s["fields"][name]
-                    )
+                    np.testing.assert_array_equal(ds.variables[name][i], s["fields"][name])
         finally:
             ds.close()
 
@@ -308,9 +283,7 @@ class TestNetCDFTimeIndex:
 
 
 class TestZarrTimeIndex:
-    def _make_output(
-        self, store, *, multi_step_output=1, write_initial_state=False, lead_time=None
-    ):
+    def _make_output(self, store, *, multi_step_output=1, write_initial_state=False, lead_time=None):
         pytest.importorskip("zarr")
         from anemoi.inference.outputs.zarr import ZarrOutput
 
@@ -319,9 +292,7 @@ class TestZarrTimeIndex:
             multi_step_output=multi_step_output,
             write_initial_state=write_initial_state,
         )
-        metadata.typed_variables = {
-            name: SimpleNamespace(grib_keys={"param": name}) for name in ALL_FIELDS
-        }
+        metadata.typed_variables = {name: SimpleNamespace(grib_keys={"param": name}) for name in ALL_FIELDS}
         return ZarrOutput(context, metadata, store=str(store))
 
     def _read(self, store):
@@ -343,9 +314,7 @@ class TestZarrTimeIndex:
         times = g["time"][:]
         # time value is (date - reference_date) in seconds; reference_date is
         # resolved by ZarrOutput.open() from the context / offsets.
-        expected = [
-            int((s["date"] - out.reference_date).total_seconds()) for s in forecast
-        ]
+        expected = [int((s["date"] - out.reference_date).total_seconds()) for s in forecast]
         assert list(times[: len(forecast)]) == expected
         for i, s in enumerate(forecast):
             for name in ALL_FIELDS:
@@ -364,9 +333,7 @@ class TestZarrTimeIndex:
 
         g = self._read(store)
         times = g["time"][:]
-        expected = [
-            int((s["date"] - out.reference_date).total_seconds()) for s in forecast
-        ]
+        expected = [int((s["date"] - out.reference_date).total_seconds()) for s in forecast]
         # only the first len(forecast) slots are written; the rest stay at fill
         assert list(times[: len(forecast)]) == expected
         for i, s in enumerate(forecast):
@@ -426,9 +393,7 @@ class TestZarrTimeIndex:
         g = self._read(store)
         all_states = [step0] + forecast
         times = g["time"][:]
-        expected = [
-            int((s["date"] - out.reference_date).total_seconds()) for s in all_states
-        ]
+        expected = [int((s["date"] - out.reference_date).total_seconds()) for s in all_states]
         assert list(times[: len(all_states)]) == expected
         for i, s in enumerate(all_states):
             for name in ALL_FIELDS:

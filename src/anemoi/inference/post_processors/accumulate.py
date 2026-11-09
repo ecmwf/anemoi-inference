@@ -15,7 +15,8 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import FloatArray, State
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
@@ -54,11 +55,7 @@ class Accumulate(Processor):
 
         self.accumulations = accumulations
         self.allow_negative = allow_negative
-        LOG.info(
-            "Accumulating fields %s (allow_negative=%s)",
-            self.accumulations,
-            self.allow_negative,
-        )
+        LOG.info("Accumulating fields %s (allow_negative=%s)", self.accumulations, self.allow_negative)
 
         self.accumulators: dict[str, FloatArray] = {}
         self.step_zero = timedelta(0)
@@ -81,9 +78,7 @@ class Accumulate(Processor):
         for accumulation in self.accumulations:
             if accumulation in state["fields"]:
                 if accumulation not in self.accumulators:
-                    self.accumulators[accumulation] = np.zeros_like(
-                        state["fields"][accumulation]
-                    )
+                    self.accumulators[accumulation] = np.zeros_like(state["fields"][accumulation])
                 value = state["fields"][accumulation]
                 if not self.allow_negative:
                     value = np.maximum(0, value)

@@ -9,7 +9,9 @@
 
 
 import logging
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING
+from typing import Literal
+from typing import overload
 
 from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
@@ -99,9 +101,7 @@ def validate_environment(
     import importlib.metadata as imp_metadata
 
     module_versions = {
-        distribution.metadata.get("Name", "").replace("-", "_"): distribution.metadata[
-            "Version"
-        ]
+        distribution.metadata.get("Name", "").replace("-", "_"): distribution.metadata["Version"]
         for distribution in imp_metadata.distributions()
     }
 
@@ -124,9 +124,7 @@ def validate_environment(
         elif isinstance(version_info, dict) and "version" in version_info:
             return Version(version_info["version"])
         else:
-            raise ValueError(
-                f"Invalid version information for module {module}: {version_info!s}"
-            )
+            raise ValueError(f"Invalid version information for module {module}: {version_info!s}")
 
     if train_environment["python"] != inference_environment["python"]:
         invalid_messages["python"].append(
@@ -136,19 +134,14 @@ def validate_environment(
     for module in train_environment["module_versions"].keys():
         inference_module_name = module  # Due to package name differences between retrieval methods this may change
 
-        if (
-            not all_packages
-            and "anemoi" not in module
-            or module in exempt_packages
-            or module.split(".")[0] in EXEMPT_NAMESPACES
-            or module.startswith("_")
-        ):
+        if not all_packages and "anemoi" not in module:
+            continue
+        elif module in exempt_packages or module.split(".")[0] in EXEMPT_NAMESPACES:
+            continue
+        elif module.startswith("_"):
             continue
         elif module not in inference_environment["module_versions"]:
-            if (
-                "." in module
-                and module.replace(".", "_") in inference_environment["module_versions"]
-            ):
+            if "." in module and module.replace(".", "_") in inference_environment["module_versions"]:
                 inference_module_name = module.replace(".", "_")
             else:
                 try:
@@ -163,12 +156,8 @@ def validate_environment(
                 )
                 continue
 
-        train_environment_version = version_parser(
-            train_environment["module_versions"][module]
-        )
-        inference_environment_version = version_parser(
-            inference_environment["module_versions"][inference_module_name]
-        )
+        train_environment_version = version_parser(train_environment["module_versions"][module])
+        inference_environment_version = version_parser(inference_environment["module_versions"][inference_module_name])
 
         if train_environment_version < inference_environment_version:
             invalid_messages["mismatch"].append(
@@ -213,15 +202,8 @@ def validate_environment(
             )
 
     if any(invalid_messages.values()):
-        text = (
-            "Environment validation failed. The following issues were found:\n"
-            + "\n".join(
-                [
-                    f"  {key}:\n    " + "\n    ".join(value)
-                    for key, value in invalid_messages.items()
-                    if len(value) > 0
-                ]
-            )
+        text = "Environment validation failed. The following issues were found:\n" + "\n".join(
+            [f"  {key}:\n    " + "\n    ".join(value) for key, value in invalid_messages.items() if len(value) > 0]
         )
         if on_difference == "warn":
             LOG.warning(text)

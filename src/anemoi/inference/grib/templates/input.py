@@ -14,7 +14,8 @@ import earthkit.data as ekd
 
 from anemoi.inference.types import State
 
-from . import TemplateProvider, template_provider_registry
+from . import TemplateProvider
+from . import template_provider_registry
 from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
@@ -57,12 +58,8 @@ class InputTemplates(TemplateProvider):
             return template
 
         if fallback_variable := self.fallback.get(variable):
-            if template := state.get("_grib_templates_for_output", {}).get(
-                fallback_variable
-            ):
+            if template := state.get("_grib_templates_for_output", {}).get(fallback_variable):
                 return template
-            LOG.warning(
-                f"Fallback variable '{fallback_variable}' for output '{variable}' not found in input state."
-            )
+            LOG.warning(f"Fallback variable '{fallback_variable}' for output '{variable}' not found in input state.")
 
         return None

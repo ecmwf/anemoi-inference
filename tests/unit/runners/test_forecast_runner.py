@@ -11,7 +11,8 @@ import pytest
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import fake_checkpoints, files_for_tests
+from anemoi.inference.testing import fake_checkpoints
+from anemoi.inference.testing import files_for_tests
 
 
 @pytest.mark.parametrize("config_name", ["simple", "mwd", "atmos", "ocean"])

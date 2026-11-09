@@ -14,9 +14,7 @@ from anemoi.utils.registry import Registry
 task_registry = Registry(__name__)
 
 
-def create_task(
-    name: str, config: dict[str, Any], global_config: dict[str, Any]
-) -> Any:
+def create_task(name: str, config: dict[str, Any], global_config: dict[str, Any]) -> Any:
     """Create a task instance based on the given configuration.
 
     Parameters

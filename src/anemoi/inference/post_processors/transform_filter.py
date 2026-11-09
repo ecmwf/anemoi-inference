@@ -9,7 +9,8 @@
 
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from datetime import timedelta
 from typing import Any
 
@@ -23,7 +24,8 @@ from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
-from .earthkit_state import unwrap_state, wrap_state
+from .earthkit_state import unwrap_state
+from .earthkit_state import wrap_state
 
 LOG = logging.getLogger(__name__)
 
@@ -100,9 +102,7 @@ class TransformFilter(Processor, ABC):
         State
             The processed state.
         """
-        if self.skip_initial_state and (
-            "step" not in state or state["step"] == timedelta(0)
-        ):
+        if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
         fields = self._exec_filter(wrap_state(state, self.metadata.typed_variables))

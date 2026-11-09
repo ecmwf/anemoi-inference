@@ -14,7 +14,8 @@ import pickle
 import struct
 from typing import Any
 
-from anemoi.utils.logs import enable_logging_name, set_logging_name
+from anemoi.utils.logs import enable_logging_name
+from anemoi.utils.logs import set_logging_name
 
 from anemoi.inference.task import Task
 from anemoi.inference.types import State
@@ -29,9 +30,7 @@ LOG = logging.getLogger(__name__)
 class ProcessesTransport(Transport):
     """Transport implementation using processes."""
 
-    def __init__(
-        self, couplings: Any, tasks: dict[str, Any], *args: Any, **kwargs: Any
-    ) -> None:
+    def __init__(self, couplings: Any, tasks: dict[str, Any], *args: Any, **kwargs: Any) -> None:
         """Initialize the ProcessesTransport.
 
         Parameters
@@ -106,9 +105,7 @@ class ProcessesTransport(Transport):
         """Wait for all child processes to complete and handle any errors."""
         while self.children:
             pid, status = os.wait()
-            LOG.info(
-                f"Child process {pid} ({self.children[pid]}) exited with status {status}"
-            )
+            LOG.info(f"Child process {pid} ({self.children[pid]}) exited with status {status}")
             del self.children[pid]
 
             if status != 0:
@@ -117,9 +114,7 @@ class ProcessesTransport(Transport):
 
             if status != 0:
                 LOG.error("One of the child processes failed. Exiting.")
-                raise RuntimeError(
-                    f"Child process {pid} ({self.children[pid]}) failed with status {status}"
-                )
+                raise RuntimeError(f"Child process {pid} ({self.children[pid]}) failed with status {status}")
 
     def send(self, sender: Task, target: Task, state: State, tag: int) -> None:
         """Send a state from the sender to the target.

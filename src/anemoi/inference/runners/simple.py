@@ -13,9 +13,11 @@ from collections.abc import Generator
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.forcings import Forcings
-from anemoi.inference.runner import Runner, RunnerClasses
+from anemoi.inference.runner import Runner
+from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.tensors import TensorHandler
-from anemoi.inference.types import IntArray, State
+from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 from . import runner_registry
 
@@ -25,24 +27,14 @@ LOG = logging.getLogger(__name__)
 class SimpleTensorHandler(TensorHandler):
     """This tensor handler only supports computed forcings."""
 
-    def create_constant_coupled_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
-        LOG.warning(
-            f"[{self.dataset_name}] Constant forcings are not supported by this runner."
-        )
+    def create_constant_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        LOG.warning(f"[{self.dataset_name}] Constant forcings are not supported by this runner.")
         if variables:
-            LOG.warning(
-                f"[{self.dataset_name}] {variables} must be provided in the input state by the user."
-            )
+            LOG.warning(f"[{self.dataset_name}] {variables} must be provided in the input state by the user.")
         return []
 
-    def create_dynamic_coupled_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[Forcings]:
-        LOG.warning(
-            f"[{self.dataset_name}] Dynamic forcings are not supported by this runner."
-        )
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[Forcings]:
+        LOG.warning(f"[{self.dataset_name}] Dynamic forcings are not supported by this runner.")
         if variables:
             LOG.warning(
                 f"[{self.dataset_name}] {variables} must be provided in the input state and updated during rollout by the user."
@@ -74,9 +66,7 @@ class SimpleRunner(Runner):
             output=kwargs.pop("output", "none"),
             **kwargs,
         )
-        super().__init__(
-            config, classes=RunnerClasses(tensor_handler=SimpleTensorHandler)
-        )
+        super().__init__(config, classes=RunnerClasses(tensor_handler=SimpleTensorHandler))
 
     def execute(self) -> None:
         raise NotImplementedError(

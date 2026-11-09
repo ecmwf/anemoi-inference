@@ -27,18 +27,14 @@ import numpy as np
 from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.post_processors.undo_coordinate_reorder import (
-    UndoCoordinateReorder,
-)
+from anemoi.inference.post_processors.undo_coordinate_reorder import UndoCoordinateReorder
 from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
 
 
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def _source_and_target_grids() -> tuple[
-    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
-]:
+def _source_and_target_grids() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Build a small (target, source) grid pair plus per-point signals.
 
     Returns
@@ -62,8 +58,7 @@ def _source_and_target_grids() -> tuple[
     source_signal = np.empty_like(target_signal)
     for i in range(source_lat.size):
         j = np.where(
-            np.isclose(target_lat, source_lat[i])
-            & np.isclose(np.mod(target_lon, 360.0), np.mod(source_lon[i], 360.0))
+            np.isclose(target_lat, source_lat[i]) & np.isclose(np.mod(target_lon, 360.0), np.mod(source_lon[i], 360.0))
         )[0][0]
         source_signal[i] = target_signal[j]
 
@@ -85,9 +80,7 @@ def _fieldlist(values, lat, lon, param="2t"):
     )
 
 
-def _make_reorder(
-    mocker: MockerFixture, model_lat, model_lon, decimals: int = 4
-) -> CoordinateReorder:
+def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4) -> CoordinateReorder:
     """Create a CoordinateReorder pre-processor targeting the given model grid."""
     metadata = cast(Metadata, mocker.MagicMock())
     metadata.dataset_name = "data"
@@ -114,9 +107,7 @@ def test_undo_reorder_round_trips(mocker: MockerFixture):
     post-processor must map it back so the final per-point values and
     coordinates match the original source state exactly.
     """
-    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = (
-        _source_and_target_grids()
-    )
+    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = _source_and_target_grids()
 
     pre = _make_reorder(mocker, target_lat, target_lon)
     reordered = pre.process(
@@ -152,9 +143,7 @@ def test_undo_reorder_round_trips(mocker: MockerFixture):
 
 def test_undo_reorder_round_trips_multidimensional_fields(mocker: MockerFixture):
     """The undo reorders along the last (grid) axis for multi-dim fields."""
-    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = (
-        _source_and_target_grids()
-    )
+    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = _source_and_target_grids()
 
     pre = _make_reorder(mocker, target_lat, target_lon)
     reordered = pre.process(

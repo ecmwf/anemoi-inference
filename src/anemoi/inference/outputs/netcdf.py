@@ -10,21 +10,21 @@
 import logging
 import os
 import threading
-from datetime import UTC, datetime
+from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import ProcessorConfig, State
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
-from ..decorators import (
-    ensure_path,
-    format_dataset_name,
-    main_argument,
-    supports_parallel_output,
-)
+from ..decorators import ensure_path
+from ..decorators import format_dataset_name
+from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..output import Output
 from ..types import OutputVariableConfigUnion
 from . import output_registry
@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 LOCK = threading.RLock()
 
 CALENDAR = "standard"
-EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 @output_registry.register("netcdf")
@@ -142,9 +142,7 @@ class NetCDFOutput(Output):
         # start time of forecast
         # no dimensions, scalar variable
         with LOCK:
-            self.reference_date_var = self.ncfile.createVariable(
-                "forecast_reference_time", "i8"
-            )
+            self.reference_date_var = self.ncfile.createVariable("forecast_reference_time", "i8")
             self.reference_date_var.standard_name = "forecast_reference_time"
             self.reference_date_var.long_name = "start time of forecast"
             self.reference_date_var.units = f"seconds since {EPOCH}"
@@ -154,9 +152,7 @@ class NetCDFOutput(Output):
         # valid time
         # time dimension coordinate
         with LOCK:
-            self.time_var = self.ncfile.createVariable(
-                "time", "i8", ("time",), **compression
-            )
+            self.time_var = self.ncfile.createVariable("time", "i8", ("time",), **compression)
             self.time_var.standard_name = "time"
             self.time_var.long_name = "valid time"
             self.time_var.units = f"seconds since {EPOCH}"
@@ -166,9 +162,7 @@ class NetCDFOutput(Output):
         # forecast period / lead time
         # time dimension auxiliary coordinate
         with LOCK:
-            self.period_var = self.ncfile.createVariable(
-                "forecast_period", "i8", ("time",), **compression
-            )
+            self.period_var = self.ncfile.createVariable("forecast_period", "i8", ("time",), **compression)
             self.period_var.standard_name = "forecast_period"
             self.period_var.long_name = "lead time"
             self.period_var.units = "seconds"
@@ -177,17 +171,13 @@ class NetCDFOutput(Output):
         # values dimension auxiliary coordinates
         with LOCK:
             latitudes = state["latitudes"]
-            self.lat_var = self.ncfile.createVariable(
-                "latitude", self.float_size, ("values",), **compression
-            )
+            self.lat_var = self.ncfile.createVariable("latitude", self.float_size, ("values",), **compression)
             self.lat_var.standard_name = "latitude"
             self.lat_var.units = "degrees_north"
             self.lat_var[:] = latitudes
 
             longitudes = state["longitudes"]
-            self.lon_var = self.ncfile.createVariable(
-                "longitude", self.float_size, ("values",), **compression
-            )
+            self.lon_var = self.ncfile.createVariable("longitude", self.float_size, ("values",), **compression)
             self.lon_var.standard_name = "longitude"
             self.lon_var.units = "degrees_east"
             self.lon_var[:] = longitudes
@@ -240,11 +230,7 @@ class NetCDFOutput(Output):
 
                 self.vars[name].fill_value = missing_value
                 self.vars[name].missing_value = missing_value
-                self.vars[
-                    name
-                ].coordinates = (
-                    "forecast_reference_time forecast_period latitude longitude"
-                )
+                self.vars[name].coordinates = "forecast_reference_time forecast_period latitude longitude"
 
     def write_step(self, state: State) -> None:
         """Write the state.
@@ -298,6 +284,6 @@ class NetCDFOutput(Output):
 def _to_epoch_seconds(dt: datetime) -> int:
     """Exact integer seconds since epoch, from a plain python datetime."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)  # assume naive datetimes are UTC
+        dt = dt.replace(tzinfo=timezone.utc)  # assume naive datetimes are UTC
     delta = dt - EPOCH
     return delta.days * 86400 + delta.seconds

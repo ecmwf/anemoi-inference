@@ -18,12 +18,16 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 from anemoi.transform.variables import Variable
-from anemoi.utils.testing import TEST_DATA_URL, GetTestData
-from omegaconf import DictConfig, ListConfig, OmegaConf
+from anemoi.utils.testing import TEST_DATA_URL
+from anemoi.utils.testing import GetTestData
+from omegaconf import DictConfig
+from omegaconf import ListConfig
+from omegaconf import OmegaConf
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import save_fake_checkpoint, testing_registry
+from anemoi.inference.testing import save_fake_checkpoint
+from anemoi.inference.testing import testing_registry
 
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)
@@ -46,9 +50,7 @@ def _markers(config: DictConfig):
 MODELS = [
     path.name
     for path in INTEGRATION_ROOT.iterdir()
-    if path.is_dir()
-    and (path / "metadata.json").exists()
-    and (path / "config.yaml").exists()
+    if path.is_dir() and (path / "metadata.json").exists() and (path / "config.yaml").exists()
 ]
 
 # each model can have more than one test configuration, defined as a listconfig in config.yaml
@@ -121,9 +123,7 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
 
     if supporting_arrays_dict:
         # Pre multi-datasets: values directly contain "path"
-        is_legacy = all(
-            isinstance(v, dict) and "path" in v for v in supporting_arrays_dict.values()
-        )
+        is_legacy = all(isinstance(v, dict) and "path" in v for v in supporting_arrays_dict.values())
 
         if is_legacy:
             array_names = list(supporting_arrays_dict.keys())
@@ -159,32 +159,20 @@ def test_setup(request, get_test_data: GetTestData, tmp_path: Path) -> Setup:
     save_fake_checkpoint(metadata, checkpoint_path, supporting_arrays=supporting_arrays)
 
     # substitute inference config with real paths
-    OmegaConf.register_new_resolver(
-        "input", lambda i=0: str(input_data["data"][i]), replace=True
-    )
-    OmegaConf.register_new_resolver(
-        "output", lambda i=0: str(output["data"][i]), replace=True
-    )
-    OmegaConf.register_new_resolver(
-        "checkpoint", lambda: str(checkpoint_path), replace=True
-    )
-    OmegaConf.register_new_resolver(
-        "s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True
-    )
+    OmegaConf.register_new_resolver("input", lambda i=0: str(input_data["data"][i]), replace=True)
+    OmegaConf.register_new_resolver("output", lambda i=0: str(output["data"][i]), replace=True)
+    OmegaConf.register_new_resolver("checkpoint", lambda: str(checkpoint_path), replace=True)
+    OmegaConf.register_new_resolver("s3", lambda: str(f"{TEST_DATA_URL}{s3_path}"), replace=True)
     OmegaConf.register_new_resolver("sys.prefix", lambda: sys.prefix, replace=True)
 
     # multi-dataset resolvers
     def _make_resolver(data, dataset_name):
         return lambda i=0: str(data[dataset_name][i])
 
-    for dataset in input_data:
-        OmegaConf.register_new_resolver(
-            f"{dataset}.input", _make_resolver(input_data, dataset), replace=True
-        )
+    for dataset in input_data.keys():
+        OmegaConf.register_new_resolver(f"{dataset}.input", _make_resolver(input_data, dataset), replace=True)
     for dataset in output.keys():
-        OmegaConf.register_new_resolver(
-            f"{dataset}.output", _make_resolver(output, dataset), replace=True
-        )
+        OmegaConf.register_new_resolver(f"{dataset}.output", _make_resolver(output, dataset), replace=True)
 
     # save the inference config to disk
     inference_config = OmegaConf.to_yaml(inference_config, resolve=True)
@@ -215,8 +203,7 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
     multi_metadata = runner.checkpoint.multi_dataset_metadata
     checkpoint_output_variables = {
-        dataset: _typed_variables_output(metadata)
-        for dataset, metadata in multi_metadata.items()
+        dataset: _typed_variables_output(metadata) for dataset, metadata in multi_metadata.items()
     }
 
     for dataset, variables in checkpoint_output_variables.items():

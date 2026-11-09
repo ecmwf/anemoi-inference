@@ -16,10 +16,12 @@ from anemoi.utils.dates import as_datetime
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import concat_states
-from anemoi.inference.types import Date, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..input import Input
-from . import create_input, input_registry
+from . import create_input
+from . import input_registry
 
 LOG = logging.getLogger(__name__)
 
@@ -35,13 +37,7 @@ class RepeatedDatesInput(Input):
     trace_name = "repeated dates"
 
     def __init__(
-        self,
-        context: Context,
-        metadata: Metadata,
-        *,
-        source: str,
-        mode: str = "constant",
-        **kwargs: Any,
+        self, context: Context, metadata: Metadata, *, source: str, mode: str = "constant", **kwargs: Any
     ) -> None:
 
         self.date = kwargs.pop("date", None)
@@ -54,17 +50,9 @@ class RepeatedDatesInput(Input):
         assert self.mode in ["constant"], f"Unknown mode {self.mode}"
 
         super().__init__(context, metadata, **kwargs)
-        self.source = create_input(
-            context,
-            source,
-            self.metadata,
-            variables=self.variables,
-            purpose=self.purpose,
-        )
+        self.source = create_input(context, source, self.metadata, variables=self.variables, purpose=self.purpose)
 
-    def create_input_state(
-        self, *, dates: list[Date], ref_date_index=-1, **kwargs
-    ) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
@@ -120,6 +108,7 @@ class RepeatedDatesInput(Input):
         state = None
 
         for date in dates:
+
             s = self.source.load_forcings_state(
                 dates=[self.date],
                 current_state=current_state,

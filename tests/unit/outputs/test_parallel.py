@@ -17,14 +17,12 @@ import numpy as np
 import pytest
 
 from anemoi.inference.decorators import supports_parallel_output
-from anemoi.inference.outputs.parallel import (
-    VALID_CHUNK_STRATEGIES,
-    Chunker,
-    MessageType,
-    ParallelOutput,
-    _detach_tensors,
-    _sanitise_state,
-)
+from anemoi.inference.outputs.parallel import VALID_CHUNK_STRATEGIES
+from anemoi.inference.outputs.parallel import Chunker
+from anemoi.inference.outputs.parallel import MessageType
+from anemoi.inference.outputs.parallel import ParallelOutput
+from anemoi.inference.outputs.parallel import _detach_tensors
+from anemoi.inference.outputs.parallel import _sanitise_state
 from anemoi.inference.outputs.printer import PrinterOutput
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -85,9 +83,7 @@ def _parse_printer_output(path: Path) -> list[dict]:
     for line in path.read_text().splitlines():
         m = _FIELD_LINE_RE.match(line)
         if m:
-            records.append(
-                {"name": m.group(1), "min": float(m.group(2)), "max": float(m.group(3))}
-            )
+            records.append({"name": m.group(1), "min": float(m.group(2)), "max": float(m.group(3))})
     return records
 
 
@@ -119,9 +115,7 @@ def _run_parallel(context, metadata, path, states, num_writers, chunk_strategy=N
     kwargs = {}
     if chunk_strategy is not None:
         kwargs["chunk_strategy"] = chunk_strategy
-    po = ParallelOutput(
-        context, metadata, output=config, num_writers=num_writers, **kwargs
-    )
+    po = ParallelOutput(context, metadata, output=config, num_writers=num_writers, **kwargs)
     po.open(states[0])
     for state in states:
         po.write_state(state)
@@ -145,71 +139,45 @@ class TestParallelOutputCorrectness:
 
     def test_single_writer_matches_sequential(self, tmp_path):
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(3)
-        ]
+        states = [_make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(3)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
-        par = _run_parallel(
-            context, metadata, tmp_path / "par.txt", states, num_writers=1
-        )
+        par = _run_parallel(context, metadata, tmp_path / "par.txt", states, num_writers=1)
 
-        assert _records_equal(seq, par), (
-            f"single writer mismatch:\nseq={seq}\npar={par}"
-        )
+        assert _records_equal(seq, par), f"single writer mismatch:\nseq={seq}\npar={par}"
 
     def test_two_writers_covers_all_fields(self, tmp_path):
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(8, {"step": datetime.timedelta(hours=h)}) for h in range(2)
-        ]
+        states = [_make_state(8, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
-        par = _run_parallel(
-            context, metadata, tmp_path / "par.txt", states, num_writers=2
-        )
+        par = _run_parallel(context, metadata, tmp_path / "par.txt", states, num_writers=2)
 
-        assert _records_equal(seq, par), (
-            "2-writer parallel output differs from sequential"
-        )
+        assert _records_equal(seq, par), "2-writer parallel output differs from sequential"
 
     def test_four_writers_covers_all_fields(self, tmp_path):
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(12, {"step": datetime.timedelta(hours=h)}) for h in range(4)
-        ]
+        states = [_make_state(12, {"step": datetime.timedelta(hours=h)}) for h in range(4)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
-        par = _run_parallel(
-            context, metadata, tmp_path / "par.txt", states, num_writers=4
-        )
+        par = _run_parallel(context, metadata, tmp_path / "par.txt", states, num_writers=4)
 
-        assert _records_equal(seq, par), (
-            "4-writer parallel output differs from sequential"
-        )
+        assert _records_equal(seq, par), "4-writer parallel output differs from sequential"
 
     def test_uneven_field_count(self, tmp_path):
         """7 fields / 3 writers: last writer gets fewer fields."""
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(7, {"step": datetime.timedelta(hours=h)}) for h in range(2)
-        ]
+        states = [_make_state(7, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
-        par = _run_parallel(
-            context, metadata, tmp_path / "par.txt", states, num_writers=3
-        )
+        par = _run_parallel(context, metadata, tmp_path / "par.txt", states, num_writers=3)
 
-        assert _records_equal(seq, par), (
-            "uneven split: parallel output differs from sequential"
-        )
+        assert _records_equal(seq, par), "uneven split: parallel output differs from sequential"
 
     def test_no_duplicate_fields_across_writers(self, tmp_path):
         """Each field name must appear exactly once across all writer files per step."""
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(3)
-        ]
+        states = [_make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(3)]
 
         base = tmp_path / "par.txt"
         _run_parallel(context, metadata, base, states, num_writers=3)
@@ -221,21 +189,15 @@ class TestParallelOutputCorrectness:
         counts = Counter(r["name"] for r in all_records)
         n_steps = len(states)
         for name, count in counts.items():
-            assert count == n_steps, (
-                f"Field {name!r} appears {count} times, expected {n_steps}"
-            )
+            assert count == n_steps, f"Field {name!r} appears {count} times, expected {n_steps}"
 
     def test_field_values_preserved(self, tmp_path):
         """Min/max values written by parallel output must match sequential output."""
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(4, {"step": datetime.timedelta(hours=h)}) for h in range(2)
-        ]
+        states = [_make_state(4, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
-        par = _run_parallel(
-            context, metadata, tmp_path / "par.txt", states, num_writers=2
-        )
+        par = _run_parallel(context, metadata, tmp_path / "par.txt", states, num_writers=2)
 
         seq_map = {r["name"]: (r["min"], r["max"]) for r in seq}
         par_map = {r["name"]: (r["min"], r["max"]) for r in par}
@@ -255,9 +217,7 @@ class TestParallelOutputCorrectness:
 
     def test_by_size_strategy_matches_sequential(self, tmp_path):
         context, metadata = _make_context_and_metadata()
-        states = [
-            _make_state(7, {"step": datetime.timedelta(hours=h)}) for h in range(2)
-        ]
+        states = [_make_state(7, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
         par = _run_parallel(
@@ -272,13 +232,9 @@ class TestParallelOutputCorrectness:
         assert _records_equal(seq, par), "by_size strategy differs from sequential"
 
     def test_by_metadata_strategy_matches_sequential(self, tmp_path):
-        typed = _make_typed_variables(
-            6, levtype=["sfc", "pl", "sfc", "pl", "sfc", "pl"]
-        )
+        typed = _make_typed_variables(6, levtype=["sfc", "pl", "sfc", "pl", "sfc", "pl"])
         context, metadata = _make_context_and_metadata(typed)
-        states = [
-            _make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(2)
-        ]
+        states = [_make_state(6, {"step": datetime.timedelta(hours=h)}) for h in range(2)]
 
         seq = _run_sequential(context, metadata, tmp_path / "seq.txt", states)
         par = _run_parallel(
@@ -405,19 +361,13 @@ class TestChunkerByWorker:
 
     def test_uneven_split(self):
         state = _make_state(7)
-        sizes = [
-            len(s)
-            for s in _chunk_field_sets(Chunker({}, num_writers=3).by_worker(), state)
-        ]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=3).by_worker(), state)]
         assert sum(sizes) == 7
         assert sizes == [3, 3, 1]
 
     def test_more_workers_than_fields_gives_empty_chunks(self):
         state = _make_state(2)
-        sizes = [
-            len(s)
-            for s in _chunk_field_sets(Chunker({}, num_writers=4).by_worker(), state)
-        ]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=4).by_worker(), state)]
         assert sum(sizes) == 2
         # 4 chunks are always yielded, one per worker, some empty
         assert len(sizes) == 4
@@ -442,18 +392,12 @@ class TestChunkerByWorker:
 class TestChunkerBySize:
     def test_exact_multiple(self):
         state = _make_state(6)
-        sizes = [
-            len(s)
-            for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(2), state)
-        ]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(2), state)]
         assert sizes == [2, 2, 2]
 
     def test_remainder_in_last_chunk(self):
         state = _make_state(7)
-        sizes = [
-            len(s)
-            for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(3), state)
-        ]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(3), state)]
         assert sizes == [3, 3, 1]
 
     def test_chunk_larger_than_num_fields(self):
@@ -464,10 +408,7 @@ class TestChunkerBySize:
 
     def test_size_one(self):
         state = _make_state(3)
-        sizes = [
-            len(s)
-            for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(1), state)
-        ]
+        sizes = [len(s) for s in _chunk_field_sets(Chunker({}, num_writers=2).by_size(1), state)]
         assert sizes == [1, 1, 1]
 
     def test_chunks_cover_all_fields_in_order(self):
@@ -504,9 +445,7 @@ class TestChunkerByMetadata:
             level=[500, 500, 850, 850],
         )
         chunker = Chunker(typed, num_writers=2)
-        sets = _chunk_field_sets(
-            chunker.by_metadata(["levtype", "level"]), _make_state(4)
-        )
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype", "level"]), _make_state(4))
         assert {frozenset(s) for s in sets} == {
             frozenset({"field_0", "field_1"}),
             frozenset({"field_2", "field_3"}),
@@ -522,10 +461,7 @@ class TestChunkerByMetadata:
     def test_all_distinct_metadata_one_group_each(self):
         typed = _make_typed_variables(3, level=[100, 200, 300])
         chunker = Chunker(typed, num_writers=2)
-        sizes = [
-            len(s)
-            for s in _chunk_field_sets(chunker.by_metadata(["level"]), _make_state(3))
-        ]
+        sizes = [len(s) for s in _chunk_field_sets(chunker.by_metadata(["level"]), _make_state(3))]
         assert sizes == [1, 1, 1]
 
     def test_covers_all_fields(self):
@@ -538,9 +474,7 @@ class TestChunkerByMetadata:
         # 4 distinct levels -> 4 groups, capped to 2
         typed = _make_typed_variables(4, level=[100, 200, 300, 400])
         chunker = Chunker(typed, num_writers=2)
-        sets = _chunk_field_sets(
-            chunker.by_metadata(["level"], max_groups=2), _make_state(4)
-        )
+        sets = _chunk_field_sets(chunker.by_metadata(["level"], max_groups=2), _make_state(4))
         assert len(sets) == 2
         # every field still present exactly once
         assert set().union(*sets) == {f"field_{i}" for i in range(4)}
@@ -552,9 +486,7 @@ class TestChunkerByMetadata:
     def test_max_groups_larger_than_groups_is_noop(self):
         typed = _make_typed_variables(4, levtype=["sfc", "sfc", "pl", "pl"])
         chunker = Chunker(typed, num_writers=2)
-        sets = _chunk_field_sets(
-            chunker.by_metadata(["levtype"], max_groups=10), _make_state(4)
-        )
+        sets = _chunk_field_sets(chunker.by_metadata(["levtype"], max_groups=10), _make_state(4))
         assert len(sets) == 2
 
     def test_missing_attribute_treated_as_none(self):
@@ -709,9 +641,7 @@ class TestParallelOutputDispatch:
         distributed round-robin (chunk i -> writer i % num_writers).
         """
         # by_size(1) on 5 fields with 2 writers => 5 chunks: w0,w1,w0,w1,w0
-        po = _make_parallel_output(
-            num_writers=2, chunking_func=Chunker({}, 2).by_size(1)
-        )
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
         po._queues, po._processes = self._make_queues_and_processes(2)
         state = _make_state(5)
         po.dispatch_state_to_writers(state, message=MessageType.STATE)
@@ -776,9 +706,7 @@ class TestParallelOutputOpenMerge:
     def test_open_sends_one_message_per_writer_even_with_more_chunks(self):
         # by_size(1) on 5 fields, 2 writers -> 5 chunks round-robin, but OPEN
         # must be merged into a single message per writer.
-        po = _make_parallel_output(
-            num_writers=2, chunking_func=Chunker({}, 2).by_size(1)
-        )
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
         po._queues, po._processes = self._make_queues_and_processes(2)
         po.dispatch_state_to_writers(_make_state(5), message=MessageType.OPEN)
 
@@ -786,9 +714,7 @@ class TestParallelOutputOpenMerge:
         assert po._queues[1].put.call_count == 1
 
     def test_open_merges_worker_chunks(self):
-        po = _make_parallel_output(
-            num_writers=2, chunking_func=Chunker({}, 2).by_size(1)
-        )
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
         po._queues, po._processes = self._make_queues_and_processes(2)
         state = _make_state(5)
         po.dispatch_state_to_writers(state, message=MessageType.OPEN)
@@ -799,9 +725,7 @@ class TestParallelOutputOpenMerge:
         assert per_writer[1] == [(MessageType.OPEN, {"field_1", "field_3"})]
 
     def test_open_covers_all_fields_exactly_once(self):
-        po = _make_parallel_output(
-            num_writers=3, chunking_func=Chunker({}, 3).by_size(1)
-        )
+        po = _make_parallel_output(num_writers=3, chunking_func=Chunker({}, 3).by_size(1))
         po._queues, po._processes = self._make_queues_and_processes(3)
         state = _make_state(7)
         po.dispatch_state_to_writers(state, message=MessageType.OPEN)
@@ -818,9 +742,7 @@ class TestParallelOutputOpenMerge:
         assert all(c == 1 for c in counts.values())
 
     def test_open_by_worker_one_message_per_writer(self):
-        po = _make_parallel_output(
-            num_writers=2, chunking_func=Chunker({}, 2).by_worker()
-        )
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_worker())
         po._queues, po._processes = self._make_queues_and_processes(2)
         po.dispatch_state_to_writers(_make_state(4), message=MessageType.OPEN)
         for q in po._queues:
@@ -829,9 +751,7 @@ class TestParallelOutputOpenMerge:
             assert msg_type == MessageType.OPEN
 
     def test_open_checks_writer_alive(self):
-        po = _make_parallel_output(
-            num_writers=2, chunking_func=Chunker({}, 2).by_size(1)
-        )
+        po = _make_parallel_output(num_writers=2, chunking_func=Chunker({}, 2).by_size(1))
         po._queues, po._processes = self._make_queues_and_processes(2)
         po._processes[1].is_alive.return_value = False
         with pytest.raises(RuntimeError, match="Writer 1 is dead"):
@@ -1046,9 +966,7 @@ class TestParallelOutputWorkerTimeout:
 
 class TestParallelOutputChunkStrategy:
     def _make(self, **kwargs):
-        context, metadata = _make_context_and_metadata(
-            kwargs.pop("typed_variables", None)
-        )
+        context, metadata = _make_context_and_metadata(kwargs.pop("typed_variables", None))
         kwargs.setdefault("output", {"recording": {"path": "out.json"}})
         return ParallelOutput(context, metadata, **kwargs)
 
@@ -1066,9 +984,7 @@ class TestParallelOutputChunkStrategy:
         assert len(list(po.chunking_func(_make_state(6)))) == 3
 
     def test_by_size_dict(self):
-        po = self._make(
-            num_writers=2, chunk_strategy={"by_size": {"fields_per_chunk": 2}}
-        )
+        po = self._make(num_writers=2, chunk_strategy={"by_size": {"fields_per_chunk": 2}})
         sizes = [len(c["fields"]) for c in po.chunking_func(_make_state(6))]
         assert sizes == [2, 2, 2]
 
@@ -1096,9 +1012,7 @@ class TestParallelOutputChunkStrategy:
 
     def test_dict_with_multiple_keys_raises(self):
         with pytest.raises(ValueError, match="exactly one key"):
-            self._make(
-                chunk_strategy={"by_size": {"fields_per_chunk": 2}, "by_worker": {}}
-            )
+            self._make(chunk_strategy={"by_size": {"fields_per_chunk": 2}, "by_worker": {}})
 
     def test_by_size_missing_param_raises(self):
         # by_size requires 'fields_per_chunk'
@@ -1111,38 +1025,22 @@ class TestParallelOutputChunkStrategy:
 
 class TestAddSuffixToPath:
     def test_plain_string(self):
-        assert (
-            supports_parallel_output.add_suffix_to_path("output.grib", "_w0")
-            == "output_w0.grib"
-        )
+        assert supports_parallel_output.add_suffix_to_path("output.grib", "_w0") == "output_w0.grib"
 
     def test_plain_path_object(self):
-        assert (
-            supports_parallel_output.add_suffix_to_path(Path("output.grib"), "_w1")
-            == "output_w1.grib"
-        )
+        assert supports_parallel_output.add_suffix_to_path(Path("output.grib"), "_w1") == "output_w1.grib"
 
     def test_nested_path(self):
-        assert (
-            supports_parallel_output.add_suffix_to_path("/some/dir/forecast.nc", "_w2")
-            == "/some/dir/forecast_w2.nc"
-        )
+        assert supports_parallel_output.add_suffix_to_path("/some/dir/forecast.nc", "_w2") == "/some/dir/forecast_w2.nc"
 
     def test_no_extension(self):
-        assert (
-            supports_parallel_output.add_suffix_to_path("output", "_w0") == "output_w0"
-        )
+        assert supports_parallel_output.add_suffix_to_path("output", "_w0") == "output_w0"
 
     def test_url_s3(self):
-        assert (
-            supports_parallel_output.add_suffix_to_path("s3://bucket/out.zarr", "_w3")
-            == "s3://bucket/out_w3.zarr"
-        )
+        assert supports_parallel_output.add_suffix_to_path("s3://bucket/out.zarr", "_w3") == "s3://bucket/out_w3.zarr"
 
     def test_url_scheme_preserved(self):
-        result = supports_parallel_output.add_suffix_to_path(
-            "s3://bucket/out.zarr", "_w0"
-        )
+        result = supports_parallel_output.add_suffix_to_path("s3://bucket/out.zarr", "_w0")
         assert result.startswith("s3://bucket/")
 
     def test_non_path_store_returns_unchanged(self):
@@ -1168,9 +1066,7 @@ class TestSupportsParallelOutputDecorator:
         return _Output
 
     def test_suffix_applied(self):
-        obj = self._make_cls("path")(
-            path="out.grib", **{"_parallel-output-suffix": "_w0"}
-        )
+        obj = self._make_cls("path")(path="out.grib", **{"_parallel-output-suffix": "_w0"})
         assert obj.path == "out_w0.grib"
 
     def test_no_suffix_unchanged(self):
@@ -1225,9 +1121,7 @@ class TestSupportsParallelOutputDecorator:
         assert obj.archive_requests["sub"]["path"] == "out_w0.json"
 
     def test_nested_no_suffix_unchanged(self):
-        obj = self._make_cls("archive_requests.path")(
-            archive_requests={"path": "out.json"}
-        )
+        obj = self._make_cls("archive_requests.path")(archive_requests={"path": "out.json"})
         assert obj.archive_requests["path"] == "out.json"
 
     def test_nested_missing_leaf_key_ignored(self):
@@ -1237,9 +1131,7 @@ class TestSupportsParallelOutputDecorator:
         assert obj.archive_requests == {"other": "value"}
 
     def test_nested_missing_parent_key_ignored(self):
-        obj = self._make_cls("archive_requests.path")(
-            **{"_parallel-output-suffix": "_w0"}
-        )
+        obj = self._make_cls("archive_requests.path")(**{"_parallel-output-suffix": "_w0"})
         assert obj.archive_requests is None
 
     def test_nested_parent_not_dict_ignored(self):

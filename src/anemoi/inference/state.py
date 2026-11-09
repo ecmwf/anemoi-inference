@@ -37,9 +37,7 @@ def check_state(state: State, title: str = "<state>") -> None:
     input = state.get("_input")
 
     if "fields" not in state:
-        raise ValueError(
-            f"State '{title}' does not contain 'fields': {state} ({input=})"
-        )
+        raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=})")
 
     shape = None
 
@@ -48,17 +46,14 @@ def check_state(state: State, title: str = "<state>") -> None:
             shape = values.shape
         elif shape != values.shape:
             raise ValueError(
-                f"Field '{field}' in state '{title}' has different shape: "
-                f"{shape} and {values.shape} ({input=})."
+                f"Field '{field}' in state '{title}' has different shape: " f"{shape} and {values.shape} ({input=})."
             )
 
     date = state.get("date")
     if date is None and len(state["fields"]) > 0:
         # date can be None for an empty input
         if not isinstance(date, datetime.datetime):
-            raise ValueError(
-                f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})"
-            )
+            raise ValueError(f"State '{title}' does not contain 'date', or it is not a datetime: {date} ({input=})")
 
 
 def combine_states(*states: State) -> State:
@@ -84,11 +79,10 @@ def combine_states(*states: State) -> State:
     first_input = combined.get("_input")
 
     for state in states[1:]:
+
         this_input = state.get("_input")
 
-        for name, values in itertools.chain(
-            combined["fields"].items(), state.get("fields", {}).items()
-        ):
+        for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
             if shape is None:
                 shape = values.shape
             elif shape != values.shape:
@@ -122,8 +116,7 @@ def combine_states(*states: State) -> State:
 
             if type(combined[key]) is not type(value):
                 raise ValueError(
-                    f"Key '{key}' has different types in the states: "
-                    f"{type(combined[key])} and {type(value)}."
+                    f"Key '{key}' has different types in the states: " f"{type(combined[key])} and {type(value)}."
                 )
 
             if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):
@@ -196,9 +189,7 @@ def concat_states(states: list[State]) -> State:
 
     concatenated_state = states[0].copy()
     for key in concatenated_state["fields"]:
-        concatenated_state["fields"][key] = np.concatenate(
-            [s["fields"][key] for s in states], axis=0
-        )
+        concatenated_state["fields"][key] = np.concatenate([s["fields"][key] for s in states], axis=0)
 
     concatenated_state["date"] = states[-1]["date"]
     concatenated_state["_input"] = states[-1].get("_input", None)

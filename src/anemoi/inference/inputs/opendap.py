@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING
 from ..context import Context
 from ..decorators import main_argument
 from ..metadata import Metadata
-from ..types import Date, State
+from ..types import Date
+from ..types import State
 from . import input_registry
 from .ekd import EkdInput
 
@@ -69,22 +70,15 @@ class OpenDAPInput(EkdInput):
         import earthkit.data as ekd
 
         retrieved_data = [ekd.from_source("opendap", url) for url in resolved_url]
-        combined_fieldlist = ekd.FieldList.from_fields(
-            [f for fl in retrieved_data for f in fl]
-        )  # type: ignore[reportGeneralTypeIssues]
-        if (
-            len(combined_fieldlist.unique_values("valid_datetime")["valid_datetime"])
-            > 1
-        ):
+        combined_fieldlist = ekd.FieldList.from_fields([f for fl in retrieved_data for f in fl])  # type: ignore[reportGeneralTypeIssues]
+        if len(combined_fieldlist.unique_values("valid_datetime")["valid_datetime"]) > 1:
             LOG.warning(
                 f"Retrieved data from OpenDAP server has multiple valid_datetimes: {combined_fieldlist.unique_values('valid_datetime')}. Using the first one."
             )
             combined_fieldlist = combined_fieldlist.isel(valid_datetime=0)
         return combined_fieldlist  # type: ignore[reportReturnType]
 
-    def create_input_state(
-        self, *, dates: list[Date], ref_date_index: int = -1, **kwargs
-    ) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -107,15 +101,11 @@ class OpenDAPInput(EkdInput):
 
         for d in dates:
             resolved_url = self._resolve_url(d)
-            LOG.info(
-                f"Retrieving data for input_state from OpenDAP server: {resolved_url}"
-            )
+            LOG.info(f"Retrieving data for input_state from OpenDAP server: {resolved_url}")
             fieldlists.append(self._retrieve_from_opendap(resolved_url))
 
         fieldlist = ekd.FieldList.from_fields([f for fl in fieldlists for f in fl])
-        return self._create_input_state(
-            fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs
-        )
+        return self._create_input_state(fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -136,12 +126,8 @@ class OpenDAPInput(EkdInput):
 
         for d in dates:
             resolved_url = self._resolve_url(d)
-            LOG.info(
-                f"Retrieving data for forcings from OpenDAP server: {resolved_url}"
-            )
+            LOG.info(f"Retrieving data for forcings from OpenDAP server: {resolved_url}")
             fieldlists.append(self._retrieve_from_opendap(resolved_url))
 
         fieldlist = ekd.FieldList.from_fields([f for fl in fieldlists for f in fl])
-        return self._load_forcings_state(
-            fieldlist, dates=dates, current_state=current_state
-        )
+        return self._load_forcings_state(fieldlist, dates=dates, current_state=current_state)

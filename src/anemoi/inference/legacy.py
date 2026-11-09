@@ -38,15 +38,14 @@ def warn(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        warnings.warn(
-            f"Using legacy {func.__name__}, please try to patch your weights."
-        )
+        warnings.warn(f"Using legacy {func.__name__}, please try to patch your weights.")
         return func(*args, **kwargs)
 
     return wrapper
 
 
 class LegacyMixin(MetadataProtocol):
+
     # `self` is a `Metadata` object
 
     @warn
@@ -72,12 +71,7 @@ class LegacyMixin(MetadataProtocol):
                 result[variable] = dict(computed_forcing=True, constant_in_time=False)
                 continue
 
-            if variable in (
-                "cos_latitude",
-                "cos_longitude",
-                "sin_latitude",
-                "sin_longitude",
-            ):
+            if variable in ("cos_latitude", "cos_longitude", "sin_latitude", "sin_longitude"):
                 result[variable] = dict(computed_forcing=True, constant_in_time=True)
                 continue
 
@@ -88,9 +82,7 @@ class LegacyMixin(MetadataProtocol):
 
                 try:
                     levelist = int(param_level[1])
-                    mars = dict(
-                        param=param_level[0], levelist=levelist, levtype=levtype
-                    )
+                    mars = dict(param=param_level[0], levelist=levelist, levtype=levtype)
                     result[variable] = dict(mars=mars)
                     continue
                 except ValueError:
@@ -114,9 +106,7 @@ class LegacyMixin(MetadataProtocol):
 
             if variable in ("cp", "tp", "sf", "ro", "ssrd", "strd"):
                 mars = dict(param=variable, levtype="sfc", type="fc", stream="oper")
-                result[variable] = dict(
-                    mars=mars, process="accumulation", period=(0, 6)
-                )
+                result[variable] = dict(mars=mars, process="accumulation", period=(0, 6))
 
                 continue
 
@@ -134,9 +124,7 @@ class LegacyMixin(MetadataProtocol):
 
         return result
 
-    def _legacy_check_variables_metadata(
-        self, variables: dict[str, dict[str, Any]]
-    ) -> None:
+    def _legacy_check_variables_metadata(self, variables: dict[str, dict[str, Any]]) -> None:
         """Check and update metadata for legacy variables.
 
         Parameters
@@ -153,9 +141,7 @@ class LegacyMixin(MetadataProtocol):
             if "mars" not in metadata:
                 if "param" in metadata:
                     if first:
-                        LOG.warning(
-                            "Old metadata format detected. Please update your weights."
-                        )
+                        LOG.warning("Old metadata format detected. Please update your weights.")
                         first = False
                     metadata["mars"] = metadata.copy()
 
@@ -167,34 +153,19 @@ class LegacyMixin(MetadataProtocol):
                 "cos_local_time",
                 "sin_local_time",
             ):
-                ok = (
-                    metadata.get("computed_forcing") is True
-                    and metadata.get("constant_in_time") is False
-                )
+                ok = metadata.get("computed_forcing") is True and metadata.get("constant_in_time") is False
                 if not ok:
                     if first:
-                        LOG.warning(
-                            "Old metadata format detected. Please update your weights."
-                        )
+                        LOG.warning("Old metadata format detected. Please update your weights.")
                         first = False
                     metadata["computed_forcing"] = True
                     metadata["constant_in_time"] = False
 
-            if variable in (
-                "cos_latitude",
-                "cos_longitude",
-                "sin_latitude",
-                "sin_longitude",
-            ):
-                ok = (
-                    metadata.get("computed_forcing") is True
-                    and metadata.get("constant_in_time") is True
-                )
+            if variable in ("cos_latitude", "cos_longitude", "sin_latitude", "sin_longitude"):
+                ok = metadata.get("computed_forcing") is True and metadata.get("constant_in_time") is True
                 if not ok:
                     if first:
-                        LOG.warning(
-                            "Old metadata format detected. Please update your weights."
-                        )
+                        LOG.warning("Old metadata format detected. Please update your weights.")
                         first = False
                     metadata["computed_forcing"] = True
                     metadata["constant_in_time"] = True

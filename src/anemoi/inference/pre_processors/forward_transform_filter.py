@@ -38,12 +38,7 @@ class ForwardTransformFilter(Processor):
     """
 
     def __init__(
-        self,
-        context: Any,
-        metadata: Metadata,
-        *,
-        filter: str | dict[str, Any] | None = None,
-        **kwargs: Any,
+        self, context: Any, metadata: Metadata, *, filter: str | dict[str, Any] | None = None, **kwargs: Any
     ) -> None:
         """Initialize the ForwardTransformFilter.
 

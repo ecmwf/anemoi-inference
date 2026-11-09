@@ -12,13 +12,19 @@ import logging
 from typing import Any
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.forcings import CoupledForcings, Forcings
-from anemoi.inference.runner import Runner, RunnerClasses
+from anemoi.inference.forcings import CoupledForcings
+from anemoi.inference.forcings import Forcings
+from anemoi.inference.runner import Runner
+from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.runners.testing import NoModelMixing
 from anemoi.inference.state import reduce_state
 from anemoi.inference.tensors import TensorHandler
-from anemoi.inference.transport import Coupling, Transport
-from anemoi.inference.types import Date, FloatArray, IntArray, State
+from anemoi.inference.transport import Coupling
+from anemoi.inference.transport import Transport
+from anemoi.inference.types import Date
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 from ..task import Task
 from . import task_registry
@@ -35,9 +41,7 @@ class CouplingForcings(CoupledForcings):
 
 
 class CoupledTensorHandler(TensorHandler):
-    def create_dynamic_coupled_forcings(
-        self, variables: list[str], mask: IntArray
-    ) -> list[CoupledForcings]:
+    def create_dynamic_coupled_forcings(self, variables: list[str], mask: IntArray) -> list[CoupledForcings]:
         mine = []
         other = []
 
@@ -49,27 +53,14 @@ class CoupledTensorHandler(TensorHandler):
 
         result = []
         if mine:
-            result.append(
-                CouplingForcings(
-                    self,
-                    self.context.coupled_input,
-                    [variables[i] for i in mine],
-                    mask[mine],
-                )
-            )
+            result.append(CouplingForcings(self, self.context.coupled_input, [variables[i] for i in mine], mask[mine]))
 
         if other:
-            result.extend(
-                super().create_dynamic_coupled_forcings(
-                    [variables[i] for i in other], mask[other]
-                )
-            )
+            result.extend(super().create_dynamic_coupled_forcings([variables[i] for i in other], mask[other]))
 
         return result
 
-    def initial_dynamic_forcings_providers(
-        self, dynamic_forcings_providers: list[Forcings]
-    ) -> list[Forcings]:
+    def initial_dynamic_forcings_providers(self, dynamic_forcings_providers: list[Forcings]) -> list[Forcings]:
         """Modify the dynamic forcings providers for the first step.
         For the initial state we need to load the dynamic coupled forcings from the default provider (i.e.: from disk).
         """
@@ -77,9 +68,7 @@ class CoupledTensorHandler(TensorHandler):
         result = []
         for f in dynamic_forcings_providers:
             if isinstance(f, CoupledForcings):
-                result.extend(
-                    super().create_dynamic_coupled_forcings(f.variables, f.mask)
-                )
+                result.extend(super().create_dynamic_coupled_forcings(f.variables, f.mask))
             else:
                 result.append(f)
         return result
@@ -101,9 +90,7 @@ class CoupledRunner(Runner):
         )
 
         if self.checkpoint.task not in ("default", "forecaster"):
-            raise ValueError(
-                f"Coupled runs only support forecaster checkpoints, got task '{self.checkpoint.task}'."
-            )
+            raise ValueError(f"Coupled runs only support forecaster checkpoints, got task '{self.checkpoint.task}'.")
 
         if len(self.checkpoint.multi_dataset_metadata) > 1:
             LOG.warning(
@@ -142,9 +129,7 @@ class CoupledInput:
         self.constants: dict[str, FloatArray] = {}
         self.tag = 0
         self.send_only = sum(1 if c.target is task else 0 for c in couplings) == 0
-        self.variables_to_recieve = set(
-            sum([c.variables for c in couplings if c.target is task], [])
-        )
+        self.variables_to_recieve = set(sum([c.variables for c in couplings if c.target is task], []))
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         LOG.info(f"Adding dynamic forcings {dates}")
@@ -208,9 +193,7 @@ class CoupledInput:
 class NoModelCoupledRunner(NoModelMixing, CoupledRunner):
     """Runner for testing coupled models."""
 
-    def __init__(
-        self, config: RunConfiguration, coupled_input: "CoupledInput", **kwargs: Any
-    ) -> None:
+    def __init__(self, config: RunConfiguration, coupled_input: "CoupledInput", **kwargs: Any) -> None:
         super().__init__(config, coupled_input, **kwargs)
 
 
@@ -223,17 +206,11 @@ class RunnerTask(Task):
     """
 
     def __init__(
-        self,
-        task_name: str,
-        config: dict[str, Any],
-        overrides: dict[str, Any] = {},
-        global_config: dict[str, Any] = {},
+        self, task_name: str, config: dict[str, Any], overrides: dict[str, Any] = {}, global_config: dict[str, Any] = {}
     ) -> None:
         super().__init__(task_name)
         LOG.info("Creating RunnerTask %s %s (%s)", self, config, global_config)
-        self.config = RunConfiguration.load(
-            config, overrides=[global_config, overrides]
-        )
+        self.config = RunConfiguration.load(config, overrides=[global_config, overrides])
 
     def run(self, transport: Transport) -> None:
         """Run the task."""
@@ -248,9 +225,7 @@ class RunnerTask(Task):
 
         allowed_runners = ("auto", "default", "no-model", "forecaster")
         if runner_name not in allowed_runners:
-            raise ValueError(
-                f"Runner {runner_name!r} is not supported for coupled tasks. Must be in {allowed_runners}"
-            )
+            raise ValueError(f"Runner {runner_name!r} is not supported for coupled tasks. Must be in {allowed_runners}")
 
         coupler = CoupledInput(self, transport, couplings)
 

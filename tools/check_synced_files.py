@@ -44,12 +44,8 @@ SYNCED: Final[re.Pattern[str]] = re.compile(
     """
 )
 WHITELIST: Final[Path] = Path(".github/synced-files-whitelist")
-SYNC_FILES_URL: Final[str] = (
-    "https://github.com/ecmwf/reusable-workflows/tree/main/sync-files"
-)
-SYNC_CONFIG_URL: Final[str] = (
-    "https://github.com/ecmwf/reusable-workflows/blob/main/sync-files/sync.yml"
-)
+SYNC_FILES_URL: Final[str] = "https://github.com/ecmwf/reusable-workflows/tree/main/sync-files"
+SYNC_CONFIG_URL: Final[str] = "https://github.com/ecmwf/reusable-workflows/blob/main/sync-files/sync.yml"
 
 
 def git_lines(*args: str) -> list[str]:
@@ -64,9 +60,7 @@ def changed_files() -> set[str]:
     from_ref = os.environ.get("PRE_COMMIT_FROM_REF")
     to_ref = os.environ.get("PRE_COMMIT_TO_REF")
     if from_ref and to_ref:
-        return set(
-            git_lines("diff", "--name-only", "--no-renames", f"{from_ref}...{to_ref}")
-        )
+        return set(git_lines("diff", "--name-only", "--no-renames", f"{from_ref}...{to_ref}"))
     return {
         *git_lines("diff", "--name-only", "--no-renames", "HEAD"),
         *git_lines("ls-files", "--others", "--exclude-standard"),
@@ -77,17 +71,13 @@ def read_whitelist() -> set[str]:
     """Whitelisted paths, one per line, `#` starts a comment."""
     if not WHITELIST.is_file():
         return set()
-    entries = (
-        line.split("#", 1)[0].strip() for line in WHITELIST.read_text().splitlines()
-    )
+    entries = (line.split("#", 1)[0].strip() for line in WHITELIST.read_text().splitlines())
     return {Path(entry).as_posix() for entry in entries if entry}
 
 
 def main() -> int:
     """Report changed, not whitelisted synced files."""
-    protected = sorted(
-        {f for f in changed_files() if SYNCED.fullmatch(f)} - read_whitelist()
-    )
+    protected = sorted({f for f in changed_files() if SYNCED.fullmatch(f)} - read_whitelist())
     if not protected:
         return 0
 

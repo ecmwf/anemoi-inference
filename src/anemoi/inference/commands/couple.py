@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import datetime
 import logging
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from argparse import Namespace
 
 from ..config.couple import CoupleConfiguration
 from ..tasks import create_task
@@ -38,16 +39,12 @@ class CoupleCmd(Command):
         command_parser : ArgumentParser
             The argument parser to which the arguments will be added.
         """
-        command_parser.add_argument(
-            "--defaults", action="append", help="Sources of default values."
-        )
+        command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument(
             "config",
             help="Path to config file. Can be omitted to pass config with overrides and defaults.",
         )
-        command_parser.add_argument(
-            "overrides", nargs="*", help="Overrides as key=value"
-        )
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the couple command.
@@ -79,10 +76,7 @@ class CoupleCmd(Command):
                     value = value.isoformat()
                 global_config[copy] = value
 
-        tasks = {
-            name: create_task(name, action, global_config=global_config)
-            for name, action in config.tasks.items()
-        }
+        tasks = {name: create_task(name, action, global_config=global_config) for name, action in config.tasks.items()}
         for task in tasks.values():
             LOG.info("Task: %s", task)
 

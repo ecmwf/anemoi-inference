@@ -13,7 +13,8 @@ from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.post_processors.assign import AssignMask
-from anemoi.inference.post_processors.extract import ExtractMask, ExtractSlice
+from anemoi.inference.post_processors.extract import ExtractMask
+from anemoi.inference.post_processors.extract import ExtractSlice
 from anemoi.inference.types import State
 
 
@@ -142,6 +143,4 @@ def test_extract_slice(
     assert new_state["latitudes"].shape[0] == 25
     for field in new_state["fields"]:
         assert new_state["fields"][field].shape[0] == 25
-        assert np.all(
-            new_state["fields"][field] == state["fields"][field][extract_slice]
-        )
+        assert np.all(new_state["fields"][field] == state["fields"][field][extract_slice])

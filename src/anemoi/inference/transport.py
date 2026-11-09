@@ -7,7 +7,8 @@
 # nor does it submit to any jurisdiction.
 #
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from typing import Any
 
 from anemoi.utils.logs import enable_logging_name
@@ -130,9 +131,7 @@ class CouplingRecv(Coupling):
 class Transport(ABC):
     """Abstract base class for transport mechanisms."""
 
-    def __init__(
-        self, couplings: list[dict[str, list[str]]], tasks: dict[str, Task]
-    ) -> None:
+    def __init__(self, couplings: list[dict[str, list[str]]], tasks: dict[str, Task]) -> None:
         """Initialize a Transport instance.
 
         Parameters
@@ -161,6 +160,7 @@ class Transport(ABC):
         tag : int
             The tag for the operation.
         """
+        pass
 
     @abstractmethod
     def receive(self, receiver: Task, source: Task, tag: int) -> State:
@@ -180,6 +180,7 @@ class Transport(ABC):
         State
             The received state dictionary.
         """
+        pass
 
     def __repr__(self) -> str:
         """Return a string representation of the transport.
@@ -272,14 +273,10 @@ class Transport(ABC):
             if v not in fields:
                 # Check in the constants
                 if v in constants:
-                    LOG.warning(
-                        f"{sender}: {v} not in fields, using the value from constants"
-                    )
+                    LOG.warning(f"{sender}: {v} not in fields, using the value from constants")
                     fields[v] = constants[v]
                 else:
-                    raise ValueError(
-                        f"{sender}: Variable {v} not in fields or constants"
-                    )
+                    raise ValueError(f"{sender}: Variable {v} not in fields or constants")
 
         for f, v in fields.items():
             assert len(v.shape) == 1, f"Expected  got {v.shape}"
@@ -326,9 +323,7 @@ class Transport(ABC):
 
         assert isinstance(state, dict), state
         assert "fields" in state
-        assert isinstance(state["fields"], dict), (
-            f"Expected dict got {type(state['fields'])}"
-        )
+        assert isinstance(state["fields"], dict), f"Expected dict got {type(state['fields'])}"
 
         output_state.setdefault("fields", {})
 

@@ -23,11 +23,7 @@ LOG = logging.getLogger(__name__)
 
 
 def check_data(
-    title: str,
-    data: FieldList,
-    variables: list[str],
-    dates: list[datetime.datetime],
-    metadata: Metadata,
+    title: str, data: FieldList, variables: list[str], dates: list[datetime.datetime], metadata: Metadata
 ) -> None:
     """Check if the data matches the expected number of fields based on variables and dates.
 
@@ -52,6 +48,7 @@ def check_data(
     expected = len(variables) * len(dates)
 
     if len(data) != expected:
+
         from rich.console import Console
         from rich.table import Table
 
@@ -78,10 +75,7 @@ def check_data(
         avail = defaultdict(set)
         duplicates = defaultdict(set)
         for field in data:
-            name, date = (
-                field.metadata("name"),
-                to_datetime(field.metadata("valid_datetime")),
-            )
+            name, date = field.metadata("name"), to_datetime(field.metadata("valid_datetime"))
             if date in avail[name]:
                 duplicates[name].add(date)
                 LOG.warning(
