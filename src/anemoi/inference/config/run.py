@@ -74,6 +74,12 @@ class RunConfiguration(Configuration):
     precision: str | None = None
     """The precision in which the model should run. If not provided, the model will use the precision used during training."""
 
+    seed: int | None = None
+    """Seed value to pass to `torch.manual_seed()` before running the model.
+    If not provided, PyTorch's default random seed is used.
+    The seed is logged at start-up.
+    """
+
     allow_nans: bool | None = None
     """
     - If None (default), the model will check for NaNs in the input. If NaNs are found, the model issue a warning and `allow_nans` to True.

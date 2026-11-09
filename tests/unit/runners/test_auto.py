@@ -35,6 +35,7 @@ class MarkerMetadata(Metadata):
     "patch, expected_class",
     [
         pytest.param({}, DefaultRunner, id="none"),
+        pytest.param({"metadata_inference": {"task": None}}, DefaultRunner, id="unset-task"),
         pytest.param({"metadata_inference": {"task": "forecaster"}}, DefaultRunner, id="forecaster"),
         pytest.param({"metadata_inference": {"task": "default"}}, DefaultRunner, id="default"),
         pytest.param(

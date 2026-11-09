@@ -35,7 +35,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "anemoi-transform>0.1.13",
-  "anemoi-utils[provenance,text]>=0.5.13",
+  "anemoi-utils[provenance,text]>=0.5.14",
   "aniso8601",
   "anytree",
   "deprecation",
@@ -53,7 +53,7 @@ dependencies = [
 optional-dependencies.all = [
   "anemoi-datasets",
   "anemoi-inference[huggingface,netcdf,plot,tests,zarr]",
-  "anemoi-utils[all]>=0.5.13",
+  "anemoi-utils[all]>=0.5.14",
 ]
 optional-dependencies.cosmo = [
   "eccodes>=2.47,<2.48",
@@ -83,9 +83,10 @@ optional-dependencies.tests = [
   "hypothesis",
   "pytest",
   "pytest-mock",
+  "pytest-xdist",
 ]
 optional-dependencies.zarr = [
-  "xarray<2026.9", # last version to support zarr2, TODO: remove when the rest of anemoi supports zarr3
+  "xarray",
   "zarr",
 ]
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
@@ -110,6 +111,7 @@ strict = false
 
 [tool.pytest]
 ini_options.testpaths = "tests"
+ini_options.addopts = "-n logical --maxprocesses=16"
 ini_options.markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]

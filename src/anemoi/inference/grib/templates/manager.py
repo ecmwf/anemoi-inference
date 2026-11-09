@@ -172,7 +172,7 @@ class TemplateManager:
             The standardised grid format.
         """
 
-        if isinstance(grid, str):
+        if isinstance(grid, str) and "=" not in grid:
             return grid.upper()
 
         if isinstance(grid, (tuple, list)) and len(grid) == 2:

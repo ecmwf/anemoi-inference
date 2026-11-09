@@ -54,7 +54,11 @@ def create_zarr_array(
     """
     import zarr
 
-    chunks = chunks if zarr.__version__ >= "3" else chunks if not chunks == "auto" else True
+    if zarr.__version__ >= "3":
+        # zarr 3 rejects chunks=True (zarr 2: automatic chunking)
+        chunks = "auto" if chunks is True else chunks
+    else:
+        chunks = chunks if not chunks == "auto" else True
 
     if zarr.__version__ >= "3":
         from zarr import create_array

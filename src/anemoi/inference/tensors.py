@@ -207,6 +207,26 @@ class TensorHandler:
         if nlat != number_of_grid_points:
             raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
 
+        if self.metadata.longitudes is not None:
+            if nlon != len(self.metadata.longitudes):
+                raise ValueError(
+                    f"Size mismatch longitudes={nlon}, number_of_longitudes_in_metadata={len(self.metadata.longitudes)}"
+                )
+            if not np.allclose(input_state["longitudes"], self.metadata.longitudes):
+                raise ValueError(
+                    "Longitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
+                )
+
+        if self.metadata.latitudes is not None:
+            if nlat != len(self.metadata.latitudes):
+                raise ValueError(
+                    f"Size mismatch latitudes={nlat}, number_of_latitudes_in_metadata={len(self.metadata.latitudes)}"
+                )
+            if not np.allclose(input_state["latitudes"], self.metadata.latitudes):
+                raise ValueError(
+                    "Latitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
+                )
+
         multi_step = self.metadata.multi_step_input
 
         expected_shape = (multi_step, number_of_grid_points)
@@ -390,7 +410,7 @@ class TensorHandler:
         return dynamic_forcings_providers
 
     def copy_prognostic_fields_to_input_tensor(
-        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor", check: BoolArray
+        self, input_tensor_torch: "torch.Tensor", y_pred: "torch.Tensor | None", check: BoolArray
     ) -> "torch.Tensor":
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
@@ -400,20 +420,22 @@ class TensorHandler:
             dtype=torch.long,
         )
 
-        pmask_out = torch.as_tensor(
-            self.metadata.prognostic_output_mask,
-            device=y_pred.device,
-            dtype=torch.long,
-        )  # index_select requires long dtype, can be bool (mask)
-        # or int (index) tensors
-
-        prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
-
         for old_idx, new_idx in self.metadata.advance_map["inin"]:
             input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
 
-        for out_idx, new_idx in self.metadata.advance_map["outin"]:
-            input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
+        # y_pred is None when the model returned no output for this dataset
+        if y_pred is not None:
+            pmask_out = torch.as_tensor(
+                self.metadata.prognostic_output_mask,
+                device=y_pred.device,
+                dtype=torch.long,
+            )  # index_select requires long dtype, can be bool (mask)
+            # or int (index) tensors
+
+            prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
+
+            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+                input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
         if check[pmask_in_np].any():

@@ -1,4 +1,4 @@
-transport: processes
+transport: threads
 
 couplings:
 - atmos -> ocean:
@@ -19,8 +19,8 @@ couplings:
 tasks:
   atmos:
     runner:
-      config: configs/atmos.yaml
+      config: unit/configs/atmos.yaml
 
   ocean:
     runner:
-      config: configs/ocean.yaml
+      config: unit/configs/ocean.yaml

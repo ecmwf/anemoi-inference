@@ -71,13 +71,14 @@ def save_fake_checkpoint(metadata: dict | str | Path, save_path: Path, supportin
     """
     import torch
 
+    from anemoi.inference.checkpoint import get_multi_dataset_metadata
     from anemoi.inference.testing.mock_model import SimpleMockModel
 
     if not isinstance(metadata, dict):
         with open(metadata) as f:
             metadata = json.load(f)
 
-    model = SimpleMockModel(metadata, supporting_arrays)
+    model = SimpleMockModel(get_multi_dataset_metadata(metadata, supporting_arrays))
 
     torch.save(model, save_path)
 

@@ -86,7 +86,7 @@ class Output(ABC):
         bool
             True if the variable should be skipped, False otherwise.
         """
-        return self.variables.skip(variable)
+        return self.variables.skip(variable, self.typed_variables.get(variable))
 
     @cached_property
     def post_processors(self) -> list[Processor]:
