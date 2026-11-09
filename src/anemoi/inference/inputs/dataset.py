@@ -19,10 +19,7 @@ import numpy as np
 from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, FloatArray, ProcessorConfig, State
 
 from ..input import Input
 from . import input_registry
@@ -82,14 +79,17 @@ class DatasetInput(Input):
         if grid_indices is None and "grid_indices" in self.metadata._supporting_arrays:
             grid_indices = self.metadata.load_supporting_array("grid_indices")
             if context.verbosity > 0:
-                LOG.info("Loading supporting array `grid_indices` from checkpoint, \
-                    the input grid will be reduced accordingly.")
+                LOG.info(
+                    "Loading supporting array `grid_indices` from checkpoint, \
+                    the input grid will be reduced accordingly."
+                )
 
         self.grid_indices = slice(None) if grid_indices is None else grid_indices
         self.use_trajectories = use_trajectories
 
         has_pre_processors = bool(self._pre_processor_confs) or (
-            hasattr(context, "pre_processors") and bool(context.pre_processors.get(self.dataset_name, []))
+            hasattr(context, "pre_processors")
+            and bool(context.pre_processors.get(self.dataset_name, []))
         )
 
         if has_pre_processors:
@@ -111,7 +111,9 @@ class DatasetInput(Input):
 
         LOG.info("Opening dataset...")
         LOG.info("open_dataset_args: %s", json.dumps(self.open_dataset_args, indent=2))
-        LOG.info("open_dataset_kwargs: %s", json.dumps(self.open_dataset_kwargs, indent=2))
+        LOG.info(
+            "open_dataset_kwargs: %s", json.dumps(self.open_dataset_kwargs, indent=2)
+        )
 
         dataset = open_dataset(*self.open_dataset_args, **self.open_dataset_kwargs)
         if self.variables is not None:
@@ -148,7 +150,9 @@ class DatasetInput(Input):
         """Return a string representation of the DatasetInput."""
         return f"DatasetInput({self.open_dataset_args}, {self.open_dataset_kwargs})"
 
-    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
+    def create_input_state(
+        self, *, dates: list[Date], ref_date_index: int = -1, **kwargs
+    ) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -181,7 +185,9 @@ class DatasetInput(Input):
         data = self._load_dates(dates, base_date=dates[ref_date_index])
 
         if data.shape[2] != 1:
-            raise ValueError(f"Ensemble data not supported, got {data.shape[2]} members")
+            raise ValueError(
+                f"Ensemble data not supported, got {data.shape[2]} members"
+            )
 
         requested_variables = set(self.input_variables())
         dataset_variables = {}
@@ -218,9 +224,13 @@ class DatasetInput(Input):
             The loaded forcings state.
         """
         base_date = current_state["date"] - current_state["step"]
-        data = self._load_dates(dates, base_date=base_date)  # (date, variables, ensemble, values)
+        data = self._load_dates(
+            dates, base_date=base_date
+        )  # (date, variables, ensemble, values)
 
-        requested_variables = np.array([self.ds.name_to_index[v] for v in self.variables])
+        requested_variables = np.array(
+            [self.ds.name_to_index[v] for v in self.variables]
+        )
         data = data[:, requested_variables]
         # Squeeze the data to remove the ensemble dimension
         data = np.squeeze(data, axis=2)
@@ -314,17 +324,29 @@ class DatasetInput(Input):
             datalist.append(self._load_basedates([d])[:, :, :, 0])
 
         if len(dates_after_base) > 0:
-            step_index = [int(np.timedelta64(d - base_date) / self.ds.step_frequency) for d in dates_after_base]
-            LOG.info("Loading data from trajectory at base_date=%s, steps=%s", base_date, step_index)
+            step_index = [
+                int(np.timedelta64(d - base_date) / self.ds.step_frequency)
+                for d in dates_after_base
+            ]
+            LOG.info(
+                "Loading data from trajectory at base_date=%s, steps=%s",
+                base_date,
+                step_index,
+            )
             # Convert to slice if consecutive (dataset indexing with lists can be unreliable)
             if len(step_index) == 1:
                 step_slice = slice(step_index[0], step_index[0] + 1)
             else:
                 diff = step_index[1] - step_index[0]
-                if all(step_index[i + 1] - step_index[i] == diff for i in range(len(step_index) - 1)):
+                if all(
+                    step_index[i + 1] - step_index[i] == diff
+                    for i in range(len(step_index) - 1)
+                ):
                     step_slice = slice(step_index[0], step_index[-1] + 1, diff)
                 else:
-                    raise ValueError("Requested dates do not have a uniform step spacing")
+                    raise ValueError(
+                        "Requested dates do not have a uniform step spacing"
+                    )
             trajectory_data = self.ds[base_idx, :, :, step_slice]
             # Transpose to (steps/dates, variables, ensemble, cells) to match _load_basedates
             trajectory_data = np.moveaxis(trajectory_data, 2, 0)
@@ -387,15 +409,22 @@ class DatasetInputArgsKwargs(DatasetInput):
         """
 
         check_variables_compatibility = multi_datasets_config(
-            context.config.check_variables_compatibility, metadata.dataset_name, context.dataset_names, strict=False
+            context.config.check_variables_compatibility,
+            metadata.dataset_name,
+            context.dataset_names,
+            strict=False,
         )
 
         if not args and not kwargs:
-            args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=use_original_paths)
+            args, kwargs = metadata.open_dataset_args_kwargs(
+                use_original_paths=use_original_paths
+            )
 
             # TODO: remove start/end from the arguments
 
-            LOG.warning("No arguments provided to open_dataset, using the default arguments:")
+            LOG.warning(
+                "No arguments provided to open_dataset, using the default arguments:"
+            )
 
             cmd = "open_dataset("
             for arg in args:

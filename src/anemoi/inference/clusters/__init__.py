@@ -20,7 +20,9 @@ LOG = logging.getLogger(__name__)
 cluster_registry: Registry[ComputeClientFactory | ComputeSpawner] = Registry(__name__)
 
 
-def create_cluster(config: dict[str, Any] | str, *args, **kwargs) -> ComputeClientFactory | ComputeSpawner:
+def create_cluster(
+    config: dict[str, Any] | str, *args, **kwargs
+) -> ComputeClientFactory | ComputeSpawner:
     """Find and return the appropriate cluster for the current environment.
 
     Parameters
@@ -59,7 +61,9 @@ def create_cluster(config: dict[str, Any] | str, *args, **kwargs) -> ComputeClie
             "Multiple suitable clusters found for the current environment: %s,\nWill sort, and select the one with the highest priority.",
             discovered_clusters,
         )
-        discovered_clusters.sort(key=lambda cls: getattr(cls, "priority", 0), reverse=True)
+        discovered_clusters.sort(
+            key=lambda cls: getattr(cls, "priority", 0), reverse=True
+        )
         cluster_cls = discovered_clusters[0]
         LOG.warning("Selected cluster after sorting: %s", cluster_cls)
         return cluster_cls(*args, **kwargs)

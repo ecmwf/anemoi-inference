@@ -26,12 +26,9 @@ from earthkit.data.utils.dates import to_datetime
 from numpy.typing import DTypeLike
 
 from anemoi.inference.context import Context
-from anemoi.inference.decorators import format_dataset_name
-from anemoi.inference.decorators import main_argument
+from anemoi.inference.decorators import format_dataset_name, main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, FloatArray, State
 
 from ..checks import check_data
 from ..input import Input
@@ -39,7 +36,9 @@ from ..input import Input
 LOG = logging.getLogger(__name__)
 
 
-def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any) -> ekd.FieldList:
+def find_variable(
+    data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
+) -> ekd.FieldList:
     """Find a variable in an earthkit FieldList.
 
     Parameters
@@ -69,7 +68,9 @@ def find_variable(data: ekd.FieldList, name: str, namer: callable, **kwargs: Any
 class RulesNamer:
     """A namer that uses rules to generate names."""
 
-    def __init__(self, rules: Any, default_namer: Callable[[Any, dict[str, Any]], str]) -> None:
+    def __init__(
+        self, rules: Any, default_namer: Callable[[Any, dict[str, Any]], str]
+    ) -> None:
         """Initialize the RulesNamer.
 
         Parameters
@@ -108,7 +109,9 @@ class RulesNamer:
 
         return self.default_namer(field, original_metadata)
 
-    def substitute(self, template: str, field: ekd.Field, original_metadata: dict[str, Any]) -> str:
+    def substitute(
+        self, template: str, field: ekd.Field, original_metadata: dict[str, Any]
+    ) -> str:
         """Substitute placeholders in the template with metadata values.
 
         Parameters
@@ -164,7 +167,11 @@ class EkdInput(Input):
         assert callable(self._namer), type(self._namer)
 
     def _filter_by_time(
-        self, data: ekd.FieldList, *, dates: list[datetime], select_reference_date: bool = False
+        self,
+        data: ekd.FieldList,
+        *,
+        dates: list[datetime],
+        select_reference_date: bool = False,
     ) -> ekd.FieldList:
         """Filter by dates,
         Selects upon the valid_datetime field in the data by dates, optionally including the reference date.
@@ -187,7 +194,9 @@ class EkdInput(Input):
         datetime_selection: dict = dict(valid_datetime=valid_datetime)
 
         if select_reference_date:
-            assert self.reference_date is not None, "Reference date must be set when selecting reference date."
+            assert self.reference_date is not None, (
+                "Reference date must be set when selecting reference date."
+            )
             datetime_selection.update(
                 dataDate=int(self.reference_date.strftime("%Y%m%d")),
                 dataTime=int(self.reference_date.strftime("%H%M")),
@@ -221,12 +230,12 @@ class EkdInput(Input):
                 name=self.variables,
                 valid_datetime="ascending",
             )
-            timer.title = (
-                f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human({'name': self.variables})}"
-            )
+            timer.title = f"Selecting {len(subset_data)}/{len(data)} fields by {dict_to_human({'name': self.variables})}"
         return subset_data
 
-    def _find_variable(self, data: ekd.FieldList, name: str, **kwargs: Any) -> ekd.FieldList:
+    def _find_variable(
+        self, data: ekd.FieldList, name: str, **kwargs: Any
+    ) -> ekd.FieldList:
         """Find a variable in the earthkit FieldList selection.
 
         Parameters
@@ -318,11 +327,18 @@ class EkdInput(Input):
                     )
                     raise e
 
-        state = dict(date=dates[ref_date_index], latitudes=latitudes, longitudes=longitudes, fields=fields)
+        state = dict(
+            date=dates[ref_date_index],
+            latitudes=latitudes,
+            longitudes=longitudes,
+            fields=fields,
+        )
 
         dates = sorted([to_datetime(d) for d in dates])
         state["fields"] = self._filter_by_time(
-            state["fields"], dates=dates, select_reference_date=kwargs.get("select_reference_date", False)
+            state["fields"],
+            dates=dates,
+            select_reference_date=kwargs.get("select_reference_date", False),
         )
 
         # allow hooks to operate on the FieldList before conversion to numpy, but after subsetting by time
@@ -343,7 +359,10 @@ class EkdInput(Input):
 
         n_points = fields[0].to_numpy(dtype=dtype, flatten=flatten).size
         for field in fields:
-            name, valid_datetime = field.metadata("name"), field.metadata("valid_datetime")
+            name, valid_datetime = (
+                field.metadata("name"),
+                field.metadata("valid_datetime"),
+            )
             if name not in state_fields:
                 state_fields[name] = np.full(
                     shape=(len(dates), n_points),
@@ -354,13 +373,20 @@ class EkdInput(Input):
             date_idx = date_to_index[valid_datetime]
 
             try:
-                state_fields[name][date_idx] = field.to_numpy(dtype=dtype, flatten=flatten)
+                state_fields[name][date_idx] = field.to_numpy(
+                    dtype=dtype, flatten=flatten
+                )
             except ValueError:
                 LOG.error(
-                    "Error with field %s: expected shape=%s, got shape=%s", name, state_fields[name].shape, field.shape
+                    "Error with field %s: expected shape=%s, got shape=%s",
+                    name,
+                    state_fields[name].shape,
+                    field.shape,
                 )
                 LOG.error("dates %s", dates)
-                LOG.error("number_of_grid_points %s", self.metadata.number_of_grid_points)
+                LOG.error(
+                    "number_of_grid_points %s", self.metadata.number_of_grid_points
+                )
                 raise
 
             state_variables[name] = Variable.from_earthkit(name, field)
@@ -448,7 +474,9 @@ class EkdInput(Input):
             **kwargs,
         )
 
-    def _load_forcings_state(self, fields: ekd.FieldList, *, dates: list[Date], current_state: State) -> State:
+    def _load_forcings_state(
+        self, fields: ekd.FieldList, *, dates: list[Date], current_state: State
+    ) -> State:
         """Load the forcings state.
 
         Parameters
@@ -483,7 +511,9 @@ class EkdInput(Input):
 
         def get_geography_info(key: str) -> str | None:
             try:
-                combo = list(getattr(f.metadata().geography, key, lambda: None)() for f in fields)
+                combo = list(
+                    getattr(f.metadata().geography, key, lambda: None)() for f in fields
+                )
             except NotImplementedError:  # Issue with earthkit.data throwing error here
                 return None
             if len(set(map(str, combo))) == 1 and combo[0] != "None":
@@ -492,7 +522,10 @@ class EkdInput(Input):
 
         grid = get_geography_info("mars_grid")
         if grid == "undefined":
-            grid = {"latitudes": list(state["latitudes"]), "longitudes": list(state["longitudes"])}
+            grid = {
+                "latitudes": list(state["latitudes"]),
+                "longitudes": list(state["longitudes"]),
+            }
             geography_information["grid"] = grid
 
         else:  # If grid is undefined we don't want to add the area
@@ -539,7 +572,9 @@ class FieldlistInput(EkdInput):
         super().__init__(context, metadata, **kwargs)
         self.path = path
 
-    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs) -> State:
+    def create_input_state(
+        self, *, dates: list[Date], ref_date_index: int = -1, **kwargs
+    ) -> State:
         """Create the input state for the given date.
 
         Parameters
@@ -556,7 +591,9 @@ class FieldlistInput(EkdInput):
         State
             The created input state.
         """
-        return self._create_input_state(self._fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs)
+        return self._create_input_state(
+            self._fieldlist, dates=dates, ref_date_index=ref_date_index, **kwargs
+        )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -582,7 +619,9 @@ class FieldlistInput(EkdInput):
 
     def default_initial_date(self) -> datetime:
         # most recent valid datetime from the fieldlist
-        return self._fieldlist.order_by(valid_datetime="ascending")[-1].datetime()["valid_time"]
+        return self._fieldlist.order_by(valid_datetime="ascending")[-1].datetime()[
+            "valid_time"
+        ]
 
     @cached_property
     def _fieldlist(self) -> ekd.FieldList:
@@ -605,7 +644,11 @@ class FieldlistInput(EkdInput):
                 files.extend(glob.glob(os.path.join(path, "**", pat), recursive=True))
             files = [f for f in sorted(set(files)) if os.path.isfile(f)]
             if not files:
-                LOG.warning("Directory %r contains no files which match patterns %r", path, self.patterns)
+                LOG.warning(
+                    "Directory %r contains no files which match patterns %r",
+                    path,
+                    self.patterns,
+                )
                 return ekd.from_source("empty")  # type: ignore[reportReturnType]
             return ekd.from_source("file", files)  # type: ignore[reportReturnType]
 

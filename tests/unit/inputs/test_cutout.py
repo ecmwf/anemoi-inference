@@ -18,12 +18,15 @@ from anemoi.inference.inputs.cutout import _mask_and_combine_states
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.runner import Runner
 from anemoi.inference.runners import create_runner
-from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing import files_for_tests
+from anemoi.inference.testing import fake_checkpoints, files_for_tests
 
 
 def test_mask_and_combine_states():
-    states = [{"a": np.arange(5).astype(float)}, {"a": np.arange(5, 10).astype(float)}, {"a": np.arange(10, 15)}]
+    states = [
+        {"a": np.arange(5).astype(float)},
+        {"a": np.arange(5, 10).astype(float)},
+        {"a": np.arange(10, 15)},
+    ]
     masks = [np.zeros(5).astype(bool) for _ in states]
     masks[0][[1, 2]] = True
     masks[1][[2, 3]] = True
@@ -33,7 +36,9 @@ def test_mask_and_combine_states():
     for k in range(len(states)):
         mask = masks[k]
         new_state = states[k]
-        combined_state = _mask_and_combine_states(combined_state, new_state, mask, ["a"])
+        combined_state = _mask_and_combine_states(
+            combined_state, new_state, mask, ["a"]
+        )
 
     assert combined_state["a"].shape[0] == 6
     assert (
@@ -78,8 +83,13 @@ def test_cutout_no_mask(runner: tuple[Runner, Metadata]):
     ]
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
-    with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    with patch(
+        "anemoi.inference.metadata.Metadata.load_supporting_array",
+        return_value=np.ones(number_of_grid_points),
+    ):
+        input_state = cutout_input.create_input_state(
+            dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")]
+        )
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == number_of_grid_points * 2
@@ -105,8 +115,13 @@ def test_cutout_with_slice(runner: tuple[Runner, Metadata]):
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     assert list(cutout_input.sources.keys()) == ["lam", "global"]
     number_of_grid_points = metadata.number_of_grid_points
-    with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    with patch(
+        "anemoi.inference.metadata.Metadata.load_supporting_array",
+        return_value=np.ones(number_of_grid_points),
+    ):
+        input_state = cutout_input.create_input_state(
+            dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")]
+        )
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == 25
@@ -133,11 +148,19 @@ def test_cutout_with_array(runner: tuple[Runner, Metadata]):
     global_mask = np.zeros(number_of_grid_points, dtype=bool)
     global_mask[10:25] = True
 
-    cutout_config = [{"lam": {"mask": lam_mask, "dummy": {}}}, {"global": {"mask": global_mask, "dummy": {}}}]
+    cutout_config = [
+        {"lam": {"mask": lam_mask, "dummy": {}}},
+        {"global": {"mask": global_mask, "dummy": {}}},
+    ]
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
-    with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    with patch(
+        "anemoi.inference.metadata.Metadata.load_supporting_array",
+        return_value=np.ones(number_of_grid_points),
+    ):
+        input_state = cutout_input.create_input_state(
+            dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")]
+        )
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == 25

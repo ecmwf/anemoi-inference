@@ -12,14 +12,12 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from anemoi.transform.fields import new_field_from_numpy
-from anemoi.transform.fields import new_fieldlist_from_list
+from anemoi.transform.fields import new_field_from_numpy, new_fieldlist_from_list
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import State
+from anemoi.inference.types import BoolArray, State
 
 from ..processor import Processor
 from . import pre_processor_registry
@@ -40,7 +38,9 @@ class ExtractBase(Processor):
     @property
     def indexer(self) -> BoolArray | slice:
         if self._indexer is None:
-            raise RuntimeError(f"{type(self).__name__}.indexer is not set. Set it before process().")
+            raise RuntimeError(
+                f"{type(self).__name__}.indexer is not set. Set it before process()."
+            )
         return self._indexer
 
     @indexer.setter
@@ -107,7 +107,9 @@ class ExtractMask(ExtractBase):
         str
             String representation of the object.
         """
-        return f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer.size})"
+        return (
+            f"ExtractMask({self._maskname}, points={self.npoints}/{self.indexer.size})"
+        )
 
 
 @pre_processor_registry.register("extract_slice")

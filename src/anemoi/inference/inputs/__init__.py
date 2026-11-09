@@ -18,7 +18,9 @@ from anemoi.inference.metadata import Metadata
 input_registry = Registry(__name__)
 
 
-def create_input(context: Context, config: Configuration, metadata: Metadata, **kwargs) -> Any:
+def create_input(
+    context: Context, config: Configuration, metadata: Metadata, **kwargs
+) -> Any:
     """Create an input instance from the given context and configuration.
 
     Parameters

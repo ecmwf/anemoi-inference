@@ -12,17 +12,18 @@ import datetime
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 from anemoi.utils.checkpoints import load_metadata
 
 from anemoi.inference.config.utils import multi_datasets_config
 
-from .metadata import Metadata
-from .metadata import MetadataFactory
-from .metadata import MultiDatasetMetadata
-from .metadata import SingleDatasetMetadata
+from .metadata import (
+    Metadata,
+    MetadataFactory,
+    MultiDatasetMetadata,
+    SingleDatasetMetadata,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -40,7 +41,9 @@ def get_multi_dataset_metadata(
     """Metadata objects for all datasets in the raw metadata, as a mapping from dataset name to Metadata object.
     For legacy checkpoints, the dataset name defaults to `data`
     """
-    dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
+    dataset_names = metadata.get("metadata_inference", {}).get(
+        "dataset_names", ["data"]
+    )
 
     return {
         dataset: MetadataFactory(
@@ -67,10 +70,11 @@ def _download_huggingfacehub(huggingface_config: Any) -> str:
         Path to the downloaded model.
     """
     try:
-        from huggingface_hub import hf_hub_download
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import hf_hub_download, snapshot_download
     except ImportError as e:
-        raise ImportError("Could not import `huggingface_hub`, please run `pip install huggingface_hub`.") from e
+        raise ImportError(
+            "Could not import `huggingface_hub`, please run `pip install huggingface_hub`."
+        ) from e
 
     if isinstance(huggingface_config, str):
         huggingface_config = {"repo_id": huggingface_config}
@@ -139,7 +143,6 @@ class Checkpoint:
         elif isinstance(path, dict):
             if "huggingface" in path:
                 return _download_huggingfacehub(path["huggingface"])
-            pass
         raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
     @cached_property
@@ -166,7 +169,10 @@ class Checkpoint:
     def multi_dataset(self) -> bool:
         """Check if the checkpoint is a multi-dataset checkpoint."""
         metadata, _ = self._raw_metadata
-        return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
+        return (
+            "metadata_inference" in metadata
+            and "dataset_names" in metadata["metadata_inference"]
+        )
 
     @cached_property
     def multi_dataset_metadata(
@@ -176,13 +182,20 @@ class Checkpoint:
         For legacy checkpoints, the dataset name defaults to `data`
         """
         metadata, supporting_arrays = self._raw_metadata
-        multi_metadata = get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
+        multi_metadata = get_multi_dataset_metadata(
+            metadata, supporting_arrays, base_class=self.metadata_base
+        )
 
         if self.multi_dataset:
-            assert all(isinstance(metadata, MultiDatasetMetadata) for metadata in multi_metadata.values())
+            assert all(
+                isinstance(metadata, MultiDatasetMetadata)
+                for metadata in multi_metadata.values()
+            )
         else:
             assert len(multi_metadata) == 1
-            assert isinstance(next(iter(multi_metadata.values())), SingleDatasetMetadata)
+            assert isinstance(
+                next(iter(multi_metadata.values())), SingleDatasetMetadata
+            )
 
         if self.patch_metadata:
             for dataset, metadata in multi_metadata.items():
@@ -194,7 +207,11 @@ class Checkpoint:
                 )
                 LOG.warning(f"[{dataset}] Patching metadata with {patch}")
                 new_keys = metadata.patch(patch)
-                new_keys = [key for key in new_keys if key.rsplit(".", 1)[-1] not in EXPECTED_PATCH_NEW_KEYS]
+                new_keys = [
+                    key
+                    for key in new_keys
+                    if key.rsplit(".", 1)[-1] not in EXPECTED_PATCH_NEW_KEYS
+                ]
                 if new_keys:
                     LOG.warning(
                         "[%s] The metadata patch added %d new key(s) that did not exist before: %s. "

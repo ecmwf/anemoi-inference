@@ -70,7 +70,9 @@ class TaskWrapper:
 class ThreadsTransport(Transport):
     """Transport implementation using threads."""
 
-    def __init__(self, couplings: Any, tasks: dict[str, Task], *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, couplings: Any, tasks: dict[str, Task], *args: Any, **kwargs: Any
+    ) -> None:
         """Initialize the ThreadsTransport.
 
         Parameters
@@ -87,7 +89,9 @@ class ThreadsTransport(Transport):
 
     def start(self) -> None:
         """Start the transport by initializing and starting threads for each task."""
-        self.wrapped_tasks = {name: TaskWrapper(task) for name, task in self.tasks.items()}
+        self.wrapped_tasks = {
+            name: TaskWrapper(task) for name, task in self.tasks.items()
+        }
 
         for name, wrapped_task in self.wrapped_tasks.items():
             self.threads[name] = threading.Thread(target=wrapped_task.run, args=(self,))
@@ -137,7 +141,9 @@ class ThreadsTransport(Transport):
         Any
             The received state.
         """
-        LOG.info(f"{receiver}: receiving from {source} [{tag}] (backlog: {len(self.backlogs[receiver.name])})")
+        LOG.info(
+            f"{receiver}: receiving from {source} [{tag}] (backlog: {len(self.backlogs[receiver.name])})"
+        )
 
         if (source.name, tag) in self.backlogs[receiver.name]:
             with self.lock:

@@ -13,8 +13,7 @@ from typing import Any
 
 import earthkit.data as ekd
 
-from . import IndexTemplateProvider
-from . import template_provider_registry
+from . import IndexTemplateProvider, template_provider_registry
 from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
@@ -24,7 +23,9 @@ LOG = logging.getLogger(__name__)
 class SamplesTemplates(IndexTemplateProvider):
     """Class to provide GRIB templates from sample files."""
 
-    def __init__(self, manager: TemplateManager, *args, index_path: str | None = None) -> None:
+    def __init__(
+        self, manager: TemplateManager, *args, index_path: str | None = None
+    ) -> None:
         if index_path is not None:
             return super().__init__(manager, index_path)
 

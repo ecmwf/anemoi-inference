@@ -20,10 +20,8 @@ from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.lazy import torch
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.profiler import ProfilingLabel
-from anemoi.inference.runner import Runner
-from anemoi.inference.runner import RunnerClasses
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.runner import Runner, RunnerClasses
+from anemoi.inference.types import FloatArray, State
 
 from . import runner_registry
 
@@ -36,7 +34,9 @@ class TemporalDownscalerMetadata(Metadata):
         """Return the list of steps for the `multi_step_input` fields.
         A temporal downscaler looks ahead instead of backwards.
         """
-        return sorted([s * to_timedelta(self.data_frequency) for s in self.input_explicit_times])
+        return sorted(
+            [s * to_timedelta(self.data_frequency) for s in self.input_explicit_times]
+        )
 
 
 @runner_registry.register("temporal_downscaler")
@@ -59,20 +59,28 @@ class TemporalDownscalerMultiOutRunner(Runner):
         )
 
         if self.reference_date is None:
-            raise ValueError("Temporal downscaler runner requires a date set in the config or CLI.")
+            raise ValueError(
+                "Temporal downscaler runner requires a date set in the config or CLI."
+            )
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Temporal downscaler runner requires exactly two input explicit times (t and t+temporal_downscaling_window), "
             f"but got {self.checkpoint.input_explicit_times}"
         )
 
-        self.temporal_downscaling_window = to_timedelta(self.checkpoint.data_frequency) * (
-            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0]
+        self.temporal_downscaling_window = to_timedelta(
+            self.checkpoint.data_frequency
+        ) * (
+            self.checkpoint.input_explicit_times[1]
+            - self.checkpoint.input_explicit_times[0]
         )
 
         assert len(self.checkpoint.target_explicit_times) in (
-            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
-            self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
+            self.checkpoint.input_explicit_times[1]
+            - self.checkpoint.input_explicit_times[0]
+            - 1,
+            self.checkpoint.input_explicit_times[1]
+            - self.checkpoint.input_explicit_times[0],
         ), (
             "Temporal downscaler runner requires the number of target explicit times to be equal to "
             "temporal_downscaling_window / frequency - 1, but got "
@@ -120,7 +128,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
         # create constant forcings states only once, they will be reused in each window
         self.constants_states: dict[str, State] = {}
         for dataset in self.tensor_handlers:
-            self.constants_states[dataset] = self.constant_forcings_inputs[dataset].create_input_state(
+            self.constants_states[dataset] = self.constant_forcings_inputs[
+                dataset
+            ].create_input_state(
                 dates=[self.reference_date], constant=True, ref_date_index=0
             )
             for key in self.constants_states[dataset]["fields"].keys():
@@ -131,13 +141,17 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     ],
                     axis=0,
                 )
-            self._check_state(dataset, self.constants_states[dataset], "constant_forcings")
+            self._check_state(
+                dataset, self.constants_states[dataset], "constant_forcings"
+            )
 
         self.input_states_hook(self.constants_states)
 
         # Process each temporal downscaling window
         for window_idx in range(num_windows):
-            window_start_date = self.reference_date + window_idx * self.temporal_downscaling_window
+            window_start_date = (
+                self.reference_date + window_idx * self.temporal_downscaling_window
+            )
             window_end_date = window_start_date + self.temporal_downscaling_window
 
             LOG.info(
@@ -147,12 +161,18 @@ class TemporalDownscalerMultiOutRunner(Runner):
             input_states: dict[str, State] = {}
             for dataset in self.tensor_handlers:
                 prognostic_state = self.prognostics_inputs[dataset].create_input_state(
-                    dates=[window_start_date, window_end_date], select_reference_date=True, ref_date_index=0
+                    dates=[window_start_date, window_end_date],
+                    select_reference_date=True,
+                    ref_date_index=0,
                 )
                 self._check_state(dataset, prognostic_state, "prognostics")
 
-                forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
-                    dates=[window_start_date, window_end_date], select_reference_date=True, ref_date_index=0
+                forcings_state = self.dynamic_forcings_inputs[
+                    dataset
+                ].create_input_state(
+                    dates=[window_start_date, window_end_date],
+                    select_reference_date=True,
+                    ref_date_index=0,
                 )
                 self._check_state(dataset, forcings_state, "dynamic_forcings")
 
@@ -185,7 +205,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
                         continue
 
                     # Updating state step to be a global step not relative to window
-                    state["step"] = state["step"] + window_idx * self.temporal_downscaling_window
+                    state["step"] = (
+                        state["step"] + window_idx * self.temporal_downscaling_window
+                    )
 
                     # Apply post-processing
                     for processor in self.post_processors[dataset]:
@@ -222,7 +244,11 @@ class TemporalDownscalerMultiOutRunner(Runner):
         )
 
         for s in range(steps):
-            step = self.temporal_downscaling_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
+            step = (
+                self.temporal_downscaling_window
+                * (s + 1)
+                / (boundary_idx[-1] - boundary_idx[0])
+            )
             date = start_date + step
             yield step, date
 
@@ -254,7 +280,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
             # Create pytorch input tensor
             input_tensors_torch = {
-                dataset: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
+                dataset: torch.from_numpy(
+                    np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]
+                ).to(self.device)
                 for dataset, input_tensor_numpy in input_tensors_numpy.items()
             }
 
@@ -267,7 +295,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 start = input_states[dataset]["date"]
 
                 if self.verbosity > 0:
-                    handler._print_input_tensor("First input tensor", input_tensors_torch[dataset])
+                    handler._print_input_tensor(
+                        "First input tensor", input_tensors_torch[dataset]
+                    )
 
             # First yield the boundary states (t and t+window_size)
             boundary_times = self.checkpoint.input_explicit_times
@@ -293,8 +323,14 @@ class TemporalDownscalerMultiOutRunner(Runner):
                             if idx == i:
                                 var_name = var
                                 break
-                        if var_name and var_name in handler.metadata.output_tensor_index_to_variable.values():
-                            initial_states[dataset]["fields"][var_name] = input_numpy[:, i]
+                        if (
+                            var_name
+                            and var_name
+                            in handler.metadata.output_tensor_index_to_variable.values()
+                        ):
+                            initial_states[dataset]["fields"][var_name] = input_numpy[
+                                :, i
+                            ]
 
                 yield initial_states
 
@@ -310,7 +346,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
             for s, (step, date) in enumerate(self.temporal_downscaler_stepper(start)):
                 for dataset, handler in self.tensor_handlers.items():
                     new_states[dataset]["date"] = date
-                    new_states[dataset]["previous_step"] = new_states[dataset].get("step")
+                    new_states[dataset]["previous_step"] = new_states[dataset].get(
+                        "step"
+                    )
                     new_states[dataset]["step"] = step
                     new_states[dataset]["temporally_downscaled"] = True
 
@@ -342,9 +380,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                         for i in range(output.shape[2]):
-                            new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[i]] = output[
-                                s, :, i
-                            ]
+                            new_states[dataset]["fields"][
+                                handler.metadata.output_tensor_index_to_variable[i]
+                            ] = output[s, :, i]
 
                     if self.verbosity > 0:
                         handler._print_output_tensor("Output tensor", output)

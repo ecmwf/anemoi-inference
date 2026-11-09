@@ -14,21 +14,20 @@ from pathlib import Path
 import pytest
 import yaml
 from anemoi.utils.testing import GetTestData
-from earthkit.data.readers.grib.codes import GribCodesHandle
-from earthkit.data.readers.grib.codes import GribField
+from earthkit.data.readers.grib.codes import GribCodesHandle, GribField
 from earthkit.data.utils.dates import to_timedelta
 from pytest_mock import MockerFixture
 from rich import print
 
-from anemoi.inference.grib.encoding import GribWriter
-from anemoi.inference.grib.encoding import check_encoding
-from anemoi.inference.grib.encoding import grib_keys
+from anemoi.inference.grib.encoding import GribWriter, check_encoding, grib_keys
 from anemoi.inference.grib.templates.input import InputTemplates
 from anemoi.inference.grib.templates.manager import TemplateManager
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.outputs.parallel import _restore_grib_templates
-from anemoi.inference.outputs.parallel import _sanitise_state
-from anemoi.inference.outputs.parallel import _serialise_grib_templates
+from anemoi.inference.outputs.parallel import (
+    _restore_grib_templates,
+    _sanitise_state,
+    _serialise_grib_templates,
+)
 from anemoi.inference.testing import files_for_tests
 
 
@@ -36,7 +35,9 @@ def _metadata():
     with open(files_for_tests("unit/checkpoints/atmos.json"), "r") as f:
         data = json.load(f)
     metadata = Metadata(data)
-    metadata.typed_variables["unknown"] = metadata.typed_variables["2t"]  # used in auto-unknown test
+    metadata.typed_variables["unknown"] = metadata.typed_variables[
+        "2t"
+    ]  # used in auto-unknown test
 
     # 100u failed at one point in test_builtin_gribwriter, make sure 100u is still present if checkpoint is ever updated
     assert "100u" in metadata.typed_variables.keys()
@@ -79,7 +80,9 @@ def template_index(grib_template: Path, tmp_path: Path) -> Path:
 )
 def test_builtin(manager, variable, expected_param):
     manager = manager()
-    template = manager.template(variable, state={}, typed_variables=manager.typed_variables)
+    template = manager.template(
+        variable, state={}, typed_variables=manager.typed_variables
+    )
 
     assert isinstance(template, GribField)
     assert template.metadata("param") == expected_param
@@ -96,7 +99,9 @@ def test_builtin(manager, variable, expected_param):
         pytest.param({"variables": "10u"}, "2t", None, type(None), id="skip variable"),
     ],
 )
-def test_file(manager, grib_template, file_config, variable, expected_param, expected_type):
+def test_file(
+    manager, grib_template, file_config, variable, expected_param, expected_type
+):
     config = {
         "file": {
             "path": grib_template,
@@ -104,7 +109,9 @@ def test_file(manager, grib_template, file_config, variable, expected_param, exp
         }
     }
     manager = manager(config)
-    template = manager.template(variable, state={}, typed_variables=manager.typed_variables)
+    template = manager.template(
+        variable, state={}, typed_variables=manager.typed_variables
+    )
 
     assert isinstance(template, expected_type)
 
@@ -151,7 +158,9 @@ def test_samples_direct_index(manager, template_index):
         pytest.param(None, id="default"),
         pytest.param("input", id="input only"),
         pytest.param(["input", "builtin"], id="input+builtin"),
-        pytest.param({"input": {"10u": "2t", "2t": "ignored"}}, id="input with fallback"),
+        pytest.param(
+            {"input": {"10u": "2t", "2t": "ignored"}}, id="input with fallback"
+        ),
     ],
 )
 def test_input(manager, config, request):
@@ -162,10 +171,14 @@ def test_input(manager, config, request):
         }
     }
 
-    template = manager.template("2t", state=state, typed_variables=manager.typed_variables)
+    template = manager.template(
+        "2t", state=state, typed_variables=manager.typed_variables
+    )
     assert template == "2t_input_template"
 
-    template = manager.template("10u", state=state, typed_variables=manager.typed_variables)
+    template = manager.template(
+        "10u", state=state, typed_variables=manager.typed_variables
+    )
     if request.node.callspec.id == "input only":
         assert template is None
     elif request.node.callspec.id == "input with fallback":
@@ -179,7 +192,9 @@ def test_input(manager, config, request):
     [
         pytest.param(variable, id=variable.param)
         for variable in {
-            var.param: var for var in _metadata().typed_variables.values() if not var.is_computed_forcing
+            var.param: var
+            for var in _metadata().typed_variables.values()
+            if not var.is_computed_forcing
         }.values()  # dict to get only one level per pl param
     ],
 )
@@ -414,18 +429,24 @@ def test_parallel_and_normal_paths_encode_identically_with_templates(bpv):
     import numpy as np
 
     field_a = _make_ekd_field("2t", bits_per_value=bpv, param_id=167)
-    field_b = _make_ekd_field("2t", bits_per_value=bpv, param_id=167)  # separate handle, same content
+    field_b = _make_ekd_field(
+        "2t", bits_per_value=bpv, param_id=167
+    )  # separate handle, same content
 
     # Normal path uses field_a directly.
     # Parallel path takes field_b through sanitise + pickle + restore.
     state = {"_grib_templates_for_output": {"2t": field_b}, "fields": {}}
-    sanitised = _sanitise_state(state, _serialise_grib_templates(state["_grib_templates_for_output"]))
+    sanitised = _sanitise_state(
+        state, _serialise_grib_templates(state["_grib_templates_for_output"])
+    )
     restored = _restore_grib_templates(pickle.loads(pickle.dumps(sanitised)))
     field_b_restored = restored["_grib_templates_for_output"]["2t"]
 
     # Product-definition metadata (independent of the stripped data section) must match.
     for key in ("shortName", "numberOfDataPoints", "Ni", "Nj", "paramId"):
-        assert field_a.metadata(key) == field_b_restored.metadata(key), f"mismatch on {key}"
+        assert field_a.metadata(key) == field_b_restored.metadata(key), (
+            f"mismatch on {key}"
+        )
 
     # Encoding the same values through both handles must yield identical bytes:
     # this is the invariant that guarantees the writer produces the same output
@@ -435,7 +456,9 @@ def test_parallel_and_normal_paths_encode_identically_with_templates(bpv):
     # differently from the reference.
     n = int(field_a.handle.get("numberOfDataPoints"))
     values = np.linspace(240.0, 310.0, n)
-    assert _encode_with_template(field_a, values) == _encode_with_template(field_b_restored, values)
+    assert _encode_with_template(field_a, values) == _encode_with_template(
+        field_b_restored, values
+    )
 
 
 def test_parallel_and_normal_paths_agree_without_templates():
@@ -477,7 +500,9 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
 
     levels = [500, 850]
     rng = np.random.default_rng(0)
-    n = int(GribCodesHandle.from_sample("regular_ll_sfc_grib2").get("numberOfDataPoints"))
+    n = int(
+        GribCodesHandle.from_sample("regular_ll_sfc_grib2").get("numberOfDataPoints")
+    )
 
     def make_template(short_name: str) -> ekd.Field:
         h = GribCodesHandle.from_sample("regular_ll_sfc_grib2")
@@ -491,7 +516,9 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
         "fields": {f"gh_{lvl}": rng.uniform(5000.0, 6000.0, n) for lvl in levels},
     }
     if with_templates:
-        state["_grib_templates_for_output"] = {f"gh_{lvl}": make_template("gh") for lvl in levels}
+        state["_grib_templates_for_output"] = {
+            f"gh_{lvl}": make_template("gh") for lvl in levels
+        }
 
     # Apply the gh → z transformation on the main process side.
     g = 9.80665
@@ -501,7 +528,9 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
             tmpl = state["_grib_templates_for_output"].pop(f"gh_{lvl}")
             h = tmpl.handle.clone()
             h.set("shortName", "z")
-            state["_grib_templates_for_output"][f"z_{lvl}"] = ekd.from_source("memory", h.get_buffer())[0]
+            state["_grib_templates_for_output"][f"z_{lvl}"] = ekd.from_source(
+                "memory", h.get_buffer()
+            )[0]
 
     # Push through the exact machinery ParallelOutput.dispatch_state_to_writers uses.
     templates = state.get("_grib_templates_for_output")
@@ -522,7 +551,9 @@ def test_parallel_roundtrip_preserves_input_transformation(with_templates: bool)
             rt = restored["_grib_templates_for_output"][name]
             assert rt.metadata("shortName") == orig.metadata("shortName") == "z"
             values = state["fields"][name]
-            assert _encode_with_template(orig, values) == _encode_with_template(rt, values)
+            assert _encode_with_template(orig, values) == _encode_with_template(
+                rt, values
+            )
     else:
         assert "_grib_templates_for_output" not in restored
         assert "_grib_templates_bytes_for_output" not in restored

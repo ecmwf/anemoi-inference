@@ -10,13 +10,10 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-
     from .checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
@@ -28,7 +25,9 @@ class Context(ABC):
     allow_nans = None  # can be True of False
     use_grib_paramid = False
     verbosity = 0
-    development_hacks: dict[str, Any] = {}  # For testing purposes, don't use in production
+    development_hacks: dict[
+        str, Any
+    ] = {}  # For testing purposes, don't use in production
 
     # Some runners will set these values, which can be queried by Output objects,
     # but may remain as None
@@ -45,4 +44,3 @@ class Context(ABC):
     @abstractmethod
     def checkpoint(self) -> Checkpoint:
         """Returns the checkpoint used for the inference."""
-        pass

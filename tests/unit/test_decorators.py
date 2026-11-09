@@ -9,8 +9,7 @@
 
 import pytest
 
-from anemoi.inference.decorators import format_dataset_name
-from anemoi.inference.decorators import main_argument
+from anemoi.inference.decorators import format_dataset_name, main_argument
 
 
 def test_main_argument():
@@ -29,7 +28,9 @@ def test_main_argument():
     assert cls.flag is True
     assert cls.path == "path"
 
-    assert isinstance(main_argument("path")(_Cls), type)  # decorator should return a class
+    assert isinstance(
+        main_argument("path")(_Cls), type
+    )  # decorator should return a class
 
     with pytest.raises(TypeError):
         main_argument("path")(lambda x: x)  # not a class
@@ -86,7 +87,9 @@ def test_format_dataset_name():
     cls = _Cls("context", metadata, path="output.grib")
     assert cls.path == "output.grib"
 
-    assert isinstance(format_dataset_name("path")(_Cls), type)  # decorator should return a class
+    assert isinstance(
+        format_dataset_name("path")(_Cls), type
+    )  # decorator should return a class
 
     with pytest.raises(TypeError) as excinfo:
         format_dataset_name("path")(lambda x: x)  # not a class

@@ -19,7 +19,9 @@ mid_processor_registry: Registry[Processor] = Registry(__name__)
 """Mid-processors are applied after each inference step, before the next step's input is prepared, the state will be filled with torch.Tensors still on the GPU."""
 
 
-def create_mid_processor(context: Context, config: ProcessorConfig, metadata: Metadata, **kwargs) -> Processor:
+def create_mid_processor(
+    context: Context, config: ProcessorConfig, metadata: Metadata, **kwargs
+) -> Processor:
     """Create a mid-processor, applied after each inference step.
 
     Parameters

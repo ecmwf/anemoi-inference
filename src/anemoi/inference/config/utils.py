@@ -39,7 +39,9 @@ def input_types_config(config: DotDict, *names: str) -> DotDict:
     return config.input
 
 
-def multi_datasets_config(config: Any, dataset_name: str, datasets: list[str], strict: bool = True):
+def multi_datasets_config(
+    config: Any, dataset_name: str, datasets: list[str], strict: bool = True
+):
     """Extract the configuration for a specific dataset name from a multi-dataset config entry.
     If the config only has a single entry, the entry corresponding to the dataset name is returned if it exists, otherwise the config is returned as is.
     For example, used with a config like:
@@ -62,9 +64,9 @@ def multi_datasets_config(config: Any, dataset_name: str, datasets: list[str], s
             )
 
         if strict and len(config.keys()) > 1:
-            assert (
-                dataset_name in config
-            ), f"Dataset name '{dataset_name}' not found in config. Available keys: {list(config.keys())}"
+            assert dataset_name in config, (
+                f"Dataset name '{dataset_name}' not found in config. Available keys: {list(config.keys())}"
+            )
 
         if dataset_name in config:
             return config[dataset_name]

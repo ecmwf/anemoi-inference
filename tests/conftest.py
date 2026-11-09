@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import numpy as np
 import pytest
@@ -21,11 +20,16 @@ STATE_NPOINTS = 50
 
 
 def pytest_addoption(parser):
-    parser.addoption("--cosmo", action="store_true", default=False, help="only run cosmo tests")
+    parser.addoption(
+        "--cosmo", action="store_true", default=False, help="only run cosmo tests"
+    )
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "cosmo: mark test as requiring cosmo eccodes definitions and isolation")
+    config.addinivalue_line(
+        "markers",
+        "cosmo: mark test as requiring cosmo eccodes definitions and isolation",
+    )
 
 
 def pytest_collection_modifyitems(config, items):

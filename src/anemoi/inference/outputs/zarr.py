@@ -14,21 +14,16 @@ import logging
 import math
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import ProcessorConfig, State
 
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
+from ..decorators import format_dataset_name, main_argument, supports_parallel_output
 from ..output import Output
 from ..types import OutputVariableConfigUnion
 from . import output_registry
@@ -40,7 +35,7 @@ if TYPE_CHECKING:
 
 
 def create_zarr_array(
-    store: "StoreLike",
+    store: StoreLike,
     name: str,
     shape: tuple,
     dtype: str,
@@ -95,7 +90,7 @@ class ZarrOutput(Output):
         context: Context,
         metadata: Metadata,
         *,
-        store: "StoreLike",
+        store: StoreLike,
         variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
         output_frequency: int | None = None,
@@ -140,7 +135,7 @@ class ZarrOutput(Output):
             write_initial_state=write_initial_state,
         )
 
-        self.zarr_store: "StoreLike" | None = store
+        self.zarr_store: StoreLike | None = store
         self.missing_value = missing_value
         self.chunks = chunks
         self.float_size = float_size
@@ -179,7 +174,9 @@ class ZarrOutput(Output):
                 zarr_store.parent.mkdir(parents=True, exist_ok=True)
 
                 if zarr_store.exists():
-                    LOG.warning(f"Zarr store {self.zarr_store} already exists. It will be overwritten.")
+                    LOG.warning(
+                        f"Zarr store {self.zarr_store} already exists. It will be overwritten."
+                    )
                     shutil.rmtree(self.zarr_store)
 
                 if zarr.__version__ >= "3":
@@ -250,7 +247,9 @@ class ZarrOutput(Output):
             chunks=self.chunks,
             fill_value=self.missing_value,
         )
-        self.latitude_var.attrs.update({"units": "degrees_north", "long_name": "latitude"})
+        self.latitude_var.attrs.update(
+            {"units": "degrees_north", "long_name": "latitude"}
+        )
 
         longitudes = state["longitudes"]
         self.longitude_var = create_zarr_array(
@@ -273,7 +272,7 @@ class ZarrOutput(Output):
         self.latitude_var[:] = latitudes
         self.longitude_var[:] = longitudes
 
-    def _time_index(self, date: "datetime.datetime") -> int:
+    def _time_index(self, date: datetime.datetime) -> int:
         """Return the time-dimension index for a given date.
 
         Each distinct date is assigned an index in first-seen order; a date

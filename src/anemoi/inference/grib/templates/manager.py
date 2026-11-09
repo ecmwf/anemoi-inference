@@ -53,7 +53,9 @@ class TemplateManager:
         if len(templates) == 0:
             templates = ["input", "builtin"]
 
-        self.templates_providers = [create_template_provider(self, template) for template in templates]
+        self.templates_providers = [
+            create_template_provider(self, template) for template in templates
+        ]
         LOG.info("GRIB template providers:")
         for provider in self.templates_providers:
             LOG.info(f"  - {provider}")
@@ -66,7 +68,11 @@ class TemplateManager:
         to_log = defaultdict(set)
 
         for provider, typed_list in self._history.items():
-            variables = [variable for variable in typed_list if variable.param not in self._logged_variables[provider]]
+            variables = [
+                variable
+                for variable in typed_list
+                if variable.param not in self._logged_variables[provider]
+            ]
             if len(variables) > 0:
                 for variable in variables:
                     to_log[provider].add(variable.param)
@@ -77,7 +83,9 @@ class TemplateManager:
             for provider, variables in to_log.items():
                 LOG.info(f"  - {provider}: {', '.join(sorted(variables))}")
 
-    def template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
+    def template(
+        self, name: str, state: State, typed_variables: dict[str, Any]
+    ) -> ekd.Field | None:
         """Get the template for a given name and state.
 
         Parameters
@@ -101,7 +109,9 @@ class TemplateManager:
 
         return self._template_cache.get(name)
 
-    def load_template(self, name: str, state: State, typed_variables: dict[str, Any]) -> ekd.Field | None:
+    def load_template(
+        self, name: str, state: State, typed_variables: dict[str, Any]
+    ) -> ekd.Field | None:
         """Load the template for a given name and state.
 
         Parameters

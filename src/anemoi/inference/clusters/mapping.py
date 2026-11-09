@@ -42,7 +42,9 @@ class EnvMapping:
         if mapped_value is None:
             return default
 
-        for env_var in (mapped_value if isinstance(mapped_value, list) else [mapped_value]):
+        for env_var in (
+            mapped_value if isinstance(mapped_value, list) else [mapped_value]
+        ):
             value = os.environ.get(env_var)
             if value is not None:
                 return value
@@ -108,7 +110,9 @@ class MappingCluster(ComputeClientFactory):
     @property
     def init_method(self) -> str:
         """Return the initialisation method string for distributed computing."""
-        return self._mapping.init_method.format(master_addr=self.master_addr, master_port=self.master_port)
+        return self._mapping.init_method.format(
+            master_addr=self.master_addr, master_port=self.master_port
+        )
 
     @property
     def backend(self) -> str:

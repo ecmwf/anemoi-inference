@@ -55,7 +55,9 @@ def _make_handler(
     return handler
 
 
-def _build_tensors(multi_step_input: int, multi_step_output: int) -> tuple[torch.Tensor, torch.Tensor]:
+def _build_tensors(
+    multi_step_input: int, multi_step_output: int
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Encode each input step ``s`` as value ``s + 1`` and each prediction ``o`` as ``n + o + 1``.
 
     With this encoding the concatenated prognostic sequence is ``[1, ..., n, n+1, ..., n+m]``,
@@ -118,15 +120,33 @@ def test_copy_prognostic_fields_advances_window(
         # The new input window is gathered from a non-uniform mix of previous inputs and
         # predictions, and some previous-input slots may be dropped and never reused.
         # ADR "different input/output frequencies" example ([-6H,0H]->[3H,6H], S=6H).
-        pytest.param(2, 2, {"inin": [(1, 0)], "outin": [(1, 1)]}, [2.0, 4.0], id="mixed-frequency"),
+        pytest.param(
+            2,
+            2,
+            {"inin": [(1, 0)], "outin": [(1, 1)]},
+            [2.0, 4.0],
+            id="mixed-frequency",
+        ),
         # Tail input slot filled from a non-adjacent, later prediction ([-3H,0H]->[1H,2H,3H], S=3H).
-        pytest.param(2, 3, {"inin": [(1, 0)], "outin": [(2, 1)]}, [2.0, 5.0], id="skip-to-out2"),
+        pytest.param(
+            2, 3, {"inin": [(1, 0)], "outin": [(2, 1)]}, [2.0, 5.0], id="skip-to-out2"
+        ),
         # Two previous inputs reused, one prediction fed back ([-4H,-2H,0H]->[1H,2H], S=2H).
-        pytest.param(3, 2, {"inin": [(1, 0), (2, 1)], "outin": [(1, 2)]}, [2.0, 3.0, 5.0], id="two-reused-one-pred"),
+        pytest.param(
+            3,
+            2,
+            {"inin": [(1, 0), (2, 1)], "outin": [(1, 2)]},
+            [2.0, 3.0, 5.0],
+            id="two-reused-one-pred",
+        ),
         # Most irregular case: multiple inin *and* multiple outin, with previous-input
         # slots 0 and 2 dropped ([-4H,-2H,-1H,0H]->[1H,2H], S=2H) — a plain roll() cannot express this.
         pytest.param(
-            4, 2, {"inin": [(1, 0), (3, 1)], "outin": [(0, 2), (1, 3)]}, [2.0, 4.0, 5.0, 6.0], id="irregular-offsets"
+            4,
+            2,
+            {"inin": [(1, 0), (3, 1)], "outin": [(0, 2), (1, 3)]},
+            [2.0, 4.0, 5.0, 6.0],
+            id="irregular-offsets",
         ),
     ],
 )
@@ -144,9 +164,9 @@ def test_copy_prognostic_fields_irregular_advance_map(
     result = handler.copy_prognostic_fields_to_input_tensor(input_tensor, y_pred, check)
 
     for step, value in enumerate(expected_prog):
-        assert torch.all(
-            result[0, step, :, 1] == value
-        ), f"prognostic step {step} should be {value}, got {result[0, step, :, 1].tolist()}"
+        assert torch.all(result[0, step, :, 1] == value), (
+            f"prognostic step {step} should be {value}, got {result[0, step, :, 1].tolist()}"
+        )
     assert check.tolist() == [False, True]
 
 
@@ -180,7 +200,9 @@ def test_copy_prognostic_fields_raises_on_conflicting_slot() -> None:
     input_tensor, y_pred = _build_tensors(1, 1)
     check = np.array([False, True])  # prognostic input slot already written
 
-    with pytest.raises(AssertionError, match="overwrite existing prognostic input slots"):
+    with pytest.raises(
+        AssertionError, match="overwrite existing prognostic input slots"
+    ):
         handler.copy_prognostic_fields_to_input_tensor(input_tensor, y_pred, check)
 
 

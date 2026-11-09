@@ -8,9 +8,7 @@
 #
 
 import datetime
-from typing import Any
-from typing import Literal
-from typing import Union
+from typing import Any, Literal, Union
 
 from numpy.typing import NDArray
 
@@ -45,6 +43,10 @@ ProcessorConfig = Union[str, dict[str, Any]]
 """A str or dict of str representing a pre/mid/post -processor configuration."""
 
 OutputVariableConfigUnion = Union[
-    OutputVariableConfig, str, list[str | dict[str, Any]], dict[Literal["select", "drop"], Any], None
+    OutputVariableConfig,
+    str,
+    list[str | dict[str, Any]],
+    dict[Literal["select", "drop"], Any],
+    None,
 ]
 """The accepted configuration forms for output variable selection, coerced to an OutputVariableConfig."""

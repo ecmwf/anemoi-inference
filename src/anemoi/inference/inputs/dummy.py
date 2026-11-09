@@ -14,9 +14,7 @@ These values are then tested in the mock model.
 """
 
 import logging
-from datetime import datetime
-from datetime import time
-from datetime import timezone
+from datetime import UTC, datetime, time
 
 import earthkit.data as ekd
 import numpy as np
@@ -24,8 +22,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, State
 
 from . import input_registry
 from .ekd import EkdInput
@@ -58,7 +55,9 @@ class DummyInput(EkdInput):
         State
             The created input state.
         """
-        return self._create_input_state(self._fields(dates, self.variables), variables=None, dates=dates, **kwargs)
+        return self._create_input_state(
+            self._fields(dates, self.variables), variables=None, dates=dates, **kwargs
+        )
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.
@@ -113,13 +112,20 @@ class DummyInput(EkdInput):
         for variable in variables:
             is_constant_in_time = typed_variables[variable].is_constant_in_time
 
-            keys = {k: v for k, v in typed_variables[variable].grib_keys.items() if k not in SKIP_KEYS}
+            keys = {
+                k: v
+                for k, v in typed_variables[variable].grib_keys.items()
+                if k not in SKIP_KEYS
+            }
 
             for date in dates:
                 x = float_hash(variable, dates[0] if is_constant_in_time else date)
 
                 handle = dict(
-                    values=np.ones(self.metadata.number_of_grid_points, dtype=np.float32) * x,
+                    values=np.ones(
+                        self.metadata.number_of_grid_points, dtype=np.float32
+                    )
+                    * x,
                     latitudes=latitudes,
                     longitudes=longitudes,
                     date=date.strftime("%Y%m%d"),
@@ -149,4 +155,4 @@ class DummyInput(EkdInput):
 
     def default_initial_date(self) -> datetime:
         # midnight of the current date in UTC
-        return datetime.combine(datetime.now(timezone.utc).date(), time())
+        return datetime.combine(datetime.now(UTC).date(), time())
