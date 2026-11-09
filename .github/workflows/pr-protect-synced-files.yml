@@ -1,0 +1,21 @@
+name: "[PR] Protect Synced Files"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # Sync-bot PRs may change synced files, also after we push to them
+  protect-synced-files:
+    if: github.event.pull_request.user.login != 'DeployDuck'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Check synced files changed by this PR
+        # HEAD is the PR merged into base.sha
+        run: >
+          pipx run pre-commit run protect-synced-files --color=always
+          --from-ref ${{ github.event.pull_request.base.sha }} --to-ref HEAD
