@@ -144,9 +144,9 @@ def test_copy_prognostic_fields_irregular_advance_map(
     result = handler.copy_prognostic_fields_to_input_tensor(input_tensor, y_pred, check)
 
     for step, value in enumerate(expected_prog):
-        assert torch.all(
-            result[0, step, :, 1] == value
-        ), f"prognostic step {step} should be {value}, got {result[0, step, :, 1].tolist()}"
+        assert torch.all(result[0, step, :, 1] == value), (
+            f"prognostic step {step} should be {value}, got {result[0, step, :, 1].tolist()}"
+        )
     assert check.tolist() == [False, True]
 
 

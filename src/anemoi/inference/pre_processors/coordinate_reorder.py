@@ -256,7 +256,7 @@ class CoordinateReorder(Processor):
 
         if tgt_lat is None or tgt_lon is None:
             LOG.warning(
-                "[%s] Reorder pre-processor: model grid has no latitudes/longitudes; " "skipping.",
+                "[%s] Reorder pre-processor: model grid has no latitudes/longitudes; skipping.",
                 self.dataset_name,
             )
             return state
