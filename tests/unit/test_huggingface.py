@@ -117,9 +117,7 @@ def test_huggingface_repo_download_dict(
 
 
 @patch("huggingface_hub.hf_hub_download")
-@pytest.mark.parametrize(
-    "ckpt", [{"repo_id": "organisation/test_repo", "filename": "model.ckpt"}]
-)
+@pytest.mark.parametrize("ckpt", [{"repo_id": "organisation/test_repo", "filename": "model.ckpt"}])
 def test_huggingface_file_download(
     huggingface_mock: unittest.mock.Mock,
     monkeypatch: pytest.MonkeyPatch,

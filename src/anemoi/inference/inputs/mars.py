@@ -17,7 +17,10 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import DataRequest, Date, ProcessorConfig, State
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
+from anemoi.inference.types import ProcessorConfig
+from anemoi.inference.types import State
 
 from . import input_registry
 from .grib import GribInput
@@ -99,9 +102,7 @@ def area_is_valid(area: list[float] | None) -> bool:
         return False
 
 
-def postproc(
-    grid: str | list[float] | None, area: list[float] | str | None
-) -> dict[str, str | list[float]]:
+def postproc(grid: str | list[float] | None, area: list[float] | str | None) -> dict[str, str | list[float]]:
     """Post-process the grid and area.
 
     Parameters
@@ -180,11 +181,7 @@ def retrieve(
 
         # ECMWF operational data has stream oper for 00 and 12 UTC and scda for 06 and 18 UTC
 
-        if (
-            r.get("type") == "fc"
-            and r.get("stream") == "oper"
-            and r["time"] in ("0600", "1800")
-        ):
+        if r.get("type") == "fc" and r.get("stream") == "oper" and r["time"] in ("0600", "1800"):
             r["stream"] = "scda"
 
         r.update(pproc)
@@ -251,9 +248,7 @@ class MarsInput(GribInput):
         self.patches = patches or []
         self.log = log
 
-    def create_input_state(
-        self, *, dates: list[Date], ref_date_index=-1, **kwargs
-    ) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the given date.
 
         Parameters

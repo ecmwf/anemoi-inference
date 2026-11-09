@@ -14,7 +14,8 @@ import logging
 import os
 from copy import deepcopy
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
 import numpy as np
 
@@ -39,11 +40,7 @@ def contains_any(key, specifications):
 
 
 def update_state_dict(
-    model,
-    external_state_dict,
-    keywords="",
-    ignore_mismatched_layers=False,
-    ignore_additional_layers=False,
+    model, external_state_dict, keywords="", ignore_mismatched_layers=False, ignore_additional_layers=False
 ):
     """Update the model's stated_dict with entries from an external state_dict. Only entries whose keys contain the specified keywords are considered."""
 
@@ -53,9 +50,7 @@ def update_state_dict(
         keywords = [keywords]
 
     # select relevant part of external_state_dict
-    reduced_state_dict = {
-        k: v for k, v in external_state_dict.items() if contains_any(k, keywords)
-    }
+    reduced_state_dict = {k: v for k, v in external_state_dict.items() if contains_any(k, keywords)}
     model_state_dict = model.state_dict()
 
     # check layers and their shapes
@@ -65,9 +60,7 @@ def update_state_dict(
                 LOG.info("Skipping injection of %s, which is not in the model.", key)
                 del reduced_state_dict[key]
             else:
-                raise AssertionError(
-                    f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'."
-                )
+                raise AssertionError(f"Layer {key} not in model. Consider setting 'ignore_additional_layers = True'.")
         elif reduced_state_dict[key].shape != model_state_dict[key].shape:
             if ignore_mismatched_layers:
                 LOG.info("Skipping injection of %s due to shape mismatch.", key)
@@ -76,8 +69,7 @@ def update_state_dict(
                 del reduced_state_dict[key]
             else:
                 raise AssertionError(
-                    "Mismatch in shape of %s. Consider setting 'ignore_mismatched_layers = True'.",
-                    key,
+                    "Mismatch in shape of %s. Consider setting 'ignore_mismatched_layers = True'.", key
                 )
 
     # update
@@ -85,19 +77,13 @@ def update_state_dict(
     return model
 
 
-def _get_supporting_arrays_from_graph(
-    update_supporting_arrays: dict[str, str], graph: Any
-) -> dict:
+def _get_supporting_arrays_from_graph(update_supporting_arrays: dict[str, str], graph: Any) -> dict:
     """Update the supporting arrays from the graph data."""
     updated_supporting_arrays = {}
     for key, value in update_supporting_arrays.items():
         if value in graph["data"]:
             updated_supporting_arrays[key] = graph["data"][value]
-            LOG.info(
-                "Moving attribute '%s' from external graph to supporting arrays as '%s'.",
-                value,
-                key,
-            )
+            LOG.info("Moving attribute '%s' from external graph to supporting arrays as '%s'.", value, key)
         else:
             error_msg = f"Key '{value}' not found in external graph 'data'. Cannot update supporting array: '{key}'."
             raise KeyError(error_msg)
@@ -113,22 +99,12 @@ def _get_supporting_arrays_from_file(update_supporting_arrays: dict[str, str]) -
             try:
                 updated_supporting_arrays[key] = torch.load(value)
             except Exception as e:
-                LOG.warning(
-                    "Failed to load '%s' as a torch tensor. Attempting to load as numpy array.\n%s",
-                    value,
-                    e,
-                )
+                LOG.warning("Failed to load '%s' as a torch tensor. Attempting to load as numpy array.\n%s", value, e)
                 updated_supporting_arrays[key] = np.load(value, allow_pickle=True)
 
-            LOG.info(
-                "Moving attribute '%s' from file to supporting arrays as '%s'.",
-                value,
-                key,
-            )
+            LOG.info("Moving attribute '%s' from file to supporting arrays as '%s'.", value, key)
         else:
-            error_msg = (
-                f"File '{value}' not found. Cannot update supporting array: '{key}'."
-            )
+            error_msg = f"File '{value}' not found. Cannot update supporting array: '{key}'."
             raise FileNotFoundError(error_msg)
     return updated_supporting_arrays
 
@@ -146,18 +122,12 @@ def get_updated_supporting_arrays(
     for location in update_supporting_arrays:
         if location == "graph":
             updated_supporting_arrays.update(
-                _get_supporting_arrays_from_graph(
-                    update_supporting_arrays[location], graph
-                )
+                _get_supporting_arrays_from_graph(update_supporting_arrays[location], graph)
             )
         elif location == "file":
-            updated_supporting_arrays.update(
-                _get_supporting_arrays_from_file(update_supporting_arrays[location])
-            )
+            updated_supporting_arrays.update(_get_supporting_arrays_from_file(update_supporting_arrays[location]))
         else:
-            raise ValueError(
-                f"Unknown location '{location}' in update_supporting_arrays."
-            )
+            raise ValueError(f"Unknown location '{location}' in update_supporting_arrays.")
 
     return updated_supporting_arrays
 
@@ -176,8 +146,7 @@ class ExternalGraphRunner(DefaultRunner):
         *,
         output_mask: dict | None = {},
         graph_dataset: Any | None = None,
-        update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]]
-        | None = None,
+        update_supporting_arrays: dict[Literal["graph", "file"], dict[str, str]] | None = None,
         updated_number_of_grid_points: str | int | None = None,
         check_state_dict: bool | None = True,
     ) -> None:
@@ -211,9 +180,9 @@ class ExternalGraphRunner(DefaultRunner):
         """
         super().__init__(config)
         # TODO: multi-dataset checkpoint support
-        assert not self.checkpoint.multi_dataset, (
-            "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
-        )
+        assert (
+            not self.checkpoint.multi_dataset
+        ), "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
         self.check_state_dict = check_state_dict
         self.graph_path = graph
 
@@ -234,13 +203,9 @@ class ExternalGraphRunner(DefaultRunner):
             )
 
             # had to use private attributes because cached properties cause problems
-            self.checkpoint._metadata._supporting_arrays.update(
-                graph_ds.supporting_arrays()
-            )
+            self.checkpoint._metadata._supporting_arrays.update(graph_ds.supporting_arrays())
             if "grid_indices" in self.checkpoint._metadata._supporting_arrays:
-                num_grid_points = len(
-                    self.checkpoint._metadata._supporting_arrays["grid_indices"]
-                )
+                num_grid_points = len(self.checkpoint._metadata._supporting_arrays["grid_indices"])
             else:
                 num_grid_points = graph_ds.shape[-1]
             self.checkpoint._metadata.number_of_grid_points = num_grid_points
@@ -248,9 +213,7 @@ class ExternalGraphRunner(DefaultRunner):
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array
         data = self.checkpoint._metadata._config.graph.data
-        assert data in self.graph.node_types, (
-            f"Node type {data} not found in external graph."
-        )
+        assert data in self.graph.node_types, f"Node type {data} not found in external graph."
         if "indices_connected_nodes" in self.graph[data]:
             LOG.info(
                 "The external graph has the 'indices_connected_nodes' attribute."
@@ -269,22 +232,14 @@ class ExternalGraphRunner(DefaultRunner):
                     }
                 }
             )
-            LOG.info(
-                "Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'."
-            )
-            indices_connected_nodes = self.graph[data][
-                "indices_connected_nodes"
-            ].numpy()
-            self.checkpoint._metadata._supporting_arrays["grid_indices"] = (
-                indices_connected_nodes.squeeze()
-            )
+            LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
+            indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
+            self.checkpoint._metadata._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
 
         if output_mask:
             nodes = output_mask["nodes_name"]
             attribute = output_mask["attribute_name"]
-            self.checkpoint._metadata._supporting_arrays["output_mask"] = (
-                self.graph[nodes][attribute].numpy().squeeze()
-            )
+            self.checkpoint._metadata._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
             LOG.info(
                 "Moving attribute '%s' of nodes '%s' from external graph to supporting arrays as 'output_mask'.",
                 attribute,
@@ -298,12 +253,8 @@ class ExternalGraphRunner(DefaultRunner):
 
         if updated_number_of_grid_points is not None:
             if isinstance(updated_number_of_grid_points, str):
-                updated_number_of_grid_points = len(
-                    self.graph["data"][updated_number_of_grid_points]
-                )
-            self.checkpoint._metadata.number_of_grid_points = (
-                updated_number_of_grid_points
-            )
+                updated_number_of_grid_points = len(self.graph["data"][updated_number_of_grid_points])
+            self.checkpoint._metadata.number_of_grid_points = updated_number_of_grid_points
             LOG.info(
                 "Updated number of grid points in the checkpoint metadata to %s.",
                 updated_number_of_grid_points,
@@ -313,9 +264,9 @@ class ExternalGraphRunner(DefaultRunner):
     def graph(self):
 
         graph_path = self.graph_path
-        assert os.path.isfile(graph_path), (
-            f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
-        )
+        assert os.path.isfile(
+            graph_path
+        ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
         LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 
@@ -337,13 +288,9 @@ class ExternalGraphRunner(DefaultRunner):
         # using transfer learning, where the statistics as stored in the checkpoint
         # do not match the statistics used to build the normalizer in the checkpoint.
         model_instance = update_state_dict(
-            model_instance,
-            state_dict_ckpt,
-            keywords=["bias", "weight", "processors.normalizer"],
+            model_instance, state_dict_ckpt, keywords=["bias", "weight", "processors.normalizer"]
         )
 
-        LOG.info(
-            "Successfully built model with external graph and reassigned model weights!"
-        )
+        LOG.info("Successfully built model with external graph and reassigned model weights!")
         self.device = device
         return model_instance.to(self.device)

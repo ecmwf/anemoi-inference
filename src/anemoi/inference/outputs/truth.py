@@ -32,9 +32,7 @@ def create_diagnostic_input(context, metadata, dataset_name):
     )
     config = context.config["input"] if variables else "empty"
     config = multi_datasets_config(config, dataset_name, context.dataset_names)
-    return create_input(
-        context, config, metadata, variables=variables, purpose="diagnostics"
-    )  # type: ignore[reportArgumentType]
+    return create_input(context, config, metadata, variables=variables, purpose="diagnostics")  # type: ignore[reportArgumentType]
 
 
 @output_registry.register("truth")
@@ -47,13 +45,7 @@ class TruthOutput(ForwardOutput):
     """
 
     def __init__(
-        self,
-        context: DefaultRunner,
-        metadata: Metadata,
-        *,
-        output,
-        add_diagnostic: bool = False,
-        **kwargs: Any,
+        self, context: DefaultRunner, metadata: Metadata, *, output, add_diagnostic: bool = False, **kwargs: Any
     ) -> None:
         """Initialise the TruthOutput.
 
@@ -77,18 +69,10 @@ class TruthOutput(ForwardOutput):
         super().__init__(context, metadata, output, None, **kwargs)
 
         self._prog_input = context.prognostics_inputs[metadata.dataset_name]
-        self._diag_input = (
-            create_diagnostic_input(context, metadata, metadata.dataset_name)
-            if add_diagnostic
-            else None
-        )
+        self._diag_input = create_diagnostic_input(context, metadata, metadata.dataset_name) if add_diagnostic else None
 
-        self._dynamic_forc_input = context.dynamic_forcings_inputs[
-            metadata.dataset_name
-        ]
-        self._constant_forc_input = context.constant_forcings_inputs[
-            metadata.dataset_name
-        ]
+        self._dynamic_forc_input = context.dynamic_forcings_inputs[metadata.dataset_name]
+        self._constant_forc_input = context.constant_forcings_inputs[metadata.dataset_name]
 
     def modify_state(self, state: State) -> State:
         """Modify state by overriding it with the truth state."""

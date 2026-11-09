@@ -9,8 +9,10 @@
 
 
 import logging
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from abc import ABC
+from abc import abstractmethod
+from typing import TYPE_CHECKING
+from typing import Any
 
 import earthkit.data as ekd
 import numpy as np
@@ -18,7 +20,10 @@ from anemoi.transform.grids.unstructured import UnstructuredGridFieldList
 from earthkit.data.indexing.fieldlist import FieldArray
 
 from anemoi.inference.inputs.dataset import DatasetInput
-from anemoi.inference.types import Date, FloatArray, IntArray, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import IntArray
+from anemoi.inference.types import State
 
 if TYPE_CHECKING:
     from anemoi.inference.input import Input
@@ -45,9 +50,7 @@ class Forcings(ABC):
         self.kinds = dict(unknown=True)  # Used for debugging
 
     @abstractmethod
-    def load_forcings_array(
-        self, dates: list[Date], current_state: State
-    ) -> FloatArray:
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the forcings for the given dates.
 
         Parameters
@@ -62,14 +65,13 @@ class Forcings(ABC):
         FloatArray
             The loaded forcings as a numpy array.
         """
+        pass
 
     def __repr__(self) -> str:
         """Return a string representation of the Forcings object."""
         return f"{self.__class__.__name__}"
 
-    def _state_to_numpy(
-        self, state: State, variables: list[str], dates: list[Date]
-    ) -> FloatArray:
+    def _state_to_numpy(self, state: State, variables: list[str], dates: list[Date]) -> FloatArray:
         """Convert the state dictionary to a numpy array.
         This assumes that the state dictionary contains the fields for the given variables.
         And that the fields values are sorted by dates.
@@ -99,11 +101,7 @@ class Forcings(ABC):
 
         # Assert that the shape is correct: (variables, dates, values)
 
-        assert (
-            len(result.shape) == 3
-            and result.shape[0] == len(variables)
-            and result.shape[1] == len(dates)
-        ), (
+        assert len(result.shape) == 3 and result.shape[0] == len(variables) and result.shape[1] == len(dates), (
             result.shape,
             variables,
             dates,
@@ -138,9 +136,7 @@ class ComputedForcings(Forcings):
         """Return a string representation of the ComputedForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(
-        self, dates: list[Date], current_state: State
-    ) -> FloatArray:
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the computed forcings for the given dates.
 
         Parameters
@@ -167,11 +163,7 @@ class ComputedForcings(Forcings):
 
         ds = ekd.from_source("forcings", source, date=dates, param=self.variables)
 
-        assert len(ds) == len(self.variables) * len(dates), (
-            len(ds),
-            len(self.variables),
-            dates,
-        )
+        assert len(ds) == len(self.variables) * len(dates), (len(ds), len(self.variables), dates)
 
         def rename(field: ekd.Field, _: str, metadata: dict[str, Any]) -> str:
             return metadata["param"]
@@ -182,9 +174,7 @@ class ComputedForcings(Forcings):
 
         # Forcing are sorted by `compute_forcings`  in the order (variable, date)
 
-        return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(
-            len(self.variables), len(dates), -1
-        )
+        return forcing.to_numpy(dtype=np.float32, flatten=True).reshape(len(self.variables), len(dates), -1)
 
 
 class CoupledForcings(Forcings):
@@ -195,13 +185,7 @@ class CoupledForcings(Forcings):
         """Return the trace name of the input."""
         return self.input.trace_name
 
-    def __init__(
-        self,
-        context: "TensorHandler",
-        input: "Input",
-        variables: list[str],
-        mask: IntArray,
-    ):
+    def __init__(self, context: "TensorHandler", input: "Input", variables: list[str], mask: IntArray):
         """Initialize the CoupledForcings object.
 
         Parameters
@@ -225,9 +209,7 @@ class CoupledForcings(Forcings):
         """Return a string representation of the CoupledForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(
-        self, dates: list[Date], current_state: State
-    ) -> FloatArray:
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the forcings for the given dates.
 
         Parameters
@@ -260,13 +242,7 @@ class ConstantForcings(CoupledForcings):
 class BoundaryForcings(Forcings):
     """Retrieve boundary forcings from the input."""
 
-    def __init__(
-        self,
-        context: "TensorHandler",
-        input: "DatasetInput",
-        variables: list[str],
-        variables_mask: IntArray,
-    ):
+    def __init__(self, context: "TensorHandler", input: "DatasetInput", variables: list[str], variables_mask: IntArray):
         """Initialize the BoundaryForcings object.
 
         Parameters
@@ -283,9 +259,7 @@ class BoundaryForcings(Forcings):
         super().__init__(context)
         self.variables = variables
         self.variables_mask = variables_mask
-        assert isinstance(input, DatasetInput), (
-            "Currently only boundary forcings from dataset supported."
-        )
+        assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
         if "output_mask" in context.metadata._supporting_arrays:
             self.spatial_mask = ~context.metadata.load_supporting_array("output_mask")
@@ -297,9 +271,7 @@ class BoundaryForcings(Forcings):
         """Return a string representation of the BoundaryForcings object."""
         return f"{self.__class__.__name__}({self.variables})"
 
-    def load_forcings_array(
-        self, dates: list[Date], current_state: State
-    ) -> FloatArray:
+    def load_forcings_array(self, dates: list[Date], current_state: State) -> FloatArray:
         """Load the boundary forcings for the given dates.
 
         Parameters
@@ -321,11 +293,7 @@ class BoundaryForcings(Forcings):
         )
         data = data[..., self.spatial_mask]
 
-        expected_shape = (
-            len(self.variables),
-            len(dates),
-            current_state["latitudes"][self.spatial_mask].size,
-        )
+        expected_shape = (len(self.variables), len(dates), current_state["latitudes"][self.spatial_mask].size)
         assert data.shape == expected_shape, (data.shape, expected_shape)
 
         return data

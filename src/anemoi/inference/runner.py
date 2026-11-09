@@ -17,7 +17,10 @@ import sys
 import warnings
 from collections.abc import Generator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Literal
+from typing import Union
 
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -25,10 +28,12 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.logs import OnceLogger
 from anemoi.utils.timer import Timer
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.config.utils import input_types_config, multi_datasets_config
+from anemoi.inference.config.utils import input_types_config
+from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.device import get_available_device
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
@@ -41,12 +46,14 @@ from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.tensors import TensorHandler
-from anemoi.inference.types import FloatArray, State
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import State
 
 from .checkpoint import Checkpoint
 from .context import Context
 from .precisions import PRECISIONS
-from .profiler import ProfilingLabel, ProfilingRunner
+from .profiler import ProfilingLabel
+from .profiler import ProfilingRunner
 from .variables import Variables
 
 if TYPE_CHECKING:
@@ -73,17 +80,13 @@ class Runner(Context):
     This class provides the default forecaster implementation with rollout.
     """
 
-    def __init__(
-        self, config: RunConfiguration, *, classes: RunnerClasses | None = None
-    ) -> None:
+    def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
 
         seed = config.seed if config.seed is not None else torch.initial_seed()
         torch.manual_seed(seed)
 
-        LOG.info(
-            f"Using {self.__class__.__name__} runner, device={self.device}, seed={seed}"
-        )
+        LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={seed}")
 
         classes = classes or RunnerClasses()
         self.classes = classes
@@ -109,17 +112,13 @@ class Runner(Context):
         self.use_profiler = config.use_profiler
 
         # other attributes derived from config or metadata
-        self.typed_variables = {
-            k: Variable.from_dict(k, v) for k, v in config.typed_variables.items()
-        }
+        self.typed_variables = {k: Variable.from_dict(k, v) for k, v in config.typed_variables.items()}
         self.preload_checkpoint = config.preload_checkpoint
         self.preload_buffer_size = config.preload_buffer_size
         self.precision = config.precision
         self.reference_date = config.date if hasattr(config, "date") else None
 
-        self.quiet: set[str] = (
-            set()
-        )  # So we don't repeat the same warning multiple times
+        self.quiet: set[str] = set()  # So we don't repeat the same warning multiple times
 
         # processors, I/O and tensor handlers for each dataset in the checkpoint
         self.pre_processors: dict[str, list[Processor]] = {}
@@ -145,22 +144,12 @@ class Runner(Context):
 
         for dataset, metadata in multi_metadata.items():
             self.pre_processors[dataset] = self.create_pre_processors(dataset, metadata)
-            self.post_processors[dataset] = self.create_post_processors(
-                dataset, metadata
-            )
+            self.post_processors[dataset] = self.create_post_processors(dataset, metadata)
             self.mid_processors[dataset] = self.create_mid_processors(dataset, metadata)
-            self.prognostics_inputs[dataset] = self.create_input(
-                "prognostics", dataset, metadata
-            )
-            self.constant_forcings_inputs[dataset] = self.create_input(
-                "constant_forcings", dataset, metadata
-            )
-            self.dynamic_forcings_inputs[dataset] = self.create_input(
-                "dynamic_forcings", dataset, metadata
-            )
-            self.boundary_forcings_inputs[dataset] = self.create_input(
-                "boundary_forcings", dataset, metadata
-            )
+            self.prognostics_inputs[dataset] = self.create_input("prognostics", dataset, metadata)
+            self.constant_forcings_inputs[dataset] = self.create_input("constant_forcings", dataset, metadata)
+            self.dynamic_forcings_inputs[dataset] = self.create_input("dynamic_forcings", dataset, metadata)
+            self.boundary_forcings_inputs[dataset] = self.create_input("boundary_forcings", dataset, metadata)
             self.outputs[dataset] = self.create_output(dataset, metadata)
 
             self.tensor_handlers[dataset] = classes.tensor_handler(
@@ -169,9 +158,7 @@ class Runner(Context):
                 constant_forcings_input=self.constant_forcings_inputs[dataset],
                 dynamic_forcings_input=self.dynamic_forcings_inputs[dataset],
                 boundary_forcings_input=self.boundary_forcings_inputs[dataset],
-                trace_path=multi_datasets_config(
-                    config.trace_path, dataset, self.dataset_names
-                ),
+                trace_path=multi_datasets_config(config.trace_path, dataset, self.dataset_names),
             )
 
             if self.verbosity > 2:
@@ -186,18 +173,14 @@ class Runner(Context):
                 from rich.table import Table
 
                 console = Console(file=sys.stderr)
-                table = Table(
-                    title=f"\\[{metadata.dataset_name}] Variable units categories"
-                )
+                table = Table(title=f"\\[{metadata.dataset_name}] Variable units categories")
                 table.add_column("Variable", no_wrap=True)
                 table.add_column("Units", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
                 for variable, categories in metadata.variable_categories().items():
                     typed_variable = metadata.typed_variables.get(variable)
-                    units = (
-                        typed_variable.units if typed_variable is not None else "N/A"
-                    )
+                    units = typed_variable.units if typed_variable is not None else "N/A"
                     table.add_row(variable, str(units), ", ".join(categories))
 
                 console.print(table)
@@ -227,11 +210,7 @@ class Runner(Context):
         self._device = value
 
     def run(
-        self,
-        *,
-        input_states: dict[str, State],
-        lead_time: str | int | datetime.timedelta,
-        return_numpy: bool = True,
+        self, *, input_states: dict[str, State], lead_time: str | int | datetime.timedelta, return_numpy: bool = True
     ) -> Generator[dict[str, State], None, None]:
         """Run the model.
 
@@ -251,9 +230,7 @@ class Runner(Context):
             The forecasted states.
         """
         # Shallow copy to avoid modifying the user's input state
-        input_states = {
-            dataset: state.copy() for dataset, state in input_states.items()
-        }
+        input_states = {dataset: state.copy() for dataset, state in input_states.items()}
         for dataset in input_states:
             input_states[dataset]["fields"] = input_states[dataset]["fields"].copy()
             LOG.info("-" * 80)
@@ -356,19 +333,13 @@ class Runner(Context):
             LOG.info("Loading model from %s", self.checkpoint.path)
 
             try:
-                model = torch.load(
-                    self.checkpoint.path, map_location=self.device, weights_only=False
-                ).to(self.device)
+                model = torch.load(self.checkpoint.path, map_location=self.device, weights_only=False).to(self.device)
             except RuntimeError:
                 # This happens when the no GPU is available
                 raise
             except Exception as e:  # Wildcard exception to catch all errors
-                validation_result = self.checkpoint.validate_environment(
-                    on_difference="return"
-                )
-                e.add_note(
-                    "Model failed to load, check the stack trace above this message to find the real error"
-                )
+                validation_result = self.checkpoint.validate_environment(on_difference="return")
+                e.add_note("Model failed to load, check the stack trace above this message to find the real error")
                 e.add_note("Is your environment valid?:\n" + str(validation_result))
                 raise e
             # model.set_inference_options(**self.inference_options)
@@ -380,10 +351,7 @@ class Runner(Context):
             return model
 
     def predict_step(
-        self,
-        model: "torch.nn.Module",
-        input_tensors_torch: dict[str, "torch.Tensor"],
-        **kwargs: Any,
+        self, model: "torch.nn.Module", input_tensors_torch: dict[str, "torch.Tensor"], **kwargs: Any
     ) -> dict[str, "torch.Tensor"]:
         """Predict the next step.
 
@@ -410,9 +378,7 @@ class Runner(Context):
             kwargs[key] = value
 
         if not self.checkpoint.multi_dataset:
-            assert len(input_tensors_torch) == 1, (
-                "Expected only one dataset in input tensors"
-            )
+            assert len(input_tensors_torch) == 1, "Expected only one dataset in input tensors"
             name, tensor = next(iter(input_tensors_torch.items()))
             return {name: model.predict_step(tensor, **kwargs)}
 
@@ -420,13 +386,7 @@ class Runner(Context):
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
-    ) -> Generator[
-        tuple[
-            datetime.timedelta, list[datetime.datetime], list[datetime.datetime], bool
-        ],
-        None,
-        None,
-    ]:
+    ) -> Generator[tuple[datetime.timedelta, list[datetime.datetime], list[datetime.datetime], bool], None, None]:
         """Generate step and date variables for the forecast autoregressive loop.
 
         Parameters
@@ -463,18 +423,14 @@ class Runner(Context):
         for s in range(steps):
             step = (s + 1) * self.checkpoint.rollout_shift
             valid_dates = [
-                start_date + s * self.checkpoint.rollout_shift + offset
-                for offset in self.checkpoint.output_offsets
+                start_date + s * self.checkpoint.rollout_shift + offset for offset in self.checkpoint.output_offsets
             ]
             next_dates = valid_dates
             is_last_step = s == steps - 1
             yield step, valid_dates, next_dates, is_last_step
 
     def forecast(
-        self,
-        lead_time: str,
-        input_tensors_numpy: dict[str, FloatArray],
-        input_states: dict[str, State],
+        self, lead_time: str, input_tensors_numpy: dict[str, FloatArray], input_states: dict[str, State]
     ) -> Generator[dict[str, State], None, None]:
         """Forecast the future states.
 
@@ -498,9 +454,7 @@ class Runner(Context):
 
             # Create pytorch input tensor dict
             input_tensors_torch = {
-                dataset: torch.from_numpy(
-                    np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]
-                ).to(self.device)
+                dataset: torch.from_numpy(np.swapaxes(input_tensor_numpy, -2, -1)[np.newaxis, ...]).to(self.device)
                 for dataset, input_tensor_numpy in input_tensors_numpy.items()
             }
 
@@ -518,12 +472,8 @@ class Runner(Context):
                 new_states[dataset]["step"] = to_timedelta(0)
                 start = input_states[dataset]["date"]
 
-                reset[dataset] = np.full(
-                    (input_tensors_torch[dataset].shape[-1],), False
-                )
-                variable_to_input_tensor_index = (
-                    handler.metadata.variable_to_input_tensor_index
-                )
+                reset[dataset] = np.full((input_tensors_torch[dataset].shape[-1],), False)
+                variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
                 typed_variables = handler.metadata.typed_variables
                 for variable, i in variable_to_input_tensor_index.items():
                     if typed_variables[variable].is_constant_in_time:
@@ -532,20 +482,16 @@ class Runner(Context):
                 check[dataset] = reset[dataset].copy()
 
                 if self.verbosity > 0:
-                    handler._print_input_tensor(
-                        "First input tensor", input_tensors_torch[dataset]
-                    )
+                    handler._print_input_tensor("First input tensor", input_tensors_torch[dataset])
 
-            for s, (step, dates, next_dates, is_last_step) in enumerate(
-                self.forecast_stepper(start, lead_time)
-            ):
+            for s, (step, dates, next_dates, is_last_step) in enumerate(self.forecast_stepper(start, lead_time)):
                 dates_str = "("
                 for d in dates:
                     dates_str += f"{d}, "
                 dates_str = f"{dates_str[:-2]})"
                 title = f"Forecasting {dates_str}"
                 if self.verbosity > 0:
-                    title += f" through model call {s + 1} with horizon {step}"
+                    title += f" through model call {s+1} with horizon {step}"
 
                 for dataset, handler in self.tensor_handlers.items():
                     if handler.trace:
@@ -556,24 +502,11 @@ class Runner(Context):
                             handler.metadata.variable_to_input_tensor_index,
                             self.checkpoint.timestep,
                         )
-                amp_ctx = torch.autocast(
-                    device_type=self.device.type, dtype=self.autocast
-                )
+                amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
 
                 # Predict next state of atmosphere
-                with (
-                    torch.inference_mode(),
-                    amp_ctx,
-                    ProfilingLabel("Predict step", self.use_profiler),
-                    Timer(title),
-                ):
-                    y_pred = self.predict_step(
-                        self.model,
-                        input_tensors_torch,
-                        fcstep=s,
-                        step=step,
-                        date=dates[-1],
-                    )
+                with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
+                    y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=s, step=step, date=dates[-1])
 
                 # y_pred (batch, [time], ensemble, values, variables) -> outputs (time, values, variables)
                 outputs: dict[str, torch.Tensor] = {}
@@ -582,70 +515,46 @@ class Runner(Context):
                     assert ndim in (
                         4,
                         5,
-                    ), (
-                        f"[{dataset}] Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {tensor.shape}"
-                    )
+                    ), f"[{dataset}] Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {tensor.shape}"
                     if ndim == 4:
                         # pre-multistep models output (batch, ensemble, values, variables)
                         # add a time dimension of 1 for backwards compatibility
                         tensor = tensor.unsqueeze(1)
 
-                    outputs[dataset] = torch.squeeze(
-                        tensor, dim=(0, 2)
-                    )  # shape: (time, values, variables)
+                    outputs[dataset] = torch.squeeze(tensor, dim=(0, 2))  # shape: (time, values, variables)
 
                 for i in range(self.checkpoint.multi_step_output):
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                         for dataset, handler in self.tensor_handlers.items():
                             new_states[dataset]["date"] = dates[i]
-                            new_states[dataset]["previous_step"] = new_states[
-                                dataset
-                            ].get("step")
+                            new_states[dataset]["previous_step"] = new_states[dataset].get("step")
                             new_states[dataset]["step"] = (
-                                step
-                                - self.checkpoint.rollout_shift
-                                + self.checkpoint.output_offsets[i]
+                                step - self.checkpoint.rollout_shift + self.checkpoint.output_offsets[i]
                             )
 
                             if dataset not in outputs:
                                 # Input-only dataset (no decoder)
                                 continue
 
-                            output = outputs[dataset][
-                                i, ...
-                            ]  # shape: (values, variables)
+                            output = outputs[dataset][i, ...]  # shape: (values, variables)
 
                             for j in range(output.shape[1]):
-                                new_states[dataset]["fields"][
-                                    handler.metadata.output_tensor_index_to_variable[j]
-                                ] = output[:, j]
+                                new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[j]] = (
+                                    output[:, j]
+                                )
 
-                            new_states[dataset], applied = self._apply_mid_processors(
-                                new_states[dataset], dataset
-                            )
+                            new_states[dataset], applied = self._apply_mid_processors(new_states[dataset], dataset)
                             if applied:
-                                for name, field in new_states[dataset][
-                                    "fields"
-                                ].items():
-                                    if (
-                                        name
-                                        not in handler.metadata.variable_to_output_tensor_index
-                                    ):
+                                for name, field in new_states[dataset]["fields"].items():
+                                    if name not in handler.metadata.variable_to_output_tensor_index:
                                         continue
                                     y_pred[dataset][
-                                        0,
-                                        i,
-                                        ...,
-                                        handler.metadata.variable_to_output_tensor_index[
-                                            name
-                                        ],
+                                        0, i, ..., handler.metadata.variable_to_output_tensor_index[name]
                                     ] = field
 
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                                handler._print_output_tensor(
-                                    f"[{dataset}] Output tensor:", output.cpu().numpy()
-                                )
+                                handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
 
                             if handler.trace:
                                 handler.trace.write_output_tensor(
@@ -671,18 +580,11 @@ class Runner(Context):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
                         if handler.trace:
-                            handler.trace.reset_sources(
-                                reset[dataset],
-                                handler.metadata.variable_to_input_tensor_index,
-                            )
+                            handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
 
                         # None for input-only datasets
-                        input_tensors_torch[dataset] = (
-                            handler.copy_prognostic_fields_to_input_tensor(
-                                input_tensors_torch[dataset],
-                                y_pred.pop(dataset, None),
-                                check[dataset],
-                            )
+                        input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
+                            input_tensors_torch[dataset], y_pred.pop(dataset, None), check[dataset]
                         )
 
                         # some forcings use the new_state(s)
@@ -692,45 +594,26 @@ class Runner(Context):
                         # BoundaryForcings currently only work from dataset, there load_forcings_state takes state as argument but doesn't use it
                         # so for now ok to simply pass the last of the multi-out new states:
 
-                        input_tensors_torch[dataset] = (
-                            handler.add_dynamic_forcings_to_input_tensor(
-                                input_tensors_torch[dataset],
-                                new_states[dataset],
-                                next_dates,
-                                check[dataset],
-                            )
+                        input_tensors_torch[dataset] = handler.add_dynamic_forcings_to_input_tensor(
+                            input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
                         )
-                        input_tensors_torch[dataset] = (
-                            handler.add_boundary_forcings_to_input_tensor(
-                                input_tensors_torch[dataset],
-                                new_states[dataset],
-                                next_dates,
-                                check[dataset],
-                            )
+                        input_tensors_torch[dataset] = handler.add_boundary_forcings_to_input_tensor(
+                            input_tensors_torch[dataset], new_states[dataset], next_dates, check[dataset]
                         )
 
                         if not check[dataset].all():
                             # Not all variables have been updated
                             missing = []
-                            variable_to_input_tensor_index = (
-                                handler.metadata.variable_to_input_tensor_index
-                            )
-                            mapping = {
-                                v: k for k, v in variable_to_input_tensor_index.items()
-                            }
+                            variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
+                            mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
                             for i in range(check[dataset].shape[-1]):
                                 if not check[dataset][i]:
                                     missing.append(mapping[i])
 
-                            raise ValueError(
-                                f"[{dataset}] Missing variables in input tensor: {sorted(missing)}"
-                            )
+                            raise ValueError(f"[{dataset}] Missing variables in input tensor: {sorted(missing)}")
 
                         if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
-                            handler._print_input_tensor(
-                                f"[{dataset}] Next input tensor",
-                                input_tensors_torch[dataset],
-                            )
+                            handler._print_input_tensor(f"[{dataset}] Next input tensor", input_tensors_torch[dataset])
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         for p in self.pre_processors[dataset_name]:
@@ -747,15 +630,19 @@ class Runner(Context):
         This method is called by the parallel runner on initialisation.
         Derived classes can implement this method to modify itself for parallel operation.
         """
+        pass
 
     def input_states_hook(self, input_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""
+        pass
 
     def output_states_hook(self, output_states: dict[str, State]) -> None:
         """Hook used by coupled runners to send the input state."""
+        pass
 
     def complete_forecast_hook(self) -> None:
         """Hook called at the end of the forecast."""
+        pass
 
     def has_split_input(self) -> bool:
         # To be overridden by a subclass if the we use different inputs
@@ -798,20 +685,14 @@ class Runner(Context):
             multi_dataset_metadata = self.checkpoint.multi_dataset_metadata[dataset]
             dates = [self.reference_date + h for h in multi_dataset_metadata.lagged]
 
-            prognostic_state = self.prognostics_inputs[dataset].create_input_state(
-                dates=dates
-            )
+            prognostic_state = self.prognostics_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, prognostic_state, "prognostics")
 
-            constants_state = self.constant_forcings_inputs[dataset].create_input_state(
-                dates=dates
-            )
+            constants_state = self.constant_forcings_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, constants_state, "constant_forcings")
             input_constants_states[dataset] = constants_state
 
-            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(
-                dates=dates
-            )
+            forcings_state = self.dynamic_forcings_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, forcings_state, "dynamic_forcings")
 
             input_states[dataset] = self._combine_states(
@@ -830,9 +711,7 @@ class Runner(Context):
             )
 
             # Top-level post-processors on the other hand are applied on State and are executed here.
-            LOG.info(
-                f"[{dataset}] Top-level post-processors: {self.post_processors[dataset]}"
-            )
+            LOG.info(f"[{dataset}] Top-level post-processors: {self.post_processors[dataset]}")
 
             for processor in self.post_processors[dataset]:
                 initial_states[dataset] = processor.process(initial_states[dataset])
@@ -841,7 +720,7 @@ class Runner(Context):
         self.input_states_hook(input_constants_states)
 
         for dataset, state in initial_states.items():
-            self.outputs[dataset].open(state)
+            self.outputs[dataset].open(initial_states[dataset])
 
             LOG.info(f"[{dataset}] write_initial_state: {self.outputs[dataset]}")
             self.outputs[dataset].write_initial_state(state)
@@ -849,9 +728,7 @@ class Runner(Context):
         for states in self.run(input_states=input_states, lead_time=lead_time):
             for dataset, state in states.items():
                 if not state["fields"]:
-                    LOG_ONCE.info(
-                        f"[{dataset}] Empty model output: skipping output and post-processors."
-                    )
+                    LOG_ONCE.info(f"[{dataset}] Empty model output: skipping output and post-processors.")
                     continue
 
                 # top-level post-processors
@@ -865,18 +742,14 @@ class Runner(Context):
 
     #########################################################################################################
     def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
-        config = multi_datasets_config(
-            self.config.output, dataset_name, self.dataset_names
-        )
+        config = multi_datasets_config(self.config.output, dataset_name, self.dataset_names)
         output = create_output(self, config, metadata)
         LOG.info(f"[{dataset_name}] Output: {output}")
         return output
 
     def create_input(
         self,
-        input_type: Literal[
-            "prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"
-        ],
+        input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"],
         dataset_name: str,
         metadata: Metadata,
     ) -> Input:
@@ -884,37 +757,21 @@ class Runner(Context):
         match input_type:
             case "prognostics":
                 variables = variables.retrieved_prognostic_variables()
-                config = (
-                    input_types_config(self.config, "input") if variables else "empty"
-                )
+                config = input_types_config(self.config, "input") if variables else "empty"
             case "constant_forcings":
                 variables = variables.retrieved_constant_forcings_variables()
                 config = (
-                    input_types_config(
-                        self.config, "constant_forcings", "forcings", "input"
-                    )
-                    if variables
-                    else "empty"
+                    input_types_config(self.config, "constant_forcings", "forcings", "input") if variables else "empty"
                 )
             case "dynamic_forcings":
                 variables = variables.retrieved_dynamic_forcings_variables()
                 config = (
-                    input_types_config(
-                        self.config, "dynamic_forcings", "-forcings", "input"
-                    )
-                    if variables
-                    else "empty"
+                    input_types_config(self.config, "dynamic_forcings", "-forcings", "input") if variables else "empty"
                 )
             case "boundary_forcings":
                 variables = variables.retrieved_prognostic_variables()
                 config = (
-                    input_types_config(
-                        self.config,
-                        "boundary_forcings",
-                        "-boundary",
-                        "forcings",
-                        "input",
-                    )
+                    input_types_config(self.config, "boundary_forcings", "-boundary", "forcings", "input")
                     if variables
                     else "empty"
                 )
@@ -922,57 +779,39 @@ class Runner(Context):
                 raise ValueError(f"Unknown input type: {input_type}")
 
         config = multi_datasets_config(config, dataset_name, self.dataset_names)
-        input = create_input(
-            self, config, metadata, variables=variables, purpose=input_type
-        )
+        input = create_input(self, config, metadata, variables=variables, purpose=input_type)
 
-        LOG.info(
-            f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}"
-        )
+        LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
         return input
 
-    def create_pre_processors(
-        self, dataset_name: str, metadata: Metadata
-    ) -> list[Processor]:
+    def create_pre_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        config = multi_datasets_config(
-            self.config.pre_processors, dataset_name, self.dataset_names
-        )
+        config = multi_datasets_config(self.config.pre_processors, dataset_name, self.dataset_names)
         for processor in config:
             result.append(create_pre_processor(self, processor, metadata))
 
         LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
 
-    def create_mid_processors(
-        self, dataset_name: str, metadata: Metadata
-    ) -> list[Processor]:
+    def create_mid_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        config = multi_datasets_config(
-            self.config.mid_processors, dataset_name, self.dataset_names
-        )
+        config = multi_datasets_config(self.config.mid_processors, dataset_name, self.dataset_names)
         for processor in config:
             result.append(create_mid_processor(self, processor, metadata))
 
         LOG.info(f"[{dataset_name}] Mid processors: {result}")
         return result
 
-    def create_post_processors(
-        self, dataset_name: str, metadata: Metadata
-    ) -> list[Processor]:
+    def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
         result = []
-        config = multi_datasets_config(
-            self.config.post_processors, dataset_name, self.dataset_names
-        )
+        config = multi_datasets_config(self.config.post_processors, dataset_name, self.dataset_names)
         for processor in config:
             result.append(create_post_processor(self, processor, metadata))
 
         LOG.info(f"[{dataset_name}] Post processors: {result}")
         return result
 
-    def _apply_mid_processors(
-        self, state: dict[str, Any], dataset_name: str
-    ) -> tuple[dict[str, Any], bool]:
+    def _apply_mid_processors(self, state: dict[str, Any], dataset_name: str) -> tuple[dict[str, Any], bool]:
         """Apply mid-processors to the state."""
         applied = False
         for processor in self.mid_processors[dataset_name]:
@@ -992,9 +831,7 @@ class Runner(Context):
         for state in states[1:]:
             this_input = state.get("_input")
 
-            for name, values in itertools.chain(
-                combined["fields"].items(), state.get("fields", {}).items()
-            ):
+            for name, values in itertools.chain(combined["fields"].items(), state.get("fields", {}).items()):
                 if shape is None:
                     shape = values.shape
                 elif shape != values.shape:
@@ -1029,13 +866,10 @@ class Runner(Context):
 
                 if type(combined[key]) is not type(value):
                     raise ValueError(
-                        f"Key '{key}' has different types in the states: "
-                        f"{type(combined[key])} and {type(value)}."
+                        f"Key '{key}' has different types in the states: " f"{type(combined[key])} and {type(value)}."
                     )
 
-                if isinstance(value, np.ndarray) and isinstance(
-                    combined[key], np.ndarray
-                ):
+                if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):
                     if not np.array_equal(combined[key], value):
                         raise ValueError(
                             f"Key '{key}' has different array values in the states: "
@@ -1054,10 +888,7 @@ class Runner(Context):
         return combined
 
     def _initial_state(
-        self,
-        prognostic_state: dict[str, Any],
-        constants_state: dict[str, Any],
-        forcings_state: dict[str, Any],
+        self, prognostic_state: dict[str, Any], constants_state: dict[str, Any], forcings_state: dict[str, Any]
     ) -> dict[str, Any]:
         """Create the initial state for the output.
 
@@ -1107,22 +938,16 @@ class Runner(Context):
         """
 
         if not isinstance(state, dict):
-            raise ValueError(
-                f"State '{title}' is not a dictionary: {state} ({dataset=})"
-            )
+            raise ValueError(f"State '{title}' is not a dictionary: {state} ({dataset=})")
 
         input = state.get("_input")
         state_variables = state.get("_variables")
         if state_variables is None:
-            self._warn_once(
-                f"State '{title}' does not contain '_variables' ({input=}, {dataset=})"
-            )
+            self._warn_once(f"State '{title}' does not contain '_variables' ({input=}, {dataset=})")
             state_variables = {}
 
         if "fields" not in state:
-            raise ValueError(
-                f"State '{title}' does not contain 'fields': {state} ({input=}, {dataset=})"
-            )
+            raise ValueError(f"State '{title}' does not contain 'fields': {state} ({input=}, {dataset=})")
 
         shape = None
 
@@ -1149,16 +974,11 @@ class Runner(Context):
         checkpoint_variables = self.tensor_handlers[dataset].metadata.typed_variables
         common = set(checkpoint_variables.keys()).intersection(state_variables.keys())
 
-        checkpoint_variables = {
-            k: v for k, v in checkpoint_variables.items() if k in common
-        }
+        checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}
         state_variables = {k: v for k, v in state_variables.items() if k in common}
 
         config = multi_datasets_config(
-            self.config.check_variables_compatibility,
-            dataset,
-            self.dataset_names,
-            strict=False,
+            self.config.check_variables_compatibility, dataset, self.dataset_names, strict=False
         )
         if config is None:
             config = {}

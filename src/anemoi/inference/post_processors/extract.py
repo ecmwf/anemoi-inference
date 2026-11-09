@@ -16,7 +16,8 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import BoolArray, State
+from anemoi.inference.types import BoolArray
+from anemoi.inference.types import State
 
 from ..processor import Processor
 from . import post_processor_registry
@@ -37,9 +38,7 @@ class ExtractBase(Processor):
     @property
     def indexer(self) -> BoolArray | slice:
         if self._indexer is None:
-            raise RuntimeError(
-                f"{type(self).__name__}.indexer is not set. Set it before process()."
-            )
+            raise RuntimeError(f"{type(self).__name__}.indexer is not set. Set it before process().")
         return self._indexer
 
     @indexer.setter
@@ -99,13 +98,7 @@ class ExtractMask(ExtractBase):
     """
 
     def __init__(
-        self,
-        context: Context,
-        metadata: Metadata,
-        *,
-        mask: str,
-        as_slice: bool = False,
-        inverse: bool = False,
+        self, context: Context, metadata: Metadata, *, mask: str, as_slice: bool = False, inverse: bool = False
     ) -> None:
         super().__init__(context, metadata)
 
@@ -118,14 +111,11 @@ class ExtractMask(ExtractBase):
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(
-                "Expected the mask to be a boolean numpy array. "
-                f"Got {type(mask)} with dtype {mask.dtype}."
+                "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
             )
 
         if as_slice:
-            self.indexer = (
-                slice(None, np.sum(mask)) if not inverse else slice(np.sum(mask), None)
-            )
+            self.indexer = slice(None, np.sum(mask)) if not inverse else slice(np.sum(mask), None)
         else:
             self.indexer = mask if not inverse else ~mask
         self.npoints = np.sum(mask)
@@ -179,9 +169,7 @@ class ExtractState(ExtractBase):
     Must be used with the Cutout input.
     """
 
-    def __init__(
-        self, context: Context, metadata: Metadata, *, cutout_source: str
-    ) -> None:
+    def __init__(self, context: Context, metadata: Metadata, *, cutout_source: str) -> None:
         """Initialize the ExtractState processor.
 
         Must be used with the Cutout input.
@@ -212,18 +200,14 @@ class ExtractState(ExtractBase):
             The updated state with extracted fields.
         """
         if "_mask" not in state:
-            raise ValueError(
-                "Private attribute '_mask' not found in the state. Are you using the Cutout Input?"
-            )
+            raise ValueError("Private attribute '_mask' not found in the state. Are you using the Cutout Input?")
 
         if self._source not in state["_mask"]:
             raise ValueError(f"Mask '{self._source}' not found in the state.")
 
         mask = state["_mask"][self._source]
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
-            raise ValueError(
-                f"Expected the mask '{self._source}' to be a boolean numpy array."
-            )
+            raise ValueError(f"Expected the mask '{self._source}' to be a boolean numpy array.")
 
         self.indexer = mask
         extraced_state = super().process(state)

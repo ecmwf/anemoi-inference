@@ -9,10 +9,12 @@
 
 import datetime
 import logging
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any
+from typing import Callable
+from typing import Literal
+from typing import Union
 
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -20,9 +22,12 @@ from anemoi.transform.variables import Variable
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.schemas import OutputVariableConfig
-from anemoi.inference.types import OutputVariableConfigUnion, State
+from anemoi.inference.types import OutputVariableConfigUnion
+from anemoi.inference.types import State
 
-from ..decorators import ensure_path, main_argument, supports_parallel_output
+from ..decorators import ensure_path
+from ..decorators import main_argument
+from ..decorators import supports_parallel_output
 from ..output import Output
 from . import output_registry
 
@@ -96,9 +101,7 @@ def print_state(
         field = fields[name]
         min_value = f"min={np.nanmin(field):g}"
         max_value = f"max={np.nanmax(field):g}"
-        print(
-            f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}"
-        )
+        print(f"    {name:{length}} shape={field.shape} {min_value:18s} {max_value:18s}")
 
     print()
 
@@ -143,12 +146,7 @@ class PrinterOutput(Output):
         # all variables are printed out.
         all_variables = variables == "all"
 
-        super().__init__(
-            context,
-            metadata,
-            variables=(None if all_variables else variables),
-            **kwargs,
-        )
+        super().__init__(context, metadata, variables=(None if all_variables else variables), **kwargs)
 
         self.max_lines = -1 if all_variables else max_lines
 

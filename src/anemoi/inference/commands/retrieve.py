@@ -12,7 +12,8 @@ import argparse
 import json
 import logging
 import sys
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from argparse import Namespace
 from collections.abc import Callable
 from typing import Any
 
@@ -21,7 +22,8 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.metadata import VARIABLE_CATEGORIES
-from anemoi.inference.types import DataRequest, Date
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import Date
 from anemoi.inference.variables import Variables
 
 from ..config.run import RunConfiguration
@@ -107,15 +109,13 @@ def checkpoint_to_requests(
     LOG.info("Exclude categories: %s", exclude)
 
     multi_metadata = checkpoint.multi_dataset_metadata
-    assert dataset_name in multi_metadata, (
-        f"Dataset name '{dataset_name}' not found in checkpoint metadata. Available datasets: {list(multi_metadata.keys())}"
-    )
+    assert (
+        dataset_name in multi_metadata
+    ), f"Dataset name '{dataset_name}' not found in checkpoint metadata. Available datasets: {list(multi_metadata.keys())}"
 
     metadata = multi_metadata[dataset_name]
 
-    variables = metadata.select_variables(
-        include=include, exclude=exclude, has_mars_requests=True
-    )
+    variables = metadata.select_variables(include=include, exclude=exclude, has_mars_requests=True)
 
     if not variables:
         return []
@@ -203,36 +203,14 @@ class RetrieveCmd(Command):
             type=str,
             help="Path to config file. Can be omitted to pass config with overrides and defaults.",
         )
-        command_parser.add_argument(
-            "--defaults", action="append", help="Sources of default values."
-        )
+        command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument("--date", type=str, help="Date")
-        command_parser.add_argument(
-            "--output", type=str, default=None, help="Output file"
-        )
-        command_parser.add_argument(
-            "--staging-dates", type=str, help="Path to a file with staging dates"
-        )
-        command_parser.add_argument(
-            "--forecast-dates",
-            action="store_true",
-            help="Use forecast dates (for forcings)",
-        )
-        command_parser.add_argument(
-            "--extra",
-            action="append",
-            help="Additional request values. Can be repeated",
-        )
-        command_parser.add_argument(
-            "--use-scda",
-            action="store_true",
-            help="Use scda stream for 6/18 input time",
-        )
-        command_parser.add_argument(
-            "--use-grib-paramid",
-            action="store_true",
-            help="Use paramId instead of param.",
-        )
+        command_parser.add_argument("--output", type=str, default=None, help="Output file")
+        command_parser.add_argument("--staging-dates", type=str, help="Path to a file with staging dates")
+        command_parser.add_argument("--forecast-dates", action="store_true", help="Use forecast dates (for forcings)")
+        command_parser.add_argument("--extra", action="append", help="Additional request values. Can be repeated")
+        command_parser.add_argument("--use-scda", action="store_true", help="Use scda stream for 6/18 input time")
+        command_parser.add_argument("--use-grib-paramid", action="store_true", help="Use paramId instead of param.")
         command_parser.add_argument(
             "--dont-fail-for-missing-paramid",
             action="store_true",
@@ -257,25 +235,17 @@ class RetrieveCmd(Command):
             help="Type of input variables to retrieve.",
         )
 
+        command_parser.add_argument("--mars", action="store_true", help="Write requests for MARS retrieval")
         command_parser.add_argument(
-            "--mars", action="store_true", help="Write requests for MARS retrieval"
+            "--target", default="input.grib", help="Target path for the MARS retrieval requests"
         )
-        command_parser.add_argument(
-            "--target",
-            default="input.grib",
-            help="Target path for the MARS retrieval requests",
-        )
-        command_parser.add_argument(
-            "--verb", default="retrieve", help="Verb for the MARS retrieval requests"
-        )
+        command_parser.add_argument("--verb", default="retrieve", help="Verb for the MARS retrieval requests")
         command_parser.add_argument(
             "--dataset-name",
             default="data",
             help="Dataset name to prepare requests for (used for multi-dataset checkpoints)",
         )
-        command_parser.add_argument(
-            "overrides", nargs="*", help="Overrides as key=value"
-        )
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the retrieve command.
@@ -293,9 +263,7 @@ class RetrieveCmd(Command):
             # may be used by the runner to set things like `reference_date`
             args.overrides.append(f"date={args.date}")
 
-        config: RunConfiguration = RunConfiguration.load(
-            args.config, args.overrides, defaults=args.defaults
-        )
+        config: RunConfiguration = RunConfiguration.load(args.config, args.overrides, defaults=args.defaults)
 
         runner = create_runner(config)
         lead_time = frequency_to_timedelta(config.lead_time)
@@ -307,13 +275,9 @@ class RetrieveCmd(Command):
         if args.input_type is not None:
             include_exclude = Variables.input_type_to_include_exclude(args.input_type)
             if "include" in include_exclude:
-                args.include = sorted(
-                    set(args.include or []) | set(include_exclude["include"])
-                )
+                args.include = sorted(set(args.include or []) | set(include_exclude["include"]))
             if "exclude" in include_exclude:
-                args.exclude = sorted(
-                    set(args.exclude or []) | set(include_exclude["exclude"])
-                )
+                args.exclude = sorted(set(args.exclude or []) | set(include_exclude["exclude"]))
 
         requests = checkpoint_to_requests(
             runner.checkpoint,

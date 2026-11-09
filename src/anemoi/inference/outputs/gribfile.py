@@ -13,22 +13,24 @@ import logging
 from collections import defaultdict
 from io import IOBase
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
 import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import DataRequest, FloatArray, ProcessorConfig
+from anemoi.inference.types import DataRequest
+from anemoi.inference.types import FloatArray
+from anemoi.inference.types import ProcessorConfig
 
-from ..decorators import (
-    ensure_path,
-    format_dataset_name,
-    main_argument,
-    supports_parallel_output,
-)
-from ..grib.encoding import GribWriter, check_encoding
+from ..decorators import ensure_path
+from ..decorators import format_dataset_name
+from ..decorators import main_argument
+from ..decorators import supports_parallel_output
+from ..grib.encoding import GribWriter
+from ..grib.encoding import check_encoding
 from ..types import OutputVariableConfigUnion
 from . import output_registry
 from .grib import BaseGribOutput
@@ -63,21 +65,15 @@ def _fix(mars: dict[str, Any], keys: dict[str, Any]) -> None:
         The keys dictionary.
     """
     if "number" in keys and "number" not in mars:
-        LOG.debug(
-            f"`number` is missing from mars namespace, setting it to {keys['number']}"
-        )
+        LOG.debug(f"`number` is missing from mars namespace, setting it to {keys['number']}")
         mars["number"] = keys["number"]
 
     if "dataDate" in keys and "hdate" not in mars:
-        LOG.debug(
-            f"`hdate` is missing from mars namespace, setting it to {keys['dataDate']}"
-        )
+        LOG.debug(f"`hdate` is missing from mars namespace, setting it to {keys['dataDate']}")
         mars["hdate"] = keys["dataDate"]
 
     if "referenceDate" in keys and mars.get("date") != keys["referenceDate"]:
-        LOG.debug(
-            f"`date={mars.get('date')}` is wrong in mars namespace, setting it to {keys['referenceDate']}"
-        )
+        LOG.debug(f"`date={mars.get('date')}` is wrong in mars namespace, setting it to {keys['referenceDate']}")
         mars["date"] = keys["referenceDate"]
 
     if "startStep" in keys and "endStep" in keys and keys.get("stepType") != "accum":
@@ -110,9 +106,7 @@ class ArchiveCollector:
             self._request[k].add(str(v))
             if k in self.UNIQUE:
                 if len(self._request[k]) > 1:
-                    raise ValueError(
-                        f"Field {field} has different values for {k}: {self._request[k]}"
-                    )
+                    raise ValueError(f"Field {field} has different values for {k}: {self._request[k]}")
 
     @property
     def request(self) -> DataRequest:
@@ -146,7 +140,7 @@ class GribIoOutput(BaseGribOutput):
         write_initial_state: bool | None = None,
         split_output: bool = True,
         negative_step_mode: Literal["error", "write", "skip"] = "error",
-        missing_value: float = -9999,
+        missing_value: int | float = -9999,
     ) -> None:
         """Initialize the GribIOOutput.
 
@@ -220,11 +214,9 @@ class GribIoOutput(BaseGribOutput):
 
     def __repr__(self) -> str:
         """Return a string representation of the GribIOOutput object."""
-        return f"{type(self).__name__}({self.out})"
+        return f"{type(self).__name__ }({self.out})"
 
-    def write_message(
-        self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]
-    ) -> None:
+    def write_message(self, message: FloatArray, template: ekd.Field, **keys: dict[str, Any]) -> None:
         """Write a message to the grib file.
 
         Parameters
@@ -270,17 +262,10 @@ class GribIoOutput(BaseGribOutput):
             LOG.error("Template: %s, Keys: %s", template, keys)
             LOG.error("Exception: %s", e)
             if message is not None and np.isnan(message.data).any():
-                LOG.error(
-                    "Message contains NaNs (%s, %s) (allow_nans=%s)",
-                    keys,
-                    template,
-                    self.context.allow_nans,
-                )
+                LOG.error("Message contains NaNs (%s, %s) (allow_nans=%s)", keys, template, self.context.allow_nans)
             raise
 
-    def collect_archive_requests(
-        self, written: tuple, template: object, **keys: Any
-    ) -> None:
+    def collect_archive_requests(self, written: tuple, template: object, **keys: Any) -> None:
         """Collect archive requests.
 
         Parameters

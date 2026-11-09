@@ -43,14 +43,7 @@ class AssignMask(Processor):
         The value to fill the non-assigned area, by default NaN.
     """
 
-    def __init__(
-        self,
-        context: Context,
-        metadata: Metadata,
-        *,
-        mask: str,
-        fill_value: float = float("NaN"),
-    ) -> None:
+    def __init__(self, context: Context, metadata: Metadata, *, mask: str, fill_value: float = float("NaN")) -> None:
         super().__init__(context, metadata)
 
         self._maskname = mask
@@ -62,8 +55,7 @@ class AssignMask(Processor):
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(
-                "Expected the mask to be a boolean numpy array. "
-                f"Got {type(mask)} with dtype {mask.dtype}."
+                "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
             )
 
         self.indexer = mask

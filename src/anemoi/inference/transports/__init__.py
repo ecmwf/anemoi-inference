@@ -17,9 +17,7 @@ from anemoi.inference.transport import Transport
 transport_registry = Registry(__name__)
 
 
-def create_transport(
-    config: Configuration, couplings: Configuration, tasks: dict[str, Task]
-) -> Transport:
+def create_transport(config: Configuration, couplings: Configuration, tasks: dict[str, Task]) -> Transport:
     """Create a transport instance based on the given configuration.
 
     Parameters

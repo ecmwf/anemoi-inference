@@ -10,7 +10,8 @@
 from __future__ import annotations
 
 import logging
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from argparse import Namespace
 
 from ..checkpoint import Checkpoint
 from . import Command
@@ -30,23 +31,14 @@ class ValidateCmd(Command):
             The argument parser to which the arguments will be added.
         """
         command_parser.add_argument(
-            "--all-packages",
-            action="store_true",
-            help="Check all packages in the environment.",
+            "--all-packages", action="store_true", help="Check all packages in the environment."
         )
 
         command_parser.add_argument(
-            "--on-difference",
-            choices=["warn", "error", "ignore"],
-            default="warn",
-            help="What to do on difference.",
+            "--on-difference", choices=["warn", "error", "ignore"], default="warn", help="What to do on difference."
         )
 
-        command_parser.add_argument(
-            "--exempt-packages",
-            nargs="*",
-            help="List of packages to exempt from the check.",
-        )
+        command_parser.add_argument("--exempt-packages", nargs="*", help="List of packages to exempt from the check.")
 
         command_parser.add_argument("checkpoint", help="Path to checkpoint file.")
 

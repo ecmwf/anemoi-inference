@@ -10,7 +10,8 @@
 from __future__ import annotations
 
 import logging
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from argparse import Namespace
 
 from ..config.run import RunConfiguration
 from ..runners import create_runner
@@ -30,16 +31,12 @@ class RunCmd(Command):
         command_parser : ArgumentParser
             The argument parser to which the arguments will be added.
         """
-        command_parser.add_argument(
-            "--defaults", action="append", help="Sources of default values."
-        )
+        command_parser.add_argument("--defaults", action="append", help="Sources of default values.")
         command_parser.add_argument(
             "config",
             help="Path to config file. Can be omitted to pass config with overrides and defaults.",
         )
-        command_parser.add_argument(
-            "overrides", nargs="*", help="Overrides as key=value"
-        )
+        command_parser.add_argument("overrides", nargs="*", help="Overrides as key=value")
 
     def run(self, args: Namespace) -> None:
         """Run the inference command.

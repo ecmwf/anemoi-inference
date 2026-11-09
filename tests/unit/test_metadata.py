@@ -9,14 +9,15 @@
 
 import pytest
 
-from anemoi.inference.metadata import (
-    Metadata,
-    MetadataFactory,
-    MultiDatasetMetadata,
-    SingleDatasetMetadata,
-)
+from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import MetadataFactory
+from anemoi.inference.metadata import MultiDatasetMetadata
+from anemoi.inference.metadata import SingleDatasetMetadata
 from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
-from anemoi.inference.testing.variables import w_100, z, z_100_renamed, z_renamed
+from anemoi.inference.testing.variables import w_100
+from anemoi.inference.testing.variables import z
+from anemoi.inference.testing.variables import z_100_renamed
+from anemoi.inference.testing.variables import z_renamed
 
 
 @pytest.mark.parametrize(
@@ -29,11 +30,7 @@ from anemoi.inference.testing.variables import w_100, z, z_100_renamed, z_rename
         ),
         (
             {"config": {"dataloader": [{"dataset": "abc"}, {"dataset": "xyz"}]}},
-            {
-                "config": {
-                    "dataloader": {"cutout": [{"dataset": "123"}, {"dataset": "456"}]}
-                }
-            },
+            {"config": {"dataloader": {"cutout": [{"dataset": "123"}, {"dataset": "456"}]}}},
             {"cutout": [{"dataset": "123"}, {"dataset": "456"}]},
         ),
         (
@@ -87,9 +84,7 @@ def test_patch_returns_new_keys(initial, patch, expected_new_keys):
 
 
 def test_constant_fields_patch():
-    model_metadata = mock_load_metadata(
-        "unit/checkpoints/atmos.json", supporting_arrays=False
-    )
+    model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
     metadata = MetadataFactory(model_metadata)
 
     fields = ["z", "sdor", "slor", "lsm"]
@@ -102,21 +97,15 @@ def test_constant_fields_patch():
 
 
 def test_metadata_factory():
-    single_metadata = mock_load_metadata(
-        "unit/checkpoints/atmos.json", supporting_arrays=False
-    )
-    multi_metadata = mock_load_metadata(
-        "unit/checkpoints/multi-single.json", supporting_arrays=False
-    )
+    single_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
+    multi_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
 
     assert isinstance(MetadataFactory(single_metadata), SingleDatasetMetadata)
     assert isinstance(MetadataFactory(multi_metadata), MultiDatasetMetadata)
 
 
 def test_multi_metadata():
-    multi_metadata = mock_load_metadata(
-        "unit/checkpoints/multi-single.json", supporting_arrays=False
-    )
+    multi_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
     metadata = MultiDatasetMetadata(multi_metadata)
     base_metadata = super(MultiDatasetMetadata, MultiDatasetMetadata(multi_metadata))
 
@@ -139,9 +128,7 @@ def test_multi_metadata():
 def test_open_dataset_args_kwargs_removes_unsupported_keys():
     """Test that trajectory key is removed from kwargs but frequency and drop are kept."""
     # Load a real checkpoint and patch it with the trajectory key
-    model_metadata = mock_load_metadata(
-        "unit/checkpoints/atmos.json", supporting_arrays=False
-    )
+    model_metadata = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
 
     # Add dataloader config with trajectory key that should be removed
     model_metadata["config"]["dataloader"] = {
@@ -158,9 +145,7 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys():
     metadata = MetadataFactory(model_metadata)
 
     # Get the args and kwargs
-    args, kwargs = metadata.open_dataset_args_kwargs(
-        use_original_paths=True, from_dataloader="training"
-    )
+    args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
 
     # Verify that trajectory is removed
     assert "trajectory" not in kwargs
@@ -178,9 +163,7 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys():
 def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
     """Test that trajectory key is removed from kwargs but frequency and drop are kept for multi-dataset."""
     # Load a multi-dataset checkpoint and patch it with the trajectory key
-    model_metadata = mock_load_metadata(
-        "unit/checkpoints/multi-single.json", supporting_arrays=False
-    )
+    model_metadata = mock_load_metadata("unit/checkpoints/multi-single.json", supporting_arrays=False)
 
     # Add dataloader config with trajectory key that should be removed for multi-dataset structure
     model_metadata["config"]["dataloader"] = {
@@ -201,9 +184,7 @@ def test_open_dataset_args_kwargs_removes_unsupported_keys_multi_dataset():
     metadata = MetadataFactory(model_metadata)
 
     # Get the args and kwargs
-    args, kwargs = metadata.open_dataset_args_kwargs(
-        use_original_paths=True, from_dataloader="training"
-    )
+    args, kwargs = metadata.open_dataset_args_kwargs(use_original_paths=True, from_dataloader="training")
 
     # Verify that trajectory is removed
     assert "trajectory" not in kwargs

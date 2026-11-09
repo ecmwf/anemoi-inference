@@ -14,10 +14,12 @@ from typing import Any
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import combine_states
-from anemoi.inference.types import Date, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..input import Input
-from . import create_input, input_registry
+from . import create_input
+from . import input_registry
 
 LOG = logging.getLogger(__name__)
 
@@ -25,11 +27,10 @@ LOG = logging.getLogger(__name__)
 @input_registry.register("split")
 # @main_argument("splits")
 class SplitInput(Input):
+
     trace_name = "split input"
 
-    def __init__(
-        self, context: Context, metadata: Metadata, *splits, **kwargs: Any
-    ) -> None:
+    def __init__(self, context: Context, metadata: Metadata, *splits, **kwargs: Any) -> None:
 
         all_variables = set(kwargs.get("variables"))
         assert all_variables is not None, "variables must be provided for split input"
@@ -57,9 +58,7 @@ class SplitInput(Input):
             vars = set(vars)
 
             if not set(vars) <= all_variables:
-                LOG.warning(
-                    f"Variables {vars} in split {s} are not in the requested variables {all_variables}"
-                )
+                LOG.warning(f"Variables {vars} in split {s} are not in the requested variables {all_variables}")
                 vars = all_variables & vars
 
             if not vars:
@@ -85,19 +84,13 @@ class SplitInput(Input):
                 if i == j:
                     continue
                 if not vars1.isdisjoint(vars2):
-                    raise ValueError(
-                        f"Splits {vars1} and {vars2} overlap in variables {vars1 & vars2}"
-                    )
+                    raise ValueError(f"Splits {vars1} and {vars2} overlap in variables {vars1 & vars2}")
 
         if all_variables:
             if default is None:
-                raise ValueError(
-                    f"Variables {all_variables} not covered by any split and no default provided"
-                )
+                raise ValueError(f"Variables {all_variables} not covered by any split and no default provided")
 
-            LOG.debug(
-                f"Variables {all_variables} not covered by any split, using default {default}"
-            )
+            LOG.debug(f"Variables {all_variables} not covered by any split, using default {default}")
 
             self.splits[tuple(sorted(all_variables))] = create_input(
                 context,
@@ -111,9 +104,7 @@ class SplitInput(Input):
 
         super().__init__(context, metadata, **kwargs)
 
-    def create_input_state(
-        self, *, dates: list[Date], ref_date_index=-1, **kwargs
-    ) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index=-1, **kwargs) -> State:
         """Create the input state for the repeated-dates input.
 
         Parameters
@@ -132,9 +123,7 @@ class SplitInput(Input):
         """
 
         # TODO: Consider caching the result
-        states = [
-            split.create_input_state(dates=dates, **kwargs) for split in self.splits
-        ]
+        states = [split.create_input_state(dates=dates, **kwargs) for split in self.splits]
 
         if len(states) == 1:
             state = states[0]
@@ -163,10 +152,7 @@ class SplitInput(Input):
         """
         assert len(dates) > 0, "dates must not be empty for repeated dates input"
 
-        states = [
-            split.load_forcings_state(dates=dates, current_state=current_state)
-            for split in self.splits
-        ]
+        states = [split.load_forcings_state(dates=dates, current_state=current_state) for split in self.splits]
         if len(states) == 1:
             state = states[0]
         else:

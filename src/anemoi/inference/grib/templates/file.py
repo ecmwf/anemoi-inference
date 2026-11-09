@@ -10,7 +10,8 @@
 import logging
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
+from typing import Literal
 
 import earthkit.data as ekd
 
@@ -18,7 +19,8 @@ from anemoi.inference.decorators import main_argument
 from anemoi.inference.inputs.ekd import find_variable
 from anemoi.inference.types import State
 
-from . import TemplateProvider, template_provider_registry
+from . import TemplateProvider
+from . import template_provider_registry
 from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)
@@ -58,29 +60,17 @@ class FileTemplates(TemplateProvider):
         if not self.path.exists():
             raise FileNotFoundError(f"GRIB template file not found: {self.path}")
         self.mode = mode
-        self.variables = (
-            variables
-            if isinstance(variables, list)
-            else [variables]
-            if variables
-            else None
-        )
+        self.variables = variables if isinstance(variables, list) else [variables] if variables else None
 
     def __repr__(self):
-        info = (
-            f"{self.__class__.__name__}({self.path.name},mode={self.mode}{{variables}})"
-        )
-        return info.format(
-            variables=f",variables={self.variables}" if self.variables else ""
-        )
+        info = f"{self.__class__.__name__}({self.path.name},mode={self.mode}{{variables}})"
+        return info.format(variables=f",variables={self.variables}" if self.variables else "")
 
     @cached_property
     def _data(self):
         return ekd.from_source("file", self.path)
 
-    def template(
-        self, variable: str, lookup: dict[str, Any], state: State, **kwargs
-    ) -> ekd.Field | None:
+    def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field | None:
         if self.variables and variable not in self.variables:
             return None
 
@@ -90,9 +80,7 @@ class FileTemplates(TemplateProvider):
             case "last":
                 return self._data[-1]
             case "auto":
-                namer = getattr(
-                    state.get("_input"), "_namer", self.manager.metadata.default_namer()
-                )
+                namer = getattr(state.get("_input"), "_namer", self.manager.metadata.default_namer())
                 field = find_variable(self._data, variable, namer)
                 if len(field) > 0:
                     return field[0]

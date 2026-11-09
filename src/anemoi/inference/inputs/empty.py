@@ -18,7 +18,8 @@ from typing import Any
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import Date, State
+from anemoi.inference.types import Date
+from anemoi.inference.types import State
 
 from ..input import Input
 from . import input_registry

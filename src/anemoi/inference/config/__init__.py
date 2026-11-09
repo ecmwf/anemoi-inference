@@ -12,11 +12,16 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import Any, Self, TypeVar
+from typing import Any
+from typing import TypeVar
 
 from earthkit.data.utils.dates import to_datetime
-from omegaconf import DictConfig, ListConfig, OmegaConf
-from pydantic import BaseModel, ConfigDict, field_validator
+from omegaconf import DictConfig
+from omegaconf import ListConfig
+from omegaconf import OmegaConf
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import field_validator
 
 LOG = logging.getLogger(__name__)
 
@@ -39,11 +44,11 @@ class Configuration(BaseModel):
 
     @classmethod
     def load(
-        cls,
+        cls: type[T],
         path: str | dict[str, Any],
         overrides: list[str] | list[dict] | str | dict = [],
         defaults: str | list[str] | dict | None = None,
-    ) -> Self:
+    ) -> T:
         """Load the configuration.
 
         Parameters
@@ -92,9 +97,7 @@ class Configuration(BaseModel):
 
         for override in overrides:
             if isinstance(override, dict):
-                oc_config = OmegaConf.unsafe_merge(
-                    oc_config, OmegaConf.create(override)
-                )
+                oc_config = OmegaConf.unsafe_merge(oc_config, OmegaConf.create(override))
             else:
                 # use from_dotlist to use OmegaConf split
                 # which allows for "param.val" or "param[val]".
@@ -104,9 +107,7 @@ class Configuration(BaseModel):
                 # rather than lists.
                 # Instead, we provide a reference config and we try to merge the override
                 # into the reference and keep types provided by the reference.
-                oc_config = OmegaConf.unsafe_merge(
-                    _merge_configs(oc_config, override_conf)
-                )
+                oc_config = OmegaConf.unsafe_merge(_merge_configs(oc_config, override_conf))
 
         resolved_config = OmegaConf.to_container(oc_config, resolve=True)
 
@@ -153,9 +154,7 @@ def _merge_configs(ref_conf: Any, new_conf: Any) -> Any:
             LOG.debug(f"key {key} is used to append to list {ref_conf}")
             ref_conf.append(rest)
         else:
-            raise IndexError(
-                f"key {key} out of range for list {ref_conf} of length {len(ref_conf)}"
-            )
+            raise IndexError(f"key {key} out of range for list {ref_conf} of length {len(ref_conf)}")
         return ref_conf
     elif isinstance(ref_conf, DictConfig) and key in ref_conf:
         ref_conf[key] = _merge_configs(ref_conf[key], rest)
@@ -164,6 +163,4 @@ def _merge_configs(ref_conf: Any, new_conf: Any) -> Any:
         ref_conf[key] = rest
         return ref_conf
     else:
-        raise ValueError(
-            f"ref is of unexpected type {type(ref_conf)}. Should be ListConfig or DictConfig"
-        )
+        raise ValueError(f"ref is of unexpected type {type(ref_conf)}. Should be ListConfig or DictConfig")

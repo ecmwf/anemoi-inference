@@ -27,13 +27,7 @@ LOG = logging.getLogger(__name__)
 class MPITransport(Transport):
     """Transport implementation using MPI."""
 
-    def __init__(
-        self,
-        couplings: Configuration,
-        tasks: dict[str, Task],
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, couplings: Configuration, tasks: dict[str, Task], *args: Any, **kwargs: Any) -> None:
         """Initialize the MPITransport.
 
         Parameters
@@ -50,9 +44,9 @@ class MPITransport(Transport):
         self.rank: int = self.comm.Get_rank()
         self.size: int = self.comm.Get_size()
 
-        assert len(tasks) == self.size, (
-            f"Number of tasks ({len(tasks)}) must match number of MPI processes ({self.size})"
-        )
+        assert (
+            len(tasks) == self.size
+        ), f"Number of tasks ({len(tasks)}) must match number of MPI processes ({self.size})"
 
     def start(self) -> None:
         """Start the transport by initializing MPI tasks."""

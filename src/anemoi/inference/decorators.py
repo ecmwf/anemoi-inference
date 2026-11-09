@@ -12,7 +12,8 @@ import inspect
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
+from typing import TypeVar
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -116,7 +117,8 @@ class supports_parallel_output:
         and logs a warning for non-path store objects that cannot be renamed.
         """
         if isinstance(val, str) and "://" in val:
-            from urllib.parse import urlsplit, urlunsplit
+            from urllib.parse import urlsplit
+            from urllib.parse import urlunsplit
 
             parts = urlsplit(val)
             p = Path(parts.path)
@@ -135,18 +137,14 @@ class supports_parallel_output:
 
     def __call__(self, cls: F) -> F:
         if not isinstance(cls, type):
-            raise TypeError(
-                f"`{self.__class__.__name__}` can only be used to decorate classes"
-            )
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
 
         class WrappedClass(cls):
             _supports_parallel_output = True
 
             def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
                 parallel_output_suffix = kwargs.pop("_parallel-output-suffix", None)
-                if parallel_output_suffix is not None and not isinstance(
-                    parallel_output_suffix, str
-                ):
+                if parallel_output_suffix is not None and not isinstance(parallel_output_suffix, str):
                     raise ValueError(
                         f"Expected '_parallel-output-suffix' to be a string, got {type(parallel_output_suffix)}."
                     )
@@ -162,14 +160,9 @@ class supports_parallel_output:
                                 break
                             container = container[key]
 
-                        if (
-                            isinstance(container, dict)
-                            and container.get(leaf) is not None
-                        ):
-                            container[leaf] = (
-                                supports_parallel_output.add_suffix_to_path(
-                                    container[leaf], parallel_output_suffix
-                                )
+                        if isinstance(container, dict) and container.get(leaf) is not None:
+                            container[leaf] = supports_parallel_output.add_suffix_to_path(
+                                container[leaf], parallel_output_suffix
                             )
 
                 super().__init__(*args, **kwargs)
@@ -194,12 +187,7 @@ class ensure_path:
     """
 
     def __init__(
-        self,
-        arg: str,
-        is_dir: bool = False,
-        create: bool = True,
-        must_exist: bool = False,
-        unique: bool = True,
+        self, arg: str, is_dir: bool = False, create: bool = True, must_exist: bool = False, unique: bool = True
     ):
         self.arg = arg
         self.is_dir = is_dir
@@ -213,9 +201,7 @@ class ensure_path:
         class WrappedClass(cls):
             def __init__(wrapped_cls, *args: Any, **kwargs: Any) -> None:
                 if self.arg not in kwargs:
-                    LOG.debug(
-                        f"Argument '{self.arg}' not found in kwargs, cannot ensure path."
-                    )
+                    LOG.debug(f"Argument '{self.arg}' not found in kwargs, cannot ensure path.")
                     super().__init__(*args, **kwargs)
                     return
 
@@ -257,16 +243,8 @@ class ensure_dir(ensure_path):
             ...
     """
 
-    def __init__(
-        self,
-        arg: str,
-        create: bool = True,
-        must_exist: bool = False,
-        unique: bool = True,
-    ):
-        super().__init__(
-            arg, is_dir=True, create=create, must_exist=must_exist, unique=unique
-        )
+    def __init__(self, arg: str, create: bool = True, must_exist: bool = False, unique: bool = True):
+        super().__init__(arg, is_dir=True, create=create, must_exist=must_exist, unique=unique)
 
 
 class format_dataset_name:
@@ -284,41 +262,24 @@ class format_dataset_name:
 
     def __call__(self, cls: F) -> F:
         if not isinstance(cls, type):
-            raise TypeError(
-                f"`{self.__class__.__name__}` can only be used to decorate classes"
-            )
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes")
 
-        if not any(
-            "metadata" in inspect.signature(klass.__init__).parameters
-            for klass in cls.mro()
-        ):
-            raise TypeError(
-                f"`{self.__class__.__name__}` can only be used to decorate classes that take `metadata`"
-            )
+        if not any("metadata" in inspect.signature(klass.__init__).parameters for klass in cls.mro()):
+            raise TypeError(f"`{self.__class__.__name__}` can only be used to decorate classes that take `metadata`")
 
         class DefaultFormat(dict):
             def __missing__(self, key):
                 return f"{{{key}}}"  # if the key is not found, return the placeholder unchanged
 
         class WrappedClass(cls):
-            def __init__(
-                wrapped_cls,
-                context: Context,
-                metadata: Metadata,
-                *args: Any,
-                **kwargs: Any,
-            ) -> Any:
-                assert self.arg in kwargs, (
-                    f"{self.arg} not found in decorated class arguments: {kwargs}"
-                )
-                assert isinstance(kwargs[self.arg], str), (
-                    f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
-                )
+            def __init__(wrapped_cls, context: Context, metadata: Metadata, *args: Any, **kwargs: Any) -> Any:
+                assert self.arg in kwargs, f"{self.arg} not found in decorated class arguments: {kwargs}"
+                assert isinstance(
+                    kwargs[self.arg], str
+                ), f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
 
                 name = metadata.dataset_name
-                kwargs[self.arg] = kwargs[self.arg].format_map(
-                    DefaultFormat(dataset=name, dataset_name=name)
-                )
+                kwargs[self.arg] = kwargs[self.arg].format_map(DefaultFormat(dataset=name, dataset_name=name))
                 super().__init__(context, metadata, *args, **kwargs)
 
         return type(cls.__name__, (WrappedClass,), {})

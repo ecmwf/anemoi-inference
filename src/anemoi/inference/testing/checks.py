@@ -46,21 +46,17 @@ def check_grib(
 
     params = set(ds.metadata("param"))
     expected_params = [var.param for var in expected_variables]
-    assert set(expected_params) == params, (
-        f"Expected parameters {set(expected_params)} do not match found parameters {params}."
-    )
+    assert (
+        set(expected_params) == params
+    ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
 
     for field in ds:
         for key, value in grib_keys.items():
-            assert field[key] == value, (
-                f"Key {key} does not match expected value {value}."
-            )
+            assert field[key] == value, f"Key {key} does not match expected value {value}."
         assert not np.all(field.values == 0), f"Field {field} is zero."
 
         if check_nans:
-            assert not any(np.isnan(field.values)), (
-                f"Field {field} contains NaN values."
-            )
+            assert not any(np.isnan(field.values)), f"Field {field} contains NaN values."
 
     # check time continuity
     if reference_date:
@@ -74,10 +70,7 @@ def check_grib(
             assert field["base_time"] == reference_date.isoformat()
             assert field["date"] == int(reference_date.strftime("%Y%m%d"))
             assert field["time"] == reference_date.hour * 100
-        assert (
-            field["step"] > previous_field["step"]
-            and field["valid_time"] > previous_field["valid_time"]
-        ), (
+        assert field["step"] > previous_field["step"] and field["valid_time"] > previous_field["valid_time"], (
             f"Field step {field['step']} (valid_time {field['valid_time']}) is not greater than previous field "
             f"step {previous_field['step']} (valid_time {previous_field['valid_time']})."
         )
@@ -92,9 +85,7 @@ def check_grib(
         raise ValueError(f"No fields found for accumulation check: {check_accum}")
 
     averages = [np.average(field.values) for field in fields]
-    assert all(curr > prev for prev, curr in zip(averages, averages[1:])), (
-        f"{check_accum} is not accumulating"
-    )
+    assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
 @testing_registry.register("check_grib_cutout")
@@ -117,18 +108,14 @@ def check_grib_cutout(
     ref_ds = ekd.from_source("file", reference_grib)
 
     if not reference_datetime:
-        reference_datetime = ref_ds.order_by(valid_datetime="ascending")[-1].metadata(
-            "valid_time"
-        )
+        reference_datetime = ref_ds.order_by(valid_datetime="ascending")[-1].metadata("valid_time")
 
     assert len(ds) > 0, "No fields found in the output GRIB file."
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
 
     mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
     prognostic_params = [
-        var.param
-        for var in metadata.typed_variables.values()
-        if var.name in metadata.prognostic_variables
+        var.param for var in metadata.typed_variables.values() if var.name in metadata.prognostic_variables
     ]
 
     for param in prognostic_params:
@@ -136,19 +123,15 @@ def check_grib_cutout(
         ref_fields = ref_ds.sel(param=param, valid_time=reference_datetime)
 
         assert len(fields) > 0, f"No fields found for variable {param} in output file."
-        assert len(ref_fields) > 0, (
-            f"No fields found for variable {param} in reference file at {reference_datetime}."
-        )
+        assert len(ref_fields) > 0, f"No fields found for variable {param} in reference file at {reference_datetime}."
 
         for field in fields:
-            assert field.values.shape[-1] == np.sum(mask), (
-                f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
-            )
+            assert field.values.shape[-1] == np.sum(
+                mask
+            ), f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
             assert np.allclose(
                 field.values, ref_fields.sel(level=field.metadata("level"))[0].values
-            ), (
-                f"Variable {param} in LAM does not match reference data at {reference_datetime}."
-            )
+            ), f"Variable {param} in LAM does not match reference data at {reference_datetime}."
 
 
 @testing_registry.register("check_with_xarray")
@@ -169,22 +152,18 @@ def check_with_xarray(
 
     assert len(ds.data_vars) > 0, "No data found in the xarray compatible file."
     assert len(ds.time) > 0, "No time steps found in the xarray compatible file."
-    assert len(ds.time.where(ds.time.notnull(), drop=True)) > 0, (
-        "All time steps are NaN in the xarray compatible file."
-    )
+    assert len(ds.time.where(ds.time.notnull(), drop=True)) > 0, "All time steps are NaN in the xarray compatible file."
 
     if expected_time is not None:
-        assert len(ds.time) == expected_time, (
-            f"Expected {expected_time} time steps, but found {len(ds.time)}."
-        )
+        assert len(ds.time) == expected_time, f"Expected {expected_time} time steps, but found {len(ds.time)}."
 
     # lat and lon are variables in the file, but they are not variables of the model so skip them
     skip = {"latitude", "longitude"}
     params = set(ds.data_vars) - skip
     expected_params = [var.name for var in expected_variables]
-    assert set(expected_params) == params, (
-        f"Expected parameters {set(expected_params)} do not match found parameters {params}."
-    )
+    assert (
+        set(expected_params) == params
+    ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
 
     for var in ds.data_vars:
         if var in skip:
@@ -192,9 +171,7 @@ def check_with_xarray(
         assert not np.all(ds[var].values == 0), f"Variable {var} is zero."
 
         if check_nans:
-            assert not np.isnan(ds[var].values).any(), (
-                f"Variable {var} contains NaN values."
-            )
+            assert not np.isnan(ds[var].values).any(), f"Variable {var} contains NaN values."
 
     if not check_accum:
         return
@@ -204,9 +181,7 @@ def check_with_xarray(
         raise ValueError(f"No variables found for accumulation check: {check_accum}")
 
     averages = [np.average(data.values) for data in data_vars]
-    assert all(curr > prev for prev, curr in zip(averages, averages[1:])), (
-        f"{check_accum} is not accumulating"
-    )
+    assert all(curr > prev for prev, curr in zip(averages, averages[1:])), f"{check_accum} is not accumulating"
 
 
 @testing_registry.register("check_cutout_with_xarray")
@@ -229,27 +204,25 @@ def check_cutout_with_xarray(
     # check shape of inner region against the mask in the checkpoint
     mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
     for var in ds.data_vars:
-        assert ds[var].shape[-1] == np.sum(mask), (
-            f"Variable {var} shape {ds[var].shape[-1]} does not match mask size {np.sum(mask)}."
-        )
+        assert ds[var].shape[-1] == np.sum(
+            mask
+        ), f"Variable {var} shape {ds[var].shape[-1]} does not match mask size {np.sum(mask)}."
 
     # check that the extracted inner region matches the reference input dataset
     # the mock model passes input to output, values in the output file should match the input dataset at the reference date
     if reference_dataset:
         from anemoi.datasets import open_dataset
 
-        ref_ds = open_dataset(
-            **reference_dataset, start=reference_date, end=reference_date
-        )
+        ref_ds = open_dataset(**reference_dataset, start=reference_date, end=reference_date)
 
         for var in metadata.prognostic_variables:
             assert var in ds.data_vars, f"Variable {var} not found in output file."
             ref_idx = ref_ds.name_to_index[var]
             # loop through time dimension
             for data in ds[var]:
-                assert np.allclose(data.values, ref_ds[0, ref_idx, 0, :]), (
-                    f"Variable {var} in output does not match reference data at {reference_date}."
-                )
+                assert np.allclose(
+                    data.values, ref_ds[0, ref_idx, 0, :]
+                ), f"Variable {var} in output does not match reference data at {reference_date}."
     elif reference_file:
         # check against a reference file, implement when needed
         raise NotImplementedError("Reference file check is not implemented yet.")
@@ -270,9 +243,7 @@ def check_boundary_forcings_with_xarray(
     supporting_arrays = metadata.supporting_arrays
     LOG.info(f"Supporting arrays in checkpoint: {supporting_arrays.keys()}")
     if "output_mask" not in supporting_arrays:
-        LOG.warning(
-            "Boundary forcings check is trivial. Consider removing from test config."
-        )
+        LOG.warning("Boundary forcings check is trivial. Consider removing from test config.")
         return
     else:
         boundary_mask = ~supporting_arrays["output_mask"]
@@ -285,9 +256,9 @@ def check_boundary_forcings_with_xarray(
     # check if boundary mask compatible with output
     n_grid = len(ds["latitude"].values)
     n_mask = len(boundary_mask)
-    assert n_grid == n_mask, (
-        f"Number of grid points ({n_grid}) does not match size of output mask in checkpoint ({n_mask})."
-    )
+    assert (
+        n_grid == n_mask
+    ), f"Number of grid points ({n_grid}) does not match size of output mask in checkpoint ({n_mask})."
     dates = ds["time"].astype("datetime64[s]").values
     freq = dates[1] - dates[0]
     if reference_dataset:
@@ -299,15 +270,9 @@ def check_boundary_forcings_with_xarray(
         step = freq // ref_freq
 
         # make sure all dates needed are present and we will step through them consistently
-        assert set(dates[:-1]).issubset(ref_dates), (
-            f"Reference dataset is missing dates {set(dates) - set(ref_dates)}"
-        )
-        assert step == freq / ref_freq, (
-            f"Frequency mismatch between output ({freq}) and reference ({ref_freq})"
-        )
-        LOG.info(
-            f"Inference output has a timestep that is {step} times that of the reference dataset."
-        )
+        assert set(dates[:-1]).issubset(ref_dates), f"Reference dataset is missing dates {set(dates) - set(ref_dates)}"
+        assert step == freq / ref_freq, f"Frequency mismatch between output ({freq}) and reference ({ref_freq})"
+        LOG.info(f"Inference output has a timestep that is {step} times that of the reference dataset.")
 
         if ref_ds.shape[2] != 1:
             raise NotImplementedError("Support for ensembles is not implemented yet.")
@@ -322,12 +287,8 @@ def check_boundary_forcings_with_xarray(
             ref_values = ref_values[:, :, grid_indices]
             lats = lats[grid_indices]
             lons = lons[grid_indices]
-        assert np.allclose(lats, ds.latitude.values), (
-            "Latitudes don't match between output and reference."
-        )
-        assert np.allclose(lons, ds.longitude.values), (
-            "Longitudes don't match between output and reference."
-        )
+        assert np.allclose(lats, ds.latitude.values), "Latitudes don't match between output and reference."
+        assert np.allclose(lons, ds.longitude.values), "Longitudes don't match between output and reference."
 
         # check boundary forcings
         # each inference step takes us from input i to output i
@@ -340,9 +301,9 @@ def check_boundary_forcings_with_xarray(
             for i in range(len(dates) - 1):
                 out = ds[var].isel(time=i + 1).values
                 forcing = ref_values[i * step, ref_idx]
-                assert np.allclose(out[boundary_mask], forcing[boundary_mask]), (
-                    f"Boundary forcing for variable {var} does not match reference data at {ref_dates[i * step]}."
-                )
+                assert np.allclose(
+                    out[boundary_mask], forcing[boundary_mask]
+                ), f"Boundary forcing for variable {var} does not match reference data at {ref_dates[i*step]}."
 
     elif reference_file:
         # check against a reference file, implement when needed
@@ -357,18 +318,14 @@ def check_file_exist(*, file: Path, **kwargs) -> None:
 
 
 @testing_registry.register("check_files_in_directory")
-def check_files_in_directory(
-    *, file: Path, expected_files: int | None = None, **kwargs
-) -> None:
+def check_files_in_directory(*, file: Path, expected_files: int | None = None, **kwargs) -> None:
     LOG.info(f"Checking directory: {file}")
-    assert file.exists() and file.is_dir(), (
-        f"Directory {file} does not exist or is not a directory."
-    )
+    assert file.exists() and file.is_dir(), f"Directory {file} does not exist or is not a directory."
     if expected_files is not None:
         actual_files = [f for f in file.iterdir() if f.is_file()]
         if expected_files < 0:
             assert len(actual_files) > 0, "Expected at least one file, but found none."
         else:
-            assert len(actual_files) == expected_files, (
-                f"Expected {expected_files} files, but found {len(actual_files)}."
-            )
+            assert (
+                len(actual_files) == expected_files
+            ), f"Expected {expected_files} files, but found {len(actual_files)}."

@@ -15,7 +15,8 @@ from typing import Any
 
 import earthkit.data as ekd
 
-from . import IndexTemplateProvider, template_provider_registry
+from . import IndexTemplateProvider
+from . import template_provider_registry
 from .manager import TemplateManager
 
 LOG = logging.getLogger(__name__)

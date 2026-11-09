@@ -32,45 +32,23 @@ SIMPLE_METADATA = {
     },
     "data_indices": {
         "data": {
-            "input": {
-                "full": [0, 1, 2, 3, 4, 5, 8, 9],
-                "forcing": [4, 5, 8, 9],
-                "diagnostic": [6, 7],
-            },
+            "input": {"full": [0, 1, 2, 3, 4, 5, 8, 9], "forcing": [4, 5, 8, 9], "diagnostic": [6, 7]},
             "output": {"full": [0, 1, 2, 3, 6, 7]},
         },
         "model": {
-            "input": {
-                "full": [0, 1, 2, 3, 4, 5, 6, 7],
-                "forcing": [4, 5, 6, 7],
-                "prognostic": [0, 1, 2, 3],
-            },
+            "input": {"full": [0, 1, 2, 3, 4, 5, 6, 7], "forcing": [4, 5, 6, 7], "prognostic": [0, 1, 2, 3]},
             "output": {"full": [0, 1, 2, 3, 4, 5], "prognostic": [0, 1, 2, 3]},
         },
     },
     "dataset": {
-        "variables": [
-            "2t",
-            "10u",
-            "10v",
-            "msl",
-            "lsm",
-            "z",
-            "tcc",
-            "tp",
-            "cos_latitude",
-            "insolation",
-        ],
+        "variables": ["2t", "10u", "10v", "msl", "lsm", "z", "tcc", "tp", "cos_latitude", "insolation"],
         "shape": [365, 10, 1, 40320],
         "variables_metadata": {
             "2t": {"mars": {"param": "2t", "levtype": "sfc"}},
             "10u": {"mars": {"param": "10u", "levtype": "sfc"}},
             "10v": {"mars": {"param": "10v", "levtype": "sfc"}},
             "msl": {"mars": {"param": "msl", "levtype": "sfc"}},
-            "lsm": {
-                "constant_in_time": True,
-                "mars": {"param": "lsm", "levtype": "sfc"},
-            },
+            "lsm": {"constant_in_time": True, "mars": {"param": "lsm", "levtype": "sfc"}},
             "z": {"constant_in_time": True, "mars": {"param": "z", "levtype": "sfc"}},
             "tcc": {"mars": {"param": "tcc", "levtype": "sfc"}},
             "tp": {"accumulated": True, "mars": {"param": "tp", "levtype": "sfc"}},
@@ -82,9 +60,7 @@ SIMPLE_METADATA = {
 }
 
 
-def mock_load_metadata(
-    path: str | None, *, supporting_arrays: bool = True
-) -> tuple[dict[str, Any], dict[str, Any]]:
+def mock_load_metadata(path: str | None, *, supporting_arrays: bool = True) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load metadata from a YAML file.
 
     Parameters
@@ -194,16 +170,14 @@ def mock_torch_load(path: str, map_location: Any, weights_only: bool) -> Any:
     """
     from anemoi.inference.checkpoint import get_multi_dataset_metadata
 
-    from .mock_model import SimpleMockModel, VariableOutputSetting
+    from .mock_model import SimpleMockModel
+    from .mock_model import VariableOutputSetting
 
     assert weights_only is False, "Not implemented"
 
     metadata, arrays = mock_load_metadata(path)
 
-    return SimpleMockModel(
-        get_multi_dataset_metadata(metadata, arrays),
-        output_mode=VariableOutputSetting.HASH,
-    )
+    return SimpleMockModel(get_multi_dataset_metadata(metadata, arrays), output_mode=VariableOutputSetting.HASH)
 
 
 class MockRunConfiguration:

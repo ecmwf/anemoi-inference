@@ -8,7 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 
-from typing import Any, Protocol
+from typing import Any
+from typing import Protocol
 
 
 class MetadataProtocol(Protocol):

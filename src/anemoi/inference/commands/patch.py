@@ -9,7 +9,8 @@
 
 
 import logging
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
+from argparse import Namespace
 from copy import deepcopy
 
 import numpy as np
@@ -41,9 +42,7 @@ def diff(old, new, *path):
 
     if isinstance(old, list) and isinstance(new, list):
         if len(old) != len(new):
-            LOG.info(
-                f"Difference at {path}: List lengths differ ({len(old)} != {len(new)})"
-            )
+            LOG.info(f"Difference at {path}: List lengths differ ({len(old)} != {len(new)})")
             result = True
         for i, (item1, item2) in enumerate(zip(old, new)):
             result = diff(item1, item2, *path, str(i)) or result
@@ -88,9 +87,7 @@ class PatchCmd(Command):
 
         new_metadata, new_supporting_arrays = checkpoint.update_metadata_from_zarr()
 
-        if diff(original_metadata, new_metadata) or diff(
-            original_supporting_arrays, new_supporting_arrays
-        ):
+        if diff(original_metadata, new_metadata) or diff(original_supporting_arrays, new_supporting_arrays):
             if args.sanitise:
                 LOG.info("Sanitising metadata")
                 from anemoi.utils.sanitise import sanitise

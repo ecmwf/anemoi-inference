@@ -13,7 +13,8 @@ from typing import Any
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
-from anemoi.inference.testing.mock_model import SimpleMockModel, VariableOutputSetting
+from anemoi.inference.testing.mock_model import SimpleMockModel
+from anemoi.inference.testing.mock_model import VariableOutputSetting
 
 from . import runner_registry
 from .default import DefaultRunner
@@ -23,10 +24,7 @@ LOG = logging.getLogger(__name__)
 
 class NoModelMixing:
     def __init__(
-        self,
-        *args: Any,
-        output_mode: VariableOutputSetting = VariableOutputSetting.ONES,
-        **kwargs: Any,
+        self, *args: Any, output_mode: VariableOutputSetting = VariableOutputSetting.ONES, **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.output_mode = output_mode

@@ -146,13 +146,7 @@ def test_config_patch_metadata_file(tmp_path) -> None:
             True,
         ),
         # Config with a single key -> return as-is
-        (
-            {"output": "file.grib"},
-            "era5",
-            ["era5", "cerra"],
-            {"output": "file.grib"},
-            True,
-        ),
+        ({"output": "file.grib"}, "era5", ["era5", "cerra"], {"output": "file.grib"}, True),
         # Non-dict config -> return as-is
         ("some_string", "era5", ["era5"], "some_string", True),
         ([1, 2, 3], "era5", ["era5"], [1, 2, 3], True),
@@ -179,9 +173,7 @@ def test_multi_datasets_config(
         ({"era5": {"grib": "out.grib"}}, "era5", ["era5", "cerra"], True),
     ],
 )
-def test_multi_datasets_config_errors(
-    config: Any, dataset_name: str, datasets: list[str], strict: bool
-) -> None:
+def test_multi_datasets_config_errors(config: Any, dataset_name: str, datasets: list[str], strict: bool) -> None:
     """Test that multi_datasets_config raises AssertionError for invalid inputs."""
     with pytest.raises(AssertionError):
         multi_datasets_config(config, dataset_name, datasets, strict=strict)
