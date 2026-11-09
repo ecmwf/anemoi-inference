@@ -126,7 +126,7 @@ option of the :ref:`GRIB output <grib-output>`, for example:
 Setting ``type`` to ``pf`` (perturbed forecast) or ``cf`` (control
 forecast) makes the output encode the messages as ensemble messages. You
 may need a suitable :ref:`template <templates>` for this to work with
-your data. Note that just like in the output path, ``number`` needs to be explicitly set. 
+your data. Note that just like in the output path, ``number`` needs to be explicitly set.
 
 **************
  Parallel runs
