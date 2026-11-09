@@ -173,7 +173,7 @@ class TemplateManager:
         """
 
         if isinstance(grid, str) and "=" not in grid:
-            return grid
+            return grid.upper()
 
         if isinstance(grid, (tuple, list)) and len(grid) == 2:
             if grid[0] == grid[1]:
