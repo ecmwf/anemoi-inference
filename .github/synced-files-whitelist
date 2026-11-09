@@ -1,0 +1,3 @@
+# Synced files owned by this repository, exempt from the `protect-synced-files` pre-commit hook.
+# Each path MUST also be excluded for this repository in
+# https://github.com/ecmwf/reusable-workflows/blob/main/sync-files/sync.yml
