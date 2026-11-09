@@ -108,11 +108,10 @@ unless you collect the seeds from the logs.
    ``anemoi-inference`` does not derive the seed from a member number.
    It is up to you to choose seeds that differ between members.
 
-Member number in the output
+GRIB encoding
 ===========================
 
-The output is not aware of the member number either. If you need it in
-the GRIB output, it can be passed as a GRIB key with the ``encoding``
+When using the GRIB output, messages are encoded as a deterministic forecast by default. It is up to the user to set the necessary GRIB keys for a probabilistic forecast via the  ``encoding``
 option of the :ref:`GRIB output <grib-output>`, for example:
 
 .. code:: yaml
@@ -127,7 +126,7 @@ option of the :ref:`GRIB output <grib-output>`, for example:
 Setting ``type`` to ``pf`` (perturbed forecast) or ``cf`` (control
 forecast) makes the output encode the messages as ensemble messages. You
 may need a suitable :ref:`template <templates>` for this to work with
-your data.
+your data. Note that just like in the output path, ``number`` needs to be explicitly set. 
 
 **************
  Parallel runs
