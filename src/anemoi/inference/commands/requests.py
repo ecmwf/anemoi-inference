@@ -57,7 +57,6 @@ class RequestCmd(Command):
             if args.mars:
                 req = ["retrieve,target=data"]
                 for k, v in r.items():
-
                     if args.use_grib_paramid and k == "param":
                         if not isinstance(v, (list, tuple)):
                             v = [v]

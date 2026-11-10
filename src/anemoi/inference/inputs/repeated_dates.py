@@ -108,7 +108,6 @@ class RepeatedDatesInput(Input):
         state = None
 
         for date in dates:
-
             s = self.source.load_forcings_state(
                 dates=[self.date],
                 current_state=current_state,
