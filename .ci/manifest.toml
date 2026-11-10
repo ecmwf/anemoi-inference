@@ -2,6 +2,8 @@
 name = "anemoi-inference"
 repo = "ecmwf/anemoi-inference"
 visibility = "public"
+# Approved fork pull requests run ci.yml through the generated ci-fork.yml.
+fork-pull-requests = true
 compiler-inputs = []
 
 [[deps]]
