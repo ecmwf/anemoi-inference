@@ -294,6 +294,42 @@ class TestDetachTensors:
         assert isinstance(result["values"], np.ndarray)
 
 
+class TestDetachTensorsSnapshot:
+    """``mp.Queue.put`` pickles in a background thread *after* it returns, so arrays must be snapshotted.
+
+    Regression test for hourly accumulated fields (e.g. ``tp``) being written with the values of a
+    later step because the ``Accumulate`` post-processor modifies its buffer in place.
+    """
+
+    def test_numpy_array_is_copied(self):
+        arr = np.arange(5, dtype=np.float32)
+        result = _detach_tensors({"fields": {"tp": arr}})["fields"]["tp"]
+        assert result is not arr
+        assert not np.shares_memory(result, arr)
+        arr += 100  # later in-place modification by the caller must not leak into the snapshot
+        assert list(result) == [0, 1, 2, 3, 4]
+
+    def test_cpu_tensor_does_not_share_memory(self):
+        torch = pytest.importorskip("torch")
+        tensor = torch.arange(5, dtype=torch.float32)
+        result = _detach_tensors(tensor)
+        tensor += 100
+        assert list(result) == [0, 1, 2, 3, 4]
+
+    def test_sanitise_state_snapshots_accumulator(self):
+        from anemoi.inference.post_processors.accumulate import Accumulate
+
+        context = SimpleNamespace()
+        metadata = SimpleNamespace(dataset_name="data", accumulations=["tp"])
+        acc = Accumulate(context, metadata, accumulations=["tp"])
+
+        state = {"fields": {"tp": np.ones(4, dtype=np.float32)}, "date": datetime.datetime(2026, 1, 1)}
+        first = _sanitise_state(acc.process(state))
+        state = {"fields": {"tp": np.ones(4, dtype=np.float32)}, "date": datetime.datetime(2026, 1, 1)}
+        acc.process(state)  # the next step is accumulated before the first one is pickled
+        assert list(first["fields"]["tp"]) == [1, 1, 1, 1]
+
+
 # ── _sanitise_state ───────────────────────────────────────────────────────────
 
 

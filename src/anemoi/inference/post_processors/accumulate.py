@@ -82,7 +82,7 @@ class Accumulate(Processor):
                 if not self.allow_negative:
                     value = np.maximum(0, value)
                 self.accumulators[accumulation] += value
-                state["fields"][accumulation] = self.accumulators[accumulation]
+                state["fields"][accumulation] = self.accumulators[accumulation].copy()
                 state["start_steps"][accumulation] = self.step_zero
 
         return state
