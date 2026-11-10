@@ -83,13 +83,8 @@ class Runner(Context):
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
 
-        # Set ANEMOI_INFERENCE_DETERMINISTIC=true to get the same output from each run.
-        self.deterministic = os.environ.get("ANEMOI_INFERENCE_DETERMINISTIC", "false").lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
+        # Set `deterministic: true` in the config to get the same output from each run.
+        self.deterministic = config.deterministic
         if self.deterministic:
             # Stop cuBLAS from using algorithms that are not deterministic.
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
@@ -98,11 +93,9 @@ class Runner(Context):
             torch.use_deterministic_algorithms(True)
             # use_deterministic_algorithms(True) also fills each new uninitialised tensor
             # (CPU and GPU) with NaN. This fill adds approximately 30% to the end-to-end
-            # runtime and does not change the output. Thus, the default is no fill.
-            # Set ANEMOI_INFERENCE_DETERMINISTIC_FILL=true to fill the memory (for debugging).
-            fill = os.environ.get("ANEMOI_INFERENCE_DETERMINISTIC_FILL", "false").lower() in {"1", "true", "yes", "on"}
-            torch.utils.deterministic.fill_uninitialized_memory = fill
-            LOG.info("Deterministic mode is on (ANEMOI_INFERENCE_DETERMINISTIC), fill_uninitialized_memory=%s", fill)
+            # runtime and does not change the output. Thus, do not fill the memory.
+            torch.utils.deterministic.fill_uninitialized_memory = False
+            LOG.info("Deterministic mode is on")
 
         if config.seed is not None:
             seed = config.seed

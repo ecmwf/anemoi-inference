@@ -112,6 +112,36 @@ It can also be set on the command line:
 See :ref:`usage-ensembles` for more details, including how to produce
 several ensemble members.
 
+.. _top-level-deterministic:
+
+deterministic:
+==============
+
+The ``deterministic`` option is a boolean. The default is ``false``. Set
+it to ``true`` to get the same output from each run with the same input.
+
+This option does these steps:
+
+- It sets ``torch.use_deterministic_algorithms(True)``.
+- It sets ``CUBLAS_WORKSPACE_CONFIG`` to ``:16:8``.
+- It stops cuDNN benchmarking.
+- It sets the seed of torch and numpy. If the ``seed`` option is not
+  set, the seed is 42.
+
+.. code:: yaml
+
+   deterministic: true
+
+It can also be set on the command line:
+
+.. code:: bash
+
+   anemoi-inference run config.yaml deterministic=true
+
+Deterministic algorithms can be slower than the default algorithms.
+Some operations do not have a deterministic version. These operations
+cause an error in deterministic mode.
+
 date:
 =====
 
