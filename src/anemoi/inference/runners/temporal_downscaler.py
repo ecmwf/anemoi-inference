@@ -101,7 +101,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
 
-        # Checked here rather than in __init__: commands such as `retrieve --staging-dates` build the runner
         # without a date (see `patch_data_request`) and must keep working.
         if self.reference_date is None:
             raise ValueError("Temporal downscaler runner requires a date set in the config or CLI.")
