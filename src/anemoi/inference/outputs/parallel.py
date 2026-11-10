@@ -44,13 +44,21 @@ def _detach_tensors(obj: Any) -> Any:
     This prevents "Cannot re-initialize CUDA in forked subprocess" errors
     when pickling state dicts for the multiprocessing queue.
     """
+    import numpy as np
+
+    # mp.Queue.put() pickles in a background thread *after* it returns, so any array still
+    # referenced by the caller (e.g. the in-place accumulators of `Accumulate`) may be modified
+    # before it is pickled. Always send a private snapshot.
+    if isinstance(obj, np.ndarray):
+        return obj.copy()
+
     try:
         import torch
     except ImportError:
         return obj
 
     if isinstance(obj, torch.Tensor):
-        return obj.detach().cpu().numpy()
+        return obj.detach().cpu().numpy().copy()
     if isinstance(obj, dict):
         return {k: _detach_tensors(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
