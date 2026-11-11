@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.14.1](https://github.com/ecmwf/anemoi-inference/compare/0.14.0...0.14.1) (2026-11-11)
+
+
+### Features
+
+* **deps:** Remove upper limit on xarray to support zarr3 ([#638](https://github.com/ecmwf/anemoi-inference/issues/638)) ([48c58f9](https://github.com/ecmwf/anemoi-inference/commit/48c58f93bc06ddab489009cdf2b9191a1d01f117))
+
+
+### Bug Fixes
+
+* **inputs/dummy:** Use checkpoint coordinates ([#643](https://github.com/ecmwf/anemoi-inference/issues/643)) ([a99fe19](https://github.com/ecmwf/anemoi-inference/commit/a99fe197a96d10b540997a840baeaedc67f3bb50))
+* **outputs/parallel:** Accumulations were operating on an invalid array ([#649](https://github.com/ecmwf/anemoi-inference/issues/649)) ([52fa3f4](https://github.com/ecmwf/anemoi-inference/commit/52fa3f416a82595fb698913d9c9f1c47d57bb426))
+* **templates:** Don't capitalise complex grid specifications ([#640](https://github.com/ecmwf/anemoi-inference/issues/640)) ([16ff130](https://github.com/ecmwf/anemoi-inference/commit/16ff1303a3cd9d141870d38a7aa68df2dc033077))
+
+
+### Documentation
+
+* Document seed control and ensemble members ([#616](https://github.com/ecmwf/anemoi-inference/issues/616)) ([54410b0](https://github.com/ecmwf/anemoi-inference/commit/54410b0408c9ab9ea145cac24fc9e26ebb5d42f6))
+
 ## [0.14.0](https://github.com/ecmwf/anemoi-inference/compare/0.13.0...0.14.0) (2026-11-06)
 
 
