@@ -1,5 +1,6 @@
-# Workflows
+# Workflows & CI
 /.github/ @ecmwf/anemoi_security
+/.ci/ @ecmwf/anemoi_security
 
 # Project configs
 /pyproject.toml @ecmwf/anemoi_security
