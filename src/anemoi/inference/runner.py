@@ -385,10 +385,44 @@ class Runner(Context):
 
         if not self.checkpoint.multi_dataset:
             assert len(input_tensors_torch) == 1, "Expected only one dataset in input tensors"
-            name, tensor = next(iter(input_tensors_torch.items()))
-            return {name: model.predict_step(tensor, **kwargs)}
+            dataset, tensor = next(iter(input_tensors_torch.items()))
+            return {dataset: model.predict_step(tensor, **kwargs)}
 
-        return model.predict_step(input_tensors_torch, **kwargs)
+        if not self.checkpoint.richer_batch:
+            return model.predict_step(input_tensors_torch, **kwargs)
+
+        # TODO: move richer_batch construction logic into a separate function or class
+        richer_batch = {}
+        target_template = {}
+
+        for dataset, tensor in input_tensors_torch.items():
+            richer_batch[dataset] = {}
+            target_template[dataset] = {}
+
+            richer_batch[dataset]["data"] = tensor
+            richer_batch[dataset]["data_type"] = "gridded"  # TODO: from metadata?
+            richer_batch[dataset]["variables"] = list(
+                self.tensor_handlers[dataset].metadata.variable_to_input_tensor_index.keys()
+            )
+            richer_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
+            richer_batch[dataset]["longitudes"] = input_states[dataset]["longitudes"]
+            richer_batch[dataset]["layout"] = ("time", "ensemble", "grid", "variables")
+
+            for key in ("latitudes", "longitudes", "layout", "data_type"):
+                target_template[dataset][key] = richer_batch[dataset][key]
+
+            target_template[dataset]["variables"] = list(
+                self.tensor_handlers[dataset].metadata.variable_to_output_tensor_index.keys()
+            )
+
+        richer_batch_output: dict[str, dict] = model.predict_step(
+            richer_batch,
+            target_template=target_template,
+            **kwargs,
+        )
+
+        # TODO: check input/output tensor shapes, they are probably wrong
+        return {dataset: output["data"] for dataset, output in richer_batch_output.items()}
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta

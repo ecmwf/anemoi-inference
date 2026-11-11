@@ -29,6 +29,7 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
+from packaging.version import Version
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -150,6 +151,16 @@ class Metadata(LegacyMixin):
         """Get the data frequency."""
         output_timestep = getattr(self._config_task, "output_timestep", None)
         return output_timestep or self._config.data.frequency
+
+    @cached_property
+    def version(self) -> Version:
+        """Return the metadata schema version."""
+        return Version("1.0")
+
+    @property
+    def richer_batch(self) -> bool:
+        """Whether the model was trained after richer-batch was introduced."""
+        return False
 
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
@@ -300,7 +311,7 @@ class Metadata(LegacyMixin):
         assert len(indices_from) == len(indices_to), (indices_from, indices_to)
         return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
-    @property
+    @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
         """Return the mapping between variable name and input tensor index."""
         mapping = self._make_indices_mapping(
@@ -1487,6 +1498,16 @@ class MultiDatasetMetadata(Metadata):
     @property
     def _inference(self) -> DotDict:
         return self._metadata_inference[self.dataset_name]
+
+    @cached_property
+    def version(self) -> Version:
+        """Return the metadata schema version."""
+        return Version(self._metadata.version)
+
+    @cached_property
+    def richer_batch(self) -> bool:
+        """Whether the model was trained after richer-batch was introduced."""
+        return self.version >= Version("3.0")
 
     def _dataloader_dataset(self, partition="training"):
         dataloader = self._config.dataloader[partition].datasets[self.dataset_name]
