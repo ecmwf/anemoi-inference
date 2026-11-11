@@ -288,7 +288,7 @@ class CoordinateReorder(Processor):
             data = field.to_numpy()[..., perm]
             # Rebuild as an earthkit array field: set the reordered data, then the
             # reordered geography so the field's grid points stay consistent with
-            # its values (e.g. for downstream ``grid_points()``/``to_latlon()``).
+            # its values (e.g. for downstream ``geography.latlons()``).
             new_field = new_field_from_numpy(data, template=field)
             new_field = new_field_from_latitudes_longitudes(new_field, new_lat, new_lon)
             result.append(new_field)

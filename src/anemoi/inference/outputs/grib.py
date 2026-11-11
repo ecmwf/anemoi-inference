@@ -66,7 +66,7 @@ class HindcastOutput:
         """
 
         if "date" not in keys:
-            assert template.metadata("hdate", default=None) is None, template
+            assert template.get("metadata.hdate", default=None) is None, template
             date = template.metadata("date")
         else:
             date = keys.pop("date")
