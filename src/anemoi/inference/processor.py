@@ -6,13 +6,11 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 #
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import State
+from anemoi.inference.types import DataRequest, State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context

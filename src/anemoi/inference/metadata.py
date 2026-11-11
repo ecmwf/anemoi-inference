@@ -13,13 +13,10 @@ import logging
 import os
 import warnings
 from collections import defaultdict
-from collections.abc import Callable
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import cached_property
 from types import MappingProxyType as frozendict
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import deprecation
 import earthkit.data as ekd
@@ -31,10 +28,7 @@ from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference._version import __version__
-from anemoi.inference.types import DataRequest
-from anemoi.inference.types import Date
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import IntArray
+from anemoi.inference.types import DataRequest, Date, FloatArray, IntArray
 
 from .legacy import LegacyMixin
 

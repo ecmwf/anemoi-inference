@@ -12,8 +12,7 @@ import inspect
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
@@ -117,8 +116,7 @@ class supports_parallel_output:
         and logs a warning for non-path store objects that cannot be renamed.
         """
         if isinstance(val, str) and "://" in val:
-            from urllib.parse import urlsplit
-            from urllib.parse import urlunsplit
+            from urllib.parse import urlsplit, urlunsplit
 
             parts = urlsplit(val)
             p = Path(parts.path)

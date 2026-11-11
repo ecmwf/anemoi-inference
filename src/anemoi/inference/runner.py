@@ -17,10 +17,7 @@ import sys
 import warnings
 from collections.abc import Generator
 from functools import cached_property
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Literal
-from typing import Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -28,12 +25,10 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.logs import OnceLogger
 from anemoi.utils.timer import Timer
-from pydantic import BaseModel
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.config.utils import input_types_config
-from anemoi.inference.config.utils import multi_datasets_config
+from anemoi.inference.config.utils import input_types_config, multi_datasets_config
 from anemoi.inference.device import get_available_device
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
@@ -46,14 +41,12 @@ from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.pre_processors import create_pre_processor
 from anemoi.inference.processor import Processor
 from anemoi.inference.tensors import TensorHandler
-from anemoi.inference.types import FloatArray
-from anemoi.inference.types import State
+from anemoi.inference.types import FloatArray, State
 
 from .checkpoint import Checkpoint
 from .context import Context
 from .precisions import PRECISIONS
-from .profiler import ProfilingLabel
-from .profiler import ProfilingRunner
+from .profiler import ProfilingLabel, ProfilingRunner
 from .variables import Variables
 
 if TYPE_CHECKING:

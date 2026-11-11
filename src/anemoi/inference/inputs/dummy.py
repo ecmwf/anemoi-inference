@@ -14,9 +14,7 @@ These values are then tested in the mock model.
 """
 
 import logging
-from datetime import datetime
-from datetime import time
-from datetime import timezone
+from datetime import datetime, time, timezone
 
 import earthkit.data as ekd
 import numpy as np
@@ -24,8 +22,7 @@ import numpy as np
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.testing import float_hash
-from anemoi.inference.types import Date
-from anemoi.inference.types import State
+from anemoi.inference.types import Date, State
 
 from . import input_registry
 from .ekd import EkdInput
