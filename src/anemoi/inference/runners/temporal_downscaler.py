@@ -80,9 +80,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
         self.fill_timeline_with_input = fill_timeline_with_input
 
-        if self.reference_date is None:
-            raise ValueError("Temporal downscaler runner requires a date set in the config or CLI.")
-
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Temporal downscaler runner requires exactly two input explicit times (t and t+temporal_downscaling_window), "
             f"but got {self.checkpoint.input_explicit_times}"
@@ -142,6 +139,9 @@ class TemporalDownscalerMultiOutRunner(Runner):
         """Execute the temporal downscaler runner with support for multiple temporal downscaling periods."""
         if self.config.description is not None:
             LOG.info("%s", self.config.description)
+
+        if self.reference_date is None:
+            raise ValueError("Temporal downscaler runner requires a date set in the config or CLI.")
 
         # Calculate how many temporal downscaling windows we need for the lead_time
         num_windows = int(self.lead_time / self.temporal_downscaling_window)

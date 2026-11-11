@@ -180,9 +180,9 @@ class ExternalGraphRunner(DefaultRunner):
         """
         super().__init__(config)
         # TODO: multi-dataset checkpoint support
-        assert (
-            not self.checkpoint.multi_dataset
-        ), "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
+        assert not self.checkpoint.multi_dataset, (
+            "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
+        )
         self.check_state_dict = check_state_dict
         self.graph_path = graph
 
@@ -264,9 +264,9 @@ class ExternalGraphRunner(DefaultRunner):
     def graph(self):
 
         graph_path = self.graph_path
-        assert os.path.isfile(
-            graph_path
-        ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        assert os.path.isfile(graph_path), (
+            f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        )
         LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 

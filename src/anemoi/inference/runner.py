@@ -491,7 +491,7 @@ class Runner(Context):
                 dates_str = f"{dates_str[:-2]})"
                 title = f"Forecasting {dates_str}"
                 if self.verbosity > 0:
-                    title += f" through model call {s+1} with horizon {step}"
+                    title += f" through model call {s + 1} with horizon {step}"
 
                 for dataset, handler in self.tensor_handlers.items():
                     if handler.trace:
@@ -515,7 +515,9 @@ class Runner(Context):
                     assert ndim in (
                         4,
                         5,
-                    ), f"[{dataset}] Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {tensor.shape}"
+                    ), (
+                        f"[{dataset}] Output tensor should have dimensions (batch, [time], ensemble, values, variables), got {tensor.shape}"
+                    )
                     if ndim == 4:
                         # pre-multistep models output (batch, ensemble, values, variables)
                         # add a time dimension of 1 for backwards compatibility
@@ -866,7 +868,7 @@ class Runner(Context):
 
                 if type(combined[key]) is not type(value):
                     raise ValueError(
-                        f"Key '{key}' has different types in the states: " f"{type(combined[key])} and {type(value)}."
+                        f"Key '{key}' has different types in the states: {type(combined[key])} and {type(value)}."
                     )
 
                 if isinstance(value, np.ndarray) and isinstance(combined[key], np.ndarray):

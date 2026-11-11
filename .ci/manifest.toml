@@ -2,6 +2,7 @@
 name = "anemoi-inference"
 repo = "ecmwf/anemoi-inference"
 visibility = "public"
+fork-pull-requests = true
 compiler-inputs = []
 
 [[deps]]
