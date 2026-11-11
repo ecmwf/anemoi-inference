@@ -402,7 +402,6 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
             mismatches[k] = f'Expected "{v}" but got "{w}"'
 
     if mismatches:
-
         if first:
             # Some keys are only recomputed by eccodes once the message has been
             # cloned, so retry once against a clone before reporting a mismatch.

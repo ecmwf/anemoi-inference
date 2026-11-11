@@ -46,9 +46,9 @@ def check_grib(
 
     params = set(ds.metadata("param"))
     expected_params = [var.param for var in expected_variables]
-    assert (
-        set(expected_params) == params
-    ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
+    assert set(expected_params) == params, (
+        f"Expected parameters {set(expected_params)} do not match found parameters {params}."
+    )
 
     for field in ds:
         for key, value in grib_keys.items():
@@ -131,9 +131,9 @@ def check_grib_cutout(
         assert len(ref_fields) > 0, f"No fields found for variable {param} in reference file at {reference_datetime}."
 
         for field in fields:
-            assert field.to_numpy(flatten=True).shape[-1] == np.sum(
-                mask
-            ), f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
+            assert field.to_numpy(flatten=True).shape[-1] == np.sum(mask), (
+                f"Variable {param} shape {field.shape[-1]} does not match mask size {np.sum(mask)}."
+            )
             assert np.allclose(
                 field.to_numpy(flatten=True),
                 ref_fields.sel(**{"vertical.level": field.vertical.level()})[0].to_numpy(flatten=True),
@@ -167,9 +167,9 @@ def check_with_xarray(
     skip = {"latitude", "longitude"}
     params = set(ds.data_vars) - skip
     expected_params = [var.name for var in expected_variables]
-    assert (
-        set(expected_params) == params
-    ), f"Expected parameters {set(expected_params)} do not match found parameters {params}."
+    assert set(expected_params) == params, (
+        f"Expected parameters {set(expected_params)} do not match found parameters {params}."
+    )
 
     for var in ds.data_vars:
         if var in skip:
@@ -210,9 +210,9 @@ def check_cutout_with_xarray(
     # check shape of inner region against the mask in the checkpoint
     mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
     for var in ds.data_vars:
-        assert ds[var].shape[-1] == np.sum(
-            mask
-        ), f"Variable {var} shape {ds[var].shape[-1]} does not match mask size {np.sum(mask)}."
+        assert ds[var].shape[-1] == np.sum(mask), (
+            f"Variable {var} shape {ds[var].shape[-1]} does not match mask size {np.sum(mask)}."
+        )
 
     # check that the extracted inner region matches the reference input dataset
     # the mock model passes input to output, values in the output file should match the input dataset at the reference date
@@ -226,9 +226,9 @@ def check_cutout_with_xarray(
             ref_idx = ref_ds.name_to_index[var]
             # loop through time dimension
             for data in ds[var]:
-                assert np.allclose(
-                    data.values, ref_ds[0, ref_idx, 0, :]
-                ), f"Variable {var} in output does not match reference data at {reference_date}."
+                assert np.allclose(data.values, ref_ds[0, ref_idx, 0, :]), (
+                    f"Variable {var} in output does not match reference data at {reference_date}."
+                )
     elif reference_file:
         # check against a reference file, implement when needed
         raise NotImplementedError("Reference file check is not implemented yet.")
@@ -262,9 +262,9 @@ def check_boundary_forcings_with_xarray(
     # check if boundary mask compatible with output
     n_grid = len(ds["latitude"].values)
     n_mask = len(boundary_mask)
-    assert (
-        n_grid == n_mask
-    ), f"Number of grid points ({n_grid}) does not match size of output mask in checkpoint ({n_mask})."
+    assert n_grid == n_mask, (
+        f"Number of grid points ({n_grid}) does not match size of output mask in checkpoint ({n_mask})."
+    )
     dates = ds["time"].astype("datetime64[s]").values
     freq = dates[1] - dates[0]
     if reference_dataset:
@@ -307,9 +307,9 @@ def check_boundary_forcings_with_xarray(
             for i in range(len(dates) - 1):
                 out = ds[var].isel(time=i + 1).values
                 forcing = ref_values[i * step, ref_idx]
-                assert np.allclose(
-                    out[boundary_mask], forcing[boundary_mask]
-                ), f"Boundary forcing for variable {var} does not match reference data at {ref_dates[i*step]}."
+                assert np.allclose(out[boundary_mask], forcing[boundary_mask]), (
+                    f"Boundary forcing for variable {var} does not match reference data at {ref_dates[i * step]}."
+                )
 
     elif reference_file:
         # check against a reference file, implement when needed
@@ -332,6 +332,6 @@ def check_files_in_directory(*, file: Path, expected_files: int | None = None, *
         if expected_files < 0:
             assert len(actual_files) > 0, "Expected at least one file, but found none."
         else:
-            assert (
-                len(actual_files) == expected_files
-            ), f"Expected {expected_files} files, but found {len(actual_files)}."
+            assert len(actual_files) == expected_files, (
+                f"Expected {expected_files} files, but found {len(actual_files)}."
+            )

@@ -102,6 +102,14 @@ class DummyInput(EkdInput):
 
         typed_variables = self.metadata.typed_variables
 
+        latitudes = self.metadata.latitudes
+        if latitudes is None:
+            latitudes = np.zeros(self.metadata.number_of_grid_points, dtype=np.float32)
+
+        longitudes = self.metadata.longitudes
+        if longitudes is None:
+            longitudes = np.zeros(self.metadata.number_of_grid_points, dtype=np.float32)
+
         result = []
         for variable in variables:
             is_constant_in_time = typed_variables[variable].is_constant_in_time
@@ -117,8 +125,8 @@ class DummyInput(EkdInput):
                     name=variable,
                     valid_datetime=date,
                     geography={
-                        "latitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
-                        "longitudes": np.zeros(self.metadata.number_of_grid_points, dtype=np.float32),
+                        "latitudes": latitudes,
+                        "longitudes": longitudes,
                     },
                 )
                 result.append(field)

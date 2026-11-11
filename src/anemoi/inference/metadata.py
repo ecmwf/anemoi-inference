@@ -1648,9 +1648,9 @@ class MetadataFactory:
         suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
 
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
-            assert (
-                dataset_name in datasets
-            ), f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
+            assert dataset_name in datasets, (
+                f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
+            )
             LOG.debug(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
             return type("MultiDatasetMetadata", (MultiDatasetMetadata, base_class), {})(
                 metadata, supporting_arrays, dataset_name=dataset_name
