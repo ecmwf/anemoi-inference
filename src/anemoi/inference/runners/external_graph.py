@@ -204,8 +204,8 @@ class ExternalGraphRunner(DefaultRunner):
 
             # had to use private attributes because cached properties cause problems
             self.checkpoint._metadata._supporting_arrays.update(graph_ds.supporting_arrays())
-            if "grid_indices" in self.checkpoint._metadata._supporting_arrays:
-                num_grid_points = len(self.checkpoint._metadata._supporting_arrays["grid_indices"])
+            if _grid_indices := self.checkpoint._metadata._grid_indices:
+                num_grid_points = len(_grid_indices)
             else:
                 num_grid_points = graph_ds.shape[-1]
             self.checkpoint._metadata.number_of_grid_points = num_grid_points

@@ -332,8 +332,8 @@ class Metadata(LegacyMixin):
     @cached_property
     def number_of_grid_points(self) -> int:
         """Return the number of grid points per fields."""
-        if "grid_indices" in self._supporting_arrays:
-            return len(self.load_supporting_array("grid_indices"))
+        if self._grid_indices is not None:
+            return len(self._grid_indices)
         if "latitudes" in self._supporting_arrays:
             return len(self.load_supporting_array("latitudes"))
         try:
@@ -1272,7 +1272,15 @@ class Metadata(LegacyMixin):
     @property
     def _grid_indices(self) -> FloatArray | None:
         """Return the grid indices."""
-        return self._supporting_arrays.get("grid_indices")
+        grid_indiced = self._supporting_arrays.get("grid_indices")
+        if grid_indiced is not None:
+            warnings.warn(
+                "The 'grid_indices' model metadata is deprecated and will be removed in a future version."
+                "If your model contains it, please either pin your inference version or retrain.",
+                DeprecationWarning,
+            )
+            return grid_indiced
+        return None
 
     @property
     def latitudes(self) -> FloatArray | None:
