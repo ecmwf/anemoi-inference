@@ -38,17 +38,6 @@ class TemporalDownscalerMetadata(Metadata):
         """
         return sorted([s * to_timedelta(self.data_frequency) for s in self.input_explicit_times])
 
-    @cached_property
-    def output_offsets(self) -> list[datetime.timedelta]:
-        """Return the target times relative to the start of the temporal downscaling window."""
-        start = self.input_explicit_times[0]
-        return sorted([(t - start) * to_timedelta(self.data_frequency) for t in self.target_explicit_times])
-
-    @cached_property
-    def rollout_shift(self) -> datetime.timedelta:
-        """Return the length of the temporal downscaling window."""
-        return (self.input_explicit_times[-1] - self.input_explicit_times[0]) * to_timedelta(self.data_frequency)
-
 
 @runner_registry.register("temporal_downscaler")
 class TemporalDownscalerMultiOutRunner(Runner):
