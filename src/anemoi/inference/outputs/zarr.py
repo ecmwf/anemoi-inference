@@ -146,6 +146,9 @@ class ZarrOutput(Output):
         self.float_size = float_size
 
         self._vars = {}
+        self.zarr_group: Any = None
+        self.time_size = 0
+        self.time_indices: dict[datetime.datetime, int] = {}
 
     def __repr__(self) -> str:
         """Return a string representation of the ZarrOutput object."""
@@ -160,6 +163,9 @@ class ZarrOutput(Output):
             The state dictionary.
         """
         import zarr
+
+        if self.zarr_group is not None:
+            return
 
         if isinstance(self.zarr_store, (str, Path)):
             store_str = str(self.zarr_store)
@@ -286,6 +292,18 @@ class ZarrOutput(Output):
             self.time_indices[date] = index
         return index
 
+    def _resize_time(self, size: int) -> None:
+        """Resize the time dimension of the time array and all variable arrays.
+
+        Parameters
+        ----------
+        size : int
+            The new size of the time dimension.
+        """
+        self.time_size = size
+        for array in (self.time_array, *self._vars.values()):
+            array.resize((size, *array.shape[1:]))
+
     def _variable_array(self, name: str, values_size: int) -> Any:
         """Get the variable array by name.
 
@@ -337,6 +355,10 @@ class ZarrOutput(Output):
         step = state["date"] - self.reference_date
 
         n = self._time_index(state["date"])
+        if n >= self.time_size:
+            # Fallback for runners that write more steps than estimated.
+            # Double the size and rely on the trimming in close() to remove unneeded indices.
+            self._resize_time(max(n + 1, 2 * self.time_size))
 
         self.time_array[n] = step.total_seconds()
 
@@ -355,6 +377,9 @@ class ZarrOutput(Output):
             from zarr.abc.store import Store
         else:
             from zarr.storage import BaseStore as Store
+
+        if len(self.time_indices) < self.time_size:
+            self._resize_time(len(self.time_indices))
 
         if self.zarr_store is not None and not isinstance(self.zarr_store, str):
             if isinstance(self.zarr_store, Store):
