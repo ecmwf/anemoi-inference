@@ -47,16 +47,27 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
     This runner makes the following assumptions:
         - The model was trained with two input states: (t and t+temporal_downscaling_window)
-        - The output states are between these two states and are set by "frequency" in the config
+        - The output states are set by the checkpoint's target explicit times, and may include either boundary
     """
 
-    def __init__(self, config: RunConfiguration):
+    def __init__(self, config: RunConfiguration, fill_timeline_with_input: bool = False):
+        """Initialise the temporal downscaler runner.
+
+        Parameters
+        ----------
+        config : RunConfiguration
+            The run configuration.
+        fill_timeline_with_input : bool, optional
+            Write input states at window boundaries where the model does not output predictions, by default False.
+        """
         super().__init__(
             config,
             classes=RunnerClasses(
                 metadata=TemporalDownscalerMetadata,
             ),
         )
+
+        self.fill_timeline_with_input = fill_timeline_with_input
 
         assert len(self.checkpoint.input_explicit_times) == 2, (
             "Temporal downscaler runner requires exactly two input explicit times (t and t+temporal_downscaling_window), "
@@ -71,14 +82,31 @@ class TemporalDownscalerMultiOutRunner(Runner):
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0] - 1,
             self.checkpoint.input_explicit_times[1] - self.checkpoint.input_explicit_times[0],
         ), (
-            "Temporal downscaler runner requires the number of target explicit times to be equal to "
-            "temporal_downscaling_window / frequency - 1, but got "
+            "Temporal downscaler runner requires the number of target explicit times to be "
+            "temporal_downscaling_window / frequency - 1 (no boundary) or temporal_downscaling_window / frequency "
+            "(one boundary), but got "
             f"{len(self.checkpoint.target_explicit_times)} for temporal_downscaling_window {self.temporal_downscaling_window} and "
             f"input explicit times {self.checkpoint.input_explicit_times}"
         )
 
         self.lead_time = to_timedelta(self.config.lead_time)
         self.time_step = self.temporal_downscaling_window
+
+        boundary_idx = self.checkpoint.input_explicit_times
+        target_times = self.checkpoint.target_explicit_times
+        self.left_boundary_predicted = boundary_idx[0] in target_times
+        # A window's start is covered by the previous window's prediction (right boundary) or its own (left boundary)
+        self.write_window_start = self.fill_timeline_with_input and not (
+            self.left_boundary_predicted or boundary_idx[-1] in target_times
+        )
+
+        if self.write_window_start:
+            for dataset, output in self.outputs.items():
+                if not output.write_step_zero:
+                    raise ValueError(
+                        f"`fill_timeline_with_input` requires the initial state to be written, "
+                        f"but `write_initial_state` is false for the output of dataset {dataset!r}."
+                    )
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
@@ -104,8 +132,6 @@ class TemporalDownscalerMultiOutRunner(Runner):
         if self.reference_date is None:
             raise ValueError("Temporal downscaler runner requires a date set in the config or CLI.")
 
-        # Get the temporal downscaling window size from training config
-        boundary_idx = self.checkpoint.input_explicit_times
         # Calculate how many temporal downscaling windows we need for the lead_time
         num_windows = int(self.lead_time / self.temporal_downscaling_window)
 
@@ -164,25 +190,23 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     forcings_state,
                 )
 
-                initial_state = input_states[dataset].copy()
-                for processor in self.post_processors[dataset]:
-                    initial_state = processor.process(initial_state)
+                if window_idx == 0:
+                    initial_state = input_states[dataset].copy()
+                    for processor in self.post_processors[dataset]:
+                        initial_state = processor.process(initial_state)
 
-                self.outputs[dataset].open(initial_state)
+                    self.outputs[dataset].open(initial_state)
 
             # Run temporal downscaler for this window
-            for state_idx, states in enumerate(
-                self.run(
-                    input_states=input_states,
-                    lead_time=self.temporal_downscaling_window,
-                )
-            ):
+            for states in self.run(input_states=input_states, lead_time=self.temporal_downscaling_window):
                 for dataset, state in states.items():
-                    # In the first window, we want to write the initial state (t=0)
-                    # In other windows, we want to skip the initial state (t=0)
-                    # because it is written as the last state of the previous window
-                    if window_idx != 0 and state_idx == boundary_idx[0]:
-                        continue
+                    if not state["temporally_downscaled"]:
+                        if window_idx == 0 and self.left_boundary_predicted:
+                            continue
+                        if window_idx > 0 and not self.write_window_start:
+                            continue
+
+                    is_input_step_zero = window_idx == 0 and not state["temporally_downscaled"]
 
                     # Updating state step to be a global step not relative to window
                     state["step"] = state["step"] + window_idx * self.temporal_downscaling_window
@@ -191,7 +215,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
                     for processor in self.post_processors[dataset]:
                         state = processor.process(state)
 
-                    self.outputs[dataset].write_state(state)
+                    if is_input_step_zero:
+                        self.outputs[dataset].write_initial_state(state)
+                    else:
+                        self.outputs[dataset].write_state(state)
 
         for output in self.outputs.values():
             output.close()
@@ -211,7 +238,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         step : datetime.timedelta
             Time delta between the target index date and the start date.
         date : datetime.datetime
-            Date of the zeroth index of the input tensor.
+            Valid date of the target index.
         """
         target_steps = self.checkpoint.target_explicit_times
         boundary_idx = self.checkpoint.input_explicit_times
@@ -221,8 +248,8 @@ class TemporalDownscalerMultiOutRunner(Runner):
             f"Time stepping: [{start_date}, {start_date + self.temporal_downscaling_window}], Temporal downscaling {steps} steps"
         )
 
-        for s in range(steps):
-            step = self.temporal_downscaling_window * (s + 1) / (boundary_idx[-1] - boundary_idx[0])
+        for target in target_steps:
+            step = self.temporal_downscaling_window * (target - boundary_idx[0]) / (boundary_idx[-1] - boundary_idx[0])
             date = start_date + step
             yield step, date
 
@@ -272,31 +299,30 @@ class TemporalDownscalerMultiOutRunner(Runner):
             # First yield the boundary states (t and t+window_size)
             boundary_times = self.checkpoint.input_explicit_times
 
-            if self.write_initial_state:
-                initial_states: dict[str, State] = {}
-                for dataset, handler in self.tensor_handlers.items():
-                    # Yield initial boundary state (t)
-                    initial_states[dataset] = new_states[dataset].copy()
-                    initial_states[dataset]["date"] = start
-                    initial_states[dataset]["step"] = to_timedelta(0)
-                    initial_states[dataset]["temporally_downscaled"] = False
-                    # Extract fields from the first time step of input tensor
-                    input_numpy = (
-                        input_tensors_torch[dataset][0, boundary_times[0]].cpu().numpy()
-                    )  # # Select the initial boundary state (t) - First time step
-                    for i in range(input_numpy.shape[-1]):
-                        var_name = None
-                        for (
-                            var,
-                            idx,
-                        ) in handler.metadata.variable_to_input_tensor_index.items():
-                            if idx == i:
-                                var_name = var
-                                break
-                        if var_name and var_name in handler.metadata.output_tensor_index_to_variable.values():
-                            initial_states[dataset]["fields"][var_name] = input_numpy[:, i]
+            initial_states: dict[str, State] = {}
+            for dataset, handler in self.tensor_handlers.items():
+                # Yield initial boundary state (t)
+                initial_states[dataset] = new_states[dataset].copy()
+                initial_states[dataset]["date"] = start
+                initial_states[dataset]["step"] = to_timedelta(0)
+                initial_states[dataset]["temporally_downscaled"] = False
+                # Extract fields from the first time step of input tensor
+                input_numpy = (
+                    input_tensors_torch[dataset][0, boundary_times[0]].cpu().numpy()
+                )  # # Select the initial boundary state (t) - First time step
+                for i in range(input_numpy.shape[-1]):
+                    var_name = None
+                    for (
+                        var,
+                        idx,
+                    ) in handler.metadata.variable_to_input_tensor_index.items():
+                        if idx == i:
+                            var_name = var
+                            break
+                    if var_name and var_name in handler.metadata.output_tensor_index_to_variable.values():
+                        initial_states[dataset]["fields"][var_name] = input_numpy[:, i]
 
-                yield initial_states
+            yield initial_states
 
             # Predict next state of atmosphere
             with (

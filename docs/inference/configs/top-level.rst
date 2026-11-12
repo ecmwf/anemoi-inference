@@ -74,7 +74,34 @@ Distributes the model across multiple devices. See
 temporal-downscaler
 -------------------
 
-Runs a specific trained temporal downscaler model.
+Runs a specific trained temporal downscaler model. The ``lead_time`` is
+split into windows, bounded by the model's two input times. Each window
+is downscaled in one step, producing the target times set during training (and stored in the checkpoint).
+Input data is needed at every window boundary.
+
+The target times may include the start or end of a window. Some examples for a 6 hour window, downscaled
+to hourly predictions, are:
+
+- **Including the start of a window**: ``target_explicit_times = [0, 1, 2, 3, 4, 5]``
+- **Including the end of a window**: ``target_explicit_times = [1, 2, 3, 4, 5, 6]``
+- **Including neither**: ``target_explicit_times = [1, 2, 3, 4, 5]``
+
+If not included in the target times, the initial state (step zero) follows ``write_initial_state``, which can
+be overridden per output.
+
+If the model predicts neither boundary, the boundaries after step zero
+are not written by default. Set ``fill_timeline_with_input`` to write
+the input states there instead, giving a continuous timeline:
+
+.. code:: yaml
+
+   runner:
+     temporal_downscaler:
+       fill_timeline_with_input: true
+
+``fill_timeline_with_input`` requires the initial state to be written.
+If the model predicts neither boundary, it raises an error if
+``write_initial_state`` is ``false`` for any output.
 
 device:
 =======
