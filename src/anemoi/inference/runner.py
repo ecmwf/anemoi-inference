@@ -551,10 +551,10 @@ class Runner(Context):
                     y_pred = self.predict_step(
                         self.model,
                         input_tensors_torch,
+                        input_states=input_states,
                         fcstep=s,
                         step=step,
                         date=dates[-1],
-                        input_states=input_states,
                     )
 
                 # y_pred (batch, [time], ensemble, values, variables) -> outputs (time, values, variables)
