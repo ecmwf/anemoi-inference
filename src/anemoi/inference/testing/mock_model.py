@@ -165,11 +165,11 @@ class SimpleMockModel(torch.nn.Module):
 
             if richer_batch:
                 assert target_template is not None, "richer-batch input requires a target_template"
-
+                target_template_keys = ("variables", "layout", "latitudes", "longitudes")
                 outputs[dataset] = {
-                    key: target_template[dataset][key] for key in ("variables", "layout", "latitudes", "longitudes")
+                    "data": output_tensor,
+                    **{key: target_template[dataset][key] for key in target_template_keys},
                 }
-                outputs[dataset]["data"] = output_tensor
             else:
                 outputs[dataset] = output_tensor
 
