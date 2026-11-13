@@ -1625,10 +1625,14 @@ class MultiDatasetMetadata(Metadata):
     def output_shape(
         self,
     ) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
-        # newer checkpoint have an extra multi-step output dimension, but older ones don't
-        if not hasattr(self._config_training, "multistep_output"):
+        # when multistep_output was introduced, we forgot to bump the metadata schema version
+        # so we detect pre-multistep_output checkpoints by the absence of this config entry
+        if not hasattr(self._config_training, "multistep_output") and not hasattr(
+            self._config_task, "multistep_output"
+        ):
             return super().output_shape
 
+        # multistep_output checkpoints have an extra time dimension
         if not self.richer_batch:
             return (
                 1,  # batch
