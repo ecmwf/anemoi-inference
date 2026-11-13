@@ -396,14 +396,14 @@ class Runner(Context):
         target_template = {}
 
         for dataset, tensor in input_tensors_torch.items():
+            metadata = self.tensor_handlers[dataset].metadata
+
             richer_batch[dataset] = {}
             target_template[dataset] = {}
 
             richer_batch[dataset]["data"] = tensor
-            richer_batch[dataset]["data_type"] = "gridded"  # TODO: from metadata?
-            richer_batch[dataset]["variables"] = list(
-                self.tensor_handlers[dataset].metadata.variable_to_input_tensor_index.keys()
-            )
+            richer_batch[dataset]["data_type"] = metadata.data_type
+            richer_batch[dataset]["variables"] = list(metadata.variable_to_input_tensor_index)
             richer_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
             richer_batch[dataset]["longitudes"] = input_states[dataset]["longitudes"]
             richer_batch[dataset]["layout"] = ("time", "ensemble", "grid", "variables")
@@ -411,9 +411,7 @@ class Runner(Context):
             for key in ("latitudes", "longitudes", "layout", "data_type"):
                 target_template[dataset][key] = richer_batch[dataset][key]
 
-            target_template[dataset]["variables"] = list(
-                self.tensor_handlers[dataset].metadata.variable_to_output_tensor_index.keys()
-            )
+            target_template[dataset]["variables"] = list(metadata.variable_to_output_tensor_index)
 
         richer_batch_output: dict[str, dict] = model.predict_step(
             richer_batch,

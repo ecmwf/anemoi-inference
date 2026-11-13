@@ -162,6 +162,11 @@ class Metadata(LegacyMixin):
         """Whether the model was trained after richer-batch was introduced."""
         return False
 
+    @cached_property
+    def data_type(self) -> Literal["gridded", "tabular"]:
+        """The data type of the dataset. Only exists for richer-batch checkpoints."""
+        return "gridded"
+
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
         return self._config.dataloader[partition]
@@ -1508,6 +1513,11 @@ class MultiDatasetMetadata(Metadata):
     def richer_batch(self) -> bool:
         """Whether the model was trained after richer-batch was introduced."""
         return self.version >= Version("3.0")
+
+    @cached_property
+    def data_type(self) -> Literal["gridded", "tabular"]:
+        """The data type of the dataset. Only exists for richer-batch checkpoints."""
+        return self._inference.data_type
 
     def _dataloader_dataset(self, partition="training"):
         dataloader = self._config.dataloader[partition].datasets[self.dataset_name]
