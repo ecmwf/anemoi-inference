@@ -127,7 +127,7 @@ def _adapt_metadata(metadata: dict, new_domain: str, hidden_name: str) -> tuple[
     return metadata, template_dataset, other_domains
 
 
-def _adapt_state_dict(state_dict: dict, renames: dict, other_domains: set) -> dict:
+def _adapt_state_dict(state_dict: dict[str, Any], renames: dict[str, str], other_domains: set[str]) -> dict:
     """Rename names in `renames` wherever they appear as a whole `.`-separated path segment in
     `state_dict` keys (e.g. `pre_processors.<dataset_name>.*`, `model.residual.<dataset_name>.*`).
 
