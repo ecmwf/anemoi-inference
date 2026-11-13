@@ -283,19 +283,20 @@ class Metadata(LegacyMixin):
     @cached_property
     def input_shape(self) -> tuple[int, int, int, int]:
         return (
-            1,
-            self.multi_step_input,
-            self.number_of_grid_points,
-            len(self.input_tensor_index_to_variable),
+            1,  # batch
+            self.multi_step_input,  # time
+            self.number_of_grid_points,  # grid
+            len(self.input_tensor_index_to_variable),  # variables
         )
 
     @cached_property
     def output_shape(self) -> tuple[int, int, int, int]:
+        # time is implicitly 1
         return (
-            1,
-            1,
-            self.number_of_grid_points,
-            len(self.output_tensor_index_to_variable),
+            1,  # batch
+            1,  # ensemble
+            self.number_of_grid_points,  # grid
+            len(self.output_tensor_index_to_variable),  # variables
         )
 
     def _make_indices_mapping(self, indices_from: list, indices_to: list) -> frozendict:
@@ -1608,6 +1609,19 @@ class MultiDatasetMetadata(Metadata):
         return advance_map or super().advance_map
 
     @cached_property
+    def input_shape(self) -> tuple[int, int, int, int]:
+        if not self.richer_batch:
+            return super().input_shape
+
+        # richer-batch dropped the batch dimension and inserted ensemble=1
+        return (
+            self.multi_step_input,  # time
+            1,  # ensemble
+            self.number_of_grid_points,  # grid
+            len(self.input_tensor_index_to_variable),  # variables
+        )
+
+    @cached_property
     def output_shape(
         self,
     ) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
@@ -1615,12 +1629,21 @@ class MultiDatasetMetadata(Metadata):
         if not hasattr(self._config_training, "multistep_output"):
             return super().output_shape
 
+        if not self.richer_batch:
+            return (
+                1,  # batch
+                self.multi_step_output,  # time
+                1,  # ensemble
+                self.number_of_grid_points,  # grid
+                len(self.output_tensor_index_to_variable),  # variables
+            )
+
+        # richer-batch dropped the batch dimension
         return (
-            1,
-            self.multi_step_output,
-            1,
-            self.number_of_grid_points,
-            len(self.output_tensor_index_to_variable),
+            self.multi_step_output,  # time
+            1,  # ensemble
+            self.number_of_grid_points,  # grid
+            len(self.output_tensor_index_to_variable),  # variables
         )
 
     @cached_property

@@ -401,6 +401,11 @@ class Runner(Context):
             richer_batch[dataset] = {}
             target_template[dataset] = {}
 
+            # tensor passed by the runner has dimensions (batch=1, time, grid, variables)
+            # richer-batch requires input dimensions (time, ensemble=1, grid, variables)
+            assert tensor.shape[0] == 1, f"Expected batch size 1, got {tensor.shape}"
+            tensor = tensor[0].unsqueeze(1)
+
             richer_batch[dataset]["data"] = tensor
             richer_batch[dataset]["data_type"] = metadata.data_type
             richer_batch[dataset]["variables"] = list(metadata.variable_to_input_tensor_index)
@@ -419,8 +424,16 @@ class Runner(Context):
             **kwargs,
         )
 
-        # TODO: check input/output tensor shapes, they are probably wrong
-        return {dataset: output["data"] for dataset, output in richer_batch_output.items()}
+        output = {}
+        for dataset, batch in richer_batch_output.items():
+            tensor = batch["data"]
+            assert tensor.ndim == 4, (
+                f"[{dataset}] Expected output tensor (time, ensemble, grid, variables), got {tensor.shape}"
+            )
+            assert tensor.shape[1] == 1, f"[{dataset}] Expected ensemble size 1, got {tensor.shape[1]}"
+            # restore batch dimension expected by the runner: (batch=1, time, ensemble, grid, variables)
+            output[dataset] = tensor.unsqueeze(0)
+        return output
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
