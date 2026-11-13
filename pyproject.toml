@@ -86,7 +86,7 @@ optional-dependencies.tests = [
   "pytest-xdist",
 ]
 optional-dependencies.zarr = [
-  "xarray<2026.9", # last version to support zarr2, TODO: remove when the rest of anemoi supports zarr3
+  "xarray",
   "zarr",
 ]
 urls.Documentation = "https://anemoi-inference.readthedocs.io/"
@@ -103,6 +103,14 @@ package-data."anemoi.inference.grib.templates" = [ "*.yaml" ]
 [tool.setuptools_scm]
 version_file = "src/anemoi/inference/_version.py"
 
+[tool.ruff]
+line-length = 120
+extend-exclude = [ "docs/**/*_.py" ]
+lint.select = [ "E4", "E7", "E9", "F", "I" ]
+lint.isort.force-single-line = true
+lint.isort.known-first-party = [ "anemoi.inference" ]
+lint.isort.known-third-party = [ "anemoi" ]
+
 [tool.mypy]
 exclude = [ "docs/" ]
 ignore_missing_imports = true
@@ -115,3 +123,11 @@ ini_options.addopts = "-n logical --maxprocesses=16"
 ini_options.markers = [
   "skip_on_hpc: mark a test that should not be run on HPC",
 ]
+
+[tool.docsig]
+check-class = true
+check-dunders = true
+check-overridden = true
+check-protected = true
+ignore-no-params = true
+disable = [ "SIG101", "SIG102", "SIG305", "SIG306", "SIG502", "SIG505" ]

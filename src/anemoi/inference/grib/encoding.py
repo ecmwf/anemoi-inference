@@ -401,7 +401,6 @@ def check_encoding(handle: Any, keys: dict[str, Any], first: bool = True) -> Non
             mismatches[k] = f'Expected "{v}" but got "{w}"'
 
     if mismatches:
-
         if first:
             import eccodes
             from earthkit.data.readers.grib.codes import GribCodesHandle

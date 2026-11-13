@@ -17,7 +17,6 @@ from collections.abc import Callable
 from collections.abc import Generator
 from enum import Enum
 from functools import cache
-from time import sleep
 from typing import Any
 from typing import Literal
 from typing import get_args
@@ -45,13 +44,21 @@ def _detach_tensors(obj: Any) -> Any:
     This prevents "Cannot re-initialize CUDA in forked subprocess" errors
     when pickling state dicts for the multiprocessing queue.
     """
+    import numpy as np
+
+    # mp.Queue.put() pickles in a background thread *after* it returns, so any array still
+    # referenced by the caller (e.g. the in-place accumulators of `Accumulate`) may be modified
+    # before it is pickled. Always send a private snapshot.
+    if isinstance(obj, np.ndarray):
+        return obj.copy()
+
     try:
         import torch
     except ImportError:
         return obj
 
     if isinstance(obj, torch.Tensor):
-        return obj.detach().cpu().numpy()
+        return obj.detach().cpu().numpy().copy()
     if isinstance(obj, dict):
         return {k: _detach_tensors(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
@@ -365,6 +372,7 @@ class ParallelOutput(Output):
         *,
         output: Output | Any | None = None,
         num_writers: int = 1,
+        worker_timeout: int = 300,
         chunk_strategy: CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]] = "by_worker",
         **kwargs: Any,
     ):
@@ -379,17 +387,21 @@ class ParallelOutput(Output):
         output : Output | Any | None
             The inner output (or its config dict) that will be forked into
             writer processes.
-        num_writers : int
+        num_writers: int = 1,
             Number of writer processes to spawn.
             Must be >= 1.
             Defaults to 1 (single output file, asynchronous writes).
+        worker_timeout: int = 300,
+            Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
+            Must be >= -1.
+            Defaults to 300 seconds.
         chunk_strategy : CHUNK_STRATEGIES | dict[CHUNK_STRATEGIES, dict[str, Any]], default="by_worker"
             The strategy for chunking the output among writer processes.
             Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
             with a single key being the strategy name and the value being a dictionary of
             keyword arguments for that strategy.
             - `by_worker` (default), splits the fields into exactly `num_writers` contiguous
-              chunks of roughly equal size, one per writer. No additional arguments are needed.
+                chunks of roughly equal size, one per writer. No additional arguments are needed.
             - `by_size`, requires an additional argument `fields_per_chunk` specifying the number of fields per chunk.
             - `by_metadata`, requires an additional argument `keys` specifying a list of metadata keys to keep in a chunk.
         **kwargs : Any
@@ -403,6 +415,10 @@ class ParallelOutput(Output):
         self.num_writers = int(num_writers)
         if self.num_writers < 1:
             raise ValueError("num_writers must be at least 1")
+
+        self.worker_timeout = int(worker_timeout)
+        if self.worker_timeout < -1:
+            raise ValueError("worker_timeout must be >= -1")
 
         # store the output config for printing and for creating outputs in the writer processes.
         self.kwargs = {}
@@ -514,7 +530,7 @@ class ParallelOutput(Output):
     def close(self) -> None:
         """Terminate writer processes, then close the wrapped output."""
         if self._writers_running:
-            self._terminate_all_writers()
+            self._terminate_all_writers(self.worker_timeout)
 
     def __repr__(self) -> str:
         return f"ParallelOutput(num_writers={self.num_writers}, output={self.output_config})"
@@ -607,7 +623,7 @@ class ParallelOutput(Output):
 
         LOG.info("Writer %d shutting down", writer_id)
 
-    def _terminate_all_writers(self, timeout_s=10) -> None:
+    def _terminate_all_writers(self, timeout_s: int) -> None:
         """Gracefully shut down all writer processes.
 
         Sends a TERMINATE sentinel to each writer queue. Writers consume all
@@ -631,22 +647,21 @@ class ParallelOutput(Output):
 
         LOG.info("ParallelOutput: waiting for writers to finish and exit...")
 
-        sleep(timeout_s)
-
-        forcibly_teminated = False
+        forcibly_terminated = False
         for i, process in enumerate(self._processes):
             if process.is_alive():
+                process.join(timeout_s if timeout_s >= 0 else None)
+            if process.is_alive():
                 LOG.warning(
-                    "Writer %d did not exit within timeout, forcefully terminating - Data yet be written will be lost",
+                    "🚨 Writer %d did not exit within timeout, forcefully terminating - Data yet to be written will be lost, and files may be truncated",
                     i,
                 )
                 process.terminate()
                 process.join()
-                forcibly_teminated = True
+                forcibly_terminated = True
 
         LOG.info("ParallelOutput: all writers terminated.")
-        if forcibly_teminated:
+        if forcibly_terminated:
             raise RuntimeError(
-                "One or more writers were forcefully terminated after exceeding the shutdown timeout of %s. This can result in forecast data loss. Please check the logs for more details. Consider increasing the number of writer processes to avoid this.",
-                timeout_s,
+                f"🚨 One or more writers were forcefully terminated after exceeding the shutdown timeout of {timeout_s}. This can result in forecast data loss. Please check the logs for more details. Consider changing the number of writer processes to avoid this, or increasing the timeout if contention is the issue."
             )

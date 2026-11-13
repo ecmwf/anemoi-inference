@@ -12,7 +12,6 @@ from anemoi.inference.metadata import Metadata
 
 
 class Variables:
-
     def __init__(self, metadata: Metadata) -> None:
         self.metadata = metadata
 

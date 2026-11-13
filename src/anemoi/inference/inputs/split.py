@@ -27,7 +27,6 @@ LOG = logging.getLogger(__name__)
 @input_registry.register("split")
 # @main_argument("splits")
 class SplitInput(Input):
-
     trace_name = "split input"
 
     def __init__(self, context: Context, metadata: Metadata, *splits, **kwargs: Any) -> None:
