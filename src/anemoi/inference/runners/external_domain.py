@@ -31,7 +31,7 @@ from .external_graph import update_state_dict
 LOG = logging.getLogger(__name__)
 
 
-def _rename(obj: Any, renames: dict, remove: set) -> Any:
+def _rename(obj: Any, renames: dict[str, str], remove: set[str]) -> Any:
     """Recursively rename names appearing anywhere in `obj` according to `renames`.
 
     This covers dict keys, list elements, and plain string values. Dict keys and
