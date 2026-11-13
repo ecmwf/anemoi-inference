@@ -351,7 +351,11 @@ class Runner(Context):
             return model
 
     def predict_step(
-        self, model: "torch.nn.Module", input_tensors_torch: dict[str, "torch.Tensor"], **kwargs: Any
+        self,
+        model: "torch.nn.Module",
+        input_tensors_torch: dict[str, "torch.Tensor"],
+        input_states: dict[str, "State"] = {},
+        **kwargs: Any,
     ) -> dict[str, "torch.Tensor"]:
         """Predict the next step.
 
@@ -361,13 +365,15 @@ class Runner(Context):
             The model.
         input_tensors_torch : dict[str, torch.Tensor]
             The input tensors for each dataset.
+        input_states : dict[str, State]
+            The original input states for each dataset.
         **kwargs : Any
             Additional keyword arguments that will be passed to the model's predict_step method.
 
         Returns
         -------
-        torch.Tensor
-            The predicted step.
+        dict[str, torch.Tensor]
+            The predicted step for each dataset.
         """
         for key, value in self.config.predict_kwargs.items():
             if key in kwargs:
@@ -379,10 +385,55 @@ class Runner(Context):
 
         if not self.checkpoint.multi_dataset:
             assert len(input_tensors_torch) == 1, "Expected only one dataset in input tensors"
-            name, tensor = next(iter(input_tensors_torch.items()))
-            return {name: model.predict_step(tensor, **kwargs)}
+            dataset, tensor = next(iter(input_tensors_torch.items()))
+            return {dataset: model.predict_step(tensor, **kwargs)}
 
-        return model.predict_step(input_tensors_torch, **kwargs)
+        if not self.checkpoint.richer_batch:
+            return model.predict_step(input_tensors_torch, **kwargs)
+
+        # TODO: move richer_batch construction logic into a separate function or class
+        richer_batch = {}
+        target_template = {}
+
+        for dataset, tensor in input_tensors_torch.items():
+            metadata = self.tensor_handlers[dataset].metadata
+
+            richer_batch[dataset] = {}
+            target_template[dataset] = {}
+
+            # tensor passed by the runner has dimensions (batch=1, time, grid, variables)
+            # richer-batch requires input dimensions (time, ensemble=1, grid, variables)
+            assert tensor.shape[0] == 1, f"Expected batch size 1, got {tensor.shape}"
+            tensor = tensor[0].unsqueeze(1)
+
+            richer_batch[dataset]["data"] = tensor
+            richer_batch[dataset]["data_type"] = metadata.data_type
+            richer_batch[dataset]["variables"] = list(metadata.variable_to_input_tensor_index)
+            richer_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
+            richer_batch[dataset]["longitudes"] = input_states[dataset]["longitudes"]
+            richer_batch[dataset]["layout"] = ("time", "ensemble", "grid", "variables")
+
+            for key in ("latitudes", "longitudes", "layout", "data_type"):
+                target_template[dataset][key] = richer_batch[dataset][key]
+
+            target_template[dataset]["variables"] = list(metadata.variable_to_output_tensor_index)
+
+        richer_batch_output: dict[str, dict] = model.predict_step(
+            richer_batch,
+            target_template=target_template,
+            **kwargs,
+        )
+
+        output = {}
+        for dataset, batch in richer_batch_output.items():
+            tensor = batch["data"]
+            assert tensor.ndim == 4, (
+                f"[{dataset}] Expected output tensor (time, ensemble, grid, variables), got {tensor.shape}"
+            )
+            assert tensor.shape[1] == 1, f"[{dataset}] Expected ensemble size 1, got {tensor.shape[1]}"
+            # restore batch dimension expected by the runner: (batch=1, time, ensemble, grid, variables)
+            output[dataset] = tensor.unsqueeze(0)
+        return output
 
     def forecast_stepper(
         self, start_date: datetime.datetime, lead_time: datetime.timedelta
@@ -460,7 +511,9 @@ class Runner(Context):
 
             lead_time = to_timedelta(lead_time)
 
-            new_states = input_states.copy()  # We should not modify the input state
+            new_states = {}
+            for dataset, state in input_states.items():
+                new_states[dataset] = state.copy()  # We should not modify the input state
 
             # The variable `check` is used to keep track of which variables have been updated
             # In the input tensor. `reset` is used to reset `check` to False except
@@ -506,7 +559,14 @@ class Runner(Context):
 
                 # Predict next state of atmosphere
                 with torch.inference_mode(), amp_ctx, ProfilingLabel("Predict step", self.use_profiler), Timer(title):
-                    y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=s, step=step, date=dates[-1])
+                    y_pred = self.predict_step(
+                        self.model,
+                        input_tensors_torch,
+                        input_states=input_states,
+                        fcstep=s,
+                        step=step,
+                        date=dates[-1],
+                    )
 
                 # y_pred (batch, [time], ensemble, values, variables) -> outputs (time, values, variables)
                 outputs: dict[str, torch.Tensor] = {}

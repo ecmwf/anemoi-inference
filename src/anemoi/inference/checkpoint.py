@@ -266,6 +266,11 @@ class Checkpoint:
         """Get the precision."""
         return self._metadata.precision
 
+    @cached_property
+    def richer_batch(self) -> bool:
+        """Whether the model was trained after richer-batch was introduced."""
+        return self._metadata.richer_batch
+
     ###########################################################################
     # Misc
     ###########################################################################

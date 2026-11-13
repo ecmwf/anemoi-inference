@@ -107,33 +107,45 @@ class SimpleMockModel(torch.nn.Module):
 
     def predict_step(
         self,
-        input_tensor: torch.Tensor | dict[str, torch.Tensor],
+        input_payload: torch.Tensor | dict[str, torch.Tensor] | dict[str, dict],
+        target_template: dict[str, dict] | None = None,
         date: datetime.datetime = None,
         step: datetime.timedelta = None,
         **kwargs: Any,
-    ) -> torch.Tensor | dict[str, torch.Tensor]:
-        if not isinstance(input_tensor, dict):
+    ) -> torch.Tensor | dict[str, torch.Tensor] | dict[str, dict]:
+        if not isinstance(input_payload, dict):
             # legacy model: the runner will pass a single tensor if it detects a legacy checkpoint, we must return a tensor
             # we could hardcode "data" here, but better to rely on the default key set by the metadata factory
             assert len(self.metadata) == 1, "Expected a single dataset in the metadata for legacy model"
             default_key = next(iter(self.metadata.keys()))
-            return self._predict_step({default_key: input_tensor}, date)[default_key]
+            return self._predict_step({default_key: input_payload}, date)[default_key]
 
-        # multi-dataset model
-        return self._predict_step(input_tensor, date)
+        # multi-dataset model (plain tensors or richer-batch dicts)
+        return self._predict_step(input_payload, target_template, date)
 
     def _predict_step(
         self,
-        input_tensor: dict[str, torch.Tensor],
+        input_payload: dict[str, torch.Tensor] | dict[str, dict],
+        target_template: dict[str, dict] | None = None,
         date: datetime.datetime | None = None,
-    ) -> dict[str, torch.Tensor]:
-        outputs: dict[str, torch.Tensor] = {}
+    ) -> dict[str, torch.Tensor] | dict[str, dict]:
+        outputs: dict[str, torch.Tensor | dict] = {}
 
         for dataset, metadata in self.metadata.items():
+            batch = input_payload[dataset]
+            richer_batch = isinstance(batch, dict) and "data" in batch
+
+            if richer_batch:
+                input_tensor = batch["data"]
+                time_dim = batch["layout"].index("time")  # get time dim from the layout
+            else:
+                input_tensor = batch
+                time_dim = 1  # (batch, time, grid, variables)
+
             output_tensor = torch.ones(
                 *metadata.output_shape,
-                dtype=input_tensor[dataset].dtype,
-                device=input_tensor[dataset].device,
+                dtype=input_tensor.dtype,
+                device=input_tensor.device,
             )
 
             if self.output_mode == VariableOutputSetting.HASH:
@@ -146,10 +158,19 @@ class SimpleMockModel(torch.nn.Module):
 
             # copy prognostic input variables of the last time step to output tensor, leaving diagnostics at one
             elif self.output_mode == VariableOutputSetting.PASSTHROUGH and metadata.prognostic_input_indices:
-                output_tensor[..., metadata.prognostic_output_indices] = input_tensor[dataset][
-                    :, -1:, :, metadata.prognostic_input_indices
+                last_step = input_tensor.select(time_dim, -1)  # (1, grid, variables) in both layouts
+                output_tensor[..., metadata.prognostic_output_indices] = last_step[
+                    ..., metadata.prognostic_input_indices
                 ]
 
-            outputs[dataset] = output_tensor
+            if richer_batch:
+                assert target_template is not None, "richer-batch input requires a target_template"
+                target_template_keys = ("variables", "layout", "latitudes", "longitudes")
+                outputs[dataset] = {
+                    "data": output_tensor,
+                    **{key: target_template[dataset][key] for key in target_template_keys},
+                }
+            else:
+                outputs[dataset] = output_tensor
 
         return outputs
