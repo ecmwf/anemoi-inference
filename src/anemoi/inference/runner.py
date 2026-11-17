@@ -406,7 +406,7 @@ class Runner(Context):
             assert tensor.shape[0] == 1, f"Expected batch size 1, got {tensor.shape}"
             tensor = tensor[0].unsqueeze(1)
 
-            richer_batch[dataset]["data"] = tensor
+            richer_batch[dataset]["values"] = tensor
             richer_batch[dataset]["data_type"] = metadata.data_type
             richer_batch[dataset]["variables"] = list(metadata.variable_to_input_tensor_index)
             richer_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
@@ -426,7 +426,7 @@ class Runner(Context):
 
         output = {}
         for dataset, batch in richer_batch_output.items():
-            tensor = batch["data"]
+            tensor = batch["values"]
             assert tensor.ndim == 4, (
                 f"[{dataset}] Expected output tensor (time, ensemble, grid, variables), got {tensor.shape}"
             )

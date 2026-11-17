@@ -133,10 +133,10 @@ class SimpleMockModel(torch.nn.Module):
 
         for dataset, metadata in self.metadata.items():
             batch = input_payload[dataset]
-            richer_batch = isinstance(batch, dict) and "data" in batch
+            richer_batch = isinstance(batch, dict) and "values" in batch
 
             if richer_batch:
-                input_tensor = batch["data"]
+                input_tensor = batch["values"]
                 time_dim = batch["layout"].index("time")  # get time dim from the layout
             else:
                 input_tensor = batch
@@ -167,7 +167,7 @@ class SimpleMockModel(torch.nn.Module):
                 assert target_template is not None, "richer-batch input requires a target_template"
                 target_template_keys = ("variables", "layout", "latitudes", "longitudes")
                 outputs[dataset] = {
-                    "data": output_tensor,
+                    "values": output_tensor,
                     **{key: target_template[dataset][key] for key in target_template_keys},
                 }
             else:
