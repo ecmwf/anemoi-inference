@@ -100,13 +100,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
             self.left_boundary_predicted or boundary_idx[-1] in target_times
         )
 
-        if self.write_window_start:
-            for dataset, output in self.outputs.items():
-                if not output.write_step_zero:
-                    raise ValueError(
-                        f"`fill_timeline_with_input` requires the initial state to be written, "
-                        f"but `write_initial_state` is false for the output of dataset {dataset!r}."
-                    )
+        if self.left_boundary_predicted and self.fill_timeline_with_input:
+            LOG.info(
+                "You have configured fill_timeline_with_input, but the model is predicting the left boundary, so this configuration has no effect."
+            )
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
         """Set sensible defaults when this runner is used with the `retrieve` command."""
@@ -216,6 +213,10 @@ class TemporalDownscalerMultiOutRunner(Runner):
                         state = processor.process(state)
 
                     if is_input_step_zero:
+                        if not self.outputs[dataset].write_step_zero and self.write_window_start:
+                            LOG.info(
+                                "Writing zero step is disabled, but outputs are configured to write window boundaries. This will not result in a complete timeline -- the initial state will be skipped."
+                            )
                         self.outputs[dataset].write_initial_state(state)
                     else:
                         self.outputs[dataset].write_state(state)
