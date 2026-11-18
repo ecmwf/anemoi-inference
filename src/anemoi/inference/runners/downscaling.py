@@ -302,16 +302,14 @@ class DownscalingRunner(DefaultRunner):
 
     def predict_step(self, model, input_tensor_torch, **kwargs) -> torch.Tensor:
         date = kwargs["date"]
-        step = kwargs["step"]
 
         # Attach the guide model on the first step (model is loaded by now), then
         # seed once (after all model loading) for reproducible/comparable noise.
         self._ensure_guidance(model)
         self._maybe_seed()
 
-        input_date = date - step
         low_res_tensor = input_tensor_torch
-        high_res_tensor = self._prepare_high_res_input_tensor(input_date)
+        high_res_tensor = self._prepare_high_res_input_tensor(date)
 
         LOG.info("Low res tensor shape: %s", low_res_tensor.shape)
         LOG.info("High res tensor shape: %s", high_res_tensor.shape)
