@@ -103,7 +103,7 @@ class Runner(Context):
         else:
             seed = torch.initial_seed()
         torch.manual_seed(seed)
-        
+
         # seed numpy for determinism
         if self.deterministic:
             np.random.seed(seed)
