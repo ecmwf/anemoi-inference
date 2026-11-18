@@ -139,7 +139,7 @@ It can also be set on the command line:
    anemoi-inference run config.yaml deterministic=true
 
 Note that there are some sources of non-determinism which this setting
-can not control (e.g. 'pyg' backend for GraphTransformer on GPU, 
+can not control (e.g. 'pyg' backend for GraphTransformer on GPU,
 sparse.mm). In that way, this option only enables determinism, it
 does not guarentee it.
 
