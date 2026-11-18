@@ -138,14 +138,18 @@ It can also be set on the command line:
 
    anemoi-inference run config.yaml deterministic=true
 
-Deterministic mode assumes that the GraphTransformer uses the
-``triton`` backend. Do not use the ``pyg`` backend in deterministic
-mode. The ``pyg`` backend uses scatter operations that are not
-deterministic on the GPU.
+Note that there are some sources of non-determinism which this setting
+can not control (e.g. 'pyg' backend for GraphTransformer on GPU, 
+sparse.mm). In that way, this option only enables determinism, it
+does not guarentee it.
 
 Deterministic algorithms can be slower than the default algorithms.
 Some operations do not have a deterministic version. These operations
-cause an error in deterministic mode.
+cause an error in deterministic mode. Some operations silently run
+in a non-deterministic manner (e.g. sparse.mm for pytorch <= 2.14).
+Therefore you should test the output of your model by running
+twice with 'deterministic=true' and checking that the results are
+bit-identical.
 
 date:
 =====
