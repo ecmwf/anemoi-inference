@@ -225,6 +225,29 @@ Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform
          ANY_TRANSFORM_FILTER:
             **ARGUMENTS
 
+night_mask
+==========
+
+For the temporal downscaler runner. Sets accumulated radiation fields to
+zero where the sun was down for the whole accumulation window. A field
+at time ``t`` is accumulated over ``(t - accumulation_period, t]``, so it
+is zeroed where the mask variable (``insolation`` by default) is ``<= 0``
+both at ``t`` and at ``t - accumulation_period``.
+
+This reproduces the ``night_mask`` option of the training
+``TemporalDownscaler`` task. The mask variable is computed with the same
+code as the model's computed forcings. Boundary states (the inputs) are
+not modified.
+
+.. code:: yaml
+
+   post_processors:
+     - night_mask:
+         variables: [ssr, ssrd, fdir]
+         mask_variable: insolation # default
+         accumulation_period: 1h # default: the output timestep of the checkpoint
+     - accumulate_from_start_of_forecast # if used, must come after night_mask
+
 Extractors and Masking
 ======================
 
