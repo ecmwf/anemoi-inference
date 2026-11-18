@@ -228,16 +228,17 @@ Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform
 night_mask
 ==========
 
-For the temporal downscaler runner. Sets accumulated radiation fields to
-zero where the sun was down for the whole accumulation window. A field
-at time ``t`` is accumulated over ``(t - accumulation_period, t]``, so it
-is zeroed where the mask variable (``insolation`` by default) is ``<= 0``
-both at ``t`` and at ``t - accumulation_period``.
+Sets accumulated fields (for example the surface radiation fields ``ssr``,
+``ssrd`` and ``fdir``) to zero where the sun was down for the whole
+accumulation window. A field at time ``t`` is accumulated over ``(t -
+accumulation_period, t]``, so it is zeroed where the mask variable
+(``insolation`` by default) is ``<= 0`` both at ``t`` and at ``t -
+accumulation_period``.
 
-This reproduces the ``night_mask`` option of the training
-``TemporalDownscaler`` task. The mask variable is computed with the same
-code as the model's computed forcings. Boundary states (the inputs) are
-not modified.
+This is the ``night_mask`` filter of anemoi-transform, with defaults taken
+from the checkpoint. It works with any runner, and matches the
+``night_mask`` option used in training. The initial state (step 0) holds no
+accumulation and is left unchanged unless ``skip_initial_state: false``.
 
 .. code:: yaml
 
@@ -245,8 +246,18 @@ not modified.
      - night_mask:
          variables: [ssr, ssrd, fdir]
          mask_variable: insolation # default
-         accumulation_period: 1h # default: the output timestep of the checkpoint
+         accumulation_period: 1h # default: the data frequency of the checkpoint
      - accumulate_from_start_of_forecast # if used, must come after night_mask
+
+The same filter can also be used directly with ``forward_transform_filter``:
+
+.. code:: yaml
+
+   post_processors:
+     - forward_transform_filter:
+         night_mask:
+           variables: [ssr, ssrd, fdir]
+           accumulation_period: 1h
 
 Extractors and Masking
 ======================
