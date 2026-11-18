@@ -120,6 +120,7 @@ Get more information in the :ref:`installing <installing>` section.
    inference/external-graph
    inference/input-types
    inference/configs/introduction
+   inference/configs/reference
 
 .. toctree::
    :maxdepth: 1

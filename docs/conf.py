@@ -72,7 +72,7 @@ extensions = [
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "'**.ipynb_checkpoints'"]
+exclude_patterns = ["_build", "config_reference", "Thumbs.db", ".DS_Store", "'**.ipynb_checkpoints'"]
 
 intersphinx_mapping = {
     "python": ("https://python.readthedocs.io/en/latest", None),
@@ -159,3 +159,26 @@ html_context = {
     "github_repo": "anemoi-inference",
     "github_version": "main/docs/",
 }
+
+
+# -- Configuration reference --------------------------------------------------
+# A standalone HTML page generated from docs/config_reference by refgen.py, written next to the Sphinx output and
+# linked from inference/configs/reference.rst.
+
+
+def _build_config_reference(app, exception):
+    if exception is not None or app.builder.format != "html":
+        return
+
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("refgen", Path(app.confdir) / "config_reference" / "refgen.py")
+    refgen = importlib.util.module_from_spec(spec)
+    sys.modules["refgen"] = refgen
+    spec.loader.exec_module(refgen)
+    refgen.build(Path(app.outdir) / "config-reference")
+
+
+def setup(app):
+    app.connect("build-finished", _build_config_reference)

@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  (C) Copyright 2026 Anemoi contributors.
+  Licensed under the Apache Licence Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inference Configuration Reference</title>
+<meta name="description" content="What every key of an anemoi-inference run configuration accepts, with examples and a configuration builder.">
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Show sections" aria-expanded="false">&#9776;</button>
+  <a class="brand" href="#/">anemoi-inference <span>configuration reference</span></a>
+  <span class="version" title="anemoi-inference version used to build this page">v__VERSION__</span>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search components and fields" aria-label="Search components and fields" autocomplete="off">
+  </div>
+  <button class="icon-btn" id="theme-toggle" aria-label="Toggle colour theme" title="Toggle colour theme">&#9680;</button>
+  <button class="btn primary" id="builder-toggle" aria-expanded="false">Config builder <span class="count" id="builder-count">0</span></button>
+</header>
+<div class="layout">
+  <nav class="sidebar" id="sidebar" aria-label="Sections"></nav>
+  <main id="main" tabindex="-1"></main>
+  <aside class="builder" id="builder" aria-label="Configuration builder">
+    <div class="builder-head">
+      <h2>Config builder</h2>
+      <button class="icon-btn" id="builder-close" aria-label="Close builder">&times;</button>
+    </div>
+    <p class="hint">Add components and examples from the reference, then fill in the highlighted values.</p>
+    <select id="builder-add-top" aria-label="Add a top-level option"></select>
+    <div class="builder-issues" id="builder-issues"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="form" role="tab" aria-selected="true">Edit values</button>
+      <button class="tab" data-tab="yaml" role="tab" aria-selected="false">YAML</button>
+    </div>
+    <div class="builder-form" id="builder-form"></div>
+    <div class="builder-yaml" id="builder-yaml-wrap" hidden><pre id="builder-yaml"></pre></div>
+    <div class="builder-actions">
+      <button class="btn primary" id="builder-download">Download config.yaml</button>
+      <button class="btn" id="builder-copy">Copy</button>
+      <button class="btn" id="builder-clear">Reset</button>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const DATA = "__DATA__";
+/*__JS__*/
+</script>
+</body>
+</html>

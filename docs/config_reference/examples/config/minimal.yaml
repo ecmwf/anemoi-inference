@@ -1,0 +1,7 @@
+# Smallest useful configuration
+#
+# Only `checkpoint` is required. With no `input`, the run reads the initial conditions from the dataset the
+# model was trained on, and the default `printer` output logs a summary of each step.
+checkpoint: /path/to/checkpoint.ckpt
+date: 2024-01-01T00:00:00
+lead_time: 48h

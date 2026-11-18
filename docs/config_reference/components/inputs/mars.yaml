@@ -1,0 +1,27 @@
+name: mars
+title: MARS
+status: AI-reviewed
+summary: Retrieve initial conditions from ECMWF's MARS archive.
+description: |
+  Builds MARS requests from the checkpoint's variables and grid, for the forecast date. Needs `ecmwf-api-client`
+  and MARS access. By default it retrieves operational analyses (`class: od`) for yesterday at 00 UTC.
+inherits: [inputs/_grib, inputs/_common]
+fields:
+  log:
+    type: bool
+    default: true
+    description: Log each MARS request before it is sent.
+  patches:
+    type: list of [match, update] pairs
+    description: |
+      Change requests that match. Each entry is a pair of mappings: if every key in the first matches the
+      request, the second is merged into it.
+
+      ```yaml
+      patches:
+        - [{levtype: sfc}, {expver: "0079"}]
+      ```
+extra_fields: |
+  Any other key is added to every MARS request, overriding the generated value. Common keys are `class`
+  (for example `ea` for ERA5), `expver`, `stream`, `type`, `grid` and `area`.
+hidden: [purpose]

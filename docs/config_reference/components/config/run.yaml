@@ -1,0 +1,216 @@
+name: run
+title: Top-level options
+status: AI-reviewed
+summary: Keys at the root of a run configuration, as passed to `anemoi-inference run config.yaml`.
+description: |
+  Only `checkpoint` is required. Every key can also be overridden on the command line, for example
+  `anemoi-inference run config.yaml date=2024-01-01T00:00 lead_time=48`.
+
+  Values may use OmegaConf interpolation, such as `${oc.env:HOME}`.
+
+fields:
+  description:
+    type: str
+    description: Free text printed in the log at the start of the run.
+    example: Ten-day forecast from MARS initial conditions
+
+  checkpoint:
+    type: str | mapping
+    required: true
+    description: |
+      Path to the checkpoint file, or a Hugging Face reference:
+
+      ```yaml
+      checkpoint:
+        huggingface:
+          repo_id: ecmwf/aifs-single-1.0
+          filename: aifs-single-mse-1.0.ckpt
+      ```
+    example: /path/to/checkpoint.ckpt
+
+  date:
+    type: date
+    description: |
+      Reference date of the forecast. If not set, the input chooses (for example, `mars` uses yesterday and
+      `grib` uses the date in the file). Accepts `2024-01-01T00:00`, `20240101`, `-1` (yesterday) and similar.
+    example: 2024-01-01T00:00:00
+
+  lead_time:
+    type: str | int
+    default: 10d
+    description: Length of the forecast. An integer is a number of hours; strings such as `6h` or `10d` are also accepted.
+    example: 48h
+
+  runner:
+    type: runner
+    ref: runners
+    default: auto
+    description: How to run the model. The default, `auto`, picks the runner from the checkpoint.
+
+  input:
+    type: input
+    ref: inputs
+    per_dataset: true
+    default: test
+    description: Where the initial conditions come from.
+
+  constant_forcings:
+    type: input
+    ref: inputs
+    per_dataset: true
+    default_text: same as `input`
+    description: Where constant forcings (such as orography or the land-sea mask) come from.
+
+  dynamic_forcings:
+    type: input
+    ref: inputs
+    per_dataset: true
+    default_text: same as `input`
+    description: Where time-dependent forcings come from during the forecast.
+
+  pre_processors:
+    type: list of pre-processors
+    ref: pre_processors
+    many: true
+    per_dataset: true
+    default: []
+    description: Applied to the input fields of every input, after any pre-processors set on the input itself.
+
+  post_processors:
+    type: list of post-processors
+    ref: post_processors
+    many: true
+    per_dataset: true
+    default: []
+    description: Applied to every forecast state before it reaches the outputs.
+
+  mid_processors:
+    type: list
+    default: []
+    description: Applied to the model state on the device after each step. No mid-processors are currently built in.
+
+  output:
+    type: output
+    ref: outputs
+    per_dataset: true
+    default: printer
+    description: Where and how the forecast is written. Use `tee` to write to several outputs.
+
+  write_initial_state:
+    type: bool
+    default: true
+    description: Write the initial conditions as step zero. For multi-step models, only the last input date is written.
+
+  initial_state_categories:
+    type: list[str]
+    default: [prognostics, constant_forcings]
+    description: |
+      Which variables are included in step zero. Any of `prognostics`, `constant_forcings` and `dynamic_forcings`.
+
+  output_frequency:
+    type: str | int
+    description: Write only every Nth hour of the forecast, such as `6h`. An integer is a number of hours. Defaults to every step.
+    example: 6h
+
+  device:
+    type: str
+    description: PyTorch device to run on, such as `cuda`, `cuda:1` or `cpu`. Detected automatically if not set.
+    example: cuda
+
+  precision:
+    type: str
+    description: |
+      Floating-point precision for the model, such as `16`, `bf16`, `32` or their `-mixed` variants.
+      Defaults to the precision used in training.
+    example: bf16
+
+  seed:
+    type: int
+    description: Random seed for `torch.manual_seed`. Set it to make ensemble members reproducible. The seed in use is always logged.
+    example: 42
+
+  allow_nans:
+    type: bool
+    description: |
+      Whether NaNs are allowed in inputs and outputs.
+
+      - not set: allowed if any input contains NaNs, with a warning
+      - `false`: raise an error on NaNs
+      - `true`: always allowed
+
+  check_variables_compatibility:
+    type: mapping
+    description: |
+      Relax the checks that input variables match those used in training. Each key is `true` to switch the check off,
+      or a list of variable names. Can be given per dataset.
+
+      ```yaml
+      check_variables_compatibility:
+        ignore_units: [msl, 2t]
+        ignore_time_processing: true
+        ignore_processing_period: true
+        ignore_type_of_level: true
+      ```
+
+  use_grib_paramid:
+    type: bool
+    default: false
+    description: Use GRIB parameter IDs instead of short names when building MARS requests.
+
+  typed_variables:
+    type: mapping
+    default: {}
+    description: Extra variable metadata (keyed by variable name) used when encoding outputs, for variables missing from the checkpoint.
+
+  env:
+    type: mapping
+    default: {}
+    description: |
+      Environment variables to set before the run starts, for example to configure ecCodes. Some packages read
+      their variables at import, in which case setting them here is too late.
+    example:
+      ECCODES_DEFINITION_PATH: /path/to/definitions
+
+  patch_metadata:
+    type: mapping | path
+    default: {}
+    description: Values to merge into the checkpoint metadata, or a path to a YAML file holding them. Use to work around faulty metadata.
+
+  preload_checkpoint:
+    type: bool
+    default: false
+    description: Read the whole checkpoint file into memory before loading the model. Can be faster on network file systems.
+
+  preload_buffer_size:
+    type: int
+    default: 33554432
+    description: Buffer size in bytes used by `preload_checkpoint`.
+
+  predict_kwargs:
+    type: mapping
+    default: {}
+    description: Extra keyword arguments for the model's `predict_step`. Arguments already set by the runner are ignored.
+
+  verbosity:
+    type: int
+    default: 0
+    choices: [0, 1, 2, 3]
+    description: Amount of diagnostic logging, from 0 (normal) to 3.
+
+  use_profiler:
+    type: bool
+    default: false
+    description: Profile the run and report time and memory use. Adds NVTX labels for viewing in Nsight.
+
+  trace_path:
+    type: str | mapping
+    description: File in which to record a trace of the run, for debugging.
+
+  development_hacks:
+    type: mapping
+    default: {}
+    description: Experimental switches for developers. Not stable.
+
+hidden:
+  - name
+  - debugging_info

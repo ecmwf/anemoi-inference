@@ -1,0 +1,15 @@
+summary: Options accepted by every input that reads GRIB fields (`grib`, `mars`, `cds`, `fdb`).
+fields:
+  namer:
+    type: mapping
+    description: |
+      Rules to rename GRIB fields so they match the variable names in the checkpoint. Each rule is a pair: a mapping
+      of GRIB keys to match, and a name template using `{key}` placeholders, or `ignore` to drop the field. The first
+      matching rule wins; unmatched fields keep their default name.
+
+      ```yaml
+      namer:
+        rules:
+          - [{shortName: T_SO}, "{shortName}_{level}"]
+          - [{shortName: PS, dataType: fc}, ignore]
+      ```
