@@ -83,14 +83,12 @@ class Runner(Context):
     def __init__(self, config: RunConfiguration, *, classes: RunnerClasses | None = None) -> None:
         self._device = config.device
 
-        # Set `deterministic: true` in the config to get the same output from each run.
         self.deterministic = config.deterministic
         if self.deterministic:
             # Stop cuBLAS from using algorithms that are not deterministic.
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
-            torch.backends.cudnn.benchmark = False
-            torch.backends.cudnn.deterministic = True
             torch.use_deterministic_algorithms(True)
+            torch.backends.cudnn.benchmark = False
             # use_deterministic_algorithms(True) also fills each new uninitialised tensor
             # (CPU and GPU) with NaN. This fill adds approximately 30% to the end-to-end
             # runtime and does not change the output. Thus, do not fill the memory.
@@ -100,10 +98,13 @@ class Runner(Context):
         if config.seed is not None:
             seed = config.seed
         elif self.deterministic:
+            # define the seed if it is not explicitly set
             seed = 42
         else:
             seed = torch.initial_seed()
         torch.manual_seed(seed)
+        
+        # seed numpy for determinism
         if self.deterministic:
             np.random.seed(seed)
 
