@@ -62,6 +62,10 @@ if TYPE_CHECKING:
 LOG = logging.getLogger(__name__)
 LOG_ONCE = OnceLogger(LOG)
 
+# Axes of the tensors exchanged with a richer-batch model's ``predict_step``: no batch axis, and no ensemble
+# axis, as a run produces one member (the model takes a left-out ensemble axis as a single member).
+RICHER_BATCH_LAYOUT = ("time", "grid", "variables")
+
 
 class RunnerClasses(BaseModel):
     """Configurable class types used by the Runner.
@@ -398,24 +402,22 @@ class Runner(Context):
         for dataset, tensor in input_tensors_torch.items():
             metadata = self.tensor_handlers[dataset].metadata
 
-            richer_batch[dataset] = {}
-            target_template[dataset] = {}
-
-            # tensor passed by the runner has dimensions (batch=1, time, grid, variables)
-            # richer-batch requires input dimensions (time, ensemble=1, grid, variables)
+            # tensor passed by the runner has dimensions (batch=1, time, grid, variables). A payload's layout
+            # names the axes its values have; the ensemble axis is left out, as a run produces one member.
             assert tensor.shape[0] == 1, f"Expected batch size 1, got {tensor.shape}"
-            tensor = tensor[0].unsqueeze(1)
+            richer_batch[dataset] = {
+                "values": tensor[0],
+                "data_type": metadata.data_type,
+                "variables": list(metadata.variable_to_input_tensor_index),
+                "latitudes": input_states[dataset]["latitudes"],
+                "longitudes": input_states[dataset]["longitudes"],
+                "layout": RICHER_BATCH_LAYOUT,
+            }
 
-            richer_batch[dataset]["values"] = tensor
-            richer_batch[dataset]["data_type"] = metadata.data_type
-            richer_batch[dataset]["variables"] = list(metadata.variable_to_input_tensor_index)
-            richer_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
-            richer_batch[dataset]["longitudes"] = input_states[dataset]["longitudes"]
-            richer_batch[dataset]["layout"] = ("time", "ensemble", "grid", "variables")
-
-            for key in ("latitudes", "longitudes", "layout", "data_type"):
-                target_template[dataset][key] = richer_batch[dataset][key]
-
+            # the prediction comes back in the template's layout
+            target_template[dataset] = {
+                key: richer_batch[dataset][key] for key in ("latitudes", "longitudes", "layout", "data_type")
+            }
             target_template[dataset]["variables"] = list(metadata.variable_to_output_tensor_index)
 
         richer_batch_output: dict[str, dict] = model.predict_step(
@@ -426,13 +428,13 @@ class Runner(Context):
 
         output = {}
         for dataset, batch in richer_batch_output.items():
-            tensor = batch["values"]
-            assert tensor.ndim == 4, (
-                f"[{dataset}] Expected output tensor (time, ensemble, grid, variables), got {tensor.shape}"
-            )
-            assert tensor.shape[1] == 1, f"[{dataset}] Expected ensemble size 1, got {tensor.shape[1]}"
-            # restore batch dimension expected by the runner: (batch=1, time, ensemble, grid, variables)
-            output[dataset] = tensor.unsqueeze(0)
+            if tuple(batch["layout"]) != RICHER_BATCH_LAYOUT:
+                raise ValueError(
+                    f"[{dataset}] Expected the prediction in the requested layout {RICHER_BATCH_LAYOUT}, "
+                    f"got {tuple(batch['layout'])}"
+                )
+            # restore the dimensions expected by the runner: (batch=1, time, ensemble=1, grid, variables)
+            output[dataset] = batch["values"].unsqueeze(1).unsqueeze(0)
         return output
 
     def forecast_stepper(

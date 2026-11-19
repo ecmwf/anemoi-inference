@@ -1609,14 +1609,13 @@ class MultiDatasetMetadata(Metadata):
         return advance_map or super().advance_map
 
     @cached_property
-    def input_shape(self) -> tuple[int, int, int, int]:
+    def input_shape(self) -> tuple[int, ...]:
         if not self.richer_batch:
             return super().input_shape
 
-        # richer-batch dropped the batch dimension and inserted ensemble=1
+        # richer-batch payloads have no batch axis, and no ensemble axis: a run produces one member
         return (
             self.multi_step_input,  # time
-            1,  # ensemble
             self.number_of_grid_points,  # grid
             len(self.input_tensor_index_to_variable),  # variables
         )
@@ -1624,7 +1623,7 @@ class MultiDatasetMetadata(Metadata):
     @cached_property
     def output_shape(
         self,
-    ) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
+    ) -> tuple[int, ...]:
         # when multistep_output was introduced, we forgot to bump the metadata schema version
         # so we detect pre-multistep_output checkpoints by the absence of this config entry
         if not hasattr(self._config_training, "multistep_output") and not hasattr(
@@ -1642,10 +1641,9 @@ class MultiDatasetMetadata(Metadata):
                 len(self.output_tensor_index_to_variable),  # variables
             )
 
-        # richer-batch dropped the batch dimension
+        # richer-batch predictions come back in the requested layout: (time, grid, variables)
         return (
             self.multi_step_output,  # time
-            1,  # ensemble
             self.number_of_grid_points,  # grid
             len(self.output_tensor_index_to_variable),  # variables
         )
