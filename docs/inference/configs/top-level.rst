@@ -79,7 +79,7 @@ split into windows, bounded by the model's two input times. Each window
 is downscaled to produce the target times set during training (and stored in the checkpoint).
 Input data is needed at every window boundary.
 
-The target times may include the left boundary, right boundary, both, or neither (as configured in training).
+The target times may include the left boundary, right boundary, or neither (as configured in training).
 
 If the left boundary is not included, the initial state (step zero) follows ``write_initial_state``, which can
 be overridden per output.
