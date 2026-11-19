@@ -225,25 +225,6 @@ Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform
          ANY_TRANSFORM_FILTER:
             **ARGUMENTS
 
-Example: zeroing accumulated fields at night with the ``night_mask`` filter.
-A field at time ``t`` accumulated over ``(t - accumulation_period, t]`` can
-only be non-zero if the sun was up at some point in that window, so it is
-set to zero where the mask variable (``insolation`` by default) is ``<= 0``
-both at ``t`` and at ``t - accumulation_period``. Use ``skip_initial_state``
-to leave the initial state, which holds no accumulation, unchanged. The
-filter must come before any processor that accumulates the fields.
-
-.. code:: yaml
-
-   post_processors:
-     - forward_transform_filter:
-         filter:
-           night_mask:
-             variables: [ssr, ssrd, fdir]
-             accumulation_period: 1h
-         skip_initial_state: true
-     - accumulate_from_start_of_forecast # if used, must come after night_mask
-
 Extractors and Masking
 ======================
 
