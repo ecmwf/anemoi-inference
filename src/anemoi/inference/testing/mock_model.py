@@ -158,7 +158,7 @@ class SimpleMockModel(torch.nn.Module):
 
             # copy prognostic input variables of the last time step to output tensor, leaving diagnostics at one
             elif self.output_mode == VariableOutputSetting.PASSTHROUGH and metadata.prognostic_input_indices:
-                last_step = input_tensor.select(time_dim, -1)  # (1, grid, variables) in both layouts
+                last_step = input_tensor.select(time_dim, -1)  # ends in (grid, variables) in both layouts
                 output_tensor[..., metadata.prognostic_output_indices] = last_step[
                     ..., metadata.prognostic_input_indices
                 ]
