@@ -225,39 +225,24 @@ Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform
          ANY_TRANSFORM_FILTER:
             **ARGUMENTS
 
-night_mask
-==========
-
-Sets accumulated fields (for example the surface radiation fields ``ssr``,
-``ssrd`` and ``fdir``) to zero where the sun was down for the whole
-accumulation window. A field at time ``t`` is accumulated over ``(t -
-accumulation_period, t]``, so it is zeroed where the mask variable
-(``insolation`` by default) is ``<= 0`` both at ``t`` and at ``t -
-accumulation_period``.
-
-This is the ``night_mask`` filter of anemoi-transform, with defaults taken
-from the checkpoint. It works with any runner, and matches the
-``night_mask`` option used in training. The initial state (step 0) holds no
-accumulation and is left unchanged unless ``skip_initial_state: false``.
-
-.. code:: yaml
-
-   post_processors:
-     - night_mask:
-         variables: [ssr, ssrd, fdir]
-         mask_variable: insolation # default
-         accumulation_period: 1h # default: the data frequency of the checkpoint
-     - accumulate_from_start_of_forecast # if used, must come after night_mask
-
-The same filter can also be used directly with ``forward_transform_filter``:
+Example: zeroing accumulated fields at night with the ``night_mask`` filter.
+A field at time ``t`` accumulated over ``(t - accumulation_period, t]`` can
+only be non-zero if the sun was up at some point in that window, so it is
+set to zero where the mask variable (``insolation`` by default) is ``<= 0``
+both at ``t`` and at ``t - accumulation_period``. Use ``skip_initial_state``
+to leave the initial state, which holds no accumulation, unchanged. The
+filter must come before any processor that accumulates the fields.
 
 .. code:: yaml
 
    post_processors:
      - forward_transform_filter:
-         night_mask:
-           variables: [ssr, ssrd, fdir]
-           accumulation_period: 1h
+         filter:
+           night_mask:
+             variables: [ssr, ssrd, fdir]
+             accumulation_period: 1h
+         skip_initial_state: true
+     - accumulate_from_start_of_forecast # if used, must come after night_mask
 
 Extractors and Masking
 ======================
