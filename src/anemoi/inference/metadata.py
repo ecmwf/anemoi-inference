@@ -29,6 +29,7 @@ from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
 from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
+from packaging.version import Version
 
 from anemoi.inference._version import __version__
 from anemoi.inference.types import DataRequest
@@ -151,6 +152,21 @@ class Metadata(LegacyMixin):
         output_timestep = getattr(self._config_task, "output_timestep", None)
         return output_timestep or self._config.data.frequency
 
+    @cached_property
+    def version(self) -> Version:
+        """Return the metadata schema version."""
+        return Version("1.0")
+
+    @property
+    def richer_batch(self) -> bool:
+        """Whether the model was trained after richer-batch was introduced."""
+        return False
+
+    @cached_property
+    def data_type(self) -> Literal["gridded", "tabular"]:
+        """The data type of the dataset. Only exists for richer-batch checkpoints."""
+        return "gridded"
+
     def _dataloader_dataset(self, partition="training"):
         """Dataloader dataset configuration for the given partition."""
         return self._config.dataloader[partition]
@@ -267,19 +283,20 @@ class Metadata(LegacyMixin):
     @cached_property
     def input_shape(self) -> tuple[int, int, int, int]:
         return (
-            1,
-            self.multi_step_input,
-            self.number_of_grid_points,
-            len(self.input_tensor_index_to_variable),
+            1,  # batch
+            self.multi_step_input,  # time
+            self.number_of_grid_points,  # grid
+            len(self.input_tensor_index_to_variable),  # variables
         )
 
     @cached_property
     def output_shape(self) -> tuple[int, int, int, int]:
+        # time is implicitly 1
         return (
-            1,
-            1,
-            self.number_of_grid_points,
-            len(self.output_tensor_index_to_variable),
+            1,  # batch
+            1,  # ensemble
+            self.number_of_grid_points,  # grid
+            len(self.output_tensor_index_to_variable),  # variables
         )
 
     def _make_indices_mapping(self, indices_from: list, indices_to: list) -> frozendict:
@@ -300,7 +317,7 @@ class Metadata(LegacyMixin):
         assert len(indices_from) == len(indices_to), (indices_from, indices_to)
         return frozendict({i: j for i, j in zip(indices_from, indices_to)})
 
-    @property
+    @cached_property
     def variable_to_input_tensor_index(self) -> frozendict:
         """Return the mapping between variable name and input tensor index."""
         mapping = self._make_indices_mapping(
@@ -1488,6 +1505,21 @@ class MultiDatasetMetadata(Metadata):
     def _inference(self) -> DotDict:
         return self._metadata_inference[self.dataset_name]
 
+    @cached_property
+    def version(self) -> Version:
+        """Return the metadata schema version."""
+        return Version(self._metadata.version)
+
+    @cached_property
+    def richer_batch(self) -> bool:
+        """Whether the model was trained after richer-batch was introduced."""
+        return self.version >= Version("3.0")
+
+    @cached_property
+    def data_type(self) -> Literal["gridded", "tabular"]:
+        """The data type of the dataset. Only exists for richer-batch checkpoints."""
+        return self._inference.data_type
+
     def _dataloader_dataset(self, partition="training"):
         dataloader = self._config.dataloader[partition].datasets[self.dataset_name]
 
@@ -1577,19 +1609,45 @@ class MultiDatasetMetadata(Metadata):
         return advance_map or super().advance_map
 
     @cached_property
+    def input_shape(self) -> tuple[int, int, int, int]:
+        if not self.richer_batch:
+            return super().input_shape
+
+        # richer-batch dropped the batch dimension and inserted ensemble=1
+        return (
+            self.multi_step_input,  # time
+            1,  # ensemble
+            self.number_of_grid_points,  # grid
+            len(self.input_tensor_index_to_variable),  # variables
+        )
+
+    @cached_property
     def output_shape(
         self,
     ) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
-        # newer checkpoint have an extra multi-step output dimension, but older ones don't
-        if not hasattr(self._config_training, "multistep_output"):
+        # when multistep_output was introduced, we forgot to bump the metadata schema version
+        # so we detect pre-multistep_output checkpoints by the absence of this config entry
+        if not hasattr(self._config_training, "multistep_output") and not hasattr(
+            self._config_task, "multistep_output"
+        ):
             return super().output_shape
 
+        # multistep_output checkpoints have an extra time dimension
+        if not self.richer_batch:
+            return (
+                1,  # batch
+                self.multi_step_output,  # time
+                1,  # ensemble
+                self.number_of_grid_points,  # grid
+                len(self.output_tensor_index_to_variable),  # variables
+            )
+
+        # richer-batch dropped the batch dimension
         return (
-            1,
-            self.multi_step_output,
-            1,
-            self.number_of_grid_points,
-            len(self.output_tensor_index_to_variable),
+            self.multi_step_output,  # time
+            1,  # ensemble
+            self.number_of_grid_points,  # grid
+            len(self.output_tensor_index_to_variable),  # variables
         )
 
     @cached_property
