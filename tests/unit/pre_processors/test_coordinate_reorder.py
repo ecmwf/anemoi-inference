@@ -70,13 +70,12 @@ def _fieldlist(values, lat, lon, param="2t"):
         "list-of-dicts",
         [
             {
-                "param": param,
-                "values": np.asarray(values),
-                "latitudes": lat,
-                "longitudes": lon,
+                "parameter": {"variable": param},
+                "data": {"values": np.asarray(values)},
+                "geography": {"latitudes": lat, "longitudes": lon},
             }
         ],
-    )
+    ).to_fieldlist()
 
 
 def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4) -> CoordinateReorder:
@@ -191,7 +190,7 @@ def test_reorder_process_fixes_fields_and_coords(mocker: MockerFixture):
     field = new_state["fields"][0]
     np.testing.assert_array_equal(field.to_numpy().flatten(), target_signal)
     # The rebuilt earthkit field's geography is consistent with its values.
-    grid_lat, grid_lon = field.grid_points()
+    grid_lat, grid_lon = field.geography.latlons()
     np.testing.assert_array_equal(grid_lat, target_lat)
     np.testing.assert_array_equal(grid_lon, target_lon)
 
