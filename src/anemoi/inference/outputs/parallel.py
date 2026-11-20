@@ -13,13 +13,10 @@ import math
 import multiprocessing as mp
 import os
 import traceback
-from collections.abc import Callable
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from enum import Enum
 from functools import cache
-from typing import Any
-from typing import Literal
-from typing import get_args
+from typing import Any, Literal, get_args
 
 from anemoi.transform.variables import Variable
 
@@ -28,8 +25,7 @@ from anemoi.inference.metadata import Metadata
 from anemoi.inference.types import State
 
 from ..output import Output
-from . import create_output
-from . import output_registry
+from . import create_output, output_registry
 
 LOG = logging.getLogger(__name__)
 

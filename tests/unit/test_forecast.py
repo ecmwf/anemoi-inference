@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 from collections import defaultdict
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import numpy as np

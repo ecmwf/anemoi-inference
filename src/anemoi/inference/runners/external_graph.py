@@ -14,8 +14,7 @@ import logging
 import os
 from copy import deepcopy
 from functools import cached_property
-from typing import Any
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 

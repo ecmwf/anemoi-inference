@@ -14,21 +14,16 @@ import logging
 import math
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.state import reduce_state
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import ProcessorConfig, State
 
-from ..decorators import format_dataset_name
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
+from ..decorators import format_dataset_name, main_argument, supports_parallel_output
 from ..output import Output
 from ..types import OutputVariableConfigUnion
 from . import output_registry

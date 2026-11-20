@@ -8,18 +8,13 @@
 #
 import datetime
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anemoi.inference.post_processors import create_post_processor
 from anemoi.inference.processor import Processor
-from anemoi.inference.types import OutputVariableConfig
-from anemoi.inference.types import OutputVariableConfigUnion
-from anemoi.inference.types import ProcessorConfig
-from anemoi.inference.types import State
+from anemoi.inference.types import OutputVariableConfig, OutputVariableConfigUnion, ProcessorConfig, State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context

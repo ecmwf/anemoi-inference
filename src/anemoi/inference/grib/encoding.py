@@ -10,13 +10,10 @@
 
 import logging
 import warnings
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import IOBase
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Hashable
+from typing import TYPE_CHECKING, Any, Hashable
 
 import earthkit.data as ekd
 from earthkit.data.utils.dates import to_timedelta

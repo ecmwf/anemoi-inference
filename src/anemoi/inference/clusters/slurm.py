@@ -13,8 +13,7 @@ import socket
 import subprocess
 
 from anemoi.inference.clusters import cluster_registry
-from anemoi.inference.clusters.mapping import EnvMapping
-from anemoi.inference.clusters.mapping import MappingCluster
+from anemoi.inference.clusters.mapping import EnvMapping, MappingCluster
 
 LOG = logging.getLogger(__name__)
 

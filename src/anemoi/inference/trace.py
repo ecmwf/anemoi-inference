@@ -15,8 +15,7 @@ from typing import Any
 import numpy as np
 
 from anemoi.inference.decorators import ensure_path
-from anemoi.inference.types import BoolArray
-from anemoi.inference.types import FloatArray
+from anemoi.inference.types import BoolArray, FloatArray
 
 LOG = logging.getLogger(__name__)
 

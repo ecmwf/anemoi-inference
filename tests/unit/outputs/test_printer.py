@@ -11,8 +11,7 @@ import logging
 
 import pytest
 
-from anemoi.inference.outputs.printer import PrinterOutput
-from anemoi.inference.outputs.printer import print_state
+from anemoi.inference.outputs.printer import PrinterOutput, print_state
 
 LOG = logging.getLogger(__name__)
 

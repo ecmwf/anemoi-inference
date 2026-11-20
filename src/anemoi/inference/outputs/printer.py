@@ -11,10 +11,7 @@ import datetime
 import logging
 from functools import partial
 from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import Literal
-from typing import Union
+from typing import Any, Callable, Literal, Union
 
 import numpy as np
 from anemoi.transform.variables import Variable
@@ -22,12 +19,9 @@ from anemoi.transform.variables import Variable
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
 from anemoi.inference.schemas import OutputVariableConfig
-from anemoi.inference.types import OutputVariableConfigUnion
-from anemoi.inference.types import State
+from anemoi.inference.types import OutputVariableConfigUnion, State
 
-from ..decorators import ensure_path
-from ..decorators import main_argument
-from ..decorators import supports_parallel_output
+from ..decorators import ensure_path, main_argument, supports_parallel_output
 from ..output import Output
 from . import output_registry
 

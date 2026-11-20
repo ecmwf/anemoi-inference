@@ -9,15 +9,9 @@
 
 import pytest
 
-from anemoi.inference.metadata import Metadata
-from anemoi.inference.metadata import MetadataFactory
-from anemoi.inference.metadata import MultiDatasetMetadata
-from anemoi.inference.metadata import SingleDatasetMetadata
+from anemoi.inference.metadata import Metadata, MetadataFactory, MultiDatasetMetadata, SingleDatasetMetadata
 from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
-from anemoi.inference.testing.variables import w_100
-from anemoi.inference.testing.variables import z
-from anemoi.inference.testing.variables import z_100_renamed
-from anemoi.inference.testing.variables import z_renamed
+from anemoi.inference.testing.variables import w_100, z, z_100_renamed, z_renamed
 
 
 @pytest.mark.parametrize(

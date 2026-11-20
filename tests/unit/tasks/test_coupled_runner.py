@@ -17,9 +17,7 @@ from anemoi.inference.config.couple import CoupleConfiguration
 from anemoi.inference.task import Task
 from anemoi.inference.tasks import create_task
 from anemoi.inference.tasks.runner import CoupledRunner
-from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing import files_for_tests
-from anemoi.inference.testing import float_hash
+from anemoi.inference.testing import fake_checkpoints, files_for_tests, float_hash
 from anemoi.inference.transports import create_transport
 from anemoi.inference.transports.threads import ThreadsTransport
 from anemoi.inference.types import State
