@@ -42,7 +42,7 @@ dependencies = [
   "earthkit-data>=0.12.4,<1",
   "eccodes>=2.38.3",
   "numpy",
-  "omegaconf>=2.2,<2.4",
+  "omegaconf>=2.2,<2.5",
   "packaging",
   "pydantic>=2",
   "pyyaml",
