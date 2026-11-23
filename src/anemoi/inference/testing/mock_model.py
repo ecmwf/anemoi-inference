@@ -118,10 +118,10 @@ class SimpleMockModel(torch.nn.Module):
             # we could hardcode "data" here, but better to rely on the default key set by the metadata factory
             assert len(self.metadata) == 1, "Expected a single dataset in the metadata for legacy model"
             default_key = next(iter(self.metadata.keys()))
-            return self._predict_step({default_key: input_payload}, date)[default_key]
+            return self._predict_step({default_key: input_payload}, date=date)[default_key]
 
         # multi-dataset model (plain tensors or richer-batch dicts)
-        return self._predict_step(input_payload, target_template, date)
+        return self._predict_step(input_payload, target_template=target_template, date=date)
 
     def _predict_step(
         self,
