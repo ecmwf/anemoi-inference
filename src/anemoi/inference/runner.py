@@ -398,25 +398,24 @@ class Runner(Context):
         for dataset, tensor in input_tensors_torch.items():
             metadata = self.tensor_handlers[dataset].metadata
 
-            richer_batch[dataset] = {}
-            target_template[dataset] = {}
-
             # tensor passed by the runner has dimensions (batch=1, time, grid, variables)
             # richer-batch requires input dimensions (time, ensemble=1, grid, variables)
             assert tensor.shape[0] == 1, f"Expected batch size 1, got {tensor.shape}"
             tensor = tensor[0].unsqueeze(1)
 
-            richer_batch[dataset]["values"] = tensor
-            richer_batch[dataset]["data_type"] = metadata.data_type
-            richer_batch[dataset]["variables"] = list(metadata.variable_to_input_tensor_index)
-            richer_batch[dataset]["latitudes"] = input_states[dataset]["latitudes"]
-            richer_batch[dataset]["longitudes"] = input_states[dataset]["longitudes"]
-            richer_batch[dataset]["layout"] = ("time", "ensemble", "grid", "variables")
+            richer_batch[dataset] = {
+                "values": tensor,
+                "data_type": metadata.data_type,
+                "variables": list(metadata.variable_to_input_tensor_index),
+                "latitudes": input_states[dataset]["latitudes"],
+                "longitudes": input_states[dataset]["longitudes"],
+                "layout": ("time", "ensemble", "grid", "variables"),
+            }
 
-            for key in ("latitudes", "longitudes", "layout", "data_type"):
-                target_template[dataset][key] = richer_batch[dataset][key]
-
-            target_template[dataset]["variables"] = list(metadata.variable_to_output_tensor_index)
+            target_template[dataset] = {
+                "variables": list(metadata.variable_to_output_tensor_index),
+                **{key: richer_batch[dataset][key] for key in ("latitudes", "longitudes", "layout", "data_type")},
+            }
 
         richer_batch_output: dict[str, dict] = model.predict_step(
             richer_batch,
