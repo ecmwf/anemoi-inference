@@ -334,8 +334,7 @@ class TestZarrTimeIndex:
         g = self._read(store)
         times = g["time"][:]
         expected = [int((s["date"] - out.reference_date).total_seconds()) for s in forecast]
-        # only the first len(forecast) slots are written; the rest stay at fill
-        assert list(times[: len(forecast)]) == expected
+        assert list(times) == expected
         for i, s in enumerate(forecast):
             for name in ALL_FIELDS:
                 np.testing.assert_array_equal(g[name][i], s["fields"][name])
@@ -392,9 +391,37 @@ class TestZarrTimeIndex:
 
         g = self._read(store)
         all_states = [step0] + forecast
+        assert g["time"].shape == (len(all_states),)
         times = g["time"][:]
         expected = [int((s["date"] - out.reference_date).total_seconds()) for s in all_states]
         assert list(times[: len(all_states)]) == expected
         for i, s in enumerate(all_states):
             for name in ALL_FIELDS:
+                np.testing.assert_array_equal(g[name][i], s["fields"][name])
+
+    @pytest.mark.parametrize("n_dates", [2, 9])
+    def test_time_dimension_resized_to_dates_written(self, tmp_path, n_dates):
+        # Check resizing functionality required by the temporal downscaler
+        store = tmp_path / "out.zarr"
+        out = self._make_output(store)
+        step0 = _make_state(0)
+        forecast = []
+        for i in range(1, n_dates + 1):
+            s = _make_state(0)
+            s["date"] = START + i * datetime.timedelta(hours=1)
+            forecast.append(s)
+
+        for i, s in enumerate(forecast):
+            if i in (0, n_dates // 2):
+                out.open(step0)
+            for chunk in _split_fields(s, 3):
+                out.write_step(chunk)
+        out.close()
+
+        g = self._read(store)
+        expected = [int((s["date"] - out.reference_date).total_seconds()) for s in forecast]
+        assert list(g["time"][:]) == expected
+        for name in ALL_FIELDS:
+            assert g[name].shape == (n_dates, N_VALUES)
+            for i, s in enumerate(forecast):
                 np.testing.assert_array_equal(g[name][i], s["fields"][name])
