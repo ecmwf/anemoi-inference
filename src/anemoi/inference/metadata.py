@@ -27,6 +27,7 @@ import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.logs import OnceLogger
 from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
 USE_LEGACY = True
 
 LOG = logging.getLogger(__name__)
+LOG_ONCE = OnceLogger(LOG)
 
 
 VARIABLE_CATEGORIES = {
@@ -1272,14 +1274,13 @@ class Metadata(LegacyMixin):
     @property
     def _grid_indices(self) -> FloatArray | None:
         """Return the grid indices."""
-        grid_indiced = self._supporting_arrays.get("grid_indices")
-        if grid_indiced is not None:
-            warnings.warn(
-                "The 'grid_indices' model metadata is deprecated and will be removed in a future version."
-                "If your model contains it, please either pin your inference version or retrain.",
-                DeprecationWarning,
+        grid_indices = self._supporting_arrays.get("grid_indices")
+        if grid_indices is not None:
+            LOG_ONCE.warning(
+                "Models trained with the 'grid_indices' option have been deprecated, and support for them will be removed in a future version. "
+                "If your model uses 'grid_indices', please pin your inference version or retrain your model."
             )
-            return grid_indiced
+            return grid_indices
         return None
 
     @property
