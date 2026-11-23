@@ -80,7 +80,8 @@ class DatasetInput(Input):
             )
 
         if grid_indices is None:
-            grid_indices = self.metadata._grid_indices
+            # getattr so unit tests don't need _grid_indices in their metadata mocks
+            grid_indices = getattr(metadata, "_grid_indices", None)
             if context.verbosity > 0 and grid_indices is not None:
                 LOG.info(
                     "Loading supporting array `grid_indices` from checkpoint, \
