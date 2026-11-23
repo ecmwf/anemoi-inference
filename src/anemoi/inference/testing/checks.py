@@ -281,9 +281,9 @@ def check_boundary_forcings_with_xarray(
         # make sure we have the reference dataset on the output grid
         lats = ref_ds.latitudes
         lons = ref_ds.longitudes
-        if "grid_indices" in supporting_arrays:
+        if metadata._grid_indices:
             LOG.info("Using grid indices for boundary forcings check.")
-            grid_indices = supporting_arrays["grid_indices"]
+            grid_indices = metadata._grid_indices
             ref_values = ref_values[:, :, grid_indices]
             lats = lats[grid_indices]
             lons = lons[grid_indices]
