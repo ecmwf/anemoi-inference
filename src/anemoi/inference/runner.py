@@ -430,7 +430,7 @@ class Runner(Context):
                 f"[{dataset}] Expected output tensor shape {target_template[dataset]['layout']}, got {tensor.shape}"
             )
             assert tensor.shape[1] == 1, f"[{dataset}] Expected ensemble size 1, got {tensor.shape[1]}"
-            # restore batch dimension expected by the runner: (batch=1, time, ensemble, grid, variables)
+            # restore batch dimension expected by the runner: (batch=1, time, ensemble=1, grid, variables)
             output[dataset] = tensor.unsqueeze(0)
         return output
 
