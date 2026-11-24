@@ -1,7 +1,14 @@
-# Workflows
-/.github/ @ecmwf/AnemoiSecurity
+# Workflows & CI
+/.ci/ @ecmwf/anemoi_security
 
 # Project configs
-/pyproject.toml @ecmwf/AnemoiSecurity
-/.pre-commit-config.yaml @ecmwf/AnemoiSecurity
-/.release-please-config.json @ecmwf/AnemoiSecurity
+/pyproject.toml @ecmwf/anemoi_security
+/.pre-commit-config.yaml @ecmwf/anemoi_security
+/.release-please-config.json @ecmwf/anemoi_security
+
+# BEGIN org baseline: maintainers own .github/, .ci/ and CODEOWNERS
+/.github/ @ecmwf/anemoi_admins @ecmwf/anemoi_security
+/.ci/ @ecmwf/anemoi_admins @ecmwf/anemoi_security
+/CODEOWNERS @ecmwf/anemoi_admins @ecmwf/anemoi_security
+/docs/CODEOWNERS @ecmwf/anemoi_admins @ecmwf/anemoi_security
+# END org baseline
