@@ -102,7 +102,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
 
         if self.left_boundary_predicted and self.fill_timeline_with_input:
             LOG.info(
-                "You have configured fill_timeline_with_input, but the model is predicting the left boundary, so this configuration has no effect."
+                "`fill_timeline_with_input` is set to True, but the model is predicting the left boundary, so this configuration has no effect."
             )
 
     def patch_data_request(self, request: dict, dataset_name: str) -> dict:
