@@ -74,7 +74,27 @@ Distributes the model across multiple devices. See
 temporal-downscaler
 -------------------
 
-Runs a specific trained temporal downscaler model.
+Runs a specific trained temporal downscaler model. The ``lead_time`` is
+split into windows, bounded by the model's two input times. Each window
+is downscaled to produce the target times set during training (and stored in the checkpoint).
+Input data is needed at every window boundary.
+
+The target times may include the left boundary, right boundary, or neither (as configured in training).
+
+If the left boundary is not included, the initial state (step zero) follows ``write_initial_state``, which can
+be overridden per output.
+
+If the model predicts neither boundary, the boundaries after step zero
+are not written by default. Set ``fill_timeline_with_input`` to write
+all boundaries, giving a continuous timeline:
+
+.. code:: yaml
+
+   runner:
+     temporal_downscaler:
+       fill_timeline_with_input: true
+
+This only has an effect if left boundary and right boundary are both disabled.
 
 device:
 =======
@@ -111,6 +131,45 @@ It can also be set on the command line:
 
 See :ref:`usage-ensembles` for more details, including how to produce
 several ensemble members.
+
+.. _top-level-deterministic:
+
+deterministic:
+==============
+
+The ``deterministic`` option is a boolean. The default is ``false``. Set
+it to ``true`` to get the same output from each run with the same input.
+
+This option does these steps:
+
+- It sets ``torch.use_deterministic_algorithms(True)``.
+- It sets ``CUBLAS_WORKSPACE_CONFIG`` to ``:16:8``.
+- It stops cuDNN benchmarking.
+- It sets the seed of torch and numpy. If the ``seed`` option is not
+  set, the seed is 42.
+
+.. code:: yaml
+
+   deterministic: true
+
+It can also be set on the command line:
+
+.. code:: bash
+
+   anemoi-inference run config.yaml deterministic=true
+
+Note that there are some sources of non-determinism which this setting
+can not control (e.g. 'pyg' backend for GraphTransformer on GPU,
+sparse.mm). In that way, this option only enables determinism, it
+does not guarentee it.
+
+Deterministic algorithms can be slower than the default algorithms.
+Some operations do not have a deterministic version. These operations
+cause an error in deterministic mode. Some operations silently run
+in a non-deterministic manner (e.g. sparse.mm for pytorch <= 2.14).
+Therefore you should test the output of your model by running
+twice with 'deterministic=true' and checking that the results are
+bit-identical.
 
 date:
 =====

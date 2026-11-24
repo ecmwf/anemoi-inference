@@ -46,12 +46,18 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
     # wrapped in a flat metadata dictionary.
     state_labels = {k: v for k, v in state.items() if isinstance(v, LABEL_TYPES)}
 
+    # The grid of the state, so grid-dependent anemoi-transform filters (e.g. night_mask) work on the fields
+    geography = None
+    if "latitudes" in state and "longitudes" in state:
+        geography = {"latitudes": state["latitudes"], "longitudes": state["longitudes"]}
+
     fields = [
         field_from_grib_keys(
             values,
             typed_variables[name].grib_keys,
             name=name,
             valid_datetime=state["date"],
+            geography=geography,
             labels=state_labels,
         )
         for name, values in state["fields"].items()

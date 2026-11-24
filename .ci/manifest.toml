@@ -4,6 +4,8 @@ repo = "ecmwf/anemoi-inference"
 visibility = "public"
 fork-pull-requests = true
 compiler-inputs = []
+ci-pre-commit = false
+full-history = true
 
 [[deps]]
 repo = "ecmwf/anemoi-utils"
