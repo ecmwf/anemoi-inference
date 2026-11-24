@@ -19,7 +19,7 @@ N_TIME_IN, N_TIME_OUT, N_GRID = 2, 1, 5
 INPUTS = ["2t", "msl", "lsm"]
 OUTPUTS = ["2t", "msl", "tp"]
 
-RICHER_BATCH_LAYOUT = ("time", "ensemble", "grid", "variables")
+GRIDDED_SAMPLE_LAYOUT = ("time", "ensemble", "grid", "variables")
 
 
 class LayoutModel:
@@ -75,9 +75,9 @@ def test_payload():
     assert torch.equal(
         x["data"]["values"], tensors["data"][0].unsqueeze(1)
     )  # tensor passed to the model has batch dimension removed, and ensemble dimension added
-    assert x["data"]["layout"] == RICHER_BATCH_LAYOUT
+    assert x["data"]["layout"] == GRIDDED_SAMPLE_LAYOUT
     assert x["data"]["variables"] == INPUTS and x["data"]["data_type"] == "gridded"
-    assert template["data"]["layout"] == RICHER_BATCH_LAYOUT
+    assert template["data"]["layout"] == GRIDDED_SAMPLE_LAYOUT
     assert template["data"]["variables"] == OUTPUTS
     assert "latitudes" in template["data"]
     assert "longitudes" in template["data"]
