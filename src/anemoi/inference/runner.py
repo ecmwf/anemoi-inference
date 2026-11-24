@@ -426,8 +426,8 @@ class Runner(Context):
         output = {}
         for dataset, batch in richer_batch_output.items():
             tensor = batch["values"]
-            assert tensor.ndim == 4, (
-                f"[{dataset}] Expected output tensor (time, ensemble, grid, variables), got {tensor.shape}"
+            assert tensor.ndim == len(target_template[dataset]["layout"]), (
+                f"[{dataset}] Expected output tensor shape {target_template[dataset]['layout']}, got {tensor.shape}"
             )
             assert tensor.shape[1] == 1, f"[{dataset}] Expected ensemble size 1, got {tensor.shape[1]}"
             # restore batch dimension expected by the runner: (batch=1, time, ensemble, grid, variables)
