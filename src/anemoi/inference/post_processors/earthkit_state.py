@@ -13,8 +13,10 @@
 import datetime
 import logging
 from collections.abc import Callable
+from typing import Any
 
 import earthkit.data as ekd
+import numpy as np
 from anemoi.transform.variables import Variable
 
 from anemoi.inference.fields import LABEL_TYPES
@@ -46,10 +48,15 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
     # wrapped in a flat metadata dictionary.
     state_labels = {k: v for k, v in state.items() if isinstance(v, LABEL_TYPES)}
 
-    # The grid of the state, so grid-dependent anemoi-transform filters (e.g. night_mask) work on the fields
-    geography = None
-    if "latitudes" in state and "longitudes" in state:
-        geography = {"latitudes": state["latitudes"], "longitudes": state["longitudes"]}
+    # The grid of the state, so grid-dependent anemoi-transform filters (e.g. night_mask) work on the fields.
+    # earthkit-data checks it against the values, so it is only given to fields holding one value per grid
+    # point (not to fields holding several input steps).
+    latitudes, longitudes = state.get("latitudes"), state.get("longitudes")
+
+    def geography(values: Any) -> dict[str, Any] | None:
+        if latitudes is None or longitudes is None or np.size(values) != np.size(latitudes):
+            return None
+        return {"latitudes": latitudes, "longitudes": longitudes}
 
     fields = [
         field_from_grib_keys(
@@ -57,7 +64,7 @@ def wrap_state(state: State, typed_variables: dict[str, Variable]) -> ekd.FieldL
             typed_variables[name].grib_keys,
             name=name,
             valid_datetime=state["date"],
-            geography=geography,
+            geography=geography(values),
             labels=state_labels,
         )
         for name, values in state["fields"].items()

@@ -28,3 +28,19 @@ def test_wrapped_state_fields_expose_valid_datetime_and_grid() -> None:
     lats, lons = field.geography.latlons()
     assert lats.tolist() == lat.tolist()
     assert lons.tolist() == lon.tolist()
+
+
+def test_wrapped_state_fields_with_several_steps_have_no_grid() -> None:
+    """Fields holding several input steps do not match the grid, so they are wrapped without it."""
+    lat = np.array([0.0, 10.0, 20.0])
+    lon = np.array([0.0, 90.0, 180.0])
+    state = {
+        "date": datetime.datetime(2016, 9, 22, 19),
+        "latitudes": lat,
+        "longitudes": lon,
+        "fields": {"2t": np.zeros((2, 3), dtype=np.float32)},
+    }
+
+    field = wrap_state(state, {"2t": SimpleNamespace(grib_keys={"param": "2t"})})[0]
+
+    assert field.to_numpy().shape == (2, 3)
