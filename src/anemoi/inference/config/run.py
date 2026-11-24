@@ -80,6 +80,11 @@ class RunConfiguration(Configuration):
     The seed is logged at start-up.
     """
 
+    deterministic: bool = False
+    """If True, run the model with deterministic algorithms only, so that each run gives the same output.
+    If `seed` is not provided, the seed is 42.
+    """
+
     allow_nans: bool | None = None
     """
     - If None (default), the model will check for NaNs in the input. If NaNs are found, the model issue a warning and `allow_nans` to True.
