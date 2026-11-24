@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.14.2](https://github.com/ecmwf/anemoi-inference/compare/0.14.1...0.14.2) (2026-11-24)
+
+
+### Features
+
+* **metadata:** Deprecate grid_indices support ([#657](https://github.com/ecmwf/anemoi-inference/issues/657)) ([a43855a](https://github.com/ecmwf/anemoi-inference/commit/a43855a04eae6e3a65943b4ad866dfc5bb1a6ed5))
+* **runner:** Add an option to run bit-reproducible inference ([#660](https://github.com/ecmwf/anemoi-inference/issues/660)) ([2882307](https://github.com/ecmwf/anemoi-inference/commit/2882307d573a272d824a7bfd93210b4748f08eb2))
+* **temporal_downscaler:** Option to write intermediate input steps in temporal downscaler ([#655](https://github.com/ecmwf/anemoi-inference/issues/655)) ([a52c406](https://github.com/ecmwf/anemoi-inference/commit/a52c406ddfb8b9bc28eb564d5c2cde2ccb312ce4))
+
+
+### Bug Fixes
+
+* **outputs/zarr:** Better handling of time estimate for temporal downscaler ([#658](https://github.com/ecmwf/anemoi-inference/issues/658)) ([5b32ad6](https://github.com/ecmwf/anemoi-inference/commit/5b32ad6399db9e9a820a1b053ab70fe1e6e43efd))
+* **post-processors:** Include coords and dates in wrapped state ([#663](https://github.com/ecmwf/anemoi-inference/issues/663)) ([09c9c8f](https://github.com/ecmwf/anemoi-inference/commit/09c9c8fc96f74912c0c492add23073fda901eed6))
+* **templates:** Log template summary variables as strings ([#666](https://github.com/ecmwf/anemoi-inference/issues/666)) ([d1df717](https://github.com/ecmwf/anemoi-inference/commit/d1df7172f1c35e9ff1fb877231f5693b445d04e5))
+
 ## [0.14.1](https://github.com/ecmwf/anemoi-inference/compare/0.14.0...0.14.1) (2026-11-11)
 
 
