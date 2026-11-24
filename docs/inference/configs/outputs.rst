@@ -264,6 +264,8 @@ The plot output supports all common parameters including ``variables``,
 The ``variables`` parameter is particularly useful for the plot output to
 limit which fields are visualised.
 
+.. _raw-output:
+
 *****
  raw
 *****
@@ -278,6 +280,18 @@ the given directory.
 
    The raw output is useful for debugging and testing purposes. If it is
    proven useful, it can be developed further.
+
+Next to the ``npz`` files, the output writes a ``manifest.json``
+describing them, which the :ref:`raw input <raw-input>` uses to read
+them back. While the run is in progress the manifest is named
+``manifest.json.part``, and it is renamed to ``manifest.json`` once the
+run has finished normally. The manifest is rewritten at the start of
+each run, so a directory can be reused. Each file is written under a temporary name
+and renamed when complete, so a reader never sees a partial file.
+
+The files are compressed by default. Compression is slow for large
+states; set ``compressed: false`` when the files are read back soon
+after, for example by a second model.
 
 The raw output supports all common parameters including ``variables``,
 ``post_processors``, ``output_frequency``, and ``write_initial_state``.
