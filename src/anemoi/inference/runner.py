@@ -103,7 +103,6 @@ class Runner(Context):
         else:
             seed = torch.initial_seed()
         torch.manual_seed(seed)
-        np.random.seed(seed)
 
         LOG.info(f"Using {self.__class__.__name__} runner, device={self.device}, seed={seed}")
 
