@@ -1,6 +1,14 @@
+.. _top-level:
+
 ###################
  Top-level options
 ###################
+
+.. tip::
+
+   All top-level options, with their defaults, are listed in the
+   `configuration reference <../../config-reference/index.html#/config/run>`__,
+   where the builder can also assemble a ``config.yaml`` for you.
 
 ***********
  Inference
@@ -38,43 +46,16 @@ The ``runner`` option selects the inference runner. The default is
 
    runner: auto
 
-Available runners:
+The available runners and their options are listed in the
+`configuration reference <../../config-reference/index.html#/runners>`__.
+The ``external-graph`` and ``parallel`` runners have their own guides:
+:ref:`external-graph` and :ref:`parallel-inference`.
 
-auto
-----
-
-Automatically selects the runner from the ``task`` entry in the
-checkpoint metadata. This is the default runner.
-
-forecaster
-----------
-
-Runs the checkpoint model as-is. This is the standard runner for
-production forecasts.
-
-no-model
---------
-
-Replaces the checkpoint model with a dummy, which can be configured to use all-ones, no-modification, or hash-update data predict steps. This
-is intended for testing pipelines (processors, inputs, outputs) without
-running a real model. It defaults to all-ones.
-
-external-graph
---------------
-
-Runs inference using an external graph. See
-:ref:`external-graph` for full documentation.
-
-parallel
---------
-
-Distributes the model across multiple devices. See
-:ref:`parallel-inference` for full documentation.
-
-temporal-downscaler
--------------------
-
-Runs a specific trained temporal downscaler model.
+The ``no-model`` runner is for testing only and is not listed in the
+reference. It replaces the checkpoint model with a dummy, which can be
+configured to use all-ones, no-modification, or hash-update data predict
+steps. This is intended for testing pipelines (processors, inputs,
+outputs) without running a real model. It defaults to all-ones.
 
 device:
 =======

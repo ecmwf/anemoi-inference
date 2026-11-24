@@ -11,8 +11,8 @@ want to use live data to initialise the model.
 .. note::
 
    Further details of the inputs available can be found in the
-   :ref:`inputs module <modules-inputs>` and :ref:`input config
-   <inputs>` documentation.
+   :ref:`input config <inputs>` documentation and the
+   :ref:`configuration reference <config-reference>`.
 
 *************
  Local files
@@ -68,6 +68,6 @@ Currently, ``anemoi-inference`` supports the Copernicus Data Store
 
    - :ref:`usage-quickstart` - Quickstart guide with basic input examples
    - :ref:`inputs` - Input configuration reference
-   - :ref:`modules-inputs` - Input modules API documentation
+   - :ref:`config-reference` - Every input and its options
    - :ref:`retrieve-command` - Generate data retrieval requests
    - :ref:`usage-advanced-saving` - Output configuration options

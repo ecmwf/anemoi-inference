@@ -1,0 +1,13 @@
+# Plot the LAM domain only
+#
+# Extract the `lam_0` domain of a nested grid forecast made with the `cutout` input.
+checkpoint: /path/to/checkpoint.ckpt
+output:
+  plot:
+    dir: /path/to/lam-plots
+    format: png
+    variables:
+      - 2t
+      - msl
+    post_processors:
+      - extract_from_state: lam_0

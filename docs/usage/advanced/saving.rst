@@ -11,8 +11,8 @@ to file.
 .. note::
 
    Further details of the outputs available can be found in the
-   :ref:`outputs module <modules-outputs>` and :ref:`output config
-   <outputs>` documentation.
+   :ref:`output config <outputs>` documentation and the
+   :ref:`configuration reference <config-reference>`.
 
 ****************
  Output formats
@@ -41,5 +41,5 @@ To save to NETCDF for example, you can use:
    - :ref:`usage-quickstart` - Quickstart guide
    - :ref:`outputs` - Output configuration reference
    - :ref:`grib-output` - GRIB output encoding details
-   - :ref:`modules-outputs` - Output modules API documentation
+   - :ref:`config-reference` - Every output and its options
    - :ref:`usage-advanced-sources` - Input data sources

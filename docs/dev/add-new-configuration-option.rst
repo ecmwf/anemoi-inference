@@ -93,8 +93,7 @@ with the keyword argument on the class:
    output = NetCDFOutput(path='output.nc', float_size='f4')
 
 Note: due to the registry pattern, this is not written anywhere in the
-code, but instead built using ``outputs/__init__.py::create_output()``
-(see :ref:`modules-outputs`).
+code, but instead built using ``outputs/__init__.py::create_output()``.
 
 In order to add a new configuration option, simply add a new keyword
 argument to the class:
@@ -125,7 +124,10 @@ argument to the class:
 Notice the type-hint, which follows our :ref:`contributing guide
 <dev-contributing>`. As this is user-inputted, make sure to validate the
 input and throw an error if it isn't what you're expecting. Add the new
-variable to the docstring of the class and user documentation.
+variable to the docstring of the class and user documentation, then run
+``python docs/config_reference/refgen.py generate`` to update the
+:ref:`configuration reference <config-reference>` (see
+``docs/config_reference/README.md``).
 
 .. code:: yaml
 

@@ -1,3 +1,7 @@
+# Write every other grid point
+#
+# Only the Zarr output receives the sliced state.
+checkpoint: /path/to/checkpoint.ckpt
 output:
   zarr:
     store: path/to/zarr/store.zarr

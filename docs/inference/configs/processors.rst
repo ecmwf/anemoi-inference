@@ -4,6 +4,14 @@
  Processors
 ############
 
+.. tip::
+
+   Every pre- and post-processor and its options are listed in the
+   configuration reference (`pre-processors
+   <../../config-reference/index.html#/pre_processors>`__, `post-processors
+   <../../config-reference/index.html#/post_processors>`__), where the
+   builder can also add them to a ``config.yaml``.
+
 ################
  Pre-processors
 ################
@@ -23,10 +31,18 @@ no_missing_values
 
 Replaces NaNs with the mean.
 
+See `no_missing_values
+<../../config-reference/index.html#/pre_processors/no-missing-values>`__
+in the configuration reference for all options.
+
 forward_transform_filter
 ========================
 
 Applies a filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
+
+See `forward_transform_filter
+<../../config-reference/index.html#/pre_processors/forward-transform-filter>`__
+in the configuration reference for all options.
 
 Either the name of the filter can be provided as a string or a dictionary with the filter name as the key and the filter arguments as the value. For example:
 
@@ -34,6 +50,7 @@ Either the name of the filter can be provided as a string or a dictionary with t
 
    pre_processors:
      - forward_transform_filter: cos_sin_mean_wave_direction
+
 or
 
 .. code:: yaml
@@ -46,13 +63,24 @@ or
 
 
 extract_slice & extract_mask
-==============================
+============================
+
 Extracts a subset of points using a slice or a boolean mask.
+
+See `extract_slice
+<../../config-reference/index.html#/pre_processors/extract-slice>`__ and
+`extract_mask
+<../../config-reference/index.html#/pre_processors/extract-mask>`__ in
+the configuration reference for all options.
 
 coordinate_reorder
 ==================
 
 Reorders the input state onto the model grid point ordering.
+
+See `coordinate_reorder
+<../../config-reference/index.html#/pre_processors/coordinate-reorder>`__
+in the configuration reference for all options.
 
 Some inputs store the *same* physical grid as the model but in a
 different point order -- for example longitude rows rolled to start at a
@@ -141,9 +169,9 @@ post-processors. Any ``Processor`` registered with the
 ``mid_processor_registry`` can be referenced by name in the
 configuration.
 
-**************************
+****************************
  Configuring mid-processors
-**************************
+****************************
 
 List mid-processors under the ``mid_processors`` key:
 
@@ -160,6 +188,7 @@ For multi-dataset runs, per-dataset mid-processors can be specified in
 the same way as pre- and post-processors:
 
 .. code:: yaml
+
    mid_processors:
      dataset_0:
        - my_mid_processor
@@ -182,8 +211,11 @@ output-level ones.
 accumulate_from_start_of_forecast
 =================================
 
-Accumulate fields from zero and return the accumulated fields. .. code::
-yaml
+Accumulate fields from zero and return the accumulated fields.
+
+See `accumulate_from_start_of_forecast
+<../../config-reference/index.html#/post_processors/accumulate-from-start-of-forecast>`__
+in the configuration reference for all options.
 
 .. code:: yaml
 
@@ -206,24 +238,32 @@ backward_transform_filter
 
 Applies a backward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
 
+See `backward_transform_filter
+<../../config-reference/index.html#/post_processors/backward-transform-filter>`__
+in the configuration reference for all options.
+
 .. code:: yaml
 
    post_processors:
      - backward_transform_filter:
          ANY_TRANSFORM_FILTER:
-            **ARGUMENTS
+           argument: value
 
 forward_transform_filter
 =========================
 
 Applies a forward transform filter from :ref:`anemoi-transform <anemoi-transform:list-of-filters>`.
 
+See `forward_transform_filter
+<../../config-reference/index.html#/post_processors/forward-transform-filter>`__
+in the configuration reference for all options.
+
 .. code:: yaml
 
    post_processors:
      - forward_transform_filter:
          ANY_TRANSFORM_FILTER:
-            **ARGUMENTS
+           argument: value
 
 Extractors and Masking
 ======================
@@ -238,6 +278,10 @@ Extracts a subset of points using a boolean mask. The mask can be either
 the name of a supporting array in the checkpoint or a path to an ``.npy``
 file containing the boolean mask.
 
+See `extract_mask
+<../../config-reference/index.html#/post_processors/extract-mask>`__ in
+the configuration reference for all options.
+
 .. code:: yaml
 
    post_processors:
@@ -248,6 +292,10 @@ extract_slice
 
 Extracts a subset of points using a slice. Provide slice arguments as a list
 ``[start, stop, step]``. Use ``null`` for default values.
+
+See `extract_slice
+<../../config-reference/index.html#/post_processors/extract-slice>`__ in
+the configuration reference for all options.
 
 .. code:: yaml
 
@@ -260,6 +308,10 @@ extract_from_state
 Extracts a subset of points based on masks included in the state. Must be
 used with the ``Cutout`` input. This is particularly useful for extracting
 Limited Area Model (LAM) domains from nested grid forecasts.
+
+See `extract_from_state
+<../../config-reference/index.html#/post_processors/extract-from-state>`__
+in the configuration reference for all options.
 
 .. code:: yaml
 
@@ -277,6 +329,10 @@ Assigns the state to a larger array using a mask. This is the opposite of
 to a portion of a larger area. Areas not covered by the mask are filled
 with a specified value (NaN by default).
 
+See `assign_mask
+<../../config-reference/index.html#/post_processors/assign-mask>`__ in
+the configuration reference for all options.
+
 .. code:: yaml
 
    post_processors:
@@ -290,6 +346,10 @@ undo_coordinate_reorder
 Is the inverse of the ``coordinate_reorder`` pre-processor, which reorders the coordinates of the input state to match the model grid.
 This should only be used if the coordinates of the input state have been reordered by the corresponding pre-processor.
 This restores the original coordinate order of the state.
+
+See `undo_coordinate_reorder
+<../../config-reference/index.html#/post_processors/undo-coordinate-reorder>`__
+in the configuration reference for all options.
 
 .. code:: yaml
 

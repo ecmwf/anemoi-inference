@@ -130,7 +130,7 @@ By default, the following arguments are passed to the check function:
 The default values of ``file`` and ``expected_variables`` can be overridden in the config as needed.
 
 Multi-dataset support
-=================
+=====================
 
 For checkpoints with more than one dataset, the input and output entries need to be specified separately for each dataset.
 This is done by setting the ``input`` and ``output`` entries in the config as dicts keyed by dataset name. For example:

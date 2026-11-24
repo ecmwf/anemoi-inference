@@ -28,7 +28,7 @@ python docs/config_reference/refgen.py build -o out  # write out/index.html
 python docs/config_reference/refgen.py introspect outputs grib   # what the code says about one component
 ```
 
-`tests/unit/test_config_reference.py` runs the same checks. It also fails if `generate` would change any file.
+`tests/unit/test_docs.py` runs the same checks. It also fails if `generate` would change any file.
 
 ## Workflow
 
@@ -73,10 +73,6 @@ notes: Markdown.
 see_also: [outputs/tee]
 ```
 
-The page logic test in `test_config_reference.py` runs `tests/unit/config_reference_page.js` under Node.js. It
-renders every route, adds every component, option and example to the builder, and parses the builder's YAML back
-with PyYAML. It is skipped unless `node` is on `PATH` or `ANEMOI_NODE` points to a Node binary.
-
 ## Sphinx and Read the Docs
 
 The page is built with the Sphinx docs and needs no extra steps on Read the Docs.
@@ -97,5 +93,5 @@ Read the Docs installs the package with the `docs` extra, so `refgen.py` can imp
 dependencies are `pyyaml` and `pygments`, which Sphinx already pulls in. If a component's module fails to import,
 the page still builds, but the CI checks report the failure.
 
-Still to do: link to the page from `inputs.rst`, `outputs.rst` and `processors.rst`, then remove their duplicated
-option lists and the autodoc pages for the component classes.
+The user guide pages for top-level options, inputs, outputs, processors, GRIB output and parallel inference link to
+the matching section or component with relative hash links such as `../../config-reference/index.html#/outputs/grib`.

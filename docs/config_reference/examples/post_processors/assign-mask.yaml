@@ -1,3 +1,7 @@
+# Write the masked region into the full grid
+#
+# Points outside `source0/trimedge_mask` are filled with NaN.
+checkpoint: /path/to/checkpoint.ckpt
 output:
   grib:
     path: /path/to/output.grib

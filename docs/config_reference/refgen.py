@@ -1131,11 +1131,29 @@ def generate(write: bool) -> list[str]:
             if name in excluded:
                 continue
             spec = find_spec(load_specs(), kind, name)
-            if spec is not None and spec.get("status") in CURATED:
+            # Only drafts are regenerated. Curated specs and unknown statuses (typos) are reported by check_curated.
+            if spec is not None and spec.get("status", "draft") != "draft":
                 continue
             stem = Path(spec["_path"]).stem if spec else name
             put(COMPONENTS_DIR / kind / f"{stem}.yaml", skeleton(kind, name, stem))
     return changes
+
+
+def check_curated() -> list[str]:
+    """Check the specs that :func:`generate` leaves alone (curated, or with an unknown status) against the code.
+
+    Returns
+    -------
+    list[str]
+        Problems found, each prefixed with the spec's status.
+    """
+    specs = load_specs()
+    problems = []
+    for kind, entries in specs.items():
+        for key, spec in entries.items():
+            if not key.startswith("_") and spec.get("status", "draft") != "draft":
+                problems += [f"({spec['status']}) {p}" for p in check_spec(kind, key, specs)]
+    return problems
 
 
 # ---------------------------------------------------------------------------
@@ -1463,6 +1481,11 @@ def main(argv: list[str] | None = None) -> int:
         changes = generate(write=not args.check)
         for c in changes:
             print(c)
+        stale = check_curated()
+        if stale:
+            print("Curated specs not regenerated; update them by hand:", file=sys.stderr)
+            for p in stale:
+                print(f"  {p}", file=sys.stderr)
         if args.check and changes:
             print("Out of date: run `refgen.py generate`", file=sys.stderr)
             return 1

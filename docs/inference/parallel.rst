@@ -58,7 +58,9 @@ torchrun), a minimal configuration is sufficient:
 Supported Cluster Types
 =======================
 
-The following cluster types are automatically detected:
+The following cluster types are automatically detected. The options of
+each cluster are listed in the `configuration reference
+<../config-reference/index.html#/clusters>`__.
 
 .. list-table::
    :header-rows: 1

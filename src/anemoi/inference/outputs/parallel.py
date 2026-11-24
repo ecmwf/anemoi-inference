@@ -387,11 +387,11 @@ class ParallelOutput(Output):
         output : Output | Any | None
             The inner output (or its config dict) that will be forked into
             writer processes.
-        num_writers: int = 1,
+        num_writers : int, default=1
             Number of writer processes to spawn.
             Must be >= 1.
             Defaults to 1 (single output file, asynchronous writes).
-        worker_timeout: int = 300,
+        worker_timeout : int, default=300
             Timeout in seconds for a worker to exit, set to -1 to allow indefinite waiting.
             Must be >= -1.
             Defaults to 300 seconds.
@@ -400,8 +400,9 @@ class ParallelOutput(Output):
             Can be a string (one of "by_size", "by_metadata", "by_worker") or a dictionary
             with a single key being the strategy name and the value being a dictionary of
             keyword arguments for that strategy.
+
             - `by_worker` (default), splits the fields into exactly `num_writers` contiguous
-                chunks of roughly equal size, one per writer. No additional arguments are needed.
+              chunks of roughly equal size, one per writer. No additional arguments are needed.
             - `by_size`, requires an additional argument `fields_per_chunk` specifying the number of fields per chunk.
             - `by_metadata`, requires an additional argument `keys` specifying a list of metadata keys to keep in a chunk.
         **kwargs : Any

@@ -4,6 +4,12 @@
  Inputs
 ########
 
+.. tip::
+
+   Every input and its options are listed in the
+   `configuration reference <../../config-reference/index.html#/inputs>`__,
+   where the builder can also add them to a ``config.yaml``.
+
 The input methods listed below are used to fetch the initial conditions
 (prognostic variables) of a model run. They will also be the source of
 constant and dynamic forcings unless ``constant_forcings`` or
@@ -18,6 +24,12 @@ You can use the dataset that was used during training as input. It can
 be ``test``, ``training`` or ``validation``, corresponding to the
 entries given during training as ``dataloader.test``,
 ``dataloader.training`` and ``dataloader.validation`` respectively.
+
+See `test <../../config-reference/index.html#/inputs/test>`__, `training
+<../../config-reference/index.html#/inputs/training>`__, `validation
+<../../config-reference/index.html#/inputs/validation>`__ and `dataset
+<../../config-reference/index.html#/inputs/dataset>`__ in the
+configuration reference for all options.
 
 .. literalinclude:: yaml/inputs_1.yaml
    :language: yaml
@@ -67,6 +79,9 @@ being the date specified in the config, the base_date.
 
 You can specify the input as ``grib`` to read the data from a GRIB file.
 
+See `grib <../../config-reference/index.html#/inputs/grib>`__ in the
+configuration reference for all options.
+
 .. literalinclude:: yaml/inputs_4.yaml
    :language: yaml
 
@@ -79,6 +94,9 @@ For more options, see :ref:`grib-input`.
 You can specify the input as ``netcdf`` to read the data from a NetCDF
 file.
 
+See `netcdf <../../config-reference/index.html#/inputs/netcdf>`__ in the
+configuration reference for all options.
+
 .. literalinclude:: yaml/inputs_5.yaml
    :language: yaml
 
@@ -88,20 +106,20 @@ file.
    GRIB input, i.e. with a flattened values dimension (..., values), and
    variable names that match what the checkpoint was trained on.
 
-   ```text
-   <xarray.Dataset> Size: 165MB
-   Dimensions:    (date: X, values: 542080)
-   Coordinates:
-     * date       (date) ....
-       latitude   (values) float64 4MB ...
-       longitude  (values) float64 4MB ...
-   Dimensions without coordinates: values
-   Data variables:
-       10u        (date, values) float64 39MB ...
-       10v        (date, values) float64 39MB ...
-       2t         (date, values) float64 39MB ...
-       ...
-   ```
+   .. code:: text
+
+      <xarray.Dataset> Size: 165MB
+      Dimensions:    (date: X, values: 542080)
+      Coordinates:
+        * date       (date) ....
+          latitude   (values) float64 4MB ...
+          longitude  (values) float64 4MB ...
+      Dimensions without coordinates: values
+      Data variables:
+          10u        (date, values) float64 39MB ...
+          10v        (date, values) float64 39MB ...
+          2t         (date, values) float64 39MB ...
+          ...
 
 
    For context, using ``earthkit-data`` a grib file can be exported as
@@ -129,6 +147,9 @@ You can specify the input as ``opendap`` to read the data from a remote
 `OpenDAP <https://www.opendap.org/>`_ server, such as a `THREDDS Data
 Server <https://www.unidata.ucar.edu/software/tds/>`_. Under the hood
 this uses `earthkit-data`'s ``opendap`` source.
+
+See `opendap <../../config-reference/index.html#/inputs/opendap>`__ in
+the configuration reference for all options.
 
 .. literalinclude:: yaml/inputs_opendap_1.yaml
    :language: yaml
@@ -165,6 +186,9 @@ You can also specify the input as ``mars`` to read the data from ECMWF's
 MARS archive. This requires the `ecmwf-api-client` package to be
 installed, and the user to have an ECMWF account.
 
+See `mars <../../config-reference/index.html#/inputs/mars>`__ in the
+configuration reference for all options.
+
 .. literalinclude:: yaml/inputs_6.yaml
    :language: yaml
 
@@ -186,6 +210,9 @@ You can also specify the input as ``cds`` to read the data from the
 `Climate Data Store <https://cds.climate.copernicus.eu/>`_. This
 requires the `cdsapi` package to be installed, and the user to have a
 CDS account.
+
+See `cds <../../config-reference/index.html#/inputs/cds>`__ in the
+configuration reference for all options.
 
 .. literalinclude:: yaml/inputs_8.yaml
    :language: yaml
@@ -227,6 +254,9 @@ sources determines the nesting order. The first source is the innermost
 domain, and the last source is the outermost, global domain,
 consistently with what is done in ``anemoi-datasets``, see `here
 <https://anemoi.readthedocs.io/projects/datasets/en/latest/using/combining.html#cutout>`_.
+
+See `cutout <../../config-reference/index.html#/inputs/cutout>`__ in the
+configuration reference for all options.
 
 .. warning::
 
