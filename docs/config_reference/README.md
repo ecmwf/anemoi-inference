@@ -4,22 +4,25 @@ A static HTML page that documents every key of an anemoi-inference run configura
 assemble a `config.yaml` and download it. The page is generated from the YAML files in this directory.
 
 ```
-index.yaml                       kinds, their registries, and hints for the generator
+index.yaml                       page title, kinds, their registries, and hints for the generator
 components/<kind>/<name>.yaml    one spec per component (fields, short form, notes)
 components/<kind>/_<set>.yaml    fields shared by several components (via `inherits`)
 components/config/run.yaml       top-level keys
 examples/<kind>/*.yaml           hand-written, complete run configurations
-examples/<kind>/generated/*.yaml minimal examples generated from the code
-site/                            page template, CSS and JS
+site/                            page template, CSS and JS, identical in every anemoi package
 refgen.py                        generator, checker and builder
 ```
+
+Other anemoi packages use the same layout, formats and page. Neither `refgen.py` nor `site/` needs to be read to
+document a component: edit the YAML files. Changes to `site/` must be copied to every package that has a
+`docs/config_reference/`.
 
 ## Commands
 
 Run from the package root with the development environment:
 
 ```bash
-python docs/config_reference/refgen.py generate      # refresh draft specs and generated examples from the code
+python docs/config_reference/refgen.py generate      # refresh draft specs from the code
 python docs/config_reference/refgen.py check         # compare specs and examples with the code
 python docs/config_reference/refgen.py build -o out  # write out/index.html
 python docs/config_reference/refgen.py introspect outputs grib   # what the code says about one component
@@ -36,10 +39,12 @@ python docs/config_reference/refgen.py introspect outputs grib   # what the code
   drift from the code, and it requires a description for every field. The page shows a badge for `draft` and
   `AI-reviewed` specs.
 - **Examples:** add a complete configuration under `examples/<kind>/`. The first comment line is the title and the
-  following comment lines are the description. Once a hand-written example uses a component, its generated
-  example is removed.
+  following comment lines are the description. Components without an example show only their minimal
+  configuration.
 - **Fields that take other components:** add them to `field_refs` in `index.yaml`, so the page links them and the
   checker validates their contents.
+- **Where components go:** a kind's `slot` (top-level key) or `path` in `index.yaml` tells the builder where to put
+  them. `path` segments alternate key and component name, and `[]` marks a list: `output.grib.templates[]`.
 
 ## Spec format
 
@@ -63,7 +68,7 @@ fields:
     per_dataset: true       # may be keyed by dataset name
 hidden: [purpose]           # constructor parameters that are not user-facing
 extra_fields: Markdown describing what unknown keys do, when the code accepts them.
-aliases: [old-name]         # deprecated registry aliases
+aliases: [old-name]         # registry aliases
 notes: Markdown.
 see_also: [outputs/tee]
 ```
@@ -85,7 +90,7 @@ The page is built with the Sphinx docs and needs no extra steps on Read the Docs
 The page is one self-contained file with relative hash links. It works from `file://`, from any static host and
 under a Read the Docs version prefix.
 
-To build locally, run `sphinx-build -b html docs docs/_build/html` from the package root, then open
+To build locally, run the normal sphinx build command, then open
 `docs/_build/html/config-reference/index.html`.
 
 Read the Docs installs the package with the `docs` extra, so `refgen.py` can import the registries. Its only other

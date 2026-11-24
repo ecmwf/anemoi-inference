@@ -1,3 +1,11 @@
+# Page identity. `package` is the distribution name, used for the version and browser storage. Optional
+# `validate_command` is suggested by the builder for a full check of the downloaded file.
+page:
+  package: anemoi-inference
+  title: Inference configuration reference
+  description: What every key of an anemoi-inference run configuration accepts, with examples and a configuration builder.
+  config_file: config.yaml
+
 intro: |
   An anemoi-inference run is described by one YAML file. Pick a section on the left to see what each key
   accepts, then use **Add to config** to assemble a configuration and download it.
@@ -21,14 +29,13 @@ field_refs:
   runners/parallel.base_runner: {ref: runners}
   runners/parallel.cluster: {ref: clusters}
 
-# Per kind: `registry` to document, `slot`/`path` where components go in a run configuration, `exclude`d names,
-# `injected` constructor parameters set by anemoi-inference, `hidden` internal parameters, `example_default`
-# component used to fill required nested fields, and `example_base` added to generated examples.
+# Per kind: `registry` to document, `slot`/`path` where components go in a run configuration (`path` segments
+# alternate key and component name; `[]` marks a list), `exclude`d names, `injected` constructor parameters set
+# by anemoi-inference, and `hidden` internal parameters.
 kinds:
   config:
     title: Top-level options
     summary: Keys at the root of the configuration file.
-    slot: root
 
   runners:
     title: Runners
@@ -36,7 +43,6 @@ kinds:
     registry: anemoi.inference.runners:runner_registry
     slot: runner
     hidden: [classes]
-    example_default: forecaster
     exclude:
       no-model: Testing only. Replaces the model with dummy values.
       simple: Python API only. Not usable from a configuration file.
@@ -47,14 +53,12 @@ kinds:
     registry: anemoi.inference.inputs:input_registry
     slot: input
     hidden: [purpose]
-    example_default: empty
 
   outputs:
     title: Outputs
     summary: Where and how forecasts are written. Set with the top-level `output` key.
     registry: anemoi.inference.outputs:output_registry
     slot: output
-    example_default: printer
 
   pre_processors:
     title: Pre-processors
@@ -82,7 +86,3 @@ kinds:
     registry: anemoi.inference.grib.templates:template_provider_registry
     injected: [manager]
     path: output.grib.templates[]
-    example_base:
-      output:
-        grib:
-          path: forecast.grib

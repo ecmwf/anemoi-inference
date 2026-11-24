@@ -5,12 +5,15 @@
 
 "use strict";
 
-const STORAGE_KEY = "anemoi-inference-config-builder";
+const PAGE = DATA.page;
+const STORAGE_KEY = `${PAGE.package}-config-builder`;
 const KINDS = Object.fromEntries(DATA.kinds.map((k) => [k.id, k]));
 const COMPONENTS = DATA.components;
 const EXAMPLES = Object.fromEntries(DATA.examples.map((e) => [e.id, e]));
-const TOP = COMPONENTS["config/run"];
-const LIST_SLOTS = new Set(["pre_processors", "post_processors"]);
+const TOP = COMPONENTS[DATA.top];
+// Where a kind's components go: `path` segments alternate key and component name, and `[]` marks a list.
+const kindPath = (kind) => (KINDS[kind] ? KINDS[kind].path || KINDS[kind].slot || null : null);
+const LIST_SLOTS = new Set(DATA.kinds.filter((k) => k.slot && kindPath(k.id) === `${k.slot}[]`).map((k) => k.slot));
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) =>
@@ -163,6 +166,33 @@ function looksPerDataset(value, kind) {
   return !(keys.length === 1 && findComponent(kind, keys[0]));
 }
 
+// Place a component at `parts` (from kindPath) inside `holder`, the options of `owner`. Components already on the
+// path are kept; returns an error message if one of them is a different component.
+function placeAt(holder, parts, value, owner, done = []) {
+  const [key, compName, ...rest] = parts;
+  const isList = key.endsWith("[]");
+  const name = isList ? key.slice(0, -2) : key;
+  const where = [...done, name].join(".");
+  if (compName === undefined) {
+    const current = holder[name];
+    holder[name] = isList ? [...(Array.isArray(current) ? current : current ? [current] : []), value] : value;
+    return null;
+  }
+  const field = owner && owner.fields.find((f) => f.name === name);
+  const comp = field && field.ref ? findComponent(field.ref, compName) : null;
+  const current = holder[name];
+  let [cname, opts] = current === undefined || current === null ? [compName, {}] : splitComponent(current, comp);
+  if (!cname || norm(cname) !== norm(compName)) return `Set ${where} to ${compName} first`;
+  opts = { ...opts };
+  const error = placeAt(opts, rest, value, comp, [...done, name, cname]);
+  if (error) return error;
+  holder[name] = { [cname]: opts };
+  return null;
+}
+
+const isUnset = (value, field) =>
+  value === undefined || isPlaceholder(value) || JSON.stringify(value) === JSON.stringify(placeholder(field));
+
 // ---------------------------------------------------------------------------
 // Validation of the builder contents against the documented options
 // ---------------------------------------------------------------------------
@@ -241,8 +271,7 @@ const Builder = {
   },
 
   reset(render = true) {
-    const checkpoint = TOP.fields.find((f) => f.name === "checkpoint");
-    this.config = { checkpoint: checkpoint ? placeholder(checkpoint) : "<checkpoint>" };
+    this.config = Object.fromEntries(TOP.fields.filter((f) => f.required).map((f) => [f.name, placeholder(f)]));
     if (render) this.changed("Builder reset");
   },
 
@@ -263,38 +292,21 @@ const Builder = {
   },
 
   addComponent(comp) {
-    const slot = KINDS[comp.kind].slot;
-    const value = minimalConfig(comp);
-    if (comp.kind === "clusters") {
-      const runner = this.config.runner;
-      const [rname, ropts] = runner ? splitComponent(runner, findComponent("runners", splitComponent(runner)[0] || "")) : [null, {}];
-      const opts = rname === "parallel" ? { ...ropts } : rname && rname !== "auto" ? { base_runner: rname } : {};
-      opts.cluster = value;
-      this.setTop("runner", { parallel: opts });
-      return this.changed(`Set runner.parallel.cluster to ${comp.name}`);
-    }
-    if (comp.kind === "grib_templates") {
-      const out = this.config.output;
-      const [oname, oopts] = out ? splitComponent(out, findComponent("outputs", splitComponent(out)[0] || "")) : [null, null];
-      if (oname !== "grib") return toast("Add a grib output first");
-      const templates = Array.isArray(oopts.templates) ? oopts.templates : oopts.templates ? [oopts.templates] : [];
-      oopts.templates = [...templates, value];
-      this.setTop("output", { grib: oopts });
-      return this.changed(`Added ${comp.name} to output.grib.templates`);
-    }
-    if (!slot) return toast("This component cannot be added directly");
-    if (LIST_SLOTS.has(slot)) {
-      const list = Array.isArray(this.config[slot]) ? this.config[slot] : [];
-      this.setTop(slot, [...list, value]);
-      return this.changed(`Appended ${comp.name} to ${slot}`);
-    }
-    this.setTop(slot, value);
-    this.changed(`Set ${slot} to ${comp.name}`);
+    const path = kindPath(comp.kind);
+    if (!path) return toast("This component cannot be added directly");
+    const parts = path.split(".");
+    const config = { ...this.config };
+    const error = placeAt(config, parts, minimalConfig(comp), TOP);
+    if (error) return toast(error);
+    const key = parts[0].replace(/\[\]$/, "");
+    this.setTop(key, config[key]);
+    const where = path.replace(/\[\]$/, "");
+    this.changed(path.endsWith("[]") ? `Added ${comp.name} to ${where}` : `Set ${where} to ${comp.name}`);
   },
 
   // Add one option to the component already placed in its slot.
   addField(comp, field) {
-    if (comp.kind === "config") {
+    if (comp === TOP) {
       this.setTop(field.name, placeholder(field));
       return this.changed(`Set ${field.name}`);
     }
@@ -335,7 +347,9 @@ const Builder = {
 
   addExample(ex) {
     for (const [key, value] of Object.entries(clone(ex.data))) {
-      if (key === "checkpoint" && this.config.checkpoint && !/^<.*>$|^\/path\/to\//.test(String(this.config.checkpoint))) continue;
+      // Keep required values the user has already filled in.
+      const field = TOP.fields.find((f) => f.name === key && f.required);
+      if (field && !isUnset(this.config[key], field)) continue;
       if (LIST_SLOTS.has(key) && Array.isArray(value) && Array.isArray(this.config[key])) {
         this.setTop(key, [...this.config[key], ...value]);
       } else {
@@ -400,7 +414,9 @@ const Builder = {
     const issues = validate(this.config);
     $("#builder-issues").innerHTML = issues.length
       ? `<ul>${issues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`
-      : `<span class="ok">No problems found by the page. Run <code>anemoi-inference validate</code> for a full check.</span>`;
+      : `<span class="ok">No problems found by the page.${
+          PAGE.validateCommand ? ` Run <code>${esc(PAGE.validateCommand)}</code> for a full check.` : ""
+        }</span>`;
   },
 };
 
@@ -531,9 +547,9 @@ function renderSidebar(filter = "") {
   for (const kind of DATA.kinds) {
     const items = kind.components
       .map((name) => COMPONENTS[`${kind.id}/${name}`])
-      .filter((c) => kind.id !== "config")
+      .filter(() => kind.id !== TOP.kind)
       .filter((c) => !q || matches(c, q));
-    const showKind = !q || items.length || (kind.id === "config" && matches(TOP, q));
+    const showKind = !q || items.length || (kind.id === TOP.kind && matches(TOP, q));
     if (!showKind) continue;
     const active = route === kind.id ? " active" : "";
     parts.push(
@@ -561,7 +577,7 @@ function matches(comp, q) {
 function renderHome() {
   const cards = DATA.kinds
     .map((k) => {
-      const n = k.id === "config" ? `${TOP.fields.length} keys` : `${k.components.length} components`;
+      const n = k.id === TOP.kind ? `${TOP.fields.length} keys` : `${k.components.length} components`;
       return `<a class="card" href="#/${k.id}"><h3>${esc(k.title)}</h3><p>${k.summary}</p><div class="meta">${n}</div></a>`;
     })
     .join("");
@@ -576,7 +592,7 @@ function renderHome() {
 
 function renderKind(kindId) {
   const kind = KINDS[kindId];
-  if (kindId === "config") return renderComponent(TOP, true);
+  if (kindId === TOP.kind) return renderComponent(TOP, true);
   const rows = kind.components
     .map((name) => COMPONENTS[`${kindId}/${name}`])
     .map(
@@ -610,7 +626,7 @@ function statusBadge(comp) {
 function fieldRow(comp, f) {
   const badges = [];
   if (f.required) badges.push('<span class="badge req">required</span>');
-  if (f.perDataset) badges.push('<span class="badge" title="May be given per dataset for multi-dataset checkpoints">per dataset</span>');
+  if (f.perDataset) badges.push('<span class="badge" title="May also be given separately for each dataset">per dataset</span>');
   let type = esc(f.type || "");
   if (f.ref) {
     const what = f.many ? `list of ${kindLink(f.ref)}` : kindLink(f.ref);
@@ -620,7 +636,7 @@ function fieldRow(comp, f) {
   if (f.defaultText) def = `Default: ${esc(f.defaultText)}`;
   else if (f.hasDefault) def = `Default: <code>${esc(toYaml(f.default).trim())}</code>`;
   const choices = f.choices ? `<div class="default">One of: ${f.choices.map((c) => `<code>${esc(c)}</code>`).join(" ")}</div>` : "";
-  const canAdd = comp.kind === "config" || KINDS[comp.kind].slot;
+  const canAdd = comp === TOP || KINDS[comp.kind].slot;
   const add = canAdd
     ? `<div class="add"><button class="btn small" data-add-field="${esc(f.name)}">Add to config</button></div>`
     : "";
@@ -648,7 +664,6 @@ function exampleCard(ex, current) {
         <button class="btn small primary" data-add-example="${esc(ex.id)}">Add to config</button>
       </div></div>
     <div class="desc">${ex.description}</div>
-    ${ex.generated ? '<p class="note">Generated automatically. It may contain errors or be simplistic.</p>' : ""}
     ${ex.html}
     ${tags ? `<div class="tags">Also uses: ${tags}</div>` : ""}
   </div>`;
@@ -663,8 +678,8 @@ function wrapAt(path, value) {
 }
 
 function shortForms(comp) {
-  if (comp.kind === "config") return "";
-  const path = KINDS[comp.kind].path || KINDS[comp.kind].slot || "...";
+  if (comp === TOP) return "";
+  const path = kindPath(comp.kind) || "...";
   const forms = [];
   const minimal = minimalConfig(comp);
   forms.push(toYaml(wrapAt(path, minimal)));
@@ -672,8 +687,7 @@ function shortForms(comp) {
     const f = comp.fields.find((x) => x.name === comp.positional);
     if (f && !f.many) forms.push(toYaml(wrapAt(path, { [comp.name]: placeholder(f) })));
   }
-  const where = "";
-  return `<h2>Minimal configuration</h2>${where}${forms
+  return `<h2>Minimal configuration</h2>${forms
     .map((y) => `<div class="snippet"><pre>${highlightYaml(y)}</pre></div>`)
     .join('<p class="muted" style="margin:6px 0">or, using the short form:</p>')}`;
 }
@@ -689,9 +703,9 @@ function renderComponent(comp, isTop = false) {
       }</summary>${fieldTable(comp, fields)}</details>`
     )
     .join("");
-  const ids = isTop ? DATA.examples.filter((e) => e.id.startsWith("config/")).map((e) => e.id) : comp.examples;
+  const ids = isTop ? DATA.examples.filter((e) => e.id.startsWith(`${TOP.kind}/`)).map((e) => e.id) : comp.examples;
   const examples = ids.map((id) => EXAMPLES[id]).filter(Boolean);
-  const canAdd = !isTop && (KINDS[comp.kind].slot || comp.kind === "clusters" || comp.kind === "grib_templates");
+  const canAdd = !isTop && kindPath(comp.kind);
   const aliases = comp.aliases.length
     ? `<p class="muted">Deprecated names: ${comp.aliases.map((a) => `<code>${esc(a)}</code>`).join(" ")}</p>`
     : "";
@@ -703,7 +717,7 @@ function renderComponent(comp, isTop = false) {
     : "";
   return `
     <div class="crumbs"><a href="#/">Reference</a>${isTop ? "" : ` › ${kindLink(comp.kind)}`}</div>
-    <h1>${isTop ? "Top-level options" : esc(comp.name)}${statusBadge(comp)}</h1>
+    <h1>${isTop ? esc(KINDS[TOP.kind].title) : esc(comp.name)}${statusBadge(comp)}</h1>
     <p class="lead">${comp.summary}</p>
     ${STATUS_NOTES[comp.status] ? `<p class="note">${esc(STATUS_NOTES[comp.status])}</p>` : ""}
     ${aliases}
@@ -715,8 +729,7 @@ function renderComponent(comp, isTop = false) {
     ${inherited}
     ${extra}
     ${comp.notes ? `<h2>Notes</h2><div class="prose">${comp.notes}</div>` : ""}
-    <h2>Examples</h2>
-    ${examples.length ? examples.map((e) => exampleCard(e, comp.id)).join("") : '<p class="muted">No examples yet.</p>'}
+    ${examples.length ? `<h2>Examples</h2>${examples.map((e) => exampleCard(e, comp.id)).join("")}` : ""}
     ${seeAlso}`;
 }
 
@@ -732,7 +745,7 @@ function renderExamples() {
 
 function currentComponent() {
   const [kind, name] = location.hash.slice(2).split("/");
-  if (kind === "config") return TOP;
+  if (kind === TOP.kind) return TOP;
   return name ? COMPONENTS[`${kind}/${decodeURIComponent(name)}`] : null;
 }
 
@@ -830,7 +843,7 @@ $("#builder-add-top").addEventListener("change", (e) => {
 
 $("#builder-toggle").addEventListener("click", () => setBuilderOpen(!document.body.classList.contains("builder-open")));
 $("#builder-close").addEventListener("click", () => setBuilderOpen(false));
-$("#builder-download").addEventListener("click", () => download(Builder.yaml(), "config.yaml"));
+$("#builder-download").addEventListener("click", () => download(Builder.yaml(), PAGE.configFile));
 $("#builder-copy").addEventListener("click", () => copy(Builder.yaml()));
 $("#builder-clear").addEventListener("click", () => Builder.reset());
 $("#nav-toggle").addEventListener("click", () => {

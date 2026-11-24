@@ -29,6 +29,7 @@ import argparse
 import ast
 import html
 import importlib
+import importlib.metadata
 import inspect
 import json
 import math
@@ -215,8 +216,6 @@ class Example:
         Remaining leading comment lines.
     text : str
         The YAML text without the leading comment block.
-    generated : bool
-        Whether the example was generated from the code.
     data : Any
         The parsed YAML.
     """
@@ -226,7 +225,6 @@ class Example:
     description: str
     text: str
     data: Any
-    generated: bool = False
 
 
 def load_examples() -> list[Example]:
@@ -249,8 +247,7 @@ def load_examples() -> list[Example]:
         while lines and not lines[0].strip():
             lines.pop(0)
         title = header[0] if header else path.stem
-        # Lines about how the file was produced are for maintainers, not readers of the page.
-        description = "\n".join(h for h in header[1:] if not h.startswith(GENERATED_MARK[2:])).strip()
+        description = "\n".join(header[1:]).strip()
         examples.append(
             Example(
                 path=str(path.relative_to(EXAMPLES_DIR)),
@@ -258,7 +255,6 @@ def load_examples() -> list[Example]:
                 description=description,
                 text="\n".join(lines) + "\n",
                 data=yaml.safe_load(raw),
-                generated=path.parent.name == "generated",
             )
         )
     return examples
@@ -987,15 +983,8 @@ def check_all() -> list[str]:
     for kind, entries in specs.items():
         for key in entries:
             errors += check_spec(kind, key, specs)
-    used: set[tuple[str, str]] = set()
     for example in load_examples():
-        errs, usages = check_example(example, specs)
-        errors += errs
-        used |= {(u.kind, u.name) for u in usages}
-    for kind, entries in specs.items():
-        for key, spec in entries.items():
-            if kind != TOP_LEVEL_KIND and not key.startswith("_") and (kind, spec["name"]) not in used:
-                errors.append(f"{spec['_path']}: not used by any example")
+        errors += check_example(example, specs)[0]
     return errors
 
 
@@ -1110,93 +1099,10 @@ def skeleton(kind: str, name: str, stem: str | None = None) -> str:
     return header + yaml.dump(spec, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110)
 
 
-def _placeholder(kind: str, name: str, fname: str, f: dict[str, Any], depth: int) -> Any:
-    """Value used for a required field in a generated example."""
-    if f.get("example") is not None:
-        return f["example"]
-    if f.get("ref"):
-        default = load_index()["kinds"][f["ref"]].get("example_default")
-        value = minimal_component(f["ref"], default, depth + 1) if default else f"<{fname}>"
-        return [value] if f.get("many") else value
-    return f"<{fname}>"
-
-
-def minimal_component(kind: str, name: str, depth: int = 0) -> Any:
-    """Smallest configuration of a component: its name, or a mapping of its required fields.
-
-    Parameters
-    ----------
-    kind : str
-        The component kind.
-    name : str
-        The component name.
-    depth : int
-        Recursion depth, to stop on self-referencing components.
-
-    Returns
-    -------
-    Any
-        A component configuration.
-    """
-    specs = load_specs()
-    spec = find_spec(specs, kind, name)
-    if spec is None or depth > 3:
-        return name
-    required = {k: v for k, v in resolve_fields(spec, specs).items() if v.get("required")}
-    if not required:
-        return spec["name"]
-    values = {k: _placeholder(kind, name, k, v, depth) for k, v in required.items()}
-    if len(values) == 1 and spec.get("positional") in values:
-        return {spec["name"]: next(iter(values.values()))}
-    return {spec["name"]: values}
-
-
-def _set_path(config: dict[str, Any], path: str, value: Any) -> None:
-    """Place ``value`` at a dotted path such as ``output.grib.templates[]``, creating mappings as needed."""
-    parts = path.split(".")
-    node = config
-    for part in parts[:-1]:
-        node = node.setdefault(part, {})
-    last = parts[-1]
-    if last.endswith("[]"):
-        node.setdefault(last[:-2], []).append(value)
-    else:
-        node[last] = value
-
-
-def generated_example(kind: str, name: str) -> str:
-    """Generate a minimal example configuration for a component.
-
-    Parameters
-    ----------
-    kind : str
-        The component kind.
-    name : str
-        The component name.
-
-    Returns
-    -------
-    str
-        The YAML text of the example.
-    """
-    meta = load_index()["kinds"][kind]
-    config: dict[str, Any] = {"checkpoint": "/path/to/checkpoint.ckpt"}
-    for key, value in (meta.get("example_base") or {}).items():
-        config[key] = json.loads(json.dumps(value))
-    _set_path(config, meta.get("path") or meta["slot"], minimal_component(kind, name))
-    header = (
-        f"# Minimal `{name}` configuration\n#\n"
-        f"# Replace the values in angle brackets.\n"
-        f"{GENERATED_MARK} from the code. Removed once a hand-written example uses `{name}`.\n"
-    )
-    return header + yaml.dump(config, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110)
-
-
 def generate(write: bool) -> list[str]:
-    """Regenerate draft specs and the generated examples.
+    """Regenerate draft specs from the code.
 
-    A spec is (re)generated when it is missing or has ``status: draft``. A minimal example is generated for each
-    component that no hand-written example uses, under ``examples/<kind>/generated/``.
+    A spec is (re)generated when it is missing or has ``status: draft``.
 
     Parameters
     ----------
@@ -1206,21 +1112,16 @@ def generate(write: bool) -> list[str]:
     Returns
     -------
     list[str]
-        Paths that are (or would be) created, updated or removed.
+        Paths that are (or would be) created or updated.
     """
     index = load_index()
     changes: list[str] = []
 
-    def put(path: Path, text: str | None) -> None:
-        current = path.read_text() if path.exists() else None
-        if current == text:
+    def put(path: Path, text: str) -> None:
+        if path.exists() and path.read_text() == text:
             return
-        changes.append(str(path.relative_to(ROOT)) + (" (remove)" if text is None else ""))
-        if not write:
-            return
-        if text is None:
-            path.unlink()
-        else:
+        changes.append(str(path.relative_to(ROOT)))
+        if write:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text)
 
@@ -1234,29 +1135,6 @@ def generate(write: bool) -> list[str]:
                 continue
             stem = Path(spec["_path"]).stem if spec else name
             put(COMPONENTS_DIR / kind / f"{stem}.yaml", skeleton(kind, name, stem))
-
-    # Planned spec changes must be visible to example generation, so only continue when writing or nothing changed.
-    if changes and not write:
-        return changes + ["examples (regenerate after the specs above)"]
-
-    specs = load_specs()
-    used: set[tuple[str, str]] = set()
-    for ex in load_examples():
-        if "/generated/" not in f"/{ex.path}":
-            _, usages = check_example(ex, specs)
-            used |= {(u.kind, u.name) for u in usages}
-    wanted: dict[Path, str] = {}
-    for kind, entries in specs.items():
-        if kind == TOP_LEVEL_KIND or not index["kinds"][kind].get("registry"):
-            continue
-        for key, spec in entries.items():
-            if not key.startswith("_") and (kind, spec["name"]) not in used:
-                wanted[EXAMPLES_DIR / kind / "generated" / f"{key}.yaml"] = generated_example(kind, spec["name"])
-    for path in sorted(EXAMPLES_DIR.glob("*/generated/*.yaml")):
-        if path not in wanted:
-            put(path, None)
-    for path, text in wanted.items():
-        put(path, text)
     return changes
 
 
@@ -1390,7 +1268,6 @@ def collect_site_data() -> dict[str, Any]:
                 "description": markdown(ex.description),
                 "html": highlight(ex.text),
                 "text": ex.text,
-                "generated": ex.generated,
                 "data": ex.data,
                 "components": ids,
             }
@@ -1453,7 +1330,21 @@ def collect_site_data() -> dict[str, Any]:
                 "components": names,
             }
         )
-    return {"kinds": kinds, "components": components, "examples": example_data, "intro": markdown(index.get("intro"))}
+    page = index.get("page") or {}
+    return {
+        "page": {
+            "package": page["package"],
+            "title": page.get("title", f"{page['package']} configuration reference"),
+            "description": page.get("description", ""),
+            "configFile": page.get("config_file", "config.yaml"),
+            "validateCommand": page.get("validate_command"),
+        },
+        "top": f"{TOP_LEVEL_KIND}/{TOP_LEVEL_NAME}",
+        "kinds": kinds,
+        "components": components,
+        "examples": example_data,
+        "intro": markdown(index.get("intro")),
+    }
 
 
 def build(outdir: Path) -> Path:
@@ -1481,24 +1372,28 @@ def build(outdir: Path) -> Path:
     css += HtmlFormatter(style="github-dark").get_style_defs(":root[data-theme='dark'] .hl")
     js = (SITE_DIR / "app.js").read_text()
     payload = json.dumps(data, default=_json_default, separators=(",", ":")).replace("</", "<\\/")
-    page = (
-        template.replace("/*__CSS__*/", css)
-        .replace("/*__JS__*/", js)
-        .replace('"__DATA__"', payload)
-        .replace("__VERSION__", _version())
-    )
+    meta = data["page"]
+    # Identity first, so placeholders in the CSS, JS or data are never substituted.
+    page = template
+    for key, value in {
+        "__TITLE__": meta["title"],
+        "__DESCRIPTION__": meta["description"],
+        "__PACKAGE__": meta["package"],
+        "__CONFIG_FILE__": meta["configFile"],
+        "__VERSION__": _version(meta["package"]),
+    }.items():
+        page = page.replace(key, html.escape(value))
+    page = page.replace("/*__CSS__*/", css).replace("/*__JS__*/", js).replace('"__DATA__"', payload)
     outdir.mkdir(parents=True, exist_ok=True)
     target = outdir / "index.html"
     target.write_text(page)
     return target
 
 
-def _version() -> str:
+def _version(package: str) -> str:
     try:
-        from anemoi.inference import __version__
-
-        return html.escape(str(__version__))
-    except Exception:  # noqa: BLE001 - the version is informative only
+        return importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
         return "unknown"
 
 
@@ -1528,7 +1423,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("check", help="Check specs and examples against the code.")
 
-    p_gen = sub.add_parser("generate", help="Regenerate draft specs and minimal examples from the code.")
+    p_gen = sub.add_parser("generate", help="Regenerate draft specs from the code.")
     p_gen.add_argument("--check", action="store_true", help="Only report files that are out of date.")
 
     p_skel = sub.add_parser("skeleton", help="Print the spec that would be generated for one component.")

@@ -117,7 +117,7 @@ const checks = `
   // The builder accepts every component, option and example.
   Builder.reset(false);
   for (const c of Object.values(COMPONENTS)) {
-    if (c.kind === "config") continue;
+    if (c === TOP) continue;
     guard("add " + c.id, () => Builder.addComponent(c));
     for (const f of c.fields) guard("add field " + c.id + "." + f.name, () => Builder.addField(c, f));
   }
@@ -130,20 +130,30 @@ const checks = `
   guard("validate", () => validate(Builder.config).join("\\n"));
   guard("form", () => { Builder.render(); return $("#builder-form").innerHTML; });
 
-  // Editing values through the form.
+  // Editing values through the form: required top-level keys, one optional key, and a component's short form.
   Builder.reset(false);
-  Builder.addComponent(COMPONENTS["outputs/grib"] || Object.values(COMPONENTS).find((c) => c.kind === "outputs"));
-  Builder.addField(TOP, TOP.fields.find((f) => f.name === "lead_time"));
+  const slotted = Object.values(COMPONENTS).find(
+    (c) => c !== TOP && KINDS[c.kind].slot && !LIST_SLOTS.has(KINDS[c.kind].slot) && c.fields.some((f) => f.required)
+  );
+  if (slotted) Builder.addComponent(slotted);
+  const optional = TOP.fields.find((f) => !f.required && !f.ref && !f.many && !f.nested);
+  if (optional) Builder.addField(TOP, optional);
   Builder.render();
   const form = $("#builder-form");
   const input = (path, value) => form.listeners.input({ target: { dataset: { path: JSON.stringify(path) }, type: "text", value, classList: { toggle() {} } } });
-  guard("edit checkpoint", () => input(["checkpoint"], "/data/model.ckpt"));
-  guard("edit lead_time", () => input(["lead_time"], "72"));
-  const outKey = Object.keys(Builder.config.output)[0];
-  guard("edit output", () => input(["output", outKey], "out.grib"));
-  const edited = { checkpoint: Builder.config.checkpoint, lead_time: Builder.config.lead_time, output: Builder.config.output };
-  guard("remove", () => Builder.removePath(["lead_time"]));
-  if ("lead_time" in Builder.config) errors.push("removePath did not remove lead_time");
+  for (const f of TOP.fields.filter((x) => x.required && !isPlainObject(Builder.config[x.name]))) {
+    guard("edit " + f.name, () => input([f.name], "/data/value"));
+  }
+  if (optional) guard("edit " + optional.name, () => input([optional.name], "72"));
+  if (slotted && isPlainObject(Builder.config[KINDS[slotted.kind].slot])) {
+    const slot = KINDS[slotted.kind].slot;
+    guard("edit " + slot, () => input([slot, Object.keys(Builder.config[slot])[0]], "value"));
+  }
+  const edited = clone(Builder.config);
+  if (optional) {
+    guard("remove", () => Builder.removePath([optional.name]));
+    if (optional.name in Builder.config) errors.push("removePath did not remove " + optional.name);
+  }
   yamls.push({ data: Builder.config, yaml: Builder.yaml() });
 
   const parse = [
