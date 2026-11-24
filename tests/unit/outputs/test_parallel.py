@@ -292,6 +292,42 @@ class TestDetachTensors:
         assert isinstance(result["values"], np.ndarray)
 
 
+class TestDetachTensorsSnapshot:
+    """``mp.Queue.put`` pickles in a background thread *after* it returns, so arrays must be snapshotted.
+
+    Regression test for hourly accumulated fields (e.g. ``tp``) being written with the values of a
+    later step because the ``Accumulate`` post-processor modifies its buffer in place.
+    """
+
+    def test_numpy_array_is_copied(self):
+        arr = np.arange(5, dtype=np.float32)
+        result = _detach_tensors({"fields": {"tp": arr}})["fields"]["tp"]
+        assert result is not arr
+        assert not np.shares_memory(result, arr)
+        arr += 100  # later in-place modification by the caller must not leak into the snapshot
+        assert list(result) == [0, 1, 2, 3, 4]
+
+    def test_cpu_tensor_does_not_share_memory(self):
+        torch = pytest.importorskip("torch")
+        tensor = torch.arange(5, dtype=torch.float32)
+        result = _detach_tensors(tensor)
+        tensor += 100
+        assert list(result) == [0, 1, 2, 3, 4]
+
+    def test_sanitise_state_snapshots_accumulator(self):
+        from anemoi.inference.post_processors.accumulate import Accumulate
+
+        context = SimpleNamespace()
+        metadata = SimpleNamespace(dataset_name="data", accumulations=["tp"])
+        acc = Accumulate(context, metadata, accumulations=["tp"])
+
+        state = {"fields": {"tp": np.ones(4, dtype=np.float32)}, "date": datetime.datetime(2026, 1, 1)}
+        first = _sanitise_state(acc.process(state))
+        state = {"fields": {"tp": np.ones(4, dtype=np.float32)}, "date": datetime.datetime(2026, 1, 1)}
+        acc.process(state)  # the next step is accumulated before the first one is pickled
+        assert list(first["fields"]["tp"]) == [1, 1, 1, 1]
+
+
 # ── _sanitise_state ───────────────────────────────────────────────────────────
 
 
@@ -825,6 +861,143 @@ class TestParallelOutputInit:
         po = self._make(num_writers=2, output={"recording": {"path": "out.json"}})
         assert "ParallelOutput" in repr(po)
         assert "num_writers=2" in repr(po)
+
+
+class _FakeProcess:
+    """Stand-in for ``mp.Process`` that never spawns anything or sleeps.
+
+    The process stays alive until ``join`` is called, unless ``hangs`` is set,
+    in which case it only dies once ``terminate`` has been called.
+    """
+
+    def __init__(self, alive=True, hangs=False):
+        self.alive = alive
+        self.hangs = hangs
+        self.join = MagicMock(side_effect=self._join)
+        self.terminate = MagicMock(side_effect=self._terminate)
+
+    def is_alive(self):
+        return self.alive
+
+    def _join(self, timeout=None):
+        if not self.hangs:
+            self.alive = False
+
+    def _terminate(self):
+        self.alive = False
+        self.hangs = False
+
+
+class TestParallelOutputWorkerTimeout:
+    def _make(self, **kwargs):
+        context, metadata = _make_context_and_metadata()
+        kwargs.setdefault("output", {"recording": {"path": "out.json"}})
+        return ParallelOutput(context, metadata, **kwargs)
+
+    def _with_fake_writers(self, processes):
+        po = _make_parallel_output(num_writers=len(processes))
+        po._queues = [MagicMock() for _ in processes]
+        po._processes = processes
+        return po
+
+    def test_default_worker_timeout(self):
+        assert self._make().worker_timeout == 300
+
+    @pytest.mark.parametrize("value", [-1, 0, 5])
+    def test_valid_worker_timeout_stored(self, value):
+        assert self._make(worker_timeout=value).worker_timeout == value
+
+    @pytest.mark.parametrize("value", [-2, -100])
+    def test_worker_timeout_below_minus_one_raises(self, value):
+        with pytest.raises(ValueError, match="worker_timeout must be >= -1"):
+            self._make(worker_timeout=value)
+
+    def test_close_forwards_worker_timeout(self):
+        po = self._with_fake_writers([_FakeProcess()])
+        po.worker_timeout = 7
+        po._terminate_all_writers = MagicMock()
+        po.close()
+        po._terminate_all_writers.assert_called_once_with(7)
+
+    def test_close_does_nothing_when_writers_not_running(self):
+        po = self._with_fake_writers([_FakeProcess()])
+        po._writers_running = False
+        po._terminate_all_writers = MagicMock()
+        po.close()
+        po._terminate_all_writers.assert_not_called()
+
+    def test_close_joins_with_configured_timeout(self):
+        processes = [_FakeProcess(), _FakeProcess()]
+        po = self._with_fake_writers(processes)
+        po.worker_timeout = 11
+        po.close()
+        for p in processes:
+            p.join.assert_called_once_with(11)
+
+    def test_terminate_sends_sentinel_to_live_writers_only(self):
+        processes = [_FakeProcess(), _FakeProcess(alive=False)]
+        po = self._with_fake_writers(processes)
+        po._terminate_all_writers(5)
+        po._queues[0].put.assert_called_once_with(("", MessageType.TERMINATE))
+        po._queues[1].put.assert_not_called()
+
+    def test_writer_exiting_within_timeout_is_not_terminated(self):
+        processes = [_FakeProcess(), _FakeProcess()]
+        po = self._with_fake_writers(processes)
+        po._terminate_all_writers(5)  # must not raise
+        for p in processes:
+            p.join.assert_called_once_with(5)
+            p.terminate.assert_not_called()
+        assert po._writers_running is False
+
+    def test_minus_one_joins_indefinitely_without_terminating(self):
+        processes = [_FakeProcess(), _FakeProcess()]
+        po = self._with_fake_writers(processes)
+        po._terminate_all_writers(-1)  # must not raise
+        for p in processes:
+            p.join.assert_called_once_with(None)
+            p.terminate.assert_not_called()
+
+    def test_zero_timeout_is_finite_not_indefinite(self):
+        process = _FakeProcess(hangs=True)
+        po = self._with_fake_writers([process])
+        with pytest.raises(RuntimeError):
+            po._terminate_all_writers(0)
+        # first join is the finite one, the second follows the forced terminate
+        assert process.join.call_args_list[0].args == (0,)
+
+    def test_hung_writer_is_forcibly_terminated_and_raises(self):
+        process = _FakeProcess(hangs=True)
+        po = self._with_fake_writers([process])
+        with pytest.raises(RuntimeError, match="forcefully terminated"):
+            po._terminate_all_writers(3)
+        process.terminate.assert_called_once_with()
+        # finite join first, then an unbounded join once the process has been terminated
+        assert [c.args for c in process.join.call_args_list] == [(3,), ()]
+
+    def test_only_hung_writers_are_terminated(self):
+        healthy, hung = _FakeProcess(), _FakeProcess(hangs=True)
+        po = self._with_fake_writers([healthy, hung])
+        with pytest.raises(RuntimeError):
+            po._terminate_all_writers(3)
+        healthy.terminate.assert_not_called()
+        hung.terminate.assert_called_once_with()
+
+    def test_all_writers_are_handled_before_raising(self):
+        # A hung first writer must not stop later writers from being joined
+        hung, healthy = _FakeProcess(hangs=True), _FakeProcess()
+        po = self._with_fake_writers([hung, healthy])
+        with pytest.raises(RuntimeError):
+            po._terminate_all_writers(3)
+        healthy.join.assert_called_once_with(3)
+
+    def test_close_raises_when_writer_hangs(self):
+        process = _FakeProcess(hangs=True)
+        po = self._with_fake_writers([process])
+        po.worker_timeout = 2
+        with pytest.raises(RuntimeError, match="forcefully terminated"):
+            po.close()
+        process.terminate.assert_called_once_with()
 
 
 class TestParallelOutputChunkStrategy:

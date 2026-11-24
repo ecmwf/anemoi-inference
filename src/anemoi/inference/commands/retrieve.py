@@ -109,9 +109,9 @@ def checkpoint_to_requests(
     LOG.info("Exclude categories: %s", exclude)
 
     multi_metadata = checkpoint.multi_dataset_metadata
-    assert (
-        dataset_name in multi_metadata
-    ), f"Dataset name '{dataset_name}' not found in checkpoint metadata. Available datasets: {list(multi_metadata.keys())}"
+    assert dataset_name in multi_metadata, (
+        f"Dataset name '{dataset_name}' not found in checkpoint metadata. Available datasets: {list(multi_metadata.keys())}"
+    )
 
     metadata = multi_metadata[dataset_name]
 

@@ -62,9 +62,9 @@ def multi_datasets_config(config: Any, dataset_name: str, datasets: list[str], s
             )
 
         if strict and len(config.keys()) > 1:
-            assert (
-                dataset_name in config
-            ), f"Dataset name '{dataset_name}' not found in config. Available keys: {list(config.keys())}"
+            assert dataset_name in config, (
+                f"Dataset name '{dataset_name}' not found in config. Available keys: {list(config.keys())}"
+            )
 
         if dataset_name in config:
             return config[dataset_name]

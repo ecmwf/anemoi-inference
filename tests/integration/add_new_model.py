@@ -159,13 +159,12 @@ with tempfile.TemporaryDirectory() as temp_dir:
 
     for dataset_name, arrays in normalized_supporting_arrays.items():
         for name, array in arrays.items():
-
             if is_legacy:
                 array_path = temp_dir_path / f"{name}.npy"
                 s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/{name}.npy"
             else:
                 array_path = temp_dir_path / dataset_name / f"{name}.npy"
-                s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/" f"{dataset_name}/{name}.npy"
+                s3_path = f"{S3_ROOT}/{args.model}/supporting-arrays/{dataset_name}/{name}.npy"
 
             array_path.parent.mkdir(parents=True, exist_ok=True)
             np.save(array_path, array)

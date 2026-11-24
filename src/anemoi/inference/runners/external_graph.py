@@ -180,9 +180,9 @@ class ExternalGraphRunner(DefaultRunner):
         """
         super().__init__(config)
         # TODO: multi-dataset checkpoint support
-        assert (
-            not self.checkpoint.multi_dataset
-        ), "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
+        assert not self.checkpoint.multi_dataset, (
+            "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
+        )
         self.check_state_dict = check_state_dict
         self.graph_path = graph
 
@@ -204,8 +204,8 @@ class ExternalGraphRunner(DefaultRunner):
 
             # had to use private attributes because cached properties cause problems
             self.checkpoint._metadata._supporting_arrays.update(graph_ds.supporting_arrays())
-            if "grid_indices" in self.checkpoint._metadata._supporting_arrays:
-                num_grid_points = len(self.checkpoint._metadata._supporting_arrays["grid_indices"])
+            if _grid_indices := self.checkpoint._metadata._grid_indices:
+                num_grid_points = len(_grid_indices)
             else:
                 num_grid_points = graph_ds.shape[-1]
             self.checkpoint._metadata.number_of_grid_points = num_grid_points
@@ -264,9 +264,9 @@ class ExternalGraphRunner(DefaultRunner):
     def graph(self):
 
         graph_path = self.graph_path
-        assert os.path.isfile(
-            graph_path
-        ), f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        assert os.path.isfile(graph_path), (
+            f"No graph found at {graph_path}. An external graph needs to be specified in the config file for this runner."
+        )
         LOG.info("Loading external graph from path %s.", graph_path)
         return torch.load(graph_path, map_location="cpu", weights_only=False)
 

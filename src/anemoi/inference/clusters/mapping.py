@@ -42,7 +42,7 @@ class EnvMapping:
         if mapped_value is None:
             return default
 
-        for env_var in (mapped_value if isinstance(mapped_value, list) else [mapped_value]):
+        for env_var in mapped_value if isinstance(mapped_value, list) else [mapped_value]:
             value = os.environ.get(env_var)
             if value is not None:
                 return value

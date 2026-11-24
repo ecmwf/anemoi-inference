@@ -82,7 +82,6 @@ class HindcastOutput:
 
 
 class Matching:
-
     def __init__(self, config):
 
         self.conditions = {}

@@ -48,7 +48,6 @@ def check_data(
     expected = len(variables) * len(dates)
 
     if len(data) != expected:
-
         from rich.console import Console
         from rich.table import Table
 

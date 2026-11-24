@@ -27,6 +27,7 @@ import numpy as np
 from anemoi.transform.variables import Variable
 from anemoi.utils.config import DotDict
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
+from anemoi.utils.logs import OnceLogger
 from anemoi.utils.provenance import gather_provenance_info
 from earthkit.data.utils.dates import to_datetime
 
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
 USE_LEGACY = True
 
 LOG = logging.getLogger(__name__)
+LOG_ONCE = OnceLogger(LOG)
 
 
 VARIABLE_CATEGORIES = {
@@ -332,8 +334,8 @@ class Metadata(LegacyMixin):
     @cached_property
     def number_of_grid_points(self) -> int:
         """Return the number of grid points per fields."""
-        if "grid_indices" in self._supporting_arrays:
-            return len(self.load_supporting_array("grid_indices"))
+        if self._grid_indices is not None:
+            return len(self._grid_indices)
         if "latitudes" in self._supporting_arrays:
             return len(self.load_supporting_array("latitudes"))
         try:
@@ -1272,7 +1274,14 @@ class Metadata(LegacyMixin):
     @property
     def _grid_indices(self) -> FloatArray | None:
         """Return the grid indices."""
-        return self._supporting_arrays.get("grid_indices")
+        grid_indices = self._supporting_arrays.get("grid_indices")
+        if grid_indices is not None:
+            LOG_ONCE.warning(
+                "Models trained with the 'grid_indices' option have been deprecated, and support for them will be removed in a future version. "
+                "If your model uses 'grid_indices', please pin your inference version or retrain your model."
+            )
+            return grid_indices
+        return None
 
     @property
     def latitudes(self) -> FloatArray | None:
@@ -1651,9 +1660,9 @@ class MetadataFactory:
         suffix = f" and custom base class `{base_class.__name__}`" if base_class is not Metadata else ""
 
         if datasets := metadata.get("metadata_inference", {}).get("dataset_names", []):
-            assert (
-                dataset_name in datasets
-            ), f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
+            assert dataset_name in datasets, (
+                f"Multi-dataset name `{dataset_name}` not found in metadata. Available names: {datasets}"
+            )
             LOG.debug(f"Loading multi-dataset metadata with dataset name `{dataset_name}`{suffix}")
             return type("MultiDatasetMetadata", (MultiDatasetMetadata, base_class), {})(
                 metadata, supporting_arrays, dataset_name=dataset_name

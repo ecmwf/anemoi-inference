@@ -121,7 +121,6 @@ class InspectCmd(Command):
 
         data = {}
         for name in sorted(dir(metadata)):
-
             if name.startswith("_"):
                 continue
 

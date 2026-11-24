@@ -69,8 +69,7 @@ class SanitiseCmd(Command):
             LOG.info("Patching metadata")
             for name, dataset_metadata in _iter_dataset_metadatas(metadata):
                 assert "sources" in dataset_metadata, (
-                    f"dataset `{name}` is missing `sources` in its metadata; cannot sanitise "
-                    f"(checkpoint {args.path})"
+                    f"dataset `{name}` is missing `sources` in its metadata; cannot sanitise (checkpoint {args.path})"
                 )
             replace_metadata(args.path, metadata, supporting_arrays)
         else:

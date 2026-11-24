@@ -55,7 +55,7 @@ class AssignMask(Processor):
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(
-                "Expected the mask to be a boolean numpy array. " f"Got {type(mask)} with dtype {mask.dtype}."
+                f"Expected the mask to be a boolean numpy array. Got {type(mask)} with dtype {mask.dtype}."
             )
 
         self.indexer = mask

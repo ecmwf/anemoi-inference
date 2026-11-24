@@ -69,8 +69,8 @@ class TemplateManager:
             variables = [variable for variable in typed_list if variable.param not in self._logged_variables[provider]]
             if len(variables) > 0:
                 for variable in variables:
-                    to_log[provider].add(variable.param)
-                    self._logged_variables[provider].add(variable.param)
+                    to_log[provider].add(str(variable.param))
+                    self._logged_variables[provider].add(str(variable.param))
 
         if to_log:
             LOG.info("GRIB template summary:")
@@ -172,7 +172,7 @@ class TemplateManager:
             The standardised grid format.
         """
 
-        if isinstance(grid, str):
+        if isinstance(grid, str) and "=" not in grid:
             return grid.upper()
 
         if isinstance(grid, (tuple, list)) and len(grid) == 2:

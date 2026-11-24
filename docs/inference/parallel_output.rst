@@ -30,8 +30,10 @@ The ``parallel`` output wraps any other output type (e.g. ``grib``,
 3. Each chunk is dispatched to a writer process (round-robin when there
    are more chunks than writers) via a multiprocessing queue, and written
    using that writer's own instance of the wrapped output.
-4. On shutdown, all writers are gracefully terminated with a signal via
-   their queues.
+4. On shutdown, each writer is sent a terminate signal via its queue. It
+   finishes writing everything already queued, then exits. The main
+   process waits up to ``worker_timeout`` seconds for each writer (see
+   :ref:`parallel-output-shutdown`).
 
 Each writer appends a suffix ``_w<id>`` to the output file name to
 avoid conflicts (e.g. ``output_w0.grib``, ``output_w1.grib``).
@@ -255,6 +257,40 @@ For larger output sizes, one can set ``num_writers: 1``. This will produce a sin
 
 If you suspect that writing to disk is a bottleneck, you can experiment with increasing ``num_writers``. 2 or 4 writers is often a good starting point.
 
+.. _parallel-output-shutdown:
+
+*********************************
+ Shutdown and ``worker_timeout``
+*********************************
+
+When inference finishes, writers may still have queued fields to write.
+The main process waits for each writer to finish and exit, up to
+``worker_timeout`` seconds per writer (default ``300``). Set it to
+``-1`` to wait indefinitely. Values below ``-1`` are rejected.
+
+.. code:: yaml
+
+   output:
+     parallel:
+       num_writers: 4
+       worker_timeout: 600
+       output:
+         grib:
+           path: /path/to/output.grib
+
+Shutdown returns as soon as all writers have exited, so a large timeout
+only costs time when writers are genuinely still busy.
+
+If a writer is still running when the timeout expires, it is forcefully
+terminated and a RuntimeError is raised, since data may have been lost.
+If this happens:
+
+- If writers are slow because they compete for disk or CPU, increase
+  ``worker_timeout``.
+- If a single writer has too much queued work, change ``num_writers``
+  or the :ref:`chunking strategy <parallel-output-chunking>` to spread
+  the load.
+
 ***********************
  Troubleshooting
 ***********************
@@ -265,3 +301,12 @@ Writer process crashes
 If a writer process crashes (e.g. due to a disk-full error or a bug in
 the output backend), the main process will detect that the writer is
 dead and abort inference with a RuntimeError.
+
+Writers forcefully terminated at shutdown
+=========================================
+
+If a writer is still running after ``worker_timeout`` seconds, it is
+forcefully terminated. Any data it had not yet written is lost, and its
+output file may be truncated. A warning is logged for each such writer,
+and a RuntimeError is raised once all writers have stopped. See
+:ref:`parallel-output-shutdown` for how to avoid this.

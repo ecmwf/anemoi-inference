@@ -65,7 +65,9 @@ def _run_sanitise(metadata, supporting_arrays=None):
         written["metadata"] = new_metadata
         written["supporting_arrays"] = new_supporting_arrays
 
-    with (pytest.MonkeyPatch.context() as mp,):
+    with (
+        pytest.MonkeyPatch.context() as mp,
+    ):
         mp.setattr("anemoi.utils.checkpoints.load_metadata", fake_load_metadata)
         mp.setattr("anemoi.utils.checkpoints.replace_metadata", fake_replace_metadata)
         SanitiseCmd().run(Namespace(path="dummy.ckpt"))

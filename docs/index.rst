@@ -114,6 +114,7 @@ Get more information in the :ref:`installing <installing>` section.
    :caption: User Guide
 
    usage/optimisation
+   usage/ensembles
    inference/parallel
    inference/parallel_output
    inference/external-graph

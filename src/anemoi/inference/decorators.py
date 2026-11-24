@@ -274,9 +274,9 @@ class format_dataset_name:
         class WrappedClass(cls):
             def __init__(wrapped_cls, context: Context, metadata: Metadata, *args: Any, **kwargs: Any) -> Any:
                 assert self.arg in kwargs, f"{self.arg} not found in decorated class arguments: {kwargs}"
-                assert isinstance(
-                    kwargs[self.arg], str
-                ), f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
+                assert isinstance(kwargs[self.arg], str), (
+                    f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"
+                )
 
                 name = metadata.dataset_name
                 kwargs[self.arg] = kwargs[self.arg].format_map(DefaultFormat(dataset=name, dataset_name=name))

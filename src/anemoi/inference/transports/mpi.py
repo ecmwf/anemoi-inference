@@ -44,9 +44,9 @@ class MPITransport(Transport):
         self.rank: int = self.comm.Get_rank()
         self.size: int = self.comm.Get_size()
 
-        assert (
-            len(tasks) == self.size
-        ), f"Number of tasks ({len(tasks)}) must match number of MPI processes ({self.size})"
+        assert len(tasks) == self.size, (
+            f"Number of tasks ({len(tasks)}) must match number of MPI processes ({self.size})"
+        )
 
     def start(self) -> None:
         """Start the transport by initializing MPI tasks."""
