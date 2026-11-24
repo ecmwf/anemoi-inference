@@ -9,7 +9,7 @@
 
 """Raw output: one compressed ``.npz`` file per output step.
 
-Optionally accompanied by ``manifest.json`` and ``grid.npz``, which describe the
+Accompanied by ``manifest.json`` which describes the
 checkpoint, variables and grid the files were written with. See
 :meth:`RawOutput.write_manifest`.
 """
@@ -78,9 +78,10 @@ class RawOutput(Output):
         self.template = template
         self.strftime = strftime
 
-        # Both manifest and grid cover all files in dir/.
         self.manifest_path = Path(self.dir) / "manifest.json"
-        self.grid_path = Path(self.dir) / "grid.npz"
+
+        if not template.endswith(".npz"):
+            raise ValueError(f"{self.__class__.__name__}: template must end with '.npz'.")
 
     def __repr__(self) -> str:
         """Return a string representation of the RawOutput object.
@@ -103,7 +104,7 @@ class RawOutput(Output):
         date = state["date"]
         basetime = date - state["step"]
 
-        if "{basetime" in self.template or "{step" in self.template:
+        if ("{basetime" in self.template or "{step" in self.template) and self.reference_date is not None:
             # The manifest records the reference date, so a reader can only rebuild
             # these filenames if it is the basetime the steps were written against.
             assert basetime == to_datetime(self.reference_date), (
@@ -136,15 +137,13 @@ class RawOutput(Output):
         state : State
             The initial state.
         """
-        if not self.manifest_path.exists():
-            self.write_manifest(state)
+        self.write_manifest(state)
 
     def write_manifest(self, state: State) -> None:
         """Write the sidecar files describing this set of raw outputs.
 
         ``manifest.json`` records the checkpoint identity, the variables actually
-        written, the filename convention and run-level context. ``grid.npz``
-        records the grid once, rather than repeating it in every step file.
+        written, the filename convention and run-level context.
 
         Together they let :class:`RawInput` interpret the ``.npz`` files without
         being told the checkpoint and template out of band.

@@ -126,10 +126,7 @@ class RawInput(Input):
         """
         path = self.dir / self.MANIFEST_NAME
         if not path.exists():
-            raise FileNotFoundError(
-                f"{self.__class__.__name__}: no {self.MANIFEST_NAME} in {self.dir}. "
-                f"Write the files with `output_manifest: true`, or pass a manifest explicitly."
-            )
+            raise FileNotFoundError(f"{self.__class__.__name__}: no {self.MANIFEST_NAME} in {self.dir}. ")
 
         known = {field.name for field in fields(OutputManifest)}
         contents = json.loads(path.read_text())
@@ -216,7 +213,9 @@ class RawInput(Input):
                 if key.startswith(self.manifest.field_prefix)
             }
 
-    def _build_state(self, dates: list[Date], *, base_date: datetime.datetime | None = None) -> State:
+    def _build_state(
+        self, dates: list[Date], *, base_date: datetime.datetime | None = None, ref_date_index: int = -1
+    ) -> State:
         """Build a state by stacking the fields of the requested dates.
 
         Parameters
@@ -225,6 +224,9 @@ class RawInput(Input):
             The dates for which to build the state.
         base_date : datetime.datetime, optional
             The base date used to compute the step in the file name template.
+        ref_date_index: int = -1
+            The index in `dates` to use as reference date for the state.
+            Defaults to -1, which means the last date in the list.
 
         Returns
         -------
@@ -249,6 +251,8 @@ class RawInput(Input):
         state_variables: dict[str, Variable] = {}
 
         for name in self.variables:
+            if name not in loaded[0]:
+                raise ValueError(f"{self.__class__.__name__}: variable '{name}' not found in the manifest.")
             fields[name] = np.stack([entry[name] for entry in loaded], axis=0)
             if name in typed_variables:
                 state_variables[name] = typed_variables[name]
@@ -257,7 +261,7 @@ class RawInput(Input):
                 trace.from_input(name, self)
 
         return dict(
-            date=dates[-1],
+            date=dates[ref_date_index],
             latitudes=self.latitudes,
             longitudes=self.longitudes,
             fields=fields,
@@ -265,7 +269,7 @@ class RawInput(Input):
             _variables=state_variables,
         )
 
-    def create_input_state(self, *, dates: list[Date], **kwargs: Any) -> State:
+    def create_input_state(self, *, dates: list[Date], ref_date_index: int = -1, **kwargs: Any) -> State:
         """Create the input state for the given dates.
 
         Parameters
@@ -273,6 +277,8 @@ class RawInput(Input):
         dates : list of Date
             The dates for which to create the input state (as computed by the
             runner from the model's ``lagged`` steps).
+        ref_date_index : int = -1
+            The index in `dates` to use as reference date for the state.
         **kwargs : Any
             Additional keyword arguments (ignored).
 
@@ -281,7 +287,7 @@ class RawInput(Input):
         State
             The created input state.
         """
-        return self._build_state(dates)
+        return self._build_state(dates, ref_date_index=ref_date_index)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given dates.
@@ -300,7 +306,7 @@ class RawInput(Input):
         """
         base_date = self.reference_date
 
-        state = self._build_state(dates, base_date=base_date)
+        state = self._build_state(dates, base_date=base_date, ref_date_index=-1)
         state["dates"] = sorted(to_datetime(d) for d in dates)
         return state
 
