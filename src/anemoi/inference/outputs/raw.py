@@ -7,17 +7,24 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-"""Raw output: one compressed ``.npz`` file per output step.
+"""Raw output: one ``.npz`` file per output step.
 
-Accompanied by ``manifest.json`` which describes the
-checkpoint, variables and grid the files were written with. See
-:meth:`RawOutput.write_manifest`.
+Accompanied by ``manifest.json``, which describes the checkpoint, variables and
+filename convention the files were written with (see :meth:`RawOutput.write_manifest`).
+While the run is in progress the manifest is named ``manifest.json.part``; it is
+renamed to ``manifest.json`` once the run has finished.
+
+Every file is written under a temporary name and renamed into place, so a reader
+never sees a partial file.
 """
 
 import json
 import logging
+import os
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
+from typing import IO
 
 import numpy as np
 from anemoi.utils.provenance import gather_provenance_info
@@ -26,6 +33,7 @@ from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata
+from anemoi.inference.provenance import PARTIAL_SUFFIX
 from anemoi.inference.provenance import OutputManifest
 from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
@@ -37,6 +45,18 @@ from ..output import Output
 from . import output_registry
 
 LOG = logging.getLogger(__name__)
+
+
+def _write_atomic(path: Path, write: Callable[[IO[bytes]], None]) -> None:
+    """Write a file through `write` under a temporary name, then rename it to `path`."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with open(tmp, "wb") as f:
+            write(f)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 @output_registry.register("raw")
@@ -54,6 +74,7 @@ class RawOutput(Output):
         dir: Path,
         template: str = "{date}.npz",
         strftime: str = "%Y%m%d%H%M%S",
+        compressed: bool = True,
         **kwargs,
     ) -> None:
         """Initialise the RawOutput class.
@@ -72,13 +93,18 @@ class RawOutput(Output):
             Variables available are `date`, `basetime` `step`.
         strftime : str, optional
             The date format string, by default "%Y%m%d%H%M%S".
+        compressed : bool, optional
+            Whether to compress the files, by default True. Compression is slow
+            for large states; turn it off when the files are read back soon after.
         """
         super().__init__(context, metadata, **kwargs)
         self.dir = dir
         self.template = template
         self.strftime = strftime
+        self.compressed = compressed
 
         self.manifest_path = Path(self.dir) / "manifest.json"
+        self.partial_manifest_path = Path(self.dir) / f"manifest.json{PARTIAL_SUFFIX}"
 
         if not template.endswith(".npz"):
             raise ValueError(f"{self.__class__.__name__}: template must end with '.npz'.")
@@ -94,7 +120,7 @@ class RawOutput(Output):
         return f"RawOutput({self.dir})"
 
     def write_step(self, state: State) -> None:
-        """Write the state to a compressed .npz file.
+        """Write the state to a .npz file.
 
         Parameters
         ----------
@@ -118,7 +144,7 @@ class RawOutput(Output):
             "basetime": basetime.strftime(self.strftime),
         }
 
-        fn_state = f"{self.dir}/{render_template(self.template, format_info)}"
+        path = Path(self.dir) / render_template(self.template, format_info)
         restate = {f"field_{key}": val for key, val in state["fields"].items() if not self.skip_variable(key)}
 
         for key in ["date"]:
@@ -127,23 +153,31 @@ class RawOutput(Output):
         for key in ["latitudes", "longitudes"]:
             restate[key] = np.array(state[key])
 
-        np.savez_compressed(fn_state, **restate)
+        savez = np.savez_compressed if self.compressed else np.savez
+        _write_atomic(path, lambda f: savez(f, **restate))
 
     def open(self, state: State) -> None:
-        """Write the sidecar files before the first step, if requested.
+        """Remove the manifest of a previous run and write this run's partial manifest.
 
         Parameters
         ----------
         state : State
             The initial state.
         """
+        self.manifest_path.unlink(missing_ok=True)
         self.write_manifest(state)
+
+    def close(self) -> None:
+        """Mark the set of files as complete by giving the manifest its final name."""
+        if self.partial_manifest_path.exists():
+            os.replace(self.partial_manifest_path, self.manifest_path)
 
     def write_manifest(self, state: State) -> None:
         """Write the sidecar files describing this set of raw outputs.
 
-        ``manifest.json`` records the checkpoint identity, the variables actually
-        written, the filename convention and run-level context.
+        ``manifest.json.part`` records the checkpoint identity, the variables actually
+        written, the filename convention and run-level context. :meth:`close` renames
+        it to ``manifest.json``.
 
         Together they let :class:`RawInput` interpret the ``.npz`` files without
         being told the checkpoint and template out of band.
@@ -174,6 +208,6 @@ class RawOutput(Output):
             output_frequency=self._output_frequency,
         )
 
-        with open(self.manifest_path, "w") as f:
-            json.dump(asdict(manifest), f, indent=2, default=str)
-        LOG.info("%s: wrote %s", self, self.manifest_path)
+        text = json.dumps(asdict(manifest), indent=2, default=str)
+        _write_atomic(self.partial_manifest_path, lambda f: f.write(text.encode()))
+        LOG.info("%s: wrote %s", self, self.partial_manifest_path)

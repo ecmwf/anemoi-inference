@@ -73,6 +73,7 @@ def _write_raw_files(context, metadata, directory, *, with_grid=True, **kwargs):
         fields = {name: values + date.hour for name, values in fields.items()}
         expected[date] = fields
         output.write_step({"date": date, "step": date - LAGGED_DATES[0], "fields": fields, **grid})
+    output.close()
     return expected
 
 
