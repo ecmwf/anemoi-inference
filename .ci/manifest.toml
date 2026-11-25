@@ -3,6 +3,7 @@ name = "anemoi-inference"
 repo = "ecmwf/anemoi-inference"
 visibility = "public"
 fork-pull-requests = true
+allow-stale-deps = true
 compiler-inputs = []
 ci-pre-commit = false
 full-history = true
