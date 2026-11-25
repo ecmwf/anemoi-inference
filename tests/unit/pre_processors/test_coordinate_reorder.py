@@ -85,7 +85,7 @@ def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4
     """Create a CoordinateReorder pre-processor targeting the given model grid."""
     metadata = cast(InferenceMetadata, mocker.MagicMock())
     metadata.dataset_name = "data"
-    metadata.dataset_view.arrays = DatasetArrays({"latitudes": model_lat, "longitudes": model_lon})
+    metadata.arrays = DatasetArrays({"latitudes": model_lat, "longitudes": model_lon})
     metadata.coordinates = partial(InferenceMetadata.coordinates, metadata)
     return CoordinateReorder(mocker.MagicMock(), metadata, decimals=decimals)
 
@@ -207,7 +207,7 @@ def test_reorder_process_targets_the_grid_points_kept_by_grid_indices(mocker: Mo
 
     metadata = cast(InferenceMetadata, mocker.MagicMock())
     metadata.dataset_name = "data"
-    metadata.dataset_view.arrays = DatasetArrays(
+    metadata.arrays = DatasetArrays(
         {
             "latitudes": stored_lat,
             "longitudes": stored_lon,

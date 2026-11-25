@@ -119,12 +119,12 @@ class TensorHandler:
     @property
     def _data(self) -> Any:
         """The ``data`` component of the dataset (variables, tensor indices, masks)."""
-        return self.metadata.dataset_view.data
+        return self.metadata.data
 
     @property
     def _arrays(self) -> Any:
         """The supporting arrays of the dataset."""
-        return self.metadata.dataset_view.arrays
+        return self.metadata.arrays
 
     @property
     def _timing(self) -> Any:

@@ -105,7 +105,7 @@ class TransformFilter(Processor, ABC):
         if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
-        fields = self._exec_filter(wrap_state(state, self.metadata.dataset_view.data.typed_variables()))
+        fields = self._exec_filter(wrap_state(state, self.metadata.data.typed_variables()))
 
         return unwrap_state(fields, state, namer=self.metadata.default_namer())
 

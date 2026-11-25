@@ -28,7 +28,7 @@ def test_assign_mask_supporting_array(
     # the mask is found in the supporting arrays of the dataset
     mask = np.load(assign_mask_npy)
     metadata = cast(InferenceMetadata, mocker.MagicMock())
-    metadata.dataset_view.arrays = DatasetArrays({"some_supporting_array": mask})
+    metadata.arrays = DatasetArrays({"some_supporting_array": mask})
     processor = AssignMask(mocker.MagicMock(), metadata, mask="some_supporting_array")
 
     # check that the indexer is set correctly
@@ -52,7 +52,7 @@ def test_assign_mask_npy(
 
     # mock the context just because AssignMask requires it
     metadata = cast(InferenceMetadata, mocker.MagicMock())
-    metadata.dataset_view.arrays = DatasetArrays()
+    metadata.arrays = DatasetArrays()
     processor = AssignMask(mocker.MagicMock(), metadata, mask=assign_mask_npy)
 
     # check that the indexer is set correctly
@@ -76,7 +76,7 @@ def test_extract_mask_supporting_array(
     # the mask is found in the supporting arrays of the dataset
     mask = np.load(extract_mask_npy)
     metadata = cast(InferenceMetadata, mocker.MagicMock())
-    metadata.dataset_view.arrays = DatasetArrays({"some_supporting_array": mask})
+    metadata.arrays = DatasetArrays({"some_supporting_array": mask})
     processor = ExtractMask(mocker.MagicMock(), metadata, mask="some_supporting_array")
 
     # check that the indexer is set correctly
@@ -99,7 +99,7 @@ def test_extract_mask_npy(
 
     # mock the context just because ExtractMask requires it
     metadata = cast(InferenceMetadata, mocker.MagicMock())
-    metadata.dataset_view.arrays = DatasetArrays()
+    metadata.arrays = DatasetArrays()
     processor = ExtractMask(mocker.MagicMock(), metadata, mask=extract_mask_npy)
 
     # check that the indexer is set correctly
@@ -122,7 +122,7 @@ def test_extract_slice(
 
     # mock the context just because ExtractSlice requires it
     metadata = cast(InferenceMetadata, mocker.MagicMock())
-    metadata.dataset_view.arrays = DatasetArrays()
+    metadata.arrays = DatasetArrays()
     processor = ExtractSlice(mocker.MagicMock(), metadata, *slice_args)
 
     # check that the indexer is set correctly
@@ -139,6 +139,6 @@ def test_extract_slice(
 @pytest.mark.parametrize("processor_class", [AssignMask, ExtractMask])
 def test_unknown_mask_supporting_array_raises(mocker: MockerFixture, processor_class):
     metadata = cast(InferenceMetadata, mocker.MagicMock())
-    metadata.dataset_view.arrays = DatasetArrays({"other": np.ones(3, dtype=bool)})
+    metadata.arrays = DatasetArrays({"other": np.ones(3, dtype=bool)})
     with pytest.raises(ValueError, match="not found"):
         processor_class(mocker.MagicMock(), metadata, mask="some_supporting_array")

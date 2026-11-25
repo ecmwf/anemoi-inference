@@ -162,7 +162,7 @@ class Input(ABC):
         List[str]
             The list of input variables.
         """
-        return list(self.metadata.dataset_view.data.variable_indices())
+        return list(self.metadata.data.variable_indices())
 
     def patch_data_request(self, request: Any) -> Any:
         """Patch the data request.

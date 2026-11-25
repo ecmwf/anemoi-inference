@@ -120,8 +120,8 @@ def checkpoint_to_requests(
     if not variables:
         return []
 
-    area = metadata.dataset_view.data.area()
-    grid = metadata.dataset_view.data.grid()
+    area = metadata.data.area()
+    grid = metadata.data.grid()
     lagged = checkpoint.metadata.task.for_dataset(dataset_name).lagged
 
     more = postproc(grid, area)

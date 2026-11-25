@@ -315,8 +315,8 @@ class MarsInput(GribInput):
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
-        kwargs.setdefault("grid", self.metadata.dataset_view.data.grid())
-        kwargs.setdefault("area", self.metadata.dataset_view.data.area())
+        kwargs.setdefault("grid", self.metadata.data.grid())
+        kwargs.setdefault("area", self.metadata.data.area())
 
         return retrieve(
             requests,

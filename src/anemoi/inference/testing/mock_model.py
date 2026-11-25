@@ -65,7 +65,7 @@ class SimpleMetadata:
         """
         prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
 
-        data = metadata.dataset_view.data
+        data = metadata.data
         variable_to_input_tensor_index = data.variable_indices()
         variable_to_output_tensor_index = data.output_variable_indices()
 

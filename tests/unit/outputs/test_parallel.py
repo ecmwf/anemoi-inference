@@ -62,7 +62,7 @@ def _make_context_and_metadata(typed_variables=None):
 
     metadata = MagicMock()
     metadata.dataset_name = "test"
-    metadata.dataset_view.data.typed_variables.return_value = typed_variables if typed_variables is not None else {}
+    metadata.data.typed_variables.return_value = typed_variables if typed_variables is not None else {}
     return context, metadata
 
 

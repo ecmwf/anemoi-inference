@@ -37,7 +37,7 @@ def test_print_state_variable_inclusion(
         basic_state,
         max_lines=1,
         variables=variables,
-        typed_variables=basic_metadata.dataset_view.data.typed_variables(),
+        typed_variables=basic_metadata.data.typed_variables(),
     )
     output_str = capsys.readouterr()[0]
 

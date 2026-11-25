@@ -52,7 +52,7 @@ class MaskValues(Processor):
             - `threshold`: The threshold value for the mask if using operator (default: None).
         """
         super().__init__(context, metadata)
-        arrays = metadata.dataset_view.arrays
+        arrays = metadata.arrays
         if mask in arrays:
             mask_array = arrays.get(mask)
         elif mask.endswith(".npy"):

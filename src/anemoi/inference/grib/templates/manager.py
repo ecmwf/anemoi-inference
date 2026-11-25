@@ -38,7 +38,7 @@ class TemplateManager:
         """
         self.owner = owner
         self.metadata = owner.metadata
-        self.typed_variables = self.metadata.dataset_view.data.typed_variables()
+        self.typed_variables = self.metadata.data.typed_variables()
 
         self._template_cache = {}
         self._history = defaultdict(list)
@@ -121,7 +121,7 @@ class TemplateManager:
 
         typed = typed_variables[name]
 
-        data = self.metadata.dataset_view.data
+        data = self.metadata.data
         grid = state.get("_geography", {}).get("grid", data.grid())
         area = state.get("_geography", {}).get("area", data.area())
 

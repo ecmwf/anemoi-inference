@@ -294,7 +294,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 input_numpy = (
                     input_tensors_torch[dataset][0, boundary_times[0]].cpu().numpy()
                 )  # # Select the initial boundary state (t) - First time step
-                handler_data = handler.metadata.dataset_view.data
+                handler_data = handler.metadata.data
                 input_variable_indices = handler_data.variable_indices()
                 output_variables = set(handler_data.output_index_to_variable().values())
                 for i in range(input_numpy.shape[-1]):
@@ -337,7 +337,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
                             date,
                             s,
                             input_tensors_torch[dataset].cpu().numpy(),
-                            handler.metadata.dataset_view.data.variable_indices(),
+                            handler.metadata.data.variable_indices(),
                             self.checkpoint.timestep,
                         )
 
@@ -348,7 +348,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
                             y_pred[dataset].cpu().numpy(), axis=(0, 2)
                         )  # shape: (steps, values, variables)
 
-                    output_index_to_variable = handler.metadata.dataset_view.data.output_index_to_variable()
+                    output_index_to_variable = handler.metadata.data.output_index_to_variable()
 
                     if handler.trace:
                         handler.trace.write_output_tensor(

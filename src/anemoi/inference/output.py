@@ -70,7 +70,7 @@ class Output(ABC):
 
         self.variables = OutputVariableConfig.model_validate(variables)
 
-        self.typed_variables = self.metadata.dataset_view.data.typed_variables()
+        self.typed_variables = self.metadata.data.typed_variables()
         self.typed_variables.update(self.context.typed_variables)
 
     def skip_variable(self, variable: str) -> bool:

@@ -114,11 +114,11 @@ def check_grib_cutout(
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
 
     mask_name = f"{mask}/cutout_mask"
-    mask = metadata.dataset_view.arrays.get(mask_name)
+    mask = metadata.arrays.get(mask_name)
     assert mask is not None, f"No supporting array `{mask_name}` in the checkpoint."
     prognostic_variables = metadata.select_variables(include=["prognostic"])
     prognostic_params = [
-        var.param for var in metadata.dataset_view.data.typed_variables().values() if var.name in prognostic_variables
+        var.param for var in metadata.data.typed_variables().values() if var.name in prognostic_variables
     ]
 
     for param in prognostic_params:
@@ -206,7 +206,7 @@ def check_cutout_with_xarray(
 
     # check shape of inner region against the mask in the checkpoint
     mask_name = f"{mask}/cutout_mask"
-    mask = metadata.dataset_view.arrays.get(mask_name)
+    mask = metadata.arrays.get(mask_name)
     assert mask is not None, f"No supporting array `{mask_name}` in the checkpoint."
     for var in ds.data_vars:
         assert ds[var].shape[-1] == np.sum(mask), (
@@ -245,7 +245,7 @@ def check_boundary_forcings_with_xarray(
     LOG.info(f"Checking boundary forcings: {file}")
 
     # get boundary mask from checkpoint
-    arrays = metadata.dataset_view.arrays
+    arrays = metadata.arrays
     LOG.info(f"Supporting arrays in checkpoint: {arrays.names}")
     if arrays.output_mask is None:
         LOG.warning("Boundary forcings check is trivial. Consider removing from test config.")

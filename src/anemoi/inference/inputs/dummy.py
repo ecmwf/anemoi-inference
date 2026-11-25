@@ -99,7 +99,7 @@ class DummyInput(EkdInput):
 
         LOG.info("Generating fields for %s", variables)
 
-        typed_variables = self.metadata.dataset_view.data.typed_variables()
+        typed_variables = self.metadata.data.typed_variables()
 
         latitudes, longitudes = self.metadata.coordinates()
 

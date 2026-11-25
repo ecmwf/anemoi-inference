@@ -261,7 +261,7 @@ class BoundaryForcings(Forcings):
         self.variables_mask = variables_mask
         assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
-        output_mask = context.metadata.dataset_view.arrays.output_mask
+        output_mask = context.metadata.arrays.output_mask
         if output_mask is not None:
             self.spatial_mask = ~output_mask
         else:

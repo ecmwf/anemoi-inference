@@ -85,7 +85,7 @@ def check_data(
                 )
             avail[name].add(date)
 
-        variable_categories = metadata.dataset_view.data.variable_categories(per_variable=True)
+        variable_categories = metadata.data.variable_categories(per_variable=True)
         for name in variables:
             row = [name]
             for d in dates:

@@ -17,7 +17,7 @@ from anemoi.metadata import DatasetArrays
 from anemoi.inference.inputs.dataset import DatasetInput
 
 _CTX = SimpleNamespace(verbosity=0, reference_date=None)
-_META = SimpleNamespace(dataset_name="test_dataset", dataset_view=SimpleNamespace(arrays=DatasetArrays()))
+_META = SimpleNamespace(dataset_name="test_dataset", arrays=DatasetArrays())
 _KWARGS = dict(variables=[], open_dataset_args=(), open_dataset_kwargs={})
 
 
@@ -48,7 +48,7 @@ def test_grid_indices_are_read_from_the_supporting_arrays():
     grid_indices = np.array([3, 1, 2])
     meta = SimpleNamespace(
         dataset_name="test_dataset",
-        dataset_view=SimpleNamespace(arrays=DatasetArrays({"grid_indices": grid_indices})),
+        arrays=DatasetArrays({"grid_indices": grid_indices}),
     )
     inp = DatasetInput(_CTX, meta, **_KWARGS)
     np.testing.assert_array_equal(inp.grid_indices, grid_indices)
@@ -57,7 +57,7 @@ def test_grid_indices_are_read_from_the_supporting_arrays():
 def test_explicit_grid_indices_win_over_the_supporting_arrays():
     meta = SimpleNamespace(
         dataset_name="test_dataset",
-        dataset_view=SimpleNamespace(arrays=DatasetArrays({"grid_indices": np.array([3, 1, 2])})),
+        arrays=DatasetArrays({"grid_indices": np.array([3, 1, 2])}),
     )
     inp = DatasetInput(_CTX, meta, grid_indices=[0, 1], **_KWARGS)
     assert list(inp.grid_indices) == [0, 1]

@@ -340,7 +340,7 @@ class Checkpoint:
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._metadata.dataset_view.data.data_frequency()
+        return self._metadata.data.data_frequency()
 
     @property
     def precision(self) -> Any:

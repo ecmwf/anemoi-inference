@@ -173,7 +173,7 @@ class Cutout(Input):
             )
 
             if isinstance(mask, str):
-                arrays = self.sources[src].metadata.dataset_view.arrays
+                arrays = self.sources[src].metadata.arrays
                 if mask not in arrays:
                     raise ValueError(f"Supporting array `{mask}` not found, available arrays: {arrays.names}")
                 self.masks[src] = arrays.get(mask)
@@ -205,7 +205,7 @@ class Cutout(Input):
         """
 
         field_state = x.copy()
-        field_state["fields"] = wrap_state(field_state, self.metadata.dataset_view.data.typed_variables())
+        field_state["fields"] = wrap_state(field_state, self.metadata.data.typed_variables())
 
         processed_state = super().pre_process(field_state)
 
@@ -261,7 +261,7 @@ class Cutout(Input):
                     f"source{i}/latitudes",
                     f"source{i}/longitudes",
                 )
-                arrays = self.metadata.dataset_view.arrays
+                arrays = self.metadata.arrays
                 for name in (f"source{i}/latitudes", f"source{i}/longitudes"):
                     if name not in arrays:
                         raise ValueError(f"Supporting array `{name}` not found, available arrays: {arrays.names}")

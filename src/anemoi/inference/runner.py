@@ -201,7 +201,7 @@ class Runner(Context):
                 table.add_column("Units", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
-                data = metadata.dataset_view.data
+                data = metadata.data
                 per_variable = data.variable_categories(per_variable=True)
                 typed_variables = data.typed_variables()
                 for variable in data.variables():
@@ -423,7 +423,7 @@ class Runner(Context):
 
         for dataset, tensor in input_tensors_torch.items():
             metadata = self.tensor_handlers[dataset].metadata
-            data = metadata.dataset_view.data
+            data = metadata.data
 
             # tensor passed by the runner has dimensions (batch=1, time, grid, variables)
             # richer-batch requires input dimensions (time, ensemble=1, grid, variables)
@@ -552,8 +552,8 @@ class Runner(Context):
                 start = input_states[dataset]["date"]
 
                 reset[dataset] = np.full((input_tensors_torch[dataset].shape[-1],), False)
-                variable_to_input_tensor_index = handler.metadata.dataset_view.data.variable_indices()
-                typed_variables = handler.metadata.dataset_view.data.typed_variables()
+                variable_to_input_tensor_index = handler.metadata.data.variable_indices()
+                typed_variables = handler.metadata.data.typed_variables()
                 for variable, i in variable_to_input_tensor_index.items():
                     if typed_variables[variable].is_constant_in_time:
                         reset[dataset][i] = True
@@ -578,7 +578,7 @@ class Runner(Context):
                             dates[-1],
                             s,
                             input_tensors_torch[dataset].cpu().numpy(),
-                            handler.metadata.dataset_view.data.variable_indices(),
+                            handler.metadata.data.variable_indices(),
                             self.checkpoint.timestep,
                         )
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
@@ -627,7 +627,7 @@ class Runner(Context):
 
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
-                            handler_data = handler.metadata.dataset_view.data
+                            handler_data = handler.metadata.data
                             output_index_to_variable = handler_data.output_index_to_variable()
                             for j in range(output.shape[1]):
                                 new_states[dataset]["fields"][output_index_to_variable[j]] = output[:, j]
@@ -667,9 +667,7 @@ class Runner(Context):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
                         if handler.trace:
-                            handler.trace.reset_sources(
-                                reset[dataset], handler.metadata.dataset_view.data.variable_indices()
-                            )
+                            handler.trace.reset_sources(reset[dataset], handler.metadata.data.variable_indices())
 
                         # None for input-only datasets
                         input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
@@ -693,7 +691,7 @@ class Runner(Context):
                         if not check[dataset].all():
                             # Not all variables have been updated
                             missing = []
-                            variable_to_input_tensor_index = handler.metadata.dataset_view.data.variable_indices()
+                            variable_to_input_tensor_index = handler.metadata.data.variable_indices()
                             mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
                             for i in range(check[dataset].shape[-1]):
                                 if not check[dataset][i]:
@@ -1060,7 +1058,7 @@ class Runner(Context):
         # Check variables in metadata match the variables in the state
         from anemoi.transform.variables import Variable
 
-        checkpoint_variables = self.tensor_handlers[dataset].metadata.dataset_view.data.typed_variables()
+        checkpoint_variables = self.tensor_handlers[dataset].metadata.data.typed_variables()
         common = set(checkpoint_variables.keys()).intersection(state_variables.keys())
 
         checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}

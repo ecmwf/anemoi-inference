@@ -101,10 +101,8 @@ def _make_meta():
     """Build mock metadata (only what `DatasetInput` reads: the dataset name, input variables and supporting arrays)."""
     return SimpleNamespace(
         dataset_name="test_dataset",
-        dataset_view=SimpleNamespace(
-            arrays=DatasetArrays(),
-            data=SimpleNamespace(variable_indices=lambda: {v: i for i, v in enumerate(VARS)}),
-        ),
+        arrays=DatasetArrays(),
+        data=SimpleNamespace(variable_indices=lambda: {v: i for i, v in enumerate(VARS)}),
     )
 
 

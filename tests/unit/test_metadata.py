@@ -64,7 +64,7 @@ def test_constant_fields_patch(atmos_core):
     fields = ["z", "sdor", "slor", "lsm"]
     metadata = InferenceMetadata(atmos_core.with_overrides({"dataset": {"constant_fields": fields}}))
 
-    variables_metadata = metadata.dataset_view.data.variables_metadata()
+    variables_metadata = metadata.data.variables_metadata()
     assert all(variables_metadata[name]["constant_in_time"] for name in fields)
     assert set(fields) <= set(metadata.select_variables(include=["constant"]))
     # the patch did not touch the original
@@ -85,7 +85,7 @@ def test_flags(atmos_core, multi_core):
 
 def test_shapes(atmos_core):
     metadata = InferenceMetadata(atmos_core)
-    n_inputs = len(metadata.dataset_view.data.variable_indices())
+    n_inputs = len(metadata.data.variable_indices())
 
     # two input steps, one output step (see the task of the checkpoint)
     assert metadata.input_shape == (1, 2, metadata.number_of_grid_points, n_inputs)
@@ -100,8 +100,8 @@ def test_multi_dataset_shapes(multi_core, section):
         return InferenceMetadata(multi_core.with_overrides({"version": version, "config": config}))
 
     reference = InferenceMetadata(multi_core)
-    n_inputs = len(reference.dataset_view.data.variable_indices())
-    n_outputs = len(reference.dataset_view.data.output_variable_indices())
+    n_inputs = len(reference.data.variable_indices())
+    n_outputs = len(reference.data.output_variable_indices())
     n_grid = reference.number_of_grid_points
 
     # without `multistep_output` in the config (older checkpoints): no time dimension on the output
@@ -123,7 +123,7 @@ def test_multi_dataset_shapes(multi_core, section):
     assert metadata.output_shape == (metadata.output_shape[0], 1, n_grid, n_outputs)
 
 
-def test_coordinates(atmos_core, caplog):
+def test_coordinates(atmos_core):
     arrays = {"data": {"latitudes": np.arange(5.0), "longitudes": np.arange(5.0) * 2}}
 
     # without grid_indices the stored coordinates
@@ -135,15 +135,14 @@ def test_coordinates(atmos_core, caplog):
     # no arrays: nothing
     assert InferenceMetadata(atmos_core).coordinates() == (None, None)
 
-    # grid_indices keep a subset of the points (deprecated: warned about)
+    # grid_indices keep a subset of the points. The deprecation warning is logged once per
+    # process, so whether this test sees it depends on test order: it is not asserted.
     arrays["data"]["grid_indices"] = np.array([1, 3])
     metadata = InferenceMetadata(atmos_core.with_overrides({}, arrays))
-    with caplog.at_level("WARNING"):
-        latitudes, longitudes = metadata.coordinates()
+    latitudes, longitudes = metadata.coordinates()
     assert list(latitudes) == [1.0, 3.0]
     assert list(longitudes) == [2.0, 6.0]
     assert metadata.number_of_grid_points == 2
-    assert any("grid_indices" in record.message for record in caplog.records)
 
 
 def test_number_of_grid_points(atmos_core):
@@ -161,13 +160,13 @@ def test_select_variables(atmos_core):
     metadata = InferenceMetadata(atmos_core)
 
     with_mars = metadata.select_variables(include=["forcing"], has_mars_requests=True)
-    variables_metadata = metadata.dataset_view.data.variables_metadata()
+    variables_metadata = metadata.data.variables_metadata()
     assert with_mars and all("mars" in variables_metadata[v] for v in with_mars)
     assert "cos_latitude" not in with_mars  # computed forcings have no MARS request
     assert "cos_latitude" in metadata.select_variables(include=["forcing"])
 
     variables, mask = metadata.select_variables_and_masks(include=["prognostic"])
-    assert [metadata.dataset_view.data.variable_indices()[v] for v in variables] == list(mask)
+    assert [metadata.data.variable_indices()[v] for v in variables] == list(mask)
 
     with pytest.raises(ValueError, match="overlap"):
         metadata.select_variables(include=["prognostic"], exclude=["prognostic"])

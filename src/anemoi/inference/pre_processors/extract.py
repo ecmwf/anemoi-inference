@@ -89,7 +89,7 @@ class ExtractMask(ExtractBase):
         if Path(mask).is_file():
             mask = np.load(mask)
         else:
-            arrays = metadata.dataset_view.arrays
+            arrays = metadata.arrays
             if mask not in arrays:
                 raise ValueError(f"Supporting array `{mask}` not found, available arrays: {arrays.names}")
             mask = arrays.get(mask)

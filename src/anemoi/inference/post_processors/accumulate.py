@@ -51,7 +51,7 @@ class Accumulate(Processor):
     ) -> None:
         super().__init__(context, metadata)
         if accumulations is None:
-            accumulations = metadata.dataset_view.data.accumulations()
+            accumulations = metadata.data.accumulations()
 
         self.accumulations = accumulations
         self.allow_negative = allow_negative

@@ -51,7 +51,7 @@ def _make_handler(
     metadata = SimpleNamespace(
         dataset_name="data",
         core=SimpleNamespace(task=SimpleNamespace(for_dataset=lambda name: timing)),
-        dataset_view=SimpleNamespace(data=data),
+        data=data,
     )
     handler = TensorHandler.__new__(TensorHandler)
     handler.metadata = metadata

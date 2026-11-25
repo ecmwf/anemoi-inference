@@ -50,7 +50,7 @@ def _make_context_and_metadata(*, lead_time=None, multi_step_output=1, write_ini
 
     metadata = MagicMock()
     metadata.dataset_name = "test"
-    metadata.dataset_view.data.typed_variables.return_value = {}
+    metadata.data.typed_variables.return_value = {}
     metadata.core.task.for_dataset.return_value = SimpleNamespace(
         output_offsets=output_offsets,
         rollout_shift=output_offsets[-1],
@@ -294,7 +294,7 @@ class TestZarrTimeIndex:
             multi_step_output=multi_step_output,
             write_initial_state=write_initial_state,
         )
-        metadata.dataset_view.data.typed_variables.return_value = {
+        metadata.data.typed_variables.return_value = {
             name: SimpleNamespace(grib_keys={"param": name}) for name in ALL_FIELDS
         }
         return ZarrOutput(context, metadata, store=str(store))

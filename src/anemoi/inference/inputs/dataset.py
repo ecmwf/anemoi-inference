@@ -80,7 +80,7 @@ class DatasetInput(Input):
             )
 
         if grid_indices is None:
-            grid_indices = metadata.dataset_view.arrays.grid_indices
+            grid_indices = metadata.arrays.grid_indices
             if context.verbosity > 0 and grid_indices is not None:
                 LOG.info(
                     "Loading supporting array `grid_indices` from checkpoint, \

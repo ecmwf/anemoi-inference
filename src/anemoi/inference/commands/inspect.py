@@ -131,7 +131,7 @@ class InspectCmd(Command):
 
         # the values the metadata gives: the task of the checkpoint and the data of the dataset
         timing = metadata.core.task.for_dataset(metadata.dataset_name)
-        dataset_data = metadata.dataset_view.data
+        dataset_data = metadata.data
         data["task"] = _(lambda: metadata.core.task.task_name)
         data["timestep"] = _(lambda: timing.timestep_delta)
         data["multi_step_input"] = _(lambda: timing.n_step_input)

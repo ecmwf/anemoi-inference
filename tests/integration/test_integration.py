@@ -243,6 +243,6 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
 
 def _typed_variables_output(metadata):
-    data = metadata.dataset_view.data
+    data = metadata.data
     typed_variables = data.typed_variables()
     return [typed_variables[name] for name in data.output_index_to_variable().values()]

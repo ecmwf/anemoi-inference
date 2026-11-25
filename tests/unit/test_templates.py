@@ -39,7 +39,7 @@ def _metadata():
     metadata = InferenceMetadata(CoreMetadata.from_dict(data))
 
     # 100u failed at one point in test_builtin_gribwriter, make sure 100u is still present if checkpoint is ever updated
-    assert "100u" in metadata.dataset_view.data.typed_variables().keys()
+    assert "100u" in metadata.data.typed_variables().keys()
     return metadata
 
 
@@ -181,9 +181,7 @@ def test_input(manager, config, request):
     [
         pytest.param(variable, id=variable.param)
         for variable in {
-            var.param: var
-            for var in _metadata().dataset_view.data.typed_variables().values()
-            if not var.is_computed_forcing
+            var.param: var for var in _metadata().data.typed_variables().values() if not var.is_computed_forcing
         }.values()  # dict to get only one level per pl param
     ],
 )

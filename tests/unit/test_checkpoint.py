@@ -89,7 +89,7 @@ def test_replace_metadata_replaces_arrays() -> None:
     after = checkpoint.multi_dataset_metadata["data"]
     assert after is not before
     assert list(checkpoint.metadata.dataset("data").arrays.latitudes) == [0.0, 1.0, 2.0, 3.0, 4.0]
-    assert list(after.dataset_view.arrays.longitudes) == [0.0, 2.0, 4.0, 6.0, 8.0]
+    assert list(after.arrays.longitudes) == [0.0, 2.0, 4.0, 6.0, 8.0]
     assert after.number_of_grid_points == 5
     assert after.input_shape[2] == 5
 
@@ -177,7 +177,7 @@ def test_replace_metadata_leaves_no_stale_values() -> None:
     checkpoint = Checkpoint("unit/checkpoints/simple.ckpt")
     assert checkpoint.timestep == timedelta(hours=6)
     assert checkpoint.lagged == [timedelta(hours=-6), timedelta(0)]
-    assert checkpoint.multi_dataset_metadata["data"].dataset_view.data.typed_variables()["2t"].param == "2t"
+    assert checkpoint.multi_dataset_metadata["data"].data.typed_variables()["2t"].param == "2t"
 
     checkpoint.replace_metadata(
         patch={
@@ -188,7 +188,7 @@ def test_replace_metadata_leaves_no_stale_values() -> None:
 
     assert checkpoint.timestep == timedelta(hours=3)
     assert checkpoint.lagged == [timedelta(hours=-3), timedelta(0)]
-    assert checkpoint.multi_dataset_metadata["data"].dataset_view.data.typed_variables()["2t"].param == "167"
+    assert checkpoint.multi_dataset_metadata["data"].data.typed_variables()["2t"].param == "167"
     assert checkpoint.metadata.task.timestep() == "3h"
 
 
@@ -208,7 +208,7 @@ def test_update_metadata_from_zarr_replaces_the_dataset_metadata(mocker) -> None
     from anemoi.inference.metadata import InferenceMetadata
 
     checkpoint = Checkpoint("unit/checkpoints/simple.ckpt")
-    assert checkpoint.multi_dataset_metadata["data"].dataset_view.data.typed_variables()["2t"].param == "2t"
+    assert checkpoint.multi_dataset_metadata["data"].data.typed_variables()["2t"].param == "2t"
 
     dataset_metadata = copy.deepcopy(checkpoint.metadata.to_dict()["dataset"])
     dataset_metadata["sources"] = []
@@ -222,5 +222,5 @@ def test_update_metadata_from_zarr_replaces_the_dataset_metadata(mocker) -> None
 
     assert new_metadata["dataset"] == dataset_metadata
     assert list(new_arrays["latitudes"]) == [0.0, 1.0, 2.0, 3.0, 4.0]
-    assert checkpoint.multi_dataset_metadata["data"].dataset_view.data.typed_variables()["2t"].param == "167"
+    assert checkpoint.multi_dataset_metadata["data"].data.typed_variables()["2t"].param == "167"
     assert checkpoint.multi_dataset_metadata["data"].number_of_grid_points == 5

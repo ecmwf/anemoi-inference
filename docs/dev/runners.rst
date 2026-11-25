@@ -88,9 +88,10 @@ which adds what is specific to inference (tensor shapes, grid coordinates,
 MARS requests, field namers, ...) to the checkpoint metadata read by
 :mod:`anemoi.metadata`. The checkpoint metadata itself is available as
 ``checkpoint.metadata`` (an :class:`anemoi.metadata.Metadata`), and
-``metadata.core``, ``metadata.dataset_view`` and ``metadata.dataset_name``
-give access to it from the wrapper. The task timing (timestep, ``lagged``,
-output offsets, rollout shift, explicit times, ...) is not owned by the wrapper: it
+``metadata.core``, ``metadata.data``, ``metadata.arrays`` and
+``metadata.dataset_name`` give access to it from the wrapper
+(``metadata.dataset_view`` is the underlying ``DatasetView``). The task timing
+(timestep, ``lagged``, output offsets, rollout shift, explicit times, ...) is not owned by the wrapper: it
 comes from ``checkpoint.metadata.task`` (``metadata.core.task.for_dataset(name)``
 for one dataset).
 

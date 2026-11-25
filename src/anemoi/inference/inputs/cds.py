@@ -201,7 +201,7 @@ class CDSInput(GribInput):
         if not requests:
             raise ValueError(f"No requests for {variables} ({dates})")
 
-        data = self.metadata.dataset_view.data
+        data = self.metadata.data
         return retrieve(requests, data.grid(), data.area(), dataset=self.dataset, expver="0001", **self.kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:

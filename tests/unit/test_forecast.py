@@ -85,7 +85,7 @@ class _Arrays:
         return name in self._arrays
 
 
-def _dataset_view(
+def _data_and_arrays(
     variable_indices,
     output_index_to_variable,
     prognostic_input_mask,
@@ -93,7 +93,7 @@ def _dataset_view(
     typed_variables,
     **arrays,
 ):
-    """Mock of the ``DatasetView`` of the metadata: what the runner and tensor handler read from it."""
+    """Mock `data` and `arrays` of the metadata (as keyword arguments): what the runner and tensor handler read from it."""
     data = SimpleNamespace(
         variable_indices=lambda: variable_indices,
         output_index_to_variable=lambda: output_index_to_variable,
@@ -101,7 +101,7 @@ def _dataset_view(
         prognostic_output_mask=lambda: prognostic_output_mask,
         typed_variables=lambda: typed_variables,
     )
-    return SimpleNamespace(data=data, arrays=_Arrays(**arrays))
+    return {"data": data, "arrays": _Arrays(**arrays)}
 
 
 def _core(**timing):
@@ -175,7 +175,7 @@ def forecast_runner_factory():
                 rollout_shift=multi_step_output * timestep,
                 advance_map=advance_map,
             ),
-            dataset_view=_dataset_view(
+            **_data_and_arrays(
                 {"force": 0, "prog": 1}, ["prog", "diag"], np.array([1]), np.array([0]), _typed_variables()
             ),
             prognostic_input_mask=np.array([1]),
@@ -334,7 +334,7 @@ def offset_forecast_runner_factory():
                 rollout_shift=to_timedelta(rollout_shift),
                 advance_map=advance_map,
             ),
-            dataset_view=_dataset_view(
+            **_data_and_arrays(
                 {"force": 0, "prog": 1}, ["prog", "diag"], np.array([1]), np.array([0]), _typed_variables()
             ),
             prognostic_input_mask=np.array([1]),
@@ -422,7 +422,7 @@ def _add_input_only_dataset(runner, name="obs"):
     metadata = SimpleNamespace(
         dataset_name=name,
         core=data_metadata.core,
-        dataset_view=_dataset_view(
+        **_data_and_arrays(
             {name: 0},
             [],
             np.array([0]),

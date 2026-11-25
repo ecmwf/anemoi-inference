@@ -39,8 +39,9 @@ Input, output, processor and forcing classes keep the signature
 dataset they work on.  ``metadata`` is an instance of
 ``checkpoint.metadata_base`` (a subclass of :class:`InferenceMetadata`, hence
 a thin wrapper over the metadata); ``metadata.core`` is the
-:class:`anemoi.metadata.Metadata`, ``metadata.dataset_view`` its
-``DatasetView`` (``.data``, ``.arrays``) and ``metadata.dataset_name`` the
+:class:`anemoi.metadata.Metadata`, ``metadata.data`` and ``metadata.arrays``
+the ``data`` and ``arrays`` of the dataset (the components of its
+``metadata.dataset_view``, a ``DatasetView``) and ``metadata.dataset_name`` the
 dataset name.  A ``metadata_base`` subclass is built with
 ``cls(core, dataset_name=name)``.
 """
@@ -177,8 +178,16 @@ class InferenceMetadata:
         return self.core.dataset(self.dataset_name)
 
     @property
-    def _data(self) -> Any:
-        return self.dataset_view.data
+    def data(self) -> Any:
+        """The ``data`` of this dataset (variables, tensor indices, masks), a component of ``dataset_view``."""
+        view = self.dataset_view
+        return view.data
+
+    @property
+    def arrays(self) -> Any:
+        """The supporting arrays of this dataset (coordinates, masks, ...), a component of ``dataset_view``."""
+        view = self.dataset_view
+        return view.arrays
 
     ###########################################################################
     # Checkpoint flags
@@ -201,7 +210,7 @@ class InferenceMetadata:
     @property
     def data_type(self) -> Literal["gridded", "tabular"]:
         """The data type of the dataset (``"gridded"`` for checkpoints that record none)."""
-        return self._data.data_type()
+        return self.data.data_type()
 
     ###########################################################################
     # Shapes and coordinates
@@ -221,7 +230,7 @@ class InferenceMetadata:
         These are the supporting arrays, restricted to ``grid_indices`` when the checkpoint has them
         (deprecated; a warning is logged once).  An array the checkpoint does not have is ``None``.
         """
-        arrays = self.dataset_view.arrays
+        arrays = self.arrays
         latitudes, longitudes = arrays.latitudes, arrays.longitudes
         grid_indices = arrays.grid_indices
         if grid_indices is not None:
@@ -238,7 +247,7 @@ class InferenceMetadata:
     def input_shape(self) -> tuple[int, int, int, int]:
         """Shape of the input tensor."""
         n_step_input = self.core.task.for_dataset(self.dataset_name).n_step_input
-        n_variables = len(self._data.variable_indices())
+        n_variables = len(self.data.variable_indices())
         if self.multi_dataset and self.richer_batch:
             # richer-batch dropped the batch dimension and inserted ensemble=1
             return (n_step_input, 1, self.number_of_grid_points, n_variables)  # time, ensemble, grid, variables
@@ -247,7 +256,7 @@ class InferenceMetadata:
     @cached_property
     def output_shape(self) -> tuple[int, int, int, int, int] | tuple[int, int, int, int]:
         """Shape of the output tensor."""
-        n_variables = len(self._data.output_variable_indices())
+        n_variables = len(self.data.output_variable_indices())
         # When multistep_output was introduced, the metadata schema version was not bumped, so checkpoints
         # without it (older ones) are detected by the absence of the config entry, in `training` or `task`.
         config = self.core.sections.config
@@ -292,15 +301,15 @@ class InferenceMetadata:
             if overlap:
                 raise ValueError(f"Include and exclude sets must not overlap {include} & {exclude}")
 
-        result = self._data.select_variables(include=include, exclude=exclude)
+        result = self.data.select_variables(include=include, exclude=exclude)
         if has_mars_requests:
-            variables_metadata = self._data.variables_metadata()
+            variables_metadata = self.data.variables_metadata()
             result = [v for v in result if "mars" in variables_metadata.get(v, {})]
         return result
 
     def variables_mask(self, *, variables: list[str]) -> IntArray:
         """Return the input tensor indices of *variables*."""
-        indices = self._data.variable_indices()
+        indices = self.data.variable_indices()
         return np.array([indices[v] for v in variables])
 
     def select_variables_and_masks(
@@ -317,8 +326,8 @@ class InferenceMetadata:
     def print_indices(self, print=LOG.info) -> None:
         """Print the input and output tensor indices for debugging purposes."""
         for title, mapping in (
-            ("Input indices", self._data.input_index_to_variable()),
-            ("Output indices", self._data.output_index_to_variable()),
+            ("Input indices", self.data.input_index_to_variable()),
+            ("Output indices", self.data.output_index_to_variable()),
         ):
             print("")
             print(f"[{self.dataset_name}] {title}")
@@ -329,7 +338,7 @@ class InferenceMetadata:
 
     def print_variable_categories(self, print=LOG.info) -> None:
         """Print the variable categories for debugging purposes."""
-        categories = self._data.variable_categories(per_variable=True)
+        categories = self.data.variable_categories(per_variable=True)
         length = max((len(name) for name in categories), default=0)
         for name, names in sorted(categories.items()):
             print(f"   {name:{length}} => {', '.join(names)}")
@@ -411,7 +420,7 @@ class InferenceMetadata:
 
         param_levelist_to_name: dict[tuple[Any, Any], str] = {}
         ambiguous_keys: set[tuple[Any, Any]] = set()
-        for name, variable in self._data.typed_variables().items():
+        for name, variable in self.data.typed_variables().items():
             key = (variable.param, variable.level)
             if key in param_levelist_to_name and param_levelist_to_name[key] != name:
                 ambiguous_keys.add(key)
@@ -455,7 +464,7 @@ class InferenceMetadata:
             The MARS requests.
         """
 
-        variables_metadata = self._data.variables_metadata()
+        variables_metadata = self.data.variables_metadata()
         for variable in self.select_variables(include=["prognostic", "forcing"], exclude=["computed", "diagnostic"]):
             metadata = variables_metadata[variable]
 
@@ -478,7 +487,7 @@ class InferenceMetadata:
         params = set()
         levels = set()
 
-        variables_metadata = self._data.variables_metadata()
+        variables_metadata = self.data.variables_metadata()
         for variable in self.select_variables(
             include=["prognostic", "forcing"],
             exclude=["computed", "diagnostic"],
@@ -658,7 +667,7 @@ class InferenceMetadata:
         if len(variables) == 0:
             raise ValueError("No variables requested")
 
-        variables_metadata = self._data.variables_metadata()
+        variables_metadata = self.data.variables_metadata()
         for variable in variables:
             if variable not in variables_metadata:
                 raise ValueError(f"Variable {variable} not found in the metadata")
@@ -760,7 +769,7 @@ class InferenceMetadata:
 
     def _dataloader_dataset(self, partition: str = "training") -> dict[str, Any]:
         """Dataloader dataset configuration for the given partition."""
-        return self._data.dataloader_config(partition)
+        return self.data.dataloader_config(partition)
 
     def _get_datasets_full_paths(self) -> list:
         """Get the full paths of the datasets used in the training.
@@ -892,7 +901,7 @@ class InferenceMetadata:
         if from_dataloader is not None:
             args, kwargs = [], self._dataloader_dataset(from_dataloader)
         else:
-            arguments = self._data.open_dataset_args()
+            arguments = self.data.open_dataset_args()
             args, kwargs = arguments.get("args", []), arguments.get("kwargs", {})
 
         args, kwargs = _fix([args, kwargs])

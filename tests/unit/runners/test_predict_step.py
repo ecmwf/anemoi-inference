@@ -70,13 +70,13 @@ def _runner(multi_dataset: bool, richer_batch: bool) -> Runner:
     runner = Runner.__new__(Runner)
     runner._checkpoint = SimpleNamespace(multi_dataset=multi_dataset, richer_batch=richer_batch)
     runner.config = SimpleNamespace(predict_kwargs={})
-    # what `anemoi.metadata` gives for a dataset: `metadata.dataset_view.data`
+    # what `anemoi.metadata` gives for a dataset: `metadata.data`
     data = SimpleNamespace(
         data_type=lambda: "gridded",
         input_index_to_variable=lambda: dict(enumerate(INPUTS)),
         output_index_to_variable=lambda: dict(enumerate(OUTPUTS)),
     )
-    metadata = SimpleNamespace(dataset_view=SimpleNamespace(data=data))
+    metadata = SimpleNamespace(data=data)
     runner.tensor_handlers = {"data": SimpleNamespace(metadata=metadata)}
     return runner
 

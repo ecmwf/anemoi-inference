@@ -56,7 +56,7 @@ def basic_metadata():
     """Fixture to create mock metadata for testing outputs."""
     metadata = MagicMock()
     metadata.dataset_name = "test"
-    metadata.dataset_view.data.typed_variables.return_value = dict(TYPED_VARIABLES)
+    metadata.data.typed_variables.return_value = dict(TYPED_VARIABLES)
     metadata.multi_dataset = False
     return metadata
 
