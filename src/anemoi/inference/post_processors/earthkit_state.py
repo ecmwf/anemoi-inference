@@ -44,6 +44,14 @@ class StateFieldGeography:
         """Tuple: Shape of the geographical field."""
         return self._field.shape
 
+    def latitudes(self, dtype: Any = None) -> FloatArray:
+        """Latitudes of the grid points, taken from the state."""
+        return np.asarray(self._field.state["latitudes"], dtype=dtype)
+
+    def longitudes(self, dtype: Any = None) -> FloatArray:
+        """Longitudes of the grid points, taken from the state."""
+        return np.asarray(self._field.state["longitudes"], dtype=dtype)
+
 
 class StateFieldMetadata(RawMetadata):
     """Metadata for a state field.
@@ -64,6 +72,8 @@ class StateFieldMetadata(RawMetadata):
                 if isinstance(v, (str, int, float, bool, datetime.datetime, datetime.timedelta))
             },
         )
+        if "date" in field.state:  # the date of a state is the date its fields are valid at
+            metadata.setdefault("valid_datetime", field.state["date"])
         super().__init__(**metadata)
         self._field = field
 
