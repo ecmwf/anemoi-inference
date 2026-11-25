@@ -125,14 +125,13 @@ class Checkpoint:
             The source of the checkpoint as a path, a metadata object, or huggingface mapping.
         metadata_base : type[InferenceMetadata], optional
             The base class for the checkpoint's metadata objects, useful for overriding task/runner-specific
-            metadata. It is built with ``metadata_base(core, dataset_name=..., number_of_grid_points=...)``.
+            metadata. It is built with ``metadata_base(core, dataset_name=...)``.
         patch_metadata : dict[str, Any], optional
             Metadata to patch the checkpoint with, by default None.
         """
         self._source = source
         self.metadata_base = metadata_base
         self.patch_metadata = patch_metadata
-        self._number_of_grid_points: int | None = None
 
     def __repr__(self) -> str:
         """Represent the Checkpoint as a string.
@@ -216,7 +215,6 @@ class Checkpoint:
         self,
         patch: Mapping[str, Any] | None = None,
         supporting_arrays: Mapping[str, Mapping[str, np.ndarray]] | None = None,
-        number_of_grid_points: int | None = None,
     ) -> None:
         """Replace the metadata of the checkpoint.
 
@@ -231,9 +229,6 @@ class Checkpoint:
             Partial raw metadata to merge in (lists replace).
         supporting_arrays : Mapping[str, Mapping[str, numpy.ndarray]], optional
             Arrays to replace or add, ``{dataset_name: {array_name: array}}``.
-        number_of_grid_points : int, optional
-            An explicit number of grid points (for every dataset); it wins over the length of
-            ``grid_indices`` or ``latitudes``. ``None`` clears a count set by a previous call.
         """
         core = self.metadata
         if patch or supporting_arrays:
@@ -241,15 +236,6 @@ class Checkpoint:
 
         self._reset()
         self.__dict__["metadata"] = core
-        self._number_of_grid_points = number_of_grid_points
-
-    @property
-    def number_of_grid_points(self) -> int | None:
-        """The explicit number of grid points set by :meth:`replace_metadata`, or ``None`` (then the metadata gives it).
-
-        The checkpoint owns this value: the per-dataset ``InferenceMetadata`` objects are built with it.
-        """
-        return self._number_of_grid_points
 
     @cached_property
     def dataset_names(self) -> list[str]:
@@ -272,10 +258,7 @@ class Checkpoint:
         For legacy checkpoints, the dataset name defaults to `data`
         """
         core = self.metadata
-        return {
-            name: self.metadata_base(core, dataset_name=name, number_of_grid_points=self.number_of_grid_points)
-            for name in core.dataset_names
-        }
+        return {name: self.metadata_base(core, dataset_name=name) for name in core.dataset_names}
 
     @cached_property
     def _metadata(self) -> InferenceMetadata:

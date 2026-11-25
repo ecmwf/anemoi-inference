@@ -150,12 +150,11 @@ def test_number_of_grid_points(atmos_core):
     metadata = InferenceMetadata(atmos_core)
     assert metadata.number_of_grid_points == atmos_core.dataset().data.grid_size()
 
-    # the length of the arrays wins over the recorded size, an explicit count wins over the arrays
+    # the length of the arrays wins over the recorded size
     arrays = {"data": {"latitudes": np.zeros(5), "longitudes": np.zeros(5)}}
     core = atmos_core.with_overrides({}, arrays)
     assert InferenceMetadata(core).number_of_grid_points == 5
-    assert InferenceMetadata(core, number_of_grid_points=7).number_of_grid_points == 7
-    assert InferenceMetadata(core, number_of_grid_points=7).input_shape[2] == 7
+    assert InferenceMetadata(core).input_shape[2] == 5
 
 
 def test_select_variables(atmos_core):

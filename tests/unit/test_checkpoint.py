@@ -94,27 +94,6 @@ def test_replace_metadata_replaces_arrays() -> None:
     assert after.input_shape[2] == 5
 
 
-@fake_checkpoints
-def test_replace_metadata_explicit_grid_points_win() -> None:
-    """An explicit count wins over the array lengths; without one the arrays decide again."""
-    from anemoi.inference.checkpoint import Checkpoint
-
-    checkpoint = Checkpoint("unit/checkpoints/simple.ckpt")
-    arrays = {"data": {"latitudes": np.zeros(5), "longitudes": np.zeros(5)}}
-
-    assert checkpoint.number_of_grid_points is None
-
-    checkpoint.replace_metadata(supporting_arrays=arrays, number_of_grid_points=7)
-    metadata = checkpoint.multi_dataset_metadata["data"]
-    assert checkpoint.number_of_grid_points == 7
-    assert metadata.number_of_grid_points == 7
-    assert metadata.input_shape[2] == metadata.output_shape[2] == 7
-
-    checkpoint.replace_metadata(number_of_grid_points=None)
-    assert checkpoint.number_of_grid_points is None
-    assert checkpoint.multi_dataset_metadata["data"].number_of_grid_points == 5
-
-
 def test_replace_metadata_rebuilds_the_wrapper_given_at_construction(multi_core) -> None:
     """A checkpoint built from a wrapper reads the new metadata after `replace_metadata`, not the old wrapper."""
     from anemoi.inference.metadata import InferenceMetadata

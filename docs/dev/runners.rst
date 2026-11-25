@@ -101,13 +101,7 @@ The signature of that class is:
    class InferenceMetadata:
        """Thin inference-side wrapper of one dataset of an ``anemoi.metadata.Metadata``."""
 
-       def __init__(
-           self,
-           metadata: anemoi.metadata.Metadata,
-           dataset_name: str | None = None,
-           *,
-           number_of_grid_points: int | None = None,
-       ) -> None: ...
+       def __init__(self, metadata: anemoi.metadata.Metadata, dataset_name: str | None = None) -> None: ...
 
 If you needed some kind of custom metadata management in your runner,
 you could subclass this class:
@@ -117,8 +111,8 @@ you could subclass this class:
    class MyMetadata(InferenceMetadata):
        """My custom metadata class."""
 
-       def __init__(self, metadata, dataset_name=None, *, number_of_grid_points=None):
-           super().__init__(metadata, dataset_name, number_of_grid_points=number_of_grid_points)
+       def __init__(self, metadata, dataset_name=None):
+           super().__init__(metadata, dataset_name)
            # My custom code here
 
 This can then be passed into the Runner class using the

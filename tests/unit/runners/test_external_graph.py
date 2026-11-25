@@ -80,6 +80,35 @@ def test_explicit_number_of_grid_points_wins_over_array_lengths() -> None:
 
 
 @fake_checkpoints
+def test_explicit_count_survives_later_replacements_and_is_not_shared() -> None:
+    graph = _graph(lats=torch.arange(5.0), lons=torch.arange(5.0))
+    runner = _runner(graph, updated_number_of_grid_points=7)
+    other = _runner(graph)
+
+    # the wrappers rebuilt after a replacement still see the count of the runner
+    runner._replace_metadata(supporting_arrays={"latitudes": np.zeros(4), "longitudes": np.zeros(4)})
+    assert len(runner.checkpoint.metadata.dataset("data").arrays.latitudes) == 4
+    assert _data(runner).number_of_grid_points == 7
+    assert _data(runner).output_shape[2] == 7
+
+    # a new explicit count replaces the old one
+    runner._replace_metadata(number_of_grid_points=8)
+    assert _data(runner).number_of_grid_points == 8
+
+    # another runner has its own count
+    assert _data(other).number_of_grid_points != 8
+
+
+@fake_checkpoints
+def test_without_explicit_count_the_arrays_decide() -> None:
+    runner = _runner(_graph(lats=torch.arange(5.0), lons=torch.arange(5.0)))
+    assert _data(runner).number_of_grid_points == 40320  # recorded in the checkpoint metadata
+
+    runner._replace_metadata(supporting_arrays={"latitudes": np.zeros(3), "longitudes": np.zeros(3)})
+    assert _data(runner).number_of_grid_points == 3
+
+
+@fake_checkpoints
 def test_number_of_grid_points_from_a_graph_attribute() -> None:
     graph = _graph(lats=torch.arange(5.0), lons=torch.arange(5.0), other=torch.zeros(9))
     runner = _runner(

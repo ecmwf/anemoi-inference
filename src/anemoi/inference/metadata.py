@@ -42,7 +42,7 @@ a thin wrapper over the metadata); ``metadata.core`` is the
 :class:`anemoi.metadata.Metadata`, ``metadata.dataset_view`` its
 ``DatasetView`` (``.data``, ``.arrays``) and ``metadata.dataset_name`` the
 dataset name.  A ``metadata_base`` subclass is built with
-``cls(core, dataset_name=name, number_of_grid_points=n)``.
+``cls(core, dataset_name=name)``.
 """
 
 import logging
@@ -162,23 +162,11 @@ class InferenceMetadata:
         The metadata of the checkpoint.
     dataset_name : str, optional
         The dataset to wrap; it may be omitted when the checkpoint has one dataset.
-    number_of_grid_points : int, optional
-        The explicit number of grid points of the checkpoint (set on
-        :class:`~anemoi.inference.checkpoint.Checkpoint`, which passes it when it builds the
-        wrappers); it wins over the length of the supporting arrays (an external graph
-        defines its own grid).
     """
 
-    def __init__(
-        self,
-        metadata: CoreMetadata,
-        dataset_name: str | None = None,
-        *,
-        number_of_grid_points: int | None = None,
-    ) -> None:
+    def __init__(self, metadata: CoreMetadata, dataset_name: str | None = None) -> None:
         self.core = metadata
         self.dataset_name: str = metadata.dataset(dataset_name).name
-        self._explicit_number_of_grid_points = number_of_grid_points
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(name={self.dataset_name!r})"
@@ -223,11 +211,8 @@ class InferenceMetadata:
     def number_of_grid_points(self) -> int | None:
         """Number of grid points per field.
 
-        The explicit count of the checkpoint (:attr:`anemoi.inference.checkpoint.Checkpoint.number_of_grid_points`)
-        wins; else the length of ``grid_indices``, of ``latitudes``, or the grid size recorded in the metadata.
+        The length of ``grid_indices``, else of ``latitudes``, else the grid size recorded in the metadata.
         """
-        if self._explicit_number_of_grid_points is not None:
-            return self._explicit_number_of_grid_points
         return self.dataset_view.number_of_grid_points
 
     def coordinates(self) -> tuple[FloatArray | None, FloatArray | None]:

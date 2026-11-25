@@ -23,6 +23,8 @@ from anemoi.utils.config import DotDict
 from anemoi.inference.lazy import torch
 
 from ..decorators import main_argument
+from ..metadata import InferenceMetadata
+from ..runner import RunnerClasses
 from ..runners.default import DefaultRunner
 from . import runner_registry
 
@@ -133,6 +135,22 @@ def get_updated_supporting_arrays(
     return updated_supporting_arrays
 
 
+def _metadata_class(runner: ExternalGraphRunner) -> type[InferenceMetadata]:
+    """Return an ``InferenceMetadata`` class whose number of grid points is the one of *runner*, when set.
+
+    An external graph defines its own grid, so the count it gives wins over the length of the supporting
+    arrays. It is read from the runner each time, so it holds for every wrapper built from any metadata.
+    """
+
+    class ExternalGraphMetadata(InferenceMetadata):
+        @property
+        def number_of_grid_points(self) -> int | None:
+            explicit = runner._number_of_grid_points
+            return explicit if explicit is not None else super().number_of_grid_points
+
+    return ExternalGraphMetadata
+
+
 @runner_registry.register("external_graph")
 @main_argument("graph")
 class ExternalGraphRunner(DefaultRunner):
@@ -179,14 +197,16 @@ class ExternalGraphRunner(DefaultRunner):
         check_state_dict: bool | None
             Boolean specifying if reconstruction of statedict happens as expeceted.
         """
-        super().__init__(config)
+        # The explicit number of grid points is owned by the runner; the metadata wrappers read it from here,
+        # so wrappers rebuilt after a replacement of the metadata still see it.
+        self._number_of_grid_points: int | None = None
+        super().__init__(config, classes=RunnerClasses(metadata=_metadata_class(self)))
         # TODO: multi-dataset checkpoint support
         assert not self.checkpoint.multi_dataset, (
             "ExternalGraphRunner currently only supports legacy single-dataset checkpoints, trained with `anemoi-training<0.9` and `anemoi-models<0.12`"
         )
         self.check_state_dict = check_state_dict
         self.graph_path = graph
-        self._number_of_grid_points: int | None = None
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
@@ -274,7 +294,7 @@ class ExternalGraphRunner(DefaultRunner):
         supporting_arrays: dict[str, Any] | None = None,
         number_of_grid_points: int | None = None,
     ) -> None:
-        """Replace the metadata of the checkpoint, keeping an explicit number of grid points set before.
+        """Replace the metadata of the checkpoint, setting the explicit number of grid points when given.
 
         Parameters
         ----------
@@ -294,7 +314,6 @@ class ExternalGraphRunner(DefaultRunner):
                 if supporting_arrays
                 else None
             ),
-            number_of_grid_points=self._number_of_grid_points,
         )
 
     @cached_property
