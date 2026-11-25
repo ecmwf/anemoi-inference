@@ -243,5 +243,6 @@ def test_integration(test_setup: Setup, tmp_path: Path) -> None:
 
 
 def _typed_variables_output(metadata):
-    output_variables = metadata.output_tensor_index_to_variable.values()
-    return [metadata.typed_variables[name] for name in output_variables]
+    data = metadata.dataset_view.data
+    typed_variables = data.typed_variables()
+    return [typed_variables[name] for name in data.output_index_to_variable().values()]

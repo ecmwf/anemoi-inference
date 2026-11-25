@@ -16,7 +16,7 @@ from anemoi.utils.dates import as_timedelta
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
@@ -206,7 +206,7 @@ class MarsInput(GribInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         variables: list[str] | None = None,
         patches: list[tuple[dict[str, Any], dict[str, Any]]] | None = None,
@@ -222,7 +222,7 @@ class MarsInput(GribInput):
         ----------
         context : Any
             The context in which the input is used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
@@ -315,8 +315,8 @@ class MarsInput(GribInput):
 
         kwargs = self.kwargs.copy()
         kwargs.setdefault("expver", "0001")
-        kwargs.setdefault("grid", self.metadata.grid)
-        kwargs.setdefault("area", self.metadata.area)
+        kwargs.setdefault("grid", self.metadata.dataset_view.data.grid())
+        kwargs.setdefault("area", self.metadata.dataset_view.data.area())
 
         return retrieve(
             requests,

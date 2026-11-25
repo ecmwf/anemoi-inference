@@ -15,7 +15,7 @@ import pytest
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.inputs.cutout import _mask_and_combine_states
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.runner import Runner
 from anemoi.inference.runners import create_runner
 from anemoi.inference.testing import fake_checkpoints
@@ -62,13 +62,11 @@ def runner() -> None:
     runner = create_runner(config)
     assert runner.checkpoint
     # since this is a single-dataset checkpoint, we can use the metadata of the first dataset for testing
-    return runner, runner.checkpoint._metadata
+    return runner, runner.checkpoint.multi_dataset_metadata[runner.checkpoint.dataset_names[0]]
 
 
 @fake_checkpoints
-def test_cutout_no_mask(runner: tuple[Runner, Metadata]):
-    from unittest.mock import patch
-
+def test_cutout_no_mask(runner: tuple[Runner, InferenceMetadata]):
     from anemoi.inference.inputs.cutout import Cutout
 
     runner, metadata = runner
@@ -78,8 +76,7 @@ def test_cutout_no_mask(runner: tuple[Runner, Metadata]):
     ]
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
-    with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == number_of_grid_points * 2
@@ -92,9 +89,7 @@ def test_cutout_no_mask(runner: tuple[Runner, Metadata]):
 
 
 @fake_checkpoints
-def test_cutout_with_slice(runner: tuple[Runner, Metadata]):
-    from unittest.mock import patch
-
+def test_cutout_with_slice(runner: tuple[Runner, InferenceMetadata]):
     from anemoi.inference.inputs.cutout import Cutout
 
     runner, metadata = runner
@@ -104,9 +99,7 @@ def test_cutout_with_slice(runner: tuple[Runner, Metadata]):
     ]
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     assert list(cutout_input.sources.keys()) == ["lam", "global"]
-    number_of_grid_points = metadata.number_of_grid_points
-    with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == 25
@@ -119,9 +112,7 @@ def test_cutout_with_slice(runner: tuple[Runner, Metadata]):
 
 
 @fake_checkpoints
-def test_cutout_with_array(runner: tuple[Runner, Metadata]):
-    from unittest.mock import patch
-
+def test_cutout_with_array(runner: tuple[Runner, InferenceMetadata]):
     from anemoi.inference.inputs.cutout import Cutout
 
     runner, metadata = runner
@@ -136,8 +127,7 @@ def test_cutout_with_array(runner: tuple[Runner, Metadata]):
     cutout_config = [{"lam": {"mask": lam_mask, "dummy": {}}}, {"global": {"mask": global_mask, "dummy": {}}}]
     cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
     number_of_grid_points = metadata.number_of_grid_points
-    with patch("anemoi.inference.metadata.Metadata.load_supporting_array", return_value=np.ones(number_of_grid_points)):
-        input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    input_state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
 
     assert "_mask" in input_state
     assert input_state["latitudes"].shape[0] == 25
@@ -147,3 +137,83 @@ def test_cutout_with_array(runner: tuple[Runner, Metadata]):
 
     assert not all(input_state["_mask"]["global"][slice(0, 10)])
     assert all(input_state["_mask"]["global"][slice(15, None)])
+
+
+@fake_checkpoints
+def test_cutout_masks_from_supporting_arrays(runner: tuple[Runner, InferenceMetadata]):
+    from anemoi.inference.inputs.cutout import Cutout
+
+    runner, metadata = runner
+    name = metadata.dataset_name
+    number_of_grid_points = metadata.number_of_grid_points
+
+    lam_mask = np.zeros(number_of_grid_points, dtype=bool)
+    lam_mask[:10] = True
+    global_mask = np.zeros(number_of_grid_points, dtype=bool)
+    global_mask[10:25] = True
+
+    runner.checkpoint.replace_metadata(
+        supporting_arrays={name: {"lam/cutout_mask": lam_mask, "global/cutout_mask": global_mask}}
+    )
+    metadata = runner.checkpoint.multi_dataset_metadata[name]
+
+    cutout_config = [{"lam": {"dummy": {}}}, {"global": {"dummy": {}}}]
+    cutout_input = Cutout(runner, metadata, variables=["2t"], sources=cutout_config)
+    np.testing.assert_array_equal(cutout_input.masks["lam"], lam_mask)
+    np.testing.assert_array_equal(cutout_input.masks["global"], global_mask)
+
+
+@fake_checkpoints
+def test_cutout_missing_mask_array_raises(runner: tuple[Runner, InferenceMetadata]):
+    from anemoi.inference.inputs.cutout import Cutout
+
+    runner, metadata = runner
+    with pytest.raises(ValueError, match="lam/cutout_mask"):
+        Cutout(runner, metadata, variables=["2t"], sources=[{"lam": {"dummy": {}}}])
+
+
+@fake_checkpoints
+def test_cutout_coordinates_fall_back_to_the_source_supporting_arrays(runner: tuple[Runner, InferenceMetadata]):
+    from anemoi.inference.inputs.cutout import Cutout
+
+    runner, metadata = runner
+    name = metadata.dataset_name
+    n = metadata.number_of_grid_points
+
+    lam_mask = np.zeros(n, dtype=bool)
+    lam_mask[:10] = True
+    global_mask = np.zeros(n, dtype=bool)
+    global_mask[10:25] = True
+    lats = {i: np.arange(n, dtype=float) + 1000 * i for i in range(2)}
+    lons = {i: -np.arange(n, dtype=float) - 1000 * i for i in range(2)}
+
+    runner.checkpoint.replace_metadata(
+        supporting_arrays={
+            name: {
+                f"source{i}/{key}": values[i]
+                for i in range(2)
+                for key, values in (("latitudes", lats), ("longitudes", lons))
+            }
+        }
+    )
+    metadata = runner.checkpoint.multi_dataset_metadata[name]
+
+    cutout_input = Cutout(
+        runner,
+        metadata,
+        variables=["2t"],
+        sources=[{"lam": {"mask": lam_mask, "dummy": {}}}, {"global": {"mask": global_mask, "dummy": {}}}],
+    )
+
+    # the sources give no coordinates: they are read from the `source<i>/latitudes|longitudes` arrays
+    for source in cutout_input.sources.values():
+        create_input_state = source.create_input_state
+
+        def without_coordinates(*, dates, _create=create_input_state, **kwargs):
+            state = _create(dates=dates, **kwargs)
+            return {k: v for k, v in state.items() if k != "latitudes"}
+
+        source.create_input_state = without_coordinates
+
+    state = cutout_input.create_input_state(dates=[datetime.datetime.fromisoformat("2020-01-01T00:00")])
+    np.testing.assert_array_equal(state["latitudes"], np.concatenate([lats[0][lam_mask], lats[1][global_mask]]))

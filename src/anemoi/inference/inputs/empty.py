@@ -17,7 +17,7 @@ import logging
 from typing import Any
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
 
@@ -34,7 +34,7 @@ class EmptyInput(Input):
 
     trace_name = "empty"
 
-    def __init__(self, context: Context, metadata: Metadata, **kwargs: Any) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata, **kwargs: Any) -> None:
         """Initialise the EmptyInput.
 
         Parameters

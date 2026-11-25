@@ -69,7 +69,7 @@ def test_temporal_downscaler_execute_multiple_windows(
         patch_metadata={
             "config": {"training": {"multistep_output": 2}},
             "metadata_inference": {
-                "task": "temporal_downscaler",
+                "task": "temporal-downscaler",
                 "data": {
                     "timesteps": {
                         "input_relative_date_indices": [0, 3],
@@ -90,6 +90,11 @@ def test_temporal_downscaler_execute_multiple_windows(
     runner = create_runner(config)
     # The fake checkpoint's model is built from the unpatched metadata, so has a single output step
     runner.model = SimpleMockModel(runner.checkpoint.multi_dataset_metadata, output_mode=VariableOutputSetting.ONES)
+
+    # the task of the metadata looks ahead: inputs at the window start and end, outputs in between
+    assert runner.checkpoint.task == "temporal-downscaler"
+    assert runner.checkpoint.lagged == [datetime.timedelta(0), datetime.timedelta(hours=18)]
+    assert runner.checkpoint.output_offsets == [datetime.timedelta(hours=6), datetime.timedelta(hours=12)]
 
     written: list[datetime.timedelta] = []
 

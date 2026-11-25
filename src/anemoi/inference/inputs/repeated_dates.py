@@ -14,7 +14,7 @@ from typing import Any
 from anemoi.utils.dates import as_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.state import concat_states
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -37,7 +37,7 @@ class RepeatedDatesInput(Input):
     trace_name = "repeated dates"
 
     def __init__(
-        self, context: Context, metadata: Metadata, *, source: str, mode: str = "constant", **kwargs: Any
+        self, context: Context, metadata: InferenceMetadata, *, source: str, mode: str = "constant", **kwargs: Any
     ) -> None:
 
         self.date = kwargs.pop("date", None)

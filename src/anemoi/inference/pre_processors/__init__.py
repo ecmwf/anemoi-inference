@@ -10,14 +10,14 @@
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import ProcessorConfig
 
 pre_processor_registry: Registry[Processor] = Registry(__name__)
 
 
-def create_pre_processor(context: Context, config: ProcessorConfig, metadata: Metadata, **kwargs) -> Processor:
+def create_pre_processor(context: Context, config: ProcessorConfig, metadata: InferenceMetadata, **kwargs) -> Processor:
     """Create a pre-processor.
 
     Parameters
@@ -26,7 +26,7 @@ def create_pre_processor(context: Context, config: ProcessorConfig, metadata: Me
         The context for the pre-processor.
     config : ProcessorConfig
         The configuration for the pre-processor.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this pre-processor is handling.
     **kwargs : Any
         Additional keyword arguments to pass to the pre-processor constructor.

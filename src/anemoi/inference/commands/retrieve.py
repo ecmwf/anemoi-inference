@@ -120,8 +120,9 @@ def checkpoint_to_requests(
     if not variables:
         return []
 
-    area = metadata.area
-    grid = metadata.grid
+    area = metadata.dataset_view.data.area()
+    grid = metadata.dataset_view.data.grid()
+    lagged = checkpoint.metadata.task.for_dataset(dataset_name).lagged
 
     more = postproc(grid, area)
 
@@ -134,11 +135,11 @@ def checkpoint_to_requests(
         with open(staging_dates) as f:
             for line in f:
                 date = to_datetime(line.strip())
-                dates.update([date + h for h in metadata.lagged])
+                dates.update([date + h for h in lagged])
         dates = sorted(dates)
     else:
         date = to_datetime(date)
-        dates = [date + h for h in metadata.lagged]
+        dates = [date + h for h in lagged]
 
     if forecast_dates:
         new_dates = set()

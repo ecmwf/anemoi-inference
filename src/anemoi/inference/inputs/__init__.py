@@ -13,12 +13,12 @@ from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 
 input_registry = Registry(__name__)
 
 
-def create_input(context: Context, config: Configuration, metadata: Metadata, **kwargs) -> Any:
+def create_input(context: Context, config: Configuration, metadata: InferenceMetadata, **kwargs) -> Any:
     """Create an input instance from the given context and configuration.
 
     Parameters
@@ -27,7 +27,7 @@ def create_input(context: Context, config: Configuration, metadata: Metadata, **
         The context in which the input is created.
     config : Configuration
         The configuration for the input.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this input is handling.
     **kwargs : Any
         Additional keyword arguments to pass to the input constructor.

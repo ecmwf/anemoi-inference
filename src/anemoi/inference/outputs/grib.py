@@ -18,7 +18,7 @@ from typing import Literal
 
 from earthkit.data.utils.dates import to_datetime
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
@@ -165,7 +165,7 @@ class BaseGribOutput(Output):
     def __init__(
         self,
         context: dict,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         post_processors: list[ProcessorConfig] | None = None,
         encoding: dict[str, Any] | None = None,
@@ -184,7 +184,7 @@ class BaseGribOutput(Output):
         ----------
         context : dict
             The context dictionary.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         post_processors : Optional[List[ProcessorConfig]] = None
             Post-processors to apply to the input

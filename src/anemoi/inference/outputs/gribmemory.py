@@ -13,7 +13,7 @@ from io import IOBase
 from typing import Any
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import ProcessorConfig
 
 from ..types import OutputVariableConfigUnion
@@ -28,7 +28,7 @@ class GribMemoryOutput(GribIoOutput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         out: IOBase,
         post_processors: list[ProcessorConfig] | None = None,
@@ -49,7 +49,7 @@ class GribMemoryOutput(GribIoOutput):
         ----------
         context : Context
             The context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         out : IOBase
             Output stream or file-like object for writing GRIB data.

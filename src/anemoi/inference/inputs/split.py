@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.state import combine_states
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class SplitInput(Input):
     trace_name = "split input"
 
-    def __init__(self, context: Context, metadata: Metadata, *splits, **kwargs: Any) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata, *splits, **kwargs: Any) -> None:
 
         all_variables = set(kwargs.get("variables"))
         assert all_variables is not None, "variables must be provided for split input"

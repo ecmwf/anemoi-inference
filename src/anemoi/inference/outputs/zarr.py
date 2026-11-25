@@ -21,7 +21,7 @@ from typing import Literal
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.state import reduce_state
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
@@ -93,7 +93,7 @@ class ZarrOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         store: "StoreLike",
         variables: OutputVariableConfigUnion = None,
@@ -216,11 +216,12 @@ class ZarrOutput(Output):
                 "When setting up the ZarrOutput, the `lead_time` was not yet set on the context, therefore unable to construct the arrays."
             )
 
-        steps = math.ceil(lead_time / self.metadata.rollout_shift)
+        timing = self.metadata.core.task.for_dataset(self.metadata.dataset_name)
+        steps = math.ceil(lead_time / timing.rollout_shift)
 
-        time = (steps - 1) * self.metadata.multi_step_output
-        for offset in self.metadata.output_offsets:
-            if offset + (steps - 1) * self.metadata.rollout_shift <= lead_time:
+        time = (steps - 1) * timing.n_step_output
+        for offset in timing.output_offsets:
+            if offset + (steps - 1) * timing.rollout_shift <= lead_time:
                 time += 1
         time += int(self.write_step_zero)
 
@@ -228,7 +229,7 @@ class ZarrOutput(Output):
             self.reference_date = reference_date
 
         if not self.write_step_zero:
-            self.reference_date -= self.metadata.output_offsets[0]
+            self.reference_date -= timing.output_offsets[0]
 
         self.time_size = time
         self.time_array = create_zarr_array(

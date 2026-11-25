@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from anemoi.inference.context import Context
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.metadata import InferenceMetadata
 
 LOG = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class Input(ABC):
     def __init__(
         self,
         context: "Context",
-        metadata: "Metadata",
+        metadata: "InferenceMetadata",
         *,
         variables: list[str] | None = None,
         pre_processors: list[ProcessorConfig] | None = None,
@@ -49,7 +49,7 @@ class Input(ABC):
         ----------
         context : Context
             The context for the input.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         variables : list of str or None
             List of variable names to be handled by the input, or None for all available variables.
@@ -162,7 +162,7 @@ class Input(ABC):
         List[str]
             The list of input variables.
         """
-        return list(self.metadata.variable_to_input_tensor_index.keys())
+        return list(self.metadata.dataset_view.data.variable_indices())
 
     def patch_data_request(self, request: Any) -> Any:
         """Patch the data request.

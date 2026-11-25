@@ -28,7 +28,7 @@ from numpy.typing import DTypeLike
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
@@ -136,7 +136,7 @@ class EkdInput(Input):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         namer: Any | None = None,
         **kwargs,
@@ -147,7 +147,7 @@ class EkdInput(Input):
         ----------
         context : Any
             The context in which the input is used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         namer : Optional[Union[Callable[[Any, Dict[str, Any]], str], Dict[str, Any]]]
             Optional namer for the input.
@@ -304,8 +304,7 @@ class EkdInput(Input):
                     self.__class__.__name__,
                     e,
                 )
-                latitudes = self.metadata.latitudes
-                longitudes = self.metadata.longitudes
+                latitudes, longitudes = self.metadata.coordinates()
                 if latitudes is not None and longitudes is not None:
                     LOG.info(
                         "%s: using `latitudes` and `longitudes` found in the checkpoint.",
@@ -516,7 +515,7 @@ class FieldlistInput(EkdInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         path: str,
         **kwargs: Any,

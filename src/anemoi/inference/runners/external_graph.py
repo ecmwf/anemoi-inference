@@ -18,6 +18,7 @@ from typing import Any
 from typing import Literal
 
 import numpy as np
+from anemoi.utils.config import DotDict
 
 from anemoi.inference.lazy import torch
 
@@ -185,6 +186,7 @@ class ExternalGraphRunner(DefaultRunner):
         )
         self.check_state_dict = check_state_dict
         self.graph_path = graph
+        self._number_of_grid_points: int | None = None
 
         # If graph was build on other dataset, we need to adapt the dataloader
         if graph_dataset is not None:
@@ -195,31 +197,32 @@ class ExternalGraphRunner(DefaultRunner):
                 "The external graph was built using a different anemoi-dataset than that in the checkpoint. "
                 "Patching metadata to ensure correct data loading."
             )
-            self.checkpoint._metadata.patch(
+            graph_arrays = graph_ds.supporting_arrays()
+            grid_indices = graph_arrays.get("grid_indices")
+            if grid_indices is None:
+                grid_indices = self.checkpoint.metadata.dataset(self._dataset_name).arrays.grid_indices
+            number_of_grid_points = len(grid_indices) if grid_indices is not None else graph_ds.shape[-1]
+            self._replace_metadata(
                 {
                     "config": {"dataloader": {"dataset": graph_dataset}},
-                    "dataset": {"shape": graph_ds.shape},
-                }
+                    "dataset": {"shape": list(graph_ds.shape)},
+                },
+                graph_arrays,
+                number_of_grid_points,
             )
-
-            # had to use private attributes because cached properties cause problems
-            self.checkpoint._metadata._supporting_arrays.update(graph_ds.supporting_arrays())
-            if _grid_indices := self.checkpoint._metadata._grid_indices:
-                num_grid_points = len(_grid_indices)
-            else:
-                num_grid_points = graph_ds.shape[-1]
-            self.checkpoint._metadata.number_of_grid_points = num_grid_points
 
         # Check if the external graph has the 'indices_connected_nodes' attribute
         # If so adapt dataloader and add supporting array
-        data = self.checkpoint._metadata._config.graph.data
+        data = self.checkpoint.metadata.sections.config["graph"]["data"]
         assert data in self.graph.node_types, f"Node type {data} not found in external graph."
         if "indices_connected_nodes" in self.graph[data]:
             LOG.info(
                 "The external graph has the 'indices_connected_nodes' attribute."
                 "Patching metadata with MaskedGrid 'grid_indices' to ensure correct data loading."
             )
-            self.checkpoint._metadata.patch(
+            LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
+            indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
+            self._replace_metadata(
                 {
                     "config": {
                         "dataloader": {
@@ -230,16 +233,16 @@ class ExternalGraphRunner(DefaultRunner):
                             }
                         }
                     }
-                }
+                },
+                {"grid_indices": indices_connected_nodes.squeeze()},
             )
-            LOG.info("Moving 'indices_connected_nodes' from external graph to supporting arrays as 'grid_indices'.")
-            indices_connected_nodes = self.graph[data]["indices_connected_nodes"].numpy()
-            self.checkpoint._metadata._supporting_arrays["grid_indices"] = indices_connected_nodes.squeeze()
 
         if output_mask:
             nodes = output_mask["nodes_name"]
             attribute = output_mask["attribute_name"]
-            self.checkpoint._metadata._supporting_arrays["output_mask"] = self.graph[nodes][attribute].numpy().squeeze()
+            self._replace_metadata(
+                supporting_arrays={"output_mask": self.graph[nodes][attribute].numpy().squeeze()},
+            )
             LOG.info(
                 "Moving attribute '%s' of nodes '%s' from external graph to supporting arrays as 'output_mask'.",
                 attribute,
@@ -247,18 +250,52 @@ class ExternalGraphRunner(DefaultRunner):
             )
 
         if update_supporting_arrays is not None:
-            self.checkpoint._metadata._supporting_arrays.update(
-                get_updated_supporting_arrays(update_supporting_arrays, self.graph)
+            self._replace_metadata(
+                supporting_arrays=get_updated_supporting_arrays(update_supporting_arrays, self.graph),
             )
 
         if updated_number_of_grid_points is not None:
             if isinstance(updated_number_of_grid_points, str):
                 updated_number_of_grid_points = len(self.graph["data"][updated_number_of_grid_points])
-            self.checkpoint._metadata.number_of_grid_points = updated_number_of_grid_points
+            self._replace_metadata(number_of_grid_points=updated_number_of_grid_points)
             LOG.info(
                 "Updated number of grid points in the checkpoint metadata to %s.",
                 updated_number_of_grid_points,
             )
+
+    @property
+    def _dataset_name(self) -> str:
+        """The name of the (single) dataset of the checkpoint."""
+        return self.checkpoint.dataset_names[0]
+
+    def _replace_metadata(
+        self,
+        patch: dict | None = None,
+        supporting_arrays: dict[str, Any] | None = None,
+        number_of_grid_points: int | None = None,
+    ) -> None:
+        """Replace the metadata of the checkpoint, keeping an explicit number of grid points set before.
+
+        Parameters
+        ----------
+        patch : dict | None
+            Partial raw metadata to merge in.
+        supporting_arrays : dict[str, Any] | None
+            Flat ``{array_name: array}`` for the dataset of the checkpoint.
+        number_of_grid_points : int | None
+            New explicit number of grid points; None keeps the current one (if any).
+        """
+        if number_of_grid_points is not None:
+            self._number_of_grid_points = number_of_grid_points
+        self.checkpoint.replace_metadata(
+            patch=patch,
+            supporting_arrays=(
+                {self._dataset_name: {k: np.asarray(v) for k, v in supporting_arrays.items()}}
+                if supporting_arrays
+                else None
+            ),
+            number_of_grid_points=self._number_of_grid_points,
+        )
 
     @cached_property
     def graph(self):
@@ -280,7 +317,7 @@ class ExternalGraphRunner(DefaultRunner):
 
         # rebuild the model with the new graph
         model_instance.graph_data = self.graph
-        model_instance.config = self.checkpoint._metadata._config
+        model_instance.config = DotDict(self.checkpoint.metadata.sections.config)
         model_instance._build_model()
 
         # reinstate the weights, biases and normalizer from the checkpoint

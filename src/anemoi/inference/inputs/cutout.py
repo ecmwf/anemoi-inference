@@ -19,7 +19,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.inputs import input_registry
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.post_processors.earthkit_state import unwrap_state
 from anemoi.inference.post_processors.earthkit_state import wrap_state
 from anemoi.inference.types import Date
@@ -118,7 +118,7 @@ class Cutout(Input):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *args: dict[str, dict],
         sources: list[dict[str, dict]] | None = None,
         **kwargs,
@@ -129,7 +129,7 @@ class Cutout(Input):
         ----------
         context : Context
             The context runner.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         sources : list[dict[str, dict]]
             List of sources / inputs to combine, the order defines the order in which they are combined.
@@ -173,7 +173,10 @@ class Cutout(Input):
             )
 
             if isinstance(mask, str):
-                self.masks[src] = self.sources[src].metadata.load_supporting_array(mask)
+                arrays = self.sources[src].metadata.dataset_view.arrays
+                if mask not in arrays:
+                    raise ValueError(f"Supporting array `{mask}` not found, available arrays: {arrays.names}")
+                self.masks[src] = arrays.get(mask)
             else:
                 self.masks[src] = mask if mask is not None else slice(0, None)  # type: ignore
 
@@ -202,7 +205,7 @@ class Cutout(Input):
         """
 
         field_state = x.copy()
-        field_state["fields"] = wrap_state(field_state, self.metadata.typed_variables)
+        field_state["fields"] = wrap_state(field_state, self.metadata.dataset_view.data.typed_variables())
 
         processed_state = super().pre_process(field_state)
 
@@ -258,8 +261,12 @@ class Cutout(Input):
                     f"source{i}/latitudes",
                     f"source{i}/longitudes",
                 )
-                latitudes = self.metadata.load_supporting_array(f"source{i}/latitudes")
-                longitudes = self.metadata.load_supporting_array(f"source{i}/longitudes")
+                arrays = self.metadata.dataset_view.arrays
+                for name in (f"source{i}/latitudes", f"source{i}/longitudes"):
+                    if name not in arrays:
+                        raise ValueError(f"Supporting array `{name}` not found, available arrays: {arrays.names}")
+                latitudes = arrays.get(f"source{i}/latitudes")
+                longitudes = arrays.get(f"source{i}/longitudes")
 
                 source_state["latitudes"] = latitudes
                 source_state["longitudes"] = longitudes

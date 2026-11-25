@@ -81,7 +81,7 @@ def test_output_variables_multiple_levels(
         for param in ("t", "z")
         for level in (500, 600, 850)
     }
-    basic_metadata.typed_variables.update(levels)
+    basic_metadata.dataset_view.data.typed_variables.return_value.update(levels)
     basic_state["fields"].update({name: np.array([1.0]) for name in levels})
 
     writer = mocker.patch("anemoi.inference.outputs.raw.np.savez_compressed")

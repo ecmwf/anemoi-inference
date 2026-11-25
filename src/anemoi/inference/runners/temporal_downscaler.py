@@ -10,7 +10,6 @@
 import datetime
 import logging
 from collections.abc import Generator
-from functools import cached_property
 
 import numpy as np
 from anemoi.utils.dates import frequency_to_timedelta as to_timedelta
@@ -18,25 +17,14 @@ from anemoi.utils.timer import Timer
 
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.lazy import torch
-from anemoi.inference.metadata import Metadata
 from anemoi.inference.profiler import ProfilingLabel
 from anemoi.inference.runner import Runner
-from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import State
 
 from . import runner_registry
 
 LOG = logging.getLogger(__name__)
-
-
-class TemporalDownscalerMetadata(Metadata):
-    @cached_property
-    def lagged(self) -> list[datetime.timedelta]:
-        """Return the list of steps for the `multi_step_input` fields.
-        A temporal downscaler looks ahead instead of backwards.
-        """
-        return sorted([s * to_timedelta(self.data_frequency) for s in self.input_explicit_times])
 
 
 @runner_registry.register("temporal_downscaler")
@@ -60,12 +48,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
         fill_timeline_with_input : bool, optional
             Write input states at window boundaries where the model does not output predictions, by default False.
         """
-        super().__init__(
-            config,
-            classes=RunnerClasses(
-                metadata=TemporalDownscalerMetadata,
-            ),
-        )
+        super().__init__(config)
 
         self.fill_timeline_with_input = fill_timeline_with_input
 
@@ -311,16 +294,19 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 input_numpy = (
                     input_tensors_torch[dataset][0, boundary_times[0]].cpu().numpy()
                 )  # # Select the initial boundary state (t) - First time step
+                handler_data = handler.metadata.dataset_view.data
+                input_variable_indices = handler_data.variable_indices()
+                output_variables = set(handler_data.output_index_to_variable().values())
                 for i in range(input_numpy.shape[-1]):
                     var_name = None
                     for (
                         var,
                         idx,
-                    ) in handler.metadata.variable_to_input_tensor_index.items():
+                    ) in input_variable_indices.items():
                         if idx == i:
                             var_name = var
                             break
-                    if var_name and var_name in handler.metadata.output_tensor_index_to_variable.values():
+                    if var_name and var_name in output_variables:
                         initial_states[dataset]["fields"][var_name] = input_numpy[:, i]
 
             yield initial_states
@@ -351,7 +337,7 @@ class TemporalDownscalerMultiOutRunner(Runner):
                             date,
                             s,
                             input_tensors_torch[dataset].cpu().numpy(),
-                            handler.metadata.variable_to_input_tensor_index,
+                            handler.metadata.dataset_view.data.variable_indices(),
                             self.checkpoint.timestep,
                         )
 
@@ -362,21 +348,21 @@ class TemporalDownscalerMultiOutRunner(Runner):
                             y_pred[dataset].cpu().numpy(), axis=(0, 2)
                         )  # shape: (steps, values, variables)
 
+                    output_index_to_variable = handler.metadata.dataset_view.data.output_index_to_variable()
+
                     if handler.trace:
                         handler.trace.write_output_tensor(
                             date,
                             s,
                             output[s],
-                            handler.metadata.output_tensor_index_to_variable,
+                            output_index_to_variable,
                             self.checkpoint.timestep,
                         )
 
                     # Update state
                     with ProfilingLabel("Updating state (CPU)", self.use_profiler):
                         for i in range(output.shape[2]):
-                            new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[i]] = output[
-                                s, :, i
-                            ]
+                            new_states[dataset]["fields"][output_index_to_variable[i]] = output[s, :, i]
 
                     if self.verbosity > 0:
                         handler._print_output_tensor("Output tensor", output)

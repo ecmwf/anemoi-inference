@@ -38,7 +38,7 @@ from anemoi.inference.device import get_available_device
 from anemoi.inference.input import Input
 from anemoi.inference.inputs import create_input
 from anemoi.inference.lazy import torch
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.mid_processors import create_mid_processor
 from anemoi.inference.output import Output
 from anemoi.inference.outputs import create_output
@@ -63,6 +63,11 @@ LOG = logging.getLogger(__name__)
 LOG_ONCE = OnceLogger(LOG)
 
 
+def _names_by_index(index_to_variable: dict[int, str]) -> list[str]:
+    """Return the variable names in tensor index order."""
+    return [name for _, name in sorted(index_to_variable.items())]
+
+
 class RunnerClasses(BaseModel):
     """Configurable class types used by the Runner.
     Child runners can override these with different classes.
@@ -72,7 +77,7 @@ class RunnerClasses(BaseModel):
 
     tensor_handler: type[TensorHandler] = TensorHandler
     checkpoint: type[Checkpoint] = Checkpoint
-    metadata: type[Metadata] = Metadata
+    metadata: type[InferenceMetadata] = InferenceMetadata
 
 
 class Runner(Context):
@@ -196,10 +201,13 @@ class Runner(Context):
                 table.add_column("Units", no_wrap=True)
                 table.add_column("Categories", no_wrap=True)
 
-                for variable, categories in metadata.variable_categories().items():
-                    typed_variable = metadata.typed_variables.get(variable)
+                data = metadata.dataset_view.data
+                per_variable = data.variable_categories(per_variable=True)
+                typed_variables = data.typed_variables()
+                for variable in data.variables():
+                    typed_variable = typed_variables.get(variable)
                     units = typed_variable.units if typed_variable is not None else "N/A"
-                    table.add_row(variable, str(units), ", ".join(categories))
+                    table.add_row(variable, str(units), ", ".join(per_variable.get(variable, [])))
 
                 console.print(table)
 
@@ -415,6 +423,7 @@ class Runner(Context):
 
         for dataset, tensor in input_tensors_torch.items():
             metadata = self.tensor_handlers[dataset].metadata
+            data = metadata.dataset_view.data
 
             # tensor passed by the runner has dimensions (batch=1, time, grid, variables)
             # richer-batch requires input dimensions (time, ensemble=1, grid, variables)
@@ -423,15 +432,15 @@ class Runner(Context):
 
             richer_batch[dataset] = {
                 "values": tensor,
-                "data_type": metadata.data_type,
-                "variables": list(metadata.variable_to_input_tensor_index),
+                "data_type": data.data_type(),
+                "variables": _names_by_index(data.input_index_to_variable()),
                 "latitudes": input_states[dataset]["latitudes"],
                 "longitudes": input_states[dataset]["longitudes"],
                 "layout": ("time", "ensemble", "grid", "variables"),
             }
 
             target_template[dataset] = {
-                "variables": list(metadata.variable_to_output_tensor_index),
+                "variables": _names_by_index(data.output_index_to_variable()),
                 **{key: richer_batch[dataset][key] for key in ("latitudes", "longitudes", "layout", "data_type")},
             }
 
@@ -543,8 +552,8 @@ class Runner(Context):
                 start = input_states[dataset]["date"]
 
                 reset[dataset] = np.full((input_tensors_torch[dataset].shape[-1],), False)
-                variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
-                typed_variables = handler.metadata.typed_variables
+                variable_to_input_tensor_index = handler.metadata.dataset_view.data.variable_indices()
+                typed_variables = handler.metadata.dataset_view.data.typed_variables()
                 for variable, i in variable_to_input_tensor_index.items():
                     if typed_variables[variable].is_constant_in_time:
                         reset[dataset][i] = True
@@ -569,7 +578,7 @@ class Runner(Context):
                             dates[-1],
                             s,
                             input_tensors_torch[dataset].cpu().numpy(),
-                            handler.metadata.variable_to_input_tensor_index,
+                            handler.metadata.dataset_view.data.variable_indices(),
                             self.checkpoint.timestep,
                         )
                 amp_ctx = torch.autocast(device_type=self.device.type, dtype=self.autocast)
@@ -618,19 +627,18 @@ class Runner(Context):
 
                             output = outputs[dataset][i, ...]  # shape: (values, variables)
 
+                            handler_data = handler.metadata.dataset_view.data
+                            output_index_to_variable = handler_data.output_index_to_variable()
                             for j in range(output.shape[1]):
-                                new_states[dataset]["fields"][handler.metadata.output_tensor_index_to_variable[j]] = (
-                                    output[:, j]
-                                )
+                                new_states[dataset]["fields"][output_index_to_variable[j]] = output[:, j]
 
                             new_states[dataset], applied = self._apply_mid_processors(new_states[dataset], dataset)
                             if applied:
+                                variable_to_output_index = handler_data.output_variable_indices()
                                 for name, field in new_states[dataset]["fields"].items():
-                                    if name not in handler.metadata.variable_to_output_tensor_index:
+                                    if name not in variable_to_output_index:
                                         continue
-                                    y_pred[dataset][
-                                        0, i, ..., handler.metadata.variable_to_output_tensor_index[name]
-                                    ] = field
+                                    y_pred[dataset][0, i, ..., variable_to_output_index[name]] = field
 
                             if (s == 0 and self.verbosity > 0) or self.verbosity > 1:
                                 handler._print_output_tensor(f"[{dataset}] Output tensor:", output.cpu().numpy())
@@ -640,7 +648,7 @@ class Runner(Context):
                                     dates[i],
                                     s,
                                     output.cpu().numpy(),
-                                    handler.metadata.output_tensor_index_to_variable,
+                                    output_index_to_variable,
                                     self.checkpoint.timestep,
                                 )
 
@@ -659,7 +667,9 @@ class Runner(Context):
                     for dataset, handler in self.tensor_handlers.items():
                         check[dataset][:] = reset[dataset]
                         if handler.trace:
-                            handler.trace.reset_sources(reset[dataset], handler.metadata.variable_to_input_tensor_index)
+                            handler.trace.reset_sources(
+                                reset[dataset], handler.metadata.dataset_view.data.variable_indices()
+                            )
 
                         # None for input-only datasets
                         input_tensors_torch[dataset] = handler.copy_prognostic_fields_to_input_tensor(
@@ -683,7 +693,7 @@ class Runner(Context):
                         if not check[dataset].all():
                             # Not all variables have been updated
                             missing = []
-                            variable_to_input_tensor_index = handler.metadata.variable_to_input_tensor_index
+                            variable_to_input_tensor_index = handler.metadata.dataset_view.data.variable_indices()
                             mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
                             for i in range(check[dataset].shape[-1]):
                                 if not check[dataset][i]:
@@ -761,8 +771,8 @@ class Runner(Context):
             )
 
         for dataset in self.tensor_handlers:
-            multi_dataset_metadata = self.checkpoint.multi_dataset_metadata[dataset]
-            dates = [self.reference_date + h for h in multi_dataset_metadata.lagged]
+            lagged = self.checkpoint.metadata.task.for_dataset(dataset).lagged
+            dates = [self.reference_date + h for h in lagged]
 
             prognostic_state = self.prognostics_inputs[dataset].create_input_state(dates=dates)
             self._check_state(dataset, prognostic_state, "prognostics")
@@ -820,7 +830,7 @@ class Runner(Context):
             output.close()
 
     #########################################################################################################
-    def create_output(self, dataset_name: str, metadata: Metadata) -> Output:
+    def create_output(self, dataset_name: str, metadata: InferenceMetadata) -> Output:
         config = multi_datasets_config(self.config.output, dataset_name, self.dataset_names)
         output = create_output(self, config, metadata)
         LOG.info(f"[{dataset_name}] Output: {output}")
@@ -830,7 +840,7 @@ class Runner(Context):
         self,
         input_type: Literal["prognostics", "constant_forcings", "dynamic_forcings", "boundary_forcings"],
         dataset_name: str,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
     ) -> Input:
         variables = Variables(metadata)
         match input_type:
@@ -863,7 +873,7 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] {input_type.replace('_', ' ').capitalize()} input: {input}")
         return input
 
-    def create_pre_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
+    def create_pre_processors(self, dataset_name: str, metadata: InferenceMetadata) -> list[Processor]:
         result = []
         config = multi_datasets_config(self.config.pre_processors, dataset_name, self.dataset_names)
         for processor in config:
@@ -872,7 +882,7 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] Pre processors: {result}")
         return result
 
-    def create_mid_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
+    def create_mid_processors(self, dataset_name: str, metadata: InferenceMetadata) -> list[Processor]:
         result = []
         config = multi_datasets_config(self.config.mid_processors, dataset_name, self.dataset_names)
         for processor in config:
@@ -881,7 +891,7 @@ class Runner(Context):
         LOG.info(f"[{dataset_name}] Mid processors: {result}")
         return result
 
-    def create_post_processors(self, dataset_name: str, metadata: Metadata) -> list[Processor]:
+    def create_post_processors(self, dataset_name: str, metadata: InferenceMetadata) -> list[Processor]:
         result = []
         config = multi_datasets_config(self.config.post_processors, dataset_name, self.dataset_names)
         for processor in config:
@@ -1050,7 +1060,7 @@ class Runner(Context):
         # Check variables in metadata match the variables in the state
         from anemoi.transform.variables import Variable
 
-        checkpoint_variables = self.tensor_handlers[dataset].metadata.typed_variables
+        checkpoint_variables = self.tensor_handlers[dataset].metadata.dataset_view.data.typed_variables()
         common = set(checkpoint_variables.keys()).intersection(state_variables.keys())
 
         checkpoint_variables = {k: v for k, v in checkpoint_variables.items() if k in common}

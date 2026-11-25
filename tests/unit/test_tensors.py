@@ -7,13 +7,17 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+from datetime import datetime
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 import torch
+from anemoi.metadata import Metadata as CoreMetadata
 
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.tensors import TensorHandler
+from anemoi.inference.testing.mock_checkpoint import mock_load_metadata
 
 # Tensor layout used throughout: (batch, multi_step_input, values, variables).
 # Input variables:  index 0 = "force" (non-prognostic), index 1 = "prog" (prognostic).
@@ -39,13 +43,15 @@ def _make_handler(
     prognostic_output_mask: tuple[int, ...] = (0,),
     input_names: tuple[str, ...] = ("force", "prog"),
 ) -> TensorHandler:
+    data = SimpleNamespace(
+        prognostic_input_mask=lambda: np.array(prognostic_input_mask),
+        prognostic_output_mask=lambda: np.array(prognostic_output_mask),
+    )
+    timing = SimpleNamespace(n_step_input=multi_step_input, n_step_output=multi_step_output, advance_map=advance_map)
     metadata = SimpleNamespace(
         dataset_name="data",
-        multi_step_input=multi_step_input,
-        multi_step_output=multi_step_output,
-        prognostic_input_mask=np.array(prognostic_input_mask),
-        prognostic_output_mask=np.array(prognostic_output_mask),
-        advance_map=advance_map,
+        core=SimpleNamespace(task=SimpleNamespace(for_dataset=lambda name: timing)),
+        dataset_view=SimpleNamespace(data=data),
     )
     handler = TensorHandler.__new__(TensorHandler)
     handler.metadata = metadata
@@ -194,3 +200,97 @@ def test_copy_prognostic_fields_input_only_dataset() -> None:
 
     assert result[0, :, :, 1].tolist() == [[2.0, 2.0], [2.0, 2.0]]
     assert check.tolist() == [False, True]
+
+
+def _real_handler(arrays: dict[str, np.ndarray]) -> TensorHandler:
+    """A handler on a real ``InferenceMetadata`` (legacy atmos checkpoint) with the given supporting arrays."""
+    raw = mock_load_metadata("unit/checkpoints/atmos.json", supporting_arrays=False)
+    metadata = InferenceMetadata(CoreMetadata.from_dict(raw, arrays))
+    handler = TensorHandler.__new__(TensorHandler)
+    handler.context = SimpleNamespace(allow_nans=False)
+    handler.metadata = metadata
+    handler.trace = None
+    handler.constant_forcings_providers = []
+    handler.dynamic_forcings_providers = []
+    handler._input_kinds = {}
+    handler._input_tensor_by_name = []
+    handler._input_units = {}
+    return handler
+
+
+def _n_step_input(handler: TensorHandler) -> int:
+    return handler.metadata.core.task.for_dataset(handler.dataset_name).n_step_input
+
+
+def _input_fields(handler: TensorHandler, n_grid: int) -> dict[str, np.ndarray]:
+    steps = _n_step_input(handler)
+    return {name: np.zeros((steps, n_grid)) for name in handler._data.variable_indices()}
+
+
+def test_prepare_input_tensor_defaults_coordinates_to_the_supporting_arrays() -> None:
+    """Without coordinates in the state, the latitudes and longitudes of the checkpoint are used."""
+    handler = _real_handler({"latitudes": np.array([10.0, 20.0, 30.0]), "longitudes": np.array([0.0, 1.0, 2.0])})
+    state = {"date": datetime(2020, 1, 1), "fields": _input_fields(handler, 3)}
+
+    tensor = handler.prepare_input_tensor(state)
+
+    assert state["latitudes"].tolist() == [10.0, 20.0, 30.0]
+    assert state["longitudes"].tolist() == [0.0, 1.0, 2.0]
+    assert tensor.shape == (_n_step_input(handler), len(handler._data.variable_indices()), 3)
+
+
+def test_prepare_input_tensor_applies_grid_indices_to_the_coordinates() -> None:
+    """The grid points kept by ``grid_indices`` are the ones of the model."""
+    handler = _real_handler(
+        {
+            "latitudes": np.array([10.0, 20.0, 30.0, 40.0]),
+            "longitudes": np.array([0.0, 1.0, 2.0, 3.0]),
+            "grid_indices": np.array([3, 1]),
+        }
+    )
+    state = {"date": datetime(2020, 1, 1), "fields": _input_fields(handler, 2)}
+
+    tensor = handler.prepare_input_tensor(state)
+
+    assert state["latitudes"].tolist() == [40.0, 20.0]
+    assert state["longitudes"].tolist() == [3.0, 1.0]
+    assert tensor.shape[-1] == 2
+
+
+def test_prepare_input_tensor_rejects_coordinates_that_differ_from_the_checkpoint() -> None:
+    handler = _real_handler({"latitudes": np.array([10.0, 20.0]), "longitudes": np.array([0.0, 1.0])})
+    state = {
+        "date": datetime(2020, 1, 1),
+        "latitudes": np.array([20.0, 10.0]),
+        "longitudes": np.array([0.0, 1.0]),
+        "fields": _input_fields(handler, 2),
+    }
+
+    with pytest.raises(ValueError, match="Latitudes in the input state do not match metadata"):
+        handler.prepare_input_tensor(state)
+
+
+def test_prepare_input_tensor_reports_missing_variables() -> None:
+    handler = _real_handler({"latitudes": np.array([10.0, 20.0]), "longitudes": np.array([0.0, 1.0])})
+    fields = _input_fields(handler, 2)
+    fields.pop("2t")
+    state = {"date": datetime(2020, 1, 1), "fields": fields}
+
+    with pytest.raises(ValueError, match=r"Missing variables in input fields: \['2t'\]"):
+        handler.prepare_input_tensor(state)
+
+
+@pytest.mark.parametrize("with_mask", [False, True])
+def test_boundary_forcings_providers_need_an_output_mask(with_mask: bool) -> None:
+    """Without an ``output_mask`` supporting array there are no boundary forcings."""
+    arrays = {"latitudes": np.array([10.0, 20.0]), "longitudes": np.array([0.0, 1.0])}
+    if with_mask:
+        arrays["output_mask"] = np.array([True, False])
+    handler = _real_handler(arrays)
+    created = []
+    handler.create_boundary_forcings = lambda variables, mask: created.append(variables) or ["provider"]
+
+    providers = handler.create_boundary_forcings_providers()
+
+    assert providers == (["provider"] if with_mask else [])
+    assert bool(created) is with_mask

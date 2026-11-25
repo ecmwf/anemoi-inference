@@ -19,7 +19,7 @@ from earthkit.data import FieldList
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -46,7 +46,7 @@ class TransformFilter(Processor, ABC):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         filter: str | dict[str, Any] | None = None,
         skip_initial_state: bool = False,
@@ -58,7 +58,7 @@ class TransformFilter(Processor, ABC):
         ----------
         context : Context
             The context in which the filter is being used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this processor is handling.
         filter : str | dict[str, Any] | None, optional
             The name of the filter or a configuration dictionary for the filter, by default None
@@ -105,7 +105,7 @@ class TransformFilter(Processor, ABC):
         if self.skip_initial_state and ("step" not in state or state["step"] == timedelta(0)):
             return state
 
-        fields = self._exec_filter(wrap_state(state, self.metadata.typed_variables))
+        fields = self._exec_filter(wrap_state(state, self.metadata.dataset_view.data.typed_variables()))
 
         return unwrap_state(fields, state, namer=self.metadata.default_namer())
 

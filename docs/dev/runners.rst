@@ -78,42 +78,47 @@ handlers, and checkpoints. This class is defined in ``runner.py``:
 ``RunnerClasses`` allows you to swap out some of the key internal classes used by the runner (also known as a *trait*). It consists of a set of classes which are used to initialise
 the :class:`TensorHandler <anemoi.inference.tensors.TensorHandler>`,
 :class:`Checkpoint <anemoi.inference.checkpoint.Checkpoint>`, and
-:class:`Metadata <anemoi.inference.metadata.Metadata>`.
+:class:`InferenceMetadata <anemoi.inference.metadata.InferenceMetadata>`.
 
 This facility is there to support extending the base runner to perform tasks other than forecasting, without having to rewrite or overload large parts of the runner.
 
-By default, when creating metadata, runner passes into the ``Metadata``
-class, which defines the kind of "standard" Metadata processing.
+By default, the checkpoint wraps each dataset of its metadata in an
+:class:`InferenceMetadata <anemoi.inference.metadata.InferenceMetadata>`,
+which adds what is specific to inference (tensor shapes, grid coordinates,
+MARS requests, field namers, ...) to the checkpoint metadata read by
+:mod:`anemoi.metadata`. The checkpoint metadata itself is available as
+``checkpoint.metadata`` (an :class:`anemoi.metadata.Metadata`), and
+``metadata.core``, ``metadata.dataset_view`` and ``metadata.dataset_name``
+give access to it from the wrapper. The task timing (timestep, ``lagged``,
+output offsets, rollout shift, explicit times, ...) is not owned by the wrapper: it
+comes from ``checkpoint.metadata.task`` (``metadata.core.task.for_dataset(name)``
+for one dataset).
 
-The structure of that class is:
+The signature of that class is:
 
 .. code:: python
 
-   class Metadata(LegacyMixin):
-       """Base Metadata class."""
+   class InferenceMetadata:
+       """Thin inference-side wrapper of one dataset of an ``anemoi.metadata.Metadata``."""
 
-       def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
-           """Initialize the Metadata object.
-
-           Parameters
-           ----------
-           metadata : dict
-               The metadata dictionary.
-           supporting_arrays : dict, optional
-               The supporting arrays, by default {}.
-           """
-           ...
+       def __init__(
+           self,
+           metadata: anemoi.metadata.Metadata,
+           dataset_name: str | None = None,
+           *,
+           number_of_grid_points: int | None = None,
+       ) -> None: ...
 
 If you needed some kind of custom metadata management in your runner,
 you could subclass this class:
 
 .. code:: python
 
-   class MyMetadata(Metadata):
+   class MyMetadata(InferenceMetadata):
        """My custom metadata class."""
 
-       def __init__(self, metadata: dict[str, Any], supporting_arrays: dict[str, FloatArray] = {}):
-           super().__init__(metadata, supporting_arrays)
+       def __init__(self, metadata, dataset_name=None, *, number_of_grid_points=None):
+           super().__init__(metadata, dataset_name, number_of_grid_points=number_of_grid_points)
            # My custom code here
 
 This can then be passed into the Runner class using the

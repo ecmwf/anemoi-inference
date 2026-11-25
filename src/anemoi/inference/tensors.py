@@ -30,7 +30,7 @@ from anemoi.inference.types import State
 if TYPE_CHECKING:
     from anemoi.inference.forcings import Forcings
     from anemoi.inference.input import Input
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.metadata import InferenceMetadata
     from anemoi.inference.runner import Runner
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class TensorHandler:
     def __init__(
         self,
         context: "Runner",
-        metadata: "Metadata",
+        metadata: "InferenceMetadata",
         constant_forcings_input: "Input",
         dynamic_forcings_input: "Input",
         boundary_forcings_input: "Input",
@@ -116,18 +116,48 @@ class TensorHandler:
         """Name of the dataset associated with the tensor handler."""
         return self.metadata.dataset_name
 
+    @property
+    def _data(self) -> Any:
+        """The ``data`` component of the dataset (variables, tensor indices, masks)."""
+        return self.metadata.dataset_view.data
+
+    @property
+    def _arrays(self) -> Any:
+        """The supporting arrays of the dataset."""
+        return self.metadata.dataset_view.arrays
+
+    @property
+    def _timing(self) -> Any:
+        """The task timing of the dataset."""
+        return self.metadata.core.task.for_dataset(self.dataset_name)
+
+    @property
+    def _n_step_input(self) -> int:
+        """Number of input steps of the model."""
+        n_step_input = self._timing.n_step_input
+        if n_step_input is None:
+            raise ValueError("The checkpoint metadata does not record the number of input steps")
+        return n_step_input
+
+    @property
+    def _advance_map(self) -> dict[str, list[tuple[int, int]]]:
+        """Index mapping for rollout: advance input and output into the next input."""
+        advance_map = self._timing.advance_map
+        if advance_map is None:
+            raise ValueError("The checkpoint metadata does not give the advance map of the task")
+        return advance_map
+
     def prepare_input_tensor(self, input_state: State, dtype: DTypeLike = np.float32) -> FloatArray:
         """Prepare the input tensor from the input state."""
-        if "latitudes" not in input_state:
-            input_state["latitudes"] = self.metadata.latitudes
-
-        if "longitudes" not in input_state:
-            input_state["longitudes"] = self.metadata.longitudes
+        if "latitudes" not in input_state or "longitudes" not in input_state:
+            latitudes, longitudes = self.metadata.coordinates()
+            input_state.setdefault("latitudes", latitudes)
+            input_state.setdefault("longitudes", longitudes)
 
         if input_state.get("latitudes") is None or input_state.get("longitudes") is None:
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
 
-        typed_variables = self.metadata.typed_variables
+        typed_variables = self._data.typed_variables()
 
         for name in input_state["fields"]:
             self._input_kinds[name] = Kind(input=True, constant=typed_variables[name].is_constant_in_time)
@@ -140,21 +170,22 @@ class TensorHandler:
 
         input_fields: dict = input_state["fields"]
 
+        variable_to_input_tensor_index = self._data.variable_indices()
+        number_of_input_features = len(variable_to_input_tensor_index)
+
         input_tensor_numpy = np.full(
             shape=(
-                self.metadata.multi_step_input,
-                self.metadata.number_of_input_features,
+                self._n_step_input,
+                number_of_input_features,
                 input_state["latitudes"].size,
             ),
             fill_value=np.nan,
             dtype=dtype,
         )
 
-        self._input_tensor_by_name = [None] * self.metadata.number_of_input_features
+        self._input_tensor_by_name = [None] * number_of_input_features
 
         LOG.info(f"Preparing input tensor with shape {input_tensor_numpy.shape}")
-
-        variable_to_input_tensor_index = self.metadata.variable_to_input_tensor_index
 
         check = set()
         for var, field in input_fields.items():
@@ -166,9 +197,9 @@ class TensorHandler:
 
             self._input_tensor_by_name[i] = var
 
-        if len(check) != self.metadata.number_of_input_features:
-            missing = set(range(self.metadata.number_of_input_features)) - check
-            mapping = {v: k for k, v in self.metadata.variable_to_input_tensor_index.items()}
+        if len(check) != number_of_input_features:
+            missing = set(range(number_of_input_features)) - check
+            mapping = {v: k for k, v in variable_to_input_tensor_index.items()}
             raise ValueError(f"Missing variables in input fields: {[mapping.get(_, _) for _ in missing]}")
 
         return input_tensor_numpy
@@ -207,27 +238,28 @@ class TensorHandler:
         if nlat != number_of_grid_points:
             raise ValueError(f"Size mismatch latitudes={nlat}, number_of_grid_points={number_of_grid_points}")
 
-        if self.metadata.longitudes is not None:
-            if nlon != len(self.metadata.longitudes):
+        metadata_latitudes, metadata_longitudes = self.metadata.coordinates()
+        if metadata_longitudes is not None:
+            if nlon != len(metadata_longitudes):
                 raise ValueError(
-                    f"Size mismatch longitudes={nlon}, number_of_longitudes_in_metadata={len(self.metadata.longitudes)}"
+                    f"Size mismatch longitudes={nlon}, number_of_longitudes_in_metadata={len(metadata_longitudes)}"
                 )
-            if not np.allclose(input_state["longitudes"], self.metadata.longitudes):
+            if not np.allclose(input_state["longitudes"], metadata_longitudes):
                 raise ValueError(
                     "Longitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
                 )
 
-        if self.metadata.latitudes is not None:
-            if nlat != len(self.metadata.latitudes):
+        if metadata_latitudes is not None:
+            if nlat != len(metadata_latitudes):
                 raise ValueError(
-                    f"Size mismatch latitudes={nlat}, number_of_latitudes_in_metadata={len(self.metadata.latitudes)}"
+                    f"Size mismatch latitudes={nlat}, number_of_latitudes_in_metadata={len(metadata_latitudes)}"
                 )
-            if not np.allclose(input_state["latitudes"], self.metadata.latitudes):
+            if not np.allclose(input_state["latitudes"], metadata_latitudes):
                 raise ValueError(
                     "Latitudes in the input state do not match metadata. Consider using the `coordinate_reorder` pre-processor to align them."
                 )
 
-        multi_step = self.metadata.multi_step_input
+        multi_step = self._n_step_input
 
         expected_shape = (multi_step, number_of_grid_points)
 
@@ -272,7 +304,7 @@ class TensorHandler:
         date = input_state["date"]
         fields = input_state["fields"]
 
-        dates = [date + h for h in self.metadata.lagged]
+        dates = [date + h for h in self._timing.lagged]
 
         initial_constant_forcings_providers = self.initial_constant_forcings_providers(self.constant_forcings_providers)
         initial_dynamic_forcings_providers = self.initial_dynamic_forcings_providers(self.dynamic_forcings_providers)
@@ -378,7 +410,7 @@ class TensorHandler:
         return result
 
     def create_boundary_forcings_providers(self) -> list["BoundaryForcings"]:
-        if not self.metadata.has_supporting_array("output_mask"):
+        if "output_mask" not in self._arrays:
             return []
 
         result = []
@@ -415,18 +447,18 @@ class TensorHandler:
         # input_tensor_torch is shape: (batch, multi_step_input, values, variables)
         # batch is always 1
         pmask_in = torch.as_tensor(
-            self.metadata.prognostic_input_mask,
+            np.array(self._data.prognostic_input_mask()),
             device=input_tensor_torch.device,
             dtype=torch.long,
         )
 
-        for old_idx, new_idx in self.metadata.advance_map["inin"]:
+        for old_idx, new_idx in self._advance_map["inin"]:
             input_tensor_torch[:, new_idx, :, :] = input_tensor_torch[:, old_idx, :, :]
 
         # y_pred is None when the model returned no output for this dataset
         if y_pred is not None:
             pmask_out = torch.as_tensor(
-                self.metadata.prognostic_output_mask,
+                np.array(self._data.prognostic_output_mask()),
                 device=y_pred.device,
                 dtype=torch.long,
             )  # index_select requires long dtype, can be bool (mask)
@@ -434,7 +466,7 @@ class TensorHandler:
 
             prognostic_fields = torch.index_select(y_pred, dim=-1, index=pmask_out)
 
-            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+            for out_idx, new_idx in self._advance_map["outin"]:
                 input_tensor_torch[:, new_idx, :, pmask_in] = prognostic_fields[:, out_idx, :, :]
 
         pmask_in_np = pmask_in.detach().cpu().numpy()
@@ -484,7 +516,7 @@ class TensorHandler:
 
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+            for out_idx, new_idx in self._advance_map["outin"]:
                 input_tensor_torch[:, new_idx, :, source.mask] = forcings[
                     :, out_idx, ...
                 ]  # Copy forcings to corresponding 'multi_step_input' row
@@ -521,7 +553,7 @@ class TensorHandler:
             )  # shape: (1, dates, 1, values, variables)
             forcings = torch.from_numpy(forcings).to(self.context.device)  # Copy to device
 
-            for out_idx, new_idx in self.metadata.advance_map["outin"]:
+            for out_idx, new_idx in self._advance_map["outin"]:
                 total_mask = np.ix_([0], [new_idx], source.spatial_mask, source.variables_mask)
                 input_tensor_torch[total_mask] = forcings[
                     :, out_idx, ...
@@ -567,15 +599,18 @@ class TensorHandler:
         )
 
         if not self._output_tensor_by_name:
+            output_index_to_variable = self._data.output_index_to_variable()
+            prognostic_output_mask = np.array(self._data.prognostic_output_mask())
+            typed_variables = self._data.typed_variables()
             for i in range(output_tensor_numpy.shape[-1]):
-                variable = self.metadata.output_tensor_index_to_variable[i]
+                variable = output_index_to_variable[i]
                 self._output_tensor_by_name.append(variable)
-                if i in self.metadata.prognostic_output_mask:
+                if i in prognostic_output_mask:
                     self._output_kinds[variable] = Kind(prognostic=True)
                 else:
                     self._output_kinds[variable] = Kind(diagnostic=True)
 
-                self._output_units[variable] = self.metadata.typed_variables[variable].units
+                self._output_units[variable] = typed_variables[variable].units
 
         # output_tensor_numpy = output_tensor_numpy.cpu().numpy()
 
@@ -612,7 +647,7 @@ class TensorHandler:
             The units.
         """
         assert len(tensor_numpy.shape) == 3, tensor_numpy.shape
-        assert tensor_numpy.shape[0] in (1, self.metadata.multi_step_input), tensor_numpy.shape
+        assert tensor_numpy.shape[0] in (1, self._n_step_input), tensor_numpy.shape
         assert tensor_numpy.shape[1] == len(tensor_by_name), tensor_numpy.shape
         from rich.console import Console
         from rich.table import Table

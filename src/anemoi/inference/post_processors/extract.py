@@ -15,7 +15,7 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import BoolArray
 from anemoi.inference.types import State
 
@@ -31,7 +31,7 @@ class ExtractBase(Processor):
     # this needs to be set in subclasses
     indexer: BoolArray | slice
 
-    def __init__(self, context: Context, metadata: Metadata) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata) -> None:
         super().__init__(context, metadata)
         self._indexer: BoolArray | slice | None = None
 
@@ -83,7 +83,7 @@ class ExtractMask(ExtractBase):
     ----------
     context : Any
         The context in which the processor is running.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this processor is handling.
     mask : str
         Either a path to a `.npy` file containing the boolean mask or
@@ -98,7 +98,7 @@ class ExtractMask(ExtractBase):
     """
 
     def __init__(
-        self, context: Context, metadata: Metadata, *, mask: str, as_slice: bool = False, inverse: bool = False
+        self, context: Context, metadata: InferenceMetadata, *, mask: str, as_slice: bool = False, inverse: bool = False
     ) -> None:
         super().__init__(context, metadata)
 
@@ -107,7 +107,10 @@ class ExtractMask(ExtractBase):
         if Path(mask).is_file():
             mask = np.load(mask)
         else:
-            mask = metadata.load_supporting_array(mask)
+            arrays = metadata.dataset_view.arrays
+            if mask not in arrays:
+                raise ValueError(f"Supporting array `{mask}` not found, available arrays: {arrays.names}")
+            mask = arrays.get(mask)
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(
@@ -139,14 +142,14 @@ class ExtractSlice(ExtractBase):
     ----------
     context : Context
         The context in which the processor is running.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this processor is handling.
     slice_args : int
         Arguments to create a slice object. This can be a single integer or
         a tuple of integers representing the start, stop, and step of the slice.
     """
 
-    def __init__(self, context: Context, metadata: Metadata, *slice_args: int) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata, *slice_args: int) -> None:
         super().__init__(context, metadata)
         self.indexer = slice(*slice_args)
 
@@ -169,7 +172,7 @@ class ExtractState(ExtractBase):
     Must be used with the Cutout input.
     """
 
-    def __init__(self, context: Context, metadata: Metadata, *, cutout_source: str) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata, *, cutout_source: str) -> None:
         """Initialize the ExtractState processor.
 
         Must be used with the Cutout input.
@@ -178,7 +181,7 @@ class ExtractState(ExtractBase):
         ----------
         context : Context
             The context in which the processor is running.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this processor is handling.
         cutout_source : str
             The source to use for the cutout mask for extraction.

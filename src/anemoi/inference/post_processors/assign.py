@@ -12,7 +12,7 @@ import numpy as np
 
 from anemoi.inference.context import Context
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -35,7 +35,7 @@ class AssignMask(Processor):
     ----------
     context : Context
         The context in which the processor is running.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this processor is handling.
     mask : str
         The name of the mask supporting array or a path to a file containing the mask.
@@ -43,7 +43,9 @@ class AssignMask(Processor):
         The value to fill the non-assigned area, by default NaN.
     """
 
-    def __init__(self, context: Context, metadata: Metadata, *, mask: str, fill_value: float = float("NaN")) -> None:
+    def __init__(
+        self, context: Context, metadata: InferenceMetadata, *, mask: str, fill_value: float = float("NaN")
+    ) -> None:
         super().__init__(context, metadata)
 
         self._maskname = mask
@@ -51,7 +53,10 @@ class AssignMask(Processor):
         if Path(mask).is_file():
             mask = np.load(mask)
         else:
-            mask = metadata.load_supporting_array(mask)
+            arrays = metadata.dataset_view.arrays
+            if mask not in arrays:
+                raise ValueError(f"Supporting array `{mask}` not found, available arrays: {arrays.names}")
+            mask = arrays.get(mask)
 
         if not isinstance(mask, np.ndarray) or mask.dtype != bool:
             raise ValueError(

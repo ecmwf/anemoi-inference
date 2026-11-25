@@ -261,8 +261,9 @@ class BoundaryForcings(Forcings):
         self.variables_mask = variables_mask
         assert isinstance(input, DatasetInput), "Currently only boundary forcings from dataset supported."
         self.input = input
-        if "output_mask" in context.metadata._supporting_arrays:
-            self.spatial_mask = ~context.metadata.load_supporting_array("output_mask")
+        output_mask = context.metadata.dataset_view.arrays.output_mask
+        if output_mask is not None:
+            self.spatial_mask = ~output_mask
         else:
             self.spatial_mask = np.array([False] * len(input["latitudes"]), dtype=bool)
         self.kinds = dict(retrieved=True)  # Used for debugging

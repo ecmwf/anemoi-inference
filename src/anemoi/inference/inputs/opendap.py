@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from ..context import Context
 from ..decorators import main_argument
-from ..metadata import Metadata
+from ..metadata import InferenceMetadata
 from ..types import Date
 from ..types import State
 from . import input_registry
@@ -34,7 +34,7 @@ class OpenDAPInput(EkdInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         url: str | list[str],
         **kwargs,

@@ -20,7 +20,7 @@ import numpy as np
 from anemoi.transform.variables import Variable
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.schemas import OutputVariableConfig
 from anemoi.inference.types import OutputVariableConfigUnion
 from anemoi.inference.types import State
@@ -116,7 +116,7 @@ class PrinterOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         path: Path | None = None,
         variables: ListOrAll | OutputVariableConfigUnion = None,
@@ -129,7 +129,7 @@ class PrinterOutput(Output):
         ----------
         context : Context
             The context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         path : Path, optional
             The path to save the printed output, by default None.

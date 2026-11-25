@@ -18,7 +18,7 @@ import numpy as np
 
 from anemoi.inference.config.utils import multi_datasets_config
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
@@ -36,7 +36,7 @@ class DatasetInput(Input):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         open_dataset_args: tuple[Any, ...],
         open_dataset_kwargs: dict[str, Any],
@@ -50,7 +50,7 @@ class DatasetInput(Input):
         ----------
         context : Any
             The context in which the input is used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         open_dataset_args : Tuple[Any, ...]
             Arguments for the dataset.
@@ -80,8 +80,7 @@ class DatasetInput(Input):
             )
 
         if grid_indices is None:
-            # getattr so unit tests don't need _grid_indices in their metadata mocks
-            grid_indices = getattr(metadata, "_grid_indices", None)
+            grid_indices = metadata.dataset_view.arrays.grid_indices
             if context.verbosity > 0 and grid_indices is not None:
                 LOG.info(
                     "Loading supporting array `grid_indices` from checkpoint, \
@@ -364,7 +363,7 @@ class DatasetInputArgsKwargs(DatasetInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *args: Any,
         use_original_paths: bool = False,
         variables: list[str] | None,
@@ -380,7 +379,7 @@ class DatasetInputArgsKwargs(DatasetInput):
         ----------
         context : Context
             The context in which the input is used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         use_original_paths : bool
             Whether to use original paths.
@@ -431,7 +430,7 @@ class DataloaderInput(DatasetInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         use_original_paths: bool = False,
         **kwargs: Any,
@@ -442,7 +441,7 @@ class DataloaderInput(DatasetInput):
         ----------
         context : Any
             The context in which the input is used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             The metadata corresponding to the dataset this input is handling.
 
         name : str

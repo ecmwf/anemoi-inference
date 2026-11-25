@@ -11,7 +11,7 @@
 from anemoi.utils.registry import Registry
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.processor import Processor
 from anemoi.inference.types import ProcessorConfig
 
@@ -19,7 +19,7 @@ mid_processor_registry: Registry[Processor] = Registry(__name__)
 """Mid-processors are applied after each inference step, before the next step's input is prepared, the state will be filled with torch.Tensors still on the GPU."""
 
 
-def create_mid_processor(context: Context, config: ProcessorConfig, metadata: Metadata, **kwargs) -> Processor:
+def create_mid_processor(context: Context, config: ProcessorConfig, metadata: InferenceMetadata, **kwargs) -> Processor:
     """Create a mid-processor, applied after each inference step.
 
     Parameters
@@ -28,7 +28,7 @@ def create_mid_processor(context: Context, config: ProcessorConfig, metadata: Me
         The context for the mid-processor.
     config : ProcessorConfig
         The configuration for the mid-processor.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this mid-processor is handling.
     **kwargs : Any
         Additional keyword arguments to pass to the mid-processor constructor.

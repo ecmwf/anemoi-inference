@@ -8,11 +8,11 @@
 # nor does it submit to any jurisdiction.
 
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 
 
 class Variables:
-    def __init__(self, metadata: Metadata) -> None:
+    def __init__(self, metadata: InferenceMetadata) -> None:
         self.metadata = metadata
 
     ###############################################################################

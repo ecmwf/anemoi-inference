@@ -17,14 +17,16 @@ Both describe the *same* physical points, so a per-point field must be reordered
 before it is fed to the model.
 """
 
+from functools import partial
 from typing import cast
 
 import earthkit.data as ekd
 import numpy as np
 import pytest
+from anemoi.metadata import DatasetArrays
 from pytest_mock import MockerFixture
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
 from anemoi.inference.pre_processors.coordinate_reorder import backward_mapping
 from anemoi.inference.pre_processors.coordinate_reorder import build_grid_reordering
@@ -81,10 +83,10 @@ def _fieldlist(values, lat, lon, param="2t"):
 
 def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4) -> CoordinateReorder:
     """Create a CoordinateReorder pre-processor targeting the given model grid."""
-    metadata = cast(Metadata, mocker.MagicMock())
+    metadata = cast(InferenceMetadata, mocker.MagicMock())
     metadata.dataset_name = "data"
-    metadata.latitudes = model_lat
-    metadata.longitudes = model_lon
+    metadata.dataset_view.arrays = DatasetArrays({"latitudes": model_lat, "longitudes": model_lon})
+    metadata.coordinates = partial(InferenceMetadata.coordinates, metadata)
     return CoordinateReorder(mocker.MagicMock(), metadata, decimals=decimals)
 
 
@@ -196,11 +198,42 @@ def test_reorder_process_fixes_fields_and_coords(mocker: MockerFixture):
     np.testing.assert_array_equal(grid_lon, target_lon)
 
 
+def test_reorder_process_targets_the_grid_points_kept_by_grid_indices(mocker: MockerFixture):
+    """With `grid_indices`, the model grid is the subset of the stored coordinates they select."""
+    target_lat, target_lon, source_lat, source_lon, target_signal, source_signal = _source_and_target_grids()
+    extra = 5
+    stored_lat = np.concatenate([np.full(extra, 45.0), target_lat])
+    stored_lon = np.concatenate([np.arange(extra) * 10.0 + 5.0, target_lon])
+
+    metadata = cast(InferenceMetadata, mocker.MagicMock())
+    metadata.dataset_name = "data"
+    metadata.dataset_view.arrays = DatasetArrays(
+        {
+            "latitudes": stored_lat,
+            "longitudes": stored_lon,
+            "grid_indices": np.arange(extra, extra + target_lat.size),
+        }
+    )
+    metadata.coordinates = partial(InferenceMetadata.coordinates, metadata)
+    processor = CoordinateReorder(mocker.MagicMock(), metadata)
+
+    state = {
+        "latitudes": source_lat.copy(),
+        "longitudes": source_lon.copy(),
+        "fields": _fieldlist(source_signal, source_lat, source_lon),
+    }
+    new_state = processor.process(state)
+
+    np.testing.assert_array_equal(new_state["latitudes"], target_lat)
+    np.testing.assert_array_equal(new_state["longitudes"], target_lon)
+    np.testing.assert_array_equal(new_state["fields"][0].to_numpy().flatten(), target_signal)
+
+
 def test_reorder_process_collapses_360_vs_0_seam(mocker: MockerFixture):
     """The reordered longitudes use the target's 0.0, never the source's 360.0.
 
     A strict downstream check (e.g. ``np.allclose(state['longitudes'],
-    metadata.longitudes)``) would otherwise fail by ~360 at the seam.
+    the model longitudes)``) would otherwise fail by ~360 at the seam.
     """
     target_lat, target_lon, source_lat, source_lon, _, source_signal = _source_and_target_grids()
     # The source labels the prime meridian 360.0; the target uses 0.0.

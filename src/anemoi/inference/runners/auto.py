@@ -31,7 +31,7 @@ class AutoRunnerFactory(Runner):
             config.checkpoint,
             patch_metadata=config.patch_metadata,
         )
-        runner_name = checkpoint.task
+        runner_name = checkpoint.metadata.task.task_name
         if runner_name == "auto":
             raise ValueError("Task defined in configuration cannot be 'auto'.")
 
