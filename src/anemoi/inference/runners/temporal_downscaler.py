@@ -331,7 +331,12 @@ class TemporalDownscalerMultiOutRunner(Runner):
                 ProfilingLabel("Predict step", self.use_profiler),
                 Timer(f"Temporal downscaling step ({start})"),
             ):
-                y_pred = self.predict_step(self.model, input_tensors_torch, fcstep=0)
+                y_pred = self.predict_step(
+                    self.model,
+                    input_tensors_torch,
+                    input_states=input_states,
+                    fcstep=0,
+                )
 
             # Now perform temporal downscaling between the boundaries
             for s, (step, date) in enumerate(self.temporal_downscaler_stepper(start)):
