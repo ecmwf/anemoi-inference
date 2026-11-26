@@ -270,5 +270,4 @@ class OutputManifest:
     provenance: dict
     reference_date: str | None = None
     output_frequency: int | None = None
-    field_prefix: str = "field_"
     version: int = 1

@@ -69,6 +69,7 @@ class RawInput(Input):
         *,
         dir: Path,
         manifest: OutputManifest | None = None,
+        variables: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialise the RawInput.
@@ -83,6 +84,8 @@ class RawInput(Input):
             The directory containing the raw ``.npz`` files.
         manifest : OutputManifest, optional
             The manifest describing the files. Read from the directory when not given.
+        variables : list of str or None
+            List of variable names to be handled by the input, or None for all available variables.
         **kwargs : Any
             Additional keyword arguments passed to :class:`Input`.
 
@@ -91,14 +94,13 @@ class RawInput(Input):
         ValueError
             If `variables` conflicts with the variables named in the manifest.
         """
-        requested = kwargs.get("variables")
-        super().__init__(context, metadata, **kwargs)
+        super().__init__(context, metadata, variables=variables, **kwargs)
         self.dir = Path(dir)
         self.manifest = manifest if manifest is not None else self._read_manifest()
 
         self._check_manifest()
-        if requested is not None:
-            conflicting = sorted(set(requested) - set(self.manifest.variables))
+        if variables is not None:
+            conflicting = sorted(set(variables) - set(self.manifest.variables))
             if conflicting:
                 raise ValueError(
                     f"{self.__class__.__name__}: configured variables {conflicting} are not in the manifest. "
@@ -110,20 +112,7 @@ class RawInput(Input):
         return f"RawInput({self.dir})"
 
     def _read_manifest(self) -> OutputManifest:
-        """Read the manifest from the raw directory.
-
-        Returns
-        -------
-        OutputManifest
-            The manifest describing the files.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the directory holds no manifest.
-        ValueError
-            If the manifest cannot be read.
-        """
+        """Read the manifest from the raw directory."""
         path = self.dir / self.MANIFEST_NAME
         if not path.exists():
             raise FileNotFoundError(f"{self.__class__.__name__}: no {self.MANIFEST_NAME} in {self.dir}. ")
@@ -169,6 +158,10 @@ class RawInput(Input):
         str
             The rendered file name (without directory).
         """
+
+    def _load_file(self, date: datetime.datetime, base_date: datetime.datetime | None = None) -> dict[str, FloatArray]:
+        """Load the fields of a single ``.npz`` file."""
+
         if base_date is None:
             base_date = to_datetime(self.manifest.reference_date)
 
@@ -177,29 +170,8 @@ class RawInput(Input):
             "basetime": base_date.strftime(self.manifest.strftime),
             "step": date - base_date,
         }
-        return render_template(self.manifest.template, format_info)
+        path = self.dir / render_template(self.manifest.template, format_info)
 
-    def _load_file(self, date: datetime.datetime, base_date: datetime.datetime | None = None) -> dict[str, FloatArray]:
-        """Load the fields of a single ``.npz`` file.
-
-        Parameters
-        ----------
-        date : datetime.datetime
-            The valid date of the fields to load.
-        base_date : datetime.datetime, optional
-            The base date used to compute the step in the file name template.
-
-        Returns
-        -------
-        dict[str, FloatArray]
-            Mapping of variable name to a 1D array of values.
-
-        Raises
-        ------
-        FileNotFoundError
-            If no file exists for the given date.
-        """
-        path = self.dir / self._filename(date, base_date=base_date)
         if not path.exists():
             raise FileNotFoundError(
                 f"{self.__class__.__name__}: no raw file found for date {date.isoformat()} at {path}."
@@ -207,11 +179,7 @@ class RawInput(Input):
 
         LOG.info("%s: loading %s", self.__class__.__name__, path)
         with np.load(path, allow_pickle=False) as data:
-            return {
-                key.replace(self.manifest.field_prefix, ""): np.asarray(data[key])
-                for key in data.files
-                if key.startswith(self.manifest.field_prefix)
-            }
+            return {key.replace("field_", ""): np.asarray(data[key]) for key in data.files}
 
     def _build_state(
         self, dates: list[Date], *, base_date: datetime.datetime | None = None, ref_date_index: int = -1
