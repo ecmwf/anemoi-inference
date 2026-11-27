@@ -10,10 +10,8 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .checkpoint import Checkpoint

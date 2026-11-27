@@ -13,8 +13,7 @@ from typing import Any
 
 from anemoi.inference.checkpoint import Checkpoint
 from anemoi.inference.lazy import torch
-from anemoi.inference.testing.mock_model import SimpleMockModel
-from anemoi.inference.testing.mock_model import VariableOutputSetting
+from anemoi.inference.testing.mock_model import SimpleMockModel, VariableOutputSetting
 
 from . import runner_registry
 from .default import DefaultRunner

@@ -12,8 +12,7 @@ import logging
 from typing import Any
 
 import tqdm
-from anemoi.transform.fields import new_field_from_numpy
-from anemoi.transform.fields import new_fieldlist_from_list
+from anemoi.transform.fields import new_field_from_numpy, new_fieldlist_from_list
 
 from anemoi.inference.context import Context
 from anemoi.inference.metadata import Metadata

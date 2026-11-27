@@ -25,9 +25,11 @@ import pytest
 from pytest_mock import MockerFixture
 
 from anemoi.inference.metadata import Metadata
-from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
-from anemoi.inference.pre_processors.coordinate_reorder import backward_mapping
-from anemoi.inference.pre_processors.coordinate_reorder import build_grid_reordering
+from anemoi.inference.pre_processors.coordinate_reorder import (
+    CoordinateReorder,
+    backward_mapping,
+    build_grid_reordering,
+)
 
 
 # --------------------------------------------------------------------------- #

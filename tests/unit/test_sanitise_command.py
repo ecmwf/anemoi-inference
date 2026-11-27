@@ -13,8 +13,7 @@ from argparse import Namespace
 
 import pytest
 
-from anemoi.inference.commands.sanitise import SanitiseCmd
-from anemoi.inference.commands.sanitise import _iter_dataset_metadatas
+from anemoi.inference.commands.sanitise import SanitiseCmd, _iter_dataset_metadatas
 
 # A flat (legacy single-dataset) metadata dict: the dataset dict IS metadata["dataset"].
 # It carries an absolute path so that `sanitise()` changes it, forcing the patch branch.

@@ -10,8 +10,7 @@
 from __future__ import annotations
 
 import logging
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 
 from ..checkpoint import Checkpoint
 from . import Command

@@ -9,9 +9,7 @@
 
 
 import logging
-from typing import TYPE_CHECKING
-from typing import Literal
-from typing import overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version

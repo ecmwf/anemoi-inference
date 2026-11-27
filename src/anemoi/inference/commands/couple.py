@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-from argparse import ArgumentParser
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 
 from ..config.couple import CoupleConfiguration
 from ..tasks import create_task

@@ -15,8 +15,7 @@ the underlying dataset.
 """
 
 from types import SimpleNamespace
-from unittest.mock import PropertyMock
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import numpy as np
 import pytest

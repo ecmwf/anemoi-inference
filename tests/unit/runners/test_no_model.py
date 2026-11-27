@@ -8,8 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 import datetime
-from collections.abc import Callable
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import patch
 
@@ -18,8 +17,7 @@ import pytest
 from anemoi.inference.config.run import RunConfiguration
 from anemoi.inference.runners import create_runner
 from anemoi.inference.runners.testing import NoModelRunner
-from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing import float_hash
+from anemoi.inference.testing import fake_checkpoints, float_hash
 from anemoi.inference.testing.mock_model import VariableOutputSetting
 
 

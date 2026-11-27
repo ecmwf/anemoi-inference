@@ -17,8 +17,7 @@ from anemoi.inference.inputs.dummy import DummyInput
 from anemoi.inference.runners import create_runner
 from anemoi.inference.runners.temporal_downscaler import TemporalDownscalerMultiOutRunner
 from anemoi.inference.testing import fake_checkpoints
-from anemoi.inference.testing.mock_model import SimpleMockModel
-from anemoi.inference.testing.mock_model import VariableOutputSetting
+from anemoi.inference.testing.mock_model import SimpleMockModel, VariableOutputSetting
 from anemoi.inference.types import State
 
 

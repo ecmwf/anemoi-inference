@@ -17,12 +17,14 @@ import numpy as np
 import pytest
 
 from anemoi.inference.decorators import supports_parallel_output
-from anemoi.inference.outputs.parallel import VALID_CHUNK_STRATEGIES
-from anemoi.inference.outputs.parallel import Chunker
-from anemoi.inference.outputs.parallel import MessageType
-from anemoi.inference.outputs.parallel import ParallelOutput
-from anemoi.inference.outputs.parallel import _detach_tensors
-from anemoi.inference.outputs.parallel import _sanitise_state
+from anemoi.inference.outputs.parallel import (
+    VALID_CHUNK_STRATEGIES,
+    Chunker,
+    MessageType,
+    ParallelOutput,
+    _detach_tensors,
+    _sanitise_state,
+)
 from anemoi.inference.outputs.printer import PrinterOutput
 
 # ── helpers ───────────────────────────────────────────────────────────────────
