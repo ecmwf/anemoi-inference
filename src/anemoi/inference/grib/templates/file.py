@@ -68,7 +68,7 @@ class FileTemplates(TemplateProvider):
 
     @cached_property
     def _data(self):
-        return ekd.from_source("file", self.path)
+        return ekd.from_source("file", self.path).to_fieldlist()
 
     def template(self, variable: str, lookup: dict[str, Any], state: State, **kwargs) -> ekd.Field | None:
         if self.variables and variable not in self.variables:

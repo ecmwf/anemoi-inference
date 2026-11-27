@@ -71,13 +71,12 @@ def _fieldlist(values, lat, lon, param="2t"):
         "list-of-dicts",
         [
             {
-                "param": param,
-                "values": np.asarray(values),
-                "latitudes": lat,
-                "longitudes": lon,
+                "parameter": {"variable": param},
+                "data": {"values": np.asarray(values)},
+                "geography": {"latitudes": lat, "longitudes": lon},
             }
         ],
-    )
+    ).to_fieldlist()
 
 
 def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4) -> CoordinateReorder:
