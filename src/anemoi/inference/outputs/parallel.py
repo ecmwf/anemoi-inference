@@ -24,7 +24,7 @@ from typing import get_args
 from anemoi.transform.variables import Variable
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import State
 
 from ..output import Output
@@ -368,7 +368,7 @@ class ParallelOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         output: Output | Any | None = None,
         num_writers: int = 1,
@@ -382,7 +382,7 @@ class ParallelOutput(Output):
         ----------
         context : Context
             The inference context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata for the dataset.
         output : Output | Any | None
             The inner output (or its config dict) that will be forked into

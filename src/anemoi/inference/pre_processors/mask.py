@@ -15,6 +15,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -28,13 +29,17 @@ LOG = logging.getLogger(__name__)
 class MaskValues(Processor):
     """Replace values in a field with nans from a specified mask in the supporting arrays."""
 
-    def __init__(self, context: Context, *, mask: str, param: str | list[str], **kwargs) -> None:
+    def __init__(
+        self, context: Context, metadata: InferenceMetadata, *, mask: str, param: str | list[str], **kwargs
+    ) -> None:
         """Initialize the MaskValues processor.
 
         Parameters
         ----------
         context : Context
             The context in which the processor operates.
+        metadata : InferenceMetadata
+            Metadata corresponding to the dataset this processor is handling.
         mask : str
             The mask to apply to the fields from the supporting arrays or a path to a mask file.
             Can be npy, grib, or netCDF file.
@@ -46,22 +51,23 @@ class MaskValues(Processor):
             - `threshold_operator`: The operator to use for thresholding the mask if using a threshold (default: None).
             - `threshold`: The threshold value for the mask if using operator (default: None).
         """
-        super().__init__(context)
-        if mask in self.checkpoint.supporting_arrays:
-            mask_array = self.checkpoint.supporting_arrays[mask]
+        super().__init__(context, metadata)
+        arrays = metadata.arrays
+        if mask in arrays:
+            mask_array = arrays.get(mask)
         elif mask.endswith(".npy"):
             mask_array = np.load(mask)
         elif mask.endswith(".grib") or mask.endswith(".nc"):
             mask_array = ekd.from_source("file", mask)[0].to_numpy(flatten=True)  # type: ignore
         else:
             raise ValueError(
-                f"Mask '{mask}' not found in supporting arrays nor does it appear to be a file, available arrays: {list(self.checkpoint.supporting_arrays.keys())}."
+                f"Mask '{mask}' not found in supporting arrays nor does it appear to be a file, available arrays: {arrays.names}."
             )
 
         with tempfile.NamedTemporaryFile(suffix=".npy") as tmp_file:
             np.save(tmp_file.name, mask_array)
             self.filter = ForwardTransformFilter(
-                context, filter="apply_mask", path=tmp_file.name, param=param, **kwargs
+                context, metadata, filter="apply_mask", path=tmp_file.name, param=param, **kwargs
             )
 
     def process(self, state: State) -> State:

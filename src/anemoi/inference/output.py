@@ -23,7 +23,7 @@ from anemoi.inference.types import State
 
 if TYPE_CHECKING:
     from anemoi.inference.context import Context
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.metadata import InferenceMetadata
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class Output(ABC):
     def __init__(
         self,
         context: "Context",
-        metadata: "Metadata",
+        metadata: "InferenceMetadata",
         *,
         variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,
@@ -47,7 +47,7 @@ class Output(ABC):
         ----------
         context : Context
             The context in which the output operates.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         variables : OutputVariableConfigUnion
             Variable settings for inclusion/exclusion.
@@ -70,7 +70,7 @@ class Output(ABC):
 
         self.variables = OutputVariableConfig.model_validate(variables)
 
-        self.typed_variables = self.metadata.typed_variables.copy()
+        self.typed_variables = self.metadata.data.typed_variables()
         self.typed_variables.update(self.context.typed_variables)
 
     def skip_variable(self, variable: str) -> bool:
@@ -252,7 +252,7 @@ class ForwardOutput(Output):
     def __init__(
         self,
         context: "Context",
-        metadata: "Metadata",
+        metadata: "InferenceMetadata",
         output: Output | Any,
         variables: OutputVariableConfigUnion = None,
         post_processors: list[ProcessorConfig] | None = None,

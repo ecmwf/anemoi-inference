@@ -7,50 +7,68 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+"""The inference checkpoint.
+
+A :class:`Checkpoint` holds the metadata of a checkpoint as one
+:class:`anemoi.metadata.Metadata` (``checkpoint.metadata``, with the
+``patch_metadata`` of the run configuration applied) and the objects the
+inference code works with: one :class:`~anemoi.inference.metadata.InferenceMetadata`
+per dataset (``checkpoint.multi_dataset_metadata``), built from ``checkpoint.metadata``
+with the ``metadata_base`` class.  See :mod:`anemoi.inference.metadata` for what
+plugins receive.
+
+To change the metadata of a loaded checkpoint (an external graph defines its own
+grid, for example) use :meth:`Checkpoint.replace_metadata`: it replaces the
+metadata, drops everything derived from the old one and rebuilds the per-dataset
+objects on first use.  Read values through the checkpoint (or through
+``multi_dataset_metadata``) after the call; do not keep views of the old metadata.
+"""
 
 import datetime
 import logging
+from collections.abc import Mapping
 from functools import cached_property
 from pathlib import Path
 from typing import Any
 from typing import Literal
 
+import numpy as np
+from anemoi.metadata import Metadata as CoreMetadata
 from anemoi.utils.checkpoints import load_metadata
 
 from anemoi.inference.config.utils import multi_datasets_config
 
-from .metadata import Metadata
-from .metadata import MetadataFactory
-from .metadata import MultiDatasetMetadata
-from .metadata import SingleDatasetMetadata
+from .metadata import InferenceMetadata
+from .metadata import new_keys_of_patch
 
 LOG = logging.getLogger(__name__)
 
 # Metadata keys whose creation by a `patch_metadata` patch is expected and must not trigger
-# the new-key warning emitted in `multi_dataset_metadata`. E.g. `constant_fields` is frequently
+# the new-key warning emitted when the patch is applied. E.g. `constant_fields` is frequently
 # added through a patch even though it's not in the checkpoint metadata. TODO: find a better solution?
 EXPECTED_PATCH_NEW_KEYS = {"constant_fields"}
+
+# Everything `Checkpoint` caches that is derived from its metadata.
+_DERIVED = (
+    "metadata",
+    "dataset_names",
+    "multi_dataset_metadata",
+    "multi_dataset",
+    "richer_batch",
+    "_metadata",
+)
 
 
 def get_multi_dataset_metadata(
     metadata: dict,
     supporting_arrays: dict,
-    base_class=Metadata,
-) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
+    base_class: type[InferenceMetadata] = InferenceMetadata,
+) -> dict[str, InferenceMetadata]:
     """Metadata objects for all datasets in the raw metadata, as a mapping from dataset name to Metadata object.
     For legacy checkpoints, the dataset name defaults to `data`
     """
-    dataset_names = metadata.get("metadata_inference", {}).get("dataset_names", ["data"])
-
-    return {
-        dataset: MetadataFactory(
-            metadata,
-            supporting_arrays,
-            dataset_name=dataset,
-            base_class=base_class,
-        )
-        for dataset in dataset_names
-    }
+    core = CoreMetadata.from_dict(metadata, supporting_arrays or None)
+    return {name: base_class(core, dataset_name=name) for name in core.dataset_names}
 
 
 def _download_huggingfacehub(huggingface_config: Any) -> str:
@@ -94,19 +112,20 @@ class Checkpoint:
 
     def __init__(
         self,
-        source: str | Metadata | dict[Literal["huggingface"], str | dict],
+        source: str | InferenceMetadata | CoreMetadata | dict[Literal["huggingface"], str | dict],
         *,
-        metadata_base: type[Metadata] = Metadata,
+        metadata_base: type[InferenceMetadata] = InferenceMetadata,
         patch_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Checkpoint.
 
         Parameters
         ----------
-        source : str | Metadata | dict[Literal["huggingface"], str | dict]
+        source : str | InferenceMetadata | anemoi.metadata.Metadata | dict[Literal["huggingface"], str | dict]
             The source of the checkpoint as a path, a metadata object, or huggingface mapping.
-        metadata_base : type[Metadata], optional
-            The base class for the checkpoint's metadata object, useful for overriding task/runner-specific metadata.
+        metadata_base : type[InferenceMetadata], optional
+            The base class for the checkpoint's metadata objects, useful for overriding task/runner-specific
+            metadata. It is built with ``metadata_base(core, dataset_name=...)``.
         patch_metadata : dict[str, Any], optional
             Metadata to patch the checkpoint with, by default None.
         """
@@ -142,143 +161,195 @@ class Checkpoint:
             pass
         raise TypeError(f"Cannot parse model path: {path}. It must be a path or dict")
 
-    @cached_property
-    def _metadata(self) -> Metadata:
-        """Get the metadata."""
-
-        if isinstance(self._source, Metadata):
-            return self._source
-
-        # for multi-dataset checkpoints, we assume that metadata attributes accessed via the checkpoint
-        # are shared across datasets and we can use the metadata of the first dataset.
-        # objects that need dataset-specific metadata should get their own MultiDatasetMetadata directly
-        # via self.multi_dataset_metadata or get_multi_dataset_metadata()
-        multi_metadata = self.multi_dataset_metadata
-        result = multi_metadata[next(iter(multi_metadata))]
-
-        return result
+    ###########################################################################
+    # The metadata
+    ###########################################################################
 
     @cached_property
-    def _raw_metadata(self) -> tuple[dict, dict]:
-        return load_metadata(self.path, supporting_arrays=True)
+    def metadata(self) -> CoreMetadata:
+        """The metadata of the checkpoint, with ``patch_metadata`` applied."""
+        if isinstance(self._source, InferenceMetadata):
+            return self._source.core
+        if isinstance(self._source, CoreMetadata):
+            core = self._source
+        else:
+            raw, arrays = load_metadata(self.path, supporting_arrays=True)
+            core = CoreMetadata.from_dict(raw, arrays)
+        return self._apply_patch_metadata(core)
+
+    def _apply_patch_metadata(self, core: CoreMetadata) -> CoreMetadata:
+        """Apply `patch_metadata` to *core*, once per distinct patch, warning about the keys it creates."""
+        if not self.patch_metadata:
+            return core
+
+        names = core.dataset_names
+        applied: list[Any] = []
+        for dataset in names:
+            patch = multi_datasets_config(self.patch_metadata, dataset, names, strict=False)
+            if not patch or patch in applied:
+                continue
+            applied.append(patch)
+
+            LOG.warning(f"[{dataset}] Patching metadata with {patch}")
+            new_keys = new_keys_of_patch(core.to_dict(), patch)
+            new_keys = [key for key in new_keys if key.rsplit(".", 1)[-1] not in EXPECTED_PATCH_NEW_KEYS]
+            if new_keys:
+                LOG.warning(
+                    "[%s] The metadata patch added %d new key(s) that did not exist before: %s. "
+                    "These keys were applied as given; if that was not intended, it usually means the "
+                    "patch does not match this checkpoint's metadata schema.",
+                    dataset,
+                    len(new_keys),
+                    ", ".join(new_keys),
+                )
+            core = core.with_overrides(patch)
+
+        return core
+
+    def _reset(self) -> None:
+        """Drop every cached value derived from the metadata."""
+        for name in _DERIVED:
+            self.__dict__.pop(name, None)
+
+    def replace_metadata(
+        self,
+        patch: Mapping[str, Any] | None = None,
+        supporting_arrays: Mapping[str, Mapping[str, np.ndarray]] | None = None,
+    ) -> None:
+        """Replace the metadata of the checkpoint.
+
+        The new metadata is the current one with *patch* deep-merged in and the
+        arrays of *supporting_arrays* replaced or added
+        (:meth:`anemoi.metadata.Metadata.with_overrides`).  Everything cached from the old
+        metadata is dropped, so values read through the checkpoint afterwards are the new ones.
+
+        Parameters
+        ----------
+        patch : Mapping[str, Any], optional
+            Partial raw metadata to merge in (lists replace).
+        supporting_arrays : Mapping[str, Mapping[str, numpy.ndarray]], optional
+            Arrays to replace or add, ``{dataset_name: {array_name: array}}``.
+        """
+        core = self.metadata
+        if patch or supporting_arrays:
+            core = core.with_overrides(patch or {}, supporting_arrays)
+
+        self._reset()
+        self.__dict__["metadata"] = core
+
+    @cached_property
+    def dataset_names(self) -> list[str]:
+        """The names of the datasets of the checkpoint (``["data"]`` for a legacy checkpoint)."""
+        return self.metadata.dataset_names
 
     @cached_property
     def multi_dataset(self) -> bool:
         """Check if the checkpoint is a multi-dataset checkpoint."""
-        metadata, _ = self._raw_metadata
-        return "metadata_inference" in metadata and "dataset_names" in metadata["metadata_inference"]
+        return "dataset_names" in (self.metadata.sections.get("metadata_inference") or {})
 
     @cached_property
-    def multi_dataset_metadata(
-        self,
-    ) -> dict[str, SingleDatasetMetadata | MultiDatasetMetadata]:
+    def richer_batch(self) -> bool:
+        """Whether the checkpoint was written with metadata version 3.0 or later."""
+        return self._metadata.richer_batch
+
+    @cached_property
+    def multi_dataset_metadata(self) -> dict[str, InferenceMetadata]:
         """Metadata for all datasets in the checkpoint, as a mapping from dataset name to Metadata object.
         For legacy checkpoints, the dataset name defaults to `data`
         """
-        metadata, supporting_arrays = self._raw_metadata
-        multi_metadata = get_multi_dataset_metadata(metadata, supporting_arrays, base_class=self.metadata_base)
+        core = self.metadata
+        return {name: self.metadata_base(core, dataset_name=name) for name in core.dataset_names}
 
-        if self.multi_dataset:
-            assert all(isinstance(metadata, MultiDatasetMetadata) for metadata in multi_metadata.values())
-        else:
-            assert len(multi_metadata) == 1
-            assert isinstance(next(iter(multi_metadata.values())), SingleDatasetMetadata)
-
-        if self.patch_metadata:
-            for dataset, metadata in multi_metadata.items():
-                patch = multi_datasets_config(
-                    self.patch_metadata,
-                    dataset,
-                    list(multi_metadata.keys()),
-                    strict=False,
-                )
-                LOG.warning(f"[{dataset}] Patching metadata with {patch}")
-                new_keys = metadata.patch(patch)
-                new_keys = [key for key in new_keys if key.rsplit(".", 1)[-1] not in EXPECTED_PATCH_NEW_KEYS]
-                if new_keys:
-                    LOG.warning(
-                        "[%s] The metadata patch added %d new key(s) that did not exist before: %s. "
-                        "These keys were applied as given; if that was not intended, it usually means the "
-                        "patch does not match this checkpoint's metadata schema.",
-                        dataset,
-                        len(new_keys),
-                        ", ".join(new_keys),
-                    )
-
-        return multi_metadata
+    @cached_property
+    def _metadata(self) -> InferenceMetadata:
+        """The metadata object of the first dataset."""
+        # for multi-dataset checkpoints, we assume that metadata attributes accessed via the checkpoint
+        # are shared across datasets and we can use the metadata of the first dataset.
+        # objects that need dataset-specific metadata should get their own object
+        # via self.multi_dataset_metadata
+        source = self._source
+        if isinstance(source, InferenceMetadata):
+            if source.core is self.metadata:
+                return source
+            # the metadata was replaced: the wrapper given at construction is stale, rebuild it
+            if source.dataset_name in self.multi_dataset_metadata:
+                return self.multi_dataset_metadata[source.dataset_name]
+        return next(iter(self.multi_dataset_metadata.values()))
 
     ###########################################################################
     # Forwards to the metadata
     # We assume that all attributes here are shared across datasets for multi-dataset checkpoints.
     ###########################################################################
     @property
-    def task(self) -> str:
-        """Return task, which describes the Runner."""
-        return self._metadata.task
+    def _timing(self) -> Any:
+        """The task timing of the first dataset (``metadata.task.for_dataset``)."""
+        return self.metadata.task.for_dataset(self._metadata.dataset_name)
+
+    def _timing_value(self, name: str, what: str) -> Any:
+        """Return the timing value *name*, raising a ``ValueError`` naming *what* when the metadata does not give it."""
+        value = getattr(self._timing, name)
+        if value is None:
+            raise ValueError(f"The checkpoint metadata does not give {what}")
+        return value
 
     @property
-    def timestep(self) -> Any:
+    def task(self) -> str:
+        """Return task, which describes the Runner."""
+        return self.metadata.task.task_name
+
+    @property
+    def timestep(self) -> datetime.timedelta:
         """Get the timestep."""
-        return self._metadata.timestep
+        return self._timing_value("timestep_delta", "the model timestep")
 
     @property
     def lagged(self) -> list[datetime.timedelta]:
         """Return the list of steps for the `multi_step_input` fields."""
-        return self._metadata.lagged
+        return self._timing_value("lagged", "the input offsets (lagged)")
 
     @property
     def multi_step_input(self) -> int:
         """Get the multi-step input."""
-        return self._metadata.multi_step_input
+        return self._timing_value("n_step_input", "the number of input steps")
 
     @property
     def multi_step_output(self) -> int:
         """Get the multi-step output."""
-        return self._metadata.multi_step_output
+        return self._timing_value("n_step_output", "the number of output steps")
 
     @property
-    def input_explicit_times(self) -> Any:
+    def input_explicit_times(self) -> list[int]:
         """Get the input explicit times from metadata."""
-        return self._metadata.input_explicit_times
+        return self._timing_value("input_explicit_times", "the input explicit times")
 
     @property
-    def target_explicit_times(self) -> Any:
+    def target_explicit_times(self) -> list[int]:
         """Get the target explicit times."""
-        return self._metadata.target_explicit_times
+        return self._timing_value("target_explicit_times", "the target explicit times")
 
     @property
     def output_offsets(self) -> list[datetime.timedelta]:
         """Return the list output offsets, i.e. the relative output times of a single forward."""
-        return self._metadata.output_offsets
+        return self._timing_value("output_offsets", "the output offsets")
 
     @property
     def rollout_shift(self) -> datetime.timedelta:
         """Get the rollout shift."""
-        return self._metadata.rollout_shift
+        return self._timing_value("rollout_shift", "the rollout shift")
 
     @property
     def data_frequency(self) -> Any:
         """Get the data frequency."""
-        return self._metadata.data_frequency
+        return self._metadata.data.data_frequency()
 
     @property
     def precision(self) -> Any:
         """Get the precision."""
-        return self._metadata.precision
-
-    @cached_property
-    def richer_batch(self) -> bool:
-        """Whether the model was trained after richer-batch was introduced."""
-        return self._metadata.richer_batch
+        return self.metadata.sections.precision
 
     ###########################################################################
     # Misc
     ###########################################################################
-    @cached_property
-    def sources(self) -> list["SourceCheckpoint"]:
-        """Get the sources."""
-        return [SourceCheckpoint(self, _) for _ in self._metadata.sources(self.path)]
-
     def report_error(self) -> None:
         """Report an error."""
         self._metadata.report_error()
@@ -326,10 +397,12 @@ class Checkpoint:
     def update_metadata_from_zarr(self) -> tuple[dict[str, Any], dict[str, Any]]:
         """Get new metadata and supporting array dictionaries from the original training dataset.
         Useful if the training dataset metadata has been patched/updated.
-        Updates the internal `_raw_metadata` and returns a new `(metadata, supporting_arrays)`.
+        Replaces the metadata of the checkpoint with the new one (``patch_metadata`` applied again)
+        and returns the new ``(metadata, supporting_arrays)`` as stored in the checkpoint file
+        (the arrays are keyed by dataset name for a multi-dataset checkpoint).
         """
 
-        new_metadata, new_supporting_arrays = self._raw_metadata
+        new_metadata, new_supporting_arrays = load_metadata(self.path, supporting_arrays=True)
 
         for dataset, metadata in self.multi_dataset_metadata.items():
             ds = metadata.open_dataset()
@@ -343,22 +416,7 @@ class Checkpoint:
                 new_metadata["dataset"] = ds_metadata
                 new_supporting_arrays = ds_supporting_arrays
 
-        self._raw_metadata = (new_metadata, new_supporting_arrays)
-        return self._raw_metadata
-
-
-class SourceCheckpoint(Checkpoint):
-    """A checkpoint that represents a source."""
-
-    def __init__(self, owner: Checkpoint, metadata: Any) -> None:
-        super().__init__(owner.path)
-        self._owner = owner
-        self._metadata = metadata
-
-    def __repr__(self) -> str:
-        return f"Source({self.path})"
-
-    @property
-    def operational_config(self) -> dict[str, Any]:
-        LOG.warning("The `operational_config` property is deprecated.")
-        return False
+        core = CoreMetadata.from_dict(new_metadata, new_supporting_arrays)
+        self._reset()
+        self.__dict__["metadata"] = self._apply_patch_metadata(core)
+        return new_metadata, new_supporting_arrays

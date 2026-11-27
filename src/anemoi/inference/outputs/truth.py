@@ -11,7 +11,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.runners.default import DefaultRunner
 from anemoi.inference.types import State
 
@@ -45,7 +45,13 @@ class TruthOutput(ForwardOutput):
     """
 
     def __init__(
-        self, context: DefaultRunner, metadata: Metadata, *, output, add_diagnostic: bool = False, **kwargs: Any
+        self,
+        context: DefaultRunner,
+        metadata: InferenceMetadata,
+        *,
+        output,
+        add_diagnostic: bool = False,
+        **kwargs: Any,
     ) -> None:
         """Initialise the TruthOutput.
 
@@ -53,7 +59,7 @@ class TruthOutput(ForwardOutput):
         ----------
         context : Context
             The context for the output.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         output :
             The output configuration.

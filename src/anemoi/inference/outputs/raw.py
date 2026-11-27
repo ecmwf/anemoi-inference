@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import State
 from anemoi.inference.utils.templating import render_template
 
@@ -36,7 +36,7 @@ class RawOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         dir: Path,
         template: str = "{date}.npz",
@@ -49,7 +49,7 @@ class RawOutput(Output):
         ----------
         context : dict
             The context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         dir : Path
             The directory to save the raw output.

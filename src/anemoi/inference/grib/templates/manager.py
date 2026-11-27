@@ -38,7 +38,7 @@ class TemplateManager:
         """
         self.owner = owner
         self.metadata = owner.metadata
-        self.typed_variables = self.metadata.typed_variables
+        self.typed_variables = self.metadata.data.typed_variables()
 
         self._template_cache = {}
         self._history = defaultdict(list)
@@ -121,8 +121,9 @@ class TemplateManager:
 
         typed = typed_variables[name]
 
-        grid = state.get("_geography", {}).get("grid", self.metadata.grid)
-        area = state.get("_geography", {}).get("area", self.metadata.area)
+        data = self.metadata.data
+        grid = state.get("_geography", {}).get("grid", data.grid())
+        area = state.get("_geography", {}).get("area", data.area())
 
         lookup = dict(
             name=name,

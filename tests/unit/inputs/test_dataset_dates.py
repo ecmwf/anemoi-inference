@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from anemoi.metadata import DatasetArrays
 
 from anemoi.inference.inputs.dataset import DatasetInput
 
@@ -96,19 +97,12 @@ def _make_ctx():
     )
 
 
-def _make_meta(*, lagged=None):
-    """Build mock metadata.
-
-    lagged: list of timedelta offsets for lagged inputs (e.g. [0, -6h]).
-            Defaults to a single lag of 0.
-    """
-    if lagged is None:
-        lagged = [np.timedelta64(0, "h")]
+def _make_meta():
+    """Build mock metadata (only what `DatasetInput` reads: the dataset name, input variables and supporting arrays)."""
     return SimpleNamespace(
         dataset_name="test_dataset",
-        _supporting_arrays={},
-        lagged=lagged,
-        variable_to_input_tensor_index={v: i for i, v in enumerate(VARS)},
+        arrays=DatasetArrays(),
+        data=SimpleNamespace(variable_indices=lambda: {v: i for i, v in enumerate(VARS)}),
     )
 
 
@@ -120,7 +114,7 @@ def _make_meta(*, lagged=None):
 def _make_input(mock_ds, **extra_kwargs):
     """Construct a DatasetInput with *ds* patched to *mock_ds*."""
     ctx = _make_ctx()
-    meta = _make_meta(**extra_kwargs.pop("meta_kwargs", {}))
+    meta = _make_meta()
     kwargs = dict(variables=list(VARS), open_dataset_args=(), open_dataset_kwargs={})
     kwargs.update(extra_kwargs)
 

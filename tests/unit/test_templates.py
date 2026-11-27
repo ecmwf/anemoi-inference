@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from anemoi.metadata import Metadata as CoreMetadata
 from anemoi.utils.testing import GetTestData
 from earthkit.data.readers.grib.codes import GribCodesHandle
 from earthkit.data.readers.grib.codes import GribField
@@ -25,7 +26,7 @@ from anemoi.inference.grib.encoding import check_encoding
 from anemoi.inference.grib.encoding import grib_keys
 from anemoi.inference.grib.templates.input import InputTemplates
 from anemoi.inference.grib.templates.manager import TemplateManager
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.outputs.parallel import _restore_grib_templates
 from anemoi.inference.outputs.parallel import _sanitise_state
 from anemoi.inference.outputs.parallel import _serialise_grib_templates
@@ -35,11 +36,10 @@ from anemoi.inference.testing import files_for_tests
 def _metadata():
     with open(files_for_tests("unit/checkpoints/atmos.json"), "r") as f:
         data = json.load(f)
-    metadata = Metadata(data)
-    metadata.typed_variables["unknown"] = metadata.typed_variables["2t"]  # used in auto-unknown test
+    metadata = InferenceMetadata(CoreMetadata.from_dict(data))
 
     # 100u failed at one point in test_builtin_gribwriter, make sure 100u is still present if checkpoint is ever updated
-    assert "100u" in metadata.typed_variables.keys()
+    assert "100u" in metadata.data.typed_variables().keys()
     return metadata
 
 
@@ -48,7 +48,9 @@ def manager(mocker: MockerFixture) -> type[TemplateManager]:
     def _manager(config=None):
         owner = mocker.MagicMock()
         owner.metadata = _metadata()
-        return TemplateManager(owner, templates=config)
+        manager = TemplateManager(owner, templates=config)
+        manager.typed_variables["unknown"] = manager.typed_variables["2t"]  # used in auto-unknown test
+        return manager
 
     return _manager
 
@@ -179,7 +181,7 @@ def test_input(manager, config, request):
     [
         pytest.param(variable, id=variable.param)
         for variable in {
-            var.param: var for var in _metadata().typed_variables.values() if not var.is_computed_forcing
+            var.param: var for var in _metadata().data.typed_variables().values() if not var.is_computed_forcing
         }.values()  # dict to get only one level per pl param
     ],
 )

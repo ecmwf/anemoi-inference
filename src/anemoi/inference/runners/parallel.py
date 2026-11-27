@@ -19,6 +19,7 @@ from anemoi.inference.clusters.client import ComputeClientFactory
 from anemoi.inference.clusters.spawner import ComputeSpawner
 from anemoi.inference.config import Configuration
 from anemoi.inference.lazy import torch
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.output import Output
 
 from ..decorators import main_argument
@@ -230,12 +231,12 @@ class ParallelRunnerMixin(Runner):
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
 
-    def create_output(self, *args, **kwargs) -> Output:
+    def create_output(self, dataset_name: str, metadata: InferenceMetadata) -> Output:
         """Creates the real output on rank 0 and a `none` on the others."""
         if self.is_master:
-            return super().create_output(*args, **kwargs)
+            return super().create_output(dataset_name, metadata)
         else:
             # passing the metadata here is a bit of a hack, the `none` output doesn't really need it
             # but in multi-datasets world every output needs metadata, so do this workaround
-            output = create_output(self, "none", self.checkpoint._metadata)
+            output = create_output(self, "none", metadata)
             return output

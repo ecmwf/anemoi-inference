@@ -13,7 +13,7 @@ from typing import Any
 import earthkit.data as ekd
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
@@ -33,7 +33,7 @@ class FDBInput(GribInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         fdb_config: dict | None = None,
         fdb_userconfig: dict | None = None,
@@ -49,7 +49,7 @@ class FDBInput(GribInput):
         ----------
         context : Context
             The context for the input.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         fdb_config : dict, optional
             The FDB config to use.

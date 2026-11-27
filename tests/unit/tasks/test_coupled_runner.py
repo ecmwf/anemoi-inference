@@ -60,7 +60,7 @@ def test_coupled_runner_execute_no_model() -> None:
     # Record the last input step of each model call, keyed by task and forecast step
     def recording_predict_step(self: CoupledRunner, model: Any, input_tensors_torch: dict, **kwargs: Any) -> dict:
         ((dataset, tensor),) = input_tensors_torch.items()
-        index = self.checkpoint.multi_dataset_metadata[dataset].variable_to_input_tensor_index
+        index = self.checkpoint.metadata.dataset(dataset).data.variable_indices()
         inputs[self.coupled_input.task.name, kwargs["fcstep"]] = {
             variable: tensor[0, -1, :, i].cpu().numpy().copy() for variable, i in index.items()
         }

@@ -24,7 +24,7 @@ from . import Command
 
 if TYPE_CHECKING:
     from anemoi.inference.checkpoint import Checkpoint
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.metadata import InferenceMetadata
 
 CORE = ("models", "training", "graphs")
 
@@ -105,7 +105,7 @@ class InspectCmd(Command):
                 self.dump(metadata, args)
                 continue
 
-    def dump(self, metadata: "Metadata", args: Namespace) -> None:
+    def dump(self, metadata: "InferenceMetadata", args: Namespace) -> None:
 
         if args.json:
             # turn off all other logging so json output can be piped cleanly
@@ -119,12 +119,36 @@ class InspectCmd(Command):
             except Exception as e:
                 return str(e)
 
+        # the values of the inference wrapper (not of subclasses or the temporary compatibility names)
+        from anemoi.inference.metadata import InferenceMetadata
+
         data = {}
-        for name in sorted(dir(metadata)):
+        for name in sorted(dir(InferenceMetadata)):
             if name.startswith("_"):
                 continue
 
             data[name] = _(lambda: getattr(metadata, name))
+
+        # the values the metadata gives: the task of the checkpoint and the data of the dataset
+        timing = metadata.core.task.for_dataset(metadata.dataset_name)
+        dataset_data = metadata.data
+        data["task"] = _(lambda: metadata.core.task.task_name)
+        data["timestep"] = _(lambda: timing.timestep_delta)
+        data["multi_step_input"] = _(lambda: timing.n_step_input)
+        data["multi_step_output"] = _(lambda: timing.n_step_output)
+        data["lagged"] = _(lambda: timing.lagged)
+        data["output_offsets"] = _(lambda: timing.output_offsets)
+        data["rollout_shift"] = _(lambda: timing.rollout_shift)
+        data["advance_map"] = _(lambda: timing.advance_map)
+        data["input_explicit_times"] = _(lambda: timing.input_explicit_times)
+        data["target_explicit_times"] = _(lambda: timing.target_explicit_times)
+        data["precision"] = _(lambda: metadata.core.sections.precision)
+        data["data_frequency"] = _(dataset_data.data_frequency)
+        data["grid"] = _(dataset_data.grid)
+        data["area"] = _(dataset_data.area)
+        data["variables_metadata"] = _(dataset_data.variables_metadata)
+        data["typed_variables"] = _(dataset_data.typed_variables)
+        data = dict(sorted(data.items()))
 
         if args.json:
             print(json.dumps(data, indent=None, default=str))
@@ -134,15 +158,15 @@ class InspectCmd(Command):
                 print("  ", json.dumps(value, indent=4, default=str))
                 print()
 
-    def variables(self, metadata: "Metadata", args: Namespace) -> None:
+    def variables(self, metadata: "InferenceMetadata", args: Namespace) -> None:
         """Print the variable categories in the checkpoint."""
         metadata.print_variable_categories(print=rich.print)
 
-    def indices(self, metadata: "Metadata", args: Namespace) -> None:
+    def indices(self, metadata: "InferenceMetadata", args: Namespace) -> None:
         """Print the variable indices in the checkpoint."""
         metadata.print_indices(print=rich.print)
 
-    def datasets(self, metadata: "Metadata", args: Namespace) -> None:
+    def datasets(self, metadata: "InferenceMetadata", args: Namespace) -> None:
         """Print the dataset arguments and keyword arguments for opening datasets."""
         open_dataset_args, open_dataset_kwargs = metadata.open_dataset_args_kwargs(use_original_paths=False)
 

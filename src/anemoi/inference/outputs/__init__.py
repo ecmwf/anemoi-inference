@@ -11,13 +11,13 @@ from anemoi.utils.registry import Registry
 
 from anemoi.inference.config import Configuration
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.output import Output
 
 output_registry = Registry(__name__)
 
 
-def create_output(context: Context, config: Configuration, metadata: Metadata, **kwargs) -> Output:
+def create_output(context: Context, config: Configuration, metadata: InferenceMetadata, **kwargs) -> Output:
     """Create an output.
 
     Parameters
@@ -26,7 +26,7 @@ def create_output(context: Context, config: Configuration, metadata: Metadata, *
         The context for the output.
     config : Configuration
         The configuration for the output.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this output is handling.
     **kwargs : Any
         Additional keyword arguments to pass to the output constructor.

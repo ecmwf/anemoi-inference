@@ -11,11 +11,14 @@
 import logging
 from argparse import ArgumentParser
 from argparse import Namespace
-from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from . import Command
+
+if TYPE_CHECKING:
+    from anemoi.inference.checkpoint import Checkpoint
 
 LOG = logging.getLogger(__name__)
 
@@ -61,6 +64,23 @@ def diff(old, new, *path):
     return result
 
 
+def _snapshot(checkpoint: "Checkpoint") -> tuple[dict, dict]:
+    """Return a copy of the raw metadata and supporting arrays of *checkpoint*, as stored in the file.
+
+    The arrays are keyed by dataset name for a multi-dataset checkpoint and flat (those of the only
+    dataset) otherwise, the layout `Checkpoint.update_metadata_from_zarr` returns and
+    `replace_metadata` writes.
+    """
+    metadata = checkpoint.metadata
+    arrays = {
+        name: {array: dataset.arrays.get(array) for array in dataset.arrays.names}
+        for name, dataset in metadata.datasets.items()
+    }
+    if not checkpoint.multi_dataset:
+        arrays = next(iter(arrays.values()), {})
+    return metadata.to_dict(), arrays
+
+
 class PatchCmd(Command):
     """Patch a checkpoint file with new dataset metadata from the original training dataset.
     If the checkpoint's metadata is already up to date, this command does nothing. Otherwise, it updates the metadata and supporting arrays in-place.
@@ -81,9 +101,7 @@ class PatchCmd(Command):
         from anemoi.inference.checkpoint import Checkpoint
 
         checkpoint = Checkpoint(args.path)
-        original_metadata, original_supporting_arrays = checkpoint._raw_metadata
-        original_metadata = deepcopy(original_metadata)
-        original_supporting_arrays = deepcopy(original_supporting_arrays)
+        original_metadata, original_supporting_arrays = _snapshot(checkpoint)
 
         new_metadata, new_supporting_arrays = checkpoint.update_metadata_from_zarr()
 

@@ -18,7 +18,7 @@ from anemoi.transform.fields import new_field_from_numpy
 from anemoi.transform.fields import new_fieldlist_from_list
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import IntArray
 from anemoi.inference.types import State
@@ -183,7 +183,7 @@ class CoordinateReorder(Processor):
     state is misaligned when fed to the model.
 
     This pre-processor matches the state's ``(latitudes, longitudes)`` against the model grid
-    (``metadata.latitudes``/``longitudes``, treating ``360.0`` as ``0.0``) and
+    (the ``latitudes``/``longitudes`` supporting arrays, treating ``360.0`` as ``0.0``) and
     permutes the coordinates and every field so they are consistent with the
     model ordering.
 
@@ -196,14 +196,14 @@ class CoordinateReorder(Processor):
     # state was already aligned and no reordering was needed).
     _forward_mapping: IntArray | None = None
 
-    def __init__(self, context: Context, metadata: Metadata, *, decimals: int = 4) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata, *, decimals: int = 4) -> None:
         """Initialize the CoordinateReorder processor.
 
         Parameters
         ----------
         context : Context
             The context in which the processor operates.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this processor is handling.
         decimals : int
             Rounding used when matching source and target coordinates.
@@ -251,8 +251,7 @@ class CoordinateReorder(Processor):
         if src_lat is None or src_lon is None:
             raise ValueError("Input state must contain 'latitudes' and 'longitudes'")
 
-        tgt_lat = self.metadata.latitudes
-        tgt_lon = self.metadata.longitudes
+        tgt_lat, tgt_lon = self.metadata.coordinates()
 
         if tgt_lat is None or tgt_lon is None:
             LOG.warning(

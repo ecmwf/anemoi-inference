@@ -16,7 +16,7 @@ import earthkit.data as ekd
 from earthkit.data.utils.dates import to_datetime
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import Date
 from anemoi.inference.types import ProcessorConfig
@@ -114,7 +114,7 @@ class CDSInput(GribInput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         variables: list[str] | None = None,
         pre_processors: list[ProcessorConfig] | None = None,
@@ -129,7 +129,7 @@ class CDSInput(GribInput):
         ----------
         context : Context
             The context in which the input is used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this input is handling.
         variables : list[str] | None
             List of variables to be handled by the input, or None for a sensible default variables.
@@ -201,9 +201,8 @@ class CDSInput(GribInput):
         if not requests:
             raise ValueError(f"No requests for {variables} ({dates})")
 
-        return retrieve(
-            requests, self.metadata.grid, self.metadata.area, dataset=self.dataset, expver="0001", **self.kwargs
-        )
+        data = self.metadata.data
+        return retrieve(requests, data.grid(), data.area(), dataset=self.dataset, expver="0001", **self.kwargs)
 
     def load_forcings_state(self, *, dates: list[Date], current_state: State) -> State:
         """Load the forcings state for the given variables and dates.

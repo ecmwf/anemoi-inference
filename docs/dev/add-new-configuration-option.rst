@@ -38,7 +38,7 @@ aware of.
        def __init__(
            self,
            context: Context,
-           metadata: Metadata,
+           metadata: InferenceMetadata,
            *,
            path: Path,
            **kwargs: Any,
@@ -108,7 +108,7 @@ argument to the class:
        def __init__(
            self,
            context: Context,
-           metadata: Metadata,
+           metadata: InferenceMetadata,
            *,
            path: Path,
            float_size: str = "f4",
@@ -151,7 +151,7 @@ shared superclass (in this case, :class:`Output
        def __init__(
            self,
            context: "Context",
-           metadata: "Metadata",
+           metadata: "InferenceMetadata",
            *,
            variables: OutputVariableConfigUnion = None,
            post_processors: list[ProcessorConfig] | None = None,
@@ -171,7 +171,7 @@ variable up:
        def __init__(
            self,
            context: Context,
-           metadata: Metadata,
+           metadata: InferenceMetadata,
            *,
            path: Path,
            float_size: str = "f4",
@@ -213,7 +213,7 @@ corresponding to the name.
        def __init__(
            self,
            context: "Context",
-           metadata: "Metadata",
+           metadata: "InferenceMetadata",
            *,
            variables: OutputVariableConfigUnion = None,
            post_processors: list[ProcessorConfig] | None = None,

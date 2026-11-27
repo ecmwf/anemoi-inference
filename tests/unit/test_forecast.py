@@ -70,6 +70,53 @@ def basic_predict_step(model, input_tensors, **kwargs):
     return dict(data=output.unsqueeze(2))
 
 
+class _Arrays:
+    """Mock of the supporting arrays of a dataset (``anemoi.metadata`` ``arrays``)."""
+
+    grid_indices = None
+
+    def __init__(self, **arrays):
+        self._arrays = arrays
+
+    def get(self, name, default=None):
+        return self._arrays.get(name, default)
+
+    def __contains__(self, name):
+        return name in self._arrays
+
+
+def _data_and_arrays(
+    variable_indices,
+    output_index_to_variable,
+    prognostic_input_mask,
+    prognostic_output_mask,
+    typed_variables,
+    **arrays,
+):
+    """Mock `data` and `arrays` of the metadata (as keyword arguments): what the runner and tensor handler read from it."""
+    data = SimpleNamespace(
+        variable_indices=lambda: variable_indices,
+        output_index_to_variable=lambda: output_index_to_variable,
+        prognostic_input_mask=lambda: prognostic_input_mask,
+        prognostic_output_mask=lambda: prognostic_output_mask,
+        typed_variables=lambda: typed_variables,
+    )
+    return {"data": data, "arrays": _Arrays(**arrays)}
+
+
+def _core(**timing):
+    """Mock of the ``anemoi.metadata.Metadata``: its task gives the same timing for every dataset."""
+    timing = SimpleNamespace(**timing)
+    return SimpleNamespace(task=SimpleNamespace(for_dataset=lambda name: timing))
+
+
+def _typed_variables():
+    return {
+        "force": SimpleNamespace(is_constant_in_time=False),
+        "prog": SimpleNamespace(is_constant_in_time=False),
+    }
+
+
 def _build_runner(metadata, dynamic_forcers, boundary_forcers):
     """Wire a bare Runner + TensorHandler around a mock metadata and its forcers."""
     runner = Runner.__new__(Runner)
@@ -103,27 +150,35 @@ def _build_runner(metadata, dynamic_forcers, boundary_forcers):
 def forecast_runner_factory():
     def make_forecast_runner(multi_step_input=1, multi_step_output=1):
         timestep = timedelta(hours=1)
+        output_offsets = [i * timestep for i in range(1, multi_step_output + 1)]
+        advance_map = {
+            "outin": [
+                (multi_step_output - i - 1, multi_step_input - i - 1)
+                for i in range(min(multi_step_output, multi_step_input))
+            ],
+            "inin": [(i, i - multi_step_output) for i in range(multi_step_output, multi_step_input)],
+        }
+        # the mock is both the checkpoint (task forwards) and the metadata of its one dataset
         metadata = SimpleNamespace(
+            dataset_name="data",
             timestep=timestep,
             multi_step_input=multi_step_input,
             multi_step_output=multi_step_output,
-            output_offsets=[i * timestep for i in range(1, multi_step_output + 1)],
+            output_offsets=output_offsets,
             rollout_shift=multi_step_output * timestep,
-            advance_map={
-                "outin": [
-                    (multi_step_output - i - 1, multi_step_input - i - 1)
-                    for i in range(min(multi_step_output, multi_step_input))
-                ],
-                "inin": [(i, i - multi_step_output) for i in range(multi_step_output, multi_step_input)],
-            },
-            variable_to_input_tensor_index={"force": 0, "prog": 1},
-            output_tensor_index_to_variable=["prog", "diag"],
-            typed_variables={
-                "force": SimpleNamespace(is_constant_in_time=False),
-                "prog": SimpleNamespace(is_constant_in_time=False),
-            },
+            core=_core(
+                timestep_delta=timestep,
+                n_step_input=multi_step_input,
+                n_step_output=multi_step_output,
+                lagged=sorted(-s * timestep for s in range(multi_step_input)),
+                output_offsets=output_offsets,
+                rollout_shift=multi_step_output * timestep,
+                advance_map=advance_map,
+            ),
+            **_data_and_arrays(
+                {"force": 0, "prog": 1}, ["prog", "diag"], np.array([1]), np.array([0]), _typed_variables()
+            ),
             prognostic_input_mask=np.array([1]),
-            prognostic_output_mask=np.array([0]),
             output_mask=np.array([True, False]),
         )
 
@@ -262,21 +317,27 @@ def offset_predict_step(model, input_tensors, **kwargs):
 def offset_forecast_runner_factory():
     def make(input_offsets, output_offsets, rollout_shift, advance_map):
         input_offsets = [to_timedelta(o) for o in input_offsets]
+        # the mock is both the checkpoint (task forwards) and the metadata of its one dataset
         metadata = SimpleNamespace(
+            dataset_name="data",
             timestep=_TIMESTEP,
             multi_step_input=len(input_offsets),
             multi_step_output=len(output_offsets),
             output_offsets=[to_timedelta(o) for o in output_offsets],
             rollout_shift=to_timedelta(rollout_shift),
-            advance_map=advance_map,
-            variable_to_input_tensor_index={"force": 0, "prog": 1},
-            output_tensor_index_to_variable=["prog", "diag"],
-            typed_variables={
-                "force": SimpleNamespace(is_constant_in_time=False),
-                "prog": SimpleNamespace(is_constant_in_time=False),
-            },
+            core=_core(
+                timestep_delta=_TIMESTEP,
+                n_step_input=len(input_offsets),
+                n_step_output=len(output_offsets),
+                lagged=list(input_offsets),
+                output_offsets=[to_timedelta(o) for o in output_offsets],
+                rollout_shift=to_timedelta(rollout_shift),
+                advance_map=advance_map,
+            ),
+            **_data_and_arrays(
+                {"force": 0, "prog": 1}, ["prog", "diag"], np.array([1]), np.array([0]), _typed_variables()
+            ),
             prognostic_input_mask=np.array([1]),
-            prognostic_output_mask=np.array([0]),
             output_mask=np.array([True, False]),
         )
         runner = _build_runner(metadata, [_TimeDynamicForcer()], [_TimeBoundaryForcer()])
@@ -360,14 +421,14 @@ def _add_input_only_dataset(runner, name="obs"):
     data_metadata = runner.tensor_handlers["data"].metadata
     metadata = SimpleNamespace(
         dataset_name=name,
-        multi_step_input=data_metadata.multi_step_input,
-        multi_step_output=data_metadata.multi_step_output,
-        advance_map=data_metadata.advance_map,
-        variable_to_input_tensor_index={name: 0},
-        output_tensor_index_to_variable=[],
-        typed_variables={name: SimpleNamespace(is_constant_in_time=False)},
-        prognostic_input_mask=np.array([0]),
-        prognostic_output_mask=np.array([], dtype=int),
+        core=data_metadata.core,
+        **_data_and_arrays(
+            {name: 0},
+            [],
+            np.array([0]),
+            np.array([], dtype=int),
+            {name: SimpleNamespace(is_constant_in_time=False)},
+        ),
     )
     handler = TensorHandler.__new__(TensorHandler)
     handler.context = runner

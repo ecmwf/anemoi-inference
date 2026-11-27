@@ -10,7 +10,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import State
 
@@ -25,11 +25,11 @@ class Processor(ABC):
     ----------
     context : Context
         The context in which the processor operates.
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata corresponding to the dataset this processor is handling.
     """
 
-    def __init__(self, context: "Context", metadata: "Metadata") -> None:
+    def __init__(self, context: "Context", metadata: "InferenceMetadata") -> None:
         self.context = context
         self.metadata = metadata
         self.dataset_name = metadata.dataset_name

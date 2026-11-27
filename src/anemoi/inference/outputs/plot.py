@@ -18,7 +18,7 @@ from anemoi.inference.context import Context
 from anemoi.inference.decorators import ensure_dir
 from anemoi.inference.decorators import format_dataset_name
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
 from anemoi.inference.types import State
@@ -57,7 +57,7 @@ class PlotOutput(Output):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         dir: Path,
         variables: OutputVariableConfigUnion = None,
@@ -77,7 +77,7 @@ class PlotOutput(Output):
         ----------
         context : Context
             The context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         dir : Path
             The directory to save the plots.

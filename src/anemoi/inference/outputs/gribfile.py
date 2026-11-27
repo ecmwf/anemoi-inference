@@ -20,7 +20,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import DataRequest
 from anemoi.inference.types import FloatArray
 from anemoi.inference.types import ProcessorConfig
@@ -124,7 +124,7 @@ class GribIoOutput(BaseGribOutput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         out: Path | IOBase,
         post_processors: list[ProcessorConfig] | None = None,
@@ -148,7 +148,7 @@ class GribIoOutput(BaseGribOutput):
         ----------
         context : Context
             The context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         out : Union[Path, IOBase]
             Path or file-like object to write the grib data to.
@@ -351,7 +351,7 @@ class GribFileOutput(GribIoOutput):
     def __init__(
         self,
         context: Context,
-        metadata: Metadata,
+        metadata: InferenceMetadata,
         *,
         path: Path,
         post_processors: list[ProcessorConfig] | None = None,
@@ -375,7 +375,7 @@ class GribFileOutput(GribIoOutput):
         ----------
         context : Context
             The context.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this output is handling.
         path : Path
             Path to the grib file to write the data to.

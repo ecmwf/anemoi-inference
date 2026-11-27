@@ -44,7 +44,7 @@ def runner() -> None:
 
 @fake_checkpoints
 def test_patched_by_input_and_context(runner):
-    metadata = runner.checkpoint._metadata
+    metadata = runner.checkpoint.multi_dataset_metadata[runner.checkpoint.dataset_names[0]]
     runner.pre_processors["data"].append(DummyProcessor(runner, metadata, "context"))
 
     input = DummyInput(runner, metadata)

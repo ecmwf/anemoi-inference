@@ -22,7 +22,7 @@ import earthkit.data as ekd
 import numpy as np
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.testing import float_hash
 from anemoi.inference.types import Date
 from anemoi.inference.types import State
@@ -40,7 +40,7 @@ class DummyInput(EkdInput):
 
     trace_name = "dummy"
 
-    def __init__(self, context: Context, metadata: Metadata, **kwargs) -> None:
+    def __init__(self, context: Context, metadata: InferenceMetadata, **kwargs) -> None:
         super().__init__(context, metadata, **kwargs)
 
     def create_input_state(self, *, dates: list[Date], **kwargs) -> State:
@@ -99,13 +99,13 @@ class DummyInput(EkdInput):
 
         LOG.info("Generating fields for %s", variables)
 
-        typed_variables = self.metadata.typed_variables
+        typed_variables = self.metadata.data.typed_variables()
 
-        latitudes = self.metadata.latitudes
+        latitudes, longitudes = self.metadata.coordinates()
+
         if latitudes is None:
             latitudes = np.zeros(self.metadata.number_of_grid_points, dtype=np.float32)
 
-        longitudes = self.metadata.longitudes
         if longitudes is None:
             longitudes = np.zeros(self.metadata.number_of_grid_points, dtype=np.float32)
 

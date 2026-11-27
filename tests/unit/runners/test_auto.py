@@ -12,7 +12,7 @@ import logging
 import pytest
 
 from anemoi.inference.config.run import RunConfiguration
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.runner import RunnerClasses
 from anemoi.inference.runners import create_runner
 from anemoi.inference.runners import runner_registry
@@ -27,7 +27,7 @@ MULTI_DATASET_CHECKPOINT = "unit/checkpoints/multi-single.ckpt"
 SINGLE_DATASET_CHECKPOINT = "unit/checkpoints/simple.ckpt"
 
 
-class MarkerMetadata(Metadata):
+class MarkerMetadata(InferenceMetadata):
     """Metadata subclass used to check that runner options reach the selected runner."""
 
 
@@ -37,7 +37,24 @@ class MarkerMetadata(Metadata):
         pytest.param({}, DefaultRunner, id="none"),
         pytest.param({"metadata_inference": {"task": None}}, DefaultRunner, id="unset-task"),
         pytest.param({"metadata_inference": {"task": "forecaster"}}, DefaultRunner, id="forecaster"),
-        pytest.param({"metadata_inference": {"task": "default"}}, DefaultRunner, id="default"),
+        pytest.param({"metadata_inference": {"task": "offset-forecaster"}}, DefaultRunner, id="offset-forecaster"),
+        # runner aliases
+        pytest.param({"metadata_inference": {"task": "default"}}, DefaultRunner, id="default-alias"),
+        pytest.param(
+            {
+                "metadata_inference": {
+                    "task": "temporal-downscaler",
+                    "data": {
+                        "timesteps": {
+                            "input_relative_date_indices": [0, 2],
+                            "output_relative_date_indices": [1],
+                        }
+                    },
+                }
+            },
+            TemporalDownscalerMultiOutRunner,
+            id="temporal-downscaler",
+        ),
         pytest.param(
             {
                 "metadata_inference": {
@@ -51,7 +68,7 @@ class MarkerMetadata(Metadata):
                 }
             },
             TemporalDownscalerMultiOutRunner,
-            id="temporal-downscaler",
+            id="temporal_downscaler-alias",
         ),
     ],
 )

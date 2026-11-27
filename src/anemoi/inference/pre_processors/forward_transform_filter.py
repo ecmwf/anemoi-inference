@@ -14,7 +14,7 @@ from typing import Any
 from anemoi.transform.filters import filter_registry
 
 from anemoi.inference.decorators import main_argument
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.types import State
 
 from ..processor import Processor
@@ -38,7 +38,7 @@ class ForwardTransformFilter(Processor):
     """
 
     def __init__(
-        self, context: Any, metadata: Metadata, *, filter: str | dict[str, Any] | None = None, **kwargs: Any
+        self, context: Any, metadata: InferenceMetadata, *, filter: str | dict[str, Any] | None = None, **kwargs: Any
     ) -> None:
         """Initialize the ForwardTransformFilter.
 
@@ -46,7 +46,7 @@ class ForwardTransformFilter(Processor):
         ----------
         context : object
             The context in which the filter is being used.
-        metadata : Metadata
+        metadata : InferenceMetadata
             Metadata corresponding to the dataset this processor is handling.
         filter : str | dict[str, Any] | None, optional
             The name of the filter or a configuration dictionary for the filter, by default None

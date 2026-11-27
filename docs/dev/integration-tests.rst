@@ -123,7 +123,7 @@ By default, the following arguments are passed to the check function:
 -  ``expected_variables``: A list of variables that should be in the
    output file, according to the metadata.
 
--  ``metadata``: The :class:`anemoi.inference.metadata.Metadata`
+-  ``metadata``: The :class:`anemoi.inference.metadata.InferenceMetadata`
    object associated with the output-dataset the check is running on. This can
    be useful if the check needs to access any metadata.
 

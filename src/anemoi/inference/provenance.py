@@ -17,7 +17,7 @@ from anemoi.utils.provenance import gather_provenance_info
 from packaging.version import Version
 
 if TYPE_CHECKING:
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.metadata import InferenceMetadata
 
 
 # Complete package name to be exempt
@@ -43,7 +43,7 @@ LOG = logging.getLogger(__name__)
 
 @overload
 def validate_environment(
-    metadata: "Metadata",
+    metadata: "InferenceMetadata",
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore"] = "warn",
@@ -53,7 +53,7 @@ def validate_environment(
 
 @overload
 def validate_environment(
-    metadata: "Metadata",
+    metadata: "InferenceMetadata",
     *,
     all_packages: bool = False,
     on_difference: Literal["return"] = "return",
@@ -62,7 +62,7 @@ def validate_environment(
 
 
 def validate_environment(
-    metadata: "Metadata",
+    metadata: "InferenceMetadata",
     *,
     all_packages: bool = False,
     on_difference: Literal["warn", "error", "ignore", "return"] = "warn",
@@ -72,7 +72,7 @@ def validate_environment(
 
     Parameters
     ----------
-    metadata : Metadata
+    metadata : InferenceMetadata
         Metadata object of the checkpoint, to validate against.
     all_packages : bool, optional
         Check all packages in environment or just `anemoi`'s, by default False.

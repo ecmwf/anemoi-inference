@@ -15,7 +15,7 @@ from typing import Any
 
 import torch
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.testing import float_hash
 
 
@@ -50,12 +50,12 @@ class SimpleMetadata:
     prognostic_output_indices: list[int]
 
     @classmethod
-    def _from_metadata(cls, metadata: Metadata) -> "SimpleMetadata":
+    def _from_metadata(cls, metadata: InferenceMetadata) -> "SimpleMetadata":
         """Reduce the metadata of one dataset to plain, picklable data.
 
         Parameters
         ----------
-        metadata : Metadata
+        metadata : InferenceMetadata
             The metadata of a single dataset.
 
         Returns
@@ -65,12 +65,13 @@ class SimpleMetadata:
         """
         prognostic_variables = metadata.select_variables(include=["prognostic"], has_mars_requests=False)
 
-        variable_to_input_tensor_index = dict(metadata.variable_to_input_tensor_index)
-        variable_to_output_tensor_index = dict(metadata.variable_to_output_tensor_index)
+        data = metadata.data
+        variable_to_input_tensor_index = data.variable_indices()
+        variable_to_output_tensor_index = data.output_variable_indices()
 
         return cls(
             output_shape=tuple(metadata.output_shape),
-            output_tensor_index_to_variable=dict(metadata.output_tensor_index_to_variable),
+            output_tensor_index_to_variable=data.output_index_to_variable(),
             prognostic_input_indices=[variable_to_input_tensor_index[v] for v in prognostic_variables],
             prognostic_output_indices=[variable_to_output_tensor_index[v] for v in prognostic_variables],
         )
@@ -94,7 +95,7 @@ class SimpleMockModel(torch.nn.Module):
 
     def __init__(
         self,
-        multi_metadata: Mapping[str, Metadata],
+        multi_metadata: Mapping[str, InferenceMetadata],
         *,
         output_mode: str = VariableOutputSetting.PASSTHROUGH,
     ) -> None:

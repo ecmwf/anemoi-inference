@@ -16,7 +16,7 @@ from typing import Any
 from typing import TypeVar
 
 from anemoi.inference.context import Context
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 
 LOG = logging.getLogger("anemoi.inference")
 
@@ -272,7 +272,7 @@ class format_dataset_name:
                 return f"{{{key}}}"  # if the key is not found, return the placeholder unchanged
 
         class WrappedClass(cls):
-            def __init__(wrapped_cls, context: Context, metadata: Metadata, *args: Any, **kwargs: Any) -> Any:
+            def __init__(wrapped_cls, context: Context, metadata: InferenceMetadata, *args: Any, **kwargs: Any) -> Any:
                 assert self.arg in kwargs, f"{self.arg} not found in decorated class arguments: {kwargs}"
                 assert isinstance(kwargs[self.arg], str), (
                     f"{self.arg} must be a string to use `{self.__class__.__name__}` decorator"

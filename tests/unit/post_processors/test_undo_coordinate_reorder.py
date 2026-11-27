@@ -20,13 +20,15 @@ These tests exercise the two guarantees that matter:
     post-processor is a no-op.
 """
 
+from functools import partial
 from typing import cast
 
 import earthkit.data as ekd
 import numpy as np
+from anemoi.metadata import DatasetArrays
 from pytest_mock import MockerFixture
 
-from anemoi.inference.metadata import Metadata
+from anemoi.inference.metadata import InferenceMetadata
 from anemoi.inference.post_processors.undo_coordinate_reorder import UndoCoordinateReorder
 from anemoi.inference.pre_processors.coordinate_reorder import CoordinateReorder
 
@@ -82,16 +84,16 @@ def _fieldlist(values, lat, lon, param="2t"):
 
 def _make_reorder(mocker: MockerFixture, model_lat, model_lon, decimals: int = 4) -> CoordinateReorder:
     """Create a CoordinateReorder pre-processor targeting the given model grid."""
-    metadata = cast(Metadata, mocker.MagicMock())
+    metadata = cast(InferenceMetadata, mocker.MagicMock())
     metadata.dataset_name = "data"
-    metadata.latitudes = model_lat
-    metadata.longitudes = model_lon
+    metadata.arrays = DatasetArrays({"latitudes": model_lat, "longitudes": model_lon})
+    metadata.coordinates = partial(InferenceMetadata.coordinates, metadata)
     return CoordinateReorder(mocker.MagicMock(), metadata, decimals=decimals)
 
 
 def _make_undo(mocker: MockerFixture) -> UndoCoordinateReorder:
     """Create an UndoCoordinateReorder post-processor."""
-    metadata = cast(Metadata, mocker.MagicMock())
+    metadata = cast(InferenceMetadata, mocker.MagicMock())
     metadata.dataset_name = "data"
     return UndoCoordinateReorder(mocker.MagicMock(), metadata)
 

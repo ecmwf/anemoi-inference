@@ -16,7 +16,7 @@ from . import testing_registry
 if TYPE_CHECKING:
     from anemoi.transform.variables import Variable
 
-    from anemoi.inference.metadata import Metadata
+    from anemoi.inference.metadata import InferenceMetadata
 
 LOG = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def check_grib(
 def check_grib_cutout(
     *,
     file: Path,
-    metadata: "Metadata",
+    metadata: "InferenceMetadata",
     reference_grib: str,
     reference_datetime: str | None = None,
     mask="lam_0",
@@ -113,9 +113,12 @@ def check_grib_cutout(
     assert len(ds) > 0, "No fields found in the output GRIB file."
     assert len(ref_ds) > 0, "No fields found in the reference GRIB file."
 
-    mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
+    mask_name = f"{mask}/cutout_mask"
+    mask = metadata.arrays.get(mask_name)
+    assert mask is not None, f"No supporting array `{mask_name}` in the checkpoint."
+    prognostic_variables = metadata.select_variables(include=["prognostic"])
     prognostic_params = [
-        var.param for var in metadata.typed_variables.values() if var.name in metadata.prognostic_variables
+        var.param for var in metadata.data.typed_variables().values() if var.name in prognostic_variables
     ]
 
     for param in prognostic_params:
@@ -188,7 +191,7 @@ def check_with_xarray(
 def check_cutout_with_xarray(
     *,
     file: Path,
-    metadata: "Metadata",
+    metadata: "InferenceMetadata",
     mask="lam_0",
     reference_date: str = None,
     reference_dataset={},
@@ -202,7 +205,9 @@ def check_cutout_with_xarray(
     ds = xr.open_dataset(file)
 
     # check shape of inner region against the mask in the checkpoint
-    mask = metadata.load_supporting_array(f"{mask}/cutout_mask")
+    mask_name = f"{mask}/cutout_mask"
+    mask = metadata.arrays.get(mask_name)
+    assert mask is not None, f"No supporting array `{mask_name}` in the checkpoint."
     for var in ds.data_vars:
         assert ds[var].shape[-1] == np.sum(mask), (
             f"Variable {var} shape {ds[var].shape[-1]} does not match mask size {np.sum(mask)}."
@@ -215,7 +220,7 @@ def check_cutout_with_xarray(
 
         ref_ds = open_dataset(**reference_dataset, start=reference_date, end=reference_date)
 
-        for var in metadata.prognostic_variables:
+        for var in metadata.select_variables(include=["prognostic"]):
             assert var in ds.data_vars, f"Variable {var} not found in output file."
             ref_idx = ref_ds.name_to_index[var]
             # loop through time dimension
@@ -232,7 +237,7 @@ def check_cutout_with_xarray(
 def check_boundary_forcings_with_xarray(
     *,
     file: Path,
-    metadata: "Metadata",
+    metadata: "InferenceMetadata",
     reference_dataset={},
     reference_file=None,
     **kwargs,
@@ -240,13 +245,13 @@ def check_boundary_forcings_with_xarray(
     LOG.info(f"Checking boundary forcings: {file}")
 
     # get boundary mask from checkpoint
-    supporting_arrays = metadata.supporting_arrays
-    LOG.info(f"Supporting arrays in checkpoint: {supporting_arrays.keys()}")
-    if "output_mask" not in supporting_arrays:
+    arrays = metadata.arrays
+    LOG.info(f"Supporting arrays in checkpoint: {arrays.names}")
+    if arrays.output_mask is None:
         LOG.warning("Boundary forcings check is trivial. Consider removing from test config.")
         return
     else:
-        boundary_mask = ~supporting_arrays["output_mask"]
+        boundary_mask = ~arrays.output_mask
 
     import numpy as np
     import xarray as xr
@@ -281,9 +286,9 @@ def check_boundary_forcings_with_xarray(
         # make sure we have the reference dataset on the output grid
         lats = ref_ds.latitudes
         lons = ref_ds.longitudes
-        if metadata._grid_indices:
+        grid_indices = arrays.grid_indices
+        if grid_indices is not None:
             LOG.info("Using grid indices for boundary forcings check.")
-            grid_indices = metadata._grid_indices
             ref_values = ref_values[:, :, grid_indices]
             lats = lats[grid_indices]
             lons = lons[grid_indices]
@@ -295,7 +300,7 @@ def check_boundary_forcings_with_xarray(
         # boundary forcings are applied to output i in the creation of input i+1
         # the current mock inference model simply passes the input, so output i+1 == input i+1
         # the boundary forcing applied on output i (ref dataset at i) appear thus directly in output i+1
-        for var in metadata.prognostic_variables:
+        for var in metadata.select_variables(include=["prognostic"]):
             assert var in ds.data_vars, f"Variable {var} not found in output file."
             ref_idx = ref_ds.name_to_index[var]
             for i in range(len(dates) - 1):

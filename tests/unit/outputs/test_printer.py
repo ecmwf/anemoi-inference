@@ -33,7 +33,12 @@ LOG = logging.getLogger(__name__)
 def test_print_state_variable_inclusion(
     variables, expected_in_output, not_expected_in_output, basic_metadata, basic_state, capsys
 ):
-    print_state(basic_state, max_lines=1, variables=variables, typed_variables=basic_metadata.typed_variables)
+    print_state(
+        basic_state,
+        max_lines=1,
+        variables=variables,
+        typed_variables=basic_metadata.data.typed_variables(),
+    )
     output_str = capsys.readouterr()[0]
 
     for variable in expected_in_output:
