@@ -157,7 +157,7 @@
   output: output
   checks:
     - check_files_in_directory:
-        expected_files: 8
+        expected_files: 9 # 8 files + 1 manifest
   inference_config:
     write_initial_state: false
     checkpoint: ${checkpoint:}
@@ -172,7 +172,7 @@
   output: output
   checks:
     - check_files_in_directory:
-        expected_files: 8
+        expected_files: 9 # 8 files + 1 manifest
   inference_config:
     write_initial_state: false
     checkpoint: ${checkpoint:}
