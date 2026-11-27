@@ -280,3 +280,78 @@ the state, you can use the following configuration:
 
    post_processors:
    - extract_from_state: 'lam_0'
+
+.. _raw-input:
+
+*****
+ raw
+*****
+
+The ``raw`` input reads the ``.npz`` files written by the
+:ref:`raw output <raw-output>` of another run, so that the output of one
+model can be the input of a second one, for example a forecaster feeding
+a temporal downscaler. The ``manifest.json`` written next to the files
+describes them, so only the directory is needed:
+
+.. code:: yaml
+
+   input:
+     raw: /path/to/directory
+
+The file of the initial state (written with ``write_initial_state:
+true``, the default) holds the prognostic variables and the retrieved
+constant forcings. The later files hold the model outputs only, after
+any top-level post-processors. A second model that needs forcings at
+these later dates must read them from another input with
+``dynamic_forcings`` (see :ref:`forcings`).
+
+With ``wait: true``, the files can be read while the first model is
+still writing them, so that both models run at the same time, starting
+from the ``manifest.json.part`` the first model writes when it starts.
+The directory does not need to exist when the second model starts. Each
+file is waited for until it appears, until the first model has finished
+without writing it, or until ``timeout`` seconds have passed (600 by
+default). Without ``wait``, the input refuses a directory whose
+manifest is still ``manifest.json.part``. ``poll_interval`` sets how often to check, in seconds (1 by
+default). If a file has not appeared after ``timeout`` seconds, the
+input raises a ``TimeoutError`` and the run stops. If the first model
+has finished without writing it, the input raises a
+``FileNotFoundError`` at once.
+
+For example, a forecaster and a temporal downscaler started at the same
+time, each on its own GPU. The downscaler processes each window as soon
+as the forecaster has written the end of it:
+
+.. code:: yaml
+
+   # forecaster.yaml
+   checkpoint: forecaster.ckpt
+   date: 2023-06-15T00
+   lead_time: 48h
+   output:
+     raw:
+       dir: /dev/shm/handoff
+       compressed: false
+
+.. code:: yaml
+
+   # downscaler.yaml
+   checkpoint: downscaler.ckpt
+   date: 2023-06-15T00
+   lead_time: 48h
+   input:
+     raw:
+       dir: /dev/shm/handoff
+       wait: true
+   output:
+     netcdf: downscaled.nc
+
+The temporal downscaler checks that the files were written for its own
+``date``. A directory can be reused by a later run, as the output
+rewrites the manifest when it starts. With ``wait``, however, a reader
+started before the writer can read the files of the previous run, so
+use a new directory for each run.
+
+The output renames the manifest to ``manifest.json`` only when its run
+ends normally. If the first model fails, a reader with ``wait`` waits
+until ``timeout``.

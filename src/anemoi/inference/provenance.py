@@ -223,6 +223,10 @@ def validate_environment(
     return True
 
 
+PARTIAL_SUFFIX = ".part"
+"""Suffix of an output's manifest while its run is in progress, removed once the run has finished."""
+
+
 class CheckpointIdentity(TypedDict):
     path: str
     md5: str | None
