@@ -129,6 +129,13 @@ fields:
     description: Random seed for `torch.manual_seed`. Set it to make ensemble members reproducible. The seed in use is always logged.
     example: 42
 
+  deterministic:
+    type: bool
+    default: false
+    description: |
+      Use only deterministic PyTorch algorithms, so that repeated runs give identical output.
+      Sets `seed` to 42 if it is not given.
+
   allow_nans:
     type: bool
     description: |
