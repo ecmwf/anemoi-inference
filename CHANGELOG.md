@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Please add your functional changes to the appropriate section in the PR.
 Keep it human-readable, your future self will thank you!
 
+## [0.14.3](https://github.com/ecmwf/anemoi-inference/compare/0.14.2...0.14.3) (2026-11-26)
+
+
+### Features
+
+* **runner:** Support `richer-batch` interface for gridded data ([#656](https://github.com/ecmwf/anemoi-inference/issues/656)) ([4328565](https://github.com/ecmwf/anemoi-inference/commit/43285650f890686989592ae4ef0ce06683b289c2))
+
 ## [0.14.2](https://github.com/ecmwf/anemoi-inference/compare/0.14.1...0.14.2) (2026-11-24)
 
 
