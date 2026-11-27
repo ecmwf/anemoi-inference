@@ -775,6 +775,21 @@ function setBuilderOpen(open) {
   storage((s) => s.setItem(`${STORAGE_KEY}-open`, open ? "1" : "0"));
 }
 
+// Optional page chrome from `index.yaml`: a notice banner and a link back to the main documentation.
+function initChrome() {
+  if (PAGE.notice) {
+    $("#notice").innerHTML = PAGE.notice;
+    $("#notice").hidden = false;
+  }
+  const link = PAGE.docsLink;
+  if (link && link.url) {
+    $("#docs-link").href = link.url;
+    $("#docs-link .label").textContent = link.label || "Documentation";
+    $("#docs-link").title = link.label || "Documentation";
+    $("#docs-link").hidden = false;
+  }
+}
+
 function initTheme() {
   const saved = storage((s) => s.getItem(`${STORAGE_KEY}-theme`), null);
   if (saved) document.documentElement.dataset.theme = saved;
@@ -854,6 +869,7 @@ $("#nav-toggle").addEventListener("click", () => {
 $("#search").addEventListener("input", (e) => renderSidebar(e.target.value));
 window.addEventListener("hashchange", route);
 
+initChrome();
 initTheme();
 Builder.init();
 setBuilderOpen(storage((s) => s.getItem(`${STORAGE_KEY}-open`) === "1", false));

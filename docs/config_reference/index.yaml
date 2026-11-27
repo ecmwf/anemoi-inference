@@ -5,6 +5,11 @@ page:
   title: Inference configuration reference
   description: What every key of an anemoi-inference run configuration accepts, with examples and a configuration builder.
   config_file: config.yaml
+  # Relative to the built page, which Sphinx writes to `config-reference/` next to the documentation.
+  docs_link: {url: ../index.html, label: anemoi-inference docs}
+  notice: |
+    This page is experimental and still being explored. Please share feedback on
+    [GitHub issue #680](https://github.com/ecmwf/anemoi-inference/issues/680).
 
 intro: |
   An anemoi-inference run is described by one YAML file. Pick a section on the left to see what each key

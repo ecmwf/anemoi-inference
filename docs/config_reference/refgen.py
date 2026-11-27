@@ -1356,6 +1356,8 @@ def collect_site_data() -> dict[str, Any]:
             "description": page.get("description", ""),
             "configFile": page.get("config_file", "config.yaml"),
             "validateCommand": page.get("validate_command"),
+            "notice": markdown(page.get("notice")),
+            "docsLink": page.get("docs_link"),
         },
         "top": f"{TOP_LEVEL_KIND}/{TOP_LEVEL_NAME}",
         "kinds": kinds,

@@ -16,6 +16,7 @@
 <body>
 <header class="topbar">
   <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Show sections" aria-expanded="false">&#9776;</button>
+  <a class="btn docs-link" id="docs-link" hidden><span aria-hidden="true">&larr;</span> <span class="label"></span></a>
   <a class="brand" href="#/">__PACKAGE__ <span>configuration reference</span></a>
   <span class="version" title="__PACKAGE__ version used to build this page">v__VERSION__</span>
   <div class="search">
@@ -24,6 +25,7 @@
   <button class="icon-btn" id="theme-toggle" aria-label="Toggle colour theme" title="Toggle colour theme">&#9680;</button>
   <button class="btn primary" id="builder-toggle" aria-expanded="false">Config builder <span class="count" id="builder-count">0</span></button>
 </header>
+<div class="notice" id="notice" role="note" hidden></div>
 <div class="layout">
   <nav class="sidebar" id="sidebar" aria-label="Sections"></nav>
   <main id="main" tabindex="-1"></main>

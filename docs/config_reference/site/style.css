@@ -136,6 +136,20 @@ h3 { font-size: 1rem; margin: 1.25rem 0 0.5rem; }
 .btn.small { padding: 2px 8px; font-size: 12px; }
 .icon-btn { padding: 4px 9px; font-size: 16px; line-height: 1; }
 .nav-toggle { display: none; }
+.docs-link { display: inline-flex; gap: 6px; align-items: center; color: var(--fg); }
+.docs-link:hover { text-decoration: none; }
+.docs-link[hidden] { display: none; }
+
+.notice {
+  padding: 8px 16px;
+  background: var(--warn-soft);
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+  font-size: 14px;
+  text-align: center;
+}
+.notice p { margin: 0; }
+.notice p + p { margin-top: 4px; }
 .count {
   display: inline-block;
   min-width: 1.4em;
@@ -420,7 +434,7 @@ mark { background: var(--warn-soft); color: inherit; padding: 0 1px; }
 @media (max-width: 800px) {
   .layout, body.builder-open .layout { grid-template-columns: minmax(0, 1fr); }
   .nav-toggle { display: inline-block; }
-  .brand span, .version { display: none; }
+  .brand span, .version, .docs-link .label { display: none; }
   .sidebar {
     display: none;
     position: fixed;
