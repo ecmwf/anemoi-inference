@@ -19,7 +19,9 @@
    This is placeholder documentation. This will explain how to use the
    GRIB output's behaviour can be configured.
 
-The ``grib`` output can be used to specify many more options:
+The ``grib`` output can be used to specify many more options. See `grib
+<../../config-reference/index.html#/outputs/grib>`__ in the configuration
+reference for all of them.
 
 .. literalinclude:: yaml/grib-output_1.yaml
 
@@ -103,7 +105,9 @@ order).
  Template providers
 ********************
 
-The following template providers are available:
+The following template providers are available. Their options are also
+listed in the `configuration reference
+<../../config-reference/index.html#/grib_templates>`__.
 
 ``input``
 =========

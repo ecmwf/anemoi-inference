@@ -1,0 +1,16 @@
+name: extract-from-state
+status: AI-reviewed
+summary: Extract a subset of points based on a mask included in the state.
+description: |
+  Must be used with the `cutout` input. This is particularly useful for extracting Limited Area Model (LAM)
+  domains from nested grid forecasts.
+
+  For more information on using `extract_from_state` with the `cutout` input, see the
+  [inputs guide](../inference/configs/inputs.html).
+positional: cutout_source
+fields:
+  cutout_source:
+    type: str
+    required: true
+    description: The source to use for the cutout mask for extraction.
+see_also: [inputs/cutout]

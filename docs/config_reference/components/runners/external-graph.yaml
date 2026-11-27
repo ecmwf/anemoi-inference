@@ -1,0 +1,37 @@
+name: external-graph
+status: reviewed
+summary: Runner where the graph saved in the checkpoint is replaced by an externally provided one. Currently only
+  supported as an extension of the forecaster runner.
+description: |
+  Runs inference using an external graph. See the
+  [external graph guide](../inference/external-graph.html) for full documentation.
+positional: graph
+fields:
+  graph:
+    type: str
+    required: true
+    description: Path to the external graph.
+  output_mask:
+    type: dict
+    default: {}
+    description: Dictionary specifying the output mask.
+  graph_dataset:
+    type: Any
+    description: Argument to open_dataset of anemoi-datasets that recreates the dataset used to build the data nodes
+      of the graph.
+  update_supporting_arrays:
+    type: dict[Literal['graph', 'file'], dict[str, str]]
+    description: 'Dictionary specifying how to update the supporting arrays in the checkpoint metadata. Allows both
+      ''graph'' and ''file'' as keys. - ''graph'': Will pull from the graph[''data''] dictionary, key refers to
+      the name in the supporting arrays, and value refers to the name in the graph[''data'']. - ''file'': Will pull
+      from the file system, key refers to the name in the supporting arrays, and value refers to the path to the
+      file containing the numpy array. Can be torch.load() or np.load() compatible.'
+  updated_number_of_grid_points:
+    type: str | int
+    description: If the number of grid points in the graph is different from that in the checkpoint, this can be
+      used to update the number of grid points in the checkpoint metadata. If is a str, will be used as a key to
+      the graph['data'] dictionary. If is an int, will be used as the number of grid points.
+  check_state_dict:
+    type: bool
+    default: true
+    description: Boolean specifying if reconstruction of statedict happens as expeceted.

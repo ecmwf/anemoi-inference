@@ -1,0 +1,11 @@
+# ERA5 initial conditions from MARS
+#
+# Any key that is not an option of the `mars` input is added to the MARS request. Here `class: ea` selects ERA5.
+checkpoint: /path/to/checkpoint.ckpt
+date: 2023-07-01T00:00:00
+input:
+  mars:
+    class: ea
+    log: false
+output:
+  grib: forecast.grib

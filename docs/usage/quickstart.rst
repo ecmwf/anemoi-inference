@@ -62,7 +62,10 @@ Primarily, the configuration file should specify:
       -  Output data destination.
 
 For more details on the configuration options, please refer to the
-:ref:`configuration reference <config_introduction>` documentation.
+:ref:`configuration <config_introduction>` documentation. The
+:ref:`configuration reference <config-reference>` lists every option,
+and its `builder <../config-reference/index.html>`__ can assemble a
+configuration file for you.
 
 *************
  Environment

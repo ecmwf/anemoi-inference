@@ -1,0 +1,7 @@
+name: auto
+status: reviewed
+summary: Automatically select the correct Runner from the metadata `task` setting.
+description: |
+  Selects the runner from the `task` entry in the checkpoint metadata. This is the default runner.
+fields: {}
+extra_fields: Other options are passed on unchanged to the underlying implementation.

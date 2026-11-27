@@ -1,0 +1,11 @@
+summary: Options accepted by every input.
+fields:
+  variables:
+    type: list[str]
+    description: |
+      Variables to read. Defaults to the variables the model needs from this input, so it is rarely set by hand.
+  pre_processors:
+    type: list of pre-processors
+    ref: pre_processors
+    many: true
+    description: Pre-processors applied to the fields of this input only, before the top-level `pre_processors`.

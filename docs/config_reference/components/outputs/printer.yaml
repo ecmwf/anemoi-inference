@@ -1,0 +1,22 @@
+name: printer
+title: Printer
+status: AI-reviewed
+summary: Print a short summary of each forecast step to the log or a text file.
+description: |
+  The default output. Useful to check that a configuration runs before writing real files. For each step, it prints
+  the date and the minimum and maximum of a few variables.
+positional: max_lines
+inherits: [outputs/_common]
+fields:
+  max_lines:
+    type: int
+    default: 4
+    description: Number of variables printed per step. Use `-1` to print all. Ignored if `variables` is set.
+  path:
+    type: path
+    description: Write to this text file instead of the log. Missing parent directories are created.
+    example: forecast-summary.txt
+  variables:
+    type: str | list | mapping
+    description: Variables to print. Use `all` to print every variable. Otherwise, as for any output (see below).
+    example: [2t, msl]

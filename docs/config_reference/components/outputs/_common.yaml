@@ -1,0 +1,30 @@
+summary: Options accepted by every output.
+fields:
+  variables:
+    type: str | list | mapping
+    description: |
+      Which variables to write. Defaults to all. Give a name or list to keep only those variables, or a mapping with
+      either `select` or `drop`. Entries are variable names, glob patterns such as `"t_*"`, or mappings of MARS keys
+      such as `{levtype: pl, levelist: [500, 850]}`, where every key must match.
+
+      ```yaml
+      variables:
+        drop: ["*_50", {levtype: sfc}]
+      ```
+
+      Quote patterns starting with `*`, otherwise YAML reads them as aliases. Names that match nothing are ignored.
+    example: [2t, msl, z_500]
+  post_processors:
+    type: list of post-processors
+    ref: post_processors
+    many: true
+    description: Post-processors applied to this output only, after the top-level `post_processors`.
+  output_frequency:
+    type: str | int
+    default_text: top-level `output_frequency`
+    description: Write only every Nth hour of the forecast, such as `6h`. An integer is a number of hours.
+    example: 6h
+  write_initial_state:
+    type: bool
+    default_text: top-level `write_initial_state`
+    description: Whether this output writes the initial conditions as step zero.

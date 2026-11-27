@@ -1,0 +1,21 @@
+name: parallel
+status: reviewed
+summary: Creates a ParallelRunner with a dynamic base class.
+description: |
+  Distributes the model across multiple devices. See the
+  [parallel inference guide](../inference/parallel.html) for full documentation.
+positional: base_runner
+fields:
+  args:
+    type: list
+    description: 'Values given in the short `name: [...]` form.'
+  base_runner:
+    type: str
+    ref: runners
+    default: default
+    description: The base runner to use for the parallel runner. Must subclass from at least `DefaultRunner`.
+  cluster:
+    type: str | dict[str, str] | ComputeClient
+    ref: clusters
+    description: The cluster configuration or instance to use for distributed inference, by default None
+extra_fields: Other options are passed on unchanged to the underlying implementation.

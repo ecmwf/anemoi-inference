@@ -1,0 +1,9 @@
+# Write every other grid point
+#
+# Only the Zarr output receives the sliced state.
+checkpoint: /path/to/checkpoint.ckpt
+output:
+  zarr:
+    store: path/to/zarr/store.zarr
+    post_processors:
+      - extract_slice: [0, null, 2]  # Every other point from start

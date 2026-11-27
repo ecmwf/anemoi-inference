@@ -1,0 +1,9 @@
+# Print every variable to a file
+#
+# Handy to check the range of each field without writing GRIB or NetCDF.
+checkpoint: /path/to/checkpoint.ckpt
+input: mars
+output:
+  printer:
+    variables: all
+    path: summary.txt

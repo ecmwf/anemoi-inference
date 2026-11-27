@@ -1,0 +1,9 @@
+name: forecaster
+status: reviewed
+summary: Run forecasting from the checkpoint. This is the standard runner for production forecasts.
+aliases:
+- default
+- offset-forecaster
+fields: {}
+hidden:
+- classes

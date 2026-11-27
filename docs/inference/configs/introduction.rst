@@ -17,6 +17,13 @@ configuration also provide ways to specify which internal classes to use
 for the :ref:`inputs <inputs>` and :ref:`outputs <outputs>`, and how to
 configure them.
 
+.. tip::
+
+   The :ref:`configuration reference <config-reference>` lists every
+   option, and its builder assembles a ``config.yaml`` you can download.
+   `Open the configuration builder
+   <../../config-reference/index.html>`__.
+
 In that case, the general format is shown below. The first entry
 (``mars`` or ``grib`` in the examples below) corresponds to the
 underlying Python class that will be used to process the input, output

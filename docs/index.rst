@@ -120,6 +120,7 @@ Get more information in the :ref:`installing <installing>` section.
    inference/external-graph
    inference/input-types
    inference/configs/introduction
+   inference/configs/reference
 
 .. toctree::
    :maxdepth: 1
@@ -150,10 +151,6 @@ Get more information in the :ref:`installing <installing>` section.
    :hidden:
    :caption: API Reference
 
-   modules/runner
    modules/checkpoint
    modules/forcings
-   modules/inputs
    modules/metadata
-   modules/outputs
-   modules/processor

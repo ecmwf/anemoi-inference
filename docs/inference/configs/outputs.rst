@@ -4,6 +4,12 @@
  Outputs
 #########
 
+.. tip::
+
+   Every output and its options are listed in the
+   `configuration reference <../../config-reference/index.html#/outputs>`__,
+   where the builder can also add them to a ``config.yaml``.
+
 *********************
  Common Parameters
 *********************
@@ -84,45 +90,9 @@ Common use cases include:
 - Accumulating fields with ``accumulate_from_start_of_forecast``
 - Assigning data to masked regions with ``assign_mask``
 
-Extracting Subsets
--------------------
-
-Several post-processors are available for extracting subsets of the data:
-
-**extract_mask**
-  Extracts a subset of points using a boolean mask. The mask can be either
-  the name of a supporting array in the checkpoint or a path to an ``.npy``
-  file containing the boolean mask.
-
-  .. literalinclude:: yaml/outputs_extract_mask.yaml
-     :language: yaml
-
-**extract_slice**
-  Extracts a subset of points using a slice. Provide slice arguments as a list
-  ``[start, stop, step]``. Use ``null`` for default values.
-
-  .. literalinclude:: yaml/outputs_extract_slice.yaml
-     :language: yaml
-
-**extract_from_state**
-  Extracts a subset of points based on masks included in the state. Must be
-  used with the ``Cutout`` input. This is particularly useful for extracting
-  Limited Area Model (LAM) domains from nested grid forecasts.
-
-  .. literalinclude:: yaml/outputs_extract_from_state.yaml
-     :language: yaml
-
-  For more information on using ``extract_from_state`` with the ``Cutout``
-  input, see :ref:`inputs`.
-
-**assign_mask**
-  Assigns the state to a larger array using a mask. This is the opposite of
-  ``extract_mask`` - instead of extracting a smaller area, it assigns data
-  to a portion of a larger area. Areas not covered by the mask are filled
-  with a specified value (NaN by default).
-
-  .. literalinclude:: yaml/outputs_assign_mask.yaml
-     :language: yaml
+See :ref:`inference-processors` and the `configuration reference
+<../../config-reference/index.html#/post_processors>`__ for the options
+of each post-processor.
 
 output_frequency
 ================
@@ -166,6 +136,9 @@ This is the default output. It prints the values minimum and maximum
 values of a few fields for each forecasting time step. It does not take
 any parameters.
 
+See `printer <../../config-reference/index.html#/outputs/printer>`__ in
+the configuration reference for all options.
+
 .. literalinclude:: yaml/outputs_1.yaml
    :language: yaml
 
@@ -188,6 +161,9 @@ Example of output:
 ******
 
 The `grib` output writes the output to a GRIB file.
+
+See `grib <../../config-reference/index.html#/outputs/grib>`__ in the
+configuration reference for all options.
 
 .. literalinclude:: yaml/outputs_2.yaml
    :language: yaml
@@ -226,6 +202,9 @@ basic, and the code does not attempt rebuild 3D fields from 2D fields.
 The only coordinates are `latitude`, `longitude` and `time`. Each state
 variable is written in its own NetCDF variable.
 
+See `netcdf <../../config-reference/index.html#/outputs/netcdf>`__ in
+the configuration reference for all options.
+
 .. literalinclude:: yaml/outputs_3.yaml
    :language: yaml
 
@@ -239,6 +218,9 @@ The netcdf output supports all common parameters including ``variables``,
 The `zarr` output writes the output to a Zarr file. The encoding is
 basic, and does not attempt to rebuild 3D fields from 2D fields. The
 only coordinates are `latitude`, `longitude` and `time`.
+
+See `zarr <../../config-reference/index.html#/outputs/zarr>`__ in the
+configuration reference for all options.
 
 Each state variable is written in its own Zarr array.
 
@@ -256,6 +238,9 @@ are produced in a directory, and the file are name according to a
 template. They are produced with `earthkit-plots`. You can specify which
 variables are plotted, and the domain to be shown.
 
+See `plot <../../config-reference/index.html#/outputs/plot>`__ in the
+configuration reference for all options.
+
 .. literalinclude:: yaml/outputs_4.yaml
    :language: yaml
 
@@ -270,6 +255,9 @@ limit which fields are visualised.
 
 The raw output writes the state variables collection of ``npz`` files in
 the given directory.
+
+See `raw <../../config-reference/index.html#/outputs/raw>`__ in the
+configuration reference for all options.
 
 .. literalinclude:: yaml/outputs_5.yaml
    :language: yaml
@@ -287,6 +275,9 @@ The raw output supports all common parameters including ``variables``,
 *****
 
 The ``tee`` output writes the state to several outputs at once.
+
+See `tee <../../config-reference/index.html#/outputs/tee>`__ in the
+configuration reference for all options.
 
 .. literalinclude:: yaml/outputs_6.yaml
    :language: yaml
@@ -308,6 +299,9 @@ Here's an advanced example showing different options for each output:
 For use with forecasts taking place in the past, the ``truth`` output
 will write out data from an ``input`` class alongside the
 ``predictions``.
+
+See `truth <../../config-reference/index.html#/outputs/truth>`__ in the
+configuration reference for all options.
 
 It is best used with the ``tee`` output, as it will write out the
 ``truth`` data to a separate file. It is capable of using any of the

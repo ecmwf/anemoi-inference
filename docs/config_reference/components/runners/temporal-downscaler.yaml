@@ -1,0 +1,12 @@
+name: temporal-downscaler
+status: reviewed
+summary: A runner to be used for inference of a trained temporal downscaler with multiple output steps.
+description: |
+  Runs a specific trained temporal downscaler model. Unlike the
+  forecaster, the temporal downscaling running and outputs are all done as one step. Can be applied directly on analysis/forecast
+  data without being coupled to a forecasting model.
+fields:
+  fill_timeline_with_input:
+    type: bool
+    default: false
+    description: Also write the input states at window boundaries where the model does not output a prediction.
